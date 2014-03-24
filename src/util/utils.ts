@@ -874,4 +874,19 @@ class PromiseUtils {
 	}
 }
 
+declare var vec4: {
+	create(): number[];
+	fromValues(x: number, y: number, z: number, w: number): number[];
+	transformMat4(out: number[], a: number[], m: number[]): number[]
+};
+
+declare var mat4: {
+	create(): number[];
+	clone(a: number[]): number[];
+	copy(out: number[], a: number[]): number[];
+	identity(a: number[]): number[];
+	multiply(out: number[], a: number[], b: number[]): number[];
+	ortho(out: number[], left: number, right: number, bottom: number, top: number, near: number, far: number): number[];
+};
+
 window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];

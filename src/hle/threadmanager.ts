@@ -13,16 +13,21 @@
             this.programExecutor = new ProgramExecutor(state, instructionCache);
         }
 
-        suspend() {
+		suspend() {
+			//console.log('suspended ' + this.name);
             this.running = false;
             this.manager.eventOcurred();
         }
 
         suspendUntilPromiseDone(promise: Promise<any>) {
-            this.suspend();
+			this.suspend();
+
+			//console.log(promise);
 
             promise.then((result: number) => {
-                if (result !== undefined) this.state.V0 = result;
+				if (result !== undefined) this.state.V0 = result;
+				
+				//console.log('resumed ' + this.name);
                 this.resume();
             });
         }

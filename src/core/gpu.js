@@ -1,132 +1,13 @@
 ﻿///<reference path="./memory.ts" />
 ///<reference path="../util/utils.ts" />
-
 var core;
 (function (core) {
     (function (gpu) {
-        (function (SyncType) {
-            SyncType[SyncType["ListDone"] = 0] = "ListDone";
-            SyncType[SyncType["ListQueued"] = 1] = "ListQueued";
-            SyncType[SyncType["ListDrawingDone"] = 2] = "ListDrawingDone";
-            SyncType[SyncType["ListStallReached"] = 3] = "ListStallReached";
-            SyncType[SyncType["ListCancelDone"] = 4] = "ListCancelDone";
-        })(gpu.SyncType || (gpu.SyncType = {}));
-        var SyncType = gpu.SyncType;
-
-        var GpuFrameBufferState = (function () {
-            function GpuFrameBufferState() {
-                this.lowAddress = 0;
-                this.highAddress = 0;
-                this.width = 0;
-            }
-            return GpuFrameBufferState;
-        })();
-
-        (function (IndexEnum) {
-            IndexEnum[IndexEnum["Void"] = 0] = "Void";
-            IndexEnum[IndexEnum["Byte"] = 1] = "Byte";
-            IndexEnum[IndexEnum["Short"] = 2] = "Short";
-        })(gpu.IndexEnum || (gpu.IndexEnum = {}));
-        var IndexEnum = gpu.IndexEnum;
-
-        (function (NumericEnum) {
-            NumericEnum[NumericEnum["Void"] = 0] = "Void";
-            NumericEnum[NumericEnum["Byte"] = 1] = "Byte";
-            NumericEnum[NumericEnum["Short"] = 2] = "Short";
-            NumericEnum[NumericEnum["Float"] = 3] = "Float";
-        })(gpu.NumericEnum || (gpu.NumericEnum = {}));
-        var NumericEnum = gpu.NumericEnum;
-
-        (function (ColorEnum) {
-            ColorEnum[ColorEnum["Void"] = 0] = "Void";
-            ColorEnum[ColorEnum["Invalid1"] = 1] = "Invalid1";
-            ColorEnum[ColorEnum["Invalid2"] = 2] = "Invalid2";
-            ColorEnum[ColorEnum["Invalid3"] = 3] = "Invalid3";
-            ColorEnum[ColorEnum["Color5650"] = 4] = "Color5650";
-            ColorEnum[ColorEnum["Color5551"] = 5] = "Color5551";
-            ColorEnum[ColorEnum["Color4444"] = 6] = "Color4444";
-            ColorEnum[ColorEnum["Color8888"] = 7] = "Color8888";
-        })(gpu.ColorEnum || (gpu.ColorEnum = {}));
-        var ColorEnum = gpu.ColorEnum;
-
-        function IndexEnumGetSize(item) {
-            switch (item) {
-                case 0 /* Void */:
-                    return 0;
-                case 1 /* Byte */:
-                    return 1;
-                case 2 /* Short */:
-                    return 2;
-                default:
-                    throw ("Invalid enum");
-            }
-        }
-
-        function NumericEnumGetSize(item) {
-            switch (item) {
-                case 0 /* Void */:
-                    return 0;
-                case 1 /* Byte */:
-                    return 1;
-                case 2 /* Short */:
-                    return 2;
-                case 3 /* Float */:
-                    return 4;
-                default:
-                    throw ("Invalid enum");
-            }
-        }
-
-        function ColorEnumGetSize(item) {
-            switch (item) {
-                case 0 /* Void */:
-                    return 0;
-                case 4 /* Color5650 */:
-                    return 2;
-                case 5 /* Color5551 */:
-                    return 2;
-                case 6 /* Color4444 */:
-                    return 2;
-                case 7 /* Color8888 */:
-                    return 4;
-                default:
-                    throw ("Invalid enum");
-            }
-        }
-
-        var Vertex = (function () {
-            function Vertex() {
-                this.px = 0.0;
-                this.py = 0.0;
-                this.pz = 0.0;
-                this.nx = 0.0;
-                this.ny = 0.0;
-                this.nz = 0.0;
-                this.tx = 0.0;
-                this.ty = 0.0;
-                this.tz = 0.0;
-                this.r = 0.0;
-                this.g = 0.0;
-                this.b = 0.0;
-                this.a = 1.0;
-                this.w0 = 0.0;
-                this.w1 = 0.0;
-                this.w2 = 0.0;
-                this.w3 = 0.0;
-                this.w4 = 0.0;
-                this.w5 = 0.0;
-                this.w6 = 0.0;
-                this.w7 = 0.0;
-            }
-            return Vertex;
-        })();
-        gpu.Vertex = Vertex;
-
         var VertexBuffer = (function () {
             function VertexBuffer() {
                 this.vertices = [];
                 for (var n = 0; n < 1024; n++)
-                    this.vertices[n] = new Vertex();
+                    this.vertices[n] = new core.gpu.Vertex();
             }
             return VertexBuffer;
         })();
@@ -134,13 +15,12 @@ var core;
         var VertexReaderFactory = (function () {
             function VertexReaderFactory() {
             }
-            VertexReaderFactory.get = function (vertexSize, texture, color, normal, position, weight, index, weightCount, morphingVertexCount, transform2D, textureIndexCount) {
-                if (typeof textureIndexCount === "undefined") { textureIndexCount = 2; }
-                var cacheId = [vertexSize, texture, color, normal, position, weight, index, weightCount, morphingVertexCount, transform2D, textureIndexCount].join('_');
+            VertexReaderFactory.get = function (vertexState) {
+                var cacheId = vertexState.hash;
                 var vertexReader = this.cache[cacheId];
                 if (vertexReader !== undefined)
                     return vertexReader;
-                return this.cache[cacheId] = new VertexReader(vertexSize, texture, color, normal, position, weight, index, weightCount, morphingVertexCount, transform2D, textureIndexCount);
+                return this.cache[cacheId] = new VertexReader(vertexState);
             };
             VertexReaderFactory.cache = {};
             return VertexReaderFactory;
@@ -148,19 +28,8 @@ var core;
         gpu.VertexReaderFactory = VertexReaderFactory;
 
         var VertexReader = (function () {
-            function VertexReader(vertexSize, texture, color, normal, position, weight, index, weightCount, morphingVertexCount, transform2D, textureIndexCount) {
-                if (typeof textureIndexCount === "undefined") { textureIndexCount = 2; }
-                this.vertexSize = vertexSize;
-                this.texture = texture;
-                this.color = color;
-                this.normal = normal;
-                this.position = position;
-                this.weight = weight;
-                this.index = index;
-                this.weightCount = weightCount;
-                this.morphingVertexCount = morphingVertexCount;
-                this.transform2D = transform2D;
-                this.textureIndexCount = textureIndexCount;
+            function VertexReader(vertexState) {
+                this.vertexState = vertexState;
                 this.readOffset = 0;
                 this.readCode = this.createJs();
                 this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
@@ -169,7 +38,7 @@ var core;
                 var inputOffset = 0;
                 for (var n = 0; n < count; n++) {
                     this.readOneFunc(output[n], input, inputOffset);
-                    inputOffset += this.vertexSize;
+                    inputOffset += this.vertexState.size;
                 }
             };
 
@@ -182,11 +51,11 @@ var core;
 
                 this.readOffset = 0;
 
-                this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.weightCount), this.weight, !this.transform2D);
-                this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.textureIndexCount), this.texture, !this.transform2D);
-                this.createColorJs(indentStringGenerator, this.color);
-                this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.normal, !this.transform2D);
-                this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.position, !this.transform2D);
+                this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
+                this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
+                this.createColorJs(indentStringGenerator, this.vertexState.color);
+                this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
+                this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
 
                 return indentStringGenerator.output;
             };
@@ -247,327 +116,6 @@ var core;
         })();
         gpu.VertexReader = VertexReader;
 
-        var VertexState = (function () {
-            function VertexState() {
-                this.address = 0;
-                this._value = 0;
-                this.reversedNormal = false;
-                this.textureComponentCount = 2;
-            }
-            Object.defineProperty(VertexState.prototype, "value", {
-                get: function () {
-                    return this._value;
-                },
-                set: function (value) {
-                    this._value = value;
-                    this.size = this.getVertexSize();
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-
-            VertexState.prototype.getReader = function () {
-                return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount);
-            };
-
-            Object.defineProperty(VertexState.prototype, "hasTexture", {
-                get: function () {
-                    return this.texture != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasColor", {
-                get: function () {
-                    return this.color != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasNormal", {
-                get: function () {
-                    return this.normal != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasPosition", {
-                get: function () {
-                    return this.position != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasWeight", {
-                get: function () {
-                    return this.weight != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasIndex", {
-                get: function () {
-                    return this.index != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "texture", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 0, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "color", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 2, 3);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "normal", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 5, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "position", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 7, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "weight", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 9, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "index", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 11, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "skinningWeightCount", {
-                get: function () {
-                    return BitUtils.extract(this.value, 14, 3);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
-                get: function () {
-                    return BitUtils.extract(this.value, 18, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "transform2D", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 23, 1);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "weightSize", {
-                get: function () {
-                    return NumericEnumGetSize(this.weight);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "colorSize", {
-                get: function () {
-                    return ColorEnumGetSize(this.color);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "textureSize", {
-                get: function () {
-                    return NumericEnumGetSize(this.texture);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "positionSize", {
-                get: function () {
-                    return NumericEnumGetSize(this.position);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "normalSize", {
-                get: function () {
-                    return NumericEnumGetSize(this.normal);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            VertexState.prototype.GetMaxAlignment = function () {
-                return Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
-            };
-
-            Object.defineProperty(VertexState.prototype, "realWeightCount", {
-                get: function () {
-                    return this.skinningWeightCount + 1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "realMorphingVertexCount", {
-                get: function () {
-                    return this.morphingVertexCount + 1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            VertexState.prototype.getVertexSize = function () {
-                var size = 0;
-                size = MathUtils.nextAligned(size, this.weightSize);
-                size += this.realWeightCount * this.weightSize;
-                size = MathUtils.nextAligned(size, this.textureSize);
-                size += this.textureComponentCount * this.textureSize;
-                size = MathUtils.nextAligned(size, this.colorSize);
-                size += 1 * this.colorSize;
-                size = MathUtils.nextAligned(size, this.normalSize);
-                size += 3 * this.normalSize;
-                size = MathUtils.nextAligned(size, this.positionSize);
-                size += 3 * this.positionSize;
-
-                var alignmentSize = this.GetMaxAlignment();
-                size = MathUtils.nextAligned(size, alignmentSize);
-
-                //Console.WriteLine("Size:" + Size);
-                return size;
-            };
-
-            VertexState.prototype.read = function (memory, count) {
-                //console.log('read vertices ' + count);
-                var vertices = [];
-                for (var n = 0; n < count; n++)
-                    vertices.push(this.readOne(memory));
-                return vertices;
-            };
-
-            VertexState.prototype.readOne = function (memory) {
-                var address = this.address;
-                var vertex = {};
-
-                //console.log(vertex);
-                this.address += this.size;
-
-                return vertex;
-            };
-            return VertexState;
-        })();
-        gpu.VertexState = VertexState;
-
-        var Matrix4x4 = (function () {
-            function Matrix4x4() {
-                this.index = 0;
-                this.values = mat4.create();
-            }
-            Matrix4x4.prototype.put = function (value) {
-                this.values[this.index++] = value;
-            };
-
-            Matrix4x4.prototype.reset = function (startIndex) {
-                this.index = startIndex;
-            };
-            return Matrix4x4;
-        })();
-        gpu.Matrix4x4 = Matrix4x4;
-
-        var Matrix4x3 = (function () {
-            function Matrix4x3() {
-                this.index = 0;
-                this.values = mat4.create();
-            }
-            Matrix4x3.prototype.put = function (value) {
-                this.values[Matrix4x3.indices[this.index++]] = value;
-            };
-
-            Matrix4x3.prototype.reset = function (startIndex) {
-                this.index = startIndex;
-            };
-            Matrix4x3.indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
-            return Matrix4x3;
-        })();
-        gpu.Matrix4x3 = Matrix4x3;
-
-        var ViewPort = (function () {
-            function ViewPort() {
-                this.x1 = 0;
-                this.y1 = 0;
-                this.x2 = 0;
-                this.y2 = 0;
-            }
-            return ViewPort;
-        })();
-
-        var Light = (function () {
-            function Light() {
-                this.enabled = false;
-            }
-            return Light;
-        })();
-
-        var Lightning = (function () {
-            function Lightning() {
-                this.enabled = false;
-                this.lights = [new Light(), new Light(), new Light(), new Light()];
-            }
-            return Lightning;
-        })();
-
-        var TextureState = (function () {
-            function TextureState() {
-                this.swizzled = false;
-                this.mipmapShareClut = false;
-                this.mipmapMaxLevel = 0;
-            }
-            return TextureState;
-        })();
-
-        var CullingState = (function () {
-            function CullingState() {
-            }
-            return CullingState;
-        })();
-
-        var GpuState = (function () {
-            function GpuState() {
-                this.clearing = false;
-                this.clearFlags = 0;
-                this.baseAddress = 0;
-                this.baseOffset = 0;
-                this.indexAddress = 0;
-                this.frameBuffer = new GpuFrameBufferState();
-                this.vertex = new VertexState();
-                this.projectionMatrix = new Matrix4x4();
-                this.viewMatrix = new Matrix4x3();
-                this.worldMatrix = new Matrix4x3();
-                this.viewPort = new ViewPort();
-                this.lightning = new Lightning();
-                this.texture = new TextureState();
-                this.culling = new CullingState();
-            }
-            return GpuState;
-        })();
-
         var vertexBuffer = new VertexBuffer();
         var singleCallTest = false;
 
@@ -578,7 +126,7 @@ var core;
                 this.drawDriver = drawDriver;
                 this.runner = runner;
                 this.completed = false;
-                this.state = new GpuState();
+                this.state = new core.gpu.GpuState();
                 this.errorCount = 0;
             }
             PspGpuList.prototype.complete = function () {
@@ -651,6 +199,94 @@ var core;
                         this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
                         this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
                         break;
+                    case 198 /* TFLT */:
+                        this.state.texture.filterMinification = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.filterMagnification = BitUtils.extract(params24, 8, 8);
+                        break;
+                    case 199 /* TWRAP */:
+                        this.state.texture.wrapU = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.wrapV = BitUtils.extract(params24, 8, 8);
+                        break;
+
+                    case 30 /* TME */:
+                        this.state.texture.enabled = (params24 != 0);
+                        break;
+
+                    case 202 /* TEC */:
+                        this.state.texture.envColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+                        this.state.texture.envColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+                        this.state.texture.envColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        break;
+
+                    case 201 /* TFUNC */:
+                        this.state.texture.effect = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
+                        this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
+                        break;
+                    case 74 /* UOFFSET */:
+                        this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+                    case 75 /* VOFFSET */:
+                        this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+
+                    case 72 /* USCALE */:
+                        this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+                    case 73 /* VSCALE */:
+                        this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+
+                    case 203 /* TFLUSH */:
+                        this.drawDriver.textureFlush(this.state);
+                        break;
+                    case 195 /* TPSM */:
+                        this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
+                        break;
+
+                    case 184 /* TSIZE0 */:
+                    case 185 /* TSIZE1 */:
+                    case 186 /* TSIZE2 */:
+                    case 187 /* TSIZE3 */:
+                    case 188 /* TSIZE4 */:
+                    case 189 /* TSIZE5 */:
+                    case 190 /* TSIZE6 */:
+                    case 191 /* TSIZE7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 184 /* TSIZE0 */];
+                        var WidthExp = BitUtils.extract(params24, 0, 4);
+                        var HeightExp = BitUtils.extract(params24, 8, 4);
+                        var UnknownFlag = (BitUtils.extract(params24, 15, 1) != 0);
+                        WidthExp = Math.min(WidthExp, 9);
+                        HeightExp = Math.min(HeightExp, 9);
+                        mipMap.textureWidth = 1 << WidthExp;
+                        mipMap.textureHeight = 1 << HeightExp;
+
+                        break;
+
+                    case 160 /* TBP0 */:
+                    case 161 /* TBP1 */:
+                    case 162 /* TBP2 */:
+                    case 163 /* TBP3 */:
+                    case 164 /* TBP4 */:
+                    case 165 /* TBP5 */:
+                    case 166 /* TBP6 */:
+                    case 167 /* TBP7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 160 /* TBP0 */];
+                        mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
+                        break;
+
+                    case 168 /* TBW0 */:
+                    case 169 /* TBW1 */:
+                    case 170 /* TBW2 */:
+                    case 171 /* TBW3 */:
+                    case 172 /* TBW4 */:
+                    case 173 /* TBW5 */:
+                    case 174 /* TBW6 */:
+                    case 175 /* TBW7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 168 /* TBW0 */];
+                        mipMap.bufferWidth = BitUtils.extract(params24, 0, 24);
+                        mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
+                        break;
 
                     case 62 /* PROJ_START */:
                         this.state.projectionMatrix.reset(params24);
@@ -686,12 +322,13 @@ var core;
                         break;
 
                     case 4 /* PRIM */:
+                        //console.log('GPU PRIM');
                         var primitiveType = BitUtils.extractEnum(params24, 16, 3);
                         var vertexCount = BitUtils.extract(params24, 0, 16);
                         var vertexState = this.state.vertex;
                         var vertexSize = this.state.vertex.size;
                         var vertexAddress = this.state.baseAddress + this.state.vertex.address;
-                        var vertexReader = vertexState.getReader();
+                        var vertexReader = VertexReaderFactory.get(vertexState);
                         var vertexInput = this.memory.getPointerDataView(vertexAddress);
                         var vertices = vertexBuffer.vertices;
                         vertexReader.readCount(vertices, vertexInput, vertexCount);
@@ -723,7 +360,7 @@ var core;
                                 console.error(sprintf('Stop showing gpu errors'));
                             }
                         } else {
-                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+                            console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
                         }
                 }
 
@@ -776,11 +413,11 @@ var core;
             return PspGpuList;
         })();
 
-        var CullingDirection;
         (function (CullingDirection) {
             CullingDirection[CullingDirection["CounterClockWise"] = 0] = "CounterClockWise";
             CullingDirection[CullingDirection["ClockWise"] = 1] = "ClockWise";
-        })(CullingDirection || (CullingDirection = {}));
+        })(gpu.CullingDirection || (gpu.CullingDirection = {}));
+        var CullingDirection = gpu.CullingDirection;
 
         var PspGpuListRunner = (function () {
             function PspGpuListRunner(memory, drawDriver) {
@@ -822,256 +459,11 @@ var core;
             return PspGpuListRunner;
         })();
 
-        var Context2dPspDrawDriver = (function () {
-            function Context2dPspDrawDriver(memory, canvas) {
-                this.memory = memory;
-                this.canvas = canvas;
-                this.transformMatrix = mat4.create();
-                this.test11 = false;
-                //this.gl = this.canvas.getContext('webgl');
-                this.context = this.canvas.getContext('2d');
-            }
-            Context2dPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
-                this.clearing = clearing;
-            };
-
-            Context2dPspDrawDriver.prototype.setMatrices = function (projectionMatrix, viewMatrix, worldMatrix) {
-                this.projectionMatrix = projectionMatrix;
-                this.viewMatrix = viewMatrix;
-                this.worldMatrix = worldMatrix;
-
-                //mat4.copy(this.transformMatrix, this.projectionMatrix.values);
-                mat4.identity(this.transformMatrix);
-                mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
-                mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
-                mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
-            };
-
-            Context2dPspDrawDriver.prototype.setState = function (state) {
-            };
-
-            Context2dPspDrawDriver.prototype.transformVertex = function (vertex, vertexState) {
-                if (vertexState.transform2D) {
-                    return {
-                        x: vertex.px,
-                        y: vertex.py
-                    };
-                }
-                var o = vec4.transformMat4(vec4.create(), vec4.fromValues(vertex.px, vertex.py, vertex.pz, 0), this.transformMatrix);
-                return {
-                    x: o[0] * 480 / 2 + 480 / 2,
-                    y: o[1] * 272 / 2 + 272 / 2
-                };
-            };
-
-            Context2dPspDrawDriver.prototype.drawSprites = function (vertices, count, vertexState) {
-                this.context.fillStyle = this.clearing ? 'black' : 'red';
-                for (var n = 0; n < count; n += 2) {
-                    var a = this.transformVertex(vertices[n + 0], vertexState);
-                    var b = this.transformVertex(vertices[n + 1], vertexState);
-                    this.context.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
-                }
-            };
-
-            Context2dPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
-                switch (primitiveType) {
-                    case 6 /* Sprites */:
-                        this.drawSprites(vertices, count, vertexState);
-                        break;
-                    case 3 /* Triangles */:
-                        this.drawTriangles(vertices, count, vertexState);
-                        break;
-                }
-            };
-
-            Context2dPspDrawDriver.prototype.drawTriangles = function (vertices, count, vertexState) {
-                this.context.fillStyle = this.clearing ? 'black' : 'red';
-                this.context.beginPath();
-
-                if (!this.test11) {
-                    this.test11 = true;
-                    console.log(vertices[0]);
-                    console.log(vertices[1]);
-                    console.log(vertices[2]);
-                }
-
-                for (var n = 0; n < count; n += 3) {
-                    //console.log(n);
-                    var v0 = this.transformVertex(vertices[n + 0], vertexState);
-                    var v1 = this.transformVertex(vertices[n + 1], vertexState);
-                    var v2 = this.transformVertex(vertices[n + 2], vertexState);
-                    this.context.moveTo(v0.x, v0.y);
-                    this.context.lineTo(v1.x, v1.y);
-                    this.context.lineTo(v2.x, v2.y);
-                }
-                this.context.fill();
-            };
-            return Context2dPspDrawDriver;
-        })();
-
-        var WebGlPspDrawDriver = (function () {
-            function WebGlPspDrawDriver(memory, canvas) {
-                this.memory = memory;
-                this.canvas = canvas;
-                this.transformMatrix = mat4.create();
-                this.transformMatrix2d = mat4.create();
-                this.gl = this.canvas.getContext('experimental-webgl');
-                if (!this.gl) {
-                    this.canvas.getContext('webgl');
-                }
-                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-                this.program = WebGlPspDrawDriver.shaderProgram(this.gl, [
-                    "uniform mat4 u_modelViewProjMatrix;",
-                    "attribute vec3 vPosition;",
-                    "attribute vec4 vColor;",
-                    "varying vec4 v_Color;",
-                    "void main() {",
-                    "   v_Color = vColor;",
-                    "	gl_Position = u_modelViewProjMatrix * vec4(vPosition, 1.0);",
-                    "}"
-                ].join("\n"), [
-                    "precision mediump float;",
-                    "varying vec4 v_Color;",
-                    "void main() {",
-                    "	gl_FragColor = v_Color;",
-                    "}"
-                ].join("\n"));
-
-                this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, -1000, +1000);
-            }
-            WebGlPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
-                this.clearing = clearing;
-            };
-
-            WebGlPspDrawDriver.prototype.setMatrices = function (projectionMatrix, viewMatrix, worldMatrix) {
-                this.projectionMatrix = projectionMatrix;
-                this.viewMatrix = viewMatrix;
-                this.worldMatrix = worldMatrix;
-
-                //mat4.copy(this.transformMatrix, this.projectionMatrix.values);
-                mat4.identity(this.transformMatrix);
-                mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
-                mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
-                mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
-            };
-
-            WebGlPspDrawDriver.prototype.enableDisable = function (type, enable) {
-                if (enable)
-                    this.gl.enable(type);
-                else
-                    this.gl.disable(type);
-                return enable;
-            };
-
-            WebGlPspDrawDriver.prototype.setState = function (state) {
-                if (this.enableDisable(this.gl.CULL_FACE, state.culling.enabled)) {
-                    this.gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? this.gl.FRONT : this.gl.BACK);
-                }
-            };
-
-            WebGlPspDrawDriver.prototype.drawSprites = function (vertices, count, vertexState) {
-            };
-
-            WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
-                if (primitiveType == 6 /* Sprites */) {
-                    return this.drawSprites(vertices, count, vertexState);
-                }
-
-                //console.log(primitiveType);
-                var gl = this.gl;
-
-                gl.useProgram(this.program);
-
-                var positionData = [];
-                var colorData = [];
-                for (var n = 0; n < count; n++) {
-                    var v = vertices[n];
-                    positionData.push(v.px);
-                    positionData.push(v.py);
-                    positionData.push(v.pz);
-
-                    if (vertexState.hasColor) {
-                        colorData.push(v.r);
-                        colorData.push(v.g);
-                        colorData.push(v.b);
-                        colorData.push(v.a);
-                    } else {
-                        colorData.push(1);
-                        colorData.push(1);
-                        colorData.push(1);
-                        colorData.push(1);
-                    }
-                }
-
-                WebGlPspDrawDriver.attributeSetFloats(gl, this.program, "vColor", 4, colorData);
-                WebGlPspDrawDriver.attributeSetFloats(gl, this.program, "vPosition", 3, positionData);
-                WebGlPspDrawDriver.uniformSetMat4(gl, this.program, 'u_modelViewProjMatrix', vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
-
-                switch (primitiveType) {
-                    case 0 /* Points */:
-                        gl.drawArrays(gl.POINTS, 0, count);
-                        break;
-                    case 1 /* Lines */:
-                        gl.drawArrays(gl.LINES, 0, count);
-                        break;
-                    case 2 /* LineStrip */:
-                        gl.drawArrays(gl.LINE_STRIP, 0, count);
-                        break;
-                    case 3 /* Triangles */:
-                        gl.drawArrays(gl.TRIANGLES, 0, count);
-                        break;
-                    case 4 /* TriangleStrip */:
-                        gl.drawArrays(gl.TRIANGLE_STRIP, 0, count);
-                        break;
-                    case 5 /* TriangleFan */:
-                        gl.drawArrays(gl.TRIANGLE_FAN, 0, count);
-                        break;
-                }
-
-                gl.disableVertexAttribArray(gl.getAttribLocation(this.program, 'vPosition'));
-                gl.disableVertexAttribArray(gl.getAttribLocation(this.program, 'vColor'));
-            };
-
-            WebGlPspDrawDriver.uniformSetMat4 = function (gl, prog, uniform_name, arr) {
-                var loc = gl.getUniformLocation(prog, uniform_name);
-                gl.uniformMatrix4fv(loc, false, new Float32Array(arr));
-            };
-
-            WebGlPspDrawDriver.attributeSetFloats = function (gl, prog, attr_name, rsize, arr) {
-                gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-                var varr = new Float32Array(arr);
-                gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
-                var attr = gl.getAttribLocation(prog, attr_name);
-                gl.enableVertexAttribArray(attr);
-                gl.vertexAttribPointer(attr, rsize, gl.FLOAT, false, 0, 0);
-            };
-
-            WebGlPspDrawDriver.shaderProgram = function (gl, vs, fs) {
-                var prog = gl.createProgram();
-                var addshader = function (type, source) {
-                    var s = gl.createShader((type == 'vertex') ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER);
-                    gl.shaderSource(s, source);
-                    gl.compileShader(s);
-                    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-                        throw (new Error("Could not compile " + type + " shader:\n\n" + gl.getShaderInfoLog(s)));
-                    gl.attachShader(prog, s);
-                };
-                addshader('vertex', vs);
-                addshader('fragment', fs);
-                gl.linkProgram(prog);
-                if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
-                    throw (new Error("Could not link the shader program!"));
-                return prog;
-            };
-            return WebGlPspDrawDriver;
-        })();
-
         var PspGpu = (function () {
             function PspGpu(memory, canvas) {
                 this.memory = memory;
                 this.canvas = canvas;
-                this.driver = new WebGlPspDrawDriver(memory, canvas);
+                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, canvas);
 
                 //this.driver = new Context2dPspDrawDriver(memory, canvas);
                 this.listRunner = new PspGpuListRunner(memory, this.driver);
@@ -1104,6 +496,7 @@ var core;
             };
 
             PspGpu.prototype.drawSync = function (syncType) {
+                //console.log('drawSync');
                 return this.listRunner.waitAsync();
             };
             return PspGpu;

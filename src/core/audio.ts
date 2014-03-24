@@ -4,7 +4,12 @@ module core {
 	export class PspAudioBuffer {
 		offset: number = 0;
 
-		constructor(public readedCallback: Function, public data: Float32Array) {
+		constructor(private readedCallback: Function, public data: Float32Array) {
+		}
+
+		resolve() {
+			if (this.readedCallback) this.readedCallback();
+			this.readedCallback = null;
 		}
 
 		get hasMore() { return this.offset < this.length; }
@@ -48,7 +53,7 @@ module core {
 					if (this.buffers.length == 0) break;
 
 					this.currentBuffer = this.buffers.shift();
-					this.currentBuffer.readedCallback();
+					this.currentBuffer.resolve();
 				}
 
 				if (this.currentBuffer.available >= 2) {
@@ -67,7 +72,6 @@ module core {
 				} else {
 					resolved();
 				}
-				return 0;
 			});
 		}
 	}

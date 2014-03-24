@@ -1,17 +1,21 @@
 ﻿describe('gpu', function () {
     describe('vertex reading', function () {
         it('should work', function () {
-            var texture = 0 /* Void */;
-            var color = 0 /* Void */;
-            var normal = 0 /* Void */;
-            var position = 2 /* Short */;
-            var weight = 0 /* Void */;
-            var index = 0 /* Void */;
-            var weightCount = 1;
-            var morphingVertexCount = 1;
-            var transform2D = true;
-            var textureIndexCount = 2;
-            var vertexReader = core.gpu.VertexReaderFactory.get(10, texture, color, normal, position, weight, index, weightCount, morphingVertexCount, transform2D, textureIndexCount);
+            var vertexState = new core.gpu.VertexState();
+            vertexState.size = 10;
+
+            vertexState.texture = 0 /* Void */;
+            vertexState.color = 0 /* Void */;
+            vertexState.normal = 0 /* Void */;
+            vertexState.position = 2 /* Short */;
+            vertexState.weight = 0 /* Void */;
+            vertexState.index = 0 /* Void */;
+            vertexState.weightCount = 1;
+            vertexState.morphingVertexCount = 1;
+            vertexState.transform2D = true;
+            vertexState.textureComponentCount = 2;
+
+            var vertexReader = core.gpu.VertexReaderFactory.get(vertexState);
 
             var vertexInput = new DataView(new ArrayBuffer(128));
             vertexInput.setInt16(0, 100, true);

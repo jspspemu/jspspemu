@@ -1,17 +1,21 @@
 ﻿describe('gpu', () => {
     describe('vertex reading', () => {
-        it('should work', () => {
-			var texture = core.gpu.NumericEnum.Void;
-			var color = core.gpu.ColorEnum.Void;
-			var normal = core.gpu.NumericEnum.Void;
-			var position = core.gpu.NumericEnum.Short;
-			var weight = core.gpu.NumericEnum.Void;
-			var index = core.gpu.IndexEnum.Void;
-            var weightCount = 1;
-            var morphingVertexCount = 1;
-            var transform2D = true;
-            var textureIndexCount = 2;
-			var vertexReader = core.gpu.VertexReaderFactory.get(10, texture, color, normal, position, weight, index, weightCount, morphingVertexCount, transform2D, textureIndexCount);
+		it('should work', () => {
+			var vertexState = new core.gpu.VertexState();
+			vertexState.size = 10;
+		
+			vertexState.texture = core.gpu.NumericEnum.Void;
+			vertexState.color = core.gpu.ColorEnum.Void;
+			vertexState.normal = core.gpu.NumericEnum.Void;
+			vertexState.position = core.gpu.NumericEnum.Short;
+			vertexState.weight = core.gpu.NumericEnum.Void;
+			vertexState.index = core.gpu.IndexEnum.Void;
+			vertexState.weightCount = 1;
+			vertexState.morphingVertexCount = 1;
+			vertexState.transform2D = true;
+			vertexState.textureComponentCount = 2;
+
+			var vertexReader = core.gpu.VertexReaderFactory.get(vertexState);
 
             var vertexInput = new DataView(new ArrayBuffer(128));
             vertexInput.setInt16(0, 100, true);

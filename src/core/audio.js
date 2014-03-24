@@ -7,6 +7,12 @@ var core;
             this.data = data;
             this.offset = 0;
         }
+        PspAudioBuffer.prototype.resolve = function () {
+            if (this.readedCallback)
+                this.readedCallback();
+            this.readedCallback = null;
+        };
+
         Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
             get: function () {
                 return this.offset < this.length;
@@ -73,7 +79,7 @@ var core;
                         break;
 
                     this.currentBuffer = this.buffers.shift();
-                    this.currentBuffer.readedCallback();
+                    this.currentBuffer.resolve();
                 }
 
                 if (this.currentBuffer.available >= 2) {
@@ -93,7 +99,6 @@ var core;
                 } else {
                     resolved();
                 }
-                return 0;
             });
         };
         return PspAudioChannel;

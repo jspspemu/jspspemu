@@ -159,3 +159,5 @@ $RECYCLE.BIN/
 /samples/*.nam
 /samples/*.til
 /*.iws
+/*.ipr
+/*.iml

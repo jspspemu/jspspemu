@@ -35,6 +35,9 @@
     <TypeScriptCompile Include="src\core\audio.ts" />
     <TypeScriptCompile Include="src\core\cpu\cpu_ast.ts" />
     <TypeScriptCompile Include="src\core\cpu\state.ts" />
+    <TypeScriptCompile Include="src\core\gpu\gpu_c2d.ts" />
+    <TypeScriptCompile Include="src\core\gpu\gpu_webgl.ts" />
+    <TypeScriptCompile Include="src\core\gpu\state.ts" />
     <TypeScriptCompile Include="src\format\cso.ts" />
     <TypeScriptCompile Include="src\format\format.ts" />
     <TypeScriptCompile Include="src\format\pbp.ts" />
@@ -128,6 +131,27 @@
     <Content Include="samples\polyphonic.elf" />
     <Content Include="samples\rtctest.elf" />
     <Content Include="samples\threadstatus.elf" />
+    <Content Include="samples\cube.iso" />
+    <Content Include="samples\lines.pbp" />
+    <Content Include="samples\rtctest.psf" />
+    <Content Include="samples\test.cso" />
+    <Content Include="samples\tests\cpu_alu.expected" />
+    <Content Include="samples\tests\cpu_alu.prx" />
+    <Content Include="samples\tests\cpu_alu.result" />
+    <Content Include="samples\tests\cpu_branch.expected" />
+    <Content Include="samples\tests\cpu_branch.prx" />
+    <Content Include="samples\tests\dmactest.expected" />
+    <Content Include="samples\tests\dmactest.prx" />
+    <Content Include="samples\tests\fcr.expected" />
+    <Content Include="samples\tests\fcr.prx" />
+    <Content Include="samples\tests\fpu.expected" />
+    <Content Include="samples\tests\fpu.prx" />
+    <Content Include="samples\tests\fpu.result" />
+    <Content Include="samples\tests\icache.expected" />
+    <Content Include="samples\tests\icache.prx" />
+    <Content Include="samples\tests\string.expected" />
+    <Content Include="samples\tests\string.prx" />
+    <Content Include="samples\text.elf" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

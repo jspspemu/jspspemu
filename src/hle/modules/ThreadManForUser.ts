@@ -96,6 +96,11 @@
 			return this.eventFlagUids.allocate(eventFlag);
 		});
 
+		sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, (id: number, bitPattern: number) => {
+			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSetEventFlag(%d, %08X)', id, bitPattern));
+			return 0;
+		});
+
 		//sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'string/int/int/void*', this, (name: string, attributes: number, bitPattern: number, optionsPtr: Stream) => {
 
 		//[HlePspFunction(NID = 0x402FCF22, FirmwareVersion = 150)]

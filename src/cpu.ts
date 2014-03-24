@@ -136,7 +136,8 @@ class InstructionCache {
             case CpuSpecialAddresses.EXIT_THREAD:
                 return this.cache[address] = function (state: core.cpu.CpuState) {
 					console.log(state);
-					console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD');
+					console.log(state.thread);
+					console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
 					state.thread.stop();
                     throw(new CpuBreakException());
                 };

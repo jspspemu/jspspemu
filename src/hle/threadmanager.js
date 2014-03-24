@@ -14,6 +14,7 @@
             this.programExecutor = new ProgramExecutor(state, instructionCache);
         }
         Thread.prototype.suspend = function () {
+            //console.log('suspended ' + this.name);
             this.running = false;
             this.manager.eventOcurred();
         };
@@ -22,9 +23,12 @@
             var _this = this;
             this.suspend();
 
+            //console.log(promise);
             promise.then(function (result) {
                 if (result !== undefined)
                     _this.state.V0 = result;
+
+                //console.log('resumed ' + this.name);
                 _this.resume();
             });
         };
