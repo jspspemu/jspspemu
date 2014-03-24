@@ -69,17 +69,14 @@ var core;
             if (!this.context || !this.imageData)
                 return;
 
-            var count = 0;
-
+            var count = 512 * 272;
             var imageData = this.imageData;
             var w8 = imageData.data;
-
             var baseAddress = this.address & 0x0FFFFFFF;
 
-            var from8 = this.memory.u8;
-            var from16 = this.memory.u16;
-
-            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, 512 * 272);
+            //var from8 = this.memory.u8;
+            //var from16 = this.memory.u16;
+            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
 
             this.context.putImageData(imageData, 0, 0);
         };
@@ -116,47 +113,51 @@ var core;
     var PixelConverter = (function () {
         function PixelConverter() {
         }
-        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count) {
+        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
             switch (format) {
                 default:
                 case 3 /* RGBA_8888 */:
-                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count);
+                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha);
                     break;
                 case 1 /* RGBA_5551 */:
-                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count);
+                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
                     break;
                 case 2 /* RGBA_4444 */:
-                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count);
+                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
                     break;
             }
         };
 
-        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count) {
+        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
             for (var n = 0; n < count * 4; n += 4) {
                 to[toIndex + n + 0] = from[fromIndex + n + 0];
                 to[toIndex + n + 1] = from[fromIndex + n + 1];
                 to[toIndex + n + 2] = from[fromIndex + n + 2];
-                to[toIndex + n + 3] = from[fromIndex + n + 3];
+                to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
             }
         };
 
-        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count) {
+        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
                 to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
                 to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
                 to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
-                to[toIndex + n + 3] = BitUtils.extractScale(it, 15, 1, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 15, 1, 0xFF) : 0xFF;
             }
         };
 
-        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count) {
+        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
                 to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
                 to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
                 to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
-                to[toIndex + n + 3] = BitUtils.extractScale(it, 12, 4, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 12, 4, 0xFF) : 0xFF;
             }
         };
         return PixelConverter;
