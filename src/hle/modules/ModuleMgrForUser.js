@@ -16,6 +16,10 @@
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
                     return 0;
                 });
+                this.sceKernelGetModuleIdByAddress = hle.modules.createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, function (address) {
+                    console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
+                    return -1;
+                });
             }
             return ModuleMgrForUser;
         })();

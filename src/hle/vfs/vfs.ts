@@ -8,8 +8,27 @@
 		close() { }
 	}
 
+	export enum FileOpenFlags {
+		Read = 0x0001,
+		Write = 0x0002,
+		ReadWrite = Read | Write,
+		NoBlock = 0x0004,
+		_InternalDirOpen = 0x0008, // Internal use for dopen
+		Append = 0x0100,
+		Create = 0x0200,
+		Truncate = 0x0400,
+		Excl = 0x0800,
+		Unknown1 = 0x4000, // something async?
+		NoWait = 0x8000,
+		Unknown2 = 0xf0000, // seen on Wipeout Pure and Infected
+		Unknown3 = 0x2000000, // seen on Puzzle Guzzle, Hammerin' Hero
+	}
+
+	export enum FileMode {
+	}
+
 	export class Vfs {
-		open(path: string): VfsEntry {
+		open(path: string, flags: FileOpenFlags, mode: FileMode): VfsEntry {
 			throw (new Error("Must override open"));
 		}
 	}
@@ -30,7 +49,7 @@
 			super();
 		}
 
-		open(path: string): VfsEntry {
+		open(path: string, flags: FileOpenFlags, mode: FileMode): VfsEntry {
 			return new IsoVfsFile(this.iso.get(path));
 		}
 	}
@@ -53,9 +72,12 @@
 			this.files[name] = data;
 		}
 
-		open(path: string): VfsEntry {
+		open(path: string, flags: FileOpenFlags, mode: FileMode): VfsEntry {
+			if (flags & FileOpenFlags.Write) {
+				this.files[path] = new ArrayBuffer(0);
+			}
 			var file = this.files[path];
-			if (!file) throw(new Error(sprintf("Can't find '%s'", path)));
+			if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
 			return new MemoryVfsEntry(file);
 		}
 	}

@@ -39,10 +39,31 @@ var hle;
         })();
         vfs.VfsEntry = VfsEntry;
 
+        (function (FileOpenFlags) {
+            FileOpenFlags[FileOpenFlags["Read"] = 0x0001] = "Read";
+            FileOpenFlags[FileOpenFlags["Write"] = 0x0002] = "Write";
+            FileOpenFlags[FileOpenFlags["ReadWrite"] = FileOpenFlags.Read | FileOpenFlags.Write] = "ReadWrite";
+            FileOpenFlags[FileOpenFlags["NoBlock"] = 0x0004] = "NoBlock";
+            FileOpenFlags[FileOpenFlags["_InternalDirOpen"] = 0x0008] = "_InternalDirOpen";
+            FileOpenFlags[FileOpenFlags["Append"] = 0x0100] = "Append";
+            FileOpenFlags[FileOpenFlags["Create"] = 0x0200] = "Create";
+            FileOpenFlags[FileOpenFlags["Truncate"] = 0x0400] = "Truncate";
+            FileOpenFlags[FileOpenFlags["Excl"] = 0x0800] = "Excl";
+            FileOpenFlags[FileOpenFlags["Unknown1"] = 0x4000] = "Unknown1";
+            FileOpenFlags[FileOpenFlags["NoWait"] = 0x8000] = "NoWait";
+            FileOpenFlags[FileOpenFlags["Unknown2"] = 0xf0000] = "Unknown2";
+            FileOpenFlags[FileOpenFlags["Unknown3"] = 0x2000000] = "Unknown3";
+        })(vfs.FileOpenFlags || (vfs.FileOpenFlags = {}));
+        var FileOpenFlags = vfs.FileOpenFlags;
+
+        (function (FileMode) {
+        })(vfs.FileMode || (vfs.FileMode = {}));
+        var FileMode = vfs.FileMode;
+
         var Vfs = (function () {
             function Vfs() {
             }
-            Vfs.prototype.open = function (path) {
+            Vfs.prototype.open = function (path, flags, mode) {
                 throw (new Error("Must override open"));
             };
             return Vfs;
@@ -83,7 +104,7 @@ var hle;
                 _super.call(this);
                 this.iso = iso;
             }
-            IsoVfs.prototype.open = function (path) {
+            IsoVfs.prototype.open = function (path, flags, mode) {
                 return new IsoVfsFile(this.iso.get(path));
             };
             return IsoVfs;
@@ -129,10 +150,13 @@ var hle;
                 this.files[name] = data;
             };
 
-            MemoryVfs.prototype.open = function (path) {
+            MemoryVfs.prototype.open = function (path, flags, mode) {
+                if (flags & 2 /* Write */) {
+                    this.files[path] = new ArrayBuffer(0);
+                }
                 var file = this.files[path];
                 if (!file)
-                    throw (new Error(sprintf("Can't find '%s'", path)));
+                    throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
                 return new MemoryVfsEntry(file);
             };
             return MemoryVfs;

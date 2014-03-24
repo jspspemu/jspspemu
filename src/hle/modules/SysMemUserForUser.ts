@@ -37,5 +37,9 @@
 		sceKernelSetCompilerVersion = createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, (version: number) => {
 			console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
 		});
+
+		sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'string', this, (format: string) => {
+			console.info('sceKernelPrintf: ' + format);
+		});
     }
 }

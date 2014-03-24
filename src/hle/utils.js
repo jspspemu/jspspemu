@@ -91,4 +91,26 @@
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
+
+function downloadFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        request.open("GET", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onload = function (e) {
+            var arraybuffer = request.response;
+
+            //var data = new Uint8Array(arraybuffer);
+            resolve(arraybuffer);
+            //console.log(data);
+            //console.log(data.length);
+        };
+        request.onerror = function (e) {
+            reject(e.error);
+        };
+        request.send();
+    });
+}
 //# sourceMappingURL=utils.js.map

@@ -50,7 +50,7 @@
 
 		fileUids = new UidCollection<hle.HleFile>(1);
 
-		sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: number, mode: number) => {
+		sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
 			var file = this.context.fileManager.open(filename, flags, mode);
 			console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
 			return this.fileUids.allocate(file);

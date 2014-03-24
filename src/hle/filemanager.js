@@ -7,7 +7,7 @@
             this.cwd = '';
         }
         Device.prototype.open = function (uri, flags, mode) {
-            var entry = this.vfs.open(uri.pathWithoutDevice);
+            var entry = this.vfs.open(uri.pathWithoutDevice, flags, mode);
             return entry;
         };
         return Device;

@@ -79,36 +79,9 @@ var core;
             var from8 = this.memory.u8;
             var from16 = this.memory.u16;
 
-            switch (this.pixelFormat) {
-                default:
-                case 3 /* RGBA_8888 */:
-                    this.update8888(w8, from8, baseAddress);
-                    break;
-                case 1 /* RGBA_5551 */:
-                    this.update5551(w8, from16, baseAddress >> 1);
-                    break;
-            }
+            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, 512 * 272);
 
             this.context.putImageData(imageData, 0, 0);
-        };
-
-        PspDisplay.prototype.update5551 = function (w8, from16, inn) {
-            for (var n = 0; n < 512 * 272 * 4; n += 4) {
-                var it = from16[inn++];
-                w8[n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-                w8[n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
-                w8[n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
-                w8[n + 3] = 0xFF;
-            }
-        };
-
-        PspDisplay.prototype.update8888 = function (w8, from8, inn) {
-            for (var n = 0; n < 512 * 272 * 4; n += 4) {
-                w8[n + 0] = from8[inn + n + 0];
-                w8[n + 1] = from8[inn + n + 1];
-                w8[n + 2] = from8[inn + n + 2];
-                w8[n + 3] = 0xFF;
-            }
         };
 
         PspDisplay.prototype.startAsync = function () {
@@ -139,5 +112,55 @@ var core;
         return PspDisplay;
     })(BasePspDisplay);
     core.PspDisplay = PspDisplay;
+
+    var PixelConverter = (function () {
+        function PixelConverter() {
+        }
+        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count) {
+            switch (format) {
+                default:
+                case 3 /* RGBA_8888 */:
+                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count);
+                    break;
+                case 1 /* RGBA_5551 */:
+                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count);
+                    break;
+                case 2 /* RGBA_4444 */:
+                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count);
+                    break;
+            }
+        };
+
+        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count) {
+            for (var n = 0; n < count * 4; n += 4) {
+                to[toIndex + n + 0] = from[fromIndex + n + 0];
+                to[toIndex + n + 1] = from[fromIndex + n + 1];
+                to[toIndex + n + 2] = from[fromIndex + n + 2];
+                to[toIndex + n + 3] = from[fromIndex + n + 3];
+            }
+        };
+
+        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count) {
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
+                to[toIndex + n + 3] = BitUtils.extractScale(it, 15, 1, 0xFF);
+            }
+        };
+
+        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count) {
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
+                to[toIndex + n + 3] = BitUtils.extractScale(it, 12, 4, 0xFF);
+            }
+        };
+        return PixelConverter;
+    })();
+    core.PixelConverter = PixelConverter;
 })(core || (core = {}));
 //# sourceMappingURL=display.js.map

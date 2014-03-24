@@ -12,6 +12,18 @@ module core.gpu {
         drawSync(syncType: SyncType);
     }
 
+	export interface IDrawDriver {
+		//clear();
+		//prim(primitiveType:GuPrimitiveType, vertexCount: number, );
+		setClearMode(clearing: boolean, clearFlags: number);
+		setState(state: any);
+		setMatrices(projectionMatrix: Matrix4x4, viewMatrix: Matrix4x3, worldMatrix: Matrix4x3);
+		//drawSprites(vertices: Vertex[], vertexCount: number, transform2d: boolean);
+		//drawTriangles(vertices: Vertex[], vertexCount: number, transform2d: boolean);
+		textureFlush(state: any);
+		drawElements(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState);
+		initAsync();
+	}
    
     class VertexBuffer {
         vertices: Vertex[] = [];
@@ -115,19 +127,6 @@ module core.gpu {
                 indentStringGenerator.write(');\n');
             });
         }
-    }
-
-
-    export interface IDrawDriver {
-		//clear();
-		//prim(primitiveType:GuPrimitiveType, vertexCount: number, );
-		setClearMode(clearing: boolean, clearFlags: number);
-		setState(state: any);
-		setMatrices(projectionMatrix: Matrix4x4, viewMatrix: Matrix4x3, worldMatrix: Matrix4x3);
-		//drawSprites(vertices: Vertex[], vertexCount: number, transform2d: boolean);
-		//drawTriangles(vertices: Vertex[], vertexCount: number, transform2d: boolean);
-		textureFlush(state: any);
-		drawElements(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState);
     }
 
     var vertexBuffer = new VertexBuffer();
@@ -271,7 +270,7 @@ module core.gpu {
 				case GpuOpCodes.TBW6:
 				case GpuOpCodes.TBW7:
 					var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TBW0];
-					mipMap.bufferWidth = BitUtils.extract(params24, 0, 24);
+					mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
 					mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
 					break;
 
@@ -337,7 +336,7 @@ module core.gpu {
 							console.error(sprintf('Stop showing gpu errors'));
 						}
 					} else {
-						console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+						//console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
 					}
             }
 
@@ -433,7 +432,7 @@ module core.gpu {
         }
 
 		startAsync() {
-			return Promise.resolve();
+			return this.driver.initAsync();
         }
 
 		stopAsync() {

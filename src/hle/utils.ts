@@ -58,3 +58,25 @@
         return out;
     }
 }
+
+
+function downloadFileAsync(url: string) {
+	return new Promise<ArrayBuffer>((resolve, reject) => {
+		var request = new XMLHttpRequest();
+
+		request.open("GET", url, true);
+		request.overrideMimeType("text/plain; charset=x-user-defined");
+		request.responseType = "arraybuffer";
+		request.onload = function (e) {
+			var arraybuffer: ArrayBuffer = request.response; // not responseText
+			//var data = new Uint8Array(arraybuffer);
+			resolve(arraybuffer);
+			//console.log(data);
+			//console.log(data.length);
+		};
+		request.onerror = function (e) {
+			reject(e.error);
+		};
+		request.send();
+	});
+}

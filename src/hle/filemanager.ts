@@ -5,8 +5,8 @@
 		constructor(public name: string, public vfs: hle.vfs.Vfs) {
 		}
 
-		open(uri: Uri, flags: number, mode: number) {
-			var entry = this.vfs.open(uri.pathWithoutDevice);
+		open(uri: Uri, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
+			var entry = this.vfs.open(uri.pathWithoutDevice, flags, mode);
 			return entry;
 		}
 	}
@@ -58,7 +58,7 @@
 			return device;
 		}
 
-		open(name: string, flags: number, mode: number) {
+		open(name: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
 			var uri = this.cwd.append(new Uri(name));
 			var entry = this.getDevice(uri.device).open(uri, flags, mode);
 			return new HleFile(entry);

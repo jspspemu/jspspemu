@@ -25,7 +25,6 @@
 		COMPRESSED_DXT5 = 10,
 	}
 
-
 	export class BasePspDisplay {
 		address: number = Memory.DEFAULT_FRAME_ADDRESS;
 		bufferWidth: number;
@@ -80,36 +79,9 @@
 			var from8 = this.memory.u8;
 			var from16 = this.memory.u16;
 
-			switch (this.pixelFormat) {
-				default:
-				case PixelFormat.RGBA_8888:
-					this.update8888(w8, from8, baseAddress);
-					break;
-				case PixelFormat.RGBA_5551:
-					this.update5551(w8, from16, baseAddress >> 1);
-					break;
-			}
+			PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, 512 * 272);
 
 			this.context.putImageData(imageData, 0, 0);
-		}
-
-		private update5551(w8: Uint8Array, from16: Uint16Array, inn: number) {
-			for (var n = 0; n < 512 * 272 * 4; n += 4) {
-				var it = from16[inn++];
-				w8[n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-				w8[n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
-				w8[n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
-				w8[n + 3] = 0xFF;
-			}
-		}
-
-		private update8888(w8: Uint8Array, from8: Uint8Array, inn: number) {
-			for (var n = 0; n < 512 * 272 * 4; n += 4) {
-				w8[n + 0] = from8[inn + n + 0];
-				w8[n + 1] = from8[inn + n + 1];
-				w8[n + 2] = from8[inn + n + 2];
-				w8[n + 3] = 0xFF;
-			}
 		}
 
 		startAsync() {
@@ -134,6 +106,52 @@
 					resolve(0);
 				});
 			});
+		}
+	}
+
+	export class PixelConverter {
+		static decode(format: PixelFormat, from: ArrayBuffer, fromIndex: number, to: Uint8Array, toIndex: number, count: number) {
+			switch (format) {
+				default:
+				case PixelFormat.RGBA_8888:
+					PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count);
+					break;
+				case PixelFormat.RGBA_5551:
+					PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count);
+					break;
+				case PixelFormat.RGBA_4444:
+					PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count);
+					break;
+			}
+		}
+
+		private static decode8888(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number) {
+			for (var n = 0; n < count * 4; n += 4) {
+				to[toIndex + n + 0] = from[fromIndex + n + 0];
+				to[toIndex + n + 1] = from[fromIndex + n + 1];
+				to[toIndex + n + 2] = from[fromIndex + n + 2];
+				to[toIndex + n + 3] = from[fromIndex + n + 3];
+			}
+		}
+
+		private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number) {
+			for (var n = 0; n < count * 4; n += 4) {
+				var it = from[fromIndex++];
+				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
+				to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
+				to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
+				to[toIndex + n + 3] = BitUtils.extractScale(it, 15, 1, 0xFF);
+			}
+		}
+
+		private static update4444(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number) {
+			for (var n = 0; n < count * 4; n += 4) {
+				var it = from[fromIndex++];
+				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
+				to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
+				to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
+				to[toIndex + n + 3] = BitUtils.extractScale(it, 12, 4, 0xFF);
+			}
 		}
 	}
 }

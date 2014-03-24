@@ -36,6 +36,9 @@
                 this.sceKernelSetCompilerVersion = hle.modules.createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, function (version) {
                     console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
                 });
+                this.sceKernelPrintf = hle.modules.createNativeFunction(0x13A5ABEF, 150, 'void', 'string', this, function (format) {
+                    console.info('sceKernelPrintf: ' + format);
+                });
             }
             return SysMemUserForUser;
         })();
