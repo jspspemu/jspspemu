@@ -31,6 +31,7 @@ sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'in
 	return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
 });
 ```
+Exported functions returning promises wills susped the current psp thread until the promise is feResolved.
 
 And binary structs are defined like this so it is pretty agile to work with binary stuff:
 ```js
