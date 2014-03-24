@@ -12,6 +12,10 @@ It will use FileSystem API too.
 
 At this point it can run some demos.
 
+Typescript, and the integrated console and profiler from chrome allowed me to convert some of my cspspemu code pretty fast, in a crazy weekend for this first version. You can debug apps with the chrome console.
+
+The project can be opened with Visual Studio Express but it should work with intelliJ too.
+
 It can load at this point: ELF files, PBP files, ISO files and CSO files. Not support for DAX yet.
 
 It JITs the cpu (though still slow because loops, function calls, and returns are not JITted yet).
@@ -58,3 +62,4 @@ export class ElfPspModuleInfo {
 var item:ElfPspModuleInfo = ElfPspModuleInfo.struct.reed(stream);
 var item:ElfPspModuleInfo = ElfPspModuleInfo.struct.write(stream, item);
 ```
+
