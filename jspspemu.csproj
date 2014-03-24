@@ -1,0 +1,179 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <ProjectGuid>{E8B05EEF-D009-4BA3-9FB0-A2DC67085F67}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <OutputPath>bin</OutputPath>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <TypeScriptToolsVersion>0.9</TypeScriptToolsVersion>
+    <UseIISExpress>true</UseIISExpress>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="lib\chai.js" />
+    <Content Include="lib\gl-matrix.js" />
+    <Content Include="index.html" />
+    <Content Include="lib\jquery-2.1.0.js" />
+    <Content Include="lib\mocha.css" />
+    <Content Include="lib\mocha.js" />
+    <Content Include="lib\zlib\rawinflate.min.js" />
+    <Content Include="lib\zlib\zlib.js" />
+    <Content Include="lib\zlib_and_gzip.min.js" />
+    <Content Include="polyfills\promise-0.1.1.js" />
+    <Content Include="samples\minifire_B0h_1EFh.elf.raw" />
+    <Content Include="lib\underscore.js" />
+    <Content Include="web.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <TypeScriptCompile Include="src\core\audio.ts" />
+    <TypeScriptCompile Include="src\core\cpu\cpu_ast.ts" />
+    <TypeScriptCompile Include="src\core\cpu\state.ts" />
+    <TypeScriptCompile Include="src\format\cso.ts" />
+    <TypeScriptCompile Include="src\format\format.ts" />
+    <TypeScriptCompile Include="src\format\pbp.ts" />
+    <TypeScriptCompile Include="src\format\psf.ts" />
+    <TypeScriptCompile Include="src\hle\filemanager.ts" />
+    <TypeScriptCompile Include="src\hle\modulemanager.ts" />
+    <TypeScriptCompile Include="src\hle\modules\InterruptManager.ts" />
+    <TypeScriptCompile Include="src\hle\modules\IoFileMgrForUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\KDebugForKernel.ts" />
+    <TypeScriptCompile Include="src\hle\modules\Kernel_Library.ts" />
+    <TypeScriptCompile Include="src\hle\modules\LoadCoreForKernel.ts" />
+    <TypeScriptCompile Include="src\hle\modules\LoadExecForUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\ModuleMgrForUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceAtrac3plus.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceAudio.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceCtrl.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceDisplay.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceDmac.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceGe_user.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceHprm.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceImpose.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceMpeg.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNet.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNetAdhoc.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNetAdhocctl.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNetAdhocMatching.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNetApctl.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNetInet.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNetResolver.ts" />
+    <TypeScriptCompile Include="src\hle\modules\scePower.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceRtc.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceSasCore.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceSuspendForUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceUmdUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceUtility.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceWlanDrv.ts" />
+    <TypeScriptCompile Include="src\hle\modules\StdioForUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\SysMemUserForUser.ts" />
+    <TypeScriptCompile Include="src\hle\modules\ThreadManForUser.ts" />
+    <TypeScriptCompile Include="src\core\syscallmanager.ts" />
+    <TypeScriptCompile Include="src\hle\modules\UtilsForKernel.ts" />
+    <TypeScriptCompile Include="src\hle\_utils.ts" />
+    <TypeScriptCompile Include="src\hle\modules\UtilsForUser.ts" />
+    <TypeScriptCompile Include="test\format\csoTest.ts" />
+    <TypeScriptCompile Include="test\format\isoTest.ts" />
+    <TypeScriptCompile Include="test\format\psfTest.ts" />
+    <TypeScriptCompile Include="test\format\pbpTest.ts" />
+    <TypeScriptCompile Include="test\hle\vfs\vfsTest.ts" />
+    <TypeScriptCompile Include="typings\promise\promise.d.ts" />
+    <TypeScriptCompile Include="src\app.ts" />
+    <TypeScriptCompile Include="src\core\cpu\assembler.ts" />
+    <TypeScriptCompile Include="src\ast.ts" />
+    <TypeScriptCompile Include="src\core\controller.ts" />
+    <TypeScriptCompile Include="src\cpu.ts" />
+    <TypeScriptCompile Include="src\core\display.ts" />
+    <TypeScriptCompile Include="src\format\iso.ts" />
+    <TypeScriptCompile Include="src\core\gpu.ts" />
+    <TypeScriptCompile Include="src\hle\elf.ts" />
+    <TypeScriptCompile Include="src\hle\memorymanager.ts" />
+    <TypeScriptCompile Include="src\hle\threadmanager.ts" />
+    <TypeScriptCompile Include="src\core\cpu\instructions.ts" />
+    <TypeScriptCompile Include="src\core\memory.ts" />
+    <Content Include="src\util\sprintf.js" />
+    <TypeScriptCompile Include="src\core\rtc.ts" />
+    <TypeScriptCompile Include="test\samples.ts" />
+    <TypeScriptCompile Include="src\util\utils.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs.ts" />
+    <TypeScriptCompile Include="test\gpuTest.ts" />
+    <TypeScriptCompile Include="test\hle\elfTest.ts" />
+    <TypeScriptCompile Include="test\hle\memorymanagerTest.ts" />
+    <TypeScriptCompile Include="test\instructionTest.ts" />
+    <TypeScriptCompile Include="test\testasm.ts" />
+    <Content Include="test.html" />
+    <TypeScriptCompile Include="test\util\utilsTest.ts" />
+    <TypeScriptCompile Include="typings\chai\chai.d.ts" />
+    <TypeScriptCompile Include="typings\mocha\mocha.d.ts" />
+    <TypeScriptCompile Include="typings\underscore\underscore.d.ts" />
+    <TypeScriptCompile Include="typings\zlib.d.ts" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="samples\counter.elf" />
+    <Content Include="samples\minifire.elf" />
+    <Content Include="samples\fputest.elf" />
+    <Content Include="samples\rtctest.pbp" />
+    <Content Include="samples\compilerPerf.elf" />
+    <Content Include="samples\controller.elf" />
+    <Content Include="samples\cube.elf" />
+    <Content Include="samples\HelloWorldPSP.elf" />
+    <Content Include="samples\mytest.elf" />
+    <Content Include="samples\ortho.elf" />
+    <Content Include="samples\polyphonic.elf" />
+    <Content Include="samples\rtctest.elf" />
+    <Content Include="samples\threadstatus.elf" />
+    <None Include="web.Debug.config">
+      <DependentUpon>web.config</DependentUpon>
+    </None>
+    <None Include="web.Release.config">
+      <DependentUpon>web.config</DependentUpon>
+    </None>
+  </ItemGroup>
+  <ItemGroup />
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>jspspemu</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>14027</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost:14027/</IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptRemoveComments>true</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>false</TypeScriptSourceMap>
+    <TypeScriptModuleKind>AMD</TypeScriptModuleKind>
+  </PropertyGroup>
+  <Import Project="$(VSToolsPath)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(VSToolsPath)\TypeScript\Microsoft.TypeScript.targets')" />
+</Project>

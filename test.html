@@ -1,0 +1,110 @@
+﻿<!DOCTYPE html >
+
+<html lang = "en" >
+<head>
+    <meta charset ="utf-8" />
+    <title>jspspemu tests</title>
+    <link rel="stylesheet" href="lib/mocha.css">
+
+    <script src="lib/jquery-2.1.0.js"></script>
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/underscore.js"></script>
+    <script src="lib/zlib_and_gzip.min.js"></script>
+    <script src="lib/zlib/rawinflate.min.js"></script>
+    <script src="polyfills/promise-0.1.1.js"></script>
+    <script src="src/util/sprintf.js"></script>
+    <script src="src/util/utils.js"></script>
+
+    <script src="src/core/memory.js"></script>
+
+    <script src="src/ast.js"></script>
+
+    <script src="src/core/syscallmanager.js"></script>
+    <script src="src/core/cpu/instructions.js"></script>
+    <script src="src/core/cpu/cpu_ast.js"></script>
+    <script src="src/core/cpu/assembler.js"></script>
+    <script src="src/core/cpu/state.js"></script>
+
+    <script src="src/cpu.js"></script>
+    <script src="src/core/audio.js"></script>
+    <script src="src/core/rtc.js"></script>
+    <script src="src/core/display.js"></script>
+    <script src="src/core/controller.js"></script>
+    <script src="src/core/gpu.js"></script>
+    <script src="src/hle/filemanager.js"></script>
+    <script src="src/hle/memorymanager.js"></script>
+    <script src="src/hle/threadmanager.js"></script>
+    <script src="src/hle/elf.js"></script>
+
+    <script src="src/format/format.js"></script>
+    <script src="src/format/cso.js"></script>
+    <script src="src/format/iso.js"></script>
+    <script src="src/format/pbp.js"></script>
+    <script src="src/format/psf.js"></script>
+
+    <script src="src/hle/vfs/vfs.js"></script>
+
+    <script src="src/hle/_utils.js"></script>
+    <script src="src/hle/modules/IoFileMgrForUser.js"></script>
+    <script src="src/hle/modules/LoadExecForUser.js"></script>
+    <script src="src/hle/modules/LoadCoreForKernel.js"></script>
+    <script src="src/hle/modules/ModuleMgrForUser.js"></script>
+    <script src="src/hle/modules/sceAudio.js"></script>
+    <script src="src/hle/modules/sceCtrl.js"></script>
+    <script src="src/hle/modules/sceUtility.js"></script>
+    <script src="src/hle/modules/sceNet.js"></script>
+    <script src="src/hle/modules/sceNetInet.js"></script>
+    <script src="src/hle/modules/sceNetApctl.js"></script>
+    <script src="src/hle/modules/sceNetResolver.js"></script>
+    <script src="src/hle/modules/sceDmac.js"></script>
+    <script src="src/hle/modules/sceDisplay.js"></script>
+    <script src="src/hle/modules/sceGe_user.js"></script>
+    <script src="src/hle/modules/scePower.js"></script>
+    <script src="src/hle/modules/sceRtc.js"></script>
+    <script src="src/hle/modules/StdioForUser.js"></script>
+    <script src="src/hle/modules/SysMemUserForUser.js"></script>
+    <script src="src/hle/modules/ThreadManForUser.js"></script>
+    <script src="src/hle/modules/UtilsForUser.js"></script>
+    <script src="src/hle/modules/UtilsForKernel.js"></script>
+    <script src="src/hle/modules/sceHprm.js"></script>
+    <script src="src/hle/modules/KDebugForKernel.js"></script>
+    <script src="src/hle/modules/sceAtrac3plus.js"></script>
+    <script src="src/hle/modules/sceUmdUser.js"></script>
+    <script src="src/hle/modules/Kernel_Library.js"></script>
+    <script src="src/hle/modules/sceSasCore.js"></script>
+    <script src="src/hle/modules/sceMpeg.js"></script>
+    <script src="src/hle/modules/sceSuspendForUser.js"></script>
+    <script src="src/hle/modules/sceNetAdhoc.js"></script>
+    <script src="src/hle/modules/sceNetAdhocctl.js"></script>
+
+    <script src="src/hle/modulemanager.js"></script>
+</head>
+<body>
+    <div id="mocha"></div>
+
+    <script src="lib/mocha.js"></script>
+    <script src="lib/chai.js"></script>
+    <script src="test/samples.js"></script>
+    <script>
+        mocha.setup('bdd');
+        var expect = chai.expect;
+        var assert = chai.assert;
+    </script>
+    <script src="test/samples.js"></script>
+    <script src="test/testasm.js"></script>
+    <script src="test/gpuTest.js"></script>
+    <script src="test/instructionTest.js"></script>
+    <script src="test/hle/elfTest.js"></script>
+    <script src="test/hle/pbpTest.js"></script>
+    <script src="test/hle/memorymanagerTest.js"></script>
+    <script src="test/util/utilsTest.js"></script>
+    <script src="test/format/pbpTest.js"></script>
+    <script src="test/format/psfTest.js"></script>
+    <script src="test/format/isoTest.js"></script>
+    <script src="test/format/csoTest.js"></script>
+    <script src="test/hle/vfs/vfsTest.js"></script>
+    <script>
+    mocha.run();
+    </script>
+</body>
+</html>

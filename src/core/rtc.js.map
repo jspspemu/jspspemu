@@ -1,0 +1,1 @@
+{"version":3,"file":"rtc.js","sourceRoot":"","sources":["rtc.ts"],"names":["core","core.PspRtc","core.PspRtc.constructor","core.PspRtc.getTime"],"mappings":"AAAA,wCAAwC;AAExC,IAAO,IAAI;AAMV,CAND,UAAO,IAAI;IACVA;QAAAC;QAIAC,CAACA;AAAAD,QAHAA,2BAAAA;YACCE,0BAA0BA;QAC3BA,CAACA;QACFF,cAACA;IAADA,CAACA,IAAAD;AACFA,CAACA,uBAAA"}
