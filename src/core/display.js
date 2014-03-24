@@ -34,6 +34,7 @@ var core;
         __extends(DummyPspDisplay, _super);
         function DummyPspDisplay() {
             _super.call(this);
+            this.vblankCount = 0;
         }
         DummyPspDisplay.prototype.waitVblankAsync = function () {
             return new Promise(function (resolve) {

@@ -34,6 +34,8 @@
 	}
 
 	export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
+		vblankCount: number = 0;
+
 		constructor() {
 			super();
 		}
