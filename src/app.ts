@@ -82,7 +82,7 @@ class Emulator {
 						this.fileManager.mount('umd0', isoFs);
 						this.fileManager.mount('disc0', isoFs);
 						
-						return isoFs.open('PSP_GAME/SYSDIR/BOOT.BIN').readAllAsync().then((data) => {
+						return isoFs.open('PSP_GAME/SYSDIR/BOOT.BIN', hle.vfs.FileOpenFlags.Read, parseInt('777', 8)).readAllAsync().then((data) => {
 							return this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
 						});
 					});

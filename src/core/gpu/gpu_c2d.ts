@@ -9,6 +9,10 @@
 
 		private clearing: boolean;
 
+		initAsync() {
+			return Promise.resolve();
+		}
+
 		setClearMode(clearing: boolean, flags: number) {
 			this.clearing = clearing;
 		}

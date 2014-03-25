@@ -70,7 +70,7 @@ var Emulator = (function () {
                         _this.fileManager.mount('umd0', isoFs);
                         _this.fileManager.mount('disc0', isoFs);
 
-                        return isoFs.open('PSP_GAME/SYSDIR/BOOT.BIN').readAllAsync().then(function (data) {
+                        return isoFs.open('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).readAllAsync().then(function (data) {
                             return _this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
                         });
                     });

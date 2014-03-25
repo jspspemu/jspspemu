@@ -288,6 +288,25 @@ var core;
                         mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
                         break;
 
+                    case 176 /* CBP */:
+                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
+                        break;
+
+                    case 177 /* CBPH */:
+                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
+                        break;
+
+                    case 196 /* CLOAD */:
+                        this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
+                        break;
+
+                    case 197 /* CMODE */:
+                        this.state.texture.clut.pixelFormat = BitUtils.extract(params24, 0, 2);
+                        this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
+                        this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
+                        this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
+                        break;
+
                     case 62 /* PROJ_START */:
                         this.state.projectionMatrix.reset(params24);
                         break;

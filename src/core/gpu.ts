@@ -275,11 +275,11 @@ module core.gpu {
 					break;
 
 				case GpuOpCodes.CBP:
-					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF));
+					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
 					break;
 
 				case GpuOpCodes.CBPH:
-					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000));
+					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
 					break;
 
 				case GpuOpCodes.CLOAD:

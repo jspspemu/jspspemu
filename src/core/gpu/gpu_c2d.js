@@ -11,6 +11,10 @@
                     //this.gl = this.canvas.getContext('webgl');
                     this.context = this.canvas.getContext('2d');
                 }
+                Context2dPspDrawDriver.prototype.initAsync = function () {
+                    return Promise.resolve();
+                };
+
                 Context2dPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
                     this.clearing = clearing;
                 };

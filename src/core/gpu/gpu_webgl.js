@@ -70,7 +70,16 @@
                     var u8 = imageData.data;
 
                     //console.error('pixelFormat:' + state.texture.pixelFormat);
-                    core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h);
+                    var clut = state.texture.clut;
+                    var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
+                    var paletteU8 = new Uint8Array(paletteBuffer);
+                    var palette = new Uint32Array(paletteBuffer);
+
+                    //console.log(sprintf("%08X,%d", clut.adress, clut.pixelFormat));
+                    core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+
+                    //console.log(palette);
+                    core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
                     ctx.clearRect(0, 0, w, h);
                     ctx.putImageData(imageData, 0, 0);

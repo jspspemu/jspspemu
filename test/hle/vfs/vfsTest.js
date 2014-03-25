@@ -6,7 +6,7 @@
 
         format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
             var vfs = new hle.vfs.IsoVfs(iso);
-            return vfs.open("PSP_GAME/PARAM.SFO").readAllAsync().then(function (content) {
+            return vfs.open("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).readAllAsync().then(function (content) {
                 var psf = format.psf.Psf.fromStream(Stream.fromArrayBuffer(content));
                 assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
                 done();

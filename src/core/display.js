@@ -113,24 +113,51 @@ var core;
     var PixelConverter = (function () {
         function PixelConverter() {
         }
-        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha) {
+        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
             if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
             switch (format) {
                 default:
                 case 3 /* RGBA_8888 */:
-                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette);
                     break;
                 case 1 /* RGBA_5551 */:
-                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha, palette);
                     break;
                 case 2 /* RGBA_4444 */:
-                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha, palette);
+                    break;
+                case 5 /* PALETTE_T8 */:
+                    PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
                     break;
             }
         };
 
-        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+        PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
             if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
+                var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
+
+                //indices.push(colorIndex);
+                var color = palette[colorIndex];
+                to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
+                to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
+                to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
+            }
+            //console.log(indices);
+        };
+
+        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha, palette) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
             for (var n = 0; n < count * 4; n += 4) {
                 to[toIndex + n + 0] = from[fromIndex + n + 0];
                 to[toIndex + n + 1] = from[fromIndex + n + 1];
@@ -139,8 +166,9 @@ var core;
             }
         };
 
-        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha, palette) {
             if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
                 to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
@@ -150,8 +178,9 @@ var core;
             }
         };
 
-        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha, palette) {
             if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
                 to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
