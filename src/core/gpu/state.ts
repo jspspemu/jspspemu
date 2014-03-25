@@ -233,6 +233,15 @@
 		a = 1;
 	}
 
+	export class ClutState {
+		adress = 0;
+		numberOfColors = 0;
+		pixelFormat = PixelFormat.RGBA_8888;
+		shift = 0;
+		mask = 0x00;
+		start = 0;
+	}
+
 	export class TextureState {
 		enabled = false;
 		swizzled = false;
@@ -251,6 +260,7 @@
 		envColor = new ColorState();
 		fragment2X = false;
 		pixelFormat = core.PixelFormat.RGBA_8888;
+		clut = new ClutState();
 		mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
 	}
 

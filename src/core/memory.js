@@ -12,6 +12,10 @@ var core;
             this.u32 = new Uint32Array(this.buffer);
             this.f32 = new Float32Array(this.buffer);
         }
+        Memory.prototype.reset = function () {
+            this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
+        };
+
         Memory.prototype.getPointerDataView = function (address, size) {
             return new DataView(this.buffer, address & Memory.MASK, size);
         };
@@ -22,20 +26,6 @@ var core;
             return new Stream(this.getPointerDataView(address, size));
         };
 
-        //writeInt8(address: number, value: number) { this.data.setUint8(address & Memory.MASK, value); }
-        //readInt8(address: number) { return this.data.getInt8(address & Memory.MASK); }
-        //readUInt8(address: number) { return this.data.getUint8(address & Memory.MASK); }
-        //
-        //writeInt16(address: number, value: number) { this.data.setUint16(address & Memory.MASK, value, true); }
-        //readInt16(address: number) { return this.data.getInt16(address & Memory.MASK, true); }
-        //readUInt16(address: number) { return this.data.getUint16(address & Memory.MASK, true); }
-        //
-        //writeInt32(address: number, value: number) { this.data.setUint32(address & Memory.MASK, value, true); }
-        //readInt32(address: number) { return this.data.getInt32(address & Memory.MASK, true); }
-        //readUInt32(address: number) { return this.data.getUint32(address & Memory.MASK, true); }
-        //
-        //writeFloat32(address: number, value: number) { this.data.setFloat32(address & Memory.MASK, value, true); }
-        //readFloat32(address: number) { return this.data.getFloat32(address & Memory.MASK, true); }
         Memory.prototype.writeInt8 = function (address, value) {
             this.u8[(address >> 0) & Memory.MASK] = value;
         };
@@ -74,7 +64,7 @@ var core;
         };
 
         Memory.prototype.writeBytes = function (address, data) {
-            Memory.memoryCopy(data, 0, this.buffer, address, data.byteLength);
+            Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
         };
 
         Memory.prototype.readBytes = function (address, length) {
@@ -100,16 +90,25 @@ var core;
         };
 
         Memory.prototype.sliceWithBounds = function (low, high) {
-            return new Stream(new DataView(this.buffer, low, high - low));
+            return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
         };
 
         Memory.prototype.sliceWithSize = function (address, size) {
-            return new Stream(new DataView(this.buffer, address, size));
+            return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
         };
 
         Memory.prototype.copy = function (from, to, length) {
+            from &= Memory.MASK;
+            to &= Memory.MASK;
             for (var n = 0; n < length; n++) {
                 this.u8[to + n] = this.u8[from + n];
+            }
+        };
+
+        Memory.prototype.memset = function (address, value, length) {
+            address &= Memory.MASK;
+            for (var n = 0; n < length; n++) {
+                this.u8[address + n] = value;
             }
         };
 
@@ -118,7 +117,8 @@ var core;
             var _destination = new Uint8Array(destination, destinationPosition, length);
             _destination.set(_source);
         };
-        Memory.DEFAULT_FRAME_ADDRESS = 0x04100000;
+        Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
+
         Memory.MASK = 0x0FFFFFFF;
         Memory.MAIN_OFFSET = 0x08000000;
         return Memory;

@@ -461,6 +461,19 @@
         })();
         gpu.ColorState = ColorState;
 
+        var ClutState = (function () {
+            function ClutState() {
+                this.adress = 0;
+                this.numberOfColors = 0;
+                this.pixelFormat = 3 /* RGBA_8888 */;
+                this.shift = 0;
+                this.mask = 0x00;
+                this.start = 0;
+            }
+            return ClutState;
+        })();
+        gpu.ClutState = ClutState;
+
         var TextureState = (function () {
             function TextureState() {
                 this.enabled = false;
@@ -480,6 +493,7 @@
                 this.envColor = new ColorState();
                 this.fragment2X = false;
                 this.pixelFormat = 3 /* RGBA_8888 */;
+                this.clut = new ClutState();
                 this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
             }
             return TextureState;

@@ -19,6 +19,7 @@ var Emulator = (function () {
     Emulator.prototype.startAsync = function () {
         var _this = this;
         return this.stopAsync().then(function () {
+            _this.memory.reset();
             _this.emulatorContext = new EmulatorContext();
             _this.memoryManager = new hle.MemoryManager();
             _this.audio = new core.PspAudio();
@@ -122,31 +123,9 @@ var Emulator = (function () {
         });
     };
 
-    Emulator.prototype.downloadFileAsync = function (url) {
-        return new Promise(function (resolve, reject) {
-            var request = new XMLHttpRequest();
-
-            request.open("GET", url, true);
-            request.overrideMimeType("text/plain; charset=x-user-defined");
-            request.responseType = "arraybuffer";
-            request.onload = function (e) {
-                var arraybuffer = request.response;
-
-                //var data = new Uint8Array(arraybuffer);
-                resolve(arraybuffer);
-                //console.log(data);
-                //console.log(data.length);
-            };
-            request.onerror = function (e) {
-                reject(e.error);
-            };
-            request.send();
-        });
-    };
-
     Emulator.prototype.downloadAndExecuteAsync = function (url) {
         var _this = this;
-        return this.downloadFileAsync(url).then(function (data) {
+        return downloadFileAsync(url).then(function (data) {
             setImmediate(function () {
                 // escape try/catch!
                 _this.loadAndExecuteAsync(new MemoryAsyncStream(data, url));

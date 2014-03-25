@@ -69,8 +69,7 @@
                     var imageData = ctx.createImageData(w2, h);
                     var u8 = imageData.data;
 
-                    //console.info(w + 'x' + h);
-                    //console.log(state.texture.pixelFormat);
+                    //console.error('pixelFormat:' + state.texture.pixelFormat);
                     core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h);
 
                     ctx.clearRect(0, 0, w, h);

@@ -274,6 +274,25 @@ module core.gpu {
 					mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
 					break;
 
+				case GpuOpCodes.CBP:
+					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF));
+					break;
+
+				case GpuOpCodes.CBPH:
+					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000));
+					break;
+
+				case GpuOpCodes.CLOAD:
+					this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
+					break;
+
+				case GpuOpCodes.CMODE:
+					this.state.texture.clut.pixelFormat = <PixelFormat>BitUtils.extract(params24, 0, 2);
+					this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
+					this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
+					this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
+					break;
+
                 case GpuOpCodes.PROJ_START: this.state.projectionMatrix.reset(params24); break;
                 case GpuOpCodes.PROJ_PUT: this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8)); break;
 

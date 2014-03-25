@@ -2,7 +2,6 @@
 
 module core {
 	export class Memory {
-		//08900000
 		buffer: ArrayBuffer;
 		s8: Uint8Array;
 		u8: Uint8Array;
@@ -12,8 +11,8 @@ module core {
 		f32: Float32Array;
 		data: DataView;
 
-		//static DEFAULT_FRAME_ADDRESS: number = 0x04000000;
-		static DEFAULT_FRAME_ADDRESS = 0x04100000;
+		static DEFAULT_FRAME_ADDRESS: number = 0x04000000;
+
 		static MASK = 0x0FFFFFFF;
 		static MAIN_OFFSET = 0x08000000;
 
@@ -28,6 +27,10 @@ module core {
 			this.f32 = new Float32Array(this.buffer);
 		}
 
+		reset() {
+			this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
+		}
+
 		getPointerDataView(address: number, size?: number) {
 			return new DataView(this.buffer, address & Memory.MASK, size);
 		}
@@ -36,22 +39,6 @@ module core {
 			if (address == 0) return null;
 			return new Stream(this.getPointerDataView(address, size));
 		}
-
-		//writeInt8(address: number, value: number) { this.data.setUint8(address & Memory.MASK, value); }
-		//readInt8(address: number) { return this.data.getInt8(address & Memory.MASK); }
-		//readUInt8(address: number) { return this.data.getUint8(address & Memory.MASK); }
-		//
-		//writeInt16(address: number, value: number) { this.data.setUint16(address & Memory.MASK, value, true); }
-		//readInt16(address: number) { return this.data.getInt16(address & Memory.MASK, true); }
-		//readUInt16(address: number) { return this.data.getUint16(address & Memory.MASK, true); }
-		//
-		//writeInt32(address: number, value: number) { this.data.setUint32(address & Memory.MASK, value, true); }
-		//readInt32(address: number) { return this.data.getInt32(address & Memory.MASK, true); }
-		//readUInt32(address: number) { return this.data.getUint32(address & Memory.MASK, true); }
-		//
-		//writeFloat32(address: number, value: number) { this.data.setFloat32(address & Memory.MASK, value, true); }
-		//readFloat32(address: number) { return this.data.getFloat32(address & Memory.MASK, true); }
-
 
 		writeInt8(address: number, value: number) { this.u8[(address >> 0) & Memory.MASK] = value; }
 		readInt8(address: number) { return this.s8[(address >> 0) & Memory.MASK]; }
@@ -69,7 +56,7 @@ module core {
 		readFloat32(address: number) { return this.f32[(address >> 2) & Memory.MASK]; }
 
 		writeBytes(address: number, data: ArrayBuffer) {
-			Memory.memoryCopy(data, 0, this.buffer, address, data.byteLength);
+			Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
 		}
 
 		readBytes(address: number, length: number) {
@@ -94,16 +81,25 @@ module core {
 		}
 
 		sliceWithBounds(low: number, high: number) {
-			return new Stream(new DataView(this.buffer, low, high - low));
+			return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
 		}
 
 		sliceWithSize(address: number, size: number) {
-			return new Stream(new DataView(this.buffer, address, size));
+			return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
 		}
 
 		copy(from: number, to: number, length: number) {
+			from &= Memory.MASK;
+			to &= Memory.MASK;
 			for (var n = 0; n < length; n++) {
 				this.u8[to + n] = this.u8[from + n];
+			}
+		}
+
+		memset(address: number, value: number, length: number) {
+			address &= Memory.MASK;
+			for (var n = 0; n < length; n++) {
+				this.u8[address + n] = value;
 			}
 		}
 

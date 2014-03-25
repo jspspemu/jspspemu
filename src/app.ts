@@ -34,6 +34,7 @@ class Emulator {
 
 	startAsync() {
 		return this.stopAsync().then(() => {
+			this.memory.reset();
 			this.emulatorContext = new EmulatorContext();
 			this.memoryManager = new hle.MemoryManager();
 			this.audio = new core.PspAudio();
