@@ -60,9 +60,11 @@
                     var h = mipmap.textureHeight;
 
                     //var w2 = mipmap.textureWidth;
-                    //var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
-                    var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
+                    //var w = mipmap.textureWidth, w2 = mipmap.textureWidth;
+                    var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
 
+                    //var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
+                    //printf("%d, %d", w, h);
                     var canvas = document.createElement('canvas');
                     canvas.width = w;
                     canvas.height = h;
@@ -126,9 +128,11 @@
                     this.transformMatrix = mat4.create();
                     this.transformMatrix2d = mat4.create();
                     this.testCount = 20;
-                    this.gl = this.canvas.getContext('experimental-webgl');
+                    //this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+                    //if (!this.gl) this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
+                    this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: false });
                     if (!this.gl)
-                        this.canvas.getContext('webgl');
+                        this.canvas.getContext('webgl', { preserveDrawingBuffer: false });
 
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
@@ -199,14 +203,6 @@
                         var v0 = vertices[n + 0];
                         var v1 = vertices[n + 1];
 
-                        if (vertexState.transform2D && vertexState.hasTexture) {
-                            v0.tx /= this.state.texture.mipmaps[0].textureWidth;
-                            v0.ty /= this.state.texture.mipmaps[0].textureHeight;
-
-                            v1.tx /= this.state.texture.mipmaps[0].textureWidth;
-                            v1.ty /= this.state.texture.mipmaps[0].textureHeight;
-                        }
-
                         //console.log(sprintf('%f, %f : %f, %f', v1.px, v1.py, v1.tx, v1.ty));
                         v0.r = v1.r;
                         v0.g = v1.g;
@@ -255,9 +251,15 @@
                             colorData.push(v.a);
                         }
                         if (vertexState.hasTexture) {
-                            textureData.push(v.tx * textureState.scaleU);
-                            textureData.push(v.ty * textureState.scaleV);
-                            textureData.push(v.tz);
+                            if (vertexState.transform2D) {
+                                textureData.push(v.tx / this.state.texture.mipmaps[0].bufferWidth);
+                                textureData.push(v.ty / this.state.texture.mipmaps[0].textureHeight);
+                                textureData.push(1.0);
+                            } else {
+                                textureData.push(v.tx * textureState.scaleU);
+                                textureData.push(v.ty * textureState.scaleV);
+                                textureData.push(v.tz);
+                            }
                         }
                     }
 

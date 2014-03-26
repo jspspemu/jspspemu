@@ -52,8 +52,11 @@
 
 			var h = mipmap.textureHeight;
 			//var w2 = mipmap.textureWidth;
-			//var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
-			var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
+			//var w = mipmap.textureWidth, w2 = mipmap.textureWidth;
+			var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+			//var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
+
+			//printf("%d, %d", w, h);
 
 			var canvas = document.createElement('canvas');
 			canvas.width = w;
@@ -118,8 +121,8 @@
 		private textureHandler: TextureHandler;
 
 		constructor(private memory: Memory, private canvas: HTMLCanvasElement) {
-			this.gl = this.canvas.getContext('experimental-webgl');
-			if (!this.gl) this.canvas.getContext('webgl');
+			this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: false });
+			if (!this.gl) this.canvas.getContext('webgl', { preserveDrawingBuffer: false });
 
 			this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
@@ -199,14 +202,6 @@
 				var v0 = vertices[n + 0];
 				var v1 = vertices[n + 1];
 
-				if (vertexState.transform2D && vertexState.hasTexture) {
-					v0.tx /= this.state.texture.mipmaps[0].textureWidth;
-					v0.ty /= this.state.texture.mipmaps[0].textureHeight;
-
-					v1.tx /= this.state.texture.mipmaps[0].textureWidth;
-					v1.ty /= this.state.texture.mipmaps[0].textureHeight;
-				}
-
 				//console.log(sprintf('%f, %f : %f, %f', v1.px, v1.py, v1.tx, v1.ty));
 
 				v0.r = v1.r;
@@ -251,7 +246,17 @@
 				positionData.push(v.px); positionData.push(v.py); positionData.push(v.pz);
 
 				if (vertexState.hasColor) { colorData.push(v.r); colorData.push(v.g); colorData.push(v.b); colorData.push(v.a); }
-				if (vertexState.hasTexture) { textureData.push(v.tx * textureState.scaleU); textureData.push(v.ty * textureState.scaleV); textureData.push(v.tz); }
+				if (vertexState.hasTexture) {
+					if (vertexState.transform2D) {
+						textureData.push(v.tx / this.state.texture.mipmaps[0].bufferWidth);
+						textureData.push(v.ty / this.state.texture.mipmaps[0].textureHeight);
+						textureData.push(1.0);
+					} else {
+						textureData.push(v.tx * textureState.scaleU);
+						textureData.push(v.ty * textureState.scaleV);
+						textureData.push(v.tz);
+					}
+				}
 			}
 
 			if (vertexState.hasTexture) {
