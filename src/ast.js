@@ -243,6 +243,10 @@ var MipsAstBuilder = (function (_super) {
     function MipsAstBuilder() {
         _super.apply(this, arguments);
     }
+    MipsAstBuilder.prototype.debugger = function () {
+        return new ANodeStmRaw("debugger;");
+    };
+
     MipsAstBuilder.prototype.functionPrefix = function () {
         //return new ANodeStmRaw('var gpr = state.gpr;');
         return this.stmEmpty();

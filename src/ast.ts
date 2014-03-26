@@ -179,6 +179,10 @@ class AstBuilder {
 }
 
 class MipsAstBuilder extends AstBuilder {
+	debugger():ANodeStm {
+		return new ANodeStmRaw("debugger;");
+	}
+
     functionPrefix() {
         //return new ANodeStmRaw('var gpr = state.gpr;');
         return this.stmEmpty();

@@ -65,7 +65,7 @@ class FunctionGenerator {
         var PC = address;
         var stms: ANodeStm[] = [ast.functionPrefix()];
 
-        var emitInstruction = () => {
+		var emitInstruction = () => {
             var result = this.generateInstructionAstNode(this.decodeInstruction(PC))
             PC += 4;
             return result;
@@ -75,10 +75,13 @@ class FunctionGenerator {
             var di = this.decodeInstruction(PC + 0);
             //console.log(di);
 
+			if (PC == 0x089005D0) {
+				//stms.push(ast.debugger());
+			}
+
             if (di.type.hasDelayedBranch) {
                 var di2 = this.decodeInstruction(PC + 4);
 
-                // @TODO: Likely
                 stms.push(emitInstruction());
 
                 var delayedSlotInstruction = emitInstruction();

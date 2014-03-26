@@ -50,10 +50,10 @@
 
 			var mipmap = state.texture.mipmaps[0];
 
-			var w = mipmap.textureWidth;
 			var h = mipmap.textureHeight;
-			var w2 = mipmap.textureWidth;
-			//var w2 = mipmap.bufferWidth;
+			//var w2 = mipmap.textureWidth;
+			//var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+			var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
 
 			var canvas = document.createElement('canvas');
 			canvas.width = w;
@@ -70,7 +70,18 @@
 			var palette = new Uint32Array(paletteBuffer);
 
 			//console.log(sprintf("%08X,%d", clut.adress, clut.pixelFormat));
-			PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+			switch (state.texture.pixelFormat) {
+				case PixelFormat.PALETTE_T16:
+				case PixelFormat.PALETTE_T8:
+				case PixelFormat.PALETTE_T4:
+					//console.log(sprintf('%08X', clut.adress));
+					//var items = [];
+					//for (var n = 0; n < 10; n++) items.push(this.memory.readUInt32(clut.adress + n * 4));
+					//console.log(items.join(','));
+					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+					//console.log(palette);
+					break;
+			}
 
 			//console.log(palette);
 
@@ -183,9 +194,21 @@
 
 		private drawSprites(vertices: Vertex[], count: number, vertexState: VertexState) {
 			var vertices2 = [];
+
 			for (var n = 0; n < count; n += 2) {
 				var v0 = vertices[n + 0];
 				var v1 = vertices[n + 1];
+
+				if (vertexState.transform2D && vertexState.hasTexture) {
+					v0.tx /= this.state.texture.mipmaps[0].textureWidth;
+					v0.ty /= this.state.texture.mipmaps[0].textureHeight;
+
+					v1.tx /= this.state.texture.mipmaps[0].textureWidth;
+					v1.ty /= this.state.texture.mipmaps[0].textureHeight;
+				}
+
+				//console.log(sprintf('%f, %f : %f, %f', v1.px, v1.py, v1.tx, v1.ty));
+
 				v0.r = v1.r;
 				v0.g = v1.g;
 				v0.b = v1.b;
