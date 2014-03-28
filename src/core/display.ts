@@ -26,10 +26,10 @@
 	}
 
 	export class BasePspDisplay {
-		address: number = Memory.DEFAULT_FRAME_ADDRESS;
-		bufferWidth: number;
-		pixelFormat: PixelFormat;
-		sync: number;
+		address = Memory.DEFAULT_FRAME_ADDRESS;
+		bufferWidth = 512;
+		pixelFormat = PixelFormat.RGBA_8888;
+		sync = 1;
 	}
 
 	export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
@@ -110,14 +110,17 @@
 		static decode(format: PixelFormat, from: ArrayBuffer, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 			//console.log(format + ':' + PixelFormat[format]);
 			switch (format) {
+				case PixelFormat.RGBA_8888:
+					PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha);
+					break;
 				case PixelFormat.RGBA_5551:
-					PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha, palette);
+					PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
 					break;
 				case PixelFormat.RGBA_5650:
-					PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha, palette);
+					PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
 					break;
 				case PixelFormat.RGBA_4444:
-					PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha, palette);
+					PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
 					break;
 				case PixelFormat.PALETTE_T8:
 					PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
@@ -125,11 +128,7 @@
 				case PixelFormat.PALETTE_T4:
 					PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
 					break;
-				default:
-				case PixelFormat.RGBA_8888:
-					PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette);
-					break;
-				//default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
+				default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
 			}
 		}
 
@@ -160,7 +159,7 @@
 			}
 		}
 
-		private static decode8888(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null) {
+		private static decode8888(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				to[toIndex + n + 0] = from[fromIndex + n + 0];
 				to[toIndex + n + 1] = from[fromIndex + n + 1];
@@ -169,7 +168,7 @@
 			}
 		}
 
-		private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null) {
+		private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				var it = from[fromIndex++];
 				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
@@ -179,7 +178,7 @@
 			}
 		}
 
-		private static update5650(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null) {
+		private static update5650(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				var it = from[fromIndex++];
 				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
@@ -189,7 +188,7 @@
 			}
 		}
 
-		private static update4444(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null) {
+		private static update4444(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				var it = from[fromIndex++];
 				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);

@@ -27,6 +27,9 @@
                 this.sceUmdGetDriveStat = hle.modules.createNativeFunction(0x6B4A146C, 150, 'uint', '', this, function () {
                     return 2 /* PSP_UMD_PRESENT */ | 16 /* PSP_UMD_READY */ | 32 /* PSP_UMD_READABLE */;
                 });
+                this.sceUmdWaitDriveStatWithTimer = hle.modules.createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
+                    return Promise.resolve(0);
+                });
             }
             return sceUmdUser;
         })();

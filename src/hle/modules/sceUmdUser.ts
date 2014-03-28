@@ -30,6 +30,10 @@
 		sceUmdGetDriveStat = createNativeFunction(0x6B4A146C, 150, 'uint', '', this, () => {
 			return PspUmdState.PSP_UMD_PRESENT | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_READABLE;
 		});
+
+		sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, (state: number, timeout: number) => {
+			return Promise.resolve(0);
+		});
 	}
 
 	enum PspUmdState

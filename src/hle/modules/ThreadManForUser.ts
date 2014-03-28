@@ -101,7 +101,10 @@
 			return 0;
 		});
 
-		//sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'string/int/int/void*', this, (name: string, attributes: number, bitPattern: number, optionsPtr: Stream) => {
+		sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: number, outBits: Stream, timeout: Stream) => {
+			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitEventFlag(%d, %08X, %d)', id, bits, waitType));
+			return 0;
+		});
 
 		//[HlePspFunction(NID = 0x402FCF22, FirmwareVersion = 150)]
 		//public int sceKernelWaitEventFlag(HleEventFlag EventFlag, uint Bits, EventFlagWaitTypeSet WaitType, uint * OutBits, uint * Timeout)
