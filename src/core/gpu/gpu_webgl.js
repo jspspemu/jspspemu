@@ -158,9 +158,10 @@
 
                     //mat4.copy(this.transformMatrix, this.projectionMatrix.values);
                     mat4.identity(this.transformMatrix);
+
                     mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
-                    mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
                     mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
+                    mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
                 };
 
                 WebGlPspDrawDriver.prototype.enableDisable = function (type, enable) {
