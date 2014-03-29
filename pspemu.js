@@ -1547,6 +1547,20 @@ if (!ArrayBuffer.prototype.slice) {
 
 window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
 
+navigator['getGamepads'] = navigator['getGamepads'] || navigator['webkitGetGamepads'];
+
+if (!window.requestAnimationFrame) {
+    window.requestAnimationFrame = function (callback) {
+        var start = Date.now();
+        return setTimeout(function () {
+            callback(Date.now());
+        }, 20);
+    };
+    window.cancelAnimationFrame = function (id) {
+        clearTimeout(id);
+    };
+}
+
 var ArrayBufferUtils = (function () {
     function ArrayBufferUtils() {
     }
@@ -1786,6 +1800,8 @@ var core;
         function PspController() {
             this.data = new SceCtrlData();
             this.buttonMapping = {};
+            this.animationTimeId = 0;
+            this.gamepadsButtons = [];
             this.buttonMapping = {};
             this.buttonMapping[38 /* up */] = 16 /* up */;
             this.buttonMapping[37 /* left */] = 128 /* left */;
@@ -1840,12 +1856,60 @@ var core;
             document.addEventListener('keyup', function (e) {
                 return _this.keyUp(e);
             });
+            this.frame(0);
             return Promise.resolve();
+        };
+
+        PspController.prototype.frame = function (timestamp) {
+            var _this = this;
+            //console.log('zzzzzzzzz');
+            if (navigator['getGamepads']) {
+                //console.log('bbbbbbbbb');
+                var gamepads = (navigator['getGamepads'])();
+                if (gamepads[0]) {
+                    //console.log('aaaaaaaa');
+                    var buttonMapping = [
+                        16384 /* cross */,
+                        8192 /* circle */,
+                        32768 /* square */,
+                        4096 /* triangle */,
+                        256 /* leftTrigger */,
+                        512 /* rightTrigger */,
+                        1048576 /* volumeUp */,
+                        2097152 /* volumeDown */,
+                        1 /* select */,
+                        8 /* start */,
+                        65536 /* home */,
+                        8388608 /* note */,
+                        16 /* up */,
+                        64 /* down */,
+                        128 /* left */,
+                        32 /* right */
+                    ];
+
+                    var gamepad = gamepads[0];
+                    var buttons = gamepad['buttons'];
+                    var axes = gamepad['axes'];
+                    this.data.x = axes[0];
+                    this.data.y = axes[1];
+                    for (var n = 0; n < 15; n++) {
+                        if (buttons[n]) {
+                            this.simulateButtonDown(buttonMapping[n]);
+                        } else {
+                            this.simulateButtonUp(buttonMapping[n]);
+                        }
+                    }
+                }
+            }
+            this.animationTimeId = requestAnimationFrame(function (timestamp) {
+                return _this.frame(timestamp);
+            });
         };
 
         PspController.prototype.stopAsync = function () {
             document.removeEventListener('keydown', this.keyDown);
             document.removeEventListener('keyup', this.keyUp);
+            cancelAnimationFrame(this.animationTimeId);
             return Promise.resolve();
         };
         return PspController;
@@ -4342,7 +4406,7 @@ var core;
                     hash += '_' + mipmap.textureHeight;
                     hash += '_' + memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
                     if (state.texture.isPixelFormatWithClut) {
-                        hash += '_' + memory.hash(clut.adress, core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
+                        hash += '_' + memory.hash(clut.adress + core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
                         hash += '_' + clut.mask;
                         hash += '_' + clut.numberOfColors;
                         hash += '_' + clut.pixelFormat;
@@ -5613,12 +5677,16 @@ var core;
 
         Memory.prototype.hash = function (address, count) {
             var result = 0;
-            var u32 = this.u32;
-            for (var n = 0; n < count / 4; n++) {
-                result |= u32[n];
-                result ^= n * 7777777777;
+            for (var n = 0; n < count; n++) {
+                result = Memory.hashItem(result, n, this.u8[address + n]);
             }
             return result;
+        };
+
+        Memory.hashItem = function (prev, n, value) {
+            prev ^= n;
+            prev += value;
+            return prev | 0;
         };
 
         Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {

@@ -844,6 +844,20 @@ declare var AudioContext: {
 
 window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
 
+navigator['getGamepads'] = navigator['getGamepads'] || navigator['webkitGetGamepads'];
+
+if (!window.requestAnimationFrame) {
+	window.requestAnimationFrame = function (callback: FrameRequestCallback) {
+		var start = Date.now();
+		return setTimeout(function () {
+			callback(Date.now());
+		}, 20);
+	};
+	window.cancelAnimationFrame = function (id: number) {
+		clearTimeout(id);
+	};
+}
+
 class ArrayBufferUtils {
 	static fromUInt8Array(input: Uint8Array) {
 		return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);

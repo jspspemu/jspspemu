@@ -80,7 +80,7 @@
 			hash += '_' + mipmap.textureHeight;
 			hash += '_' + memory.hash(mipmap.address, PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
 			if (state.texture.isPixelFormatWithClut) {
-				hash += '_' + memory.hash(clut.adress, PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
+				hash += '_' + memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
 				hash += '_' + clut.mask;
 				hash += '_' + clut.numberOfColors;
 				hash += '_' + clut.pixelFormat;

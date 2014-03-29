@@ -12,7 +12,7 @@ Lastest version works on:
 You can view the current version here:
 http://soywiz.github.io/jspspemu/2014-03-24/#samples/ortho.elf
 
-It uses promises, Audio API, Canvas, WebGL, FullScreen API, File API, Typed Arrays.
+It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API and the Gamepad API.
 It will use FileSystem API too.
 
 At this point it can run some demos.

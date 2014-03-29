@@ -83,15 +83,64 @@ module core {
 			setTimeout(() => { this.simulateButtonUp(button); }, 60);
 		}
 
+		animationTimeId: number = 0;
+
 		startAsync() {
 			document.addEventListener('keydown', (e) => this.keyDown(e));
 			document.addEventListener('keyup', (e) => this.keyUp(e));
+			this.frame(0);
 			return Promise.resolve();
+		}
+
+		private gamepadsButtons = [];
+
+		private frame(timestamp: number) {
+			//console.log('zzzzzzzzz');
+			if (navigator['getGamepads']) {
+				//console.log('bbbbbbbbb');
+				var gamepads = (navigator['getGamepads'])();
+				if (gamepads[0]) {
+					//console.log('aaaaaaaa');
+					var buttonMapping = [
+						PspCtrlButtons.cross, // 0
+						PspCtrlButtons.circle, // 1
+						PspCtrlButtons.square, // 2
+						PspCtrlButtons.triangle, // 3
+						PspCtrlButtons.leftTrigger, // 4
+						PspCtrlButtons.rightTrigger, // 5
+						PspCtrlButtons.volumeUp, // 6
+						PspCtrlButtons.volumeDown, // 7
+						PspCtrlButtons.select, // 8
+						PspCtrlButtons.start, // 9
+						PspCtrlButtons.home, // 10 - L3
+						PspCtrlButtons.note, // 11 - L3
+						PspCtrlButtons.up, // 12
+						PspCtrlButtons.down, // 13
+						PspCtrlButtons.left, // 14
+						PspCtrlButtons.right, // 15
+					];
+
+					var gamepad = gamepads[0];
+					var buttons = gamepad['buttons'];
+					var axes = gamepad['axes'];
+					this.data.x = axes[0];
+					this.data.y = axes[1];
+					for (var n = 0; n < 15; n++) {
+						if (buttons[n]) {
+							this.simulateButtonDown(buttonMapping[n]);
+						} else {
+							this.simulateButtonUp(buttonMapping[n]);
+						}
+					}
+				}
+			}
+			this.animationTimeId = requestAnimationFrame((timestamp: number) => this.frame(timestamp));
 		}
 
 		stopAsync() {
 			document.removeEventListener('keydown', this.keyDown);
 			document.removeEventListener('keyup', this.keyUp);
+			cancelAnimationFrame(this.animationTimeId);
 			return Promise.resolve();
 		}
 	}
