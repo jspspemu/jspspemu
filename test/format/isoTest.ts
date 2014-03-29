@@ -1,7 +1,14 @@
 ﻿describe('iso', () => {
+	var isoData: Uint8Array;
+
+	before((done) => {
+		downloadFileAsync('samples/cube.iso').then((data) => {
+			isoData = new Uint8Array(data);
+			done();
+		});
+	});
+
 	it('should load fine', (done) => {
-		var isoGzData = Stream.fromBase64(cubeGzIsoBase64).toUInt8Array();
-		var isoData = new Zlib.RawInflate(isoGzData).decompress();
 		var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
 
 		format.iso.Iso.fromStreamAsync(asyncStream).then(iso => {

@@ -1,8 +1,15 @@
 ﻿describe('cso', () => {
-	it('should load fine', (done) => {
-        var csoData = Stream.fromBase64(testCsoBase64).toUInt8Array();
+	var testCsoArrayBuffer: ArrayBuffer;
 
-		format.cso.Cso.fromStreamAsync(new MemoryAsyncStream(csoData.buffer)).then(cso => {
+	before((done) => {
+		downloadFileAsync('samples/test.cso').then((data) => {
+			testCsoArrayBuffer = data;
+			done();
+		});
+	});
+
+	it('should load fine', (done) => {
+		format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(cso => {
 			//cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
 			return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
 				var stream = Stream.fromArrayBuffer(data);
@@ -19,9 +26,7 @@
 	});
 
 	it('should work with iso', (done) => {
-		var csoData = Stream.fromBase64(testCsoBase64).toUInt8Array();
-
-		format.cso.Cso.fromStreamAsync(new MemoryAsyncStream(csoData.buffer)).then(cso => {
+		format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(cso => {
 			return format.iso.Iso.fromStreamAsync(cso).then(iso => {
 				assert.equal(
 					JSON.stringify(iso.children.slice(0, 4).map(node => node.path)),

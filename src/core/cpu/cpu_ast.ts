@@ -1,40 +1,42 @@
 ﻿module core.cpu.ast {
-	var ast = new MipsAstBuilder();
+	var ast: MipsAstBuilder;
 
-	function bind_ast<T>(func: T): T { return <any>(_.bind(<any>func, ast)); }
+	function assignGpr(index: number, expr: ANodeStm) { return ast.assignGpr(index, expr); }
+	function assignFpr(index: number, expr: ANodeStm) { return ast.assignFpr(index, expr); }
+	function assignFpr_I(index: number, expr: ANodeStm) { return ast.assignFpr_I(index, expr); }
+	function assignIC(expr: ANodeStm) { return ast.assignIC(expr); }
 
-	var assignGpr = bind_ast(ast.assignGpr);
-	var assignFpr = bind_ast(ast.assignFpr);
-	var assignFpr_I = bind_ast(ast.assignFpr_I);
-	var assignIC = bind_ast(ast.assignIC);
-	var fcr31_cc = bind_ast(ast.fcr31_cc);
-	var fpr = bind_ast(ast.fpr);
-	var fpr_i = bind_ast(ast.fpr_i);
-	var gpr = bind_ast(ast.gpr);
-	var imm32 = bind_ast(ast.imm32);
-	var immBool = function (value: boolean) { return imm32(value ? 1 : 0); }
-    var u_imm32 = bind_ast(ast.u_imm32);
-	var unop = bind_ast(ast.unop);
-	var binop = bind_ast(ast.binop);
-	var binop_i = bind_ast(ast.binop_i);
-	var _if = bind_ast(ast._if);
-	var call = bind_ast(ast.call);
-	var lo = bind_ast(ast.lo);
-	var hi = bind_ast(ast.hi);
-	var ic = bind_ast(ast.ic);
-	var stm = bind_ast(ast.stm);
-	var stms = bind_ast(ast.stms);
-	var branchflag = bind_ast(ast.branchflag);
-	var branchpc = bind_ast(ast.branchpc);
-	var assign = bind_ast(ast.assign);
-	var pc = bind_ast(ast.pc);
-
+	function fcr31_cc() { return ast.fcr31_cc(); }
+	function fpr(index: number) { return ast.fpr(index); }
+	function fpr_i(index: number) { return ast.fpr_i(index); }
+	function gpr(index: number) { return ast.gpr(index); }
+	function immBool(value: boolean) { return ast.imm32(value ? 1 : 0); }
+	function imm32(value: number) { return ast.imm32(value); }
+	function u_imm32(value: number) { return ast.u_imm32(value); }
+	function unop(op: string, right: ANodeExpr) { return ast.unop(op, right); }
+	function binop(left: ANodeExpr, op: string, right: ANodeExpr) { return ast.binop(left, op, right); }
+	function binop_i(left: ANodeExpr, op: string, right: number) { return ast.binop_i(left, op, right); }
+	function _if(cond: ANodeExpr, codeTrue: ANodeStm, codeFalse?: ANodeStm) { return ast._if(cond, codeTrue, codeFalse); }
+	function call(name: string, exprList: ANodeExpr[]) { return ast.call(name, exprList); }
+	function stm(expr: ANodeExpr) { return ast.stm(expr); }
+	function stms(stms: ANodeStm[]) { return ast.stms(stms); }
+	function pc() { return ast.pc(); }
+	function lo() { return ast.lo(); }
+	function hi() { return ast.hi(); }
+	function ic() { return ast.ic(); }
+	function branchflag() { return ast.branchflag(); }
+	function branchpc() { return ast.branchpc(); }
+	function assign(ref: ANodeExprLValue, value: ANodeExpr) { return ast.assign(ref, value); }
 	function i_simm16(i: Instruction) { return imm32(i.imm16); }
 	function i_uimm16(i: Instruction) { return u_imm32(i.u_imm16); }
 	function rs_imm16(i: Instruction) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
 	function cast_uint(expr: ANodeExpr) { return binop(expr, '>>>', ast.imm32(0)); }
 
 	export class InstructionAst {
+		constructor() {
+			ast = new MipsAstBuilder();
+		}
+
 		lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
 		add(i: Instruction) { return this.addu(i); }

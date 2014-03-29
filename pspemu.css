@@ -1,0 +1,36 @@
+﻿@font-face {
+    font-family: 'Buttons';
+    src: url('buttons.ttf');
+}
+
+body {
+    background: #222;
+    margin: 0;
+    padding: 0;
+    /*width: 480px;*/
+    overflow: hidden;
+    cursor: default;
+}
+#buttons {
+    color: white;
+    font: 64px Buttons;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+#buttons span {
+    padding: 4px;
+    display: inline-block;
+    opacity: 0.7;
+}
+#buttons span.pressed {
+    opacity: 1.0;
+}
+#output {
+    color: white;
+    white-space: pre;
+    font: 10px 'Lucida Console';
+    height: 272px;
+    max-height: 272px;
+    overflow-y: scroll;
+}

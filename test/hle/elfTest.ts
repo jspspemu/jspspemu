@@ -1,4 +1,13 @@
 ﻿describe('elf', () => {
+	var stream:Stream;
+
+	before((done) => {
+		downloadFileAsync('samples/counter.elf').then((data) => {
+			stream = Stream.fromArrayBuffer(data);
+			done();
+		});
+	});
+
     it('load', () => {
         //var stream = Stream.fromBase64(minifireElfBase64);
 		var memory = new core.Memory();
@@ -7,7 +16,6 @@
         var syscallManager = new core.SyscallManager(context);
         var context = new EmulatorContext();
 		var moduleManager = new hle.ModuleManager(context);
-		var stream = Stream.fromBase64(counterElfBase64);
 
 		context.init(display, null, null, memoryManager, null, null, memory, null, null);
 

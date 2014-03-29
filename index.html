@@ -23,120 +23,18 @@
     <script src="lib/underscore.js"></script>
     <script src="lib/zlib_and_gzip.min.js"></script>
     <script src="lib/zlib/rawinflate.min.js"></script>
+    <script src="lib/sprintf.js"></script>
     <script src="polyfills/promise-0.1.1.js"></script>
-    <script src="src/util/sprintf.js"></script>
-    <script src="src/util/utils.js"></script>
+    <script src="lib/mocha.js"></script>
+    <script src="lib/chai.js"></script>
+    <script>
+        mocha.setup('bdd');
+        var expect = chai.expect;
+        var assert = chai.assert;
+    </script>
+    <script src="pspemu.js"></script>
 
-    <script src="src/core/memory.js"></script>
-
-    <script src="src/core/cpu/state.js"></script>
-    
-    <script src="src/ast.js"></script>
-
-    <script src="src/core/syscallmanager.js"></script>
-    <script src="src/core/cpu/instructions.js"></script>
-    <script src="src/core/cpu/cpu_ast.js"></script>
-    <script src="src/core/cpu/assembler.js"></script>
-
-    <script src="src/cpu.js"></script>
-    <script src="src/core/audio.js"></script>
-    <script src="src/core/rtc.js"></script>
-    <script src="src/core/display.js"></script>
-    <script src="src/core/controller.js"></script>
-    <script src="src/core/gpu/state.js"></script>
-    <script src="src/core/gpu.js"></script>
-    <script src="src/core/gpu/gpu_webgl.js"></script>
-    
-    <script src="src/hle/filemanager.js"></script>
-    <script src="src/hle/memorymanager.js"></script>
-    <script src="src/hle/threadmanager.js"></script>
-    <script src="src/hle/elf.js"></script>
-
-    <script src="src/format/format.js"></script>
-    <script src="src/format/cso.js"></script>
-    <script src="src/format/iso.js"></script>
-    <script src="src/format/pbp.js"></script>
-    <script src="src/format/psf.js"></script>
-
-    <script src="src/hle/vfs/vfs.js"></script>
-
-    <script src="src/hle/utils.js"></script>
-    <script src="src/hle/modules/IoFileMgrForUser.js"></script>
-    <script src="src/hle/modules/LoadExecForUser.js"></script>
-    <script src="src/hle/modules/LoadCoreForKernel.js"></script>
-    <script src="src/hle/modules/ModuleMgrForUser.js"></script>
-    <script src="src/hle/modules/sceAudio.js"></script>
-    <script src="src/hle/modules/sceCtrl.js"></script>
-    <script src="src/hle/modules/sceUtility.js"></script>
-    <script src="src/hle/modules/sceNet.js"></script>
-    <script src="src/hle/modules/sceNetInet.js"></script>
-    <script src="src/hle/modules/sceNetApctl.js"></script>
-    <script src="src/hle/modules/sceNetResolver.js"></script>
-    <script src="src/hle/modules/sceDmac.js"></script>
-    <script src="src/hle/modules/sceDisplay.js"></script>
-    <script src="src/hle/modules/sceGe_user.js"></script>
-    <script src="src/hle/modules/scePower.js"></script>
-    <script src="src/hle/modules/sceRtc.js"></script>
-    <script src="src/hle/modules/StdioForUser.js"></script>
-    <script src="src/hle/modules/SysMemUserForUser.js"></script>
-    <script src="src/hle/modules/ThreadManForUser.js"></script>
-    <script src="src/hle/modules/UtilsForUser.js"></script>
-    <script src="src/hle/modules/UtilsForKernel.js"></script>
-    <script src="src/hle/modules/sceHprm.js"></script>
-    <script src="src/hle/modules/KDebugForKernel.js"></script>
-    <script src="src/hle/modules/sceAtrac3plus.js"></script>
-    <script src="src/hle/modules/sceUmdUser.js"></script>
-    <script src="src/hle/modules/Kernel_Library.js"></script>
-    <script src="src/hle/modules/sceSasCore.js"></script>
-    <script src="src/hle/modules/sceMpeg.js"></script>
-    <script src="src/hle/modules/sceSuspendForUser.js"></script>
-    <script src="src/hle/modules/sceNetAdhoc.js"></script>
-    <script src="src/hle/modules/sceNetAdhocctl.js"></script>
-    <script src="src/hle/modules/sceNetAdhocMatching.js"></script>
-    <script src="src/hle/modules/sceWlanDrv.js"></script>
-    <script src="src/hle/modules/InterruptManager.js"></script>
-    <script src="src/hle/modules/sceImpose.js"></script>
-    
-    <script src="src/hle/modulemanager.js"></script>
-
-    <style type="text/css">
-        @font-face {
-            font-family: 'Buttons';
-            src: url('buttons.ttf');
-        }
-
-        body {
-            background: #222;
-            margin: 0;
-            padding: 0;
-            /*width: 480px;*/
-            overflow: hidden;
-            cursor: default;
-        }
-        #buttons {
-            color: white;
-            font: 64px Buttons;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            user-select: none;
-        }
-        #buttons span {
-            padding: 4px;
-            display: inline-block;
-            opacity: 0.7;
-        }
-        #buttons span.pressed {
-            opacity: 1.0;
-        }
-        #output {
-            color: white;
-            white-space: pre;
-            font: 10px 'Lucida Console';
-            height: 272px;
-            max-height: 272px;
-            overflow-y: scroll;
-        }
-    </style>
+    <link rel="stylesheet" href="pspemu.css" />
 </head>
 <body>
     <!-- <canvas id="canvas" width="480" height="272" style="background:black;width:960px;height:544px;"></canvas> -->
@@ -168,6 +66,7 @@
             "samples/text.elf",
             "samples/blend.pbp",
             "samples/clut.pbp",
+            "samples/reflection.pbp",
         ];
         $('#files').html('');
         var selectedItem = document.location.hash.substr(1);
@@ -224,9 +123,8 @@
         <span id="button_select">B</span>
     </div>
 
-    <script src="src/app.js"></script>
-
     <script>
+        main();
         controllerRegister();
     </script>
 

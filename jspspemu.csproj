@@ -100,11 +100,10 @@
     <TypeScriptCompile Include="src\hle\threadmanager.ts" />
     <TypeScriptCompile Include="src\core\cpu\instructions.ts" />
     <TypeScriptCompile Include="src\core\memory.ts" />
-    <Content Include="src\util\sprintf.js" />
     <TypeScriptCompile Include="src\core\rtc.ts" />
     <TypeScriptCompile Include="test\samples.ts" />
     <TypeScriptCompile Include="src\util\utils.ts" />
-    <TypeScriptCompile Include="src\hle\vfs\vfs.ts" />
+    <TypeScriptCompile Include="src\hle\vfs.ts" />
     <TypeScriptCompile Include="test\gpuTest.ts" />
     <TypeScriptCompile Include="test\hle\elfTest.ts" />
     <TypeScriptCompile Include="test\hle\memorymanagerTest.ts" />
@@ -207,6 +206,7 @@
     <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
     <TypeScriptSourceMap>true</TypeScriptSourceMap>
     <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
+    <TypeScriptOutFile>pspemu.js</TypeScriptOutFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptTarget>ES5</TypeScriptTarget>

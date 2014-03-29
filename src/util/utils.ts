@@ -73,6 +73,10 @@ class MemoryAsyncStream implements AsyncStream {
     constructor(private data: ArrayBuffer, public name = 'memory') {
 	}
 
+	static fromArrayBuffer(data: ArrayBuffer) {
+		return new MemoryAsyncStream(data);
+	}
+
     get size() { return this.data.byteLength; }
 
     readChunkAsync(offset: number, count: number) {

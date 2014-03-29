@@ -1,7 +1,17 @@
 ﻿describe('psf', () => {
+	var rtctestPsfArrayBuffer: ArrayBuffer;
+
+	before((done) => {
+		downloadFileAsync('samples/rtctest.psf').then((data) => {
+			rtctestPsfArrayBuffer = data;
+			done();
+		});
+	});
+
+
 	it('should load fine', () => {
 		var psf = new format.psf.Psf();
-		psf.load(Stream.fromBase64(rtctestPsfBase64));
+		psf.load(Stream.fromArrayBuffer(rtctestPsfArrayBuffer));
 		assert.equal(psf.entriesByName['BOOTABLE'], 1);
 		assert.equal(psf.entriesByName['CATEGORY'], 'MG');
 		assert.equal(psf.entriesByName['DISC_ID'], 'UCJS10041');

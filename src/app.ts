@@ -1,6 +1,4 @@
-﻿///<reference path="./cpu.ts" />
-
-class Emulator {
+﻿class Emulator {
 	private emulatorContext: EmulatorContext;
 	private memory: core.Memory;
 	private memoryManager: hle.MemoryManager;
@@ -191,9 +189,9 @@ function controllerRegister() {
 	//document.onselectstart = () => { return false; };
 }
 
-var emulator = new Emulator();
-
 function main() {
+	var emulator = new Emulator();
+	window['emulator'] = emulator;
 	var sampleDemo = '';
 
 	if (document.location.hash) {
@@ -204,5 +202,3 @@ function main() {
 		emulator.downloadAndExecuteAsync(sampleDemo);
 	}
 }
-
-main();
