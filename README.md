@@ -1,9 +1,9 @@
 jspspemu
 ========
 
-A PSP emulator made using javascript (actually typescript). It works with any modern browser.
+A PSP emulator made using javascript (actually typescript). It works with modern browsers.
 
-Lastest version works on:
+Lastest version have been tested on:
 * Google Chrome 33
 * Firefox 29
 * Internet Explorer 11
@@ -68,3 +68,10 @@ var item:ElfPspModuleInfo = ElfPspModuleInfo.struct.reed(stream);
 var item:ElfPspModuleInfo = ElfPspModuleInfo.struct.write(stream, item);
 ```
 
+The performance is mainly determined by performing arithmetic ops with Int32Array:
+http://jsperf.com/loop-with-array-as-variables/3
+Maybe in the future javascript implementations will be able to convert typed arrays access into local variables/registers
+and store them when exiting functions, analyzing the origin ArrayBuffer of all the typed arrays used.
+
+You can test real psp performance with your favourite browser/platform with this demo:
+http://jspspemu.com/#samples/compilerPerf.elf
