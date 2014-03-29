@@ -1,517 +1,10 @@
-﻿var Emulator = (function () {
-    function Emulator() {
-        this.memory = new core.Memory();
-    }
-    Emulator.prototype.stopAsync = function () {
-        if (!this.display)
-            return Promise.resolve();
-
-        return Promise.all([
-            this.display.stopAsync(),
-            this.controller.stopAsync(),
-            this.gpu.stopAsync(),
-            this.audio.stopAsync(),
-            this.threadManager.stopAsync()
-        ]);
-    };
-
-    Emulator.prototype.startAsync = function () {
-        var _this = this;
-        return this.stopAsync().then(function () {
-            _this.memory.reset();
-            _this.emulatorContext = new EmulatorContext();
-            _this.memoryManager = new hle.MemoryManager();
-            _this.audio = new core.PspAudio();
-            _this.canvas = (document.getElementById('canvas'));
-            _this.webgl_canvas = (document.getElementById('webgl_canvas'));
-            _this.display = new core.PspDisplay(_this.memory, _this.canvas, _this.webgl_canvas);
-            _this.gpu = new core.gpu.PspGpu(_this.memory, _this.display, _this.webgl_canvas);
-            _this.controller = new core.PspController();
-            _this.instructionCache = new InstructionCache(_this.memory);
-            _this.syscallManager = new core.SyscallManager(_this.emulatorContext);
-            _this.fileManager = new hle.FileManager();
-            _this.threadManager = new hle.ThreadManager(_this.memory, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
-            _this.moduleManager = new hle.ModuleManager(_this.emulatorContext);
-
-            _this.fileManager.mount('ms0', _this.ms0Vfs = new hle.vfs.MountableVfs());
-
-            hle.ModuleManagerSyscalls.registerSyscalls(_this.syscallManager, _this.moduleManager);
-
-            _this.emulatorContext.init(_this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager);
-
-            return Promise.all([
-                _this.display.startAsync(),
-                _this.controller.startAsync(),
-                _this.gpu.startAsync(),
-                _this.audio.startAsync(),
-                _this.threadManager.startAsync()
-            ]);
-        });
-    };
-
-    Emulator.prototype._loadAsync = function (asyncStream, pathToFile) {
-        var _this = this;
-        return format.detectFormatAsync(asyncStream).then(function (fileFormat) {
-            console.info(sprintf('File:: size: %d, format: "%s", name: "%s"', asyncStream.size, fileFormat, asyncStream.name));
-            switch (fileFormat) {
-                case 'ciso':
-                    return format.cso.Cso.fromStreamAsync(asyncStream).then(function (asyncStream2) {
-                        return _this._loadAsync(asyncStream2, pathToFile);
-                    });
-                case 'pbp':
-                    return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        var pbp = format.pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
-                        return _this._loadAsync(new MemoryAsyncStream(pbp.get('psp.data').toArrayBuffer()), pathToFile);
-                    });
-                case 'iso':
-                    return format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
-                        var isoFs = new hle.vfs.IsoVfs(iso);
-                        _this.fileManager.mount('umd0', isoFs);
-                        _this.fileManager.mount('disc0', isoFs);
-
-                        return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).then(function (file) {
-                            return file.readAllAsync().then(function (data) {
-                                return _this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
-                            });
-                        });
-                    });
-                case 'elf':
-                    return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
-                        mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
-
-                        var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
-
-                        //console.log(new Uint8Array(executableArrayBuffer));
-                        var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
-
-                        pspElf.load(elfStream);
-
-                        var moduleInfo = pspElf.moduleInfo;
-
-                        var arguments = [pathToFile];
-                        var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
-
-                        var argument = arguments.map(function (argument) {
-                            return argument + String.fromCharCode(0);
-                        }).join('');
-
-                        //console.log(argument);
-                        _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
-
-                        //argumentsPartition.low
-                        // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
-                        var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
-                        thread.state.GP = moduleInfo.gp;
-                        thread.state.gpr[4] = argument.length;
-                        thread.state.gpr[5] = argumentsPartition.low;
-                        thread.start();
-                    });
-
-                default:
-                    throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));
-            }
-        });
-    };
-
-    Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
-        var _this = this;
-        return this.startAsync().then(function () {
-            var parentUrl = url.replace(/\/[^//]+$/, '');
-            console.info('parentUrl: ' + parentUrl);
-            _this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new hle.vfs.UriVfs(parentUrl));
-            return _this._loadAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
-        }).catch(function (e) {
-            console.error(e);
-            console.error(e['stack']);
-            throw (e);
-        });
-    };
-
-    Emulator.prototype.downloadAndExecuteAsync = function (url) {
-        var _this = this;
-        return downloadFileAsync(url).then(function (data) {
-            setImmediate(function () {
-                // escape try/catch!
-                _this.loadAndExecuteAsync(new MemoryAsyncStream(data, url), url);
-            });
-        });
-    };
-
-    Emulator.prototype.executeFileAsync = function (file) {
-        var _this = this;
-        setImmediate(function () {
-            // escape try/catch!
-            _this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
-        });
-    };
-    return Emulator;
-})();
-
-function controllerRegister() {
-    function createButton(query, button) {
-        var jq = $(query);
-        function down() {
-            jq.addClass('pressed');
-            window['emulator'].controller.simulateButtonDown(button);
-        }
-        function up() {
-            jq.removeClass('pressed');
-            window['emulator'].controller.simulateButtonUp(button);
-        }
-
-        jq.mousedown(down).mouseup(up).on('touchstart', down).on('touchend', up);
-    }
-
-    createButton('#button_left', 128 /* left */);
-    createButton('#button_up', 16 /* up */);
-    createButton('#button_down', 64 /* down */);
-    createButton('#button_right', 32 /* right */);
-
-    createButton('#button_up_left', 16 /* up */ | 128 /* left */);
-    createButton('#button_up_right', 16 /* up */ | 32 /* right */);
-    createButton('#button_down_left', 64 /* down */ | 128 /* left */);
-    createButton('#button_down_right', 64 /* down */ | 32 /* right */);
-
-    createButton('#button_cross', 16384 /* cross */);
-    createButton('#button_circle', 8192 /* circle */);
-    createButton('#button_triangle', 4096 /* triangle */);
-    createButton('#button_square', 32768 /* square */);
-
-    createButton('#button_l', 256 /* leftTrigger */);
-    createButton('#button_r', 512 /* rightTrigger */);
-
-    createButton('#button_start', 8 /* start */);
-    createButton('#button_select', 1 /* select */);
-    //document['ontouchmove'] = (e) => { e.preventDefault(); };
-    //document.onselectstart = () => { return false; };
-}
-
-function main() {
-    var emulator = new Emulator();
-    window['emulator'] = emulator;
-    var sampleDemo = '';
-
-    if (document.location.hash) {
-        sampleDemo = document.location.hash.substr(1);
-    }
-
-    if (sampleDemo) {
-        emulator.downloadAndExecuteAsync(sampleDemo);
-    }
-}
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var ANode = (function () {
-    function ANode() {
-    }
-    ANode.prototype.toJs = function () {
-    };
-
-    ANode.prototype.optimize = function () {
-        return this;
-    };
-    return ANode;
-})();
-
-var ANodeStm = (function (_super) {
-    __extends(ANodeStm, _super);
-    function ANodeStm() {
-        _super.apply(this, arguments);
-    }
-    return ANodeStm;
-})(ANode);
-
-var ANodeStmList = (function (_super) {
-    __extends(ANodeStmList, _super);
-    function ANodeStmList(childs) {
-        _super.call(this);
-        this.childs = childs;
-    }
-    ANodeStmList.prototype.toJs = function () {
-        return this.childs.map(function (item) {
-            return item.toJs();
-        }).join("\n");
-    };
-    return ANodeStmList;
-})(ANodeStm);
-
-var ANodeStmRaw = (function (_super) {
-    __extends(ANodeStmRaw, _super);
-    function ANodeStmRaw(content) {
-        _super.call(this);
-        this.content = content;
-    }
-    ANodeStmRaw.prototype.toJs = function () {
-        return this.content;
-    };
-    return ANodeStmRaw;
-})(ANodeStm);
-
-var ANodeStmExpr = (function (_super) {
-    __extends(ANodeStmExpr, _super);
-    function ANodeStmExpr(expr) {
-        _super.call(this);
-        this.expr = expr;
-    }
-    ANodeStmExpr.prototype.toJs = function () {
-        return this.expr.toJs() + ';';
-    };
-    return ANodeStmExpr;
-})(ANodeStm);
-
-var ANodeExpr = (function (_super) {
-    __extends(ANodeExpr, _super);
-    function ANodeExpr() {
-        _super.apply(this, arguments);
-    }
-    return ANodeExpr;
-})(ANode);
-
-var ANodeExprLValue = (function (_super) {
-    __extends(ANodeExprLValue, _super);
-    function ANodeExprLValue() {
-        _super.apply(this, arguments);
-    }
-    return ANodeExprLValue;
-})(ANodeExpr);
-
-var ANodeExprLValueVar = (function (_super) {
-    __extends(ANodeExprLValueVar, _super);
-    function ANodeExprLValueVar(name) {
-        _super.call(this);
-        this.name = name;
-    }
-    ANodeExprLValueVar.prototype.toJs = function () {
-        return this.name;
-    };
-    return ANodeExprLValueVar;
-})(ANodeExprLValue);
-
-var ANodeExprI32 = (function (_super) {
-    __extends(ANodeExprI32, _super);
-    function ANodeExprI32(value) {
-        _super.call(this);
-        this.value = value;
-    }
-    ANodeExprI32.prototype.toJs = function () {
-        return String(this.value);
-    };
-    return ANodeExprI32;
-})(ANodeExpr);
-
-var ANodeExprU32 = (function (_super) {
-    __extends(ANodeExprU32, _super);
-    function ANodeExprU32(value) {
-        _super.call(this);
-        this.value = value;
-    }
-    ANodeExprU32.prototype.toJs = function () {
-        return sprintf('0x%08X', this.value);
-    };
-    return ANodeExprU32;
-})(ANodeExpr);
-
-var ANodeExprBinop = (function (_super) {
-    __extends(ANodeExprBinop, _super);
-    function ANodeExprBinop(left, op, right) {
-        _super.call(this);
-        this.left = left;
-        this.op = op;
-        this.right = right;
-    }
-    ANodeExprBinop.prototype.toJs = function () {
-        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
-    };
-    return ANodeExprBinop;
-})(ANodeExpr);
-
-var ANodeExprUnop = (function (_super) {
-    __extends(ANodeExprUnop, _super);
-    function ANodeExprUnop(op, right) {
-        _super.call(this);
-        this.op = op;
-        this.right = right;
-    }
-    ANodeExprUnop.prototype.toJs = function () {
-        return '(' + this.op + '(' + this.right.toJs() + '))';
-    };
-    return ANodeExprUnop;
-})(ANodeExpr);
-
-var ANodeExprAssign = (function (_super) {
-    __extends(ANodeExprAssign, _super);
-    function ANodeExprAssign(left, right) {
-        _super.call(this);
-        this.left = left;
-        this.right = right;
-    }
-    ANodeExprAssign.prototype.toJs = function () {
-        return this.left.toJs() + ' = ' + this.right.toJs();
-    };
-    return ANodeExprAssign;
-})(ANodeExpr);
-
-var ANodeExprCall = (function (_super) {
-    __extends(ANodeExprCall, _super);
-    function ANodeExprCall(name, arguments) {
-        _super.call(this);
-        this.name = name;
-        this.arguments = arguments;
-    }
-    ANodeExprCall.prototype.toJs = function () {
-        return this.name + '(' + this.arguments.map(function (argument) {
-            return argument.toJs();
-        }).join(',') + ')';
-    };
-    return ANodeExprCall;
-})(ANodeExpr);
-
-var ANodeStmIf = (function (_super) {
-    __extends(ANodeStmIf, _super);
-    function ANodeStmIf(cond, codeTrue, codeFalse) {
-        _super.call(this);
-        this.cond = cond;
-        this.codeTrue = codeTrue;
-        this.codeFalse = codeFalse;
-    }
-    ANodeStmIf.prototype.toJs = function () {
-        var result = '';
-        result += 'if (' + this.cond.toJs() + ')';
-        result += ' { ' + this.codeTrue.toJs() + ' }';
-        if (this.codeFalse)
-            result += ' else { ' + this.codeFalse.toJs() + ' }';
-        return result;
-    };
-    return ANodeStmIf;
-})(ANodeStm);
-
-var AstBuilder = (function () {
-    function AstBuilder() {
-    }
-    AstBuilder.prototype.assign = function (ref, value) {
-        return new ANodeExprAssign(ref, value);
-    };
-
-    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
-        return new ANodeStmIf(cond, codeTrue, codeFalse);
-    };
-
-    AstBuilder.prototype.binop = function (left, op, right) {
-        return new ANodeExprBinop(left, op, right);
-    };
-
-    AstBuilder.prototype.unop = function (op, right) {
-        return new ANodeExprUnop(op, right);
-    };
-
-    AstBuilder.prototype.binop_i = function (left, op, right) {
-        return this.binop(left, op, this.imm32(right));
-    };
-
-    AstBuilder.prototype.imm32 = function (value) {
-        return new ANodeExprI32(value);
-    };
-
-    AstBuilder.prototype.u_imm32 = function (value) {
-        //return new ANodeExprI32(value);
-        return new ANodeExprU32(value);
-    };
-
-    AstBuilder.prototype.stm = function (expr) {
-        return new ANodeStmExpr(expr);
-    };
-
-    AstBuilder.prototype.stmEmpty = function () {
-        return new ANodeStm();
-    };
-
-    AstBuilder.prototype.stms = function (stms) {
-        return new ANodeStmList(stms);
-    };
-
-    AstBuilder.prototype.call = function (name, exprList) {
-        return new ANodeExprCall(name, exprList);
-    };
-    return AstBuilder;
-})();
-
-var MipsAstBuilder = (function (_super) {
-    __extends(MipsAstBuilder, _super);
-    function MipsAstBuilder() {
-        _super.apply(this, arguments);
-    }
-    MipsAstBuilder.prototype.debugger = function () {
-        return new ANodeStmRaw("debugger;");
-    };
-
-    MipsAstBuilder.prototype.functionPrefix = function () {
-        //return new ANodeStmRaw('var gpr = state.gpr;');
-        return this.stmEmpty();
-    };
-
-    MipsAstBuilder.prototype.gpr = function (index) {
-        if (index === 0)
-            return new ANodeExprLValueVar('0');
-        return new ANodeExprLValueVar('state.' + core.cpu.CpuState.getGprAccessName(index));
-    };
-
-    MipsAstBuilder.prototype.fpr = function (index) {
-        return new ANodeExprLValueVar('state.' + core.cpu.CpuState.getFprAccessName(index));
-    };
-
-    MipsAstBuilder.prototype.fpr_i = function (index) {
-        return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
-    };
-
-    MipsAstBuilder.prototype.fcr31_cc = function () {
-        return new ANodeExprLValueVar('state.fcr31_cc');
-    };
-    MipsAstBuilder.prototype.lo = function () {
-        return new ANodeExprLValueVar('state.LO');
-    };
-    MipsAstBuilder.prototype.hi = function () {
-        return new ANodeExprLValueVar('state.HI');
-    };
-    MipsAstBuilder.prototype.ic = function () {
-        return new ANodeExprLValueVar('state.IC');
-    };
-    MipsAstBuilder.prototype.pc = function () {
-        return new ANodeExprLValueVar('state.PC');
-    };
-    MipsAstBuilder.prototype.branchflag = function () {
-        return new ANodeExprLValueVar('state.BRANCHFLAG');
-    };
-    MipsAstBuilder.prototype.branchpc = function () {
-        return new ANodeExprLValueVar('state.BRANCHPC');
-    };
-
-    MipsAstBuilder.prototype.assignGpr = function (index, expr) {
-        if (index == 0)
-            return this.stmEmpty();
-
-        //return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
-        return this.stm(this.assign(this.gpr(index), expr));
-    };
-
-    MipsAstBuilder.prototype.assignIC = function (expr) {
-        return this.stm(this.assign(this.ic(), expr));
-    };
-
-    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), expr));
-    };
-
-    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), this.call('MathFloat.reinterpretIntAsFloat', [expr])));
-    };
-    return MipsAstBuilder;
-})(AstBuilder);
-///<reference path="../../typings/promise/promise.d.ts" />
 
 function String_repeat(str, num) {
     return new Array(num + 1).join(str);
@@ -1766,469 +1259,6 @@ var core;
     })();
     core.PspAudio = PspAudio;
 })(core || (core = {}));
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    var SceCtrlData = (function () {
-        function SceCtrlData() {
-            this.timeStamp = 0;
-            this.buttons = 0 /* none */;
-            this.lx = 0;
-            this.ly = 0;
-            this._rsrv = [0, 0, 0, 0, 0];
-            this.x = 0;
-            this.y = 0;
-        }
-        Object.defineProperty(SceCtrlData.prototype, "x", {
-            get: function () {
-                return ((this.lx / 255.0) - 0.5) * 2.0;
-            },
-            set: function (value) {
-                this.lx = (((value / 2.0) + 0.5) * 255.0);
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(SceCtrlData.prototype, "y", {
-            get: function () {
-                return ((this.ly / 255.0) - 0.5) * 2.0;
-            },
-            set: function (value) {
-                this.ly = (((value / 2.0) + 0.5) * 255.0);
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-
-        SceCtrlData.struct = StructClass.create(SceCtrlData, [
-            { type: UInt32, name: 'timeStamp' },
-            { type: UInt32, name: 'buttons' },
-            { type: Int8, name: 'lx' },
-            { type: Int8, name: 'ly' },
-            { type: StructArray.create(Int8, 6), name: '_rsrv' }
-        ]);
-        return SceCtrlData;
-    })();
-    core.SceCtrlData = SceCtrlData;
-
-    var PspController = (function () {
-        function PspController() {
-            this.data = new SceCtrlData();
-            this.buttonMapping = {};
-            this.animationTimeId = 0;
-            this.gamepadsButtons = [];
-            this.buttonMapping = {};
-            this.buttonMapping[38 /* up */] = 16 /* up */;
-            this.buttonMapping[37 /* left */] = 128 /* left */;
-            this.buttonMapping[39 /* right */] = 32 /* right */;
-            this.buttonMapping[40 /* down */] = 64 /* down */;
-            this.buttonMapping[13 /* enter */] = 8 /* start */;
-            this.buttonMapping[32 /* space */] = 1 /* select */;
-            this.buttonMapping[81 /* q */] = 256 /* leftTrigger */;
-            this.buttonMapping[69 /* e */] = 512 /* rightTrigger */;
-            this.buttonMapping[87 /* w */] = 4096 /* triangle */;
-            this.buttonMapping[83 /* s */] = 16384 /* cross */;
-            this.buttonMapping[65 /* a */] = 32768 /* square */;
-            this.buttonMapping[68 /* d */] = 8192 /* circle */;
-            //this.buttonMapping[KeyCodes.Down] = PspCtrlButtons.Down;
-        }
-        PspController.prototype.keyDown = function (e) {
-            //console.log(e.keyCode);
-            var button = this.buttonMapping[e.keyCode];
-            if (button !== undefined) {
-                this.data.buttons |= button;
-            }
-        };
-
-        PspController.prototype.keyUp = function (e) {
-            var button = this.buttonMapping[e.keyCode];
-            if (button !== undefined) {
-                this.data.buttons &= ~button;
-            }
-        };
-
-        PspController.prototype.simulateButtonDown = function (button) {
-            this.data.buttons |= button;
-        };
-
-        PspController.prototype.simulateButtonUp = function (button) {
-            this.data.buttons &= ~button;
-        };
-
-        PspController.prototype.simulateButtonPress = function (button) {
-            var _this = this;
-            this.simulateButtonDown(button);
-            setTimeout(function () {
-                _this.simulateButtonUp(button);
-            }, 60);
-        };
-
-        PspController.prototype.startAsync = function () {
-            var _this = this;
-            document.addEventListener('keydown', function (e) {
-                return _this.keyDown(e);
-            });
-            document.addEventListener('keyup', function (e) {
-                return _this.keyUp(e);
-            });
-            this.frame(0);
-            return Promise.resolve();
-        };
-
-        PspController.prototype.frame = function (timestamp) {
-            var _this = this;
-            //console.log('zzzzzzzzz');
-            if (navigator['getGamepads']) {
-                //console.log('bbbbbbbbb');
-                var gamepads = (navigator['getGamepads'])();
-                if (gamepads[0]) {
-                    //console.log('aaaaaaaa');
-                    var buttonMapping = [
-                        16384 /* cross */,
-                        8192 /* circle */,
-                        32768 /* square */,
-                        4096 /* triangle */,
-                        256 /* leftTrigger */,
-                        512 /* rightTrigger */,
-                        1048576 /* volumeUp */,
-                        2097152 /* volumeDown */,
-                        1 /* select */,
-                        8 /* start */,
-                        65536 /* home */,
-                        8388608 /* note */,
-                        16 /* up */,
-                        64 /* down */,
-                        128 /* left */,
-                        32 /* right */
-                    ];
-
-                    var gamepad = gamepads[0];
-                    var buttons = gamepad['buttons'];
-                    var axes = gamepad['axes'];
-                    this.data.x = axes[0];
-                    this.data.y = axes[1];
-
-                    function checkButton(button) {
-                        if (typeof button == 'number') {
-                            return button != 0;
-                        } else {
-                            return button ? !!(button.pressed) : false;
-                        }
-                    }
-
-                    for (var n = 0; n < 15; n++) {
-                        if (checkButton(buttons[n])) {
-                            this.simulateButtonDown(buttonMapping[n]);
-                        } else {
-                            this.simulateButtonUp(buttonMapping[n]);
-                        }
-                    }
-                }
-            }
-            this.animationTimeId = requestAnimationFrame(function (timestamp) {
-                return _this.frame(timestamp);
-            });
-        };
-
-        PspController.prototype.stopAsync = function () {
-            document.removeEventListener('keydown', this.keyDown);
-            document.removeEventListener('keyup', this.keyUp);
-            cancelAnimationFrame(this.animationTimeId);
-            return Promise.resolve();
-        };
-        return PspController;
-    })();
-    core.PspController = PspController;
-
-    (function (PspCtrlButtons) {
-        PspCtrlButtons[PspCtrlButtons["none"] = 0x0000000] = "none";
-        PspCtrlButtons[PspCtrlButtons["select"] = 0x0000001] = "select";
-        PspCtrlButtons[PspCtrlButtons["start"] = 0x0000008] = "start";
-        PspCtrlButtons[PspCtrlButtons["up"] = 0x0000010] = "up";
-        PspCtrlButtons[PspCtrlButtons["right"] = 0x0000020] = "right";
-        PspCtrlButtons[PspCtrlButtons["down"] = 0x0000040] = "down";
-        PspCtrlButtons[PspCtrlButtons["left"] = 0x0000080] = "left";
-        PspCtrlButtons[PspCtrlButtons["leftTrigger"] = 0x0000100] = "leftTrigger";
-        PspCtrlButtons[PspCtrlButtons["rightTrigger"] = 0x0000200] = "rightTrigger";
-        PspCtrlButtons[PspCtrlButtons["triangle"] = 0x0001000] = "triangle";
-        PspCtrlButtons[PspCtrlButtons["circle"] = 0x0002000] = "circle";
-        PspCtrlButtons[PspCtrlButtons["cross"] = 0x0004000] = "cross";
-        PspCtrlButtons[PspCtrlButtons["square"] = 0x0008000] = "square";
-        PspCtrlButtons[PspCtrlButtons["home"] = 0x0010000] = "home";
-        PspCtrlButtons[PspCtrlButtons["hold"] = 0x0020000] = "hold";
-        PspCtrlButtons[PspCtrlButtons["wirelessLanUp"] = 0x0040000] = "wirelessLanUp";
-        PspCtrlButtons[PspCtrlButtons["remote"] = 0x0080000] = "remote";
-        PspCtrlButtons[PspCtrlButtons["volumeUp"] = 0x0100000] = "volumeUp";
-        PspCtrlButtons[PspCtrlButtons["volumeDown"] = 0x0200000] = "volumeDown";
-        PspCtrlButtons[PspCtrlButtons["screen"] = 0x0400000] = "screen";
-        PspCtrlButtons[PspCtrlButtons["note"] = 0x0800000] = "note";
-        PspCtrlButtons[PspCtrlButtons["discPresent"] = 0x1000000] = "discPresent";
-        PspCtrlButtons[PspCtrlButtons["memoryStickPresent"] = 0x2000000] = "memoryStickPresent";
-    })(core.PspCtrlButtons || (core.PspCtrlButtons = {}));
-    var PspCtrlButtons = core.PspCtrlButtons;
-
-    (function (HtmlKeyCodes) {
-        HtmlKeyCodes[HtmlKeyCodes["backspace"] = 8] = "backspace";
-        HtmlKeyCodes[HtmlKeyCodes["tab"] = 9] = "tab";
-        HtmlKeyCodes[HtmlKeyCodes["enter"] = 13] = "enter";
-        HtmlKeyCodes[HtmlKeyCodes["shift"] = 16] = "shift";
-        HtmlKeyCodes[HtmlKeyCodes["ctrl"] = 17] = "ctrl";
-        HtmlKeyCodes[HtmlKeyCodes["alt"] = 18] = "alt";
-        HtmlKeyCodes[HtmlKeyCodes["pause"] = 19] = "pause";
-        HtmlKeyCodes[HtmlKeyCodes["caps_lock"] = 20] = "caps_lock";
-        HtmlKeyCodes[HtmlKeyCodes["escape"] = 27] = "escape";
-        HtmlKeyCodes[HtmlKeyCodes["space"] = 32] = "space";
-        HtmlKeyCodes[HtmlKeyCodes["page_up"] = 33] = "page_up";
-        HtmlKeyCodes[HtmlKeyCodes["page_down"] = 34] = "page_down";
-        HtmlKeyCodes[HtmlKeyCodes["end"] = 35] = "end";
-        HtmlKeyCodes[HtmlKeyCodes["home"] = 36] = "home";
-        HtmlKeyCodes[HtmlKeyCodes["left"] = 37] = "left";
-        HtmlKeyCodes[HtmlKeyCodes["up"] = 38] = "up";
-        HtmlKeyCodes[HtmlKeyCodes["right"] = 39] = "right";
-        HtmlKeyCodes[HtmlKeyCodes["down"] = 40] = "down";
-        HtmlKeyCodes[HtmlKeyCodes["insert"] = 45] = "insert";
-        HtmlKeyCodes[HtmlKeyCodes["delete"] = 46] = "delete";
-        HtmlKeyCodes[HtmlKeyCodes["k0"] = 48] = "k0";
-        HtmlKeyCodes[HtmlKeyCodes["k1"] = 49] = "k1";
-        HtmlKeyCodes[HtmlKeyCodes["k2"] = 50] = "k2";
-        HtmlKeyCodes[HtmlKeyCodes["k3"] = 51] = "k3";
-        HtmlKeyCodes[HtmlKeyCodes["k4"] = 52] = "k4";
-        HtmlKeyCodes[HtmlKeyCodes["k5"] = 53] = "k5";
-        HtmlKeyCodes[HtmlKeyCodes["k6"] = 54] = "k6";
-        HtmlKeyCodes[HtmlKeyCodes["k7"] = 55] = "k7";
-        HtmlKeyCodes[HtmlKeyCodes["k8"] = 56] = "k8";
-        HtmlKeyCodes[HtmlKeyCodes["k9"] = 57] = "k9";
-        HtmlKeyCodes[HtmlKeyCodes["a"] = 65] = "a";
-        HtmlKeyCodes[HtmlKeyCodes["b"] = 66] = "b";
-        HtmlKeyCodes[HtmlKeyCodes["c"] = 67] = "c";
-        HtmlKeyCodes[HtmlKeyCodes["d"] = 68] = "d";
-        HtmlKeyCodes[HtmlKeyCodes["e"] = 69] = "e";
-        HtmlKeyCodes[HtmlKeyCodes["f"] = 70] = "f";
-        HtmlKeyCodes[HtmlKeyCodes["g"] = 71] = "g";
-        HtmlKeyCodes[HtmlKeyCodes["h"] = 72] = "h";
-        HtmlKeyCodes[HtmlKeyCodes["i"] = 73] = "i";
-        HtmlKeyCodes[HtmlKeyCodes["j"] = 74] = "j";
-        HtmlKeyCodes[HtmlKeyCodes["k"] = 75] = "k";
-        HtmlKeyCodes[HtmlKeyCodes["l"] = 76] = "l";
-        HtmlKeyCodes[HtmlKeyCodes["m"] = 77] = "m";
-        HtmlKeyCodes[HtmlKeyCodes["n"] = 78] = "n";
-        HtmlKeyCodes[HtmlKeyCodes["o"] = 79] = "o";
-        HtmlKeyCodes[HtmlKeyCodes["p"] = 80] = "p";
-        HtmlKeyCodes[HtmlKeyCodes["q"] = 81] = "q";
-        HtmlKeyCodes[HtmlKeyCodes["r"] = 82] = "r";
-        HtmlKeyCodes[HtmlKeyCodes["s"] = 83] = "s";
-        HtmlKeyCodes[HtmlKeyCodes["t"] = 84] = "t";
-        HtmlKeyCodes[HtmlKeyCodes["u"] = 85] = "u";
-        HtmlKeyCodes[HtmlKeyCodes["v"] = 86] = "v";
-        HtmlKeyCodes[HtmlKeyCodes["w"] = 87] = "w";
-        HtmlKeyCodes[HtmlKeyCodes["x"] = 88] = "x";
-        HtmlKeyCodes[HtmlKeyCodes["y"] = 89] = "y";
-        HtmlKeyCodes[HtmlKeyCodes["z"] = 90] = "z";
-        HtmlKeyCodes[HtmlKeyCodes["left_window_key"] = 91] = "left_window_key";
-        HtmlKeyCodes[HtmlKeyCodes["right_window_key"] = 92] = "right_window_key";
-        HtmlKeyCodes[HtmlKeyCodes["select_key"] = 93] = "select_key";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_0"] = 96] = "numpad_0";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_1"] = 97] = "numpad_1";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_2"] = 98] = "numpad_2";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_3"] = 99] = "numpad_3";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_4"] = 100] = "numpad_4";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_5"] = 101] = "numpad_5";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_6"] = 102] = "numpad_6";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_7"] = 103] = "numpad_7";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_8"] = 104] = "numpad_8";
-        HtmlKeyCodes[HtmlKeyCodes["numpad_9"] = 105] = "numpad_9";
-        HtmlKeyCodes[HtmlKeyCodes["multiply"] = 106] = "multiply";
-        HtmlKeyCodes[HtmlKeyCodes["add"] = 107] = "add";
-        HtmlKeyCodes[HtmlKeyCodes["subtract"] = 109] = "subtract";
-        HtmlKeyCodes[HtmlKeyCodes["decimal_point"] = 110] = "decimal_point";
-        HtmlKeyCodes[HtmlKeyCodes["divide"] = 111] = "divide";
-        HtmlKeyCodes[HtmlKeyCodes["f1"] = 112] = "f1";
-        HtmlKeyCodes[HtmlKeyCodes["f2"] = 113] = "f2";
-        HtmlKeyCodes[HtmlKeyCodes["f3"] = 114] = "f3";
-        HtmlKeyCodes[HtmlKeyCodes["f4"] = 115] = "f4";
-        HtmlKeyCodes[HtmlKeyCodes["f5"] = 116] = "f5";
-        HtmlKeyCodes[HtmlKeyCodes["f6"] = 117] = "f6";
-        HtmlKeyCodes[HtmlKeyCodes["f7"] = 118] = "f7";
-        HtmlKeyCodes[HtmlKeyCodes["f8"] = 119] = "f8";
-        HtmlKeyCodes[HtmlKeyCodes["f9"] = 120] = "f9";
-        HtmlKeyCodes[HtmlKeyCodes["f10"] = 121] = "f10";
-        HtmlKeyCodes[HtmlKeyCodes["f11"] = 122] = "f11";
-        HtmlKeyCodes[HtmlKeyCodes["f12"] = 123] = "f12";
-        HtmlKeyCodes[HtmlKeyCodes["num_lock"] = 144] = "num_lock";
-        HtmlKeyCodes[HtmlKeyCodes["scroll_lock"] = 145] = "scroll_lock";
-        HtmlKeyCodes[HtmlKeyCodes["semi_colon"] = 186] = "semi_colon";
-        HtmlKeyCodes[HtmlKeyCodes["equal_sign"] = 187] = "equal_sign";
-        HtmlKeyCodes[HtmlKeyCodes["comma"] = 188] = "comma";
-        HtmlKeyCodes[HtmlKeyCodes["dash"] = 189] = "dash";
-        HtmlKeyCodes[HtmlKeyCodes["period"] = 190] = "period";
-        HtmlKeyCodes[HtmlKeyCodes["forward_slash"] = 191] = "forward_slash";
-        HtmlKeyCodes[HtmlKeyCodes["grave_accent"] = 192] = "grave_accent";
-        HtmlKeyCodes[HtmlKeyCodes["open_bracket"] = 219] = "open_bracket";
-        HtmlKeyCodes[HtmlKeyCodes["back_slash"] = 220] = "back_slash";
-        HtmlKeyCodes[HtmlKeyCodes["close_braket"] = 221] = "close_braket";
-        HtmlKeyCodes[HtmlKeyCodes["single_quote"] = 222] = "single_quote";
-    })(core.HtmlKeyCodes || (core.HtmlKeyCodes = {}));
-    var HtmlKeyCodes = core.HtmlKeyCodes;
-})(core || (core = {}));
-var core;
-(function (core) {
-    (function (cpu) {
-        var MipsAssembler = (function () {
-            function MipsAssembler() {
-                this.instructions = core.cpu.Instructions.instance;
-            }
-            MipsAssembler.prototype.assembleToMemory = function (memory, PC, lines) {
-                for (var n = 0; n < lines.length; n++) {
-                    var instructions = this.assemble(PC, lines[n]);
-                    for (var m = 0; m < instructions.length; m++) {
-                        var instruction = instructions[m];
-                        memory.writeInt32(PC, instruction.data);
-                        PC += 4;
-                    }
-                }
-            };
-
-            MipsAssembler.prototype.assemble = function (PC, line) {
-                //console.log(line);
-                var matches = line.match(/^\s*(\w+)(.*)$/);
-                var instructionName = matches[1];
-                var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
-
-                switch (instructionName) {
-                    case 'li':
-                        var parts = instructionArguments.split(',');
-
-                        //console.log(parts);
-                        return this.assemble(PC, 'addiu ' + parts[0] + ', r0, ' + parts[1]);
-                }
-
-                var instructionType = this.instructions.findByName(instructionName);
-                var instruction = new core.cpu.Instruction(PC, instructionType.vm.value);
-                var types = [];
-
-                var formatPattern = instructionType.format.replace('(', '\\(').replace(')', '\\)').replace(/(%\w+)/g, function (type) {
-                    types.push(type);
-
-                    switch (type) {
-                        case '%J':
-                        case '%s':
-                        case '%d':
-                        case '%t':
-                            return '([$r]\\d+)';
-                        case '%i':
-                            return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                        case '%C':
-                            return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                        default:
-                            throw ("MipsAssembler.Transform: Unknown type '" + type + "'");
-                    }
-                }).replace(/\s+/g, '\\s*');
-
-                //console.log(formatPattern);
-                var regex = new RegExp('^' + formatPattern + '$', '');
-
-                //console.log(line);
-                //console.log(formatPattern);
-                var matches = instructionArguments.match(regex);
-
-                //console.log(matches);
-                //console.log(types);
-                if (matches === null) {
-                    throw ('Not matching ' + instructionArguments + ' : ' + regex + ' : ' + instructionType.format);
-                }
-
-                for (var n = 0; n < types.length; n++) {
-                    var type = types[n];
-                    var match = matches[n + 1];
-
-                    //console.log(type + ' = ' + match);
-                    this.update(instruction, type, match);
-                }
-
-                //console.log(instructionType);
-                //console.log(matches);
-                return [instruction];
-            };
-
-            MipsAssembler.prototype.decodeRegister = function (name) {
-                //console.log(name);
-                if (name.charAt(0) == '$')
-                    return parseInt(name.substr(1));
-                if (name.charAt(0) == 'r')
-                    return parseInt(name.substr(1));
-                throw ('Invalid register "' + name + '"');
-            };
-
-            MipsAssembler.prototype.decodeInteger = function (str) {
-                str = str.replace(/_/g, '');
-                if (str.substr(0, 2) == '0b')
-                    return parseInt(str.substr(2), 2);
-                if (str.substr(0, 2) == '0x')
-                    return parseInt(str.substr(2), 16);
-                return parseInt(str, 10);
-            };
-
-            MipsAssembler.prototype.update = function (instruction, type, value) {
-                switch (type) {
-                    case '%J':
-                    case '%s':
-                        instruction.rs = this.decodeRegister(value);
-                        break;
-                    case '%d':
-                        instruction.rd = this.decodeRegister(value);
-                        break;
-                    case '%t':
-                        instruction.rt = this.decodeRegister(value);
-                        break;
-                    case '%i':
-                        instruction.imm16 = this.decodeInteger(value);
-                        break;
-                    case '%C':
-                        instruction.syscall = this.decodeInteger(value);
-                        break;
-                    default:
-                        throw ("MipsAssembler.Update: Unknown type '" + type + "'");
-                }
-            };
-            return MipsAssembler;
-        })();
-        cpu.MipsAssembler = MipsAssembler;
-
-        var MipsDisassembler = (function () {
-            function MipsDisassembler() {
-                this.instructions = core.cpu.Instructions.instance;
-            }
-            MipsDisassembler.prototype.encodeRegister = function (index) {
-                return '$' + index;
-            };
-
-            MipsDisassembler.prototype.disassemble = function (instruction) {
-                var _this = this;
-                var instructionType = this.instructions.findByData(instruction.data);
-                var arguments = instructionType.format.replace(/(\%\w+)/g, function (type) {
-                    switch (type) {
-                        case '%s':
-                            return _this.encodeRegister(instruction.rs);
-                            break;
-                        case '%d':
-                            return _this.encodeRegister(instruction.rd);
-                            break;
-                        case '%t':
-                            return _this.encodeRegister(instruction.rt);
-                            break;
-                        default:
-                            throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
-                    }
-                });
-                return instructionType.name + ' ' + arguments;
-            };
-            return MipsDisassembler;
-        })();
-        cpu.MipsDisassembler = MipsDisassembler;
-    })(core.cpu || (core.cpu = {}));
-    var cpu = core.cpu;
-})(core || (core = {}));
 var core;
 (function (core) {
     (function (cpu) {
@@ -2795,885 +1825,6 @@ var core;
 var core;
 (function (core) {
     (function (cpu) {
-        var ADDR_TYPE_NONE = 0;
-        var ADDR_TYPE_REG = 1;
-        var ADDR_TYPE_16 = 2;
-        var ADDR_TYPE_26 = 3;
-        var INSTR_TYPE_PSP = (1 << 0);
-        var INSTR_TYPE_SYSCALL = (1 << 1);
-        var INSTR_TYPE_B = (1 << 2);
-        var INSTR_TYPE_LIKELY = (1 << 3);
-        var INSTR_TYPE_JAL = (1 << 4);
-        var INSTR_TYPE_JUMP = (1 << 5);
-        var INSTR_TYPE_BREAK = (1 << 6);
-
-        function VM(format) {
-            var counts = {
-                "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
-                "absw": 1, "absz": 1, "absy": 1, "absx": 1,
-                "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
-                "negw": 1, "negz": 1, "negy": 1, "negx": 1,
-                "one": 1, "two": 1, "vt1": 1,
-                "vt2": 2,
-                "satw": 2, "satz": 2, "saty": 2, "satx": 2,
-                "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
-                "imm3": 3,
-                "imm4": 4,
-                "fcond": 4,
-                "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
-                "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
-                "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
-                "imm8": 8,
-                "imm14": 14,
-                "imm16": 16,
-                "imm20": 20,
-                "imm26": 26
-            };
-
-            var value = 0;
-            var mask = 0;
-
-            format.split(':').forEach(function (item) {
-                // normal chunk
-                if (/^[01\-]+$/.test(item)) {
-                    for (var n = 0; n < item.length; n++) {
-                        value <<= 1;
-                        mask <<= 1;
-                        if (item[n] == '0') {
-                            value |= 0;
-                            mask |= 1;
-                        }
-                        if (item[n] == '1') {
-                            value |= 1;
-                            mask |= 1;
-                        }
-                        if (item[n] == '-') {
-                            value |= 0;
-                            mask |= 0;
-                        }
-                    }
-                } else {
-                    var displacement = counts[item];
-                    if (displacement === undefined)
-                        throw ("Invalid item '" + item + "'");
-                    value <<= displacement;
-                    mask <<= displacement;
-                }
-            });
-
-            return { value: value, mask: mask };
-        }
-
-        var InstructionType = (function () {
-            function InstructionType(name, vm, format, addressType, instructionType) {
-                this.name = name;
-                this.vm = vm;
-                this.format = format;
-                this.addressType = addressType;
-                this.instructionType = instructionType;
-            }
-            InstructionType.prototype.match = function (i32) {
-                //printf("%08X | %08X | %08X", i32, this.vm.value, this.vm.mask);
-                return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask);
-            };
-
-            InstructionType.prototype.isInstructionType = function (mask) {
-                return (this.instructionType & mask) != 0;
-            };
-
-            Object.defineProperty(InstructionType.prototype, "isSyscall", {
-                get: function () {
-                    return this.isInstructionType(INSTR_TYPE_SYSCALL);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(InstructionType.prototype, "isBreak", {
-                get: function () {
-                    return this.isInstructionType(INSTR_TYPE_BREAK);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(InstructionType.prototype, "hasDelayedBranch", {
-                get: function () {
-                    return this.isInstructionType(INSTR_TYPE_B) || this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(InstructionType.prototype, "isLikely", {
-                get: function () {
-                    return this.isInstructionType(INSTR_TYPE_LIKELY);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            InstructionType.prototype.toString = function () {
-                return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask);
-            };
-            return InstructionType;
-        })();
-        cpu.InstructionType = InstructionType;
-
-        var Instructions = (function () {
-            function Instructions() {
-                var _this = this;
-                this.instructionTypeListByName = {};
-                this.instructionTypeList = [];
-                var ID = function (name, vm, format, addressType, instructionType) {
-                    _this.add(name, vm, format, addressType, instructionType);
-                };
-
-                // Arithmetic operations.
-                ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-                ID("addiu", VM("001001:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-                ID("sub", VM("000000:rs:rt:rd:00000:100010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("subu", VM("000000:rs:rt:rd:00000:100011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-
-                // Logical Operations.
-                ID("and", VM("000000:rs:rt:rd:00000:100100"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("andi", VM("001100:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-                ID("nor", VM("000000:rs:rt:rd:00000:100111"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("or", VM("000000:rs:rt:rd:00000:100101"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("ori", VM("001101:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-                ID("xor", VM("000000:rs:rt:rd:00000:100110"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("xori", VM("001110:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-
-                // Shift Left/Right Logical/Arithmethic (Variable).
-                ID("sll", VM("000000:00000:rt:rd:sa:000000"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-                ID("sllv", VM("000000:rs:rt:rd:00000:000100"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-                ID("sra", VM("000000:00000:rt:rd:sa:000011"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-                ID("srav", VM("000000:rs:rt:rd:00000:000111"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-                ID("srl", VM("000000:00000:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-                ID("srlv", VM("000000:rs:rt:rd:00000:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-                ID("rotr", VM("000000:00001:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-                ID("rotrv", VM("000000:rs:rt:rd:00001:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-
-                // Set Less Than (Immediate) (Unsigned).
-                ID("slt", VM("000000:rs:rt:rd:00000:101010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("slti", VM("001010:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-                ID("sltu", VM("000000:rs:rt:rd:00000:101011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-                ID("sltiu", VM("001011:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-
-                // Load Upper Immediate.
-                ID("lui", VM("001111:00000:rt:imm16"), "%t, %I", ADDR_TYPE_NONE, 0);
-
-                // Sign Extend Byte/Half word.
-                ID("seb", VM("011111:00000:rt:rd:10000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
-                ID("seh", VM("011111:00000:rt:rd:11000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
-
-                // BIT REVerse.
-                ID("bitrev", VM("011111:00000:rt:rd:10100:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // MAXimum/MINimum.
-                ID("max", VM("000000:rs:rt:rd:00000:101100"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("min", VM("000000:rs:rt:rd:00000:101101"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // DIVide (Unsigned).
-                ID("div", VM("000000:rs:rt:00000:00000:011010"), "%s, %t", ADDR_TYPE_NONE, 0);
-                ID("divu", VM("000000:rs:rt:00000:00000:011011"), "%s, %t", ADDR_TYPE_NONE, 0);
-
-                // MULTiply (Unsigned).
-                ID("mult", VM("000000:rs:rt:00000:00000:011000"), "%s, %t", ADDR_TYPE_NONE, 0);
-                ID("multu", VM("000000:rs:rt:00000:00000:011001"), "%s, %t", ADDR_TYPE_NONE, 0);
-
-                // Multiply ADD/SUBstract (Unsigned).
-                ID("madd", VM("000000:rs:rt:00000:00000:011100"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("maddu", VM("000000:rs:rt:00000:00000:011101"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("msub", VM("000000:rs:rt:00000:00000:101110"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("msubu", VM("000000:rs:rt:00000:00000:101111"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Move To/From HI/LO.
-                ID("mfhi", VM("000000:00000:00000:rd:00000:010000"), "%d", ADDR_TYPE_NONE, 0);
-                ID("mflo", VM("000000:00000:00000:rd:00000:010010"), "%d", ADDR_TYPE_NONE, 0);
-                ID("mthi", VM("000000:rs:00000:00000:00000:010001"), "%s", ADDR_TYPE_NONE, 0);
-                ID("mtlo", VM("000000:rs:00000:00000:00000:010011"), "%s", ADDR_TYPE_NONE, 0);
-
-                // Move if Zero/Non zero.
-                ID("movz", VM("000000:rs:rt:rd:00000:001010"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("movn", VM("000000:rs:rt:rd:00000:001011"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // EXTract/INSert.
-                ID("ext", VM("011111:rs:rt:msb:lsb:000000"), "%t, %s, %a, %ne", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("ins", VM("011111:rs:rt:msb:lsb:000100"), "%t, %s, %a, %ni", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Count Leading Ones/Zeros in word.
-                ID("clz", VM("000000:rs:00000:rd:00000:010110"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("clo", VM("000000:rs:00000:rd:00000:010111"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Word Swap Bytes Within Halfwords/Words.
-                ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-
-                // Branch on Greater Equal Zero (And Link) (Likely).
-                ID("bgez", VM("000001:rs:00001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bgezl", VM("000001:rs:00011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-                ID("bgezal", VM("000001:rs:10001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
-                ID("bgezall", VM("000001:rs:10011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
-
-                // Branch on Less Than Zero (And Link) (Likely).
-                ID("bltz", VM("000001:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bltzl", VM("000001:rs:00010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-                ID("bltzal", VM("000001:rs:10000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
-                ID("bltzall", VM("000001:rs:10010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
-
-                // Branch on Less Or Equals than Zero (Likely).
-                ID("blez", VM("000110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("blezl", VM("010110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-
-                // Branch on Great Than Zero (Likely).
-                ID("bgtz", VM("000111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bgtzl", VM("010111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-
-                // Branch on Not Equals (Likely).
-                ID("bne", VM("000101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bnel", VM("010101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-
-                // Jump (And Link) (Register).
-                ID("j", VM("000010:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JUMP);
-                ID("jr", VM("000000:rs:00000:00000:00000:001000"), "%J", ADDR_TYPE_REG, INSTR_TYPE_JUMP);
-                ID("jalr", VM("000000:rs:00000:rd:00000:001001"), "%J, %d", ADDR_TYPE_REG, INSTR_TYPE_JAL);
-                ID("jal", VM("000011:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JAL);
-
-                // Branch on C1 False/True (Likely).
-                ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bc1tl", VM("010001:01000:00011:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-
-                ID("lb", VM("100000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("lh", VM("100001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("lw", VM("100011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("lwl", VM("100010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("lwr", VM("100110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("lbu", VM("100100:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("lhu", VM("100101:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-
-                // Store Byte/Half word/Word (Left/Right).
-                ID("sb", VM("101000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("sh", VM("101001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("sw", VM("101011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("swl", VM("101010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("swr", VM("101110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-
-                // Load Linked word.
-                // Store Conditional word.
-                ID("ll", VM("110000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
-                ID("sc", VM("111000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
-
-                // Load Word to Cop1 floating point.
-                // Store Word from Cop1 floating point.
-                ID("lwc1", VM("110001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
-                ID("swc1", VM("111001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
-
-                // Binary Floating Point Unit Operations
-                ID("add.s", VM("010001:10000:ft:fs:fd:000000"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-                ID("sub.s", VM("010001:10000:ft:fs:fd:000001"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-                ID("mul.s", VM("010001:10000:ft:fs:fd:000010"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-                ID("div.s", VM("010001:10000:ft:fs:fd:000011"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-
-                // Unary Floating Point Unit Operations
-                ID("sqrt.s", VM("010001:10000:00000:fs:fd:000100"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("abs.s", VM("010001:10000:00000:fs:fd:000101"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("mov.s", VM("010001:10000:00000:fs:fd:000110"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("neg.s", VM("010001:10000:00000:fs:fd:000111"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("round.w.s", VM("010001:10000:00000:fs:fd:001100"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("trunc.w.s", VM("010001:10000:00000:fs:fd:001101"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("ceil.w.s", VM("010001:10000:00000:fs:fd:001110"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("floor.w.s", VM("010001:10000:00000:fs:fd:001111"), "%D, %S", ADDR_TYPE_NONE, 0);
-
-                // Convert
-                ID("cvt.s.w", VM("010001:10100:00000:fs:fd:100000"), "%D, %S", ADDR_TYPE_NONE, 0);
-                ID("cvt.w.s", VM("010001:10000:00000:fs:fd:100100"), "%D, %S", ADDR_TYPE_NONE, 0);
-
-                // Move float point registers
-                ID("mfc1", VM("010001:00000:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
-                ID("mtc1", VM("010001:00100:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
-
-                // CFC1 -- move Control word from/to floating point (C1)
-                ID("cfc1", VM("010001:00010:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
-                ID("ctc1", VM("010001:00110:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
-
-                // Compare <condition> Single.
-                ID("c.f.s", VM("010001:10000:ft:fs:00000:11:0000"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.un.s", VM("010001:10000:ft:fs:00000:11:0001"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.eq.s", VM("010001:10000:ft:fs:00000:11:0010"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ueq.s", VM("010001:10000:ft:fs:00000:11:0011"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.olt.s", VM("010001:10000:ft:fs:00000:11:0100"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ult.s", VM("010001:10000:ft:fs:00000:11:0101"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ole.s", VM("010001:10000:ft:fs:00000:11:0110"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ule.s", VM("010001:10000:ft:fs:00000:11:0111"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.sf.s", VM("010001:10000:ft:fs:00000:11:1000"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ngle.s", VM("010001:10000:ft:fs:00000:11:1001"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.seq.s", VM("010001:10000:ft:fs:00000:11:1010"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ngl.s", VM("010001:10000:ft:fs:00000:11:1011"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.lt.s", VM("010001:10000:ft:fs:00000:11:1100"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.nge.s", VM("010001:10000:ft:fs:00000:11:1101"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.le.s", VM("010001:10000:ft:fs:00000:11:1110"), "%S, %T", ADDR_TYPE_NONE, 0);
-                ID("c.ngt.s", VM("010001:10000:ft:fs:00000:11:1111"), "%S, %T", ADDR_TYPE_NONE, 0);
-
-                // Syscall
-                ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
-
-                ID("cache", VM("101111--------------------------"), "%k, %o", ADDR_TYPE_NONE, 0);
-                ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
-
-                ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, 0);
-                ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
-                ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // (D?/Exception) RETurn
-                ID("dret", VM("011100:00000:00000:00000:00000:111110"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("eret", VM("010000:10000:00000:00000:00000:011000"), "", ADDR_TYPE_NONE, 0);
-
-                // Move (From/To) IC
-                ID("mfic", VM("011100:rt:00000:00000:00000:100100"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("mtic", VM("011100:rt:00000:00000:00000:100110"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Move (From/To) DR
-                ID("mfdr", VM("011100:00000:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("mtdr", VM("011100:00100:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // C? (From/To) Cop0
-                ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CFC0(010000:00010:rt:c0cr:00000:000000)
-                ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CTC0(010000:00110:rt:c0cr:00000:000000)
-
-                // Move (From/To) Cop0
-                ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MFC0(010000:00000:rt:c0dr:00000:000000)
-                ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MTC0(010000:00100:rt:c0dr:00000:000000)
-
-                // Move From/to Vfpu (C?).
-                ID("mfv", VM("010010:00:011:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("mfvc", VM("010010:00:011:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("mtv", VM("010010:00:111:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("mtvc", VM("010010:00:111:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Load/Store Vfpu (Left/Right).
-                ID("lv.s", VM("110010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("lv.q", VM("110110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("lvl.q", VM("110101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("lvr.q", VM("110101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("sv.q", VM("111110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu DOT product
-                // Vfpu SCaLe/ROTate
-                ID("vdot", VM("011001:001:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vscl", VM("011001:010:vt:two:vs:one:vd"), "%zp, %yp, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsge", VM("011011:110:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                //ID("vslt",        VM("011011:100:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // FIXED 2013-07-14
-
-                // ROTate
-                ID("vrot", VM("111100:111:01:imm5:two:vs:one:vd"), "%zp, %ys, %vr", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu ZERO/ONE
-                ID("vzero", VM("110100:00:000:0:0110:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vone", VM("110100:00:000:0:0111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu MOVe/SiGN/Reverse SQuare root/COSine/Arc SINe/LOG2
-                ID("vmov", VM("110100:00:000:0:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vabs", VM("110100:00:000:0:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vneg", VM("110100:00:000:0:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vocp", VM("110100:00:010:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsgn", VM("110100:00:010:0:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vrcp", VM("110100:00:000:1:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vrsq", VM("110100:00:000:1:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsin", VM("110100:00:000:1:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vcos", VM("110100:00:000:1:0011:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vexp2", VM("110100:00:000:1:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vlog2", VM("110100:00:000:1:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsqrt", VM("110100:00:000:1:0110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vasin", VM("110100:00:000:1:0111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vnrcp", VM("110100:00:000:1:1000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vnsin", VM("110100:00:000:1:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vrexp2", VM("110100:00:000:1:1100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vsat0", VM("110100:00:000:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsat1", VM("110100:00:000:0:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu ConSTant
-                ID("vcst", VM("110100:00:011:imm5:two:0000000:one:vd"), "%zp, %vk", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu Matrix MULtiplication
-                ID("vmmul", VM("111100:000:vt:two:vs:one:vd"), "%zm, %tym, %xm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // -
-                ID("vhdp", VM("011001:100:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vcrs.t", VM("011001:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vcrsp.t", VM("111100:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu Integer to(2) Color
-                ID("vi2c", VM("110100:00:001:11:101:two:vs:one:vd"), "%zs, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vi2uc", VM("110100:00:001:11:100:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // -
-                ID("vtfm2", VM("111100:001:vt:0:vs:1:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vtfm3", VM("111100:010:vt:1:vs:0:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vtfm4", VM("111100:011:vt:1:vs:1:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vhtfm2", VM("111100:001:vt:0:vs:0:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vhtfm3", VM("111100:010:vt:0:vs:1:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vhtfm4", VM("111100:011:vt:1:vs:0:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vsrt3", VM("110100:00:010:01000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vfad", VM("110100:00:010:00110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu MINimum/MAXium/ADD/SUB/DIV/MUL
-                ID("vmin", VM("011011:010:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmax", VM("011011:011:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vadd", VM("011000:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsub", VM("011000:001:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vdiv", VM("011000:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmul", VM("011001:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Vfpu (Matrix) IDenTity
-                ID("vidt", VM("110100:00:000:0:0011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmidt", VM("111100:111:00:00011:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("viim", VM("110111:11:0:vd:imm16"), "%xs, %vi", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vmmov", VM("111100:111:00:00000:two:vs:one:vd"), "%zm, %ym", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmzero", VM("111100:111:00:00110:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmone", VM("111100:111:00:00111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vnop", VM("111111:1111111111:00000:00000000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsync", VM("111111:1111111111:00000:01100100000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vflush", VM("111111:1111111111:00000:10000001101"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vpfxd", VM("110111:10:------------:mskw:mskz:msky:mskx:satw:satz:saty:satx"), "[%vp4, %vp5, %vp6, %vp7]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vpfxs", VM("110111:00:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vpfxt", VM("110111:01:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vdet", VM("011001:110:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vrnds", VM("110100:00:001:00:000:two:vs:one:0000000"), "%ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vrndi", VM("110100:00:001:00:001:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vrndf1", VM("110100:00:001:00:010:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vrndf2", VM("110100:00:001:00:011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vcmp", VM("011011:000:vt:two:vs:one:000:imm4"), "%Zn, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vcmovf", VM("110100:10:101:01:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vcmovt", VM("110100:10:101:00:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vavg", VM("110100:00:010:00111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vf2id", VM("110100:10:011:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vf2in", VM("110100:10:000:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vf2iu", VM("110100:10:010:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vf2iz", VM("110100:10:001:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vi2f", VM("110100:10:100:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vscmp", VM("011011:101:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmscl", VM("111100:100:vt:two:vs:one:vd"), "%zm, %ym, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vt4444.q", VM("110100:00:010:11001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vt5551.q", VM("110100:00:010:11010:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vt5650.q", VM("110100:00:010:11011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vmfvc", VM("110100:00:010:10000:1:imm7:0:vd"), "%zs, %2s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vmtvc", VM("110100:00:010:10001:0:vs:1:imm7"), "%2d, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("mfvme", VM("011010--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
-                ID("mtvme", VM("101100--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
-
-                ID("sv.s", VM("111010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vfim", VM("110111:11:1:vt:imm16"), "%xs, %vh", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("svl.q", VM("111101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("svr.q", VM("111101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vbfy1", VM("110100:00:010:00010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vbfy2", VM("110100:00:010:00011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vf2h", VM("110100:00:001:10:010:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vh2f", VM("110100:00:001:10:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vi2s", VM("110100:00:001:11:111:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vi2us", VM("110100:00:001:11:110:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vlgb", VM("110100:00:001:10:111:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vqmul", VM("111100:101:vt:1:vs:1:vd"), "%zq, %yq, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vs2i", VM("110100:00:001:11:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                // Working on it.
-                //"110100:00:001:11:000:1000000010000001"
-                ID("vc2i", VM("110100:00:001:11:001:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vuc2i", VM("110100:00:001:11:000:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vsbn", VM("011000:010:vt:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vsbz", VM("110100:00:001:10110:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsocp", VM("110100:00:010:00101:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsrt1", VM("110100:00:010:00000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsrt2", VM("110100:00:010:00001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vsrt4", VM("110100:00:010:01001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("vus2i", VM("110100:00:001:11010:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-
-                //ID("vwb.q",       VM("111110------------------------1-"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-                ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
-                ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
-                ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-                ID("bvtl", VM("010010:01:000:imm3:11:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-            }
-            Object.defineProperty(Instructions, "instance", {
-                get: function () {
-                    if (!Instructions._instance)
-                        Instructions._instance = new Instructions();
-                    return Instructions._instance;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instructions.prototype, "instructions", {
-                get: function () {
-                    return this.instructionTypeList.slice(0);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Instructions.prototype.add = function (name, vm, format, addressType, instructionType) {
-                var it = new InstructionType(name, vm, format, addressType, instructionType);
-                this.instructionTypeListByName[name] = it;
-                this.instructionTypeList.push(it);
-            };
-
-            Instructions.prototype.findByName = function (name) {
-                var instructionType = this.instructionTypeListByName[name];
-                if (!instructionType)
-                    throw ("Cannot find instruction " + sprintf("%s", name));
-                return instructionType;
-            };
-
-            Instructions.prototype.findByData = function (i32, pc) {
-                if (typeof pc === "undefined") { pc = 0; }
-                //return this.slowFindByData(i32, pc);
-                return this.fastFindByData(i32, pc);
-            };
-
-            Instructions.prototype.fastFindByData = function (i32, pc) {
-                if (typeof pc === "undefined") { pc = 0; }
-                if (!this.decoder) {
-                    var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
-                    this.decoder = (new Function('instructionsByName', 'value', 'pc', switchCode));
-                }
-                try  {
-                    return this.decoder(this.instructionTypeListByName, i32, pc);
-                } catch (e) {
-                    console.log(this.decoder);
-                    console.log(this.instructionTypeListByName);
-                    console.log(this.instructionTypeList);
-                    throw (e);
-                }
-            };
-
-            Instructions.prototype.slowFindByData = function (i32, pc) {
-                if (typeof pc === "undefined") { pc = 0; }
-                for (var n = 0; n < this.instructionTypeList.length; n++) {
-                    var instructionType = this.instructionTypeList[n];
-                    if (instructionType.match(i32))
-                        return instructionType;
-                }
-                throw (sprintf("Cannot find instruction 0x%08X at 0x%08X", i32, pc));
-            };
-            return Instructions;
-        })();
-        cpu.Instructions = Instructions;
-
-        var DecodingTable = (function () {
-            function DecodingTable() {
-                this.lastId = 0;
-            }
-            DecodingTable.prototype.getCommonMask = function (instructions, baseMask) {
-                if (typeof baseMask === "undefined") { baseMask = 0xFFFFFFFF; }
-                return instructions.reduce(function (left, item) {
-                    return left & item.vm.mask;
-                }, baseMask);
-            };
-
-            DecodingTable.createSwitch = function (instructions) {
-                var writer = new IndentStringGenerator();
-                var decodingTable = new DecodingTable();
-                decodingTable._createSwitch(writer, instructions);
-                return writer.output;
-            };
-
-            DecodingTable.prototype._createSwitch = function (writer, instructions, baseMask, level) {
-                var _this = this;
-                if (typeof baseMask === "undefined") { baseMask = 0xFFFFFFFF; }
-                if (typeof level === "undefined") { level = 0; }
-                if (level >= 10)
-                    throw ('ERROR: Recursive detection');
-                var commonMask = this.getCommonMask(instructions, baseMask);
-                var groups = {};
-                instructions.forEach(function (item) {
-                    var commonValue = item.vm.value & commonMask;
-                    if (!groups[commonValue])
-                        groups[commonValue] = [];
-                    groups[commonValue].push(item);
-                });
-
-                writer.write('switch ((value & ' + sprintf('0x%08X', commonMask) + ') >>> 0) {\n');
-                writer.indent(function () {
-                    for (var groupKey in groups) {
-                        var group = groups[groupKey];
-                        writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
-                        writer.indent(function () {
-                            if (group.length == 1) {
-                                writer.write(' return instructionsByName[' + JSON.stringify(group[0].name) + '];');
-                            } else {
-                                writer.write('\n');
-                                _this._createSwitch(writer, group, ~commonMask, level + 1);
-                                writer.write('break;\n');
-                            }
-                        });
-                    }
-                    writer.write('default: throw(sprintf("Invalid instruction 0x%08X at 0x%08X (' + _this.lastId++ + ') failed mask 0x%08X", value, pc, ' + commonMask + '));\n');
-                });
-                writer.write('}\n');
-            };
-            return DecodingTable;
-        })();
-
-        var Instruction = (function () {
-            function Instruction(PC, data) {
-                this.PC = PC;
-                this.data = data;
-            }
-            Instruction.fromMemoryAndPC = function (memory, PC) {
-                return new Instruction(PC, memory.readInt32(PC));
-            };
-
-            Instruction.prototype.extract = function (offset, length) {
-                return BitUtils.extract(this.data, offset, length);
-            };
-            Instruction.prototype.insert = function (offset, length, value) {
-                this.data = BitUtils.insert(this.data, offset, length, value);
-            };
-
-            Object.defineProperty(Instruction.prototype, "rd", {
-                get: function () {
-                    return this.extract(11 + 5 * 0, 5);
-                },
-                set: function (value) {
-                    this.insert(11 + 5 * 0, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "rt", {
-                get: function () {
-                    return this.extract(11 + 5 * 1, 5);
-                },
-                set: function (value) {
-                    this.insert(11 + 5 * 1, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "rs", {
-                get: function () {
-                    return this.extract(11 + 5 * 2, 5);
-                },
-                set: function (value) {
-                    this.insert(11 + 5 * 2, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instruction.prototype, "fd", {
-                get: function () {
-                    return this.extract(6 + 5 * 0, 5);
-                },
-                set: function (value) {
-                    this.insert(6 + 5 * 0, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "fs", {
-                get: function () {
-                    return this.extract(6 + 5 * 1, 5);
-                },
-                set: function (value) {
-                    this.insert(6 + 5 * 1, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "ft", {
-                get: function () {
-                    return this.extract(6 + 5 * 2, 5);
-                },
-                set: function (value) {
-                    this.insert(6 + 5 * 2, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instruction.prototype, "pos", {
-                get: function () {
-                    return this.lsb;
-                },
-                set: function (value) {
-                    this.lsb = value;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "size_e", {
-                get: function () {
-                    return this.msb + 1;
-                },
-                set: function (value) {
-                    this.msb = value - 1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "size_i", {
-                get: function () {
-                    return this.msb - this.lsb + 1;
-                },
-                set: function (value) {
-                    this.msb = this.lsb + value - 1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instruction.prototype, "lsb", {
-                get: function () {
-                    return this.extract(6 + 5 * 0, 5);
-                },
-                set: function (value) {
-                    this.insert(6 + 5 * 0, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "msb", {
-                get: function () {
-                    return this.extract(6 + 5 * 1, 5);
-                },
-                set: function (value) {
-                    this.insert(6 + 5 * 1, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "c1cr", {
-                get: function () {
-                    return this.extract(6 + 5 * 1, 5);
-                },
-                set: function (value) {
-                    this.insert(6 + 5 * 1, 5, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instruction.prototype, "syscall", {
-                get: function () {
-                    return this.extract(6, 20);
-                },
-                set: function (value) {
-                    this.insert(6, 20, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instruction.prototype, "imm16", {
-                get: function () {
-                    var res = this.u_imm16;
-                    if (res & 0x8000)
-                        res |= 0xFFFF0000;
-                    return res;
-                },
-                set: function (value) {
-                    this.insert(0, 16, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "u_imm16", {
-                get: function () {
-                    return this.extract(0, 16);
-                },
-                set: function (value) {
-                    this.insert(0, 16, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "u_imm26", {
-                get: function () {
-                    return this.extract(0, 26);
-                },
-                set: function (value) {
-                    this.insert(0, 26, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(Instruction.prototype, "jump_bits", {
-                get: function () {
-                    return this.extract(0, 26);
-                },
-                set: function (value) {
-                    this.insert(0, 26, value);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Instruction.prototype, "jump_real", {
-                get: function () {
-                    return (this.jump_bits * 4) >>> 0;
-                },
-                set: function (value) {
-                    this.jump_bits = (value / 4) >>> 0;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            return Instruction;
-        })();
-        cpu.Instruction = Instruction;
-
-        var DecodedInstruction = (function () {
-            function DecodedInstruction(instruction, type) {
-                this.instruction = instruction;
-                this.type = type;
-            }
-            return DecodedInstruction;
-        })();
-        cpu.DecodedInstruction = DecodedInstruction;
-    })(core.cpu || (core.cpu = {}));
-    var cpu = core.cpu;
-})(core || (core = {}));
-var core;
-(function (core) {
-    (function (cpu) {
         var CpuState = (function () {
             function CpuState(memory, syscallManager) {
                 this.memory = memory;
@@ -4015,260 +2166,6 @@ var core;
         cpu.CpuState = CpuState;
     })(core.cpu || (core.cpu = {}));
     var cpu = core.cpu;
-})(core || (core = {}));
-var core;
-(function (core) {
-    (function (PixelFormat) {
-        PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
-        PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
-        PixelFormat[PixelFormat["RGBA_5551"] = 1] = "RGBA_5551";
-        PixelFormat[PixelFormat["RGBA_4444"] = 2] = "RGBA_4444";
-        PixelFormat[PixelFormat["RGBA_8888"] = 3] = "RGBA_8888";
-        PixelFormat[PixelFormat["PALETTE_T4"] = 4] = "PALETTE_T4";
-        PixelFormat[PixelFormat["PALETTE_T8"] = 5] = "PALETTE_T8";
-        PixelFormat[PixelFormat["PALETTE_T16"] = 6] = "PALETTE_T16";
-        PixelFormat[PixelFormat["PALETTE_T32"] = 7] = "PALETTE_T32";
-        PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
-        PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
-        PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
-    })(core.PixelFormat || (core.PixelFormat = {}));
-    var PixelFormat = core.PixelFormat;
-
-    var BasePspDisplay = (function () {
-        function BasePspDisplay() {
-            this.address = core.Memory.DEFAULT_FRAME_ADDRESS;
-            this.bufferWidth = 512;
-            this.pixelFormat = 3 /* RGBA_8888 */;
-            this.sync = 1;
-        }
-        return BasePspDisplay;
-    })();
-    core.BasePspDisplay = BasePspDisplay;
-
-    var DummyPspDisplay = (function (_super) {
-        __extends(DummyPspDisplay, _super);
-        function DummyPspDisplay() {
-            _super.call(this);
-            this.vblankCount = 0;
-        }
-        DummyPspDisplay.prototype.waitVblankAsync = function () {
-            return new Promise(function (resolve) {
-                setTimeout(resolve, 20);
-            });
-        };
-
-        DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
-        };
-
-        DummyPspDisplay.prototype.startAsync = function () {
-            return Promise.resolve();
-        };
-
-        DummyPspDisplay.prototype.stopAsync = function () {
-            return Promise.resolve();
-        };
-        return DummyPspDisplay;
-    })(BasePspDisplay);
-    core.DummyPspDisplay = DummyPspDisplay;
-
-    var PspDisplay = (function (_super) {
-        __extends(PspDisplay, _super);
-        function PspDisplay(memory, canvas, webglcanvas) {
-            _super.call(this);
-            this.memory = memory;
-            this.canvas = canvas;
-            this.webglcanvas = webglcanvas;
-            this.vblank = new Signal();
-            this.interval = -1;
-            this.vblankCount = 0;
-            this.enabled = true;
-            this.context = this.canvas.getContext('2d');
-            this.imageData = this.context.createImageData(512, 272);
-            this.setEnabledDisplay(true);
-        }
-        PspDisplay.prototype.update = function () {
-            if (!this.context || !this.imageData)
-                return;
-            if (!this.enabled)
-                return;
-
-            var count = 512 * 272;
-            var imageData = this.imageData;
-            var w8 = imageData.data;
-            var baseAddress = this.address & 0x0FFFFFFF;
-
-            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
-            this.context.putImageData(imageData, 0, 0);
-        };
-
-        PspDisplay.prototype.setEnabledDisplay = function (enable) {
-            this.enabled = enable;
-            this.canvas.style.display = enable ? 'block' : 'none';
-            this.webglcanvas.style.display = !enable ? 'block' : 'none';
-        };
-
-        PspDisplay.prototype.startAsync = function () {
-            var _this = this;
-            //$(this.canvas).focus();
-            this.interval = setInterval(function () {
-                _this.vblankCount++;
-                _this.update();
-                _this.vblank.dispatch();
-            }, 1000 / 59.999);
-            return Promise.resolve();
-        };
-
-        PspDisplay.prototype.stopAsync = function () {
-            clearInterval(this.interval);
-            this.interval = -1;
-            return Promise.resolve();
-        };
-
-        PspDisplay.prototype.waitVblankAsync = function () {
-            var _this = this;
-            return new Promise(function (resolve) {
-                _this.vblank.once(function () {
-                    resolve(0);
-                });
-            });
-        };
-        return PspDisplay;
-    })(BasePspDisplay);
-    core.PspDisplay = PspDisplay;
-
-    var sizes = {};
-    sizes[8 /* COMPRESSED_DXT1 */] = 0.5;
-    sizes[9 /* COMPRESSED_DXT3 */] = 1;
-    sizes[10 /* COMPRESSED_DXT5 */] = 1;
-    sizes[-1 /* NONE */] = 0;
-    sizes[6 /* PALETTE_T16 */] = 2;
-    sizes[7 /* PALETTE_T32 */] = 4;
-    sizes[5 /* PALETTE_T8 */] = 1;
-    sizes[4 /* PALETTE_T4 */] = 0.5;
-    sizes[2 /* RGBA_4444 */] = 2;
-    sizes[1 /* RGBA_5551 */] = 2;
-    sizes[0 /* RGBA_5650 */] = 2;
-    sizes[3 /* RGBA_8888 */] = 4;
-
-    var PixelConverter = (function () {
-        function PixelConverter() {
-        }
-        PixelConverter.getSizeInBytes = function (format, count) {
-            return sizes[format] * count;
-        };
-
-        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            if (typeof palette === "undefined") { palette = null; }
-            if (typeof clutStart === "undefined") { clutStart = 0; }
-            if (typeof clutShift === "undefined") { clutShift = 0; }
-            if (typeof clutMask === "undefined") { clutMask = 0; }
-            switch (format) {
-                case 3 /* RGBA_8888 */:
-                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 1 /* RGBA_5551 */:
-                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 0 /* RGBA_5650 */:
-                    PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 2 /* RGBA_4444 */:
-                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 5 /* PALETTE_T8 */:
-                    PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
-                    break;
-                case 4 /* PALETTE_T4 */:
-                    PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
-                    break;
-                default:
-                    throw (new Error(sprintf("Unsupported pixel format %d", format)));
-            }
-        };
-
-        PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            if (typeof palette === "undefined") { palette = null; }
-            if (typeof clutStart === "undefined") { clutStart = 0; }
-            if (typeof clutShift === "undefined") { clutShift = 0; }
-            if (typeof clutMask === "undefined") { clutMask = 0; }
-            for (var n = 0, m = 0; n < count * 8; n += 8, m++) {
-                var color1 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 0, 4) & clutMask) << clutShift)];
-                var color2 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 4, 4) & clutMask) << clutShift)];
-                to[toIndex + n + 0] = BitUtils.extract(color1, 0, 8);
-                to[toIndex + n + 1] = BitUtils.extract(color1, 8, 8);
-                to[toIndex + n + 2] = BitUtils.extract(color1, 16, 8);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color1, 24, 8) : 0xFF;
-
-                to[toIndex + n + 4] = BitUtils.extract(color2, 0, 8);
-                to[toIndex + n + 5] = BitUtils.extract(color2, 8, 8);
-                to[toIndex + n + 6] = BitUtils.extract(color2, 16, 8);
-                to[toIndex + n + 7] = useAlpha ? BitUtils.extract(color2, 24, 8) : 0xFF;
-            }
-        };
-
-        PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            if (typeof palette === "undefined") { palette = null; }
-            if (typeof clutStart === "undefined") { clutStart = 0; }
-            if (typeof clutShift === "undefined") { clutShift = 0; }
-            if (typeof clutMask === "undefined") { clutMask = 0; }
-            for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
-                var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
-                var color = palette[colorIndex];
-                to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
-                to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
-                to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
-            }
-        };
-
-        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                to[toIndex + n + 0] = from[fromIndex + n + 0];
-                to[toIndex + n + 1] = from[fromIndex + n + 1];
-                to[toIndex + n + 2] = from[fromIndex + n + 2];
-                to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
-            }
-        };
-
-        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 15, 1, 0xFF) : 0xFF;
-            }
-        };
-
-        PixelConverter.update5650 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 6, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScale(it, 11, 5, 0xFF);
-                to[toIndex + n + 3] = 0xFF;
-            }
-        };
-
-        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 12, 4, 0xFF) : 0xFF;
-            }
-        };
-        return PixelConverter;
-    })();
-    core.PixelConverter = PixelConverter;
 })(core || (core = {}));
 var core;
 (function (core) {
@@ -5605,916 +3502,6 @@ var core;
     })(core.gpu || (core.gpu = {}));
     var gpu = core.gpu;
 })(core || (core = {}));
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    var Memory = (function () {
-        function Memory() {
-            this.buffer = new ArrayBuffer(0x10000000);
-            this.data = new DataView(this.buffer);
-            this.s8 = new Int8Array(this.buffer);
-            this.u8 = new Uint8Array(this.buffer);
-            this.u16 = new Uint16Array(this.buffer);
-            this.s16 = new Int16Array(this.buffer);
-            this.u32 = new Uint32Array(this.buffer);
-            this.f32 = new Float32Array(this.buffer);
-        }
-        Memory.prototype.reset = function () {
-            this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
-        };
-
-        Memory.prototype.availableAfterAddress = function (address) {
-            return this.buffer.byteLength - (address & Memory.MASK);
-        };
-
-        Memory.prototype.getPointerDataView = function (address, size) {
-            if (!size)
-                size = this.availableAfterAddress(address);
-            return new DataView(this.buffer, address & Memory.MASK, size);
-        };
-
-        Memory.prototype.getPointerStream = function (address, size) {
-            address &= Memory.MASK;
-            if (address == 0)
-                return null;
-            if (!size)
-                size = this.availableAfterAddress(address);
-            return new Stream(this.getPointerDataView(address, size));
-        };
-
-        Memory.prototype.writeInt8 = function (address, value) {
-            this.u8[(address >> 0) & Memory.MASK] = value;
-        };
-        Memory.prototype.readInt8 = function (address) {
-            return this.s8[(address >> 0) & Memory.MASK];
-        };
-        Memory.prototype.readUInt8 = function (address) {
-            return this.u8[(address >> 0) & Memory.MASK];
-        };
-
-        Memory.prototype.writeInt16 = function (address, value) {
-            this.u16[(address >> 1) & Memory.MASK] = value;
-        };
-        Memory.prototype.readInt16 = function (address) {
-            return this.s16[(address >> 1) & Memory.MASK];
-        };
-        Memory.prototype.readUInt16 = function (address) {
-            return this.u16[(address >> 1) & Memory.MASK];
-        };
-
-        Memory.prototype.writeInt32 = function (address, value) {
-            this.u32[(address >> 2) & Memory.MASK] = value;
-        };
-        Memory.prototype.readInt32 = function (address) {
-            return this.u32[(address >> 2) & Memory.MASK];
-        };
-        Memory.prototype.readUInt32 = function (address) {
-            return this.u32[(address >> 2) & Memory.MASK];
-        };
-
-        Memory.prototype.writeFloat32 = function (address, value) {
-            this.f32[(address >> 2) & Memory.MASK] = value;
-        };
-        Memory.prototype.readFloat32 = function (address) {
-            return this.f32[(address >> 2) & Memory.MASK];
-        };
-
-        Memory.prototype.writeBytes = function (address, data) {
-            Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
-        };
-
-        Memory.prototype.readBytes = function (address, length) {
-            return new Uint8Array(this.buffer, address, length);
-        };
-
-        Memory.prototype.writeStream = function (address, stream) {
-            stream = stream.sliceWithLength(0, stream.length);
-            while (stream.available > 0) {
-                this.writeInt8(address++, stream.readUInt8());
-            }
-        };
-
-        Memory.prototype.readStringz = function (address) {
-            var out = '';
-            while (true) {
-                var char = this.readUInt8(address++);
-                if (char == 0)
-                    break;
-                out += String.fromCharCode(char);
-            }
-            return out;
-        };
-
-        Memory.prototype.sliceWithBounds = function (low, high) {
-            return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
-        };
-
-        Memory.prototype.sliceWithSize = function (address, size) {
-            return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
-        };
-
-        Memory.prototype.copy = function (from, to, length) {
-            from &= Memory.MASK;
-            to &= Memory.MASK;
-            for (var n = 0; n < length; n++) {
-                this.u8[to + n] = this.u8[from + n];
-            }
-        };
-
-        Memory.prototype.memset = function (address, value, length) {
-            address &= Memory.MASK;
-            for (var n = 0; n < length; n++) {
-                this.u8[address + n] = value;
-            }
-        };
-
-        Memory.prototype.hash = function (address, count) {
-            var result = 0;
-            for (var n = 0; n < count; n++) {
-                result = Memory.hashItem(result, n, this.u8[address + n]);
-            }
-            return result;
-        };
-
-        Memory.hashItem = function (prev, n, value) {
-            prev ^= n;
-            prev += value;
-            return prev | 0;
-        };
-
-        Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
-            var _source = new Uint8Array(source, sourcePosition, length);
-            var _destination = new Uint8Array(destination, destinationPosition, length);
-            _destination.set(_source);
-        };
-        Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
-
-        Memory.MASK = 0x0FFFFFFF;
-        Memory.MAIN_OFFSET = 0x08000000;
-        return Memory;
-    })();
-    core.Memory = Memory;
-})(core || (core = {}));
-///<reference path="./memory.ts" />
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    (function (gpu) {
-        var VertexBuffer = (function () {
-            function VertexBuffer() {
-                this.vertices = [];
-                for (var n = 0; n < 1024; n++)
-                    this.vertices[n] = new core.gpu.Vertex();
-            }
-            return VertexBuffer;
-        })();
-
-        var VertexReaderFactory = (function () {
-            function VertexReaderFactory() {
-            }
-            VertexReaderFactory.get = function (vertexState) {
-                var cacheId = vertexState.hash;
-                var vertexReader = this.cache[cacheId];
-                if (vertexReader !== undefined)
-                    return vertexReader;
-                return this.cache[cacheId] = new VertexReader(vertexState);
-            };
-            VertexReaderFactory.cache = {};
-            return VertexReaderFactory;
-        })();
-        gpu.VertexReaderFactory = VertexReaderFactory;
-
-        var VertexReader = (function () {
-            function VertexReader(vertexState) {
-                this.vertexState = vertexState;
-                this.readOffset = 0;
-                this.readCode = this.createJs();
-                this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
-            }
-            VertexReader.prototype.readCount = function (output, input, count) {
-                var inputOffset = 0;
-                for (var n = 0; n < count; n++) {
-                    this.readOneFunc(output[n], input, inputOffset);
-                    inputOffset += this.vertexState.size;
-                }
-            };
-
-            VertexReader.prototype.read = function (output, input, inputOffset) {
-                this.readOneFunc(output, input, inputOffset);
-            };
-
-            VertexReader.prototype.createJs = function () {
-                var indentStringGenerator = new IndentStringGenerator();
-
-                this.readOffset = 0;
-
-                this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
-                this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
-                this.createColorJs(indentStringGenerator, this.vertexState.color);
-                this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
-                this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
-
-                return indentStringGenerator.output;
-            };
-
-            VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
-                if (type == 0 /* Void */)
-                    return;
-
-                switch (type) {
-                    case 7 /* Color8888 */:
-                        this.align(4);
-                        indentStringGenerator.write('output.r = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        indentStringGenerator.write('output.g = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        break;
-                    default:
-                        throw ("Not implemented color format");
-                }
-            };
-
-            VertexReader.prototype.align = function (count) {
-                this.readOffset = MathUtils.nextAligned(this.readOffset, count);
-            };
-
-            VertexReader.prototype.getOffsetAlignAndIncrement = function (size) {
-                this.align(size);
-                var offset = this.readOffset;
-                this.readOffset += size;
-                return offset;
-            };
-
-            VertexReader.prototype.createNumberJs = function (indentStringGenerator, components, type, normalize) {
-                var _this = this;
-                if (type == 0 /* Void */)
-                    return;
-
-                components.forEach(function (component) {
-                    switch (type) {
-                        case 1 /* Byte */:
-                            indentStringGenerator.write('output.' + component + ' = (input.getInt8(inputOffset + ' + _this.getOffsetAlignAndIncrement(1) + ')');
-                            if (normalize)
-                                indentStringGenerator.write(' / 127.0');
-                            break;
-                        case 2 /* Short */:
-                            indentStringGenerator.write('output.' + component + ' = (input.getInt16(inputOffset + ' + _this.getOffsetAlignAndIncrement(2) + ', true)');
-                            if (normalize)
-                                indentStringGenerator.write(' / 32767.0');
-                            break;
-                        case 3 /* Float */:
-                            indentStringGenerator.write('output.' + component + ' = (input.getFloat32(inputOffset + ' + _this.getOffsetAlignAndIncrement(4) + ', true)');
-                            break;
-                    }
-                    indentStringGenerator.write(');\n');
-                });
-            };
-            return VertexReader;
-        })();
-        gpu.VertexReader = VertexReader;
-
-        var vertexBuffer = new VertexBuffer();
-        var singleCallTest = false;
-
-        var PspGpuList = (function () {
-            function PspGpuList(id, memory, drawDriver, runner) {
-                this.id = id;
-                this.memory = memory;
-                this.drawDriver = drawDriver;
-                this.runner = runner;
-                this.completed = false;
-                this.state = new core.gpu.GpuState();
-                this.errorCount = 0;
-            }
-            PspGpuList.prototype.complete = function () {
-                this.completed = true;
-                this.runner.deallocate(this);
-                this.promiseResolve(0);
-            };
-
-            PspGpuList.prototype.jumpRelativeOffset = function (offset) {
-                this.current = this.state.baseAddress + offset;
-            };
-
-            PspGpuList.prototype.runInstruction = function (current, instruction) {
-                var op = instruction >>> 24;
-                var params24 = instruction & 0xFFFFFF;
-
-                switch (op) {
-                    case 2 /* IADDR */:
-                        this.state.indexAddress = params24;
-                        break;
-                    case 19 /* OFFSET_ADDR */:
-                        this.state.baseOffset = (params24 << 8);
-                        break;
-                    case 156 /* FBP */:
-                        this.state.frameBuffer.lowAddress = params24;
-                        break;
-                    case 21 /* REGION1 */:
-                        this.state.viewPort.x1 = BitUtils.extract(params24, 0, 10);
-                        this.state.viewPort.y1 = BitUtils.extract(params24, 10, 10);
-                        break;
-                    case 22 /* REGION2 */:
-                        this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
-                        this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
-                        break;
-                    case 157 /* FBW */:
-                        this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
-                        this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
-                        break;
-                    case 23 /* LTE */:
-                        this.state.lightning.enabled = params24 != 0;
-                        break;
-                    case 24 /* LTE0 */:
-                        this.state.lightning.lights[0].enabled = params24 != 0;
-                        break;
-                    case 25 /* LTE1 */:
-                        this.state.lightning.lights[1].enabled = params24 != 0;
-                        break;
-                    case 26 /* LTE2 */:
-                        this.state.lightning.lights[2].enabled = params24 != 0;
-                        break;
-                    case 27 /* LTE3 */:
-                        this.state.lightning.lights[3].enabled = params24 != 0;
-                        break;
-                    case 16 /* BASE */:
-                        this.state.baseAddress = ((params24 << 8) & 0xff000000);
-                        break;
-                    case 8 /* JUMP */:
-                        this.jumpRelativeOffset(params24 & ~3);
-                        break;
-                    case 0 /* NOP */:
-                        break;
-                    case 18 /* VTYPE */:
-                        this.state.vertex.value = params24;
-                        break;
-                    case 1 /* VADDR */:
-                        this.state.vertex.address = params24;
-                        break;
-                    case 194 /* TMODE */:
-                        this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
-                        this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
-                        this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
-                        break;
-                    case 198 /* TFLT */:
-                        this.state.texture.filterMinification = BitUtils.extract(params24, 0, 8);
-                        this.state.texture.filterMagnification = BitUtils.extract(params24, 8, 8);
-                        break;
-                    case 199 /* TWRAP */:
-                        this.state.texture.wrapU = BitUtils.extract(params24, 0, 8);
-                        this.state.texture.wrapV = BitUtils.extract(params24, 8, 8);
-                        break;
-
-                    case 30 /* TME */:
-                        this.state.texture.enabled = (params24 != 0);
-                        break;
-
-                    case 202 /* TEC */:
-                        this.state.texture.envColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-                        this.state.texture.envColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-                        this.state.texture.envColor.b = BitUtils.extractScale(params24, 16, 8, 1);
-                        break;
-
-                    case 201 /* TFUNC */:
-                        this.state.texture.effect = BitUtils.extract(params24, 0, 8);
-                        this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
-                        this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
-                        break;
-                    case 74 /* UOFFSET */:
-                        this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-                    case 75 /* VOFFSET */:
-                        this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-
-                    case 72 /* USCALE */:
-                        this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-                    case 73 /* VSCALE */:
-                        this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-
-                    case 203 /* TFLUSH */:
-                        this.drawDriver.textureFlush(this.state);
-                        break;
-                    case 195 /* TPSM */:
-                        this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
-                        break;
-
-                    case 184 /* TSIZE0 */:
-                    case 185 /* TSIZE1 */:
-                    case 186 /* TSIZE2 */:
-                    case 187 /* TSIZE3 */:
-                    case 188 /* TSIZE4 */:
-                    case 189 /* TSIZE5 */:
-                    case 190 /* TSIZE6 */:
-                    case 191 /* TSIZE7 */:
-                        var mipMap = this.state.texture.mipmaps[op - 184 /* TSIZE0 */];
-                        var WidthExp = BitUtils.extract(params24, 0, 4);
-                        var HeightExp = BitUtils.extract(params24, 8, 4);
-                        var UnknownFlag = (BitUtils.extract(params24, 15, 1) != 0);
-                        WidthExp = Math.min(WidthExp, 9);
-                        HeightExp = Math.min(HeightExp, 9);
-                        mipMap.textureWidth = 1 << WidthExp;
-                        mipMap.textureHeight = 1 << HeightExp;
-
-                        break;
-
-                    case 160 /* TBP0 */:
-                    case 161 /* TBP1 */:
-                    case 162 /* TBP2 */:
-                    case 163 /* TBP3 */:
-                    case 164 /* TBP4 */:
-                    case 165 /* TBP5 */:
-                    case 166 /* TBP6 */:
-                    case 167 /* TBP7 */:
-                        var mipMap = this.state.texture.mipmaps[op - 160 /* TBP0 */];
-                        mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
-                        break;
-
-                    case 168 /* TBW0 */:
-                    case 169 /* TBW1 */:
-                    case 170 /* TBW2 */:
-                    case 171 /* TBW3 */:
-                    case 172 /* TBW4 */:
-                    case 173 /* TBW5 */:
-                    case 174 /* TBW6 */:
-                    case 175 /* TBW7 */:
-                        var mipMap = this.state.texture.mipmaps[op - 168 /* TBW0 */];
-                        mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
-                        mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
-                        break;
-
-                    case 176 /* CBP */:
-                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
-                        break;
-
-                    case 177 /* CBPH */:
-                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
-                        break;
-
-                    case 196 /* CLOAD */:
-                        this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
-                        break;
-
-                    case 197 /* CMODE */:
-                        this.state.texture.clut.pixelFormat = BitUtils.extract(params24, 0, 2);
-                        this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
-                        this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
-                        this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
-                        break;
-
-                    case 62 /* PROJ_START */:
-                        this.state.projectionMatrix.reset(params24);
-                        break;
-                    case 63 /* PROJ_PUT */:
-                        this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
-                        break;
-
-                    case 60 /* VIEW_START */:
-                        this.state.viewMatrix.reset(params24);
-                        break;
-                    case 61 /* VIEW_PUT */:
-                        this.state.viewMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
-                        break;
-
-                    case 58 /* WORLD_START */:
-                        this.state.worldMatrix.reset(params24);
-                        break;
-                    case 59 /* WORLD_PUT */:
-                        this.state.worldMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
-                        break;
-
-                    case 211 /* CLEAR */:
-                        this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
-                        this.state.clearFlags = BitUtils.extract(params24, 8, 8);
-                        this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
-                        break;
-
-                    case 29 /* BCE */:
-                        this.state.culling.enabled = (params24 != 0);
-                    case 155 /* FFACE */:
-                        this.state.culling.direction = params24; // FrontFaceDirectionEnum
-                        break;
-
-                    case 4 /* PRIM */:
-                        //console.log('GPU PRIM');
-                        var primitiveType = BitUtils.extractEnum(params24, 16, 3);
-                        var vertexCount = BitUtils.extract(params24, 0, 16);
-                        var vertexState = this.state.vertex;
-                        var vertexSize = this.state.vertex.size;
-                        var vertexAddress = this.state.baseAddress + this.state.vertex.address;
-                        var vertexReader = VertexReaderFactory.get(vertexState);
-                        var vertexInput = this.memory.getPointerDataView(vertexAddress);
-                        var vertices = vertexBuffer.vertices;
-                        vertexReader.readCount(vertices, vertexInput, vertexCount);
-
-                        this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
-                        this.drawDriver.setState(this.state);
-
-                        if (this.errorCount < 400) {
-                            //console.log('PRIM:' + primitiveType + ' : ' + vertexCount + ':' + vertexState.hasIndex);
-                        }
-
-                        this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
-
-                        break;
-
-                    case 15 /* FINISH */:
-                        break;
-
-                    case 12 /* END */:
-                        this.complete();
-                        return true;
-                        break;
-
-                    default:
-                        //setTimeout(() => this.complete(), 50);
-                        this.errorCount++;
-                        if (this.errorCount >= 400) {
-                            if (this.errorCount == 400) {
-                                console.error(sprintf('Stop showing gpu errors'));
-                            }
-                        } else {
-                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
-                        }
-                }
-
-                return false;
-            };
-
-            Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
-                get: function () {
-                    return !this.completed && ((this.stall == 0) || (this.current < this.stall));
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            PspGpuList.prototype.runUntilStall = function () {
-                while (this.hasMoreInstructions) {
-                    var instruction = this.memory.readUInt32(this.current);
-                    this.current += 4;
-                    if (this.runInstruction(this.current - 4, instruction))
-                        return;
-                }
-            };
-
-            PspGpuList.prototype.enqueueRunUntilStall = function () {
-                var _this = this;
-                setImmediate(function () {
-                    _this.runUntilStall();
-                });
-            };
-
-            PspGpuList.prototype.updateStall = function (stall) {
-                this.stall = stall;
-                this.enqueueRunUntilStall();
-            };
-
-            PspGpuList.prototype.start = function () {
-                var _this = this;
-                this.promise = new Promise(function (resolve, reject) {
-                    _this.promiseResolve = resolve;
-                    _this.promiseReject = reject;
-                });
-                this.completed = false;
-
-                this.enqueueRunUntilStall();
-            };
-
-            PspGpuList.prototype.waitAsync = function () {
-                return this.promise;
-            };
-            return PspGpuList;
-        })();
-
-        (function (CullingDirection) {
-            CullingDirection[CullingDirection["CounterClockWise"] = 0] = "CounterClockWise";
-            CullingDirection[CullingDirection["ClockWise"] = 1] = "ClockWise";
-        })(gpu.CullingDirection || (gpu.CullingDirection = {}));
-        var CullingDirection = gpu.CullingDirection;
-
-        var PspGpuListRunner = (function () {
-            function PspGpuListRunner(memory, drawDriver) {
-                this.memory = memory;
-                this.drawDriver = drawDriver;
-                this.lists = [];
-                this.freeLists = [];
-                this.runningLists = [];
-                for (var n = 0; n < 32; n++) {
-                    var list = new PspGpuList(n, memory, drawDriver, this);
-                    this.lists.push(list);
-                    this.freeLists.push(list);
-                }
-            }
-            PspGpuListRunner.prototype.allocate = function () {
-                if (!this.freeLists.length)
-                    throw ('Out of gpu free lists');
-                var list = this.freeLists.pop();
-                this.runningLists.push(list);
-                return list;
-            };
-
-            PspGpuListRunner.prototype.getById = function (id) {
-                return this.lists[id];
-            };
-
-            PspGpuListRunner.prototype.deallocate = function (list) {
-                this.freeLists.push(list);
-                this.runningLists.remove(list);
-            };
-
-            PspGpuListRunner.prototype.waitAsync = function () {
-                return Promise.all(this.runningLists.map(function (list) {
-                    return list.waitAsync();
-                })).then(function () {
-                    return 0;
-                });
-            };
-            return PspGpuListRunner;
-        })();
-
-        var PspGpu = (function () {
-            function PspGpu(memory, display, canvas) {
-                this.memory = memory;
-                this.display = display;
-                this.canvas = canvas;
-                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, display, canvas);
-
-                //this.driver = new Context2dPspDrawDriver(memory, canvas);
-                this.listRunner = new PspGpuListRunner(memory, this.driver);
-            }
-            PspGpu.prototype.startAsync = function () {
-                return this.driver.initAsync();
-            };
-
-            PspGpu.prototype.stopAsync = function () {
-                return Promise.resolve();
-            };
-
-            PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
-                var list = this.listRunner.allocate();
-                list.current = start;
-                list.stall = stall;
-                list.callbackId = callbackId;
-                list.start();
-                return list.id;
-            };
-
-            PspGpu.prototype.listSync = function (displayListId, syncType) {
-                //console.log('listSync');
-                return this.listRunner.getById(displayListId).waitAsync();
-            };
-
-            PspGpu.prototype.updateStallAddr = function (displayListId, stall) {
-                this.listRunner.getById(displayListId).updateStall(stall);
-                return 0;
-            };
-
-            PspGpu.prototype.drawSync = function (syncType) {
-                //console.log('drawSync');
-                return this.listRunner.waitAsync();
-            };
-            return PspGpu;
-        })();
-        gpu.PspGpu = PspGpu;
-    })(core.gpu || (core.gpu = {}));
-    var gpu = core.gpu;
-})(core || (core = {}));
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    var PspRtc = (function () {
-        function PspRtc() {
-        }
-        PspRtc.prototype.getTime = function () {
-            //window.performance.now()
-        };
-        return PspRtc;
-    })();
-})(core || (core = {}));
-var EmulatorContext = (function () {
-    function EmulatorContext() {
-    }
-    EmulatorContext.prototype.init = function (display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager) {
-        this.display = display;
-        this.controller = controller;
-        this.gpu = gpu;
-        this.memoryManager = memoryManager;
-        this.threadManager = threadManager;
-        this.audio = audio;
-        this.memory = memory;
-        this.instructionCache = instructionCache;
-        this.fileManager = fileManager;
-    };
-    return EmulatorContext;
-})();
-
-var CpuBreakException = (function () {
-    function CpuBreakException(name, message) {
-        if (typeof name === "undefined") { name = 'CpuBreakException'; }
-        if (typeof message === "undefined") { message = 'CpuBreakException'; }
-        this.name = name;
-        this.message = message;
-    }
-    return CpuBreakException;
-})();
-
-var FunctionGenerator = (function () {
-    function FunctionGenerator(memory) {
-        this.memory = memory;
-        this.instructions = core.cpu.Instructions.instance;
-        this.instructionAst = new core.cpu.ast.InstructionAst();
-    }
-    FunctionGenerator.prototype.decodeInstruction = function (address) {
-        var instruction = core.cpu.Instruction.fromMemoryAndPC(this.memory, address);
-        var instructionType = this.getInstructionType(instruction);
-        return new core.cpu.DecodedInstruction(instruction, instructionType);
-    };
-
-    FunctionGenerator.prototype.getInstructionType = function (i) {
-        return this.instructions.findByData(i.data, i.PC);
-    };
-
-    FunctionGenerator.prototype.generateInstructionAstNode = function (di) {
-        var instruction = di.instruction;
-        var instructionType = di.type;
-        var func = this.instructionAst[instructionType.name];
-        if (func === undefined)
-            throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
-        return func.call(this.instructionAst, instruction);
-    };
-
-    FunctionGenerator.prototype.create = function (address) {
-        var _this = this;
-        if (address == 0x00000000) {
-            throw (new Error("Trying to execute 0x00000000"));
-        }
-
-        var ast = new MipsAstBuilder();
-
-        var PC = address;
-        var stms = [ast.functionPrefix()];
-
-        var emitInstruction = function () {
-            var result = _this.generateInstructionAstNode(_this.decodeInstruction(PC));
-            PC += 4;
-            return result;
-        };
-
-        for (var n = 0; n < 100000; n++) {
-            var di = this.decodeInstruction(PC + 0);
-
-            //console.log(di);
-            if (PC == 0x089005D0) {
-                //stms.push(ast.debugger());
-            }
-
-            if (di.type.hasDelayedBranch) {
-                var di2 = this.decodeInstruction(PC + 4);
-
-                stms.push(emitInstruction());
-
-                var delayedSlotInstruction = emitInstruction();
-                if (di2.type.isSyscall) {
-                    stms.push(this.instructionAst._postBranch(PC));
-                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                } else {
-                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                    stms.push(this.instructionAst._postBranch(PC));
-                }
-
-                break;
-            } else {
-                if (di.type.isSyscall) {
-                    stms.push(this.instructionAst._storePC(PC + 4));
-                }
-                stms.push(emitInstruction());
-                if (di.type.isBreak) {
-                    break;
-                }
-            }
-        }
-
-        //console.debug(sprintf("// function_%08X:\n%s", address, ast.stms(stms).toJs()));
-        if (n >= 100000)
-            throw (new Error(sprintf("Too large function PC=%08X", address)));
-
-        return new Function('state', ast.stms(stms).toJs());
-    };
-    return FunctionGenerator;
-})();
-
-var CpuSpecialAddresses;
-(function (CpuSpecialAddresses) {
-    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
-})(CpuSpecialAddresses || (CpuSpecialAddresses = {}));
-
-var InstructionCache = (function () {
-    function InstructionCache(memory) {
-        this.memory = memory;
-        this.cache = {};
-        this.functionGenerator = new FunctionGenerator(memory);
-    }
-    InstructionCache.prototype.invalidateRange = function (from, to) {
-        for (var n = from; n < to; n += 4)
-            delete this.cache[n];
-    };
-
-    InstructionCache.prototype.getFunction = function (address) {
-        var item = this.cache[address];
-        if (item)
-            return item;
-
-        switch (address) {
-            case 268435455 /* EXIT_THREAD */:
-                return this.cache[address] = function (state) {
-                    console.log(state);
-                    console.log(state.thread);
-                    console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
-                    state.thread.stop();
-                    throw (new CpuBreakException());
-                };
-                break;
-            default:
-                return this.cache[address] = this.functionGenerator.create(address);
-        }
-    };
-    return InstructionCache;
-})();
-
-var ProgramExecutor = (function () {
-    function ProgramExecutor(state, instructionCache) {
-        this.state = state;
-        this.instructionCache = instructionCache;
-        this.lastPC = 0;
-    }
-    ProgramExecutor.prototype.executeStep = function () {
-        if (this.state.PC == 0) {
-            console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
-        }
-        this.lastPC = this.state.PC;
-        var func = this.instructionCache.getFunction(this.state.PC);
-        func(this.state);
-    };
-
-    ProgramExecutor.prototype.execute = function (maxIterations) {
-        if (typeof maxIterations === "undefined") { maxIterations = -1; }
-        try  {
-            while (maxIterations != 0) {
-                this.executeStep();
-                if (maxIterations > 0)
-                    maxIterations--;
-            }
-        } catch (e) {
-            if (!(e instanceof CpuBreakException)) {
-                console.log(this.state);
-                throw (e);
-            }
-        }
-    };
-    return ProgramExecutor;
-})();
-///<reference path="../util/utils.ts" />
-///<reference path="./cpu/state.ts" />
-///<reference path="../cpu.ts" />
-var core;
-(function (core) {
-    var NativeFunction = (function () {
-        function NativeFunction() {
-        }
-        return NativeFunction;
-    })();
-    core.NativeFunction = NativeFunction;
-
-    var SyscallManager = (function () {
-        function SyscallManager(context) {
-            this.context = context;
-            this.calls = {};
-            this.lastId = 1;
-        }
-        SyscallManager.prototype.register = function (nativeFunction) {
-            return this.registerWithId(this.lastId++, nativeFunction);
-        };
-
-        SyscallManager.prototype.registerWithId = function (id, nativeFunction) {
-            this.calls[id] = nativeFunction;
-            return id;
-        };
-
-        SyscallManager.prototype.call = function (state, id) {
-            var nativeFunction = this.calls[id];
-            if (!nativeFunction)
-                throw (sprintf("Can't call syscall %s: 0x%06X", id));
-
-            //printf('calling syscall 0x%04X : %s', id, nativeFunction.name);
-            nativeFunction.call(this.context, state);
-        };
-        return SyscallManager;
-    })();
-    core.SyscallManager = SyscallManager;
-})(core || (core = {}));
 var format;
 (function (format) {
     (function (cso) {
@@ -6661,418 +3648,6 @@ var format;
 })(format || (format = {}));
 var format;
 (function (format) {
-    (function (_iso) {
-        var SECTOR_SIZE = 0x800;
-
-        var DirectoryRecordDate = (function () {
-            function DirectoryRecordDate() {
-            }
-            Object.defineProperty(DirectoryRecordDate.prototype, "date", {
-                get: function () {
-                    return new Date(this.year, this.month, this.day, this.hour, this.minute, this.second);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            DirectoryRecordDate.struct = StructClass.create(DirectoryRecordDate, [
-                { type: UInt8, name: 'year' },
-                { type: UInt8, name: 'month' },
-                { type: UInt8, name: 'day' },
-                { type: UInt8, name: 'hour' },
-                { type: UInt8, name: 'minute' },
-                { type: UInt8, name: 'second' },
-                { type: UInt8, name: 'offset' }
-            ]);
-            return DirectoryRecordDate;
-        })();
-
-        var IsoStringDate = (function () {
-            function IsoStringDate() {
-            }
-            Object.defineProperty(IsoStringDate.prototype, "year", {
-                get: function () {
-                    return parseInt(this.data.substr(0, 4));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "month", {
-                get: function () {
-                    return parseInt(this.data.substr(4, 2));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "day", {
-                get: function () {
-                    return parseInt(this.data.substr(6, 2));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "hour", {
-                get: function () {
-                    return parseInt(this.data.substr(8, 2));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "minute", {
-                get: function () {
-                    return parseInt(this.data.substr(10, 2));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "second", {
-                get: function () {
-                    return parseInt(this.data.substr(12, 2));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "hsecond", {
-                get: function () {
-                    return parseInt(this.data.substr(14, 2));
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoStringDate.prototype, "offset", {
-                get: function () {
-                    return parseInt(this.data.substr(16, 1));
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            IsoStringDate.struct = StructClass.create(IsoStringDate, [
-                { type: Stringz(17), name: 'data' }
-            ]);
-            return IsoStringDate;
-        })();
-
-        var VolumeDescriptorHeaderType;
-        (function (VolumeDescriptorHeaderType) {
-            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["BootRecord"] = 0x00] = "BootRecord";
-            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionSetTerminator"] = 0xFF] = "VolumePartitionSetTerminator";
-            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["PrimaryVolumeDescriptor"] = 0x01] = "PrimaryVolumeDescriptor";
-            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["SupplementaryVolumeDescriptor"] = 0x02] = "SupplementaryVolumeDescriptor";
-            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionDescriptor"] = 0x03] = "VolumePartitionDescriptor";
-        })(VolumeDescriptorHeaderType || (VolumeDescriptorHeaderType = {}));
-
-        var VolumeDescriptorHeader = (function () {
-            function VolumeDescriptorHeader() {
-            }
-            VolumeDescriptorHeader.struct = StructClass.create(VolumeDescriptorHeader, [
-                { type: UInt8, name: 'type' },
-                { type: Stringz(5), name: 'id' },
-                { type: UInt8, name: 'version' }
-            ]);
-            return VolumeDescriptorHeader;
-        })();
-
-        var DirectoryRecordFlags;
-        (function (DirectoryRecordFlags) {
-            DirectoryRecordFlags[DirectoryRecordFlags["Unknown1"] = 1 << 0] = "Unknown1";
-            DirectoryRecordFlags[DirectoryRecordFlags["Directory"] = 1 << 1] = "Directory";
-            DirectoryRecordFlags[DirectoryRecordFlags["Unknown2"] = 1 << 2] = "Unknown2";
-            DirectoryRecordFlags[DirectoryRecordFlags["Unknown3"] = 1 << 3] = "Unknown3";
-            DirectoryRecordFlags[DirectoryRecordFlags["Unknown4"] = 1 << 4] = "Unknown4";
-            DirectoryRecordFlags[DirectoryRecordFlags["Unknown5"] = 1 << 5] = "Unknown5";
-        })(DirectoryRecordFlags || (DirectoryRecordFlags = {}));
-
-        var DirectoryRecord = (function () {
-            function DirectoryRecord() {
-                this.name = '';
-            }
-            Object.defineProperty(DirectoryRecord.prototype, "offset", {
-                get: function () {
-                    return this.extent * SECTOR_SIZE;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(DirectoryRecord.prototype, "isDirectory", {
-                get: function () {
-                    return (this.flags & DirectoryRecordFlags.Directory) != 0;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            DirectoryRecord.struct = StructClass.create(DirectoryRecord, [
-                { type: UInt8, name: 'length' },
-                { type: UInt8, name: 'extendedAttributeLength' },
-                { type: UInt32_2lb, name: 'extent' },
-                { type: UInt32_2lb, name: 'size' },
-                { type: DirectoryRecordDate.struct, name: 'date' },
-                { type: UInt8, name: 'flags' },
-                { type: UInt8, name: 'fileUnitSize' },
-                { type: UInt8, name: 'interleave' },
-                { type: UInt16_2lb, name: 'volumeSequenceNumber' },
-                { type: UInt8, name: 'nameLength' }
-            ]);
-            return DirectoryRecord;
-        })();
-
-        var PrimaryVolumeDescriptor = (function () {
-            function PrimaryVolumeDescriptor() {
-            }
-            PrimaryVolumeDescriptor.struct = StructClass.create(PrimaryVolumeDescriptor, [
-                { type: VolumeDescriptorHeader.struct, name: 'header' },
-                { type: UInt8, name: '_pad1' },
-                { type: Stringz(0x20), name: 'systemId' },
-                { type: Stringz(0x20), name: 'volumeId' },
-                { type: Int64, name: '_pad2' },
-                { type: UInt32_2lb, name: 'volumeSpaceSize' },
-                { type: StructArray.create(Int64, 4), name: '_pad3' },
-                { type: UInt32, name: 'volumeSetSize' },
-                { type: UInt32, name: 'volumeSequenceNumber' },
-                { type: UInt16_2lb, name: 'logicalBlockSize' },
-                { type: UInt32_2lb, name: 'pathTableSize' },
-                { type: UInt32, name: 'typeLPathTable' },
-                { type: UInt32, name: 'optType1PathTable' },
-                { type: UInt32, name: 'typeMPathTable' },
-                { type: UInt32, name: 'optTypeMPathTable' },
-                { type: DirectoryRecord.struct, name: 'directoryRecord' },
-                { type: UInt8, name: '_pad4' },
-                { type: Stringz(0x80), name: 'volumeSetId' },
-                { type: Stringz(0x80), name: 'publisherId' },
-                { type: Stringz(0x80), name: 'preparerId' },
-                { type: Stringz(0x80), name: 'applicationId' },
-                { type: Stringz(37), name: 'copyrightFileId' },
-                { type: Stringz(37), name: 'abstractFileId' },
-                { type: Stringz(37), name: 'bibliographicFileId' },
-                { type: IsoStringDate.struct, name: 'creationDate' },
-                { type: IsoStringDate.struct, name: 'modificationDate' },
-                { type: IsoStringDate.struct, name: 'expirationDate' },
-                { type: IsoStringDate.struct, name: 'effectiveDate' },
-                { type: UInt8, name: 'fileStructureVersion' },
-                { type: UInt8, name: 'pad5' },
-                { type: StructArray.create(UInt8, 0x200), name: 'pad5' },
-                { type: StructArray.create(UInt8, 653), name: 'pad6' }
-            ]);
-            return PrimaryVolumeDescriptor;
-        })();
-
-        var IsoNode = (function () {
-            function IsoNode(iso, directoryRecord, parent) {
-                if (typeof parent === "undefined") { parent = null; }
-                this.iso = iso;
-                this.directoryRecord = directoryRecord;
-                this.parent = parent;
-                this.childs = [];
-                this.childsByName = {};
-            }
-            Object.defineProperty(IsoNode.prototype, "isRoot", {
-                get: function () {
-                    return this.parent == null;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoNode.prototype, "size", {
-                get: function () {
-                    return this.directoryRecord.size;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoNode.prototype, "path", {
-                get: function () {
-                    return (this.parent && !this.parent.isRoot) ? (this.parent.path + '/' + this.name) : this.name;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoNode.prototype, "name", {
-                get: function () {
-                    return this.directoryRecord.name;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoNode.prototype, "isDirectory", {
-                get: function () {
-                    return this.directoryRecord.isDirectory;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(IsoNode.prototype, "date", {
-                get: function () {
-                    return this.directoryRecord.date.date;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            IsoNode.prototype.readChunkAsync = function (offset, count) {
-                var fileBaseLow = this.directoryRecord.offset;
-                var low = fileBaseLow + offset;
-                var high = Math.min(low + count, fileBaseLow + this.size);
-                return this.iso.readChunkAsync(low, high - low);
-            };
-
-            IsoNode.prototype.addChild = function (child) {
-                this.childs.push(child);
-                this.childsByName[child.name] = child;
-            };
-
-            IsoNode.prototype.toString = function () {
-                return sprintf('IsoNode(%s, %d)', this.path, this.size);
-            };
-            return IsoNode;
-        })();
-
-        var Iso = (function () {
-            function Iso() {
-            }
-            Object.defineProperty(Iso.prototype, "name", {
-                get: function () {
-                    return this.asyncStream.name;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Iso.prototype, "root", {
-                get: function () {
-                    return this._root;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Iso.prototype, "childrenByPath", {
-                get: function () {
-                    return this._childrenByPath;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Iso.prototype, "children", {
-                get: function () {
-                    return this._children.slice();
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Iso.fromStreamAsync = function (asyncStream) {
-                return new Iso().loadAsync(asyncStream);
-            };
-
-            Iso.prototype.get = function (path) {
-                path = path.replace(/^\/+/, '');
-                var node = this._childrenByPath[path];
-                if (!node) {
-                    console.info(this);
-                    throw (new Error(sprintf("Can't find node '%s'", path)));
-                }
-                return node;
-            };
-
-            Object.defineProperty(Iso.prototype, "size", {
-                get: function () {
-                    return this.asyncStream.size;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Iso.prototype.readChunkAsync = function (offset, count) {
-                return this.asyncStream.readChunkAsync(offset, count);
-            };
-
-            Iso.prototype.loadAsync = function (asyncStream) {
-                var _this = this;
-                this.asyncStream = asyncStream;
-
-                if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE)
-                    throw (sprintf("Invalid PrimaryVolumeDescriptor.struct size %d != %d", PrimaryVolumeDescriptor.struct.length, SECTOR_SIZE));
-
-                return asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800).then(function (arrayBuffer) {
-                    var stream = Stream.fromArrayBuffer(arrayBuffer);
-                    var pvd = PrimaryVolumeDescriptor.struct.read(stream);
-                    if (pvd.header.type != 1 /* PrimaryVolumeDescriptor */)
-                        throw ("Not an ISO file");
-                    if (pvd.header.id != 'CD001')
-                        throw ("Not an ISO file");
-
-                    //if (pvd.systemId.rstrip() != 'Win32') throw ("Invalid ISO file systemId:'" + pvd.systemId + "'");
-                    //if (pvd.volumeId.rstrip() != 'CDROM') throw ("Invalid ISO file volumeId:'" + pvd.volumeId + "'");
-                    _this._children = [];
-                    _this._childrenByPath = {};
-                    _this._root = new IsoNode(_this, pvd.directoryRecord);
-
-                    return _this.processDirectoryRecordAsync(_this._root).then(function () {
-                        return _this;
-                    });
-                });
-            };
-
-            Iso.prototype.processDirectoryRecordAsync = function (parentIsoNode) {
-                var _this = this;
-                var directoryStart = parentIsoNode.directoryRecord.extent * SECTOR_SIZE;
-                var directoryLength = parentIsoNode.directoryRecord.size;
-
-                return this.asyncStream.readChunkAsync(directoryStart, directoryLength).then(function (data) {
-                    var directoryStream = Stream.fromArrayBuffer(data);
-
-                    while (directoryStream.available) {
-                        var directoryRecordSize = directoryStream.readUInt8();
-
-                        // Even if a directory spans multiple sectors, the directory entries are not permitted to cross the sector boundary (unlike the path table).
-                        // Where there is not enough space to record an entire directory entry at the end of a sector, that sector is zero-padded and the next
-                        // consecutive sector is used.
-                        if (directoryRecordSize == 0) {
-                            directoryStream.position = MathUtils.nextAligned(directoryStream.position, SECTOR_SIZE);
-
-                            continue;
-                        }
-
-                        directoryStream.position = directoryStream.position - 1;
-
-                        //Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
-                        var directoryRecordStream = directoryStream.readStream(directoryRecordSize);
-                        var directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
-                        directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
-
-                        //Console.WriteLine("{0}", name); Console.ReadKey();
-                        if (directoryRecord.name == "" || directoryRecord.name == "\x01")
-                            continue;
-
-                        //console.log(directoryRecord);
-                        //writefln("   %s", name);
-                        var child = new IsoNode(_this, directoryRecord, parentIsoNode);
-                        parentIsoNode.addChild(child);
-                        _this._children.push(child);
-                        _this._childrenByPath[child.path] = child;
-                    }
-
-                    var promiseGenerators = [];
-
-                    parentIsoNode.childs.forEach(function (child) {
-                        if (child.isDirectory) {
-                            promiseGenerators.push(function () {
-                                return _this.processDirectoryRecordAsync(child);
-                            });
-                        }
-                    });
-
-                    return PromiseUtils.sequence(promiseGenerators);
-                });
-            };
-            return Iso;
-        })();
-        _iso.Iso = Iso;
-    })(format.iso || (format.iso = {}));
-    var iso = format.iso;
-})(format || (format = {}));
-var format;
-(function (format) {
     (function (_pbp) {
         var PbpMagic;
         (function (PbpMagic) {
@@ -7214,616 +3789,6 @@ var format;
 })(format || (format = {}));
 var hle;
 (function (hle) {
-    (function (_elf) {
-        var ElfHeader = (function () {
-            function ElfHeader() {
-            }
-            Object.defineProperty(ElfHeader.prototype, "hasValidMagic", {
-                get: function () {
-                    return this.magic == String.fromCharCode(0x7F) + 'ELF';
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
-                get: function () {
-                    return this.machine == 8 /* ALLEGREX */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(ElfHeader.prototype, "hasValidType", {
-                get: function () {
-                    return [2 /* Executable */, 65440 /* Prx */].indexOf(this.type) >= 0;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            ElfHeader.struct = StructClass.create(ElfHeader, [
-                { type: Stringn(4), name: 'magic' },
-                { type: Int8, name: 'class' },
-                { type: Int8, name: 'data' },
-                { type: Int8, name: 'idVersion' },
-                { type: StructArray.create(Int8, 9), name: '_padding' },
-                { type: UInt16, name: 'type' },
-                { type: Int16, name: 'machine' },
-                { type: Int32, name: 'version' },
-                { type: Int32, name: 'entryPoint' },
-                { type: Int32, name: 'programHeaderOffset' },
-                { type: Int32, name: 'sectionHeaderOffset' },
-                { type: Int32, name: 'flags' },
-                { type: Int16, name: 'elfHeaderSize' },
-                { type: Int16, name: 'programHeaderEntrySize' },
-                { type: Int16, name: 'programHeaderCount' },
-                { type: Int16, name: 'sectionHeaderEntrySize' },
-                { type: Int16, name: 'sectionHeaderCount' },
-                { type: Int16, name: 'sectionHeaderStringTable' }
-            ]);
-            return ElfHeader;
-        })();
-
-        var ElfProgramHeader = (function () {
-            function ElfProgramHeader() {
-            }
-            ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
-                { type: UInt32, name: 'type' },
-                { type: UInt32, name: 'offset' },
-                { type: UInt32, name: 'virtualAddress' },
-                { type: UInt32, name: 'psysicalAddress' },
-                { type: UInt32, name: 'fileSize' },
-                { type: UInt32, name: 'memorySize' },
-                { type: UInt32, name: 'flags' },
-                { type: UInt32, name: 'alignment' }
-            ]);
-            return ElfProgramHeader;
-        })();
-
-        var ElfSectionHeader = (function () {
-            function ElfSectionHeader() {
-                this.stream = null;
-            }
-            ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
-                { type: UInt32, name: 'nameOffset' },
-                { type: UInt32, name: 'type' },
-                { type: UInt32, name: 'flags' },
-                { type: UInt32, name: 'address' },
-                { type: UInt32, name: 'offset' },
-                { type: UInt32, name: 'size' },
-                { type: UInt32, name: 'link' },
-                { type: UInt32, name: 'info' },
-                { type: UInt32, name: 'addressAlign' },
-                { type: UInt32, name: 'entitySize' }
-            ]);
-            return ElfSectionHeader;
-        })();
-
-        var ElfProgramHeaderType;
-        (function (ElfProgramHeaderType) {
-            ElfProgramHeaderType[ElfProgramHeaderType["NoLoad"] = 0] = "NoLoad";
-            ElfProgramHeaderType[ElfProgramHeaderType["Load"] = 1] = "Load";
-            ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 0x700000A0] = "Reloc1";
-            ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 0x700000A1] = "Reloc2";
-        })(ElfProgramHeaderType || (ElfProgramHeaderType = {}));
-
-        var ElfSectionHeaderType;
-        (function (ElfSectionHeaderType) {
-            ElfSectionHeaderType[ElfSectionHeaderType["Null"] = 0] = "Null";
-            ElfSectionHeaderType[ElfSectionHeaderType["ProgramBits"] = 1] = "ProgramBits";
-            ElfSectionHeaderType[ElfSectionHeaderType["SYMTAB"] = 2] = "SYMTAB";
-            ElfSectionHeaderType[ElfSectionHeaderType["STRTAB"] = 3] = "STRTAB";
-            ElfSectionHeaderType[ElfSectionHeaderType["RELA"] = 4] = "RELA";
-            ElfSectionHeaderType[ElfSectionHeaderType["HASH"] = 5] = "HASH";
-            ElfSectionHeaderType[ElfSectionHeaderType["DYNAMIC"] = 6] = "DYNAMIC";
-            ElfSectionHeaderType[ElfSectionHeaderType["NOTE"] = 7] = "NOTE";
-            ElfSectionHeaderType[ElfSectionHeaderType["NoBits"] = 8] = "NoBits";
-            ElfSectionHeaderType[ElfSectionHeaderType["Relocation"] = 9] = "Relocation";
-            ElfSectionHeaderType[ElfSectionHeaderType["SHLIB"] = 10] = "SHLIB";
-            ElfSectionHeaderType[ElfSectionHeaderType["DYNSYM"] = 11] = "DYNSYM";
-
-            ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 0x70000000] = "LOPROC";
-            ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 0x7FFFFFFF] = "HIPROC";
-            ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 0x80000000] = "LOUSER";
-            ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 0xFFFFFFFF] = "HIUSER";
-
-            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = (ElfSectionHeaderType.LOPROC | 0xA0)] = "PrxRelocation";
-            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = (ElfSectionHeaderType.LOPROC | 0xA1)] = "PrxRelocation_FW5";
-        })(ElfSectionHeaderType || (ElfSectionHeaderType = {}));
-
-        var ElfSectionHeaderFlags;
-        (function (ElfSectionHeaderFlags) {
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["None"] = 0] = "None";
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Write"] = 1] = "Write";
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Allocate"] = 2] = "Allocate";
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Execute"] = 4] = "Execute";
-        })(ElfSectionHeaderFlags || (ElfSectionHeaderFlags = {}));
-
-        var ElfProgramHeaderFlags;
-        (function (ElfProgramHeaderFlags) {
-            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 0x1] = "Executable";
-
-            // Note: demo PRX's were found to be not writable
-            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 0x2] = "Writable";
-            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 0x4] = "Readable";
-        })(ElfProgramHeaderFlags || (ElfProgramHeaderFlags = {}));
-
-        var ElfType;
-        (function (ElfType) {
-            ElfType[ElfType["Executable"] = 0x0002] = "Executable";
-            ElfType[ElfType["Prx"] = 0xFFA0] = "Prx";
-        })(ElfType || (ElfType = {}));
-
-        var ElfMachine;
-        (function (ElfMachine) {
-            ElfMachine[ElfMachine["ALLEGREX"] = 8] = "ALLEGREX";
-        })(ElfMachine || (ElfMachine = {}));
-
-        var ElfPspModuleFlags;
-        (function (ElfPspModuleFlags) {
-            ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0x0000] = "User";
-            ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 0x1000] = "Kernel";
-        })(ElfPspModuleFlags || (ElfPspModuleFlags = {}));
-
-        var ElfPspLibFlags;
-        (function (ElfPspLibFlags) {
-            ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 0x0001] = "DirectJump";
-            ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 0x4000] = "Syscall";
-            ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 0x8000] = "SysLib";
-        })(ElfPspLibFlags || (ElfPspLibFlags = {}));
-
-        var ElfPspModuleNids;
-        (function (ElfPspModuleNids) {
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 0xF01D73A7] = "MODULE_INFO";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 0xD3744BE0] = "MODULE_BOOTSTART";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 0x2F064FA6] = "MODULE_REBOOT_BEFORE";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 0xD632ACDB] = "MODULE_START";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 0x0F7C276C] = "MODULE_START_THREAD_PARAMETER";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 0xCEE8593C] = "MODULE_STOP";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 0xCF0CC697] = "MODULE_STOP_THREAD_PARAMETER";
-        })(ElfPspModuleNids || (ElfPspModuleNids = {}));
-
-        var ElfPspModuleImport = (function () {
-            function ElfPspModuleImport() {
-            }
-            ElfPspModuleImport.struct = Struct.create([
-                { type: UInt32, name: "nameOffset" },
-                { type: UInt16, name: "version" },
-                { type: UInt16, name: "flags" },
-                { type: UInt8, name: "entrySize" },
-                { type: UInt8, name: "variableCount" },
-                { type: UInt16, name: "functionCount" },
-                { type: UInt32, name: "nidAddress" },
-                { type: UInt32, name: "callAddress" }
-            ]);
-            return ElfPspModuleImport;
-        })();
-
-        var ElfPspModuleExport = (function () {
-            function ElfPspModuleExport() {
-            }
-            ElfPspModuleExport.struct = Struct.create([
-                { type: UInt32, name: "name" },
-                { type: UInt16, name: "version" },
-                { type: UInt16, name: "flags" },
-                { type: UInt8, name: "entrySize" },
-                { type: UInt8, name: "variableCount" },
-                { type: UInt16, name: "functionCount" },
-                { type: UInt32, name: "exports" }
-            ]);
-            return ElfPspModuleExport;
-        })();
-
-        var ElfPspModuleInfoAtributesEnum;
-        (function (ElfPspModuleInfoAtributesEnum) {
-            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0x0000] = "UserMode";
-            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 0x100] = "KernelMode";
-        })(ElfPspModuleInfoAtributesEnum || (ElfPspModuleInfoAtributesEnum = {}));
-
-        var ElfPspModuleInfo = (function () {
-            function ElfPspModuleInfo() {
-            }
-            ElfPspModuleInfo.struct = StructClass.create(ElfPspModuleInfo, [
-                { type: UInt16, name: "moduleAtributes" },
-                { type: UInt16, name: "moduleVersion" },
-                { type: Stringz(28), name: "name" },
-                { type: UInt32, name: "gp" },
-                { type: UInt32, name: "exportsStart" },
-                { type: UInt32, name: "exportsEnd" },
-                { type: UInt32, name: "importsStart" },
-                { type: UInt32, name: "importsEnd" }
-            ]);
-            return ElfPspModuleInfo;
-        })();
-        _elf.ElfPspModuleInfo = ElfPspModuleInfo;
-
-        var ElfRelocType;
-        (function (ElfRelocType) {
-            ElfRelocType[ElfRelocType["None"] = 0] = "None";
-            ElfRelocType[ElfRelocType["Mips16"] = 1] = "Mips16";
-            ElfRelocType[ElfRelocType["Mips32"] = 2] = "Mips32";
-            ElfRelocType[ElfRelocType["MipsRel32"] = 3] = "MipsRel32";
-            ElfRelocType[ElfRelocType["Mips26"] = 4] = "Mips26";
-            ElfRelocType[ElfRelocType["MipsHi16"] = 5] = "MipsHi16";
-            ElfRelocType[ElfRelocType["MipsLo16"] = 6] = "MipsLo16";
-            ElfRelocType[ElfRelocType["MipsGpRel16"] = 7] = "MipsGpRel16";
-            ElfRelocType[ElfRelocType["MipsLiteral"] = 8] = "MipsLiteral";
-            ElfRelocType[ElfRelocType["MipsGot16"] = 9] = "MipsGot16";
-            ElfRelocType[ElfRelocType["MipsPc16"] = 10] = "MipsPc16";
-            ElfRelocType[ElfRelocType["MipsCall16"] = 11] = "MipsCall16";
-            ElfRelocType[ElfRelocType["MipsGpRel32"] = 12] = "MipsGpRel32";
-            ElfRelocType[ElfRelocType["StopRelocation"] = 0xFF] = "StopRelocation";
-        })(ElfRelocType || (ElfRelocType = {}));
-
-        var ElfReloc = (function () {
-            function ElfReloc() {
-            }
-            Object.defineProperty(ElfReloc.prototype, "pointeeSectionHeaderBase", {
-                get: function () {
-                    return (this.info >> 16) & 0xFF;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ElfReloc.prototype, "pointerSectionHeaderBase", {
-                get: function () {
-                    return (this.info >> 8) & 0xFF;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ElfReloc.prototype, "type", {
-                get: function () {
-                    return ((this.info >> 0) & 0xFF);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            ElfReloc.struct = StructClass.create(ElfReloc, [
-                { type: UInt32, name: "pointerAddress" },
-                { type: UInt32, name: "info" }
-            ]);
-            return ElfReloc;
-        })();
-
-        var ElfLoader = (function () {
-            function ElfLoader() {
-                this.header = null;
-                this.stream = null;
-            }
-            ElfLoader.prototype.load = function (stream) {
-                var _this = this;
-                this.readAndCheckHeaders(stream);
-
-                var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
-                var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
-
-                this.programHeaders = StructArray.create(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
-                this.sectionHeaders = StructArray.create(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
-
-                this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
-                this.stringTableStream = this.getSectionHeaderFileStream(this.sectionHeaderStringTable);
-
-                this.sectionHeadersByName = {};
-                this.sectionHeaders.forEach(function (sectionHeader) {
-                    var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
-                    sectionHeader.name = name;
-                    if (sectionHeader.type != 0 /* Null */) {
-                        sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
-                    }
-                    _this.sectionHeadersByName[name] = sectionHeader;
-                });
-            };
-
-            ElfLoader.prototype.readAndCheckHeaders = function (stream) {
-                this.stream = stream;
-                var header = this.header = ElfHeader.struct.read(stream);
-                if (!header.hasValidMagic)
-                    throw ('Not an ELF file');
-                if (!header.hasValidMachine)
-                    throw ('Not a PSP ELF file');
-                if (!header.hasValidType)
-                    throw ('Not a executable or a Prx but has type ' + header.type);
-            };
-
-            ElfLoader.prototype.getStringFromStringTable = function (index) {
-                this.stringTableStream.position = index;
-                return this.stringTableStream.readStringz();
-            };
-
-            ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
-                switch (sectionHeader.type) {
-                    case 8 /* NoBits */:
-                    case 0 /* Null */:
-                        return this.stream.sliceWithLength(0, 0);
-                        break;
-                    default:
-                        return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
-                }
-            };
-
-            ElfLoader.fromStream = function (stream) {
-                var elf = new ElfLoader();
-                elf.load(stream);
-                return elf;
-            };
-
-            Object.defineProperty(ElfLoader.prototype, "isPrx", {
-                get: function () {
-                    return (this.header.type & 65440 /* Prx */) != 0;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ElfLoader.prototype, "needsRelocation", {
-                get: function () {
-                    return this.isPrx || (this.header.entryPoint < core.Memory.MAIN_OFFSET);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            return ElfLoader;
-        })();
-
-        var InstructionReader = (function () {
-            function InstructionReader(memory) {
-                this.memory = memory;
-            }
-            InstructionReader.prototype.read = function (address) {
-                return new core.cpu.Instruction(address, this.memory.readUInt32(address));
-            };
-
-            InstructionReader.prototype.write = function (address, instruction) {
-                this.memory.writeInt32(address, instruction.data);
-            };
-            return InstructionReader;
-        })();
-
-        var PspElfLoader = (function () {
-            function PspElfLoader(memory, memoryManager, moduleManager, syscallManager) {
-                this.memory = memory;
-                this.memoryManager = memoryManager;
-                this.moduleManager = moduleManager;
-                this.syscallManager = syscallManager;
-                this.assembler = new core.cpu.MipsAssembler();
-                this.baseAddress = 0;
-            }
-            PspElfLoader.prototype.load = function (stream) {
-                this.elfLoader = ElfLoader.fromStream(stream);
-
-                //ElfSectionHeaderFlags.Allocate
-                this.allocateMemory();
-                this.writeToMemory();
-                this.relocateFromHeaders();
-                this.readModuleInfo();
-                this.updateModuleImports();
-
-                console.log(this.moduleInfo);
-            };
-
-            PspElfLoader.prototype.getSectionHeaderMemoryStream = function (sectionHeader) {
-                return this.memory.getPointerStream(this.baseAddress + sectionHeader.address, sectionHeader.size);
-            };
-
-            PspElfLoader.prototype.readModuleInfo = function () {
-                this.moduleInfo = ElfPspModuleInfo.struct.read(this.getSectionHeaderMemoryStream(this.elfLoader.sectionHeadersByName['.rodata.sceModuleInfo']));
-                this.moduleInfo.pc = this.baseAddress + this.elfLoader.header.entryPoint;
-            };
-
-            PspElfLoader.prototype.allocateMemory = function () {
-                this.baseAddress = 0;
-
-                if (this.elfLoader.needsRelocation) {
-                    this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(function (partition) {
-                        return partition.size;
-                    }).reverse().first().low;
-                    this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
-                }
-            };
-
-            PspElfLoader.prototype.relocateFromHeaders = function () {
-                var _this = this;
-                var RelocProgramIndex = 0;
-                this.elfLoader.programHeaders.forEach(function (programHeader) {
-                    switch (programHeader.type) {
-                        case 1879048352 /* Reloc1 */:
-                            console.warn("SKIPPING Elf.ProgramHeader.TypeEnum.Reloc1!");
-                            break;
-                        case 1879048353 /* Reloc2 */:
-                            throw ("Not implemented");
-                    }
-                });
-
-                var RelocSectionIndex = 0;
-                this.elfLoader.sectionHeaders.forEach(function (sectionHeader) {
-                    switch (sectionHeader.type) {
-                        case 9 /* Relocation */:
-                            console.log(sectionHeader);
-                            console.error("Not implemented ElfSectionHeaderType.Relocation");
-                            break;
-
-                        case ElfSectionHeaderType.PrxRelocation:
-                            var relocs = StructArray.create(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
-                            _this.relocateRelocs(relocs);
-                            break;
-                        case ElfSectionHeaderType.PrxRelocation_FW5:
-                            throw ("Not implemented ElfSectionHeader.Type.PrxRelocation_FW5");
-                    }
-                });
-            };
-
-            PspElfLoader.prototype.relocateRelocs = function (relocs) {
-                var baseAddress = this.baseAddress;
-                var hiValue;
-                var deferredHi16 = [];
-                var instructionReader = new InstructionReader(this.memory);
-
-                for (var index = 0; index < relocs.length; index++) {
-                    var reloc = relocs[index];
-                    if (reloc.type == 255 /* StopRelocation */)
-                        break;
-
-                    var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
-                    var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
-
-                    // Address of data to relocate
-                    var RelocatedPointerAddress = (baseAddress + reloc.pointerAddress + pointerBaseOffset);
-
-                    // Value of data to relocate
-                    var instruction = instructionReader.read(RelocatedPointerAddress);
-
-                    var S = baseAddress + pointeeBaseOffset;
-                    var GP_ADDR = (baseAddress + reloc.pointerAddress);
-                    var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
-
-                    switch (reloc.type) {
-                        case 0 /* None */:
-                            break;
-                        case 1 /* Mips16 */:
-                            instruction.u_imm16 += S;
-                            break;
-                        case 2 /* Mips32 */:
-                            instruction.data += S;
-                            break;
-                        case 3 /* MipsRel32 */:
-                            throw ("Not implemented MipsRel32");
-                        case 4 /* Mips26 */:
-                            instruction.jump_real = instruction.jump_real + S;
-                            break;
-                        case 5 /* MipsHi16 */:
-                            hiValue = instruction.u_imm16;
-                            deferredHi16.push(RelocatedPointerAddress);
-                            break;
-                        case 6 /* MipsLo16 */:
-                            var A = instruction.u_imm16;
-
-                            instruction.u_imm16 = ((hiValue << 16) | (A & 0x0000FFFF)) + S;
-
-                            deferredHi16.forEach(function (data_addr2) {
-                                var data2 = instructionReader.read(data_addr2);
-                                var result = ((data2.data & 0x0000FFFF) << 16) + A + S;
-                                if ((A & 0x8000) != 0) {
-                                    result -= 0x10000;
-                                }
-                                if ((result & 0x8000) != 0) {
-                                    result += 0x10000;
-                                }
-                                data2.u_imm16 = (result >>> 16);
-                                instructionReader.write(data_addr2, data2);
-                            });
-
-                            deferredHi16 = [];
-                            break;
-                        case 7 /* MipsGpRel16 */:
-                            break;
-                        default:
-                            throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
-                    }
-
-                    instructionReader.write(RelocatedPointerAddress, instruction);
-                }
-            };
-
-            PspElfLoader.prototype.writeToMemory = function () {
-                var _this = this;
-                var needsRelocate = this.elfLoader.needsRelocation;
-
-                //var loadAddress = this.elfLoader.programHeaders[0].psysicalAddress;
-                var loadAddress = this.baseAddress;
-
-                console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
-
-                //console.log(moduleInfo);
-                this.elfLoader.sectionHeaders.filter(function (sectionHeader) {
-                    return ((sectionHeader.flags & 2 /* Allocate */) != 0);
-                }).forEach(function (sectionHeader) {
-                    var low = loadAddress + sectionHeader.address;
-
-                    switch (sectionHeader.type) {
-                        case 8 /* NoBits */:
-                            for (var n = 0; n < sectionHeader.size; n++)
-                                _this.memory.writeInt8(low + n, 0);
-                            break;
-                        default:
-                            break;
-                        case 1 /* ProgramBits */:
-                            var stream = sectionHeader.stream;
-
-                            var length = stream.length;
-
-                            var memorySegment = _this.memoryManager.userPartition.allocateSet(length, low);
-
-                            //console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
-                            _this.memory.writeStream(low, stream);
-
-                            break;
-                    }
-                });
-            };
-
-            PspElfLoader.prototype.updateModuleImports = function () {
-                var _this = this;
-                var moduleInfo = this.moduleInfo;
-                console.log(moduleInfo);
-                var importsBytesSize = moduleInfo.importsEnd - moduleInfo.importsStart;
-                var importsStream = this.memory.sliceWithBounds(moduleInfo.importsStart, moduleInfo.importsEnd);
-                var importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
-                var imports = StructArray.create(ElfPspModuleImport.struct, importsCount).read(importsStream);
-                imports.forEach(function (_import) {
-                    _import.name = _this.memory.readStringz(_import.nameOffset);
-                    _this.updateModuleFunctions(_import);
-                    _this.updateModuleVars(_import);
-                });
-                //console.log(imports);
-            };
-
-            PspElfLoader.prototype.updateModuleFunctions = function (moduleImport) {
-                var _this = this;
-                var _module = this.moduleManager.getByName(moduleImport.name);
-                var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
-                var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
-
-                var registerN = function (nid, n) {
-                    var nfunc;
-                    try  {
-                        nfunc = _module.getByNid(nid);
-                    } catch (e) {
-                        console.warn(e);
-                        nfunc = new core.NativeFunction();
-                        nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
-                        nfunc.nid = nid;
-                        nfunc.firmwareVersion = 150;
-                        nfunc.call = function (context, state) {
-                            throw ("Not implemented '" + nfunc.name + "'");
-                        };
-                    }
-                    var syscallId = _this.syscallManager.register(nfunc);
-
-                    //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
-                    return syscallId;
-                };
-
-                for (var n = 0; n < moduleImport.functionCount; n++) {
-                    var nid = nidsStream.readUInt32();
-                    var syscall = registerN(nid, n);
-
-                    callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
-                    callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
-                }
-            };
-
-            PspElfLoader.prototype.updateModuleVars = function (moduleImport) {
-            };
-            return PspElfLoader;
-        })();
-        _elf.PspElfLoader = PspElfLoader;
-    })(hle.elf || (hle.elf = {}));
-    var elf = hle.elf;
-})(hle || (hle = {}));
-var hle;
-(function (hle) {
     var Device = (function () {
         function Device(name, vfs) {
             this.name = name;
@@ -7915,249 +3880,6 @@ var hle;
         return FileManager;
     })();
     hle.FileManager = FileManager;
-})(hle || (hle = {}));
-var hle;
-(function (hle) {
-    var MemoryPartitions;
-    (function (MemoryPartitions) {
-        MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
-        MemoryPartitions[MemoryPartitions["User"] = 2] = "User";
-        MemoryPartitions[MemoryPartitions["VolatilePartition"] = 5] = "VolatilePartition";
-        MemoryPartitions[MemoryPartitions["UserStacks"] = 6] = "UserStacks";
-    })(MemoryPartitions || (MemoryPartitions = {}));
-
-    (function (MemoryAnchor) {
-        MemoryAnchor[MemoryAnchor["Low"] = 0] = "Low";
-        MemoryAnchor[MemoryAnchor["High"] = 1] = "High";
-        MemoryAnchor[MemoryAnchor["Address"] = 2] = "Address";
-        MemoryAnchor[MemoryAnchor["LowAligned"] = 3] = "LowAligned";
-        MemoryAnchor[MemoryAnchor["HighAligned"] = 4] = "HighAligned";
-    })(hle.MemoryAnchor || (hle.MemoryAnchor = {}));
-    var MemoryAnchor = hle.MemoryAnchor;
-
-    var MemoryPartition = (function () {
-        function MemoryPartition(name, low, high, allocated, parent) {
-            this.name = name;
-            this.low = low;
-            this.high = high;
-            this.allocated = allocated;
-            this.parent = parent;
-            this._childPartitions = [];
-        }
-        Object.defineProperty(MemoryPartition.prototype, "size", {
-            get: function () {
-                return this.high - this.low;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryPartition.prototype, "root", {
-            get: function () {
-                return (this.parent) ? this.parent.root : this;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryPartition.prototype, "childPartitions", {
-            get: function () {
-                if (this._childPartitions.length == 0)
-                    this._childPartitions.push(new MemoryPartition("", this.low, this.high, false));
-                return this._childPartitions;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        MemoryPartition.prototype.contains = function (address) {
-            return address >= this.low && address < this.high;
-        };
-
-        MemoryPartition.prototype.deallocate = function () {
-            this.allocated = false;
-            if (this.parent) {
-                this.parent.cleanup();
-            }
-        };
-
-        MemoryPartition.prototype.allocate = function (size, anchor, address, name) {
-            if (typeof address === "undefined") { address = 0; }
-            if (typeof name === "undefined") { name = ''; }
-            switch (anchor) {
-                case 3 /* LowAligned */:
-                case 0 /* Low */:
-                    return this.allocateLow(size, name);
-                case 1 /* High */:
-                    return this.allocateHigh(size, name);
-                case 2 /* Address */:
-                    return this.allocateSet(size, address, name);
-                default:
-                    throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
-            }
-        };
-
-        MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
-            if (typeof name === "undefined") { name = ''; }
-            var childs = this.childPartitions;
-            var addressHigh = addressLow + size;
-
-            if (!this.contains(addressLow) || !this.contains(addressHigh)) {
-                throw (new Error(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
-            }
-
-            for (var n = 0; n < childs.length; n++) {
-                var child = childs[n];
-                if (!child.contains(addressLow))
-                    continue;
-                if (child.allocated)
-                    throw (new Error("Memory already allocated"));
-                if (!child.contains(addressHigh - 1))
-                    throw (new Error("Can't fit memory"));
-
-                var p1 = new MemoryPartition('', child.low, addressLow, false, this);
-                var p2 = new MemoryPartition(name, addressLow, addressHigh, true, this);
-                var p3 = new MemoryPartition('', addressHigh, child.high, false, this);
-
-                childs.splice(n, 1, p1, p2, p3);
-
-                this.cleanup();
-                return p2;
-            }
-            console.log(sprintf('address: %08X, size: %d', addressLow, size));
-            console.log(this);
-            throw (new Error("Can't find the segment"));
-        };
-
-        MemoryPartition.prototype.allocateLow = function (size, name) {
-            if (typeof name === "undefined") { name = ''; }
-            return this.allocateLowHigh(size, true, name);
-        };
-
-        MemoryPartition.prototype.allocateHigh = function (size, name) {
-            if (typeof name === "undefined") { name = ''; }
-            return this.allocateLowHigh(size, false, name);
-        };
-
-        MemoryPartition.prototype.allocateLowHigh = function (size, low, name) {
-            if (typeof name === "undefined") { name = ''; }
-            var childs = this.childPartitions;
-            for (var n = 0; n < childs.length; n++) {
-                var child = childs[n];
-                if (child.allocated)
-                    continue;
-                if (child.size < size)
-                    continue;
-
-                if (low) {
-                    var p1 = child.low;
-                    var p2 = child.low + size;
-                    var p3 = child.high;
-                    var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
-                    var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
-                } else {
-                    var p1 = child.low;
-                    var p2 = child.high - size;
-                    var p3 = child.high;
-                    var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
-                    var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
-                }
-                childs.splice(n, 1, allocatedChild, unallocatedChild);
-                this.cleanup();
-                return allocatedChild;
-            }
-
-            console.info(this);
-            throw ("Can't find a partition with " + size + " available");
-        };
-
-        MemoryPartition.prototype.unallocate = function () {
-            this.name = '';
-            this.allocated = false;
-            if (this.parent)
-                this.parent.cleanup();
-        };
-
-        MemoryPartition.prototype.cleanup = function () {
-            // join contiguous free memory
-            var childs = this.childPartitions;
-            if (childs.length >= 2) {
-                for (var n = 0; n < childs.length - 1; n++) {
-                    var child = childs[n + 0];
-                    var c1 = childs[n + 1];
-                    if (!child.allocated && !c1.allocated) {
-                        childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
-                        n--;
-                    }
-                }
-            }
-
-            for (var n = 0; n < childs.length; n++) {
-                var child = childs[n];
-                if (!child.allocated && child.size == 0)
-                    childs.splice(n, 1);
-            }
-        };
-
-        Object.defineProperty(MemoryPartition.prototype, "nonAllocatedPartitions", {
-            get: function () {
-                return this.childPartitions.filter(function (item) {
-                    return !item.allocated;
-                });
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        MemoryPartition.prototype.getTotalFreeMemory = function () {
-            return this.nonAllocatedPartitions.reduce(function (prev, item) {
-                return item.size + prev;
-            }, 0);
-        };
-
-        MemoryPartition.prototype.getMaxContiguousFreeMemory = function () {
-            var items = this.nonAllocatedPartitions.sort(function (a, b) {
-                return a.size - b.size;
-            });
-            return (items.length) ? items[0].size : 0;
-        };
-
-        MemoryPartition.prototype.findFreeChildWithSize = function (size) {
-        };
-        return MemoryPartition;
-    })();
-    hle.MemoryPartition = MemoryPartition;
-
-    var MemoryManager = (function () {
-        function MemoryManager() {
-            this.memoryPartitionsUid = {};
-            this.init();
-        }
-        MemoryManager.prototype.init = function () {
-            this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
-            this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
-            this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
-            this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
-        };
-
-        Object.defineProperty(MemoryManager.prototype, "userPartition", {
-            get: function () {
-                return this.memoryPartitionsUid[2 /* User */];
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryManager.prototype, "stackPartition", {
-            get: function () {
-                return this.memoryPartitionsUid[6 /* UserStacks */];
-            },
-            enumerable: true,
-            configurable: true
-        });
-        return MemoryManager;
-    })();
-    hle.MemoryManager = MemoryManager;
 })(hle || (hle = {}));
 var hle;
 (function (hle) {
@@ -9443,6 +5165,227 @@ var hle;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
+var EmulatorContext = (function () {
+    function EmulatorContext() {
+    }
+    EmulatorContext.prototype.init = function (display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager) {
+        this.display = display;
+        this.controller = controller;
+        this.gpu = gpu;
+        this.memoryManager = memoryManager;
+        this.threadManager = threadManager;
+        this.audio = audio;
+        this.memory = memory;
+        this.instructionCache = instructionCache;
+        this.fileManager = fileManager;
+    };
+    return EmulatorContext;
+})();
+
+var CpuBreakException = (function () {
+    function CpuBreakException(name, message) {
+        if (typeof name === "undefined") { name = 'CpuBreakException'; }
+        if (typeof message === "undefined") { message = 'CpuBreakException'; }
+        this.name = name;
+        this.message = message;
+    }
+    return CpuBreakException;
+})();
+
+var FunctionGenerator = (function () {
+    function FunctionGenerator(memory) {
+        this.memory = memory;
+        this.instructions = core.cpu.Instructions.instance;
+        this.instructionAst = new core.cpu.ast.InstructionAst();
+    }
+    FunctionGenerator.prototype.decodeInstruction = function (address) {
+        var instruction = core.cpu.Instruction.fromMemoryAndPC(this.memory, address);
+        var instructionType = this.getInstructionType(instruction);
+        return new core.cpu.DecodedInstruction(instruction, instructionType);
+    };
+
+    FunctionGenerator.prototype.getInstructionType = function (i) {
+        return this.instructions.findByData(i.data, i.PC);
+    };
+
+    FunctionGenerator.prototype.generateInstructionAstNode = function (di) {
+        var instruction = di.instruction;
+        var instructionType = di.type;
+        var func = this.instructionAst[instructionType.name];
+        if (func === undefined)
+            throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
+        return func.call(this.instructionAst, instruction);
+    };
+
+    FunctionGenerator.prototype.create = function (address) {
+        var _this = this;
+        if (address == 0x00000000) {
+            throw (new Error("Trying to execute 0x00000000"));
+        }
+
+        var ast = new MipsAstBuilder();
+
+        var PC = address;
+        var stms = [ast.functionPrefix()];
+
+        var emitInstruction = function () {
+            var result = _this.generateInstructionAstNode(_this.decodeInstruction(PC));
+            PC += 4;
+            return result;
+        };
+
+        for (var n = 0; n < 100000; n++) {
+            var di = this.decodeInstruction(PC + 0);
+
+            //console.log(di);
+            if (PC == 0x089005D0) {
+                //stms.push(ast.debugger());
+            }
+
+            if (di.type.hasDelayedBranch) {
+                var di2 = this.decodeInstruction(PC + 4);
+
+                stms.push(emitInstruction());
+
+                var delayedSlotInstruction = emitInstruction();
+                if (di2.type.isSyscall) {
+                    stms.push(this.instructionAst._postBranch(PC));
+                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+                } else {
+                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+                    stms.push(this.instructionAst._postBranch(PC));
+                }
+
+                break;
+            } else {
+                if (di.type.isSyscall) {
+                    stms.push(this.instructionAst._storePC(PC + 4));
+                }
+                stms.push(emitInstruction());
+                if (di.type.isBreak) {
+                    break;
+                }
+            }
+        }
+
+        //console.debug(sprintf("// function_%08X:\n%s", address, ast.stms(stms).toJs()));
+        if (n >= 100000)
+            throw (new Error(sprintf("Too large function PC=%08X", address)));
+
+        return new Function('state', ast.stms(stms).toJs());
+    };
+    return FunctionGenerator;
+})();
+
+var CpuSpecialAddresses;
+(function (CpuSpecialAddresses) {
+    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
+})(CpuSpecialAddresses || (CpuSpecialAddresses = {}));
+
+var InstructionCache = (function () {
+    function InstructionCache(memory) {
+        this.memory = memory;
+        this.cache = {};
+        this.functionGenerator = new FunctionGenerator(memory);
+    }
+    InstructionCache.prototype.invalidateRange = function (from, to) {
+        for (var n = from; n < to; n += 4)
+            delete this.cache[n];
+    };
+
+    InstructionCache.prototype.getFunction = function (address) {
+        var item = this.cache[address];
+        if (item)
+            return item;
+
+        switch (address) {
+            case 268435455 /* EXIT_THREAD */:
+                return this.cache[address] = function (state) {
+                    console.log(state);
+                    console.log(state.thread);
+                    console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+                    state.thread.stop();
+                    throw (new CpuBreakException());
+                };
+                break;
+            default:
+                return this.cache[address] = this.functionGenerator.create(address);
+        }
+    };
+    return InstructionCache;
+})();
+
+var ProgramExecutor = (function () {
+    function ProgramExecutor(state, instructionCache) {
+        this.state = state;
+        this.instructionCache = instructionCache;
+        this.lastPC = 0;
+    }
+    ProgramExecutor.prototype.executeStep = function () {
+        if (this.state.PC == 0) {
+            console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
+        }
+        this.lastPC = this.state.PC;
+        var func = this.instructionCache.getFunction(this.state.PC);
+        func(this.state);
+    };
+
+    ProgramExecutor.prototype.execute = function (maxIterations) {
+        if (typeof maxIterations === "undefined") { maxIterations = -1; }
+        try  {
+            while (maxIterations != 0) {
+                this.executeStep();
+                if (maxIterations > 0)
+                    maxIterations--;
+            }
+        } catch (e) {
+            if (!(e instanceof CpuBreakException)) {
+                console.log(this.state);
+                throw (e);
+            }
+        }
+    };
+    return ProgramExecutor;
+})();
+///<reference path="../util/utils.ts" />
+///<reference path="./cpu/state.ts" />
+///<reference path="../cpu.ts" />
+var core;
+(function (core) {
+    var NativeFunction = (function () {
+        function NativeFunction() {
+        }
+        return NativeFunction;
+    })();
+    core.NativeFunction = NativeFunction;
+
+    var SyscallManager = (function () {
+        function SyscallManager(context) {
+            this.context = context;
+            this.calls = {};
+            this.lastId = 1;
+        }
+        SyscallManager.prototype.register = function (nativeFunction) {
+            return this.registerWithId(this.lastId++, nativeFunction);
+        };
+
+        SyscallManager.prototype.registerWithId = function (id, nativeFunction) {
+            this.calls[id] = nativeFunction;
+            return id;
+        };
+
+        SyscallManager.prototype.call = function (state, id) {
+            var nativeFunction = this.calls[id];
+            if (!nativeFunction)
+                throw (sprintf("Can't call syscall %s: 0x%06X", id));
+
+            //printf('calling syscall 0x%04X : %s', id, nativeFunction.name);
+            nativeFunction.call(this.context, state);
+        };
+        return SyscallManager;
+    })();
+    core.SyscallManager = SyscallManager;
+})(core || (core = {}));
 var hle;
 (function (hle) {
     (function (modules) {
@@ -9511,6 +5454,3422 @@ var SceKernelErrors;
 (function (SceKernelErrors) {
     SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_NOT_FOUND"] = 0x80010002] = "ERROR_ERRNO_FILE_NOT_FOUND";
 })(SceKernelErrors || (SceKernelErrors = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        function createNativeFunction(exportId, firmwareVersion, retval, arguments, _this, internalFunc) {
+            var code = '';
+
+            var args = [];
+            var argindex = 4;
+
+            function readGpr32() {
+                return 'state.' + core.cpu.CpuState.getGprAccessName(argindex++);
+            }
+
+            function readGpr64() {
+                argindex = MathUtils.nextAligned(argindex, 2);
+                var gprLow = readGpr32();
+                var gprHigh = readGpr32();
+                return sprintf('%s + %s * Math.pow(2, 32)', gprLow, gprHigh);
+            }
+
+            arguments.split('/').forEach(function (item) {
+                switch (item) {
+                    case 'EmulatorContext':
+                        args.push('context');
+                        break;
+                    case 'HleThread':
+                        args.push('state.thread');
+                        break;
+                    case 'CpuState':
+                        args.push('state');
+                        break;
+                    case 'Memory':
+                        args.push('state.memory');
+                        break;
+                    case 'string':
+                        args.push('state.memory.readStringz(' + readGpr32() + ')');
+                        break;
+                    case 'uint':
+                    case 'int':
+                        args.push(readGpr32());
+                        break;
+                    case 'ulong':
+                    case 'long':
+                        args.push(readGpr64());
+                        break;
+                    case 'void*':
+                        args.push('state.getPointerStream(' + readGpr32() + ')');
+                        break;
+                    case '':
+                        break;
+                    default:
+                        throw ('Invalid argument "' + item + '"');
+                }
+            });
+
+            code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+
+            code += 'if (typeof result == "object") { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+
+            switch (retval) {
+                case 'void':
+                    break;
+
+                case 'uint':
+                case 'int':
+                    code += 'state.V0 = result | 0;';
+                    break;
+                case 'long':
+                    code += 'state.V0 = (result >>> 0) & 0xFFFFFFFF; state.V1 = (result >>> 32) & 0xFFFFFFFF;';
+                    break;
+                    break;
+                default:
+                    throw ('Invalid return value "' + retval + '"');
+            }
+
+            var out = new core.NativeFunction();
+            out.name = 'unknown';
+            out.nid = exportId;
+            out.firmwareVersion = firmwareVersion;
+
+            //console.log(code);
+            var func = new Function('_this', 'internalFunc', 'context', 'state', code);
+            out.call = function (context, state) {
+                func(_this, internalFunc, context, state);
+            };
+
+            //console.log(out);
+            return out;
+        }
+        modules.createNativeFunction = createNativeFunction;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+
+function downloadFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        request.open("GET", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onload = function (e) {
+            var arraybuffer = request.response;
+
+            //var data = new Uint8Array(arraybuffer);
+            resolve(arraybuffer);
+            //console.log(data);
+            //console.log(data.length);
+        };
+        request.onerror = function (e) {
+            reject(e.error);
+        };
+        request.send();
+    });
+}
+describe('cso', function () {
+    var testCsoArrayBuffer;
+
+    before(function (done) {
+        downloadFileAsync('samples/test.cso').then(function (data) {
+            testCsoArrayBuffer = data;
+            done();
+        });
+    });
+
+    it('should load fine', function (done) {
+        format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
+            //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
+            return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
+                var stream = Stream.fromArrayBuffer(data);
+                stream.skip(10);
+                var CD0001 = stream.readStringz(6);
+                assert.equal(CD0001, '\u0001CD001');
+                done();
+            });
+            //console.log(cso);
+        }).catch(function (e) {
+            //console.error(e);
+            setImmediate(function () {
+                throw (e);
+            });
+        });
+    });
+
+    it('should work with iso', function (done) {
+        format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
+            return format.iso.Iso.fromStreamAsync(cso).then(function (iso) {
+                assert.equal(JSON.stringify(iso.children.slice(0, 4).map(function (node) {
+                    return node.path;
+                })), JSON.stringify(["path", "path/0", "path/1", "path/2"]));
+                done();
+            });
+        }).catch(function (e) {
+            //console.error(e);
+            setImmediate(function () {
+                throw (e);
+            });
+        });
+    });
+});
+describe('iso', function () {
+    var isoData;
+
+    before(function (done) {
+        downloadFileAsync('samples/cube.iso').then(function (data) {
+            isoData = new Uint8Array(data);
+            done();
+        });
+    });
+
+    it('should load fine', function (done) {
+        var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
+
+        format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
+            assert.equal(JSON.stringify(iso.children.map(function (item) {
+                return item.path;
+            })), JSON.stringify(["PSP_GAME", "PSP_GAME/PARAM.SFO", "PSP_GAME/SYSDIR", "PSP_GAME/SYSDIR/BOOT.BIN", "PSP_GAME/SYSDIR/EBOOT.BIN"]));
+
+            done();
+        }).catch(function (e) {
+            throw (e);
+        });
+    });
+});
+describe('psf', function () {
+    var rtctestPsfArrayBuffer;
+
+    before(function (done) {
+        downloadFileAsync('samples/rtctest.psf').then(function (data) {
+            rtctestPsfArrayBuffer = data;
+            done();
+        });
+    });
+
+    it('should load fine', function () {
+        var psf = new format.psf.Psf();
+        psf.load(Stream.fromArrayBuffer(rtctestPsfArrayBuffer));
+        assert.equal(psf.entriesByName['BOOTABLE'], 1);
+        assert.equal(psf.entriesByName['CATEGORY'], 'MG');
+        assert.equal(psf.entriesByName['DISC_ID'], 'UCJS10041');
+        assert.equal(psf.entriesByName['DISC_VERSION'], '1.00');
+        assert.equal(psf.entriesByName['PARENTAL_LEVEL'], 1);
+        assert.equal(psf.entriesByName['PSP_SYSTEM_VER'], '1.00');
+        assert.equal(psf.entriesByName['REGION'], 32768);
+        assert.equal(psf.entriesByName['TITLE'], 'rtctest');
+    });
+});
+describe('pbp', function () {
+    var rtctestPbpArrayBuffer;
+
+    before(function (done) {
+        downloadFileAsync('samples/rtctest.pbp').then(function (data) {
+            rtctestPbpArrayBuffer = data;
+            done();
+        });
+    });
+
+    it('should load fine', function () {
+        var pbp = new format.pbp.Pbp();
+        pbp.load(Stream.fromArrayBuffer(rtctestPbpArrayBuffer));
+        var pspData = pbp.get('psp.data');
+        assert.equal(pspData.length, 77550);
+    });
+});
+describe('vfs', function () {
+    var isoData;
+
+    before(function (done) {
+        downloadFileAsync('samples/cube.iso').then(function (data) {
+            isoData = new Uint8Array(data);
+            done();
+        });
+    });
+
+    it('should work', function (done) {
+        var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
+
+        format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
+            var vfs = new hle.vfs.IsoVfs(iso);
+            return vfs.openAsync("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).then(function (file) {
+                return file.readAllAsync().then(function (content) {
+                    var psf = format.psf.Psf.fromStream(Stream.fromArrayBuffer(content));
+                    assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
+                    done();
+                });
+            });
+        }).then(done, done);
+    });
+});
+var Emulator = (function () {
+    function Emulator() {
+        this.memory = new core.Memory();
+    }
+    Emulator.prototype.stopAsync = function () {
+        if (!this.display)
+            return Promise.resolve();
+
+        return Promise.all([
+            this.display.stopAsync(),
+            this.controller.stopAsync(),
+            this.gpu.stopAsync(),
+            this.audio.stopAsync(),
+            this.threadManager.stopAsync()
+        ]);
+    };
+
+    Emulator.prototype.startAsync = function () {
+        var _this = this;
+        return this.stopAsync().then(function () {
+            _this.memory.reset();
+            _this.emulatorContext = new EmulatorContext();
+            _this.memoryManager = new hle.MemoryManager();
+            _this.audio = new core.PspAudio();
+            _this.canvas = (document.getElementById('canvas'));
+            _this.webgl_canvas = (document.getElementById('webgl_canvas'));
+            _this.display = new core.PspDisplay(_this.memory, _this.canvas, _this.webgl_canvas);
+            _this.gpu = new core.gpu.PspGpu(_this.memory, _this.display, _this.webgl_canvas);
+            _this.controller = new core.PspController();
+            _this.instructionCache = new InstructionCache(_this.memory);
+            _this.syscallManager = new core.SyscallManager(_this.emulatorContext);
+            _this.fileManager = new hle.FileManager();
+            _this.threadManager = new hle.ThreadManager(_this.memory, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
+            _this.moduleManager = new hle.ModuleManager(_this.emulatorContext);
+
+            _this.fileManager.mount('ms0', _this.ms0Vfs = new hle.vfs.MountableVfs());
+            _this.fileManager.mount('host0', new hle.vfs.MemoryVfs());
+
+            hle.ModuleManagerSyscalls.registerSyscalls(_this.syscallManager, _this.moduleManager);
+
+            _this.emulatorContext.init(_this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager);
+
+            return Promise.all([
+                _this.display.startAsync(),
+                _this.controller.startAsync(),
+                _this.gpu.startAsync(),
+                _this.audio.startAsync(),
+                _this.threadManager.startAsync()
+            ]);
+        });
+    };
+
+    Emulator.prototype._loadAsync = function (asyncStream, pathToFile) {
+        var _this = this;
+        return format.detectFormatAsync(asyncStream).then(function (fileFormat) {
+            console.info(sprintf('File:: size: %d, format: "%s", name: "%s"', asyncStream.size, fileFormat, asyncStream.name));
+            switch (fileFormat) {
+                case 'ciso':
+                    return format.cso.Cso.fromStreamAsync(asyncStream).then(function (asyncStream2) {
+                        return _this._loadAsync(asyncStream2, pathToFile);
+                    });
+                case 'pbp':
+                    return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
+                        var pbp = format.pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
+                        return _this._loadAsync(new MemoryAsyncStream(pbp.get('psp.data').toArrayBuffer()), pathToFile);
+                    });
+                case 'iso':
+                    return format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
+                        var isoFs = new hle.vfs.IsoVfs(iso);
+                        _this.fileManager.mount('umd0', isoFs);
+                        _this.fileManager.mount('disc0', isoFs);
+
+                        return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).then(function (file) {
+                            return file.readAllAsync().then(function (data) {
+                                return _this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                            });
+                        });
+                    });
+                case 'elf':
+                    return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
+                        var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
+                        mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
+
+                        var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
+
+                        //console.log(new Uint8Array(executableArrayBuffer));
+                        var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
+
+                        pspElf.load(elfStream);
+
+                        var moduleInfo = pspElf.moduleInfo;
+
+                        var arguments = [pathToFile];
+                        var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
+
+                        var argument = arguments.map(function (argument) {
+                            return argument + String.fromCharCode(0);
+                        }).join('');
+
+                        //console.log(argument);
+                        _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
+
+                        //argumentsPartition.low
+                        // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
+                        var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
+                        thread.state.GP = moduleInfo.gp;
+                        thread.state.gpr[4] = argument.length;
+                        thread.state.gpr[5] = argumentsPartition.low;
+                        thread.start();
+                    });
+
+                default:
+                    throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));
+            }
+        });
+    };
+
+    Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
+        var _this = this;
+        return this.startAsync().then(function () {
+            var parentUrl = url.replace(/\/[^//]+$/, '');
+            console.info('parentUrl: ' + parentUrl);
+            _this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new hle.vfs.UriVfs(parentUrl));
+            return _this._loadAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
+        }).catch(function (e) {
+            console.error(e);
+            console.error(e['stack']);
+            throw (e);
+        });
+    };
+
+    Emulator.prototype.downloadAndExecuteAsync = function (url) {
+        var _this = this;
+        return downloadFileAsync(url).then(function (data) {
+            setImmediate(function () {
+                // escape try/catch!
+                _this.loadAndExecuteAsync(new MemoryAsyncStream(data, url), url);
+            });
+        });
+    };
+
+    Emulator.prototype.executeFileAsync = function (file) {
+        var _this = this;
+        setImmediate(function () {
+            // escape try/catch!
+            _this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
+        });
+    };
+    return Emulator;
+})();
+
+function controllerRegister() {
+    function createButton(query, button) {
+        var jq = $(query);
+        function down() {
+            jq.addClass('pressed');
+            window['emulator'].controller.simulateButtonDown(button);
+        }
+        function up() {
+            jq.removeClass('pressed');
+            window['emulator'].controller.simulateButtonUp(button);
+        }
+
+        jq.mousedown(down).mouseup(up).on('touchstart', down).on('touchend', up);
+    }
+
+    createButton('#button_left', 128 /* left */);
+    createButton('#button_up', 16 /* up */);
+    createButton('#button_down', 64 /* down */);
+    createButton('#button_right', 32 /* right */);
+
+    createButton('#button_up_left', 16 /* up */ | 128 /* left */);
+    createButton('#button_up_right', 16 /* up */ | 32 /* right */);
+    createButton('#button_down_left', 64 /* down */ | 128 /* left */);
+    createButton('#button_down_right', 64 /* down */ | 32 /* right */);
+
+    createButton('#button_cross', 16384 /* cross */);
+    createButton('#button_circle', 8192 /* circle */);
+    createButton('#button_triangle', 4096 /* triangle */);
+    createButton('#button_square', 32768 /* square */);
+
+    createButton('#button_l', 256 /* leftTrigger */);
+    createButton('#button_r', 512 /* rightTrigger */);
+
+    createButton('#button_start', 8 /* start */);
+    createButton('#button_select', 1 /* select */);
+    //document['ontouchmove'] = (e) => { e.preventDefault(); };
+    //document.onselectstart = () => { return false; };
+}
+
+function main() {
+    var emulator = new Emulator();
+    window['emulator'] = emulator;
+    var sampleDemo = '';
+
+    if (document.location.hash) {
+        sampleDemo = document.location.hash.substr(1);
+    }
+
+    if (sampleDemo) {
+        emulator.downloadAndExecuteAsync(sampleDemo);
+    }
+}
+var core;
+(function (core) {
+    (function (cpu) {
+        var MipsAssembler = (function () {
+            function MipsAssembler() {
+                this.instructions = core.cpu.Instructions.instance;
+            }
+            MipsAssembler.prototype.assembleToMemory = function (memory, PC, lines) {
+                for (var n = 0; n < lines.length; n++) {
+                    var instructions = this.assemble(PC, lines[n]);
+                    for (var m = 0; m < instructions.length; m++) {
+                        var instruction = instructions[m];
+                        memory.writeInt32(PC, instruction.data);
+                        PC += 4;
+                    }
+                }
+            };
+
+            MipsAssembler.prototype.assemble = function (PC, line) {
+                //console.log(line);
+                var matches = line.match(/^\s*(\w+)(.*)$/);
+                var instructionName = matches[1];
+                var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
+
+                switch (instructionName) {
+                    case 'li':
+                        var parts = instructionArguments.split(',');
+
+                        //console.log(parts);
+                        return this.assemble(PC, 'addiu ' + parts[0] + ', r0, ' + parts[1]);
+                }
+
+                var instructionType = this.instructions.findByName(instructionName);
+                var instruction = new core.cpu.Instruction(PC, instructionType.vm.value);
+                var types = [];
+
+                var formatPattern = instructionType.format.replace('(', '\\(').replace(')', '\\)').replace(/(%\w+)/g, function (type) {
+                    types.push(type);
+
+                    switch (type) {
+                        case '%J':
+                        case '%s':
+                        case '%d':
+                        case '%t':
+                            return '([$r]\\d+)';
+                        case '%i':
+                            return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                        case '%C':
+                            return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                        default:
+                            throw ("MipsAssembler.Transform: Unknown type '" + type + "'");
+                    }
+                }).replace(/\s+/g, '\\s*');
+
+                //console.log(formatPattern);
+                var regex = new RegExp('^' + formatPattern + '$', '');
+
+                //console.log(line);
+                //console.log(formatPattern);
+                var matches = instructionArguments.match(regex);
+
+                //console.log(matches);
+                //console.log(types);
+                if (matches === null) {
+                    throw ('Not matching ' + instructionArguments + ' : ' + regex + ' : ' + instructionType.format);
+                }
+
+                for (var n = 0; n < types.length; n++) {
+                    var type = types[n];
+                    var match = matches[n + 1];
+
+                    //console.log(type + ' = ' + match);
+                    this.update(instruction, type, match);
+                }
+
+                //console.log(instructionType);
+                //console.log(matches);
+                return [instruction];
+            };
+
+            MipsAssembler.prototype.decodeRegister = function (name) {
+                //console.log(name);
+                if (name.charAt(0) == '$')
+                    return parseInt(name.substr(1));
+                if (name.charAt(0) == 'r')
+                    return parseInt(name.substr(1));
+                throw ('Invalid register "' + name + '"');
+            };
+
+            MipsAssembler.prototype.decodeInteger = function (str) {
+                str = str.replace(/_/g, '');
+                if (str.substr(0, 2) == '0b')
+                    return parseInt(str.substr(2), 2);
+                if (str.substr(0, 2) == '0x')
+                    return parseInt(str.substr(2), 16);
+                return parseInt(str, 10);
+            };
+
+            MipsAssembler.prototype.update = function (instruction, type, value) {
+                switch (type) {
+                    case '%J':
+                    case '%s':
+                        instruction.rs = this.decodeRegister(value);
+                        break;
+                    case '%d':
+                        instruction.rd = this.decodeRegister(value);
+                        break;
+                    case '%t':
+                        instruction.rt = this.decodeRegister(value);
+                        break;
+                    case '%i':
+                        instruction.imm16 = this.decodeInteger(value);
+                        break;
+                    case '%C':
+                        instruction.syscall = this.decodeInteger(value);
+                        break;
+                    default:
+                        throw ("MipsAssembler.Update: Unknown type '" + type + "'");
+                }
+            };
+            return MipsAssembler;
+        })();
+        cpu.MipsAssembler = MipsAssembler;
+
+        var MipsDisassembler = (function () {
+            function MipsDisassembler() {
+                this.instructions = core.cpu.Instructions.instance;
+            }
+            MipsDisassembler.prototype.encodeRegister = function (index) {
+                return '$' + index;
+            };
+
+            MipsDisassembler.prototype.disassemble = function (instruction) {
+                var _this = this;
+                var instructionType = this.instructions.findByData(instruction.data);
+                var arguments = instructionType.format.replace(/(\%\w+)/g, function (type) {
+                    switch (type) {
+                        case '%s':
+                            return _this.encodeRegister(instruction.rs);
+                            break;
+                        case '%d':
+                            return _this.encodeRegister(instruction.rd);
+                            break;
+                        case '%t':
+                            return _this.encodeRegister(instruction.rt);
+                            break;
+                        default:
+                            throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
+                    }
+                });
+                return instructionType.name + ' ' + arguments;
+            };
+            return MipsDisassembler;
+        })();
+        cpu.MipsDisassembler = MipsDisassembler;
+    })(core.cpu || (core.cpu = {}));
+    var cpu = core.cpu;
+})(core || (core = {}));
+var ANode = (function () {
+    function ANode() {
+    }
+    ANode.prototype.toJs = function () {
+    };
+
+    ANode.prototype.optimize = function () {
+        return this;
+    };
+    return ANode;
+})();
+
+var ANodeStm = (function (_super) {
+    __extends(ANodeStm, _super);
+    function ANodeStm() {
+        _super.apply(this, arguments);
+    }
+    return ANodeStm;
+})(ANode);
+
+var ANodeStmList = (function (_super) {
+    __extends(ANodeStmList, _super);
+    function ANodeStmList(childs) {
+        _super.call(this);
+        this.childs = childs;
+    }
+    ANodeStmList.prototype.toJs = function () {
+        return this.childs.map(function (item) {
+            return item.toJs();
+        }).join("\n");
+    };
+    return ANodeStmList;
+})(ANodeStm);
+
+var ANodeStmRaw = (function (_super) {
+    __extends(ANodeStmRaw, _super);
+    function ANodeStmRaw(content) {
+        _super.call(this);
+        this.content = content;
+    }
+    ANodeStmRaw.prototype.toJs = function () {
+        return this.content;
+    };
+    return ANodeStmRaw;
+})(ANodeStm);
+
+var ANodeStmExpr = (function (_super) {
+    __extends(ANodeStmExpr, _super);
+    function ANodeStmExpr(expr) {
+        _super.call(this);
+        this.expr = expr;
+    }
+    ANodeStmExpr.prototype.toJs = function () {
+        return this.expr.toJs() + ';';
+    };
+    return ANodeStmExpr;
+})(ANodeStm);
+
+var ANodeExpr = (function (_super) {
+    __extends(ANodeExpr, _super);
+    function ANodeExpr() {
+        _super.apply(this, arguments);
+    }
+    return ANodeExpr;
+})(ANode);
+
+var ANodeExprLValue = (function (_super) {
+    __extends(ANodeExprLValue, _super);
+    function ANodeExprLValue() {
+        _super.apply(this, arguments);
+    }
+    return ANodeExprLValue;
+})(ANodeExpr);
+
+var ANodeExprLValueVar = (function (_super) {
+    __extends(ANodeExprLValueVar, _super);
+    function ANodeExprLValueVar(name) {
+        _super.call(this);
+        this.name = name;
+    }
+    ANodeExprLValueVar.prototype.toJs = function () {
+        return this.name;
+    };
+    return ANodeExprLValueVar;
+})(ANodeExprLValue);
+
+var ANodeExprI32 = (function (_super) {
+    __extends(ANodeExprI32, _super);
+    function ANodeExprI32(value) {
+        _super.call(this);
+        this.value = value;
+    }
+    ANodeExprI32.prototype.toJs = function () {
+        return String(this.value);
+    };
+    return ANodeExprI32;
+})(ANodeExpr);
+
+var ANodeExprU32 = (function (_super) {
+    __extends(ANodeExprU32, _super);
+    function ANodeExprU32(value) {
+        _super.call(this);
+        this.value = value;
+    }
+    ANodeExprU32.prototype.toJs = function () {
+        return sprintf('0x%08X', this.value);
+    };
+    return ANodeExprU32;
+})(ANodeExpr);
+
+var ANodeExprBinop = (function (_super) {
+    __extends(ANodeExprBinop, _super);
+    function ANodeExprBinop(left, op, right) {
+        _super.call(this);
+        this.left = left;
+        this.op = op;
+        this.right = right;
+    }
+    ANodeExprBinop.prototype.toJs = function () {
+        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
+    };
+    return ANodeExprBinop;
+})(ANodeExpr);
+
+var ANodeExprUnop = (function (_super) {
+    __extends(ANodeExprUnop, _super);
+    function ANodeExprUnop(op, right) {
+        _super.call(this);
+        this.op = op;
+        this.right = right;
+    }
+    ANodeExprUnop.prototype.toJs = function () {
+        return '(' + this.op + '(' + this.right.toJs() + '))';
+    };
+    return ANodeExprUnop;
+})(ANodeExpr);
+
+var ANodeExprAssign = (function (_super) {
+    __extends(ANodeExprAssign, _super);
+    function ANodeExprAssign(left, right) {
+        _super.call(this);
+        this.left = left;
+        this.right = right;
+    }
+    ANodeExprAssign.prototype.toJs = function () {
+        return this.left.toJs() + ' = ' + this.right.toJs();
+    };
+    return ANodeExprAssign;
+})(ANodeExpr);
+
+var ANodeExprCall = (function (_super) {
+    __extends(ANodeExprCall, _super);
+    function ANodeExprCall(name, arguments) {
+        _super.call(this);
+        this.name = name;
+        this.arguments = arguments;
+    }
+    ANodeExprCall.prototype.toJs = function () {
+        return this.name + '(' + this.arguments.map(function (argument) {
+            return argument.toJs();
+        }).join(',') + ')';
+    };
+    return ANodeExprCall;
+})(ANodeExpr);
+
+var ANodeStmIf = (function (_super) {
+    __extends(ANodeStmIf, _super);
+    function ANodeStmIf(cond, codeTrue, codeFalse) {
+        _super.call(this);
+        this.cond = cond;
+        this.codeTrue = codeTrue;
+        this.codeFalse = codeFalse;
+    }
+    ANodeStmIf.prototype.toJs = function () {
+        var result = '';
+        result += 'if (' + this.cond.toJs() + ')';
+        result += ' { ' + this.codeTrue.toJs() + ' }';
+        if (this.codeFalse)
+            result += ' else { ' + this.codeFalse.toJs() + ' }';
+        return result;
+    };
+    return ANodeStmIf;
+})(ANodeStm);
+
+var AstBuilder = (function () {
+    function AstBuilder() {
+    }
+    AstBuilder.prototype.assign = function (ref, value) {
+        return new ANodeExprAssign(ref, value);
+    };
+
+    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
+        return new ANodeStmIf(cond, codeTrue, codeFalse);
+    };
+
+    AstBuilder.prototype.binop = function (left, op, right) {
+        return new ANodeExprBinop(left, op, right);
+    };
+
+    AstBuilder.prototype.unop = function (op, right) {
+        return new ANodeExprUnop(op, right);
+    };
+
+    AstBuilder.prototype.binop_i = function (left, op, right) {
+        return this.binop(left, op, this.imm32(right));
+    };
+
+    AstBuilder.prototype.imm32 = function (value) {
+        return new ANodeExprI32(value);
+    };
+
+    AstBuilder.prototype.u_imm32 = function (value) {
+        //return new ANodeExprI32(value);
+        return new ANodeExprU32(value);
+    };
+
+    AstBuilder.prototype.stm = function (expr) {
+        return new ANodeStmExpr(expr);
+    };
+
+    AstBuilder.prototype.stmEmpty = function () {
+        return new ANodeStm();
+    };
+
+    AstBuilder.prototype.stms = function (stms) {
+        return new ANodeStmList(stms);
+    };
+
+    AstBuilder.prototype.call = function (name, exprList) {
+        return new ANodeExprCall(name, exprList);
+    };
+    return AstBuilder;
+})();
+
+var MipsAstBuilder = (function (_super) {
+    __extends(MipsAstBuilder, _super);
+    function MipsAstBuilder() {
+        _super.apply(this, arguments);
+    }
+    MipsAstBuilder.prototype.debugger = function () {
+        return new ANodeStmRaw("debugger;");
+    };
+
+    MipsAstBuilder.prototype.functionPrefix = function () {
+        //return new ANodeStmRaw('var gpr = state.gpr;');
+        return this.stmEmpty();
+    };
+
+    MipsAstBuilder.prototype.gpr = function (index) {
+        if (index === 0)
+            return new ANodeExprLValueVar('0');
+        return new ANodeExprLValueVar('state.' + core.cpu.CpuState.getGprAccessName(index));
+    };
+
+    MipsAstBuilder.prototype.fpr = function (index) {
+        return new ANodeExprLValueVar('state.' + core.cpu.CpuState.getFprAccessName(index));
+    };
+
+    MipsAstBuilder.prototype.fpr_i = function (index) {
+        return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
+    };
+
+    MipsAstBuilder.prototype.fcr31_cc = function () {
+        return new ANodeExprLValueVar('state.fcr31_cc');
+    };
+    MipsAstBuilder.prototype.lo = function () {
+        return new ANodeExprLValueVar('state.LO');
+    };
+    MipsAstBuilder.prototype.hi = function () {
+        return new ANodeExprLValueVar('state.HI');
+    };
+    MipsAstBuilder.prototype.ic = function () {
+        return new ANodeExprLValueVar('state.IC');
+    };
+    MipsAstBuilder.prototype.pc = function () {
+        return new ANodeExprLValueVar('state.PC');
+    };
+    MipsAstBuilder.prototype.branchflag = function () {
+        return new ANodeExprLValueVar('state.BRANCHFLAG');
+    };
+    MipsAstBuilder.prototype.branchpc = function () {
+        return new ANodeExprLValueVar('state.BRANCHPC');
+    };
+
+    MipsAstBuilder.prototype.assignGpr = function (index, expr) {
+        if (index == 0)
+            return this.stmEmpty();
+
+        //return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
+        return this.stm(this.assign(this.gpr(index), expr));
+    };
+
+    MipsAstBuilder.prototype.assignIC = function (expr) {
+        return this.stm(this.assign(this.ic(), expr));
+    };
+
+    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
+        return this.stm(this.assign(this.fpr(index), expr));
+    };
+
+    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
+        return this.stm(this.assign(this.fpr(index), this.call('MathFloat.reinterpretIntAsFloat', [expr])));
+    };
+    return MipsAstBuilder;
+})(AstBuilder);
+///<reference path="../util/utils.ts" />
+var core;
+(function (core) {
+    var SceCtrlData = (function () {
+        function SceCtrlData() {
+            this.timeStamp = 0;
+            this.buttons = 0 /* none */;
+            this.lx = 0;
+            this.ly = 0;
+            this._rsrv = [0, 0, 0, 0, 0];
+            this.x = 0;
+            this.y = 0;
+        }
+        Object.defineProperty(SceCtrlData.prototype, "x", {
+            get: function () {
+                return ((this.lx / 255.0) - 0.5) * 2.0;
+            },
+            set: function (value) {
+                this.lx = (((value / 2.0) + 0.5) * 255.0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(SceCtrlData.prototype, "y", {
+            get: function () {
+                return ((this.ly / 255.0) - 0.5) * 2.0;
+            },
+            set: function (value) {
+                this.ly = (((value / 2.0) + 0.5) * 255.0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+
+        SceCtrlData.struct = StructClass.create(SceCtrlData, [
+            { type: UInt32, name: 'timeStamp' },
+            { type: UInt32, name: 'buttons' },
+            { type: Int8, name: 'lx' },
+            { type: Int8, name: 'ly' },
+            { type: StructArray.create(Int8, 6), name: '_rsrv' }
+        ]);
+        return SceCtrlData;
+    })();
+    core.SceCtrlData = SceCtrlData;
+
+    var PspController = (function () {
+        function PspController() {
+            this.data = new SceCtrlData();
+            this.buttonMapping = {};
+            this.animationTimeId = 0;
+            this.gamepadsButtons = [];
+            this.buttonMapping = {};
+            this.buttonMapping[38 /* up */] = 16 /* up */;
+            this.buttonMapping[37 /* left */] = 128 /* left */;
+            this.buttonMapping[39 /* right */] = 32 /* right */;
+            this.buttonMapping[40 /* down */] = 64 /* down */;
+            this.buttonMapping[13 /* enter */] = 8 /* start */;
+            this.buttonMapping[32 /* space */] = 1 /* select */;
+            this.buttonMapping[81 /* q */] = 256 /* leftTrigger */;
+            this.buttonMapping[69 /* e */] = 512 /* rightTrigger */;
+            this.buttonMapping[87 /* w */] = 4096 /* triangle */;
+            this.buttonMapping[83 /* s */] = 16384 /* cross */;
+            this.buttonMapping[65 /* a */] = 32768 /* square */;
+            this.buttonMapping[68 /* d */] = 8192 /* circle */;
+            //this.buttonMapping[KeyCodes.Down] = PspCtrlButtons.Down;
+        }
+        PspController.prototype.keyDown = function (e) {
+            //console.log(e.keyCode);
+            var button = this.buttonMapping[e.keyCode];
+            if (button !== undefined) {
+                this.data.buttons |= button;
+            }
+        };
+
+        PspController.prototype.keyUp = function (e) {
+            var button = this.buttonMapping[e.keyCode];
+            if (button !== undefined) {
+                this.data.buttons &= ~button;
+            }
+        };
+
+        PspController.prototype.simulateButtonDown = function (button) {
+            this.data.buttons |= button;
+        };
+
+        PspController.prototype.simulateButtonUp = function (button) {
+            this.data.buttons &= ~button;
+        };
+
+        PspController.prototype.simulateButtonPress = function (button) {
+            var _this = this;
+            this.simulateButtonDown(button);
+            setTimeout(function () {
+                _this.simulateButtonUp(button);
+            }, 60);
+        };
+
+        PspController.prototype.startAsync = function () {
+            var _this = this;
+            document.addEventListener('keydown', function (e) {
+                return _this.keyDown(e);
+            });
+            document.addEventListener('keyup', function (e) {
+                return _this.keyUp(e);
+            });
+            this.frame(0);
+            return Promise.resolve();
+        };
+
+        PspController.prototype.frame = function (timestamp) {
+            var _this = this;
+            //console.log('zzzzzzzzz');
+            if (navigator['getGamepads']) {
+                //console.log('bbbbbbbbb');
+                var gamepads = (navigator['getGamepads'])();
+                if (gamepads[0]) {
+                    //console.log('aaaaaaaa');
+                    var buttonMapping = [
+                        16384 /* cross */,
+                        8192 /* circle */,
+                        32768 /* square */,
+                        4096 /* triangle */,
+                        256 /* leftTrigger */,
+                        512 /* rightTrigger */,
+                        1048576 /* volumeUp */,
+                        2097152 /* volumeDown */,
+                        1 /* select */,
+                        8 /* start */,
+                        65536 /* home */,
+                        8388608 /* note */,
+                        16 /* up */,
+                        64 /* down */,
+                        128 /* left */,
+                        32 /* right */
+                    ];
+
+                    var gamepad = gamepads[0];
+                    var buttons = gamepad['buttons'];
+                    var axes = gamepad['axes'];
+                    this.data.x = axes[0];
+                    this.data.y = axes[1];
+
+                    function checkButton(button) {
+                        if (typeof button == 'number') {
+                            return button != 0;
+                        } else {
+                            return button ? !!(button.pressed) : false;
+                        }
+                    }
+
+                    for (var n = 0; n < 15; n++) {
+                        if (checkButton(buttons[n])) {
+                            this.simulateButtonDown(buttonMapping[n]);
+                        } else {
+                            this.simulateButtonUp(buttonMapping[n]);
+                        }
+                    }
+                }
+            }
+            this.animationTimeId = requestAnimationFrame(function (timestamp) {
+                return _this.frame(timestamp);
+            });
+        };
+
+        PspController.prototype.stopAsync = function () {
+            document.removeEventListener('keydown', this.keyDown);
+            document.removeEventListener('keyup', this.keyUp);
+            cancelAnimationFrame(this.animationTimeId);
+            return Promise.resolve();
+        };
+        return PspController;
+    })();
+    core.PspController = PspController;
+
+    (function (PspCtrlButtons) {
+        PspCtrlButtons[PspCtrlButtons["none"] = 0x0000000] = "none";
+        PspCtrlButtons[PspCtrlButtons["select"] = 0x0000001] = "select";
+        PspCtrlButtons[PspCtrlButtons["start"] = 0x0000008] = "start";
+        PspCtrlButtons[PspCtrlButtons["up"] = 0x0000010] = "up";
+        PspCtrlButtons[PspCtrlButtons["right"] = 0x0000020] = "right";
+        PspCtrlButtons[PspCtrlButtons["down"] = 0x0000040] = "down";
+        PspCtrlButtons[PspCtrlButtons["left"] = 0x0000080] = "left";
+        PspCtrlButtons[PspCtrlButtons["leftTrigger"] = 0x0000100] = "leftTrigger";
+        PspCtrlButtons[PspCtrlButtons["rightTrigger"] = 0x0000200] = "rightTrigger";
+        PspCtrlButtons[PspCtrlButtons["triangle"] = 0x0001000] = "triangle";
+        PspCtrlButtons[PspCtrlButtons["circle"] = 0x0002000] = "circle";
+        PspCtrlButtons[PspCtrlButtons["cross"] = 0x0004000] = "cross";
+        PspCtrlButtons[PspCtrlButtons["square"] = 0x0008000] = "square";
+        PspCtrlButtons[PspCtrlButtons["home"] = 0x0010000] = "home";
+        PspCtrlButtons[PspCtrlButtons["hold"] = 0x0020000] = "hold";
+        PspCtrlButtons[PspCtrlButtons["wirelessLanUp"] = 0x0040000] = "wirelessLanUp";
+        PspCtrlButtons[PspCtrlButtons["remote"] = 0x0080000] = "remote";
+        PspCtrlButtons[PspCtrlButtons["volumeUp"] = 0x0100000] = "volumeUp";
+        PspCtrlButtons[PspCtrlButtons["volumeDown"] = 0x0200000] = "volumeDown";
+        PspCtrlButtons[PspCtrlButtons["screen"] = 0x0400000] = "screen";
+        PspCtrlButtons[PspCtrlButtons["note"] = 0x0800000] = "note";
+        PspCtrlButtons[PspCtrlButtons["discPresent"] = 0x1000000] = "discPresent";
+        PspCtrlButtons[PspCtrlButtons["memoryStickPresent"] = 0x2000000] = "memoryStickPresent";
+    })(core.PspCtrlButtons || (core.PspCtrlButtons = {}));
+    var PspCtrlButtons = core.PspCtrlButtons;
+
+    (function (HtmlKeyCodes) {
+        HtmlKeyCodes[HtmlKeyCodes["backspace"] = 8] = "backspace";
+        HtmlKeyCodes[HtmlKeyCodes["tab"] = 9] = "tab";
+        HtmlKeyCodes[HtmlKeyCodes["enter"] = 13] = "enter";
+        HtmlKeyCodes[HtmlKeyCodes["shift"] = 16] = "shift";
+        HtmlKeyCodes[HtmlKeyCodes["ctrl"] = 17] = "ctrl";
+        HtmlKeyCodes[HtmlKeyCodes["alt"] = 18] = "alt";
+        HtmlKeyCodes[HtmlKeyCodes["pause"] = 19] = "pause";
+        HtmlKeyCodes[HtmlKeyCodes["caps_lock"] = 20] = "caps_lock";
+        HtmlKeyCodes[HtmlKeyCodes["escape"] = 27] = "escape";
+        HtmlKeyCodes[HtmlKeyCodes["space"] = 32] = "space";
+        HtmlKeyCodes[HtmlKeyCodes["page_up"] = 33] = "page_up";
+        HtmlKeyCodes[HtmlKeyCodes["page_down"] = 34] = "page_down";
+        HtmlKeyCodes[HtmlKeyCodes["end"] = 35] = "end";
+        HtmlKeyCodes[HtmlKeyCodes["home"] = 36] = "home";
+        HtmlKeyCodes[HtmlKeyCodes["left"] = 37] = "left";
+        HtmlKeyCodes[HtmlKeyCodes["up"] = 38] = "up";
+        HtmlKeyCodes[HtmlKeyCodes["right"] = 39] = "right";
+        HtmlKeyCodes[HtmlKeyCodes["down"] = 40] = "down";
+        HtmlKeyCodes[HtmlKeyCodes["insert"] = 45] = "insert";
+        HtmlKeyCodes[HtmlKeyCodes["delete"] = 46] = "delete";
+        HtmlKeyCodes[HtmlKeyCodes["k0"] = 48] = "k0";
+        HtmlKeyCodes[HtmlKeyCodes["k1"] = 49] = "k1";
+        HtmlKeyCodes[HtmlKeyCodes["k2"] = 50] = "k2";
+        HtmlKeyCodes[HtmlKeyCodes["k3"] = 51] = "k3";
+        HtmlKeyCodes[HtmlKeyCodes["k4"] = 52] = "k4";
+        HtmlKeyCodes[HtmlKeyCodes["k5"] = 53] = "k5";
+        HtmlKeyCodes[HtmlKeyCodes["k6"] = 54] = "k6";
+        HtmlKeyCodes[HtmlKeyCodes["k7"] = 55] = "k7";
+        HtmlKeyCodes[HtmlKeyCodes["k8"] = 56] = "k8";
+        HtmlKeyCodes[HtmlKeyCodes["k9"] = 57] = "k9";
+        HtmlKeyCodes[HtmlKeyCodes["a"] = 65] = "a";
+        HtmlKeyCodes[HtmlKeyCodes["b"] = 66] = "b";
+        HtmlKeyCodes[HtmlKeyCodes["c"] = 67] = "c";
+        HtmlKeyCodes[HtmlKeyCodes["d"] = 68] = "d";
+        HtmlKeyCodes[HtmlKeyCodes["e"] = 69] = "e";
+        HtmlKeyCodes[HtmlKeyCodes["f"] = 70] = "f";
+        HtmlKeyCodes[HtmlKeyCodes["g"] = 71] = "g";
+        HtmlKeyCodes[HtmlKeyCodes["h"] = 72] = "h";
+        HtmlKeyCodes[HtmlKeyCodes["i"] = 73] = "i";
+        HtmlKeyCodes[HtmlKeyCodes["j"] = 74] = "j";
+        HtmlKeyCodes[HtmlKeyCodes["k"] = 75] = "k";
+        HtmlKeyCodes[HtmlKeyCodes["l"] = 76] = "l";
+        HtmlKeyCodes[HtmlKeyCodes["m"] = 77] = "m";
+        HtmlKeyCodes[HtmlKeyCodes["n"] = 78] = "n";
+        HtmlKeyCodes[HtmlKeyCodes["o"] = 79] = "o";
+        HtmlKeyCodes[HtmlKeyCodes["p"] = 80] = "p";
+        HtmlKeyCodes[HtmlKeyCodes["q"] = 81] = "q";
+        HtmlKeyCodes[HtmlKeyCodes["r"] = 82] = "r";
+        HtmlKeyCodes[HtmlKeyCodes["s"] = 83] = "s";
+        HtmlKeyCodes[HtmlKeyCodes["t"] = 84] = "t";
+        HtmlKeyCodes[HtmlKeyCodes["u"] = 85] = "u";
+        HtmlKeyCodes[HtmlKeyCodes["v"] = 86] = "v";
+        HtmlKeyCodes[HtmlKeyCodes["w"] = 87] = "w";
+        HtmlKeyCodes[HtmlKeyCodes["x"] = 88] = "x";
+        HtmlKeyCodes[HtmlKeyCodes["y"] = 89] = "y";
+        HtmlKeyCodes[HtmlKeyCodes["z"] = 90] = "z";
+        HtmlKeyCodes[HtmlKeyCodes["left_window_key"] = 91] = "left_window_key";
+        HtmlKeyCodes[HtmlKeyCodes["right_window_key"] = 92] = "right_window_key";
+        HtmlKeyCodes[HtmlKeyCodes["select_key"] = 93] = "select_key";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_0"] = 96] = "numpad_0";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_1"] = 97] = "numpad_1";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_2"] = 98] = "numpad_2";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_3"] = 99] = "numpad_3";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_4"] = 100] = "numpad_4";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_5"] = 101] = "numpad_5";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_6"] = 102] = "numpad_6";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_7"] = 103] = "numpad_7";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_8"] = 104] = "numpad_8";
+        HtmlKeyCodes[HtmlKeyCodes["numpad_9"] = 105] = "numpad_9";
+        HtmlKeyCodes[HtmlKeyCodes["multiply"] = 106] = "multiply";
+        HtmlKeyCodes[HtmlKeyCodes["add"] = 107] = "add";
+        HtmlKeyCodes[HtmlKeyCodes["subtract"] = 109] = "subtract";
+        HtmlKeyCodes[HtmlKeyCodes["decimal_point"] = 110] = "decimal_point";
+        HtmlKeyCodes[HtmlKeyCodes["divide"] = 111] = "divide";
+        HtmlKeyCodes[HtmlKeyCodes["f1"] = 112] = "f1";
+        HtmlKeyCodes[HtmlKeyCodes["f2"] = 113] = "f2";
+        HtmlKeyCodes[HtmlKeyCodes["f3"] = 114] = "f3";
+        HtmlKeyCodes[HtmlKeyCodes["f4"] = 115] = "f4";
+        HtmlKeyCodes[HtmlKeyCodes["f5"] = 116] = "f5";
+        HtmlKeyCodes[HtmlKeyCodes["f6"] = 117] = "f6";
+        HtmlKeyCodes[HtmlKeyCodes["f7"] = 118] = "f7";
+        HtmlKeyCodes[HtmlKeyCodes["f8"] = 119] = "f8";
+        HtmlKeyCodes[HtmlKeyCodes["f9"] = 120] = "f9";
+        HtmlKeyCodes[HtmlKeyCodes["f10"] = 121] = "f10";
+        HtmlKeyCodes[HtmlKeyCodes["f11"] = 122] = "f11";
+        HtmlKeyCodes[HtmlKeyCodes["f12"] = 123] = "f12";
+        HtmlKeyCodes[HtmlKeyCodes["num_lock"] = 144] = "num_lock";
+        HtmlKeyCodes[HtmlKeyCodes["scroll_lock"] = 145] = "scroll_lock";
+        HtmlKeyCodes[HtmlKeyCodes["semi_colon"] = 186] = "semi_colon";
+        HtmlKeyCodes[HtmlKeyCodes["equal_sign"] = 187] = "equal_sign";
+        HtmlKeyCodes[HtmlKeyCodes["comma"] = 188] = "comma";
+        HtmlKeyCodes[HtmlKeyCodes["dash"] = 189] = "dash";
+        HtmlKeyCodes[HtmlKeyCodes["period"] = 190] = "period";
+        HtmlKeyCodes[HtmlKeyCodes["forward_slash"] = 191] = "forward_slash";
+        HtmlKeyCodes[HtmlKeyCodes["grave_accent"] = 192] = "grave_accent";
+        HtmlKeyCodes[HtmlKeyCodes["open_bracket"] = 219] = "open_bracket";
+        HtmlKeyCodes[HtmlKeyCodes["back_slash"] = 220] = "back_slash";
+        HtmlKeyCodes[HtmlKeyCodes["close_braket"] = 221] = "close_braket";
+        HtmlKeyCodes[HtmlKeyCodes["single_quote"] = 222] = "single_quote";
+    })(core.HtmlKeyCodes || (core.HtmlKeyCodes = {}));
+    var HtmlKeyCodes = core.HtmlKeyCodes;
+})(core || (core = {}));
+var core;
+(function (core) {
+    (function (PixelFormat) {
+        PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
+        PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
+        PixelFormat[PixelFormat["RGBA_5551"] = 1] = "RGBA_5551";
+        PixelFormat[PixelFormat["RGBA_4444"] = 2] = "RGBA_4444";
+        PixelFormat[PixelFormat["RGBA_8888"] = 3] = "RGBA_8888";
+        PixelFormat[PixelFormat["PALETTE_T4"] = 4] = "PALETTE_T4";
+        PixelFormat[PixelFormat["PALETTE_T8"] = 5] = "PALETTE_T8";
+        PixelFormat[PixelFormat["PALETTE_T16"] = 6] = "PALETTE_T16";
+        PixelFormat[PixelFormat["PALETTE_T32"] = 7] = "PALETTE_T32";
+        PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
+        PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
+        PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
+    })(core.PixelFormat || (core.PixelFormat = {}));
+    var PixelFormat = core.PixelFormat;
+
+    var BasePspDisplay = (function () {
+        function BasePspDisplay() {
+            this.address = core.Memory.DEFAULT_FRAME_ADDRESS;
+            this.bufferWidth = 512;
+            this.pixelFormat = 3 /* RGBA_8888 */;
+            this.sync = 1;
+        }
+        return BasePspDisplay;
+    })();
+    core.BasePspDisplay = BasePspDisplay;
+
+    var DummyPspDisplay = (function (_super) {
+        __extends(DummyPspDisplay, _super);
+        function DummyPspDisplay() {
+            _super.call(this);
+            this.vblankCount = 0;
+        }
+        DummyPspDisplay.prototype.waitVblankAsync = function () {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, 20);
+            });
+        };
+
+        DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
+        };
+
+        DummyPspDisplay.prototype.startAsync = function () {
+            return Promise.resolve();
+        };
+
+        DummyPspDisplay.prototype.stopAsync = function () {
+            return Promise.resolve();
+        };
+        return DummyPspDisplay;
+    })(BasePspDisplay);
+    core.DummyPspDisplay = DummyPspDisplay;
+
+    var PspDisplay = (function (_super) {
+        __extends(PspDisplay, _super);
+        function PspDisplay(memory, canvas, webglcanvas) {
+            _super.call(this);
+            this.memory = memory;
+            this.canvas = canvas;
+            this.webglcanvas = webglcanvas;
+            this.vblank = new Signal();
+            this.interval = -1;
+            this.vblankCount = 0;
+            this.enabled = true;
+            this.context = this.canvas.getContext('2d');
+            this.imageData = this.context.createImageData(512, 272);
+            this.setEnabledDisplay(true);
+        }
+        PspDisplay.prototype.update = function () {
+            if (!this.context || !this.imageData)
+                return;
+            if (!this.enabled)
+                return;
+
+            var count = 512 * 272;
+            var imageData = this.imageData;
+            var w8 = imageData.data;
+            var baseAddress = this.address & 0x0FFFFFFF;
+
+            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
+            this.context.putImageData(imageData, 0, 0);
+        };
+
+        PspDisplay.prototype.setEnabledDisplay = function (enable) {
+            this.enabled = enable;
+            this.canvas.style.display = enable ? 'block' : 'none';
+            this.webglcanvas.style.display = !enable ? 'block' : 'none';
+        };
+
+        PspDisplay.prototype.startAsync = function () {
+            var _this = this;
+            //$(this.canvas).focus();
+            this.interval = setInterval(function () {
+                _this.vblankCount++;
+                _this.update();
+                _this.vblank.dispatch();
+            }, 1000 / 59.999);
+            return Promise.resolve();
+        };
+
+        PspDisplay.prototype.stopAsync = function () {
+            clearInterval(this.interval);
+            this.interval = -1;
+            return Promise.resolve();
+        };
+
+        PspDisplay.prototype.waitVblankAsync = function () {
+            var _this = this;
+            return new Promise(function (resolve) {
+                _this.vblank.once(function () {
+                    resolve(0);
+                });
+            });
+        };
+        return PspDisplay;
+    })(BasePspDisplay);
+    core.PspDisplay = PspDisplay;
+
+    var sizes = {};
+    sizes[8 /* COMPRESSED_DXT1 */] = 0.5;
+    sizes[9 /* COMPRESSED_DXT3 */] = 1;
+    sizes[10 /* COMPRESSED_DXT5 */] = 1;
+    sizes[-1 /* NONE */] = 0;
+    sizes[6 /* PALETTE_T16 */] = 2;
+    sizes[7 /* PALETTE_T32 */] = 4;
+    sizes[5 /* PALETTE_T8 */] = 1;
+    sizes[4 /* PALETTE_T4 */] = 0.5;
+    sizes[2 /* RGBA_4444 */] = 2;
+    sizes[1 /* RGBA_5551 */] = 2;
+    sizes[0 /* RGBA_5650 */] = 2;
+    sizes[3 /* RGBA_8888 */] = 4;
+
+    var PixelConverter = (function () {
+        function PixelConverter() {
+        }
+        PixelConverter.getSizeInBytes = function (format, count) {
+            return sizes[format] * count;
+        };
+
+        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            switch (format) {
+                case 3 /* RGBA_8888 */:
+                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 1 /* RGBA_5551 */:
+                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 0 /* RGBA_5650 */:
+                    PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 2 /* RGBA_4444 */:
+                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 5 /* PALETTE_T8 */:
+                    PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
+                    break;
+                case 4 /* PALETTE_T4 */:
+                    PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
+                    break;
+                default:
+                    throw (new Error(sprintf("Unsupported pixel format %d", format)));
+            }
+        };
+
+        PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            for (var n = 0, m = 0; n < count * 8; n += 8, m++) {
+                var color1 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 0, 4) & clutMask) << clutShift)];
+                var color2 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 4, 4) & clutMask) << clutShift)];
+                to[toIndex + n + 0] = BitUtils.extract(color1, 0, 8);
+                to[toIndex + n + 1] = BitUtils.extract(color1, 8, 8);
+                to[toIndex + n + 2] = BitUtils.extract(color1, 16, 8);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color1, 24, 8) : 0xFF;
+
+                to[toIndex + n + 4] = BitUtils.extract(color2, 0, 8);
+                to[toIndex + n + 5] = BitUtils.extract(color2, 8, 8);
+                to[toIndex + n + 6] = BitUtils.extract(color2, 16, 8);
+                to[toIndex + n + 7] = useAlpha ? BitUtils.extract(color2, 24, 8) : 0xFF;
+            }
+        };
+
+        PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
+                var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
+                var color = palette[colorIndex];
+                to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
+                to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
+                to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
+            }
+        };
+
+        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                to[toIndex + n + 0] = from[fromIndex + n + 0];
+                to[toIndex + n + 1] = from[fromIndex + n + 1];
+                to[toIndex + n + 2] = from[fromIndex + n + 2];
+                to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
+            }
+        };
+
+        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 15, 1, 0xFF) : 0xFF;
+            }
+        };
+
+        PixelConverter.update5650 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 6, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScale(it, 11, 5, 0xFF);
+                to[toIndex + n + 3] = 0xFF;
+            }
+        };
+
+        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 12, 4, 0xFF) : 0xFF;
+            }
+        };
+        return PixelConverter;
+    })();
+    core.PixelConverter = PixelConverter;
+})(core || (core = {}));
+var format;
+(function (format) {
+    (function (_iso) {
+        var SECTOR_SIZE = 0x800;
+
+        var DirectoryRecordDate = (function () {
+            function DirectoryRecordDate() {
+            }
+            Object.defineProperty(DirectoryRecordDate.prototype, "date", {
+                get: function () {
+                    return new Date(this.year, this.month, this.day, this.hour, this.minute, this.second);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            DirectoryRecordDate.struct = StructClass.create(DirectoryRecordDate, [
+                { type: UInt8, name: 'year' },
+                { type: UInt8, name: 'month' },
+                { type: UInt8, name: 'day' },
+                { type: UInt8, name: 'hour' },
+                { type: UInt8, name: 'minute' },
+                { type: UInt8, name: 'second' },
+                { type: UInt8, name: 'offset' }
+            ]);
+            return DirectoryRecordDate;
+        })();
+
+        var IsoStringDate = (function () {
+            function IsoStringDate() {
+            }
+            Object.defineProperty(IsoStringDate.prototype, "year", {
+                get: function () {
+                    return parseInt(this.data.substr(0, 4));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "month", {
+                get: function () {
+                    return parseInt(this.data.substr(4, 2));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "day", {
+                get: function () {
+                    return parseInt(this.data.substr(6, 2));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "hour", {
+                get: function () {
+                    return parseInt(this.data.substr(8, 2));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "minute", {
+                get: function () {
+                    return parseInt(this.data.substr(10, 2));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "second", {
+                get: function () {
+                    return parseInt(this.data.substr(12, 2));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "hsecond", {
+                get: function () {
+                    return parseInt(this.data.substr(14, 2));
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoStringDate.prototype, "offset", {
+                get: function () {
+                    return parseInt(this.data.substr(16, 1));
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            IsoStringDate.struct = StructClass.create(IsoStringDate, [
+                { type: Stringz(17), name: 'data' }
+            ]);
+            return IsoStringDate;
+        })();
+
+        var VolumeDescriptorHeaderType;
+        (function (VolumeDescriptorHeaderType) {
+            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["BootRecord"] = 0x00] = "BootRecord";
+            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionSetTerminator"] = 0xFF] = "VolumePartitionSetTerminator";
+            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["PrimaryVolumeDescriptor"] = 0x01] = "PrimaryVolumeDescriptor";
+            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["SupplementaryVolumeDescriptor"] = 0x02] = "SupplementaryVolumeDescriptor";
+            VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionDescriptor"] = 0x03] = "VolumePartitionDescriptor";
+        })(VolumeDescriptorHeaderType || (VolumeDescriptorHeaderType = {}));
+
+        var VolumeDescriptorHeader = (function () {
+            function VolumeDescriptorHeader() {
+            }
+            VolumeDescriptorHeader.struct = StructClass.create(VolumeDescriptorHeader, [
+                { type: UInt8, name: 'type' },
+                { type: Stringz(5), name: 'id' },
+                { type: UInt8, name: 'version' }
+            ]);
+            return VolumeDescriptorHeader;
+        })();
+
+        var DirectoryRecordFlags;
+        (function (DirectoryRecordFlags) {
+            DirectoryRecordFlags[DirectoryRecordFlags["Unknown1"] = 1 << 0] = "Unknown1";
+            DirectoryRecordFlags[DirectoryRecordFlags["Directory"] = 1 << 1] = "Directory";
+            DirectoryRecordFlags[DirectoryRecordFlags["Unknown2"] = 1 << 2] = "Unknown2";
+            DirectoryRecordFlags[DirectoryRecordFlags["Unknown3"] = 1 << 3] = "Unknown3";
+            DirectoryRecordFlags[DirectoryRecordFlags["Unknown4"] = 1 << 4] = "Unknown4";
+            DirectoryRecordFlags[DirectoryRecordFlags["Unknown5"] = 1 << 5] = "Unknown5";
+        })(DirectoryRecordFlags || (DirectoryRecordFlags = {}));
+
+        var DirectoryRecord = (function () {
+            function DirectoryRecord() {
+                this.name = '';
+            }
+            Object.defineProperty(DirectoryRecord.prototype, "offset", {
+                get: function () {
+                    return this.extent * SECTOR_SIZE;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(DirectoryRecord.prototype, "isDirectory", {
+                get: function () {
+                    return (this.flags & DirectoryRecordFlags.Directory) != 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            DirectoryRecord.struct = StructClass.create(DirectoryRecord, [
+                { type: UInt8, name: 'length' },
+                { type: UInt8, name: 'extendedAttributeLength' },
+                { type: UInt32_2lb, name: 'extent' },
+                { type: UInt32_2lb, name: 'size' },
+                { type: DirectoryRecordDate.struct, name: 'date' },
+                { type: UInt8, name: 'flags' },
+                { type: UInt8, name: 'fileUnitSize' },
+                { type: UInt8, name: 'interleave' },
+                { type: UInt16_2lb, name: 'volumeSequenceNumber' },
+                { type: UInt8, name: 'nameLength' }
+            ]);
+            return DirectoryRecord;
+        })();
+
+        var PrimaryVolumeDescriptor = (function () {
+            function PrimaryVolumeDescriptor() {
+            }
+            PrimaryVolumeDescriptor.struct = StructClass.create(PrimaryVolumeDescriptor, [
+                { type: VolumeDescriptorHeader.struct, name: 'header' },
+                { type: UInt8, name: '_pad1' },
+                { type: Stringz(0x20), name: 'systemId' },
+                { type: Stringz(0x20), name: 'volumeId' },
+                { type: Int64, name: '_pad2' },
+                { type: UInt32_2lb, name: 'volumeSpaceSize' },
+                { type: StructArray.create(Int64, 4), name: '_pad3' },
+                { type: UInt32, name: 'volumeSetSize' },
+                { type: UInt32, name: 'volumeSequenceNumber' },
+                { type: UInt16_2lb, name: 'logicalBlockSize' },
+                { type: UInt32_2lb, name: 'pathTableSize' },
+                { type: UInt32, name: 'typeLPathTable' },
+                { type: UInt32, name: 'optType1PathTable' },
+                { type: UInt32, name: 'typeMPathTable' },
+                { type: UInt32, name: 'optTypeMPathTable' },
+                { type: DirectoryRecord.struct, name: 'directoryRecord' },
+                { type: UInt8, name: '_pad4' },
+                { type: Stringz(0x80), name: 'volumeSetId' },
+                { type: Stringz(0x80), name: 'publisherId' },
+                { type: Stringz(0x80), name: 'preparerId' },
+                { type: Stringz(0x80), name: 'applicationId' },
+                { type: Stringz(37), name: 'copyrightFileId' },
+                { type: Stringz(37), name: 'abstractFileId' },
+                { type: Stringz(37), name: 'bibliographicFileId' },
+                { type: IsoStringDate.struct, name: 'creationDate' },
+                { type: IsoStringDate.struct, name: 'modificationDate' },
+                { type: IsoStringDate.struct, name: 'expirationDate' },
+                { type: IsoStringDate.struct, name: 'effectiveDate' },
+                { type: UInt8, name: 'fileStructureVersion' },
+                { type: UInt8, name: 'pad5' },
+                { type: StructArray.create(UInt8, 0x200), name: 'pad5' },
+                { type: StructArray.create(UInt8, 653), name: 'pad6' }
+            ]);
+            return PrimaryVolumeDescriptor;
+        })();
+
+        var IsoNode = (function () {
+            function IsoNode(iso, directoryRecord, parent) {
+                if (typeof parent === "undefined") { parent = null; }
+                this.iso = iso;
+                this.directoryRecord = directoryRecord;
+                this.parent = parent;
+                this.childs = [];
+                this.childsByName = {};
+            }
+            Object.defineProperty(IsoNode.prototype, "isRoot", {
+                get: function () {
+                    return this.parent == null;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoNode.prototype, "size", {
+                get: function () {
+                    return this.directoryRecord.size;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoNode.prototype, "path", {
+                get: function () {
+                    return (this.parent && !this.parent.isRoot) ? (this.parent.path + '/' + this.name) : this.name;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoNode.prototype, "name", {
+                get: function () {
+                    return this.directoryRecord.name;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoNode.prototype, "isDirectory", {
+                get: function () {
+                    return this.directoryRecord.isDirectory;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(IsoNode.prototype, "date", {
+                get: function () {
+                    return this.directoryRecord.date.date;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            IsoNode.prototype.readChunkAsync = function (offset, count) {
+                var fileBaseLow = this.directoryRecord.offset;
+                var low = fileBaseLow + offset;
+                var high = Math.min(low + count, fileBaseLow + this.size);
+                return this.iso.readChunkAsync(low, high - low);
+            };
+
+            IsoNode.prototype.addChild = function (child) {
+                this.childs.push(child);
+                this.childsByName[child.name] = child;
+            };
+
+            IsoNode.prototype.toString = function () {
+                return sprintf('IsoNode(%s, %d)', this.path, this.size);
+            };
+            return IsoNode;
+        })();
+
+        var Iso = (function () {
+            function Iso() {
+            }
+            Object.defineProperty(Iso.prototype, "name", {
+                get: function () {
+                    return this.asyncStream.name;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Iso.prototype, "root", {
+                get: function () {
+                    return this._root;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Iso.prototype, "childrenByPath", {
+                get: function () {
+                    return this._childrenByPath;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Iso.prototype, "children", {
+                get: function () {
+                    return this._children.slice();
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Iso.fromStreamAsync = function (asyncStream) {
+                return new Iso().loadAsync(asyncStream);
+            };
+
+            Iso.prototype.get = function (path) {
+                path = path.replace(/^\/+/, '');
+                var node = this._childrenByPath[path];
+                if (!node) {
+                    console.info(this);
+                    throw (new Error(sprintf("Can't find node '%s'", path)));
+                }
+                return node;
+            };
+
+            Object.defineProperty(Iso.prototype, "size", {
+                get: function () {
+                    return this.asyncStream.size;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Iso.prototype.readChunkAsync = function (offset, count) {
+                return this.asyncStream.readChunkAsync(offset, count);
+            };
+
+            Iso.prototype.loadAsync = function (asyncStream) {
+                var _this = this;
+                this.asyncStream = asyncStream;
+
+                if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE)
+                    throw (sprintf("Invalid PrimaryVolumeDescriptor.struct size %d != %d", PrimaryVolumeDescriptor.struct.length, SECTOR_SIZE));
+
+                return asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800).then(function (arrayBuffer) {
+                    var stream = Stream.fromArrayBuffer(arrayBuffer);
+                    var pvd = PrimaryVolumeDescriptor.struct.read(stream);
+                    if (pvd.header.type != 1 /* PrimaryVolumeDescriptor */)
+                        throw ("Not an ISO file");
+                    if (pvd.header.id != 'CD001')
+                        throw ("Not an ISO file");
+
+                    //if (pvd.systemId.rstrip() != 'Win32') throw ("Invalid ISO file systemId:'" + pvd.systemId + "'");
+                    //if (pvd.volumeId.rstrip() != 'CDROM') throw ("Invalid ISO file volumeId:'" + pvd.volumeId + "'");
+                    _this._children = [];
+                    _this._childrenByPath = {};
+                    _this._root = new IsoNode(_this, pvd.directoryRecord);
+
+                    return _this.processDirectoryRecordAsync(_this._root).then(function () {
+                        return _this;
+                    });
+                });
+            };
+
+            Iso.prototype.processDirectoryRecordAsync = function (parentIsoNode) {
+                var _this = this;
+                var directoryStart = parentIsoNode.directoryRecord.extent * SECTOR_SIZE;
+                var directoryLength = parentIsoNode.directoryRecord.size;
+
+                return this.asyncStream.readChunkAsync(directoryStart, directoryLength).then(function (data) {
+                    var directoryStream = Stream.fromArrayBuffer(data);
+
+                    while (directoryStream.available) {
+                        var directoryRecordSize = directoryStream.readUInt8();
+
+                        // Even if a directory spans multiple sectors, the directory entries are not permitted to cross the sector boundary (unlike the path table).
+                        // Where there is not enough space to record an entire directory entry at the end of a sector, that sector is zero-padded and the next
+                        // consecutive sector is used.
+                        if (directoryRecordSize == 0) {
+                            directoryStream.position = MathUtils.nextAligned(directoryStream.position, SECTOR_SIZE);
+
+                            continue;
+                        }
+
+                        directoryStream.position = directoryStream.position - 1;
+
+                        //Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
+                        var directoryRecordStream = directoryStream.readStream(directoryRecordSize);
+                        var directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
+                        directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
+
+                        //Console.WriteLine("{0}", name); Console.ReadKey();
+                        if (directoryRecord.name == "" || directoryRecord.name == "\x01")
+                            continue;
+
+                        //console.log(directoryRecord);
+                        //writefln("   %s", name);
+                        var child = new IsoNode(_this, directoryRecord, parentIsoNode);
+                        parentIsoNode.addChild(child);
+                        _this._children.push(child);
+                        _this._childrenByPath[child.path] = child;
+                    }
+
+                    var promiseGenerators = [];
+
+                    parentIsoNode.childs.forEach(function (child) {
+                        if (child.isDirectory) {
+                            promiseGenerators.push(function () {
+                                return _this.processDirectoryRecordAsync(child);
+                            });
+                        }
+                    });
+
+                    return PromiseUtils.sequence(promiseGenerators);
+                });
+            };
+            return Iso;
+        })();
+        _iso.Iso = Iso;
+    })(format.iso || (format.iso = {}));
+    var iso = format.iso;
+})(format || (format = {}));
+///<reference path="../util/utils.ts" />
+var core;
+(function (core) {
+    var Memory = (function () {
+        function Memory() {
+            this.buffer = new ArrayBuffer(0x10000000);
+            this.data = new DataView(this.buffer);
+            this.s8 = new Int8Array(this.buffer);
+            this.u8 = new Uint8Array(this.buffer);
+            this.u16 = new Uint16Array(this.buffer);
+            this.s16 = new Int16Array(this.buffer);
+            this.u32 = new Uint32Array(this.buffer);
+            this.f32 = new Float32Array(this.buffer);
+        }
+        Memory.prototype.reset = function () {
+            this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
+        };
+
+        Memory.prototype.availableAfterAddress = function (address) {
+            return this.buffer.byteLength - (address & Memory.MASK);
+        };
+
+        Memory.prototype.getPointerDataView = function (address, size) {
+            if (!size)
+                size = this.availableAfterAddress(address);
+            return new DataView(this.buffer, address & Memory.MASK, size);
+        };
+
+        Memory.prototype.getPointerStream = function (address, size) {
+            address &= Memory.MASK;
+            if (address == 0)
+                return null;
+            if (!size)
+                size = this.availableAfterAddress(address);
+            return new Stream(this.getPointerDataView(address, size));
+        };
+
+        Memory.prototype.writeInt8 = function (address, value) {
+            this.u8[(address >> 0) & Memory.MASK] = value;
+        };
+        Memory.prototype.readInt8 = function (address) {
+            return this.s8[(address >> 0) & Memory.MASK];
+        };
+        Memory.prototype.readUInt8 = function (address) {
+            return this.u8[(address >> 0) & Memory.MASK];
+        };
+
+        Memory.prototype.writeInt16 = function (address, value) {
+            this.u16[(address >> 1) & Memory.MASK] = value;
+        };
+        Memory.prototype.readInt16 = function (address) {
+            return this.s16[(address >> 1) & Memory.MASK];
+        };
+        Memory.prototype.readUInt16 = function (address) {
+            return this.u16[(address >> 1) & Memory.MASK];
+        };
+
+        Memory.prototype.writeInt32 = function (address, value) {
+            this.u32[(address >> 2) & Memory.MASK] = value;
+        };
+        Memory.prototype.readInt32 = function (address) {
+            return this.u32[(address >> 2) & Memory.MASK];
+        };
+        Memory.prototype.readUInt32 = function (address) {
+            return this.u32[(address >> 2) & Memory.MASK];
+        };
+
+        Memory.prototype.writeFloat32 = function (address, value) {
+            this.f32[(address >> 2) & Memory.MASK] = value;
+        };
+        Memory.prototype.readFloat32 = function (address) {
+            return this.f32[(address >> 2) & Memory.MASK];
+        };
+
+        Memory.prototype.writeBytes = function (address, data) {
+            Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
+        };
+
+        Memory.prototype.readBytes = function (address, length) {
+            return new Uint8Array(this.buffer, address, length);
+        };
+
+        Memory.prototype.writeStream = function (address, stream) {
+            stream = stream.sliceWithLength(0, stream.length);
+            while (stream.available > 0) {
+                this.writeInt8(address++, stream.readUInt8());
+            }
+        };
+
+        Memory.prototype.readStringz = function (address) {
+            var out = '';
+            while (true) {
+                var char = this.readUInt8(address++);
+                if (char == 0)
+                    break;
+                out += String.fromCharCode(char);
+            }
+            return out;
+        };
+
+        Memory.prototype.sliceWithBounds = function (low, high) {
+            return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
+        };
+
+        Memory.prototype.sliceWithSize = function (address, size) {
+            return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
+        };
+
+        Memory.prototype.copy = function (from, to, length) {
+            from &= Memory.MASK;
+            to &= Memory.MASK;
+            for (var n = 0; n < length; n++) {
+                this.u8[to + n] = this.u8[from + n];
+            }
+        };
+
+        Memory.prototype.memset = function (address, value, length) {
+            address &= Memory.MASK;
+            for (var n = 0; n < length; n++) {
+                this.u8[address + n] = value;
+            }
+        };
+
+        Memory.prototype.hash = function (address, count) {
+            var result = 0;
+            for (var n = 0; n < count; n++) {
+                result = Memory.hashItem(result, n, this.u8[address + n]);
+            }
+            return result;
+        };
+
+        Memory.hashItem = function (prev, n, value) {
+            prev ^= n;
+            prev += value;
+            return prev | 0;
+        };
+
+        Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
+            var _source = new Uint8Array(source, sourcePosition, length);
+            var _destination = new Uint8Array(destination, destinationPosition, length);
+            _destination.set(_source);
+        };
+        Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
+
+        Memory.MASK = 0x0FFFFFFF;
+        Memory.MAIN_OFFSET = 0x08000000;
+        return Memory;
+    })();
+    core.Memory = Memory;
+})(core || (core = {}));
+///<reference path="./memory.ts" />
+///<reference path="../util/utils.ts" />
+var core;
+(function (core) {
+    (function (gpu) {
+        var VertexBuffer = (function () {
+            function VertexBuffer() {
+                this.vertices = [];
+                for (var n = 0; n < 1024; n++)
+                    this.vertices[n] = new core.gpu.Vertex();
+            }
+            return VertexBuffer;
+        })();
+
+        var VertexReaderFactory = (function () {
+            function VertexReaderFactory() {
+            }
+            VertexReaderFactory.get = function (vertexState) {
+                var cacheId = vertexState.hash;
+                var vertexReader = this.cache[cacheId];
+                if (vertexReader !== undefined)
+                    return vertexReader;
+                return this.cache[cacheId] = new VertexReader(vertexState);
+            };
+            VertexReaderFactory.cache = {};
+            return VertexReaderFactory;
+        })();
+        gpu.VertexReaderFactory = VertexReaderFactory;
+
+        var VertexReader = (function () {
+            function VertexReader(vertexState) {
+                this.vertexState = vertexState;
+                this.readOffset = 0;
+                this.readCode = this.createJs();
+                this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
+            }
+            VertexReader.prototype.readCount = function (output, input, count) {
+                var inputOffset = 0;
+                for (var n = 0; n < count; n++) {
+                    this.readOneFunc(output[n], input, inputOffset);
+                    inputOffset += this.vertexState.size;
+                }
+            };
+
+            VertexReader.prototype.read = function (output, input, inputOffset) {
+                this.readOneFunc(output, input, inputOffset);
+            };
+
+            VertexReader.prototype.createJs = function () {
+                var indentStringGenerator = new IndentStringGenerator();
+
+                this.readOffset = 0;
+
+                this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
+                this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
+                this.createColorJs(indentStringGenerator, this.vertexState.color);
+                this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
+                this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
+
+                return indentStringGenerator.output;
+            };
+
+            VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
+                if (type == 0 /* Void */)
+                    return;
+
+                switch (type) {
+                    case 7 /* Color8888 */:
+                        this.align(4);
+                        indentStringGenerator.write('output.r = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        indentStringGenerator.write('output.g = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        break;
+                    default:
+                        throw ("Not implemented color format");
+                }
+            };
+
+            VertexReader.prototype.align = function (count) {
+                this.readOffset = MathUtils.nextAligned(this.readOffset, count);
+            };
+
+            VertexReader.prototype.getOffsetAlignAndIncrement = function (size) {
+                this.align(size);
+                var offset = this.readOffset;
+                this.readOffset += size;
+                return offset;
+            };
+
+            VertexReader.prototype.createNumberJs = function (indentStringGenerator, components, type, normalize) {
+                var _this = this;
+                if (type == 0 /* Void */)
+                    return;
+
+                components.forEach(function (component) {
+                    switch (type) {
+                        case 1 /* Byte */:
+                            indentStringGenerator.write('output.' + component + ' = (input.getInt8(inputOffset + ' + _this.getOffsetAlignAndIncrement(1) + ')');
+                            if (normalize)
+                                indentStringGenerator.write(' / 127.0');
+                            break;
+                        case 2 /* Short */:
+                            indentStringGenerator.write('output.' + component + ' = (input.getInt16(inputOffset + ' + _this.getOffsetAlignAndIncrement(2) + ', true)');
+                            if (normalize)
+                                indentStringGenerator.write(' / 32767.0');
+                            break;
+                        case 3 /* Float */:
+                            indentStringGenerator.write('output.' + component + ' = (input.getFloat32(inputOffset + ' + _this.getOffsetAlignAndIncrement(4) + ', true)');
+                            break;
+                    }
+                    indentStringGenerator.write(');\n');
+                });
+            };
+            return VertexReader;
+        })();
+        gpu.VertexReader = VertexReader;
+
+        var vertexBuffer = new VertexBuffer();
+        var singleCallTest = false;
+
+        var PspGpuList = (function () {
+            function PspGpuList(id, memory, drawDriver, runner) {
+                this.id = id;
+                this.memory = memory;
+                this.drawDriver = drawDriver;
+                this.runner = runner;
+                this.completed = false;
+                this.state = new core.gpu.GpuState();
+                this.errorCount = 0;
+            }
+            PspGpuList.prototype.complete = function () {
+                this.completed = true;
+                this.runner.deallocate(this);
+                this.promiseResolve(0);
+            };
+
+            PspGpuList.prototype.jumpRelativeOffset = function (offset) {
+                this.current = this.state.baseAddress + offset;
+            };
+
+            PspGpuList.prototype.runInstruction = function (current, instruction) {
+                var op = instruction >>> 24;
+                var params24 = instruction & 0xFFFFFF;
+
+                switch (op) {
+                    case 2 /* IADDR */:
+                        this.state.indexAddress = params24;
+                        break;
+                    case 19 /* OFFSET_ADDR */:
+                        this.state.baseOffset = (params24 << 8);
+                        break;
+                    case 156 /* FBP */:
+                        this.state.frameBuffer.lowAddress = params24;
+                        break;
+                    case 21 /* REGION1 */:
+                        this.state.viewPort.x1 = BitUtils.extract(params24, 0, 10);
+                        this.state.viewPort.y1 = BitUtils.extract(params24, 10, 10);
+                        break;
+                    case 22 /* REGION2 */:
+                        this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
+                        this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
+                        break;
+                    case 157 /* FBW */:
+                        this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
+                        this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
+                        break;
+                    case 23 /* LTE */:
+                        this.state.lightning.enabled = params24 != 0;
+                        break;
+                    case 24 /* LTE0 */:
+                        this.state.lightning.lights[0].enabled = params24 != 0;
+                        break;
+                    case 25 /* LTE1 */:
+                        this.state.lightning.lights[1].enabled = params24 != 0;
+                        break;
+                    case 26 /* LTE2 */:
+                        this.state.lightning.lights[2].enabled = params24 != 0;
+                        break;
+                    case 27 /* LTE3 */:
+                        this.state.lightning.lights[3].enabled = params24 != 0;
+                        break;
+                    case 16 /* BASE */:
+                        this.state.baseAddress = ((params24 << 8) & 0xff000000);
+                        break;
+                    case 8 /* JUMP */:
+                        this.jumpRelativeOffset(params24 & ~3);
+                        break;
+                    case 0 /* NOP */:
+                        break;
+                    case 18 /* VTYPE */:
+                        this.state.vertex.value = params24;
+                        break;
+                    case 1 /* VADDR */:
+                        this.state.vertex.address = params24;
+                        break;
+                    case 194 /* TMODE */:
+                        this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
+                        this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
+                        this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
+                        break;
+                    case 198 /* TFLT */:
+                        this.state.texture.filterMinification = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.filterMagnification = BitUtils.extract(params24, 8, 8);
+                        break;
+                    case 199 /* TWRAP */:
+                        this.state.texture.wrapU = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.wrapV = BitUtils.extract(params24, 8, 8);
+                        break;
+
+                    case 30 /* TME */:
+                        this.state.texture.enabled = (params24 != 0);
+                        break;
+
+                    case 202 /* TEC */:
+                        this.state.texture.envColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+                        this.state.texture.envColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+                        this.state.texture.envColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        break;
+
+                    case 201 /* TFUNC */:
+                        this.state.texture.effect = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
+                        this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
+                        break;
+                    case 74 /* UOFFSET */:
+                        this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+                    case 75 /* VOFFSET */:
+                        this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+
+                    case 72 /* USCALE */:
+                        this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+                    case 73 /* VSCALE */:
+                        this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+
+                    case 203 /* TFLUSH */:
+                        this.drawDriver.textureFlush(this.state);
+                        break;
+                    case 195 /* TPSM */:
+                        this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
+                        break;
+
+                    case 184 /* TSIZE0 */:
+                    case 185 /* TSIZE1 */:
+                    case 186 /* TSIZE2 */:
+                    case 187 /* TSIZE3 */:
+                    case 188 /* TSIZE4 */:
+                    case 189 /* TSIZE5 */:
+                    case 190 /* TSIZE6 */:
+                    case 191 /* TSIZE7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 184 /* TSIZE0 */];
+                        var WidthExp = BitUtils.extract(params24, 0, 4);
+                        var HeightExp = BitUtils.extract(params24, 8, 4);
+                        var UnknownFlag = (BitUtils.extract(params24, 15, 1) != 0);
+                        WidthExp = Math.min(WidthExp, 9);
+                        HeightExp = Math.min(HeightExp, 9);
+                        mipMap.textureWidth = 1 << WidthExp;
+                        mipMap.textureHeight = 1 << HeightExp;
+
+                        break;
+
+                    case 160 /* TBP0 */:
+                    case 161 /* TBP1 */:
+                    case 162 /* TBP2 */:
+                    case 163 /* TBP3 */:
+                    case 164 /* TBP4 */:
+                    case 165 /* TBP5 */:
+                    case 166 /* TBP6 */:
+                    case 167 /* TBP7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 160 /* TBP0 */];
+                        mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
+                        break;
+
+                    case 168 /* TBW0 */:
+                    case 169 /* TBW1 */:
+                    case 170 /* TBW2 */:
+                    case 171 /* TBW3 */:
+                    case 172 /* TBW4 */:
+                    case 173 /* TBW5 */:
+                    case 174 /* TBW6 */:
+                    case 175 /* TBW7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 168 /* TBW0 */];
+                        mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
+                        mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
+                        break;
+
+                    case 176 /* CBP */:
+                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
+                        break;
+
+                    case 177 /* CBPH */:
+                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
+                        break;
+
+                    case 196 /* CLOAD */:
+                        this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
+                        break;
+
+                    case 197 /* CMODE */:
+                        this.state.texture.clut.pixelFormat = BitUtils.extract(params24, 0, 2);
+                        this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
+                        this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
+                        this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
+                        break;
+
+                    case 62 /* PROJ_START */:
+                        this.state.projectionMatrix.reset(params24);
+                        break;
+                    case 63 /* PROJ_PUT */:
+                        this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                        break;
+
+                    case 60 /* VIEW_START */:
+                        this.state.viewMatrix.reset(params24);
+                        break;
+                    case 61 /* VIEW_PUT */:
+                        this.state.viewMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                        break;
+
+                    case 58 /* WORLD_START */:
+                        this.state.worldMatrix.reset(params24);
+                        break;
+                    case 59 /* WORLD_PUT */:
+                        this.state.worldMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                        break;
+
+                    case 211 /* CLEAR */:
+                        this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
+                        this.state.clearFlags = BitUtils.extract(params24, 8, 8);
+                        this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
+                        break;
+
+                    case 29 /* BCE */:
+                        this.state.culling.enabled = (params24 != 0);
+                    case 155 /* FFACE */:
+                        this.state.culling.direction = params24; // FrontFaceDirectionEnum
+                        break;
+
+                    case 4 /* PRIM */:
+                        //console.log('GPU PRIM');
+                        var primitiveType = BitUtils.extractEnum(params24, 16, 3);
+                        var vertexCount = BitUtils.extract(params24, 0, 16);
+                        var vertexState = this.state.vertex;
+                        var vertexSize = this.state.vertex.size;
+                        var vertexAddress = this.state.baseAddress + this.state.vertex.address;
+                        var vertexReader = VertexReaderFactory.get(vertexState);
+                        var vertexInput = this.memory.getPointerDataView(vertexAddress);
+                        var vertices = vertexBuffer.vertices;
+                        vertexReader.readCount(vertices, vertexInput, vertexCount);
+
+                        this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
+                        this.drawDriver.setState(this.state);
+
+                        if (this.errorCount < 400) {
+                            //console.log('PRIM:' + primitiveType + ' : ' + vertexCount + ':' + vertexState.hasIndex);
+                        }
+
+                        this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
+
+                        break;
+
+                    case 15 /* FINISH */:
+                        break;
+
+                    case 12 /* END */:
+                        this.complete();
+                        return true;
+                        break;
+
+                    default:
+                        //setTimeout(() => this.complete(), 50);
+                        this.errorCount++;
+                        if (this.errorCount >= 400) {
+                            if (this.errorCount == 400) {
+                                console.error(sprintf('Stop showing gpu errors'));
+                            }
+                        } else {
+                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+                        }
+                }
+
+                return false;
+            };
+
+            Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
+                get: function () {
+                    return !this.completed && ((this.stall == 0) || (this.current < this.stall));
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            PspGpuList.prototype.runUntilStall = function () {
+                while (this.hasMoreInstructions) {
+                    var instruction = this.memory.readUInt32(this.current);
+                    this.current += 4;
+                    if (this.runInstruction(this.current - 4, instruction))
+                        return;
+                }
+            };
+
+            PspGpuList.prototype.enqueueRunUntilStall = function () {
+                var _this = this;
+                setImmediate(function () {
+                    _this.runUntilStall();
+                });
+            };
+
+            PspGpuList.prototype.updateStall = function (stall) {
+                this.stall = stall;
+                this.enqueueRunUntilStall();
+            };
+
+            PspGpuList.prototype.start = function () {
+                var _this = this;
+                this.promise = new Promise(function (resolve, reject) {
+                    _this.promiseResolve = resolve;
+                    _this.promiseReject = reject;
+                });
+                this.completed = false;
+
+                this.enqueueRunUntilStall();
+            };
+
+            PspGpuList.prototype.waitAsync = function () {
+                return this.promise;
+            };
+            return PspGpuList;
+        })();
+
+        (function (CullingDirection) {
+            CullingDirection[CullingDirection["CounterClockWise"] = 0] = "CounterClockWise";
+            CullingDirection[CullingDirection["ClockWise"] = 1] = "ClockWise";
+        })(gpu.CullingDirection || (gpu.CullingDirection = {}));
+        var CullingDirection = gpu.CullingDirection;
+
+        var PspGpuListRunner = (function () {
+            function PspGpuListRunner(memory, drawDriver) {
+                this.memory = memory;
+                this.drawDriver = drawDriver;
+                this.lists = [];
+                this.freeLists = [];
+                this.runningLists = [];
+                for (var n = 0; n < 32; n++) {
+                    var list = new PspGpuList(n, memory, drawDriver, this);
+                    this.lists.push(list);
+                    this.freeLists.push(list);
+                }
+            }
+            PspGpuListRunner.prototype.allocate = function () {
+                if (!this.freeLists.length)
+                    throw ('Out of gpu free lists');
+                var list = this.freeLists.pop();
+                this.runningLists.push(list);
+                return list;
+            };
+
+            PspGpuListRunner.prototype.getById = function (id) {
+                return this.lists[id];
+            };
+
+            PspGpuListRunner.prototype.deallocate = function (list) {
+                this.freeLists.push(list);
+                this.runningLists.remove(list);
+            };
+
+            PspGpuListRunner.prototype.waitAsync = function () {
+                return Promise.all(this.runningLists.map(function (list) {
+                    return list.waitAsync();
+                })).then(function () {
+                    return 0;
+                });
+            };
+            return PspGpuListRunner;
+        })();
+
+        var PspGpu = (function () {
+            function PspGpu(memory, display, canvas) {
+                this.memory = memory;
+                this.display = display;
+                this.canvas = canvas;
+                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, display, canvas);
+
+                //this.driver = new Context2dPspDrawDriver(memory, canvas);
+                this.listRunner = new PspGpuListRunner(memory, this.driver);
+            }
+            PspGpu.prototype.startAsync = function () {
+                return this.driver.initAsync();
+            };
+
+            PspGpu.prototype.stopAsync = function () {
+                return Promise.resolve();
+            };
+
+            PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
+                var list = this.listRunner.allocate();
+                list.current = start;
+                list.stall = stall;
+                list.callbackId = callbackId;
+                list.start();
+                return list.id;
+            };
+
+            PspGpu.prototype.listSync = function (displayListId, syncType) {
+                //console.log('listSync');
+                return this.listRunner.getById(displayListId).waitAsync();
+            };
+
+            PspGpu.prototype.updateStallAddr = function (displayListId, stall) {
+                this.listRunner.getById(displayListId).updateStall(stall);
+                return 0;
+            };
+
+            PspGpu.prototype.drawSync = function (syncType) {
+                //console.log('drawSync');
+                return this.listRunner.waitAsync();
+            };
+            return PspGpu;
+        })();
+        gpu.PspGpu = PspGpu;
+    })(core.gpu || (core.gpu = {}));
+    var gpu = core.gpu;
+})(core || (core = {}));
+var hle;
+(function (hle) {
+    (function (_elf) {
+        var ElfHeader = (function () {
+            function ElfHeader() {
+            }
+            Object.defineProperty(ElfHeader.prototype, "hasValidMagic", {
+                get: function () {
+                    return this.magic == String.fromCharCode(0x7F) + 'ELF';
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
+                get: function () {
+                    return this.machine == 8 /* ALLEGREX */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ElfHeader.prototype, "hasValidType", {
+                get: function () {
+                    return [2 /* Executable */, 65440 /* Prx */].indexOf(this.type) >= 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            ElfHeader.struct = StructClass.create(ElfHeader, [
+                { type: Stringn(4), name: 'magic' },
+                { type: Int8, name: 'class' },
+                { type: Int8, name: 'data' },
+                { type: Int8, name: 'idVersion' },
+                { type: StructArray.create(Int8, 9), name: '_padding' },
+                { type: UInt16, name: 'type' },
+                { type: Int16, name: 'machine' },
+                { type: Int32, name: 'version' },
+                { type: Int32, name: 'entryPoint' },
+                { type: Int32, name: 'programHeaderOffset' },
+                { type: Int32, name: 'sectionHeaderOffset' },
+                { type: Int32, name: 'flags' },
+                { type: Int16, name: 'elfHeaderSize' },
+                { type: Int16, name: 'programHeaderEntrySize' },
+                { type: Int16, name: 'programHeaderCount' },
+                { type: Int16, name: 'sectionHeaderEntrySize' },
+                { type: Int16, name: 'sectionHeaderCount' },
+                { type: Int16, name: 'sectionHeaderStringTable' }
+            ]);
+            return ElfHeader;
+        })();
+
+        var ElfProgramHeader = (function () {
+            function ElfProgramHeader() {
+            }
+            ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
+                { type: UInt32, name: 'type' },
+                { type: UInt32, name: 'offset' },
+                { type: UInt32, name: 'virtualAddress' },
+                { type: UInt32, name: 'psysicalAddress' },
+                { type: UInt32, name: 'fileSize' },
+                { type: UInt32, name: 'memorySize' },
+                { type: UInt32, name: 'flags' },
+                { type: UInt32, name: 'alignment' }
+            ]);
+            return ElfProgramHeader;
+        })();
+
+        var ElfSectionHeader = (function () {
+            function ElfSectionHeader() {
+                this.stream = null;
+            }
+            ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
+                { type: UInt32, name: 'nameOffset' },
+                { type: UInt32, name: 'type' },
+                { type: UInt32, name: 'flags' },
+                { type: UInt32, name: 'address' },
+                { type: UInt32, name: 'offset' },
+                { type: UInt32, name: 'size' },
+                { type: UInt32, name: 'link' },
+                { type: UInt32, name: 'info' },
+                { type: UInt32, name: 'addressAlign' },
+                { type: UInt32, name: 'entitySize' }
+            ]);
+            return ElfSectionHeader;
+        })();
+
+        var ElfProgramHeaderType;
+        (function (ElfProgramHeaderType) {
+            ElfProgramHeaderType[ElfProgramHeaderType["NoLoad"] = 0] = "NoLoad";
+            ElfProgramHeaderType[ElfProgramHeaderType["Load"] = 1] = "Load";
+            ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 0x700000A0] = "Reloc1";
+            ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 0x700000A1] = "Reloc2";
+        })(ElfProgramHeaderType || (ElfProgramHeaderType = {}));
+
+        var ElfSectionHeaderType;
+        (function (ElfSectionHeaderType) {
+            ElfSectionHeaderType[ElfSectionHeaderType["Null"] = 0] = "Null";
+            ElfSectionHeaderType[ElfSectionHeaderType["ProgramBits"] = 1] = "ProgramBits";
+            ElfSectionHeaderType[ElfSectionHeaderType["SYMTAB"] = 2] = "SYMTAB";
+            ElfSectionHeaderType[ElfSectionHeaderType["STRTAB"] = 3] = "STRTAB";
+            ElfSectionHeaderType[ElfSectionHeaderType["RELA"] = 4] = "RELA";
+            ElfSectionHeaderType[ElfSectionHeaderType["HASH"] = 5] = "HASH";
+            ElfSectionHeaderType[ElfSectionHeaderType["DYNAMIC"] = 6] = "DYNAMIC";
+            ElfSectionHeaderType[ElfSectionHeaderType["NOTE"] = 7] = "NOTE";
+            ElfSectionHeaderType[ElfSectionHeaderType["NoBits"] = 8] = "NoBits";
+            ElfSectionHeaderType[ElfSectionHeaderType["Relocation"] = 9] = "Relocation";
+            ElfSectionHeaderType[ElfSectionHeaderType["SHLIB"] = 10] = "SHLIB";
+            ElfSectionHeaderType[ElfSectionHeaderType["DYNSYM"] = 11] = "DYNSYM";
+
+            ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 0x70000000] = "LOPROC";
+            ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 0x7FFFFFFF] = "HIPROC";
+            ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 0x80000000] = "LOUSER";
+            ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 0xFFFFFFFF] = "HIUSER";
+
+            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = (ElfSectionHeaderType.LOPROC | 0xA0)] = "PrxRelocation";
+            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = (ElfSectionHeaderType.LOPROC | 0xA1)] = "PrxRelocation_FW5";
+        })(ElfSectionHeaderType || (ElfSectionHeaderType = {}));
+
+        var ElfSectionHeaderFlags;
+        (function (ElfSectionHeaderFlags) {
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["None"] = 0] = "None";
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Write"] = 1] = "Write";
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Allocate"] = 2] = "Allocate";
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Execute"] = 4] = "Execute";
+        })(ElfSectionHeaderFlags || (ElfSectionHeaderFlags = {}));
+
+        var ElfProgramHeaderFlags;
+        (function (ElfProgramHeaderFlags) {
+            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 0x1] = "Executable";
+
+            // Note: demo PRX's were found to be not writable
+            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 0x2] = "Writable";
+            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 0x4] = "Readable";
+        })(ElfProgramHeaderFlags || (ElfProgramHeaderFlags = {}));
+
+        var ElfType;
+        (function (ElfType) {
+            ElfType[ElfType["Executable"] = 0x0002] = "Executable";
+            ElfType[ElfType["Prx"] = 0xFFA0] = "Prx";
+        })(ElfType || (ElfType = {}));
+
+        var ElfMachine;
+        (function (ElfMachine) {
+            ElfMachine[ElfMachine["ALLEGREX"] = 8] = "ALLEGREX";
+        })(ElfMachine || (ElfMachine = {}));
+
+        var ElfPspModuleFlags;
+        (function (ElfPspModuleFlags) {
+            ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0x0000] = "User";
+            ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 0x1000] = "Kernel";
+        })(ElfPspModuleFlags || (ElfPspModuleFlags = {}));
+
+        var ElfPspLibFlags;
+        (function (ElfPspLibFlags) {
+            ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 0x0001] = "DirectJump";
+            ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 0x4000] = "Syscall";
+            ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 0x8000] = "SysLib";
+        })(ElfPspLibFlags || (ElfPspLibFlags = {}));
+
+        var ElfPspModuleNids;
+        (function (ElfPspModuleNids) {
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 0xF01D73A7] = "MODULE_INFO";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 0xD3744BE0] = "MODULE_BOOTSTART";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 0x2F064FA6] = "MODULE_REBOOT_BEFORE";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 0xD632ACDB] = "MODULE_START";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 0x0F7C276C] = "MODULE_START_THREAD_PARAMETER";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 0xCEE8593C] = "MODULE_STOP";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 0xCF0CC697] = "MODULE_STOP_THREAD_PARAMETER";
+        })(ElfPspModuleNids || (ElfPspModuleNids = {}));
+
+        var ElfPspModuleImport = (function () {
+            function ElfPspModuleImport() {
+            }
+            ElfPspModuleImport.struct = Struct.create([
+                { type: UInt32, name: "nameOffset" },
+                { type: UInt16, name: "version" },
+                { type: UInt16, name: "flags" },
+                { type: UInt8, name: "entrySize" },
+                { type: UInt8, name: "variableCount" },
+                { type: UInt16, name: "functionCount" },
+                { type: UInt32, name: "nidAddress" },
+                { type: UInt32, name: "callAddress" }
+            ]);
+            return ElfPspModuleImport;
+        })();
+
+        var ElfPspModuleExport = (function () {
+            function ElfPspModuleExport() {
+            }
+            ElfPspModuleExport.struct = Struct.create([
+                { type: UInt32, name: "name" },
+                { type: UInt16, name: "version" },
+                { type: UInt16, name: "flags" },
+                { type: UInt8, name: "entrySize" },
+                { type: UInt8, name: "variableCount" },
+                { type: UInt16, name: "functionCount" },
+                { type: UInt32, name: "exports" }
+            ]);
+            return ElfPspModuleExport;
+        })();
+
+        var ElfPspModuleInfoAtributesEnum;
+        (function (ElfPspModuleInfoAtributesEnum) {
+            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0x0000] = "UserMode";
+            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 0x100] = "KernelMode";
+        })(ElfPspModuleInfoAtributesEnum || (ElfPspModuleInfoAtributesEnum = {}));
+
+        var ElfPspModuleInfo = (function () {
+            function ElfPspModuleInfo() {
+            }
+            ElfPspModuleInfo.struct = StructClass.create(ElfPspModuleInfo, [
+                { type: UInt16, name: "moduleAtributes" },
+                { type: UInt16, name: "moduleVersion" },
+                { type: Stringz(28), name: "name" },
+                { type: UInt32, name: "gp" },
+                { type: UInt32, name: "exportsStart" },
+                { type: UInt32, name: "exportsEnd" },
+                { type: UInt32, name: "importsStart" },
+                { type: UInt32, name: "importsEnd" }
+            ]);
+            return ElfPspModuleInfo;
+        })();
+        _elf.ElfPspModuleInfo = ElfPspModuleInfo;
+
+        var ElfRelocType;
+        (function (ElfRelocType) {
+            ElfRelocType[ElfRelocType["None"] = 0] = "None";
+            ElfRelocType[ElfRelocType["Mips16"] = 1] = "Mips16";
+            ElfRelocType[ElfRelocType["Mips32"] = 2] = "Mips32";
+            ElfRelocType[ElfRelocType["MipsRel32"] = 3] = "MipsRel32";
+            ElfRelocType[ElfRelocType["Mips26"] = 4] = "Mips26";
+            ElfRelocType[ElfRelocType["MipsHi16"] = 5] = "MipsHi16";
+            ElfRelocType[ElfRelocType["MipsLo16"] = 6] = "MipsLo16";
+            ElfRelocType[ElfRelocType["MipsGpRel16"] = 7] = "MipsGpRel16";
+            ElfRelocType[ElfRelocType["MipsLiteral"] = 8] = "MipsLiteral";
+            ElfRelocType[ElfRelocType["MipsGot16"] = 9] = "MipsGot16";
+            ElfRelocType[ElfRelocType["MipsPc16"] = 10] = "MipsPc16";
+            ElfRelocType[ElfRelocType["MipsCall16"] = 11] = "MipsCall16";
+            ElfRelocType[ElfRelocType["MipsGpRel32"] = 12] = "MipsGpRel32";
+            ElfRelocType[ElfRelocType["StopRelocation"] = 0xFF] = "StopRelocation";
+        })(ElfRelocType || (ElfRelocType = {}));
+
+        var ElfReloc = (function () {
+            function ElfReloc() {
+            }
+            Object.defineProperty(ElfReloc.prototype, "pointeeSectionHeaderBase", {
+                get: function () {
+                    return (this.info >> 16) & 0xFF;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ElfReloc.prototype, "pointerSectionHeaderBase", {
+                get: function () {
+                    return (this.info >> 8) & 0xFF;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ElfReloc.prototype, "type", {
+                get: function () {
+                    return ((this.info >> 0) & 0xFF);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            ElfReloc.struct = StructClass.create(ElfReloc, [
+                { type: UInt32, name: "pointerAddress" },
+                { type: UInt32, name: "info" }
+            ]);
+            return ElfReloc;
+        })();
+
+        var ElfLoader = (function () {
+            function ElfLoader() {
+                this.header = null;
+                this.stream = null;
+            }
+            ElfLoader.prototype.load = function (stream) {
+                var _this = this;
+                this.readAndCheckHeaders(stream);
+
+                var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
+                var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
+
+                this.programHeaders = StructArray.create(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
+                this.sectionHeaders = StructArray.create(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
+
+                this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
+                this.stringTableStream = this.getSectionHeaderFileStream(this.sectionHeaderStringTable);
+
+                this.sectionHeadersByName = {};
+                this.sectionHeaders.forEach(function (sectionHeader) {
+                    var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
+                    sectionHeader.name = name;
+                    if (sectionHeader.type != 0 /* Null */) {
+                        sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
+                    }
+                    _this.sectionHeadersByName[name] = sectionHeader;
+                });
+            };
+
+            ElfLoader.prototype.readAndCheckHeaders = function (stream) {
+                this.stream = stream;
+                var header = this.header = ElfHeader.struct.read(stream);
+                if (!header.hasValidMagic)
+                    throw ('Not an ELF file');
+                if (!header.hasValidMachine)
+                    throw ('Not a PSP ELF file');
+                if (!header.hasValidType)
+                    throw ('Not a executable or a Prx but has type ' + header.type);
+            };
+
+            ElfLoader.prototype.getStringFromStringTable = function (index) {
+                this.stringTableStream.position = index;
+                return this.stringTableStream.readStringz();
+            };
+
+            ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
+                switch (sectionHeader.type) {
+                    case 8 /* NoBits */:
+                    case 0 /* Null */:
+                        return this.stream.sliceWithLength(0, 0);
+                        break;
+                    default:
+                        return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
+                }
+            };
+
+            ElfLoader.fromStream = function (stream) {
+                var elf = new ElfLoader();
+                elf.load(stream);
+                return elf;
+            };
+
+            Object.defineProperty(ElfLoader.prototype, "isPrx", {
+                get: function () {
+                    return (this.header.type & 65440 /* Prx */) != 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ElfLoader.prototype, "needsRelocation", {
+                get: function () {
+                    return this.isPrx || (this.header.entryPoint < core.Memory.MAIN_OFFSET);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return ElfLoader;
+        })();
+
+        var InstructionReader = (function () {
+            function InstructionReader(memory) {
+                this.memory = memory;
+            }
+            InstructionReader.prototype.read = function (address) {
+                return new core.cpu.Instruction(address, this.memory.readUInt32(address));
+            };
+
+            InstructionReader.prototype.write = function (address, instruction) {
+                this.memory.writeInt32(address, instruction.data);
+            };
+            return InstructionReader;
+        })();
+
+        var PspElfLoader = (function () {
+            function PspElfLoader(memory, memoryManager, moduleManager, syscallManager) {
+                this.memory = memory;
+                this.memoryManager = memoryManager;
+                this.moduleManager = moduleManager;
+                this.syscallManager = syscallManager;
+                this.assembler = new core.cpu.MipsAssembler();
+                this.baseAddress = 0;
+            }
+            PspElfLoader.prototype.load = function (stream) {
+                this.elfLoader = ElfLoader.fromStream(stream);
+
+                //ElfSectionHeaderFlags.Allocate
+                this.allocateMemory();
+                this.writeToMemory();
+                this.relocateFromHeaders();
+                this.readModuleInfo();
+                this.updateModuleImports();
+
+                console.log(this.moduleInfo);
+            };
+
+            PspElfLoader.prototype.getSectionHeaderMemoryStream = function (sectionHeader) {
+                return this.memory.getPointerStream(this.baseAddress + sectionHeader.address, sectionHeader.size);
+            };
+
+            PspElfLoader.prototype.readModuleInfo = function () {
+                this.moduleInfo = ElfPspModuleInfo.struct.read(this.getSectionHeaderMemoryStream(this.elfLoader.sectionHeadersByName['.rodata.sceModuleInfo']));
+                this.moduleInfo.pc = this.baseAddress + this.elfLoader.header.entryPoint;
+            };
+
+            PspElfLoader.prototype.allocateMemory = function () {
+                this.baseAddress = 0;
+
+                if (this.elfLoader.needsRelocation) {
+                    this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(function (partition) {
+                        return partition.size;
+                    }).reverse().first().low;
+                    this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
+                }
+            };
+
+            PspElfLoader.prototype.relocateFromHeaders = function () {
+                var _this = this;
+                var RelocProgramIndex = 0;
+                this.elfLoader.programHeaders.forEach(function (programHeader) {
+                    switch (programHeader.type) {
+                        case 1879048352 /* Reloc1 */:
+                            console.warn("SKIPPING Elf.ProgramHeader.TypeEnum.Reloc1!");
+                            break;
+                        case 1879048353 /* Reloc2 */:
+                            throw ("Not implemented");
+                    }
+                });
+
+                var RelocSectionIndex = 0;
+                this.elfLoader.sectionHeaders.forEach(function (sectionHeader) {
+                    switch (sectionHeader.type) {
+                        case 9 /* Relocation */:
+                            console.log(sectionHeader);
+                            console.error("Not implemented ElfSectionHeaderType.Relocation");
+                            break;
+
+                        case ElfSectionHeaderType.PrxRelocation:
+                            var relocs = StructArray.create(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
+                            _this.relocateRelocs(relocs);
+                            break;
+                        case ElfSectionHeaderType.PrxRelocation_FW5:
+                            throw ("Not implemented ElfSectionHeader.Type.PrxRelocation_FW5");
+                    }
+                });
+            };
+
+            PspElfLoader.prototype.relocateRelocs = function (relocs) {
+                var baseAddress = this.baseAddress;
+                var hiValue;
+                var deferredHi16 = [];
+                var instructionReader = new InstructionReader(this.memory);
+
+                for (var index = 0; index < relocs.length; index++) {
+                    var reloc = relocs[index];
+                    if (reloc.type == 255 /* StopRelocation */)
+                        break;
+
+                    var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
+                    var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
+
+                    // Address of data to relocate
+                    var RelocatedPointerAddress = (baseAddress + reloc.pointerAddress + pointerBaseOffset);
+
+                    // Value of data to relocate
+                    var instruction = instructionReader.read(RelocatedPointerAddress);
+
+                    var S = baseAddress + pointeeBaseOffset;
+                    var GP_ADDR = (baseAddress + reloc.pointerAddress);
+                    var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
+
+                    switch (reloc.type) {
+                        case 0 /* None */:
+                            break;
+                        case 1 /* Mips16 */:
+                            instruction.u_imm16 += S;
+                            break;
+                        case 2 /* Mips32 */:
+                            instruction.data += S;
+                            break;
+                        case 3 /* MipsRel32 */:
+                            throw ("Not implemented MipsRel32");
+                        case 4 /* Mips26 */:
+                            instruction.jump_real = instruction.jump_real + S;
+                            break;
+                        case 5 /* MipsHi16 */:
+                            hiValue = instruction.u_imm16;
+                            deferredHi16.push(RelocatedPointerAddress);
+                            break;
+                        case 6 /* MipsLo16 */:
+                            var A = instruction.u_imm16;
+
+                            instruction.u_imm16 = ((hiValue << 16) | (A & 0x0000FFFF)) + S;
+
+                            deferredHi16.forEach(function (data_addr2) {
+                                var data2 = instructionReader.read(data_addr2);
+                                var result = ((data2.data & 0x0000FFFF) << 16) + A + S;
+                                if ((A & 0x8000) != 0) {
+                                    result -= 0x10000;
+                                }
+                                if ((result & 0x8000) != 0) {
+                                    result += 0x10000;
+                                }
+                                data2.u_imm16 = (result >>> 16);
+                                instructionReader.write(data_addr2, data2);
+                            });
+
+                            deferredHi16 = [];
+                            break;
+                        case 7 /* MipsGpRel16 */:
+                            break;
+                        default:
+                            throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
+                    }
+
+                    instructionReader.write(RelocatedPointerAddress, instruction);
+                }
+            };
+
+            PspElfLoader.prototype.writeToMemory = function () {
+                var _this = this;
+                var needsRelocate = this.elfLoader.needsRelocation;
+
+                //var loadAddress = this.elfLoader.programHeaders[0].psysicalAddress;
+                var loadAddress = this.baseAddress;
+
+                console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
+
+                //console.log(moduleInfo);
+                this.elfLoader.sectionHeaders.filter(function (sectionHeader) {
+                    return ((sectionHeader.flags & 2 /* Allocate */) != 0);
+                }).forEach(function (sectionHeader) {
+                    var low = loadAddress + sectionHeader.address;
+
+                    switch (sectionHeader.type) {
+                        case 8 /* NoBits */:
+                            for (var n = 0; n < sectionHeader.size; n++)
+                                _this.memory.writeInt8(low + n, 0);
+                            break;
+                        default:
+                            break;
+                        case 1 /* ProgramBits */:
+                            var stream = sectionHeader.stream;
+
+                            var length = stream.length;
+
+                            var memorySegment = _this.memoryManager.userPartition.allocateSet(length, low);
+
+                            //console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
+                            _this.memory.writeStream(low, stream);
+
+                            break;
+                    }
+                });
+            };
+
+            PspElfLoader.prototype.updateModuleImports = function () {
+                var _this = this;
+                var moduleInfo = this.moduleInfo;
+                console.log(moduleInfo);
+                var importsBytesSize = moduleInfo.importsEnd - moduleInfo.importsStart;
+                var importsStream = this.memory.sliceWithBounds(moduleInfo.importsStart, moduleInfo.importsEnd);
+                var importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
+                var imports = StructArray.create(ElfPspModuleImport.struct, importsCount).read(importsStream);
+                imports.forEach(function (_import) {
+                    _import.name = _this.memory.readStringz(_import.nameOffset);
+                    _this.updateModuleFunctions(_import);
+                    _this.updateModuleVars(_import);
+                });
+                //console.log(imports);
+            };
+
+            PspElfLoader.prototype.updateModuleFunctions = function (moduleImport) {
+                var _this = this;
+                var _module = this.moduleManager.getByName(moduleImport.name);
+                var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
+                var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
+
+                var registerN = function (nid, n) {
+                    var nfunc;
+                    try  {
+                        nfunc = _module.getByNid(nid);
+                    } catch (e) {
+                        console.warn(e);
+                        nfunc = new core.NativeFunction();
+                        nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
+                        nfunc.nid = nid;
+                        nfunc.firmwareVersion = 150;
+                        nfunc.call = function (context, state) {
+                            throw ("Not implemented '" + nfunc.name + "'");
+                        };
+                    }
+                    var syscallId = _this.syscallManager.register(nfunc);
+
+                    //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
+                    return syscallId;
+                };
+
+                for (var n = 0; n < moduleImport.functionCount; n++) {
+                    var nid = nidsStream.readUInt32();
+                    var syscall = registerN(nid, n);
+
+                    callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
+                    callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
+                }
+            };
+
+            PspElfLoader.prototype.updateModuleVars = function (moduleImport) {
+            };
+            return PspElfLoader;
+        })();
+        _elf.PspElfLoader = PspElfLoader;
+    })(hle.elf || (hle.elf = {}));
+    var elf = hle.elf;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    var MemoryPartitions;
+    (function (MemoryPartitions) {
+        MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
+        MemoryPartitions[MemoryPartitions["User"] = 2] = "User";
+        MemoryPartitions[MemoryPartitions["VolatilePartition"] = 5] = "VolatilePartition";
+        MemoryPartitions[MemoryPartitions["UserStacks"] = 6] = "UserStacks";
+    })(MemoryPartitions || (MemoryPartitions = {}));
+
+    (function (MemoryAnchor) {
+        MemoryAnchor[MemoryAnchor["Low"] = 0] = "Low";
+        MemoryAnchor[MemoryAnchor["High"] = 1] = "High";
+        MemoryAnchor[MemoryAnchor["Address"] = 2] = "Address";
+        MemoryAnchor[MemoryAnchor["LowAligned"] = 3] = "LowAligned";
+        MemoryAnchor[MemoryAnchor["HighAligned"] = 4] = "HighAligned";
+    })(hle.MemoryAnchor || (hle.MemoryAnchor = {}));
+    var MemoryAnchor = hle.MemoryAnchor;
+
+    var MemoryPartition = (function () {
+        function MemoryPartition(name, low, high, allocated, parent) {
+            this.name = name;
+            this.low = low;
+            this.high = high;
+            this.allocated = allocated;
+            this.parent = parent;
+            this._childPartitions = [];
+        }
+        Object.defineProperty(MemoryPartition.prototype, "size", {
+            get: function () {
+                return this.high - this.low;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryPartition.prototype, "root", {
+            get: function () {
+                return (this.parent) ? this.parent.root : this;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryPartition.prototype, "childPartitions", {
+            get: function () {
+                if (this._childPartitions.length == 0)
+                    this._childPartitions.push(new MemoryPartition("", this.low, this.high, false));
+                return this._childPartitions;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        MemoryPartition.prototype.contains = function (address) {
+            return address >= this.low && address < this.high;
+        };
+
+        MemoryPartition.prototype.deallocate = function () {
+            this.allocated = false;
+            if (this.parent) {
+                this.parent.cleanup();
+            }
+        };
+
+        MemoryPartition.prototype.allocate = function (size, anchor, address, name) {
+            if (typeof address === "undefined") { address = 0; }
+            if (typeof name === "undefined") { name = ''; }
+            switch (anchor) {
+                case 3 /* LowAligned */:
+                case 0 /* Low */:
+                    return this.allocateLow(size, name);
+                case 1 /* High */:
+                    return this.allocateHigh(size, name);
+                case 2 /* Address */:
+                    return this.allocateSet(size, address, name);
+                default:
+                    throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
+            }
+        };
+
+        MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
+            if (typeof name === "undefined") { name = ''; }
+            var childs = this.childPartitions;
+            var addressHigh = addressLow + size;
+
+            if (!this.contains(addressLow) || !this.contains(addressHigh)) {
+                throw (new Error(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
+            }
+
+            for (var n = 0; n < childs.length; n++) {
+                var child = childs[n];
+                if (!child.contains(addressLow))
+                    continue;
+                if (child.allocated)
+                    throw (new Error("Memory already allocated"));
+                if (!child.contains(addressHigh - 1))
+                    throw (new Error("Can't fit memory"));
+
+                var p1 = new MemoryPartition('', child.low, addressLow, false, this);
+                var p2 = new MemoryPartition(name, addressLow, addressHigh, true, this);
+                var p3 = new MemoryPartition('', addressHigh, child.high, false, this);
+
+                childs.splice(n, 1, p1, p2, p3);
+
+                this.cleanup();
+                return p2;
+            }
+            console.log(sprintf('address: %08X, size: %d', addressLow, size));
+            console.log(this);
+            throw (new Error("Can't find the segment"));
+        };
+
+        MemoryPartition.prototype.allocateLow = function (size, name) {
+            if (typeof name === "undefined") { name = ''; }
+            return this.allocateLowHigh(size, true, name);
+        };
+
+        MemoryPartition.prototype.allocateHigh = function (size, name) {
+            if (typeof name === "undefined") { name = ''; }
+            return this.allocateLowHigh(size, false, name);
+        };
+
+        MemoryPartition.prototype.allocateLowHigh = function (size, low, name) {
+            if (typeof name === "undefined") { name = ''; }
+            var childs = this.childPartitions;
+            for (var n = 0; n < childs.length; n++) {
+                var child = childs[n];
+                if (child.allocated)
+                    continue;
+                if (child.size < size)
+                    continue;
+
+                if (low) {
+                    var p1 = child.low;
+                    var p2 = child.low + size;
+                    var p3 = child.high;
+                    var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
+                    var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
+                } else {
+                    var p1 = child.low;
+                    var p2 = child.high - size;
+                    var p3 = child.high;
+                    var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
+                    var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
+                }
+                childs.splice(n, 1, allocatedChild, unallocatedChild);
+                this.cleanup();
+                return allocatedChild;
+            }
+
+            console.info(this);
+            throw ("Can't find a partition with " + size + " available");
+        };
+
+        MemoryPartition.prototype.unallocate = function () {
+            this.name = '';
+            this.allocated = false;
+            if (this.parent)
+                this.parent.cleanup();
+        };
+
+        MemoryPartition.prototype.cleanup = function () {
+            // join contiguous free memory
+            var childs = this.childPartitions;
+            if (childs.length >= 2) {
+                for (var n = 0; n < childs.length - 1; n++) {
+                    var child = childs[n + 0];
+                    var c1 = childs[n + 1];
+                    if (!child.allocated && !c1.allocated) {
+                        childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
+                        n--;
+                    }
+                }
+            }
+
+            for (var n = 0; n < childs.length; n++) {
+                var child = childs[n];
+                if (!child.allocated && child.size == 0)
+                    childs.splice(n, 1);
+            }
+        };
+
+        Object.defineProperty(MemoryPartition.prototype, "nonAllocatedPartitions", {
+            get: function () {
+                return this.childPartitions.filter(function (item) {
+                    return !item.allocated;
+                });
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        MemoryPartition.prototype.getTotalFreeMemory = function () {
+            return this.nonAllocatedPartitions.reduce(function (prev, item) {
+                return item.size + prev;
+            }, 0);
+        };
+
+        MemoryPartition.prototype.getMaxContiguousFreeMemory = function () {
+            var items = this.nonAllocatedPartitions.sort(function (a, b) {
+                return a.size - b.size;
+            });
+            return (items.length) ? items[0].size : 0;
+        };
+
+        MemoryPartition.prototype.findFreeChildWithSize = function (size) {
+        };
+        return MemoryPartition;
+    })();
+    hle.MemoryPartition = MemoryPartition;
+
+    var MemoryManager = (function () {
+        function MemoryManager() {
+            this.memoryPartitionsUid = {};
+            this.init();
+        }
+        MemoryManager.prototype.init = function () {
+            this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
+            this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+            this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+            this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
+        };
+
+        Object.defineProperty(MemoryManager.prototype, "userPartition", {
+            get: function () {
+                return this.memoryPartitionsUid[2 /* User */];
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryManager.prototype, "stackPartition", {
+            get: function () {
+                return this.memoryPartitionsUid[6 /* UserStacks */];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return MemoryManager;
+    })();
+    hle.MemoryManager = MemoryManager;
+})(hle || (hle = {}));
 var hle;
 (function (hle) {
     var Thread = (function () {
@@ -9692,121 +9051,897 @@ var hle;
     })();
     hle.ThreadManager = ThreadManager;
 })(hle || (hle = {}));
-var hle;
-(function (hle) {
-    (function (modules) {
-        function createNativeFunction(exportId, firmwareVersion, retval, arguments, _this, internalFunc) {
-            var code = '';
+var core;
+(function (core) {
+    (function (cpu) {
+        var ADDR_TYPE_NONE = 0;
+        var ADDR_TYPE_REG = 1;
+        var ADDR_TYPE_16 = 2;
+        var ADDR_TYPE_26 = 3;
+        var INSTR_TYPE_PSP = (1 << 0);
+        var INSTR_TYPE_SYSCALL = (1 << 1);
+        var INSTR_TYPE_B = (1 << 2);
+        var INSTR_TYPE_LIKELY = (1 << 3);
+        var INSTR_TYPE_JAL = (1 << 4);
+        var INSTR_TYPE_JUMP = (1 << 5);
+        var INSTR_TYPE_BREAK = (1 << 6);
 
-            var args = [];
-            var argindex = 4;
+        function VM(format) {
+            var counts = {
+                "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
+                "absw": 1, "absz": 1, "absy": 1, "absx": 1,
+                "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
+                "negw": 1, "negz": 1, "negy": 1, "negx": 1,
+                "one": 1, "two": 1, "vt1": 1,
+                "vt2": 2,
+                "satw": 2, "satz": 2, "saty": 2, "satx": 2,
+                "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
+                "imm3": 3,
+                "imm4": 4,
+                "fcond": 4,
+                "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
+                "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
+                "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
+                "imm8": 8,
+                "imm14": 14,
+                "imm16": 16,
+                "imm20": 20,
+                "imm26": 26
+            };
 
-            function readGpr32() {
-                return 'state.' + core.cpu.CpuState.getGprAccessName(argindex++);
-            }
+            var value = 0;
+            var mask = 0;
 
-            function readGpr64() {
-                argindex = MathUtils.nextAligned(argindex, 2);
-                var gprLow = readGpr32();
-                var gprHigh = readGpr32();
-                return sprintf('%s + %s * Math.pow(2, 32)', gprLow, gprHigh);
-            }
-
-            arguments.split('/').forEach(function (item) {
-                switch (item) {
-                    case 'EmulatorContext':
-                        args.push('context');
-                        break;
-                    case 'HleThread':
-                        args.push('state.thread');
-                        break;
-                    case 'CpuState':
-                        args.push('state');
-                        break;
-                    case 'Memory':
-                        args.push('state.memory');
-                        break;
-                    case 'string':
-                        args.push('state.memory.readStringz(' + readGpr32() + ')');
-                        break;
-                    case 'uint':
-                    case 'int':
-                        args.push(readGpr32());
-                        break;
-                    case 'ulong':
-                    case 'long':
-                        args.push(readGpr64());
-                        break;
-                    case 'void*':
-                        args.push('state.getPointerStream(' + readGpr32() + ')');
-                        break;
-                    case '':
-                        break;
-                    default:
-                        throw ('Invalid argument "' + item + '"');
+            format.split(':').forEach(function (item) {
+                // normal chunk
+                if (/^[01\-]+$/.test(item)) {
+                    for (var n = 0; n < item.length; n++) {
+                        value <<= 1;
+                        mask <<= 1;
+                        if (item[n] == '0') {
+                            value |= 0;
+                            mask |= 1;
+                        }
+                        if (item[n] == '1') {
+                            value |= 1;
+                            mask |= 1;
+                        }
+                        if (item[n] == '-') {
+                            value |= 0;
+                            mask |= 0;
+                        }
+                    }
+                } else {
+                    var displacement = counts[item];
+                    if (displacement === undefined)
+                        throw ("Invalid item '" + item + "'");
+                    value <<= displacement;
+                    mask <<= displacement;
                 }
             });
 
-            code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+            return { value: value, mask: mask };
+        }
 
-            code += 'if (typeof result == "object") { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
-
-            switch (retval) {
-                case 'void':
-                    break;
-
-                case 'uint':
-                case 'int':
-                    code += 'state.V0 = result | 0;';
-                    break;
-                case 'long':
-                    code += 'state.V0 = (result >>> 0) & 0xFFFFFFFF; state.V1 = (result >>> 32) & 0xFFFFFFFF;';
-                    break;
-                    break;
-                default:
-                    throw ('Invalid return value "' + retval + '"');
+        var InstructionType = (function () {
+            function InstructionType(name, vm, format, addressType, instructionType) {
+                this.name = name;
+                this.vm = vm;
+                this.format = format;
+                this.addressType = addressType;
+                this.instructionType = instructionType;
             }
-
-            var out = new core.NativeFunction();
-            out.name = 'unknown';
-            out.nid = exportId;
-            out.firmwareVersion = firmwareVersion;
-
-            //console.log(code);
-            var func = new Function('_this', 'internalFunc', 'context', 'state', code);
-            out.call = function (context, state) {
-                func(_this, internalFunc, context, state);
+            InstructionType.prototype.match = function (i32) {
+                //printf("%08X | %08X | %08X", i32, this.vm.value, this.vm.mask);
+                return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask);
             };
 
-            //console.log(out);
-            return out;
+            InstructionType.prototype.isInstructionType = function (mask) {
+                return (this.instructionType & mask) != 0;
+            };
+
+            Object.defineProperty(InstructionType.prototype, "isSyscall", {
+                get: function () {
+                    return this.isInstructionType(INSTR_TYPE_SYSCALL);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(InstructionType.prototype, "isBreak", {
+                get: function () {
+                    return this.isInstructionType(INSTR_TYPE_BREAK);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(InstructionType.prototype, "hasDelayedBranch", {
+                get: function () {
+                    return this.isInstructionType(INSTR_TYPE_B) || this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(InstructionType.prototype, "isLikely", {
+                get: function () {
+                    return this.isInstructionType(INSTR_TYPE_LIKELY);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            InstructionType.prototype.toString = function () {
+                return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask);
+            };
+            return InstructionType;
+        })();
+        cpu.InstructionType = InstructionType;
+
+        var Instructions = (function () {
+            function Instructions() {
+                var _this = this;
+                this.instructionTypeListByName = {};
+                this.instructionTypeList = [];
+                var ID = function (name, vm, format, addressType, instructionType) {
+                    _this.add(name, vm, format, addressType, instructionType);
+                };
+
+                // Arithmetic operations.
+                ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+                ID("addiu", VM("001001:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+                ID("sub", VM("000000:rs:rt:rd:00000:100010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("subu", VM("000000:rs:rt:rd:00000:100011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+
+                // Logical Operations.
+                ID("and", VM("000000:rs:rt:rd:00000:100100"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("andi", VM("001100:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+                ID("nor", VM("000000:rs:rt:rd:00000:100111"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("or", VM("000000:rs:rt:rd:00000:100101"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("ori", VM("001101:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+                ID("xor", VM("000000:rs:rt:rd:00000:100110"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("xori", VM("001110:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+
+                // Shift Left/Right Logical/Arithmethic (Variable).
+                ID("sll", VM("000000:00000:rt:rd:sa:000000"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+                ID("sllv", VM("000000:rs:rt:rd:00000:000100"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+                ID("sra", VM("000000:00000:rt:rd:sa:000011"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+                ID("srav", VM("000000:rs:rt:rd:00000:000111"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+                ID("srl", VM("000000:00000:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+                ID("srlv", VM("000000:rs:rt:rd:00000:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+                ID("rotr", VM("000000:00001:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+                ID("rotrv", VM("000000:rs:rt:rd:00001:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+
+                // Set Less Than (Immediate) (Unsigned).
+                ID("slt", VM("000000:rs:rt:rd:00000:101010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("slti", VM("001010:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+                ID("sltu", VM("000000:rs:rt:rd:00000:101011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+                ID("sltiu", VM("001011:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+
+                // Load Upper Immediate.
+                ID("lui", VM("001111:00000:rt:imm16"), "%t, %I", ADDR_TYPE_NONE, 0);
+
+                // Sign Extend Byte/Half word.
+                ID("seb", VM("011111:00000:rt:rd:10000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
+                ID("seh", VM("011111:00000:rt:rd:11000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
+
+                // BIT REVerse.
+                ID("bitrev", VM("011111:00000:rt:rd:10100:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // MAXimum/MINimum.
+                ID("max", VM("000000:rs:rt:rd:00000:101100"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("min", VM("000000:rs:rt:rd:00000:101101"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // DIVide (Unsigned).
+                ID("div", VM("000000:rs:rt:00000:00000:011010"), "%s, %t", ADDR_TYPE_NONE, 0);
+                ID("divu", VM("000000:rs:rt:00000:00000:011011"), "%s, %t", ADDR_TYPE_NONE, 0);
+
+                // MULTiply (Unsigned).
+                ID("mult", VM("000000:rs:rt:00000:00000:011000"), "%s, %t", ADDR_TYPE_NONE, 0);
+                ID("multu", VM("000000:rs:rt:00000:00000:011001"), "%s, %t", ADDR_TYPE_NONE, 0);
+
+                // Multiply ADD/SUBstract (Unsigned).
+                ID("madd", VM("000000:rs:rt:00000:00000:011100"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("maddu", VM("000000:rs:rt:00000:00000:011101"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("msub", VM("000000:rs:rt:00000:00000:101110"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("msubu", VM("000000:rs:rt:00000:00000:101111"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Move To/From HI/LO.
+                ID("mfhi", VM("000000:00000:00000:rd:00000:010000"), "%d", ADDR_TYPE_NONE, 0);
+                ID("mflo", VM("000000:00000:00000:rd:00000:010010"), "%d", ADDR_TYPE_NONE, 0);
+                ID("mthi", VM("000000:rs:00000:00000:00000:010001"), "%s", ADDR_TYPE_NONE, 0);
+                ID("mtlo", VM("000000:rs:00000:00000:00000:010011"), "%s", ADDR_TYPE_NONE, 0);
+
+                // Move if Zero/Non zero.
+                ID("movz", VM("000000:rs:rt:rd:00000:001010"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("movn", VM("000000:rs:rt:rd:00000:001011"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // EXTract/INSert.
+                ID("ext", VM("011111:rs:rt:msb:lsb:000000"), "%t, %s, %a, %ne", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("ins", VM("011111:rs:rt:msb:lsb:000100"), "%t, %s, %a, %ni", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Count Leading Ones/Zeros in word.
+                ID("clz", VM("000000:rs:00000:rd:00000:010110"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("clo", VM("000000:rs:00000:rd:00000:010111"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Word Swap Bytes Within Halfwords/Words.
+                ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+
+                // Branch on Greater Equal Zero (And Link) (Likely).
+                ID("bgez", VM("000001:rs:00001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bgezl", VM("000001:rs:00011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+                ID("bgezal", VM("000001:rs:10001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
+                ID("bgezall", VM("000001:rs:10011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
+
+                // Branch on Less Than Zero (And Link) (Likely).
+                ID("bltz", VM("000001:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bltzl", VM("000001:rs:00010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+                ID("bltzal", VM("000001:rs:10000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
+                ID("bltzall", VM("000001:rs:10010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
+
+                // Branch on Less Or Equals than Zero (Likely).
+                ID("blez", VM("000110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("blezl", VM("010110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+
+                // Branch on Great Than Zero (Likely).
+                ID("bgtz", VM("000111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bgtzl", VM("010111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+
+                // Branch on Not Equals (Likely).
+                ID("bne", VM("000101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bnel", VM("010101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+
+                // Jump (And Link) (Register).
+                ID("j", VM("000010:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JUMP);
+                ID("jr", VM("000000:rs:00000:00000:00000:001000"), "%J", ADDR_TYPE_REG, INSTR_TYPE_JUMP);
+                ID("jalr", VM("000000:rs:00000:rd:00000:001001"), "%J, %d", ADDR_TYPE_REG, INSTR_TYPE_JAL);
+                ID("jal", VM("000011:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JAL);
+
+                // Branch on C1 False/True (Likely).
+                ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bc1tl", VM("010001:01000:00011:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+
+                ID("lb", VM("100000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("lh", VM("100001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("lw", VM("100011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("lwl", VM("100010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("lwr", VM("100110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("lbu", VM("100100:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("lhu", VM("100101:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+
+                // Store Byte/Half word/Word (Left/Right).
+                ID("sb", VM("101000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("sh", VM("101001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("sw", VM("101011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("swl", VM("101010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("swr", VM("101110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+
+                // Load Linked word.
+                // Store Conditional word.
+                ID("ll", VM("110000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
+                ID("sc", VM("111000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
+
+                // Load Word to Cop1 floating point.
+                // Store Word from Cop1 floating point.
+                ID("lwc1", VM("110001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
+                ID("swc1", VM("111001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
+
+                // Binary Floating Point Unit Operations
+                ID("add.s", VM("010001:10000:ft:fs:fd:000000"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+                ID("sub.s", VM("010001:10000:ft:fs:fd:000001"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+                ID("mul.s", VM("010001:10000:ft:fs:fd:000010"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+                ID("div.s", VM("010001:10000:ft:fs:fd:000011"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+
+                // Unary Floating Point Unit Operations
+                ID("sqrt.s", VM("010001:10000:00000:fs:fd:000100"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("abs.s", VM("010001:10000:00000:fs:fd:000101"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("mov.s", VM("010001:10000:00000:fs:fd:000110"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("neg.s", VM("010001:10000:00000:fs:fd:000111"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("round.w.s", VM("010001:10000:00000:fs:fd:001100"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("trunc.w.s", VM("010001:10000:00000:fs:fd:001101"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("ceil.w.s", VM("010001:10000:00000:fs:fd:001110"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("floor.w.s", VM("010001:10000:00000:fs:fd:001111"), "%D, %S", ADDR_TYPE_NONE, 0);
+
+                // Convert
+                ID("cvt.s.w", VM("010001:10100:00000:fs:fd:100000"), "%D, %S", ADDR_TYPE_NONE, 0);
+                ID("cvt.w.s", VM("010001:10000:00000:fs:fd:100100"), "%D, %S", ADDR_TYPE_NONE, 0);
+
+                // Move float point registers
+                ID("mfc1", VM("010001:00000:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
+                ID("mtc1", VM("010001:00100:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
+
+                // CFC1 -- move Control word from/to floating point (C1)
+                ID("cfc1", VM("010001:00010:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
+                ID("ctc1", VM("010001:00110:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
+
+                // Compare <condition> Single.
+                ID("c.f.s", VM("010001:10000:ft:fs:00000:11:0000"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.un.s", VM("010001:10000:ft:fs:00000:11:0001"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.eq.s", VM("010001:10000:ft:fs:00000:11:0010"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ueq.s", VM("010001:10000:ft:fs:00000:11:0011"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.olt.s", VM("010001:10000:ft:fs:00000:11:0100"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ult.s", VM("010001:10000:ft:fs:00000:11:0101"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ole.s", VM("010001:10000:ft:fs:00000:11:0110"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ule.s", VM("010001:10000:ft:fs:00000:11:0111"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.sf.s", VM("010001:10000:ft:fs:00000:11:1000"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ngle.s", VM("010001:10000:ft:fs:00000:11:1001"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.seq.s", VM("010001:10000:ft:fs:00000:11:1010"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ngl.s", VM("010001:10000:ft:fs:00000:11:1011"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.lt.s", VM("010001:10000:ft:fs:00000:11:1100"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.nge.s", VM("010001:10000:ft:fs:00000:11:1101"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.le.s", VM("010001:10000:ft:fs:00000:11:1110"), "%S, %T", ADDR_TYPE_NONE, 0);
+                ID("c.ngt.s", VM("010001:10000:ft:fs:00000:11:1111"), "%S, %T", ADDR_TYPE_NONE, 0);
+
+                // Syscall
+                ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
+
+                ID("cache", VM("101111--------------------------"), "%k, %o", ADDR_TYPE_NONE, 0);
+                ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
+
+                ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, 0);
+                ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
+                ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // (D?/Exception) RETurn
+                ID("dret", VM("011100:00000:00000:00000:00000:111110"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("eret", VM("010000:10000:00000:00000:00000:011000"), "", ADDR_TYPE_NONE, 0);
+
+                // Move (From/To) IC
+                ID("mfic", VM("011100:rt:00000:00000:00000:100100"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("mtic", VM("011100:rt:00000:00000:00000:100110"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Move (From/To) DR
+                ID("mfdr", VM("011100:00000:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("mtdr", VM("011100:00100:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // C? (From/To) Cop0
+                ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CFC0(010000:00010:rt:c0cr:00000:000000)
+                ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CTC0(010000:00110:rt:c0cr:00000:000000)
+
+                // Move (From/To) Cop0
+                ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MFC0(010000:00000:rt:c0dr:00000:000000)
+                ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MTC0(010000:00100:rt:c0dr:00000:000000)
+
+                // Move From/to Vfpu (C?).
+                ID("mfv", VM("010010:00:011:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("mfvc", VM("010010:00:011:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("mtv", VM("010010:00:111:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("mtvc", VM("010010:00:111:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Load/Store Vfpu (Left/Right).
+                ID("lv.s", VM("110010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("lv.q", VM("110110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("lvl.q", VM("110101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("lvr.q", VM("110101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("sv.q", VM("111110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu DOT product
+                // Vfpu SCaLe/ROTate
+                ID("vdot", VM("011001:001:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vscl", VM("011001:010:vt:two:vs:one:vd"), "%zp, %yp, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsge", VM("011011:110:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                //ID("vslt",        VM("011011:100:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // FIXED 2013-07-14
+
+                // ROTate
+                ID("vrot", VM("111100:111:01:imm5:two:vs:one:vd"), "%zp, %ys, %vr", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu ZERO/ONE
+                ID("vzero", VM("110100:00:000:0:0110:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vone", VM("110100:00:000:0:0111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu MOVe/SiGN/Reverse SQuare root/COSine/Arc SINe/LOG2
+                ID("vmov", VM("110100:00:000:0:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vabs", VM("110100:00:000:0:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vneg", VM("110100:00:000:0:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vocp", VM("110100:00:010:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsgn", VM("110100:00:010:0:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vrcp", VM("110100:00:000:1:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vrsq", VM("110100:00:000:1:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsin", VM("110100:00:000:1:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vcos", VM("110100:00:000:1:0011:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vexp2", VM("110100:00:000:1:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vlog2", VM("110100:00:000:1:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsqrt", VM("110100:00:000:1:0110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vasin", VM("110100:00:000:1:0111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vnrcp", VM("110100:00:000:1:1000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vnsin", VM("110100:00:000:1:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vrexp2", VM("110100:00:000:1:1100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vsat0", VM("110100:00:000:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsat1", VM("110100:00:000:0:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu ConSTant
+                ID("vcst", VM("110100:00:011:imm5:two:0000000:one:vd"), "%zp, %vk", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu Matrix MULtiplication
+                ID("vmmul", VM("111100:000:vt:two:vs:one:vd"), "%zm, %tym, %xm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // -
+                ID("vhdp", VM("011001:100:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vcrs.t", VM("011001:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vcrsp.t", VM("111100:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu Integer to(2) Color
+                ID("vi2c", VM("110100:00:001:11:101:two:vs:one:vd"), "%zs, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vi2uc", VM("110100:00:001:11:100:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // -
+                ID("vtfm2", VM("111100:001:vt:0:vs:1:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vtfm3", VM("111100:010:vt:1:vs:0:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vtfm4", VM("111100:011:vt:1:vs:1:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vhtfm2", VM("111100:001:vt:0:vs:0:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vhtfm3", VM("111100:010:vt:0:vs:1:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vhtfm4", VM("111100:011:vt:1:vs:0:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vsrt3", VM("110100:00:010:01000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vfad", VM("110100:00:010:00110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu MINimum/MAXium/ADD/SUB/DIV/MUL
+                ID("vmin", VM("011011:010:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmax", VM("011011:011:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vadd", VM("011000:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsub", VM("011000:001:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vdiv", VM("011000:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmul", VM("011001:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Vfpu (Matrix) IDenTity
+                ID("vidt", VM("110100:00:000:0:0011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmidt", VM("111100:111:00:00011:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("viim", VM("110111:11:0:vd:imm16"), "%xs, %vi", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vmmov", VM("111100:111:00:00000:two:vs:one:vd"), "%zm, %ym", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmzero", VM("111100:111:00:00110:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmone", VM("111100:111:00:00111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vnop", VM("111111:1111111111:00000:00000000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsync", VM("111111:1111111111:00000:01100100000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vflush", VM("111111:1111111111:00000:10000001101"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vpfxd", VM("110111:10:------------:mskw:mskz:msky:mskx:satw:satz:saty:satx"), "[%vp4, %vp5, %vp6, %vp7]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vpfxs", VM("110111:00:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vpfxt", VM("110111:01:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vdet", VM("011001:110:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vrnds", VM("110100:00:001:00:000:two:vs:one:0000000"), "%ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vrndi", VM("110100:00:001:00:001:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vrndf1", VM("110100:00:001:00:010:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vrndf2", VM("110100:00:001:00:011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vcmp", VM("011011:000:vt:two:vs:one:000:imm4"), "%Zn, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vcmovf", VM("110100:10:101:01:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vcmovt", VM("110100:10:101:00:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vavg", VM("110100:00:010:00111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vf2id", VM("110100:10:011:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vf2in", VM("110100:10:000:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vf2iu", VM("110100:10:010:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vf2iz", VM("110100:10:001:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vi2f", VM("110100:10:100:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vscmp", VM("011011:101:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmscl", VM("111100:100:vt:two:vs:one:vd"), "%zm, %ym, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vt4444.q", VM("110100:00:010:11001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vt5551.q", VM("110100:00:010:11010:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vt5650.q", VM("110100:00:010:11011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vmfvc", VM("110100:00:010:10000:1:imm7:0:vd"), "%zs, %2s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vmtvc", VM("110100:00:010:10001:0:vs:1:imm7"), "%2d, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("mfvme", VM("011010--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
+                ID("mtvme", VM("101100--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
+
+                ID("sv.s", VM("111010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vfim", VM("110111:11:1:vt:imm16"), "%xs, %vh", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("svl.q", VM("111101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("svr.q", VM("111101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vbfy1", VM("110100:00:010:00010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vbfy2", VM("110100:00:010:00011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vf2h", VM("110100:00:001:10:010:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vh2f", VM("110100:00:001:10:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vi2s", VM("110100:00:001:11:111:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vi2us", VM("110100:00:001:11:110:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vlgb", VM("110100:00:001:10:111:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vqmul", VM("111100:101:vt:1:vs:1:vd"), "%zq, %yq, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vs2i", VM("110100:00:001:11:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                // Working on it.
+                //"110100:00:001:11:000:1000000010000001"
+                ID("vc2i", VM("110100:00:001:11:001:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vuc2i", VM("110100:00:001:11:000:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vsbn", VM("011000:010:vt:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vsbz", VM("110100:00:001:10110:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsocp", VM("110100:00:010:00101:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsrt1", VM("110100:00:010:00000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsrt2", VM("110100:00:010:00001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vsrt4", VM("110100:00:010:01001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("vus2i", VM("110100:00:001:11010:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+
+                //ID("vwb.q",       VM("111110------------------------1-"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
+                ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
+                ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+                ID("bvtl", VM("010010:01:000:imm3:11:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+            }
+            Object.defineProperty(Instructions, "instance", {
+                get: function () {
+                    if (!Instructions._instance)
+                        Instructions._instance = new Instructions();
+                    return Instructions._instance;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instructions.prototype, "instructions", {
+                get: function () {
+                    return this.instructionTypeList.slice(0);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Instructions.prototype.add = function (name, vm, format, addressType, instructionType) {
+                var it = new InstructionType(name, vm, format, addressType, instructionType);
+                this.instructionTypeListByName[name] = it;
+                this.instructionTypeList.push(it);
+            };
+
+            Instructions.prototype.findByName = function (name) {
+                var instructionType = this.instructionTypeListByName[name];
+                if (!instructionType)
+                    throw ("Cannot find instruction " + sprintf("%s", name));
+                return instructionType;
+            };
+
+            Instructions.prototype.findByData = function (i32, pc) {
+                if (typeof pc === "undefined") { pc = 0; }
+                //return this.slowFindByData(i32, pc);
+                return this.fastFindByData(i32, pc);
+            };
+
+            Instructions.prototype.fastFindByData = function (i32, pc) {
+                if (typeof pc === "undefined") { pc = 0; }
+                if (!this.decoder) {
+                    var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
+                    this.decoder = (new Function('instructionsByName', 'value', 'pc', switchCode));
+                }
+                try  {
+                    return this.decoder(this.instructionTypeListByName, i32, pc);
+                } catch (e) {
+                    console.log(this.decoder);
+                    console.log(this.instructionTypeListByName);
+                    console.log(this.instructionTypeList);
+                    throw (e);
+                }
+            };
+
+            Instructions.prototype.slowFindByData = function (i32, pc) {
+                if (typeof pc === "undefined") { pc = 0; }
+                for (var n = 0; n < this.instructionTypeList.length; n++) {
+                    var instructionType = this.instructionTypeList[n];
+                    if (instructionType.match(i32))
+                        return instructionType;
+                }
+                throw (sprintf("Cannot find instruction 0x%08X at 0x%08X", i32, pc));
+            };
+            return Instructions;
+        })();
+        cpu.Instructions = Instructions;
+
+        var DecodingTable = (function () {
+            function DecodingTable() {
+                this.lastId = 0;
+            }
+            DecodingTable.prototype.getCommonMask = function (instructions, baseMask) {
+                if (typeof baseMask === "undefined") { baseMask = 0xFFFFFFFF; }
+                return instructions.reduce(function (left, item) {
+                    return left & item.vm.mask;
+                }, baseMask);
+            };
+
+            DecodingTable.createSwitch = function (instructions) {
+                var writer = new IndentStringGenerator();
+                var decodingTable = new DecodingTable();
+                decodingTable._createSwitch(writer, instructions);
+                return writer.output;
+            };
+
+            DecodingTable.prototype._createSwitch = function (writer, instructions, baseMask, level) {
+                var _this = this;
+                if (typeof baseMask === "undefined") { baseMask = 0xFFFFFFFF; }
+                if (typeof level === "undefined") { level = 0; }
+                if (level >= 10)
+                    throw ('ERROR: Recursive detection');
+                var commonMask = this.getCommonMask(instructions, baseMask);
+                var groups = {};
+                instructions.forEach(function (item) {
+                    var commonValue = item.vm.value & commonMask;
+                    if (!groups[commonValue])
+                        groups[commonValue] = [];
+                    groups[commonValue].push(item);
+                });
+
+                writer.write('switch ((value & ' + sprintf('0x%08X', commonMask) + ') >>> 0) {\n');
+                writer.indent(function () {
+                    for (var groupKey in groups) {
+                        var group = groups[groupKey];
+                        writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
+                        writer.indent(function () {
+                            if (group.length == 1) {
+                                writer.write(' return instructionsByName[' + JSON.stringify(group[0].name) + '];');
+                            } else {
+                                writer.write('\n');
+                                _this._createSwitch(writer, group, ~commonMask, level + 1);
+                                writer.write('break;\n');
+                            }
+                        });
+                    }
+                    writer.write('default: throw(sprintf("Invalid instruction 0x%08X at 0x%08X (' + _this.lastId++ + ') failed mask 0x%08X", value, pc, ' + commonMask + '));\n');
+                });
+                writer.write('}\n');
+            };
+            return DecodingTable;
+        })();
+
+        var Instruction = (function () {
+            function Instruction(PC, data) {
+                this.PC = PC;
+                this.data = data;
+            }
+            Instruction.fromMemoryAndPC = function (memory, PC) {
+                return new Instruction(PC, memory.readInt32(PC));
+            };
+
+            Instruction.prototype.extract = function (offset, length) {
+                return BitUtils.extract(this.data, offset, length);
+            };
+            Instruction.prototype.insert = function (offset, length, value) {
+                this.data = BitUtils.insert(this.data, offset, length, value);
+            };
+
+            Object.defineProperty(Instruction.prototype, "rd", {
+                get: function () {
+                    return this.extract(11 + 5 * 0, 5);
+                },
+                set: function (value) {
+                    this.insert(11 + 5 * 0, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "rt", {
+                get: function () {
+                    return this.extract(11 + 5 * 1, 5);
+                },
+                set: function (value) {
+                    this.insert(11 + 5 * 1, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "rs", {
+                get: function () {
+                    return this.extract(11 + 5 * 2, 5);
+                },
+                set: function (value) {
+                    this.insert(11 + 5 * 2, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instruction.prototype, "fd", {
+                get: function () {
+                    return this.extract(6 + 5 * 0, 5);
+                },
+                set: function (value) {
+                    this.insert(6 + 5 * 0, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "fs", {
+                get: function () {
+                    return this.extract(6 + 5 * 1, 5);
+                },
+                set: function (value) {
+                    this.insert(6 + 5 * 1, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "ft", {
+                get: function () {
+                    return this.extract(6 + 5 * 2, 5);
+                },
+                set: function (value) {
+                    this.insert(6 + 5 * 2, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instruction.prototype, "pos", {
+                get: function () {
+                    return this.lsb;
+                },
+                set: function (value) {
+                    this.lsb = value;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "size_e", {
+                get: function () {
+                    return this.msb + 1;
+                },
+                set: function (value) {
+                    this.msb = value - 1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "size_i", {
+                get: function () {
+                    return this.msb - this.lsb + 1;
+                },
+                set: function (value) {
+                    this.msb = this.lsb + value - 1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instruction.prototype, "lsb", {
+                get: function () {
+                    return this.extract(6 + 5 * 0, 5);
+                },
+                set: function (value) {
+                    this.insert(6 + 5 * 0, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "msb", {
+                get: function () {
+                    return this.extract(6 + 5 * 1, 5);
+                },
+                set: function (value) {
+                    this.insert(6 + 5 * 1, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "c1cr", {
+                get: function () {
+                    return this.extract(6 + 5 * 1, 5);
+                },
+                set: function (value) {
+                    this.insert(6 + 5 * 1, 5, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instruction.prototype, "syscall", {
+                get: function () {
+                    return this.extract(6, 20);
+                },
+                set: function (value) {
+                    this.insert(6, 20, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instruction.prototype, "imm16", {
+                get: function () {
+                    var res = this.u_imm16;
+                    if (res & 0x8000)
+                        res |= 0xFFFF0000;
+                    return res;
+                },
+                set: function (value) {
+                    this.insert(0, 16, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "u_imm16", {
+                get: function () {
+                    return this.extract(0, 16);
+                },
+                set: function (value) {
+                    this.insert(0, 16, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "u_imm26", {
+                get: function () {
+                    return this.extract(0, 26);
+                },
+                set: function (value) {
+                    this.insert(0, 26, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(Instruction.prototype, "jump_bits", {
+                get: function () {
+                    return this.extract(0, 26);
+                },
+                set: function (value) {
+                    this.insert(0, 26, value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Instruction.prototype, "jump_real", {
+                get: function () {
+                    return (this.jump_bits * 4) >>> 0;
+                },
+                set: function (value) {
+                    this.jump_bits = (value / 4) >>> 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return Instruction;
+        })();
+        cpu.Instruction = Instruction;
+
+        var DecodedInstruction = (function () {
+            function DecodedInstruction(instruction, type) {
+                this.instruction = instruction;
+                this.type = type;
+            }
+            return DecodedInstruction;
+        })();
+        cpu.DecodedInstruction = DecodedInstruction;
+    })(core.cpu || (core.cpu = {}));
+    var cpu = core.cpu;
+})(core || (core = {}));
+///<reference path="../util/utils.ts" />
+var core;
+(function (core) {
+    var PspRtc = (function () {
+        function PspRtc() {
         }
-        modules.createNativeFunction = createNativeFunction;
-    })(hle.modules || (hle.modules = {}));
-    var modules = hle.modules;
-})(hle || (hle = {}));
-
-function downloadFileAsync(url) {
-    return new Promise(function (resolve, reject) {
-        var request = new XMLHttpRequest();
-
-        request.open("GET", url, true);
-        request.overrideMimeType("text/plain; charset=x-user-defined");
-        request.responseType = "arraybuffer";
-        request.onload = function (e) {
-            var arraybuffer = request.response;
-
-            //var data = new Uint8Array(arraybuffer);
-            resolve(arraybuffer);
-            //console.log(data);
-            //console.log(data.length);
+        PspRtc.prototype.getTime = function () {
+            //window.performance.now()
         };
-        request.onerror = function (e) {
-            reject(e.error);
-        };
-        request.send();
-    });
-}
+        return PspRtc;
+    })();
+})(core || (core = {}));
 var hle;
 (function (hle) {
     (function (_vfs) {
@@ -10032,115 +10167,6 @@ var hle;
     })(hle.vfs || (hle.vfs = {}));
     var vfs = hle.vfs;
 })(hle || (hle = {}));
-describe('cso', function () {
-    var testCsoArrayBuffer;
-
-    before(function (done) {
-        downloadFileAsync('samples/test.cso').then(function (data) {
-            testCsoArrayBuffer = data;
-            done();
-        });
-    });
-
-    it('should load fine', function (done) {
-        format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
-            //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
-            return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
-                var stream = Stream.fromArrayBuffer(data);
-                stream.skip(10);
-                var CD0001 = stream.readStringz(6);
-                assert.equal(CD0001, '\u0001CD001');
-                done();
-            });
-            //console.log(cso);
-        }).catch(function (e) {
-            //console.error(e);
-            setImmediate(function () {
-                throw (e);
-            });
-        });
-    });
-
-    it('should work with iso', function (done) {
-        format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
-            return format.iso.Iso.fromStreamAsync(cso).then(function (iso) {
-                assert.equal(JSON.stringify(iso.children.slice(0, 4).map(function (node) {
-                    return node.path;
-                })), JSON.stringify(["path", "path/0", "path/1", "path/2"]));
-                done();
-            });
-        }).catch(function (e) {
-            //console.error(e);
-            setImmediate(function () {
-                throw (e);
-            });
-        });
-    });
-});
-describe('iso', function () {
-    var isoData;
-
-    before(function (done) {
-        downloadFileAsync('samples/cube.iso').then(function (data) {
-            isoData = new Uint8Array(data);
-            done();
-        });
-    });
-
-    it('should load fine', function (done) {
-        var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
-
-        format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
-            assert.equal(JSON.stringify(iso.children.map(function (item) {
-                return item.path;
-            })), JSON.stringify(["PSP_GAME", "PSP_GAME/PARAM.SFO", "PSP_GAME/SYSDIR", "PSP_GAME/SYSDIR/BOOT.BIN", "PSP_GAME/SYSDIR/EBOOT.BIN"]));
-
-            done();
-        }).catch(function (e) {
-            throw (e);
-        });
-    });
-});
-describe('pbp', function () {
-    var rtctestPbpArrayBuffer;
-
-    before(function (done) {
-        downloadFileAsync('samples/rtctest.pbp').then(function (data) {
-            rtctestPbpArrayBuffer = data;
-            done();
-        });
-    });
-
-    it('should load fine', function () {
-        var pbp = new format.pbp.Pbp();
-        pbp.load(Stream.fromArrayBuffer(rtctestPbpArrayBuffer));
-        var pspData = pbp.get('psp.data');
-        assert.equal(pspData.length, 77550);
-    });
-});
-describe('psf', function () {
-    var rtctestPsfArrayBuffer;
-
-    before(function (done) {
-        downloadFileAsync('samples/rtctest.psf').then(function (data) {
-            rtctestPsfArrayBuffer = data;
-            done();
-        });
-    });
-
-    it('should load fine', function () {
-        var psf = new format.psf.Psf();
-        psf.load(Stream.fromArrayBuffer(rtctestPsfArrayBuffer));
-        assert.equal(psf.entriesByName['BOOTABLE'], 1);
-        assert.equal(psf.entriesByName['CATEGORY'], 'MG');
-        assert.equal(psf.entriesByName['DISC_ID'], 'UCJS10041');
-        assert.equal(psf.entriesByName['DISC_VERSION'], '1.00');
-        assert.equal(psf.entriesByName['PARENTAL_LEVEL'], 1);
-        assert.equal(psf.entriesByName['PSP_SYSTEM_VER'], '1.00');
-        assert.equal(psf.entriesByName['REGION'], 32768);
-        assert.equal(psf.entriesByName['TITLE'], 'rtctest');
-    });
-});
 describe('gpu', function () {
     describe('vertex reading', function () {
         it('should work', function () {
@@ -10233,31 +10259,6 @@ describe("memory manager", function () {
 
         assert.equal(partition.getMaxContiguousFreeMemory(), 75);
         assert.equal(partition.getTotalFreeMemory(), 75);
-    });
-});
-describe('vfs', function () {
-    var isoData;
-
-    before(function (done) {
-        downloadFileAsync('samples/cube.iso').then(function (data) {
-            isoData = new Uint8Array(data);
-            done();
-        });
-    });
-
-    it('should work', function (done) {
-        var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
-
-        format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
-            var vfs = new hle.vfs.IsoVfs(iso);
-            return vfs.openAsync("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).then(function (file) {
-                return file.readAllAsync().then(function (content) {
-                    var psf = format.psf.Psf.fromStream(Stream.fromArrayBuffer(content));
-                    assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
-                    done();
-                });
-            });
-        }).then(done, done);
     });
 });
 describe('instruction lookup', function () {

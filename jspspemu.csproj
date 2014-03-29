@@ -81,6 +81,7 @@
     <TypeScriptCompile Include="src\core\syscallmanager.ts" />
     <TypeScriptCompile Include="src\hle\modules\UtilsForKernel.ts" />
     <TypeScriptCompile Include="src\hle\modules\UtilsForUser.ts" />
+    <TypeScriptCompile Include="src\hle\SceKernelErrors.ts" />
     <TypeScriptCompile Include="src\hle\utils.ts" />
     <TypeScriptCompile Include="test\format\csoTest.ts" />
     <TypeScriptCompile Include="test\format\isoTest.ts" />

@@ -49,6 +49,7 @@
 			this.moduleManager = new hle.ModuleManager(this.emulatorContext);
 
 			this.fileManager.mount('ms0', this.ms0Vfs = new hle.vfs.MountableVfs());
+			this.fileManager.mount('host0', new hle.vfs.MemoryVfs());
 
 			hle.ModuleManagerSyscalls.registerSyscalls(this.syscallManager, this.moduleManager);
 

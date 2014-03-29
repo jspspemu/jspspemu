@@ -37,16 +37,46 @@
     <link rel="stylesheet" href="pspemu.css" />
 </head>
 <body>
-    <!-- <canvas id="canvas" width="480" height="272" style="background:black;width:960px;height:544px;"></canvas> -->
-    <div>
-        <canvas id="canvas" width="480" height="272" style="background:black;width:480px;height:272px;border:0;display:block;"></canvas>
-        <canvas id="webgl_canvas" width="480" height="272" style="background: black; width: 480px; height: 272px; border: 0; display: none;"></canvas>
+    <div id="body">
+        <div>
+            <center>
+                <select id="files"></select>
+                <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
+                <input type="file" id="load_file" name="load_file" style="width:132px;" />
+                <a href="javascript:document.body.webkitRequestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">Fullscreen</a>
+
+            </center>
+        </div>
+        <div>
+            <canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 1px solid #444; display: block;"></canvas>
+            <canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 1px solid #444; display: none; "></canvas>
+        </div>
+        <div id="thread_list" style="color:white;"></div>
+
+        <div id="buttons">
+            <span id="button_left">2</span>
+            <span id="button_up">3</span>
+            <span id="button_right">1</span>
+            <span id="button_down">4</span>
+            <span id="button_up_right">5</span>
+            <span id="button_down_right">6</span>
+            <span id="button_up_left">7</span>
+            <span id="button_down_left">8</span>
+
+
+            <span id="button_cross">X</span>
+            <span id="button_circle">C</span>
+            <span id="button_triangle">T</span>
+            <span id="button_square">S</span>
+
+            <span id="button_l">l</span>
+            <span id="button_r">r</span>
+
+            <span id="button_start">A</span>
+            <span id="button_select">B</span>
+        </div>
+        <div id="output"></div>
     </div>
-    <div id="thread_list" style="color:white;"></div>
-
-    <select id="files"></select>
-    <input type="file" id="load_file" name="load_file" />
-
     <script>
         var demos = [
             "samples/counter.elf",
@@ -69,6 +99,18 @@
             "samples/reflection.pbp",
             //"samples/cavestory/EBOOT.PBP",
         ];
+
+        function updateScale() {
+            var scale = parseFloat($('#scale').val());
+            var width = 480 * scale, height = 272 * scale;
+            console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
+            $('#body').css('width', width + 'px');
+            $('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px')
+        }
+
+        $('#scale').change(function () { updateScale(); });
+        updateScale();
+
         $('#files').html('');
         var selectedItem = document.location.hash.substr(1);
         $('#files').append('<option value="">-- SELECT DEMO --</option>');
@@ -95,40 +137,9 @@
             emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
         });
         //<a href="index.html?' + fileName + '" style="color:white;">
-    </script>
 
-    <div id="fullScreen">
-        <a href="javascript:document.body.webkitRequestFullScreen();$('#fullScreen').hide();" style="font:24px Arial;color:white;">Fullscreen</a>
-    </div>
-
-    <div id="buttons">
-        <span id="button_left">2</span>
-        <span id="button_up">3</span>
-        <span id="button_right">1</span>
-        <span id="button_down">4</span>
-        <span id="button_up_right">5</span>
-        <span id="button_down_right">6</span>
-        <span id="button_up_left">7</span>
-        <span id="button_down_left">8</span>
-        
-
-        <span id="button_cross">X</span>
-        <span id="button_circle">C</span>
-        <span id="button_triangle">T</span>
-        <span id="button_square">S</span>
-
-        <span id="button_l">l</span>
-        <span id="button_r">r</span>
-
-        <span id="button_start">A</span>
-        <span id="button_select">B</span>
-    </div>
-
-    <script>
         main();
         controllerRegister();
     </script>
-
-    <div id="output"></div>
 </body>
 </html>

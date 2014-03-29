@@ -30,7 +30,10 @@ body {
     color: white;
     white-space: pre;
     font: 10px 'Lucida Console';
-    height: 272px;
     max-height: 272px;
-    overflow-y: scroll;
+    overflow-y: auto;
+}
+#body {
+    width: 480px;
+    margin: 0 auto;
 }
