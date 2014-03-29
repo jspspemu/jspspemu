@@ -212,9 +212,17 @@ class Stream {
 	*/
 
 	writeString(str: string) {
-		str.split('').forEach(char => {
-			this.writeUInt8(char.charCodeAt(0));
-		});
+		try {
+			str.split('').forEach(char => {
+				this.writeUInt8(char.charCodeAt(0));
+			});
+		} catch (e) {
+			console.log("Can't write string '" + str + "'");
+			debugger;
+			console.warn(this.data);
+			console.error(e);
+			throw(e);
+		}
 	}
 
     readString(count: number) {

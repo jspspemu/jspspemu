@@ -796,9 +796,17 @@ var Stream = (function () {
     */
     Stream.prototype.writeString = function (str) {
         var _this = this;
-        str.split('').forEach(function (char) {
-            _this.writeUInt8(char.charCodeAt(0));
-        });
+        try  {
+            str.split('').forEach(function (char) {
+                _this.writeUInt8(char.charCodeAt(0));
+            });
+        } catch (e) {
+            console.log("Can't write string '" + str + "'");
+            debugger;
+            console.warn(this.data);
+            console.error(e);
+            throw (e);
+        }
     };
 
     Stream.prototype.readString = function (count) {
@@ -5498,13 +5506,22 @@ var core;
             this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
         };
 
+        Memory.prototype.availableAfterAddress = function (address) {
+            return this.buffer.byteLength - (address & Memory.MASK);
+        };
+
         Memory.prototype.getPointerDataView = function (address, size) {
+            if (!size)
+                size = this.availableAfterAddress(address);
             return new DataView(this.buffer, address & Memory.MASK, size);
         };
 
         Memory.prototype.getPointerStream = function (address, size) {
+            address &= Memory.MASK;
             if (address == 0)
                 return null;
+            if (!size)
+                size = this.availableAfterAddress(address);
             return new Stream(this.getPointerDataView(address, size));
         };
 

@@ -31,12 +31,19 @@ module core {
 			this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
 		}
 
+		private availableAfterAddress(address:number) {
+			return this.buffer.byteLength - (address & Memory.MASK);
+		}
+
 		getPointerDataView(address: number, size?: number) {
+			if (!size) size = this.availableAfterAddress(address);
 			return new DataView(this.buffer, address & Memory.MASK, size);
 		}
 
 		getPointerStream(address: number, size?: number) {
+			address &= Memory.MASK;
 			if (address == 0) return null;
+			if (!size) size = this.availableAfterAddress(address);
 			return new Stream(this.getPointerDataView(address, size));
 		}
 

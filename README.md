@@ -2,7 +2,12 @@ jspspemu
 ========
 
 A PSP emulator made using javascript (actually typescript). It will work with any modern browser.
-Though the first version work only works with Chrome (desktop and android).
+
+Lastest version works on:
+* Google Chrome 33
+* Firefox 29
+* Internet Explorer 11
+* Opera 20
 
 You can view the current version here:
 http://soywiz.github.io/jspspemu/2014-03-24/#samples/ortho.elf
