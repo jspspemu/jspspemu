@@ -28,7 +28,7 @@
 	}
 
 	export class Vfs {
-		open(path: string, flags: FileOpenFlags, mode: FileMode): VfsEntry {
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 			throw (new Error("Must override open"));
 		}
 	}
@@ -49,8 +49,8 @@
 			super();
 		}
 
-		open(path: string, flags: FileOpenFlags, mode: FileMode): VfsEntry {
-			return new IsoVfsFile(this.iso.get(path));
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
 		}
 	}
 
@@ -72,13 +72,64 @@
 			this.files[name] = data;
 		}
 
-		open(path: string, flags: FileOpenFlags, mode: FileMode): VfsEntry {
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 			if (flags & FileOpenFlags.Write) {
 				this.files[path] = new ArrayBuffer(0);
 			}
 			var file = this.files[path];
 			if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
-			return new MemoryVfsEntry(file);
+			return Promise.resolve(new MemoryVfsEntry(file));
+		}
+	}
+
+	export class UriVfs extends Vfs {
+		constructor(public baseUri: string) {
+			super();
+		}
+
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			return downloadFileAsync(this.baseUri + '/' + path).then((data) => {
+				return new MemoryVfsEntry(data);
+			});
+		}
+	}
+
+	class MountableEntry {
+		constructor(public path: string, public vfs: Vfs, public file: VfsEntry) {
+		}
+	}
+
+	export class MountableVfs extends Vfs {
+		private mounts: MountableEntry[] = [];
+
+		mountVfs(path: string, vfs: Vfs) {
+			this.mounts.push(new MountableEntry(this.normalizePath(path), vfs, null));
+		}
+
+		mountFileData(path: string, data: ArrayBuffer) {
+			this.mounts.push(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
+		}
+
+		private normalizePath(path: string) {
+			return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+		}
+
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			path = this.normalizePath(path);
+
+			for (var n = 0; n < this.mounts.length; n++) {
+				var mount = this.mounts[n];
+				//console.log(mount.path + ' -- ' + path);
+				if (path.startsWith(mount.path)) {
+					var part = path.substr(mount.path.length);
+					if (mount.file) {
+						return Promise.resolve(mount.file);
+					} else {
+						return mount.vfs.openAsync(part, flags, mode);
+					}
+				}
+			}
+			throw(new Error("Can't find file '" + path + "'"));
 		}
 	}
 

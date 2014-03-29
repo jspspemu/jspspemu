@@ -1,0 +1,3 @@
+﻿enum SceKernelErrors {
+	ERROR_ERRNO_FILE_NOT_FOUND = 0x80010002,
+}

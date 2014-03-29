@@ -33,7 +33,7 @@
             _this.threadManager = new hle.ThreadManager(_this.memory, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new hle.ModuleManager(_this.emulatorContext);
 
-            _this.fileManager.mount('ms0', new hle.vfs.MemoryVfs());
+            _this.fileManager.mount('ms0', _this.ms0Vfs = new hle.vfs.MountableVfs());
 
             hle.ModuleManagerSyscalls.registerSyscalls(_this.syscallManager, _this.moduleManager);
 
@@ -69,13 +69,16 @@
                         _this.fileManager.mount('umd0', isoFs);
                         _this.fileManager.mount('disc0', isoFs);
 
-                        return isoFs.open('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).readAllAsync().then(function (data) {
-                            return _this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                        return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).then(function (file) {
+                            return file.readAllAsync().then(function (data) {
+                                return _this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                            });
                         });
                     });
                 case 'elf':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        _this.fileManager.getDevice('ms0').vfs.addFile('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
+                        var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
+                        mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
@@ -111,9 +114,12 @@
         });
     };
 
-    Emulator.prototype.loadAndExecuteAsync = function (asyncStream) {
+    Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
         var _this = this;
         return this.startAsync().then(function () {
+            var parentUrl = url.replace(/\/[^//]+$/, '');
+            console.info('parentUrl: ' + parentUrl);
+            _this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new hle.vfs.UriVfs(parentUrl));
             return _this._loadAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
         }).catch(function (e) {
             console.error(e);
@@ -127,7 +133,7 @@
         return downloadFileAsync(url).then(function (data) {
             setImmediate(function () {
                 // escape try/catch!
-                _this.loadAndExecuteAsync(new MemoryAsyncStream(data, url));
+                _this.loadAndExecuteAsync(new MemoryAsyncStream(data, url), url);
             });
         });
     };
@@ -136,7 +142,7 @@
         var _this = this;
         setImmediate(function () {
             // escape try/catch!
-            _this.loadAndExecuteAsync(new FileAsyncStream(file));
+            _this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
         });
     };
     return Emulator;
@@ -1488,6 +1494,16 @@ Array.prototype.remove = function (item) {
         array.splice(index, 1);
 };
 
+String.prototype.startsWith = function (value) {
+    var string = this;
+    return string.substr(0, value.length) == value;
+};
+
+String.prototype.endsWith = function (value) {
+    var string = this;
+    return string.substr(-value.length) == value;
+};
+
 String.prototype.rstrip = function () {
     var string = this;
     return string.replace(/\s+$/, '');
@@ -1892,8 +1908,17 @@ var core;
                     var axes = gamepad['axes'];
                     this.data.x = axes[0];
                     this.data.y = axes[1];
+
+                    function checkButton(button) {
+                        if (typeof button == 'number') {
+                            return button != 0;
+                        } else {
+                            return button ? !!(button.pressed) : false;
+                        }
+                    }
+
                     for (var n = 0; n < 15; n++) {
-                        if (buttons[n]) {
+                        if (checkButton(buttons[n])) {
                             this.simulateButtonDown(buttonMapping[n]);
                         } else {
                             this.simulateButtonUp(buttonMapping[n]);
@@ -2667,6 +2692,13 @@ var core;
                 };
                 InstructionAst.prototype.lwr = function (i) {
                     return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
+                };
+
+                InstructionAst.prototype.swl = function (i) {
+                    return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
+                };
+                InstructionAst.prototype.swr = function (i) {
+                    return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
 
                 InstructionAst.prototype.lh = function (i) {
@@ -3899,6 +3931,21 @@ var core;
                 return ((Value >>> CpuState.LwrShift[AddressAlign]) | (RT & CpuState.LwrMask[AddressAlign]));
             };
 
+            CpuState.prototype.swl = function (RS, Offset, RT) {
+                var Address = (RS + Offset);
+                var AddressAlign = Address & 3;
+                var AddressPointer = Address & 0xFFFFFFFC;
+                this.memory.writeInt32(AddressPointer, (RT >>> CpuState.SwlShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwlMask[AddressAlign]));
+            };
+
+            CpuState.prototype.swr = function (RS, Offset, RT) {
+                var Address = (RS + Offset);
+                var AddressAlign = Address & 3;
+                var AddressPointer = Address & 0xFFFFFFFC;
+
+                this.memory.writeInt32(AddressPointer, (RT << CpuState.SwrShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwrMask[AddressAlign]));
+            };
+
             CpuState.prototype.div = function (rs, rt) {
                 this.LO = (rs / rt) | 0;
                 this.HI = (rs % rt) | 0;
@@ -3957,6 +4004,12 @@ var core;
 
             CpuState.LwlMask = [0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000];
             CpuState.LwlShift = [24, 16, 8, 0];
+
+            CpuState.SwlMask = [0xFFFFFF00, 0xFFFF0000, 0xFF000000, 0x00000000];
+            CpuState.SwlShift = [24, 16, 8, 0];
+
+            CpuState.SwrMask = [0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF];
+            CpuState.SwrShift = [0, 8, 16, 24];
             return CpuState;
         })();
         cpu.CpuState = CpuState;
@@ -7777,9 +7830,8 @@ var hle;
             this.vfs = vfs;
             this.cwd = '';
         }
-        Device.prototype.open = function (uri, flags, mode) {
-            var entry = this.vfs.open(uri.pathWithoutDevice, flags, mode);
-            return entry;
+        Device.prototype.openAsync = function (uri, flags, mode) {
+            return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
         };
         return Device;
     })();
@@ -7850,10 +7902,11 @@ var hle;
             return device;
         };
 
-        FileManager.prototype.open = function (name, flags, mode) {
+        FileManager.prototype.openAsync = function (name, flags, mode) {
             var uri = this.cwd.append(new Uri(name));
-            var entry = this.getDevice(uri.device).open(uri, flags, mode);
-            return new HleFile(entry);
+            return this.getDevice(uri.device).openAsync(uri, flags, mode).then(function (entry) {
+                return new HleFile(entry);
+            });
         };
 
         FileManager.prototype.mount = function (device, vfs) {
@@ -8253,9 +8306,10 @@ var hle;
                 });
                 this.fileUids = new UidCollection(1);
                 this.sceIoOpen = hle.modules.createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-                    var file = _this.context.fileManager.open(filename, flags, mode);
                     console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
-                    return _this.fileUids.allocate(file);
+                    return _this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
+                        return _this.fileUids.allocate(file);
+                    });
                 });
                 this.sceIoClose = hle.modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
                     var file = _this.fileUids.get(fileId);
@@ -8280,6 +8334,10 @@ var hle;
                         _this.context.memory.writeBytes(outputPointer, readedData);
                         return readedData.byteLength;
                     });
+                });
+                this.sceIoGetstat = hle.modules.createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
+                    SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
+                    return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
                 });
                 this.sceIoChdir = hle.modules.createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
                     console.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
@@ -8320,6 +8378,65 @@ var hle;
             SeekAnchor[SeekAnchor["Cursor"] = 1] = "Cursor";
             SeekAnchor[SeekAnchor["End"] = 2] = "End";
         })(SeekAnchor || (SeekAnchor = {}));
+
+        var SceMode;
+        (function (SceMode) {
+        })(SceMode || (SceMode = {}));
+
+        var IOFileModes;
+        (function (IOFileModes) {
+            IOFileModes[IOFileModes["FormatMask"] = 0x0038] = "FormatMask";
+            IOFileModes[IOFileModes["SymbolicLink"] = 0x0008] = "SymbolicLink";
+            IOFileModes[IOFileModes["Directory"] = 0x0010] = "Directory";
+            IOFileModes[IOFileModes["File"] = 0x0020] = "File";
+            IOFileModes[IOFileModes["CanRead"] = 0x0004] = "CanRead";
+            IOFileModes[IOFileModes["CanWrite"] = 0x0002] = "CanWrite";
+            IOFileModes[IOFileModes["CanExecute"] = 0x0001] = "CanExecute";
+        })(IOFileModes || (IOFileModes = {}));
+
+        var ScePspDateTime = (function () {
+            function ScePspDateTime() {
+                this.year = 0;
+                this.month = 0;
+                this.day = 0;
+                this.hour = 0;
+                this.minute = 0;
+                this.second = 0;
+                this.microsecond = 0;
+            }
+            ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
+                { type: Int16, name: 'year' },
+                { type: Int16, name: 'month' },
+                { type: Int16, name: 'day' },
+                { type: Int16, name: 'hour' },
+                { type: Int16, name: 'minute' },
+                { type: Int16, name: 'second' },
+                { type: Int32, name: 'microsecond' }
+            ]);
+            return ScePspDateTime;
+        })();
+
+        var SceIoStat = (function () {
+            function SceIoStat() {
+                this.mode = 0;
+                this.attributes = 0;
+                this.size = 0;
+                this.timeCreation = new ScePspDateTime();
+                this.timeLastAccess = new ScePspDateTime();
+                this.timeLastModification = new ScePspDateTime();
+                this.deviceDependentData = [0, 0, 0, 0, 0, 0];
+            }
+            SceIoStat.struct = StructClass.create(SceIoStat, [
+                { type: Int32, name: 'mode' },
+                { type: Int32, name: 'attributes' },
+                { type: Int64, name: 'size' },
+                { type: ScePspDateTime.struct, name: 'timeCreation' },
+                { type: ScePspDateTime.struct, name: 'timeLastAccess' },
+                { type: ScePspDateTime.struct, name: 'timeLastModification' },
+                { type: StructArray.create(Int32, 6), name: 'deviceDependentData' }
+            ]);
+            return SceIoStat;
+        })();
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -8440,6 +8557,9 @@ var hle;
                 this.sceAtracGetSecondBufferInfo = hle.modules.createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
                     puiPosition.writeInt32(0);
                     puiDataByte.writeInt32(0);
+                    return 0;
+                });
+                this.sceAtracSetSecondBuffer = hle.modules.createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
                     return 0;
                 });
             }
@@ -9387,6 +9507,10 @@ var hle;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
+var SceKernelErrors;
+(function (SceKernelErrors) {
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_NOT_FOUND"] = 0x80010002] = "ERROR_ERRNO_FILE_NOT_FOUND";
+})(SceKernelErrors || (SceKernelErrors = {}));
 var hle;
 (function (hle) {
     var Thread = (function () {
@@ -9685,7 +9809,7 @@ function downloadFileAsync(url) {
 }
 var hle;
 (function (hle) {
-    (function (vfs) {
+    (function (_vfs) {
         var VfsEntry = (function () {
             function VfsEntry() {
             }
@@ -9716,7 +9840,7 @@ var hle;
             };
             return VfsEntry;
         })();
-        vfs.VfsEntry = VfsEntry;
+        _vfs.VfsEntry = VfsEntry;
 
         (function (FileOpenFlags) {
             FileOpenFlags[FileOpenFlags["Read"] = 0x0001] = "Read";
@@ -9732,22 +9856,22 @@ var hle;
             FileOpenFlags[FileOpenFlags["NoWait"] = 0x8000] = "NoWait";
             FileOpenFlags[FileOpenFlags["Unknown2"] = 0xf0000] = "Unknown2";
             FileOpenFlags[FileOpenFlags["Unknown3"] = 0x2000000] = "Unknown3";
-        })(vfs.FileOpenFlags || (vfs.FileOpenFlags = {}));
-        var FileOpenFlags = vfs.FileOpenFlags;
+        })(_vfs.FileOpenFlags || (_vfs.FileOpenFlags = {}));
+        var FileOpenFlags = _vfs.FileOpenFlags;
 
         (function (FileMode) {
-        })(vfs.FileMode || (vfs.FileMode = {}));
-        var FileMode = vfs.FileMode;
+        })(_vfs.FileMode || (_vfs.FileMode = {}));
+        var FileMode = _vfs.FileMode;
 
         var Vfs = (function () {
             function Vfs() {
             }
-            Vfs.prototype.open = function (path, flags, mode) {
+            Vfs.prototype.openAsync = function (path, flags, mode) {
                 throw (new Error("Must override open"));
             };
             return Vfs;
         })();
-        vfs.Vfs = Vfs;
+        _vfs.Vfs = Vfs;
 
         var IsoVfsFile = (function (_super) {
             __extends(IsoVfsFile, _super);
@@ -9783,12 +9907,12 @@ var hle;
                 _super.call(this);
                 this.iso = iso;
             }
-            IsoVfs.prototype.open = function (path, flags, mode) {
-                return new IsoVfsFile(this.iso.get(path));
+            IsoVfs.prototype.openAsync = function (path, flags, mode) {
+                return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
             };
             return IsoVfs;
         })(Vfs);
-        vfs.IsoVfs = IsoVfs;
+        _vfs.IsoVfs = IsoVfs;
 
         var MemoryVfsEntry = (function (_super) {
             __extends(MemoryVfsEntry, _super);
@@ -9817,7 +9941,7 @@ var hle;
             };
             return MemoryVfsEntry;
         })(VfsEntry);
-        vfs.MemoryVfsEntry = MemoryVfsEntry;
+        _vfs.MemoryVfsEntry = MemoryVfsEntry;
 
         var MemoryVfs = (function (_super) {
             __extends(MemoryVfs, _super);
@@ -9829,18 +9953,82 @@ var hle;
                 this.files[name] = data;
             };
 
-            MemoryVfs.prototype.open = function (path, flags, mode) {
+            MemoryVfs.prototype.openAsync = function (path, flags, mode) {
                 if (flags & 2 /* Write */) {
                     this.files[path] = new ArrayBuffer(0);
                 }
                 var file = this.files[path];
                 if (!file)
                     throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
-                return new MemoryVfsEntry(file);
+                return Promise.resolve(new MemoryVfsEntry(file));
             };
             return MemoryVfs;
         })(Vfs);
-        vfs.MemoryVfs = MemoryVfs;
+        _vfs.MemoryVfs = MemoryVfs;
+
+        var UriVfs = (function (_super) {
+            __extends(UriVfs, _super);
+            function UriVfs(baseUri) {
+                _super.call(this);
+                this.baseUri = baseUri;
+            }
+            UriVfs.prototype.openAsync = function (path, flags, mode) {
+                return downloadFileAsync(this.baseUri + '/' + path).then(function (data) {
+                    return new MemoryVfsEntry(data);
+                });
+            };
+            return UriVfs;
+        })(Vfs);
+        _vfs.UriVfs = UriVfs;
+
+        var MountableEntry = (function () {
+            function MountableEntry(path, vfs, file) {
+                this.path = path;
+                this.vfs = vfs;
+                this.file = file;
+            }
+            return MountableEntry;
+        })();
+
+        var MountableVfs = (function (_super) {
+            __extends(MountableVfs, _super);
+            function MountableVfs() {
+                _super.apply(this, arguments);
+                this.mounts = [];
+            }
+            MountableVfs.prototype.mountVfs = function (path, vfs) {
+                this.mounts.push(new MountableEntry(this.normalizePath(path), vfs, null));
+            };
+
+            MountableVfs.prototype.mountFileData = function (path, data) {
+                this.mounts.push(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
+            };
+
+            MountableVfs.prototype.normalizePath = function (path) {
+                return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+            };
+
+            MountableVfs.prototype.openAsync = function (path, flags, mode) {
+                path = this.normalizePath(path);
+
+                for (var n = 0; n < this.mounts.length; n++) {
+                    var mount = this.mounts[n];
+
+                    //console.log(mount.path + ' -- ' + path);
+                    if (path.startsWith(mount.path)) {
+                        var part = path.substr(mount.path.length);
+                        if (mount.file) {
+                            return Promise.resolve(mount.file);
+                        } else {
+                            return mount.vfs.openAsync(part, flags, mode);
+                        }
+                    }
+                }
+                throw (new Error("Can't find file '" + path + "'"));
+            };
+            return MountableVfs;
+        })(Vfs);
+        _vfs.MountableVfs = MountableVfs;
     })(hle.vfs || (hle.vfs = {}));
     var vfs = hle.vfs;
 })(hle || (hle = {}));
@@ -10062,15 +10250,14 @@ describe('vfs', function () {
 
         format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
             var vfs = new hle.vfs.IsoVfs(iso);
-            return vfs.open("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).readAllAsync().then(function (content) {
-                var psf = format.psf.Psf.fromStream(Stream.fromArrayBuffer(content));
-                assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
-                done();
+            return vfs.openAsync("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).then(function (file) {
+                return file.readAllAsync().then(function (content) {
+                    var psf = format.psf.Psf.fromStream(Stream.fromArrayBuffer(content));
+                    assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
+                    done();
+                });
             });
-        }).catch(function (e) {
-            console.error(e);
-            console.error(e['stack']);
-        });
+        }).then(done, done);
     });
 });
 describe('instruction lookup', function () {

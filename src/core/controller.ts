@@ -125,8 +125,17 @@ module core {
 					var axes = gamepad['axes'];
 					this.data.x = axes[0];
 					this.data.y = axes[1];
+
+					function checkButton(button) {
+						if (typeof button == 'number') {
+							return button != 0;
+						} else {
+							return button ? !!(button.pressed) : false;
+						}
+					}
+
 					for (var n = 0; n < 15; n++) {
-						if (buttons[n]) {
+						if (checkButton(buttons[n])) {
 							this.simulateButtonDown(buttonMapping[n]);
 						} else {
 							this.simulateButtonUp(buttonMapping[n]);

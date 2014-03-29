@@ -51,9 +51,8 @@
 		fileUids = new UidCollection<hle.HleFile>(1);
 
 		sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
-			var file = this.context.fileManager.open(filename, flags, mode);
 			console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
-			return this.fileUids.allocate(file);
+			return this.context.fileManager.openAsync(filename, flags, mode).then(file => this.fileUids.allocate(file));
 		});
 
 		sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
@@ -80,6 +79,11 @@
 				this.context.memory.writeBytes(outputPointer, readedData);
 				return readedData.byteLength;
 			});
+		});
+
+		sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, (fileName: string, sceIoStatPointer: Stream) => {
+			SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
+			return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		});
 
 		sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, (path: string) => {
@@ -119,5 +123,59 @@
 		Set = 0,
 		Cursor = 1,
 		End = 2,
+	}
+
+	enum SceMode {
+	}
+
+	enum IOFileModes {
+		FormatMask = 0x0038,
+		SymbolicLink = 0x0008,
+		Directory = 0x0010,
+		File = 0x0020,
+		CanRead = 0x0004,
+		CanWrite = 0x0002,
+		CanExecute = 0x0001,
+	}
+
+	class ScePspDateTime {
+		year: number = 0;
+		month: number = 0;
+		day: number = 0;
+		hour: number = 0;
+		minute: number = 0;
+		second: number = 0;
+		microsecond: number = 0;
+
+		static struct = StructClass.create<ScePspDateTime>(ScePspDateTime, [
+			{ type: Int16, name: 'year' },
+			{ type: Int16, name: 'month' },
+			{ type: Int16, name: 'day' },
+			{ type: Int16, name: 'hour' },
+			{ type: Int16, name: 'minute' },
+			{ type: Int16, name: 'second' },
+			{ type: Int32, name: 'microsecond' },
+		]);
+	}
+
+	class SceIoStat
+	{
+		mode: SceMode = 0;
+		attributes: IOFileModes = 0;
+		size: number = 0;
+		timeCreation: ScePspDateTime = new ScePspDateTime();
+		timeLastAccess: ScePspDateTime = new ScePspDateTime();
+		timeLastModification: ScePspDateTime = new ScePspDateTime();
+		deviceDependentData: number[] = [0, 0, 0, 0, 0, 0];
+
+		static struct = StructClass.create<SceIoStat>(SceIoStat, <StructEntry[]>[
+			{ type: Int32, name: 'mode' },
+			{ type: Int32, name: 'attributes' },
+			{ type: Int64, name: 'size' },
+			{ type: ScePspDateTime.struct, name: 'timeCreation' },
+			{ type: ScePspDateTime.struct, name: 'timeLastAccess' },
+			{ type: ScePspDateTime.struct, name: 'timeLastModification' },
+			{ type: StructArray.create(Int32, 6), name: 'deviceDependentData' },
+		]);
 	}
 }

@@ -736,7 +736,19 @@ Array.prototype.remove = function (item) {
 interface String {
 	rstrip(): string;
 	contains(value: string): boolean;
+	startsWith(value: string): boolean;
+	endsWith(value: string): boolean;
 }
+
+String.prototype.startsWith = function (value: string) {
+	var string = <string>this;
+	return string.substr(0, value.length) == value;
+};
+
+String.prototype.endsWith = function (value: string) {
+	var string = <string>this;
+	return string.substr(-value.length) == value;
+};
 
 String.prototype.rstrip = function () {
     var string = <string>this;
@@ -916,3 +928,4 @@ declare var mat4: {
 };
 
 window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
+

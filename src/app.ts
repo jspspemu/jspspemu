@@ -13,6 +13,7 @@
 	private syscallManager: core.SyscallManager;
 	private threadManager: hle.ThreadManager;
 	private moduleManager: hle.ModuleManager;
+	private ms0Vfs: hle.vfs.MountableVfs;
 
 	constructor() {
 		this.memory = new core.Memory();
@@ -47,7 +48,7 @@
 			this.threadManager = new hle.ThreadManager(this.memory, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new hle.ModuleManager(this.emulatorContext);
 
-			this.fileManager.mount('ms0', new hle.vfs.MemoryVfs());
+			this.fileManager.mount('ms0', this.ms0Vfs = new hle.vfs.MountableVfs());
 
 			hle.ModuleManagerSyscalls.registerSyscalls(this.syscallManager, this.moduleManager);
 
@@ -80,13 +81,16 @@
 						this.fileManager.mount('umd0', isoFs);
 						this.fileManager.mount('disc0', isoFs);
 						
-						return isoFs.open('PSP_GAME/SYSDIR/BOOT.BIN', hle.vfs.FileOpenFlags.Read, parseInt('777', 8)).readAllAsync().then((data) => {
-							return this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
-						});
+						return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', hle.vfs.FileOpenFlags.Read, parseInt('777', 8)).then(file => {
+							return file.readAllAsync().then((data) => {
+								return this._loadAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+							});
+						})
 					});
 				case 'elf':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						(<hle.vfs.MemoryVfs>this.fileManager.getDevice('ms0').vfs).addFile('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
+						var mountableVfs = (<hle.vfs.MountableVfs>this.fileManager.getDevice('ms0').vfs);
+						mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
 						var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
@@ -122,8 +126,11 @@
 		});
 	}
 
-	loadAndExecuteAsync(asyncStream: AsyncStream) {
+	loadAndExecuteAsync(asyncStream: AsyncStream, url:string) {
 		return this.startAsync().then(() => {
+			var parentUrl = url.replace(/\/[^//]+$/, '');
+			console.info('parentUrl: ' + parentUrl);
+			this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new hle.vfs.UriVfs(parentUrl));
 			return this._loadAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
 		}).catch(e => {
 			console.error(e);
@@ -136,7 +143,7 @@
 		return downloadFileAsync(url).then((data) => {
 			setImmediate(() => {
 				// escape try/catch!
-				this.loadAndExecuteAsync(new MemoryAsyncStream(data, url));
+				this.loadAndExecuteAsync(new MemoryAsyncStream(data, url), url);
 			});
 		});
 	}
@@ -144,7 +151,7 @@
 	executeFileAsync(file: File) {
 		setImmediate(() => {
 			// escape try/catch!
-			this.loadAndExecuteAsync(new FileAsyncStream(file));
+			this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
 		});
 	}
 }

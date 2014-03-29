@@ -210,6 +210,9 @@
 		lw(i: Instruction) { return assignGpr(i.rt, call('state.lw', [rs_imm16(i)])); }
 		lwl(i: Instruction) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		lwr(i: Instruction) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
+
+		swl(i: Instruction) { return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
+		swr(i: Instruction) { return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		
 		lh(i: Instruction) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); }
 		lhu(i: Instruction) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); }

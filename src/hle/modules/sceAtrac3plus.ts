@@ -11,5 +11,9 @@
 			puiDataByte.writeInt32(0);
 			return 0;
 		});
+
+		sceAtracSetSecondBuffer = createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, (id: number, pucSecondBufferAddr: Stream, uiSecondBufferByte: number) => {
+			return 0;
+		});
 	}
 }

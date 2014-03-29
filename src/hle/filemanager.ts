@@ -5,9 +5,8 @@
 		constructor(public name: string, public vfs: hle.vfs.Vfs) {
 		}
 
-		open(uri: Uri, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
-			var entry = this.vfs.open(uri.pathWithoutDevice, flags, mode);
-			return entry;
+		openAsync(uri: Uri, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
+			return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
 		}
 	}
 
@@ -58,10 +57,9 @@
 			return device;
 		}
 
-		open(name: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
+		openAsync(name: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
 			var uri = this.cwd.append(new Uri(name));
-			var entry = this.getDevice(uri.device).open(uri, flags, mode);
-			return new HleFile(entry);
+			return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
 		}
 
 		mount(device: string, vfs: hle.vfs.Vfs) {
