@@ -103,6 +103,16 @@ module core {
 			}
 		}
 
+		hash(address: number, count: number) {
+			var result = 0;
+			var u32 = this.u32;
+			for (var n = 0; n < count / 4; n++) {
+				result |= u32[n];
+				result ^= n * 7777777777;
+			}
+			return result;
+		}
+
 		static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {
 			var _source = new Uint8Array(source, sourcePosition, length);
 			var _destination = new Uint8Array(destination, destinationPosition, length);

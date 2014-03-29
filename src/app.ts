@@ -38,8 +38,8 @@
 			this.audio = new core.PspAudio();
 			this.canvas = <HTMLCanvasElement>(document.getElementById('canvas'));
 			this.webgl_canvas = <HTMLCanvasElement>(document.getElementById('webgl_canvas'));
-			this.display = new core.PspDisplay(this.memory, this.canvas);
-			this.gpu = new core.gpu.PspGpu(this.memory, this.webgl_canvas);
+			this.display = new core.PspDisplay(this.memory, this.canvas, this.webgl_canvas);
+			this.gpu = new core.gpu.PspGpu(this.memory, this.display, this.webgl_canvas);
 			this.controller = new core.PspController();
 			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new core.SyscallManager(this.emulatorContext);

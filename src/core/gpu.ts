@@ -444,8 +444,8 @@ module core.gpu {
 		private listRunner: PspGpuListRunner;
 		driver: IDrawDriver;
 
-		constructor(private memory: Memory, private canvas: HTMLCanvasElement) {
-			this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, canvas);
+		constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
+			this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, display, canvas);
 			//this.driver = new Context2dPspDrawDriver(memory, canvas);
             this.listRunner = new PspGpuListRunner(memory, this.driver);
         }

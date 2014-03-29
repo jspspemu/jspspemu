@@ -13,13 +13,15 @@
 
 		createProgram(vertex: VertexState) {
 			var defines = [];
-			if (vertex.hasColor) defines.push('#define VERTEX_COLOR 1');
-			if (vertex.hasTexture) defines.push('#define VERTEX_TEXTURE 1');
+			if (vertex.hasColor) defines.push('VERTEX_COLOR');
+			if (vertex.hasTexture) defines.push('VERTEX_TEXTURE');
+
+			var preppend = defines.map(item => '#define ' + item + ' 1').join("\n");
 
 			return ShaderCache.shaderProgram(
 				this.gl,
-				defines.join("\n") + "\n" + this.shaderVertString,
-				defines.join("\n") + "\n" + this.shaderFragString
+				preppend + "\n" + this.shaderVertString,
+				preppend + "\n" + this.shaderFragString
 			);
 		}
 
@@ -40,72 +42,104 @@
 		}
 	}
 
-	class TextureHandler {
-		constructor(private memory: Memory, private gl: WebGLRenderingContext) {
+	class Texture {
+		private texture: WebGLTexture;
+
+		constructor(private gl: WebGLRenderingContext) {
+			this.texture = gl.createTexture();
 		}
 
-		bindTexture(program:WebGLProgram, state: GpuState) {
+		fromCanvas(canvas: HTMLCanvasElement) {
 			var gl = this.gl;
-			var texture = gl.createTexture();
 
-			var mipmap = state.texture.mipmaps[0];
-
-			var h = mipmap.textureHeight;
-			//var w2 = mipmap.textureWidth;
-			//var w = mipmap.textureWidth, w2 = mipmap.textureWidth;
-			var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
-			//var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
-
-			//printf("%d, %d", w, h);
-
-			var canvas = document.createElement('canvas');
-			canvas.width = w;
-			canvas.height = h;
-			var ctx = canvas.getContext('2d');
-			var imageData = ctx.createImageData(w2, h);
-			var u8 = imageData.data;
-
-			//console.error('pixelFormat:' + state.texture.pixelFormat);
-
-			var clut = state.texture.clut;
-			var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
-			var paletteU8 = new Uint8Array(paletteBuffer);
-			var palette = new Uint32Array(paletteBuffer);
-
-			//console.log(sprintf("%08X,%d", clut.adress, clut.pixelFormat));
-			switch (state.texture.pixelFormat) {
-				case PixelFormat.PALETTE_T16:
-				case PixelFormat.PALETTE_T8:
-				case PixelFormat.PALETTE_T4:
-					//console.log(sprintf('%08X', clut.adress));
-					//var items = [];
-					//for (var n = 0; n < 10; n++) items.push(this.memory.readUInt32(clut.adress + n * 4));
-					//console.log(items.join(','));
-					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
-					//console.log(palette);
-					break;
-			}
-
-			//console.log(palette);
-
-			PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
-			
-			ctx.clearRect(0, 0, w, h);
-			ctx.putImageData(imageData, 0, 0);
-
-			//ctx.fillStyle = 'red';
-			//ctx.fillRect(0, 0, w, h);
-
-			gl.bindTexture(gl.TEXTURE_2D, texture);
+			gl.bindTexture(gl.TEXTURE_2D, this.texture);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
 			gl.generateMipmap(gl.TEXTURE_2D);
 			gl.bindTexture(gl.TEXTURE_2D, null);
 
+		}
+
+		bind() {
+			var gl = this.gl;
+
 			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, texture);
+			gl.bindTexture(gl.TEXTURE_2D, this.texture);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+		}
+
+		static hash(memory: Memory, state: GpuState) {
+			var mipmap = state.texture.mipmaps[0];
+			var clut = state.texture.clut;
+
+			var hash = '';
+
+			hash += '_' + state.texture.pixelFormat;
+			hash += '_' + mipmap.bufferWidth;
+			hash += '_' + mipmap.textureWidth;
+			hash += '_' + mipmap.textureHeight;
+			hash += '_' + memory.hash(mipmap.address, PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
+			if (state.texture.isPixelFormatWithClut) {
+				hash += '_' + memory.hash(clut.adress, PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
+				hash += '_' + clut.mask;
+				hash += '_' + clut.numberOfColors;
+				hash += '_' + clut.pixelFormat;
+				hash += '_' + clut.shift;
+				hash += '_' + clut.start;
+			}
+			return hash;
+		}
+	}
+
+	class TextureHandler {
+		constructor(private memory: Memory, private gl: WebGLRenderingContext) {
+		}
+
+		private textures: StringDictionary<Texture> = {};
+
+		bindTexture(program: WebGLProgram, state: GpuState) {
+			var gl = this.gl;
+			var hash = Texture.hash(this.memory, state);
+
+			//console.log(hash);
+
+			if (!this.textures[hash])
+			{
+				var texture = this.textures[hash] = new Texture(gl);
+
+				var mipmap = state.texture.mipmaps[0];
+
+				var h = mipmap.textureHeight;
+				var w = mipmap.textureWidth;
+				var w2 = mipmap.bufferWidth;
+
+				var canvas = document.createElement('canvas');
+				canvas.width = w;
+				canvas.height = h;
+				var ctx = canvas.getContext('2d');
+				var imageData = ctx.createImageData(w2, h);
+				var u8 = imageData.data;
+
+				var clut = state.texture.clut;
+				var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
+				var paletteU8 = new Uint8Array(paletteBuffer);
+				var palette = new Uint32Array(paletteBuffer);
+
+				if (state.texture.isPixelFormatWithClut) {
+					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+				}
+
+				PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+
+				ctx.clearRect(0, 0, w, h);
+				ctx.putImageData(imageData, 0, 0);
+
+				texture.fromCanvas(canvas);
+			}
+			
+			this.textures[hash].bind();
 			gl.uniform1i(gl.getUniformLocation(program, "uSampler"), 0);
+
 		}
 
 		unbindTexture(program: WebGLProgram, state: GpuState) {
@@ -120,9 +154,9 @@
 		private cache: ShaderCache;
 		private textureHandler: TextureHandler;
 
-		constructor(private memory: Memory, private canvas: HTMLCanvasElement) {
-			this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: false });
-			if (!this.gl) this.canvas.getContext('webgl', { preserveDrawingBuffer: false });
+		constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
+			this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+			if (!this.gl) this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
 
 			this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
@@ -133,8 +167,8 @@
 		private baseShaderVertString = '';
 
 		initAsync() {
-			return downloadFileAsync('src/core/gpu/shader.vert').then((shaderVert) => {
-				return downloadFileAsync('src/core/gpu/shader.frag').then((shaderFrag) => {
+			return downloadFileAsync('shader.vert').then((shaderVert) => {
+				return downloadFileAsync('shader.frag').then((shaderFrag) => {
 					var shaderVertString = Stream.fromArrayBuffer(shaderVert).readUtf8String(shaderVert.byteLength);
 					var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
 
@@ -186,6 +220,8 @@
 		}
 
 		drawElements(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState) {
+			this.display.setEnabledDisplay(false);
+
 			if (primitiveType == PrimitiveType.Sprites) {
 				return this.drawSprites(vertices, count, vertexState);
 			} else {
@@ -233,6 +269,11 @@
 
 			var gl = this.gl;
 
+			if (this.clearing) {
+				gl.clearColor(0, 0, 0, 1);
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			}
+
 			var program = this.cache.getProgram(vertexState);
 
 			gl.useProgram(program);
@@ -271,16 +312,16 @@
 				//console.log(this.state.texture);
 			}
 
-			WebGlPspDrawDriver.uniformSetMat4(gl, program, 'u_modelViewProjMatrix', vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
+			this.uniformSetMat4(gl, program, 'u_modelViewProjMatrix', vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
 
-			WebGlPspDrawDriver.attributeSetFloats(gl, program, "vPosition", 3, positionData);
+			this.attributeSetFloats(gl, program, "vPosition", 3, positionData);
 			if (vertexState.hasTexture) {
 				gl.uniform1i(gl.getUniformLocation(program, 'tfx'), this.state.texture.effect);
 				gl.uniform1i(gl.getUniformLocation(program, 'tcc'), this.state.texture.colorComponent);
-				WebGlPspDrawDriver.attributeSetFloats(gl, program, "vTexcoord", 3, textureData);
+				this.attributeSetFloats(gl, program, "vTexcoord", 3, textureData);
 			}
 			if (vertexState.hasColor) {
-				WebGlPspDrawDriver.attributeSetFloats(gl, program, "vColor", 4, colorData);
+				this.attributeSetFloats(gl, program, "vColor", 4, colorData);
 			}
 
 			switch (primitiveType) {
@@ -292,25 +333,28 @@
 				case PrimitiveType.TriangleFan: gl.drawArrays(gl.TRIANGLE_FAN, 0, count); break;
 			}
 
-			WebGlPspDrawDriver.attributeDisable(gl, program, 'vPosition');
-			if (vertexState.hasTexture) WebGlPspDrawDriver.attributeDisable(gl, program, 'vTexcoord');
-			if (vertexState.hasColor) WebGlPspDrawDriver.attributeDisable(gl, program, 'vColor');
+			this.attributeDisable(gl, program, 'vPosition');
+			if (vertexState.hasTexture) this.attributeDisable(gl, program, 'vTexcoord');
+			if (vertexState.hasColor) this.attributeDisable(gl, program, 'vColor');
 		}
 
-		static uniformSetMat4(gl: WebGLRenderingContext, prog: WebGLProgram, uniform_name: string, arr: number[]) {
+		uniformSetMat4(gl: WebGLRenderingContext, prog: WebGLProgram, uniform_name: string, arr: number[]) {
 			var uniform = gl.getUniformLocation(prog, uniform_name);
 			if (uniform) gl.uniformMatrix4fv(uniform, false, new Float32Array(arr));
 		}
 
-		static attributeDisable(gl: WebGLRenderingContext, prog: WebGLProgram, attr_name: string) {
+		attributeDisable(gl: WebGLRenderingContext, prog: WebGLProgram, attr_name: string) {
 			var attr = gl.getAttribLocation(prog, attr_name);
 			if (attr >= 0) {
 				gl.disableVertexAttribArray(attr);
 			}
 		}
 
-		static attributeSetFloats(gl: WebGLRenderingContext, prog: WebGLProgram, attr_name: string, rsize: number, arr: number[]) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+		private buffers: StringDictionary<WebGLBuffer> = {};
+
+		attributeSetFloats(gl: WebGLRenderingContext, prog: WebGLProgram, attr_name: string, rsize: number, arr: number[]) {
+			if (!this.buffers[attr_name]) this.buffers[attr_name] = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[attr_name]);
 			var varr = new Float32Array(arr);
 			(<any>gl.bufferData)(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
 			var attr = gl.getAttribLocation(prog, attr_name);

@@ -24,8 +24,8 @@
             _this.audio = new core.PspAudio();
             _this.canvas = (document.getElementById('canvas'));
             _this.webgl_canvas = (document.getElementById('webgl_canvas'));
-            _this.display = new core.PspDisplay(_this.memory, _this.canvas);
-            _this.gpu = new core.gpu.PspGpu(_this.memory, _this.webgl_canvas);
+            _this.display = new core.PspDisplay(_this.memory, _this.canvas, _this.webgl_canvas);
+            _this.gpu = new core.gpu.PspGpu(_this.memory, _this.display, _this.webgl_canvas);
             _this.controller = new core.PspController();
             _this.instructionCache = new InstructionCache(_this.memory);
             _this.syscallManager = new core.SyscallManager(_this.emulatorContext);
@@ -3932,6 +3932,9 @@ var core;
             });
         };
 
+        DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
+        };
+
         DummyPspDisplay.prototype.startAsync = function () {
             return Promise.resolve();
         };
@@ -3945,18 +3948,23 @@ var core;
 
     var PspDisplay = (function (_super) {
         __extends(PspDisplay, _super);
-        function PspDisplay(memory, canvas) {
+        function PspDisplay(memory, canvas, webglcanvas) {
             _super.call(this);
             this.memory = memory;
             this.canvas = canvas;
+            this.webglcanvas = webglcanvas;
             this.vblank = new Signal();
             this.interval = -1;
             this.vblankCount = 0;
+            this.enabled = true;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
+            this.setEnabledDisplay(true);
         }
         PspDisplay.prototype.update = function () {
             if (!this.context || !this.imageData)
+                return;
+            if (!this.enabled)
                 return;
 
             var count = 512 * 272;
@@ -3964,11 +3972,14 @@ var core;
             var w8 = imageData.data;
             var baseAddress = this.address & 0x0FFFFFFF;
 
-            //var from8 = this.memory.u8;
-            //var from16 = this.memory.u16;
             PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
-
             this.context.putImageData(imageData, 0, 0);
+        };
+
+        PspDisplay.prototype.setEnabledDisplay = function (enable) {
+            this.enabled = enable;
+            this.canvas.style.display = enable ? 'block' : 'none';
+            this.webglcanvas.style.display = !enable ? 'block' : 'none';
         };
 
         PspDisplay.prototype.startAsync = function () {
@@ -4000,9 +4011,27 @@ var core;
     })(BasePspDisplay);
     core.PspDisplay = PspDisplay;
 
+    var sizes = {};
+    sizes[8 /* COMPRESSED_DXT1 */] = 0.5;
+    sizes[9 /* COMPRESSED_DXT3 */] = 1;
+    sizes[10 /* COMPRESSED_DXT5 */] = 1;
+    sizes[-1 /* NONE */] = 0;
+    sizes[6 /* PALETTE_T16 */] = 2;
+    sizes[7 /* PALETTE_T32 */] = 4;
+    sizes[5 /* PALETTE_T8 */] = 1;
+    sizes[4 /* PALETTE_T4 */] = 0.5;
+    sizes[2 /* RGBA_4444 */] = 2;
+    sizes[1 /* RGBA_5551 */] = 2;
+    sizes[0 /* RGBA_5650 */] = 2;
+    sizes[3 /* RGBA_8888 */] = 4;
+
     var PixelConverter = (function () {
         function PixelConverter() {
         }
+        PixelConverter.getSizeInBytes = function (format, count) {
+            return sizes[format] * count;
+        };
+
         PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
             if (typeof useAlpha === "undefined") { useAlpha = true; }
             if (typeof palette === "undefined") { palette = null; }
@@ -4239,11 +4268,15 @@ var core;
                 ShaderCache.prototype.createProgram = function (vertex) {
                     var defines = [];
                     if (vertex.hasColor)
-                        defines.push('#define VERTEX_COLOR 1');
+                        defines.push('VERTEX_COLOR');
                     if (vertex.hasTexture)
-                        defines.push('#define VERTEX_TEXTURE 1');
+                        defines.push('VERTEX_TEXTURE');
 
-                    return ShaderCache.shaderProgram(this.gl, defines.join("\n") + "\n" + this.shaderVertString, defines.join("\n") + "\n" + this.shaderFragString);
+                    var preppend = defines.map(function (item) {
+                        return '#define ' + item + ' 1';
+                    }).join("\n");
+
+                    return ShaderCache.shaderProgram(this.gl, preppend + "\n" + this.shaderVertString, preppend + "\n" + this.shaderFragString);
                 };
 
                 ShaderCache.shaderProgram = function (gl, vs, fs) {
@@ -4266,68 +4299,98 @@ var core;
                 return ShaderCache;
             })();
 
+            var Texture = (function () {
+                function Texture(gl) {
+                    this.gl = gl;
+                    this.texture = gl.createTexture();
+                }
+                Texture.prototype.fromCanvas = function (canvas) {
+                    var gl = this.gl;
+
+                    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+                    gl.generateMipmap(gl.TEXTURE_2D);
+                    gl.bindTexture(gl.TEXTURE_2D, null);
+                };
+
+                Texture.prototype.bind = function () {
+                    var gl = this.gl;
+
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+                };
+
+                Texture.hash = function (memory, state) {
+                    var mipmap = state.texture.mipmaps[0];
+                    var clut = state.texture.clut;
+
+                    var hash = '';
+
+                    hash += '_' + state.texture.pixelFormat;
+                    hash += '_' + mipmap.bufferWidth;
+                    hash += '_' + mipmap.textureWidth;
+                    hash += '_' + mipmap.textureHeight;
+                    hash += '_' + memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
+                    if (state.texture.isPixelFormatWithClut) {
+                        hash += '_' + memory.hash(clut.adress, core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
+                        hash += '_' + clut.mask;
+                        hash += '_' + clut.numberOfColors;
+                        hash += '_' + clut.pixelFormat;
+                        hash += '_' + clut.shift;
+                        hash += '_' + clut.start;
+                    }
+                    return hash;
+                };
+                return Texture;
+            })();
+
             var TextureHandler = (function () {
                 function TextureHandler(memory, gl) {
                     this.memory = memory;
                     this.gl = gl;
+                    this.textures = {};
                 }
                 TextureHandler.prototype.bindTexture = function (program, state) {
                     var gl = this.gl;
-                    var texture = gl.createTexture();
+                    var hash = Texture.hash(this.memory, state);
 
-                    var mipmap = state.texture.mipmaps[0];
+                    //console.log(hash);
+                    if (!this.textures[hash]) {
+                        var texture = this.textures[hash] = new Texture(gl);
 
-                    var h = mipmap.textureHeight;
+                        var mipmap = state.texture.mipmaps[0];
 
-                    //var w2 = mipmap.textureWidth;
-                    //var w = mipmap.textureWidth, w2 = mipmap.textureWidth;
-                    var w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+                        var h = mipmap.textureHeight;
+                        var w = mipmap.textureWidth;
+                        var w2 = mipmap.bufferWidth;
 
-                    //var w = mipmap.bufferWidth, w2 = mipmap.textureWidth;
-                    //printf("%d, %d", w, h);
-                    var canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    var ctx = canvas.getContext('2d');
-                    var imageData = ctx.createImageData(w2, h);
-                    var u8 = imageData.data;
+                        var canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        var ctx = canvas.getContext('2d');
+                        var imageData = ctx.createImageData(w2, h);
+                        var u8 = imageData.data;
 
-                    //console.error('pixelFormat:' + state.texture.pixelFormat);
-                    var clut = state.texture.clut;
-                    var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
-                    var paletteU8 = new Uint8Array(paletteBuffer);
-                    var palette = new Uint32Array(paletteBuffer);
+                        var clut = state.texture.clut;
+                        var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
+                        var paletteU8 = new Uint8Array(paletteBuffer);
+                        var palette = new Uint32Array(paletteBuffer);
 
-                    switch (state.texture.pixelFormat) {
-                        case 6 /* PALETTE_T16 */:
-                        case 5 /* PALETTE_T8 */:
-                        case 4 /* PALETTE_T4 */:
-                            //console.log(sprintf('%08X', clut.adress));
-                            //var items = [];
-                            //for (var n = 0; n < 10; n++) items.push(this.memory.readUInt32(clut.adress + n * 4));
-                            //console.log(items.join(','));
+                        if (state.texture.isPixelFormatWithClut) {
                             core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+                        }
 
-                            break;
+                        core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+
+                        ctx.clearRect(0, 0, w, h);
+                        ctx.putImageData(imageData, 0, 0);
+
+                        texture.fromCanvas(canvas);
                     }
 
-                    //console.log(palette);
-                    core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
-
-                    ctx.clearRect(0, 0, w, h);
-                    ctx.putImageData(imageData, 0, 0);
-
-                    //ctx.fillStyle = 'red';
-                    //ctx.fillRect(0, 0, w, h);
-                    gl.bindTexture(gl.TEXTURE_2D, texture);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-                    gl.generateMipmap(gl.TEXTURE_2D);
-                    gl.bindTexture(gl.TEXTURE_2D, null);
-
-                    gl.activeTexture(gl.TEXTURE0);
-                    gl.bindTexture(gl.TEXTURE_2D, texture);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+                    this.textures[hash].bind();
                     gl.uniform1i(gl.getUniformLocation(program, "uSampler"), 0);
                 };
 
@@ -4340,17 +4403,19 @@ var core;
             })();
 
             var WebGlPspDrawDriver = (function () {
-                function WebGlPspDrawDriver(memory, canvas) {
+                function WebGlPspDrawDriver(memory, display, canvas) {
                     this.memory = memory;
+                    this.display = display;
                     this.canvas = canvas;
                     this.baseShaderFragString = '';
                     this.baseShaderVertString = '';
                     this.transformMatrix = mat4.create();
                     this.transformMatrix2d = mat4.create();
                     this.testCount = 20;
-                    this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: false });
+                    this.buffers = {};
+                    this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
                     if (!this.gl)
-                        this.canvas.getContext('webgl', { preserveDrawingBuffer: false });
+                        this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
 
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
@@ -4358,8 +4423,8 @@ var core;
                 }
                 WebGlPspDrawDriver.prototype.initAsync = function () {
                     var _this = this;
-                    return downloadFileAsync('src/core/gpu/shader.vert').then(function (shaderVert) {
-                        return downloadFileAsync('src/core/gpu/shader.frag').then(function (shaderFrag) {
+                    return downloadFileAsync('shader.vert').then(function (shaderVert) {
+                        return downloadFileAsync('shader.frag').then(function (shaderFrag) {
                             var shaderVertString = Stream.fromArrayBuffer(shaderVert).readUtf8String(shaderVert.byteLength);
                             var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
 
@@ -4405,6 +4470,8 @@ var core;
                 };
 
                 WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
+                    this.display.setEnabledDisplay(false);
+
                     if (primitiveType == 6 /* Sprites */) {
                         return this.drawSprites(vertices, count, vertexState);
                     } else {
@@ -4447,6 +4514,11 @@ var core;
                 WebGlPspDrawDriver.prototype.drawElementsInternal = function (primitiveType, vertices, count, vertexState) {
                     //console.log(primitiveType);
                     var gl = this.gl;
+
+                    if (this.clearing) {
+                        gl.clearColor(0, 0, 0, 1);
+                        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                    }
 
                     var program = this.cache.getProgram(vertexState);
 
@@ -4493,16 +4565,16 @@ var core;
                         //console.log(this.state.texture);
                     }
 
-                    WebGlPspDrawDriver.uniformSetMat4(gl, program, 'u_modelViewProjMatrix', vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
+                    this.uniformSetMat4(gl, program, 'u_modelViewProjMatrix', vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
 
-                    WebGlPspDrawDriver.attributeSetFloats(gl, program, "vPosition", 3, positionData);
+                    this.attributeSetFloats(gl, program, "vPosition", 3, positionData);
                     if (vertexState.hasTexture) {
                         gl.uniform1i(gl.getUniformLocation(program, 'tfx'), this.state.texture.effect);
                         gl.uniform1i(gl.getUniformLocation(program, 'tcc'), this.state.texture.colorComponent);
-                        WebGlPspDrawDriver.attributeSetFloats(gl, program, "vTexcoord", 3, textureData);
+                        this.attributeSetFloats(gl, program, "vTexcoord", 3, textureData);
                     }
                     if (vertexState.hasColor) {
-                        WebGlPspDrawDriver.attributeSetFloats(gl, program, "vColor", 4, colorData);
+                        this.attributeSetFloats(gl, program, "vColor", 4, colorData);
                     }
 
                     switch (primitiveType) {
@@ -4526,28 +4598,30 @@ var core;
                             break;
                     }
 
-                    WebGlPspDrawDriver.attributeDisable(gl, program, 'vPosition');
+                    this.attributeDisable(gl, program, 'vPosition');
                     if (vertexState.hasTexture)
-                        WebGlPspDrawDriver.attributeDisable(gl, program, 'vTexcoord');
+                        this.attributeDisable(gl, program, 'vTexcoord');
                     if (vertexState.hasColor)
-                        WebGlPspDrawDriver.attributeDisable(gl, program, 'vColor');
+                        this.attributeDisable(gl, program, 'vColor');
                 };
 
-                WebGlPspDrawDriver.uniformSetMat4 = function (gl, prog, uniform_name, arr) {
+                WebGlPspDrawDriver.prototype.uniformSetMat4 = function (gl, prog, uniform_name, arr) {
                     var uniform = gl.getUniformLocation(prog, uniform_name);
                     if (uniform)
                         gl.uniformMatrix4fv(uniform, false, new Float32Array(arr));
                 };
 
-                WebGlPspDrawDriver.attributeDisable = function (gl, prog, attr_name) {
+                WebGlPspDrawDriver.prototype.attributeDisable = function (gl, prog, attr_name) {
                     var attr = gl.getAttribLocation(prog, attr_name);
                     if (attr >= 0) {
                         gl.disableVertexAttribArray(attr);
                     }
                 };
 
-                WebGlPspDrawDriver.attributeSetFloats = function (gl, prog, attr_name, rsize, arr) {
-                    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+                WebGlPspDrawDriver.prototype.attributeSetFloats = function (gl, prog, attr_name, rsize, arr) {
+                    if (!this.buffers[attr_name])
+                        this.buffers[attr_name] = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[attr_name]);
                     var varr = new Float32Array(arr);
                     gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
                     var attr = gl.getAttribLocation(prog, attr_name);
@@ -5062,6 +5136,13 @@ var core;
                 this.clut = new ClutState();
                 this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
             }
+            Object.defineProperty(TextureState.prototype, "isPixelFormatWithClut", {
+                get: function () {
+                    return (this.pixelFormat == 4 /* PALETTE_T4 */) || (this.pixelFormat == 5 /* PALETTE_T8 */) || (this.pixelFormat == 6 /* PALETTE_T16 */) || (this.pixelFormat == 7 /* PALETTE_T32 */);
+                },
+                enumerable: true,
+                configurable: true
+            });
             return TextureState;
         })();
         gpu.TextureState = TextureState;
@@ -5511,6 +5592,16 @@ var core;
             for (var n = 0; n < length; n++) {
                 this.u8[address + n] = value;
             }
+        };
+
+        Memory.prototype.hash = function (address, count) {
+            var result = 0;
+            var u32 = this.u32;
+            for (var n = 0; n < count / 4; n++) {
+                result |= u32[n];
+                result ^= n * 7777777777;
+            }
+            return result;
         };
 
         Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
@@ -6007,10 +6098,11 @@ var core;
         })();
 
         var PspGpu = (function () {
-            function PspGpu(memory, canvas) {
+            function PspGpu(memory, display, canvas) {
                 this.memory = memory;
+                this.display = display;
                 this.canvas = canvas;
-                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, canvas);
+                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, display, canvas);
 
                 //this.driver = new Context2dPspDrawDriver(memory, canvas);
                 this.listRunner = new PspGpuListRunner(memory, this.driver);

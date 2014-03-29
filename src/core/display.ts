@@ -7,6 +7,7 @@
 		startAsync(): Promise<void>;
 		stopAsync(): Promise<void>;
 		waitVblankAsync(): Promise<number>;
+		setEnabledDisplay(enable: boolean): void;
 		vblankCount: number;
 	}
 
@@ -43,6 +44,9 @@
 			return new Promise((resolve) => { setTimeout(resolve, 20); });
 		}
 
+		setEnabledDisplay(enable: boolean) {
+		}
+
 		startAsync() {
 			return Promise.resolve();
 		}
@@ -58,27 +62,32 @@
 		private imageData: ImageData;
 		private interval: number = -1;
 		vblankCount: number = 0;
+		private enabled: boolean = true;
 
-		constructor(public memory: Memory, public canvas: HTMLCanvasElement) {
+		constructor(public memory: Memory, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 			super();
 			this.context = this.canvas.getContext('2d');
 			this.imageData = this.context.createImageData(512, 272);
+			this.setEnabledDisplay(true);
 		}
 
 		update() {
 			if (!this.context || !this.imageData) return;
+			if (!this.enabled) return;
 
 			var count = 512 * 272;
 			var imageData = this.imageData;
 			var w8 = imageData.data;
 			var baseAddress = this.address & 0x0FFFFFFF;
 
-			//var from8 = this.memory.u8;
-			//var from16 = this.memory.u16;
-
 			PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
-
 			this.context.putImageData(imageData, 0, 0);
+		}
+
+		setEnabledDisplay(enable: boolean) {
+			this.enabled = enable;
+			this.canvas.style.display = enable ? 'block' : 'none';
+			this.webglcanvas.style.display = !enable ? 'block' : 'none';
 		}
 
 		startAsync() {
@@ -106,7 +115,25 @@
 		}
 	}
 
+	var sizes = {};
+	sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
+	sizes[PixelFormat.COMPRESSED_DXT3] = 1;
+	sizes[PixelFormat.COMPRESSED_DXT5] = 1;
+	sizes[PixelFormat.NONE] = 0;
+	sizes[PixelFormat.PALETTE_T16] = 2;
+	sizes[PixelFormat.PALETTE_T32] = 4;
+	sizes[PixelFormat.PALETTE_T8] = 1;
+	sizes[PixelFormat.PALETTE_T4] = 0.5;
+	sizes[PixelFormat.RGBA_4444] = 2;
+	sizes[PixelFormat.RGBA_5551] = 2;
+	sizes[PixelFormat.RGBA_5650] = 2;
+	sizes[PixelFormat.RGBA_8888] = 4;
+
 	export class PixelConverter {
+		static getSizeInBytes(format: PixelFormat, count: number) {
+			return sizes[format] * count;
+		}
+
 		static decode(format: PixelFormat, from: ArrayBuffer, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 			//console.log(format + ':' + PixelFormat[format]);
 			switch (format) {

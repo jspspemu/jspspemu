@@ -27,6 +27,7 @@
     <Content Include="lib\zlib\zlib.js" />
     <Content Include="lib\zlib_and_gzip.min.js" />
     <Content Include="polyfills\promise-0.1.1.js" />
+    <Content Include="pspemu.css" />
     <Content Include="samples\minifire_B0h_1EFh.elf.raw" />
     <Content Include="lib\underscore.js" />
     <Content Include="web.config" />
@@ -101,7 +102,6 @@
     <TypeScriptCompile Include="src\core\cpu\instructions.ts" />
     <TypeScriptCompile Include="src\core\memory.ts" />
     <TypeScriptCompile Include="src\core\rtc.ts" />
-    <TypeScriptCompile Include="test\samples.ts" />
     <TypeScriptCompile Include="src\util\utils.ts" />
     <TypeScriptCompile Include="src\hle\vfs.ts" />
     <TypeScriptCompile Include="test\gpuTest.ts" />
@@ -151,8 +151,8 @@
     <Content Include="samples\tests\string.expected" />
     <Content Include="samples\tests\string.prx" />
     <Content Include="samples\text.elf" />
-    <Content Include="src\core\gpu\shader.vert" />
-    <Content Include="src\core\gpu\shader.frag" />
+    <Content Include="shader.vert" />
+    <Content Include="shader.frag" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -204,7 +204,7 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <TypeScriptTarget>ES5</TypeScriptTarget>
     <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
-    <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptSourceMap>True</TypeScriptSourceMap>
     <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
     <TypeScriptOutFile>pspemu.js</TypeScriptOutFile>
   </PropertyGroup>
