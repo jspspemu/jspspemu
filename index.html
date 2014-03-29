@@ -53,27 +53,36 @@
         </div>
         <div id="thread_list" style="color:white;"></div>
 
-        <div id="buttons">
-            <span id="button_left">2</span>
-            <span id="button_up">3</span>
-            <span id="button_right">1</span>
-            <span id="button_down">4</span>
-            <span id="button_up_right">5</span>
-            <span id="button_down_right">6</span>
-            <span id="button_up_left">7</span>
-            <span id="button_down_left">8</span>
+        <div id="touch_buttons_font">
+            <div id="touch_buttons">
+                <span id="directional_pad">
+                    <span class="psp_button" id="button_left">2</span>
+                    <span class="psp_button" id="button_up">3</span>
+                    <span class="psp_button" id="button_right">1</span>
+                    <span class="psp_button" id="button_down">4</span>
+                    <span class="psp_button" id="button_up_right">5</span>
+                    <span class="psp_button" id="button_down_right">6</span>
+                    <span class="psp_button" id="button_up_left">7</span>
+                    <span class="psp_button" id="button_down_left">8</span>
+                </span>
 
+                <span id="button_pad">
+                    <span class="psp_button" id="button_cross">X</span>
+                    <span class="psp_button" id="button_circle">C</span>
+                    <span class="psp_button" id="button_triangle">T</span>
+                    <span class="psp_button" id="button_square">S</span>
+                </span>
 
-            <span id="button_cross">X</span>
-            <span id="button_circle">C</span>
-            <span id="button_triangle">T</span>
-            <span id="button_square">S</span>
+                <span id="lr_pad">
+                    <span class="psp_button" id="button_l">l</span>
+                    <span class="psp_button" id="button_r">r</span>
+                </span>
 
-            <span id="button_l">l</span>
-            <span id="button_r">r</span>
-
-            <span id="button_start">A</span>
-            <span id="button_select">B</span>
+                <span id="select_start_pad">
+                    <span class="psp_button" id="button_start">A</span>
+                    <span class="psp_button" id="button_select">B</span>
+                </span>
+            </div>
         </div>
         <div id="output"></div>
     </div>
@@ -105,7 +114,9 @@
             var width = 480 * scale, height = 272 * scale;
             console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
             $('#body').css('width', width + 'px');
-            $('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px')
+            $('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
+            $('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+            //$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
         }
 
         $('#scale').change(function () { updateScale(); });
@@ -136,6 +147,11 @@
             console.clear();
             emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
         });
+        //$(document.body).click(function (e) { e.preventDefault() });
+        //$(document.body).mousedown(function (e) { e.preventDefault() });
+        //$(document.body).mouseup(function (e) { e.preventDefault() });
+
+        $(window).on('select', function (e) { e.preventDefault() });
         //<a href="index.html?' + fileName + '" style="color:white;">
 
         main();
