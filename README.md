@@ -53,14 +53,14 @@ export class ElfPspModuleInfo {
     // http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
     // 26.2.2.8
     static struct = StructClass.create<ElfPspModuleInfo>(ElfPspModuleInfo, [
-        { type: UInt16, name: "moduleAtributes" },
-        { type: UInt16, name: "moduleVersion" },
-        { type: Stringz(28), name: "name" },
-        { type: UInt32, name: "gp" },
-        { type: UInt32, name: "exportsStart" },
-        { type: UInt32, name: "exportsEnd" },
-        { type: UInt32, name: "importsStart" },
-        { type: UInt32, name: "importsEnd" },
+		{ moduleAtributes: UInt16 },
+		{ moduleVersion: UInt16 },
+		{ name: Stringz(28) },
+		{ gp: UInt32 },
+		{ exportsStart: UInt32 },
+		{ exportsEnd: UInt32 },
+		{ importsStart: UInt32 },
+		{ importsEnd: UInt32 },
     ]);
 }
 

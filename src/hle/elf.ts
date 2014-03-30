@@ -32,24 +32,24 @@
         }
 
         static struct = StructClass.create<ElfHeader>(ElfHeader, [
-            { type: Stringn(4), name: 'magic' },
-            { type: Int8, name: 'class' },
-            { type: Int8, name: 'data' },
-            { type: Int8, name: 'idVersion' },
-            { type: StructArray.create<number>(Int8, 9), name: '_padding' },
-            { type: UInt16, name: 'type' },
-            { type: Int16, name: 'machine' },
-            { type: Int32, name: 'version' },
-            { type: Int32, name: 'entryPoint' },
-            { type: Int32, name: 'programHeaderOffset' },
-            { type: Int32, name: 'sectionHeaderOffset' },
-            { type: Int32, name: 'flags' },
-            { type: Int16, name: 'elfHeaderSize' },
-            { type: Int16, name: 'programHeaderEntrySize' },
-            { type: Int16, name: 'programHeaderCount' },
-            { type: Int16, name: 'sectionHeaderEntrySize' },
-            { type: Int16, name: 'sectionHeaderCount' },
-            { type: Int16, name: 'sectionHeaderStringTable' },
+			{ magic: Stringn(4) },
+			{ class: Int8 },
+			{ data: Int8 },
+			{ idVersion: Int8 },
+			{ _padding: StructArray(Int8, 9) },
+			{ type: UInt16 },
+			{ machine: Int16 },
+			{ version: Int32 },
+			{ entryPoint: Int32 },
+			{ programHeaderOffset: Int32 },
+			{ sectionHeaderOffset: Int32 },
+			{ flags: Int32 },
+			{ elfHeaderSize: Int16 },
+			{ programHeaderEntrySize: Int16 },
+			{ programHeaderCount: Int16 },
+			{ sectionHeaderEntrySize: Int16 },
+			{ sectionHeaderCount: Int16 },
+			{ sectionHeaderStringTable: Int16 },
         ]);
     }
 
@@ -64,14 +64,14 @@
         alignment: number;
 
         static struct = StructClass.create<ElfProgramHeader>(ElfProgramHeader, [
-            { type: UInt32, name: 'type' },
-            { type: UInt32, name: 'offset' },
-            { type: UInt32, name: 'virtualAddress' },
-            { type: UInt32, name: 'psysicalAddress' },
-            { type: UInt32, name: 'fileSize' },
-            { type: UInt32, name: 'memorySize' },
-            { type: UInt32, name: 'flags' },
-            { type: UInt32, name: 'alignment' },
+			{ type: UInt32 },
+			{ offset: UInt32 },
+			{ virtualAddress: UInt32 },
+			{ psysicalAddress: UInt32 },
+			{ fileSize: UInt32 },
+			{ memorySize: UInt32 },
+			{ flags: UInt32 },
+			{ alignment: UInt32 },
         ]);
     }
 
@@ -90,16 +90,16 @@
         entitySize: number;
 
         static struct = StructClass.create<ElfSectionHeader>(ElfSectionHeader, [
-            { type: UInt32, name: 'nameOffset' },
-            { type: UInt32, name: 'type' },
-            { type: UInt32, name: 'flags' },
-            { type: UInt32, name: 'address' },
-            { type: UInt32, name: 'offset' },
-            { type: UInt32, name: 'size' },
-            { type: UInt32, name: 'link' },
-            { type: UInt32, name: 'info' },
-            { type: UInt32, name: 'addressAlign' },
-            { type: UInt32, name: 'entitySize' },
+			{ nameOffset: UInt32 },
+			{ type: UInt32 },
+			{ flags: UInt32 },
+			{ address: UInt32 },
+			{ offset: UInt32 },
+			{ size: UInt32 },
+			{ link: UInt32 },
+			{ info: UInt32 },
+			{ addressAlign: UInt32 },
+			{ entitySize: UInt32 },
         ]);
     }
 
@@ -191,14 +191,14 @@
         callAddress: number;
 
         static struct = Struct.create<ElfPspModuleImport>([
-            { type: UInt32, name: "nameOffset" },
-            { type: UInt16, name: "version" },
-            { type: UInt16, name: "flags" },
-            { type: UInt8, name: "entrySize" },
-            { type: UInt8, name: "variableCount" },
-            { type: UInt16, name: "functionCount" },
-            { type: UInt32, name: "nidAddress" },
-            { type: UInt32, name: "callAddress" },
+			{ nameOffset: UInt32 },
+			{ version: UInt16 },
+			{ flags: UInt16 },
+			{ entrySize: UInt8 },
+			{ variableCount: UInt8 },
+			{ functionCount: UInt16 },
+			{ nidAddress: UInt32 },
+			{ callAddress: UInt32 },
         ]);
     }
 
@@ -212,13 +212,13 @@
         exports: number;
 
         static struct = Struct.create([
-            { type: UInt32, name: "name" },
-            { type: UInt16, name: "version" },
-            { type: UInt16, name: "flags" },
-            { type: UInt8, name: "entrySize" },
-            { type: UInt8, name: "variableCount" },
-            { type: UInt16, name: "functionCount" },
-            { type: UInt32, name: "exports" },
+			{ name: UInt32 },
+			{ version: UInt16 },
+			{ flags: UInt16 },
+			{ entrySize: UInt8 },
+			{ variableCount: UInt8 },
+			{ functionCount: UInt16 },
+			{ exports: UInt32 },
         ]);
     }
 
@@ -242,14 +242,14 @@
         // http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
         // 26.2.2.8
         static struct = StructClass.create<ElfPspModuleInfo>(ElfPspModuleInfo, [
-            { type: UInt16, name: "moduleAtributes" },
-            { type: UInt16, name: "moduleVersion" },
-            { type: Stringz(28), name: "name" },
-            { type: UInt32, name: "gp" },
-            { type: UInt32, name: "exportsStart" },
-            { type: UInt32, name: "exportsEnd" },
-            { type: UInt32, name: "importsStart" },
-            { type: UInt32, name: "importsEnd" },
+			{ moduleAtributes: UInt16 },
+			{ moduleVersion: UInt16 },
+			{ name: Stringz(28) },
+			{ gp: UInt32 },
+			{ exportsStart: UInt32 },
+			{ exportsEnd: UInt32 },
+			{ importsStart: UInt32 },
+			{ importsEnd: UInt32 },
         ]);
     }
 
@@ -280,8 +280,8 @@
 		get type() { return <ElfRelocType>((this.info >> 0) & 0xFF); }
 
 		static struct = StructClass.create<ElfReloc>(ElfReloc, [
-			{ type: UInt32, name: "pointerAddress" },
-			{ type: UInt32, name: "info" },
+			{ pointerAddress: UInt32 },
+			{ info: UInt32 },
 		]);
 	}
 
@@ -304,8 +304,8 @@
 			var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
 			var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
 
-			this.programHeaders = StructArray.create<ElfProgramHeader>(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
-			this.sectionHeaders = StructArray.create<ElfSectionHeader>(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
+			this.programHeaders = StructArray<ElfProgramHeader>(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
+			this.sectionHeaders = StructArray<ElfSectionHeader>(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
 
 			this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
             this.stringTableStream = this.getSectionHeaderFileStream(this.sectionHeaderStringTable);
@@ -433,7 +433,7 @@
 						break;
 
 					case ElfSectionHeaderType.PrxRelocation:
-						var relocs = StructArray.create<ElfReloc>(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
+						var relocs = StructArray<ElfReloc>(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
 						this.relocateRelocs(relocs);
 						break;
 					case ElfSectionHeaderType.PrxRelocation_FW5:
@@ -542,7 +542,7 @@
             var importsBytesSize = moduleInfo.importsEnd - moduleInfo.importsStart;
             var importsStream = this.memory.sliceWithBounds(moduleInfo.importsStart, moduleInfo.importsEnd);
             var importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
-            var imports = StructArray.create<ElfPspModuleImport>(ElfPspModuleImport.struct, importsCount).read(importsStream);
+            var imports = StructArray<ElfPspModuleImport>(ElfPspModuleImport.struct, importsCount).read(importsStream);
             imports.forEach(_import => {
                 _import.name = this.memory.readStringz(_import.nameOffset)
                 this.updateModuleFunctions(_import);

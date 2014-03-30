@@ -85,6 +85,7 @@ module core {
 		}
 
 		readStringz(address: number) {
+			if (address == 0) return null;
 			var out = '';
 			while (true) {
 				var char = this.readUInt8(address++);

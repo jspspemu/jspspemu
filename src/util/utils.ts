@@ -256,8 +256,7 @@ interface IType {
 }
 
 interface StructEntry {
-    name: string;
-    type: IType;
+	[name: string]: IType;
 }
 
 class Int64Type implements IType {
@@ -334,8 +333,19 @@ class UInt8Type implements IType {
     get length() { return 1; }
 }
 
+interface StructEntryProcessed {
+	name: string;
+	type: IType;
+}
+
 class Struct<T> implements IType {
-    constructor(private items: StructEntry[]) {
+	processedItems: StructEntryProcessed[] = [];
+
+	constructor(private items: StructEntry[]) {
+		this.processedItems = items.map(item => {
+			for (var key in item) return { name: key, type: item[key] };
+			throw(new Error("Entry must have one item"));
+		});
     }
 
     static create<T>(items: StructEntry[]) {
@@ -344,14 +354,14 @@ class Struct<T> implements IType {
 
     read(stream: Stream): T {
         var out:any = {};
-        this.items.forEach(item => { out[item.name] = item.type.read(stream); });
+		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream); });
         return out;
     }
     write(stream: Stream, value: T): void {
-        this.items.forEach(item => { item.type.write(stream, value[item.name]); });
+		this.processedItems.forEach(item => { item.type.write(stream, value[item.name]); });
     }
     get length() {
-        return this.items.sum<number>(item => {
+		return this.processedItems.sum<number>(item => {
             if (!item) throw ("Invalid item!!");
             if (!item.type) throw ("Invalid item type!!");
             return item.type.length;
@@ -360,7 +370,13 @@ class Struct<T> implements IType {
 }
 
 class StructClass<T> implements IType {
-    constructor(private _class: any, private items: StructEntry[]) {
+	processedItems: StructEntryProcessed[] = [];
+
+	constructor(private _class: any, private items: StructEntry[]) {
+		this.processedItems = items.map(item => {
+			for (var key in item) return { name: key, type: item[key] };
+			throw (new Error("Entry must have one item"));
+		});
     }
 
     static create<T>(_class: any, items: StructEntry[]) {
@@ -370,14 +386,14 @@ class StructClass<T> implements IType {
     read(stream: Stream): T {
         var _class = this._class;
         var out: T = new _class();
-        this.items.forEach(item => { out[item.name] = item.type.read(stream); });
+		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream); });
         return out;
     }
     write(stream: Stream, value: T): void {
-        this.items.forEach(item => { item.type.write(stream, value[item.name]); });
+		this.processedItems.forEach(item => { item.type.write(stream, value[item.name]); });
     }
     get length() {
-        return this.items.sum<number>(item => {
+		return this.processedItems.sum<number>(item => {
             if (!item) throw ("Invalid item!!");
             if (!item.type) {
                 console.log(item);
@@ -388,12 +404,8 @@ class StructClass<T> implements IType {
     }
 }
 
-class StructArray<T> implements IType {
+class StructArrayClass<T> implements IType {
     constructor(private elementType: IType, private count: number) {
-    }
-
-    static create<T>(elementType: IType, count: number) {
-        return new StructArray<T>(elementType, count);
     }
 
     read(stream: Stream): T[] {
@@ -409,6 +421,10 @@ class StructArray<T> implements IType {
     get length() {
         return this.elementType.length * this.count;
     }
+}
+
+function StructArray<T>(elementType: IType, count: number) {
+	return new StructArrayClass<T>(elementType, count);
 }
 
 class StructStringn {
@@ -538,6 +554,10 @@ class UidCollection<T>
         this.items[id] = item;
         return id;
     }
+
+	has(id: number) {
+		return (this.items[id] !== undefined);
+	}
 
     get(id: number) {
         return this.items[id];

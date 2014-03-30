@@ -24,6 +24,7 @@
     <Content Include="lib\jquery-2.1.0.js" />
     <Content Include="lib\mocha.css" />
     <Content Include="lib\mocha.js" />
+    <Content Include="lib\sprintf.js" />
     <Content Include="lib\zlib\rawinflate.min.js" />
     <Content Include="lib\zlib\zlib.js" />
     <Content Include="lib\zlib_and_gzip.min.js" />
@@ -62,7 +63,10 @@
     <TypeScriptCompile Include="src\hle\modules\sceDmac.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceGe_user.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceHprm.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceHttp.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceImpose.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceLibFont.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceMp3.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceMpeg.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceNet.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceNetAdhoc.ts" />
@@ -71,12 +75,19 @@
     <TypeScriptCompile Include="src\hle\modules\sceNetApctl.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceNetInet.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceNetResolver.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNp.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNpAuth.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceNpService.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceOpenPSID.ts" />
     <TypeScriptCompile Include="src\hle\modules\scePower.ts" />
+    <TypeScriptCompile Include="src\hle\modules\scePspNpDrm_user.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceRtc.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceSasCore.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceSsl.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceSuspendForUser.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceUmdUser.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceUtility.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceVaudio.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceWlanDrv.ts" />
     <TypeScriptCompile Include="src\hle\modules\StdioForUser.ts" />
     <TypeScriptCompile Include="src\hle\modules\SysMemUserForUser.ts" />
@@ -86,6 +97,7 @@
     <TypeScriptCompile Include="src\hle\modules\UtilsForUser.ts" />
     <TypeScriptCompile Include="src\hle\SceKernelErrors.ts" />
     <TypeScriptCompile Include="src\hle\utils.ts" />
+    <TypeScriptCompile Include="src\util\int64.ts" />
     <TypeScriptCompile Include="test\format\csoTest.ts" />
     <TypeScriptCompile Include="test\format\isoTest.ts" />
     <TypeScriptCompile Include="test\format\psfTest.ts" />

@@ -14,11 +14,11 @@
 		numberOfPairs: number;
 
 		static struct = StructClass.create<HeaderStruct>(HeaderStruct, [
-			{ type: UInt32, name: 'magic' },
-			{ type: UInt32, name: 'version' },
-			{ type: UInt32, name: 'keyTable' },
-			{ type: UInt32, name: 'valueTable' },
-			{ type: UInt32, name: 'numberOfPairs' },
+			{ magic: UInt32 },
+			{ version: UInt32 },
+			{ keyTable: UInt32 },
+			{ valueTable: UInt32 },
+			{ numberOfPairs: UInt32 },
 		]);
 	}
 
@@ -39,12 +39,12 @@
 		valueOffset: number;
 
 		static struct = StructClass.create<EntryStruct>(EntryStruct, [
-			{ type: UInt16, name: 'keyOffset' },
-			{ type: UInt8, name: 'unknown' },
-			{ type: UInt8, name: 'dataType' },
-			{ type: UInt32, name: 'valueSize' },
-			{ type: UInt32, name: 'valueSizePad' },
-			{ type: UInt32, name: 'valueOffset' },
+			{ keyOffset: UInt16 },
+			{ unknown: UInt8 },
+			{ dataType: UInt8 },
+			{ valueSize: UInt32 },
+			{ valueSizePad: UInt32 },
+			{ valueOffset: UInt32 },
 		]);
 	}
 
@@ -65,7 +65,7 @@
 		load(stream: Stream) {
 			var header = this.header = HeaderStruct.struct.read(stream);
 			if (header.magic != 0x46535000) throw ("Not a PSF file");
-			var entries = StructArray.create<EntryStruct>(EntryStruct.struct, header.numberOfPairs).read(stream);
+			var entries = StructArray<EntryStruct>(EntryStruct.struct, header.numberOfPairs).read(stream);
 			var entriesByName: StringDictionary<IEntryStruct>  = {};
 
 			var keysStream = stream.sliceWithLength(header.keyTable);

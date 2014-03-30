@@ -26,11 +26,11 @@ module core {
 		set y(value: number) { this.ly = (((value / 2.0) + 0.5) * 255.0); }
 
 		static struct = StructClass.create<SceCtrlData>(SceCtrlData, [
-			{ type: UInt32, name: 'timeStamp' },
-			{ type: UInt32, name: 'buttons' },
-			{ type: Int8, name: 'lx' },
-			{ type: Int8, name: 'ly' },
-			{ type: StructArray.create(Int8, 6), name: '_rsrv' }
+			{ timeStamp: UInt32 },
+			{ buttons: UInt32 },
+			{ lx: Int8 },
+			{ ly: Int8 },
+			{ _rsrv: StructArray(Int8, 6) },
 		]);
 	}
 

@@ -87,12 +87,16 @@
 
 		private eventFlagUids = new UidCollection<EventFlag>(1);
 
-        sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, (name: string, attributes: number, bitPattern: number, optionsPtr: Stream) => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
+		sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, (name: string, attributes: number, bitPattern: number, optionsPtr: Stream) => {
+			if (name === null) return SceKernelErrors.ERROR_ERROR;
+			if ((attributes & 0x100) != 0 || attributes >= 0x300) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
+
+			//console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
 			var eventFlag = new EventFlag();
 			eventFlag.name = name;
 			eventFlag.attributes = attributes;
-			eventFlag.bitPattern = bitPattern;
+			eventFlag.initialPattern = bitPattern;
+			eventFlag.currentPattern = bitPattern;
 			return this.eventFlagUids.allocate(eventFlag);
 		});
 
@@ -112,11 +116,21 @@
 		});
 
 		sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number) => {
-			console.warn('Not implemented ThreadManForUser.sceKernelDeleteEventFlag');
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			this.eventFlagUids.remove(id);
 			return 0;
 		});
 
-		sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, (eventFlag: number, info: Stream) => {
+		sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, (id: number, infoPtr: Stream) => {
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			var eventFlag = this.eventFlagUids.get(id);
+			var info = new EventFlagInfo();
+			info.size = EventFlagInfo.struct.length;
+			info.name = eventFlag.name;
+			info.currentPattern = eventFlag.currentPattern;
+			info.initialPattern = eventFlag.initialPattern;
+			info.attributes = eventFlag.attributes;
+			EventFlagInfo.struct.write(infoPtr, info);
 			console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
 			return 0;
 		});
@@ -178,6 +192,7 @@
 		});
 
 		sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, (id: number, infoStream: Stream) => {
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 			var semaphore = this.semaporesUid.get(id);
 			var semaphoreInfo = new SceKernelSemaInfo();
 			semaphoreInfo.size = SceKernelSemaInfo.struct.length;
@@ -188,6 +203,7 @@
 			semaphoreInfo.name = semaphore.name;
 			semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
 			SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
+			return 0;
 		});
 
 		sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, (id: number, signal: number) => {
@@ -248,7 +264,7 @@
 		}
 	}
 
-	enum SemaphoreAttribute {// : uint
+	enum SemaphoreAttribute {
 		FirstInFirstOut = 0x000,
 		Priority = 0x100,
 	}
@@ -256,7 +272,8 @@
 	class EventFlag {
 		name: string;
 		attributes: number;
-		bitPattern: number;
+		currentPattern: number;
+		initialPattern: number;
 	}
 
 	class SceKernelSemaInfo {
@@ -269,13 +286,13 @@
 		numberOfWaitingThreads: number;
 
 		static struct = StructClass.create<SceKernelSemaInfo>(SceKernelSemaInfo, [
-			{ type: Int32, name: 'size' },
-			{ type: Stringz(32), name: 'name' },
-			{ type: Int32, name: 'attributes' },
-			{ type: Int32, name: 'initialCount' },
-			{ type: Int32, name: 'currentCount' },
-			{ type: Int32, name: 'maximumCount' },
-			{ type: Int32, name: 'numberOfWaitingThreads' },
+			{ size: Int32 },
+			{ name: Stringz(32) },
+			{ attributes: Int32 },
+			{ initialCount: Int32 },
+			{ currentCount: Int32 },
+			{ maximumCount: Int32 },
+			{ numberOfWaitingThreads: Int32 },
 		]);
 	}
 
@@ -302,25 +319,44 @@
         releaseCount: number;
 
         static struct = StructClass.create<SceKernelThreadInfo>(SceKernelThreadInfo, [
-            { type: Int32, name: 'size' },
-            { type: Stringz(32), name: 'name' },
-            { type: UInt32, name: 'attributes' },
-            { type: UInt32, name: 'status' },
-            { type: UInt32, name: 'entryPoint' },
-            { type: UInt32, name: 'stackPointer' },
-            { type: Int32, name: 'stackSize' },
-            { type: UInt32, name: 'GP' },
-            { type: Int32, name: 'priorityInit' },
-            { type: Int32, name: 'priority' },
-            { type: UInt32, name: 'waitType' },
-            { type: Int32, name: 'waitId' },
-            { type: Int32, name: 'wakeupCount' },
-            { type: Int32, name: 'exitStatus' },
-            { type: Int32, name: 'runClocksLow' },
-            { type: Int32, name: 'runClocksHigh' },
-            { type: Int32, name: 'interruptPreemptionCount' },
-            { type: Int32, name: 'threadPreemptionCount' },
-            { type: Int32, name: 'releaseCount' },
+			{ size: Int32 },
+			{ name: Stringz(32) },
+			{ attributes: UInt32 },
+			{ status: UInt32 },
+			{ entryPoint: UInt32 },
+			{ stackPointer: UInt32 },
+			{ stackSize: Int32 },
+			{ GP: UInt32 },
+			{ priorityInit: Int32 },
+			{ priority: Int32 },
+			{ waitType: UInt32 },
+			{ waitId: Int32 },
+			{ wakeupCount: Int32 },
+			{ exitStatus: Int32 },
+			{ runClocksLow: Int32 },
+			{ runClocksHigh: Int32 },
+			{ interruptPreemptionCount: Int32 },
+			{ threadPreemptionCount: Int32 },
+			{ releaseCount: Int32 },
         ]);
-    }
+	}
+
+	class EventFlagInfo {
+		size: number;
+		name: string;
+		attributes: number; // HleEventFlag.AttributesSet
+		initialPattern: number;
+		currentPattern: number;
+		numberOfWaitingThreads: number;
+
+		static struct = StructClass.create<EventFlagInfo>(EventFlagInfo, [
+			{ size: Int32 },
+			{ name: Stringz(32) },
+			{ attributes: Int32 },
+			{ initialPattern: UInt32 },
+			{ currentPattern: UInt32 },
+			{ numberOfWaitingThreads: Int32 },
+		]);
+	}
+
 }

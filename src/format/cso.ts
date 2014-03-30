@@ -13,13 +13,13 @@
         get numberOfBlocks() { return Math.floor(this.totalBytes / this.blockSize); }
 
         static struct = StructClass.create<Header>(Header, [
-            { type: Stringz(4), name: "magic" },
-            { type: UInt32, name: "headerSize" },
-            { type: Int64, name: "totalBytes" },
-            { type: UInt32, name: "blockSize" },
-            { type: UInt8, name: "version" },
-            { type: UInt8, name: "alignment" },
-            { type: UInt16, name: "reserved" },
+			{ magic: Stringz(4) },
+			{ headerSize: UInt32 },
+			{ totalBytes: Int64 },
+			{ blockSize: UInt32 },
+			{ version: UInt8 },
+			{ alignment: UInt8 },
+			{ reserved: UInt16 },
         ]);
     }
 

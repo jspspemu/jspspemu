@@ -96,15 +96,15 @@
 
 						var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
-						var arguments = [pathToFile];
-						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
-						var argument = arguments.map(argument => argument + String.fromCharCode(0)).join('');
-						this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
-
 						//console.log(new Uint8Array(executableArrayBuffer));
 						var pspElf = new hle.elf.PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager);
 						pspElf.load(elfStream);
 						var moduleInfo = pspElf.moduleInfo;
+
+						var arguments = [pathToFile];
+						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
+						var argument = arguments.map(argument => argument + String.fromCharCode(0)).join('');
+						this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
 
 						// "ms0:/PSP/GAME/virtual/EBOOT.PBP"
 						var thread = this.threadManager.create('main', moduleInfo.pc, 10);

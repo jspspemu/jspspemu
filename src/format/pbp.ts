@@ -9,9 +9,9 @@
 		offsets: number[];
 
 		static struct = StructClass.create<PbpHeader>(PbpHeader, [
-			{ type: Int32, name: 'magic' },
-			{ type: Int32, name: 'version' },
-			{ type: new StructArray<number>(Int32, 8), name: 'offsets' },
+			{ magic: Int32 },
+			{ version: Int32 },
+			{ offsets: StructArray(Int32, 8) },
 		]);
 	}
 

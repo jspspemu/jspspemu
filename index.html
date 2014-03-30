@@ -40,7 +40,7 @@
     <div id="body">
         <div>
             <center>
-                <select id="files"></select>
+                <select id="files" style="width:160px;"></select>
                 <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
                 <input type="file" id="load_file" name="load_file" style="width:132px;" />
                 <a href="javascript:document.body.webkitRequestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">Fullscreen</a>
@@ -95,6 +95,7 @@
             "samples/polyphonic.elf",
             "samples/controller.elf",
             "samples/cube.elf",
+            "samples/cube.iso",
             "samples/lines.pbp",
             "samples/HelloWorldPSP.elf",
             "samples/rtctest.elf",
@@ -106,7 +107,7 @@
             "samples/blend.pbp",
             "samples/clut.pbp",
             "samples/reflection.pbp",
-            //"samples/cavestory/EBOOT.PBP",
+            "samples/cavestory/EBOOT.PBP",
         ];
 
         function updateScale() {

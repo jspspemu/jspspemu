@@ -54,7 +54,10 @@
 
 		sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
 			console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
-			return this.context.fileManager.openAsync(filename, flags, mode).then(file => this.fileUids.allocate(file));
+			return this.context.fileManager.openAsync(filename, flags, mode)
+				.then(file => this.fileUids.allocate(file))
+				.catch(e => SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND)
+			;
 		});
 
 		sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
@@ -150,13 +153,13 @@
 		microsecond: number = 0;
 
 		static struct = StructClass.create<ScePspDateTime>(ScePspDateTime, [
-			{ type: Int16, name: 'year' },
-			{ type: Int16, name: 'month' },
-			{ type: Int16, name: 'day' },
-			{ type: Int16, name: 'hour' },
-			{ type: Int16, name: 'minute' },
-			{ type: Int16, name: 'second' },
-			{ type: Int32, name: 'microsecond' },
+			{ year: Int16 },
+			{ month: Int16 },
+			{ day: Int16 },
+			{ hour: Int16 },
+			{ minute: Int16 },
+			{ second: Int16 },
+			{ microsecond: Int32 },
 		]);
 	}
 
@@ -171,13 +174,13 @@
 		deviceDependentData: number[] = [0, 0, 0, 0, 0, 0];
 
 		static struct = StructClass.create<SceIoStat>(SceIoStat, <StructEntry[]>[
-			{ type: Int32, name: 'mode' },
-			{ type: Int32, name: 'attributes' },
-			{ type: Int64, name: 'size' },
-			{ type: ScePspDateTime.struct, name: 'timeCreation' },
-			{ type: ScePspDateTime.struct, name: 'timeLastAccess' },
-			{ type: ScePspDateTime.struct, name: 'timeLastModification' },
-			{ type: StructArray.create(Int32, 6), name: 'deviceDependentData' },
+			{ mode: Int32 },
+			{ attributes: Int32 },
+			{ size: Int64 },
+			{ timeCreation: ScePspDateTime.struct },
+			{ timeLastAccess: ScePspDateTime.struct },
+			{ timeLastModification: ScePspDateTime.struct },
+			{ deviceDependentData: StructArray(Int32, 6) },
 		]);
 	}
 }

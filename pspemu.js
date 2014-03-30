@@ -870,6 +870,12 @@ var UInt8Type = (function () {
 var Struct = (function () {
     function Struct(items) {
         this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
     }
     Struct.create = function (items) {
         return new Struct(items);
@@ -877,19 +883,19 @@ var Struct = (function () {
 
     Struct.prototype.read = function (stream) {
         var out = {};
-        this.items.forEach(function (item) {
+        this.processedItems.forEach(function (item) {
             out[item.name] = item.type.read(stream);
         });
         return out;
     };
     Struct.prototype.write = function (stream, value) {
-        this.items.forEach(function (item) {
+        this.processedItems.forEach(function (item) {
             item.type.write(stream, value[item.name]);
         });
     };
     Object.defineProperty(Struct.prototype, "length", {
         get: function () {
-            return this.items.sum(function (item) {
+            return this.processedItems.sum(function (item) {
                 if (!item)
                     throw ("Invalid item!!");
                 if (!item.type)
@@ -907,6 +913,12 @@ var StructClass = (function () {
     function StructClass(_class, items) {
         this._class = _class;
         this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
     }
     StructClass.create = function (_class, items) {
         return new StructClass(_class, items);
@@ -915,19 +927,19 @@ var StructClass = (function () {
     StructClass.prototype.read = function (stream) {
         var _class = this._class;
         var out = new _class();
-        this.items.forEach(function (item) {
+        this.processedItems.forEach(function (item) {
             out[item.name] = item.type.read(stream);
         });
         return out;
     };
     StructClass.prototype.write = function (stream, value) {
-        this.items.forEach(function (item) {
+        this.processedItems.forEach(function (item) {
             item.type.write(stream, value[item.name]);
         });
     };
     Object.defineProperty(StructClass.prototype, "length", {
         get: function () {
-            return this.items.sum(function (item) {
+            return this.processedItems.sum(function (item) {
                 if (!item)
                     throw ("Invalid item!!");
                 if (!item.type) {
@@ -943,35 +955,35 @@ var StructClass = (function () {
     return StructClass;
 })();
 
-var StructArray = (function () {
-    function StructArray(elementType, count) {
+var StructArrayClass = (function () {
+    function StructArrayClass(elementType, count) {
         this.elementType = elementType;
         this.count = count;
     }
-    StructArray.create = function (elementType, count) {
-        return new StructArray(elementType, count);
-    };
-
-    StructArray.prototype.read = function (stream) {
+    StructArrayClass.prototype.read = function (stream) {
         var out = [];
         for (var n = 0; n < this.count; n++) {
             out.push(this.elementType.read(stream));
         }
         return out;
     };
-    StructArray.prototype.write = function (stream, value) {
+    StructArrayClass.prototype.write = function (stream, value) {
         for (var n = 0; n < this.count; n++)
             this.elementType.write(stream, value[n]);
     };
-    Object.defineProperty(StructArray.prototype, "length", {
+    Object.defineProperty(StructArrayClass.prototype, "length", {
         get: function () {
             return this.elementType.length * this.count;
         },
         enumerable: true,
         configurable: true
     });
-    return StructArray;
+    return StructArrayClass;
 })();
+
+function StructArray(elementType, count) {
+    return new StructArrayClass(elementType, count);
+}
 
 var StructStringn = (function () {
     function StructStringn(count) {
@@ -1145,6 +1157,10 @@ var UidCollection = (function () {
         var id = this.lastId++;
         this.items[id] = item;
         return id;
+    };
+
+    UidCollection.prototype.has = function (id) {
+        return (this.items[id] !== undefined);
     };
 
     UidCollection.prototype.get = function (id) {
@@ -1670,11 +1686,11 @@ var core;
 
 
         SceCtrlData.struct = StructClass.create(SceCtrlData, [
-            { type: UInt32, name: 'timeStamp' },
-            { type: UInt32, name: 'buttons' },
-            { type: Int8, name: 'lx' },
-            { type: Int8, name: 'ly' },
-            { type: StructArray.create(Int8, 6), name: '_rsrv' }
+            { timeStamp: UInt32 },
+            { buttons: UInt32 },
+            { lx: Int8 },
+            { ly: Int8 },
+            { _rsrv: StructArray(Int8, 6) }
         ]);
         return SceCtrlData;
     })();
@@ -5584,6 +5600,8 @@ var core;
         };
 
         Memory.prototype.readStringz = function (address) {
+            if (address == 0)
+                return null;
             var out = '';
             while (true) {
                 var char = this.readUInt8(address++);
@@ -6474,6 +6492,11 @@ var Emulator = (function () {
 
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
+                        //console.log(new Uint8Array(executableArrayBuffer));
+                        var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
+                        pspElf.load(elfStream);
+                        var moduleInfo = pspElf.moduleInfo;
+
                         var arguments = [pathToFile];
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
                         var argument = arguments.map(function (argument) {
@@ -6481,17 +6504,9 @@ var Emulator = (function () {
                         }).join('');
                         _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
 
-                        //console.log(new Uint8Array(executableArrayBuffer));
-                        var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
-                        pspElf.load(elfStream);
-                        var moduleInfo = pspElf.moduleInfo;
-
                         // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
                         thread.state.GP = moduleInfo.gp;
-
-                        //thread.state.gpr[4] = 0;
-                        //thread.state.gpr[5] = 0;
                         thread.state.gpr[4] = argument.length;
                         thread.state.gpr[5] = argumentsPartition.low;
                         thread.start();
@@ -6567,13 +6582,13 @@ var format;
             });
 
             Header.struct = StructClass.create(Header, [
-                { type: Stringz(4), name: "magic" },
-                { type: UInt32, name: "headerSize" },
-                { type: Int64, name: "totalBytes" },
-                { type: UInt32, name: "blockSize" },
-                { type: UInt8, name: "version" },
-                { type: UInt8, name: "alignment" },
-                { type: UInt16, name: "reserved" }
+                { magic: Stringz(4) },
+                { headerSize: UInt32 },
+                { totalBytes: Int64 },
+                { blockSize: UInt32 },
+                { version: UInt8 },
+                { alignment: UInt8 },
+                { reserved: UInt16 }
             ]);
             return Header;
         })();
@@ -6711,13 +6726,13 @@ var format;
             });
 
             DirectoryRecordDate.struct = StructClass.create(DirectoryRecordDate, [
-                { type: UInt8, name: 'year' },
-                { type: UInt8, name: 'month' },
-                { type: UInt8, name: 'day' },
-                { type: UInt8, name: 'hour' },
-                { type: UInt8, name: 'minute' },
-                { type: UInt8, name: 'second' },
-                { type: UInt8, name: 'offset' }
+                { year: UInt8 },
+                { month: UInt8 },
+                { day: UInt8 },
+                { hour: UInt8 },
+                { minute: UInt8 },
+                { second: UInt8 },
+                { offset: UInt8 }
             ]);
             return DirectoryRecordDate;
         })();
@@ -6783,7 +6798,7 @@ var format;
             });
 
             IsoStringDate.struct = StructClass.create(IsoStringDate, [
-                { type: Stringz(17), name: 'data' }
+                { data: Stringz(17) }
             ]);
             return IsoStringDate;
         })();
@@ -6801,9 +6816,9 @@ var format;
             function VolumeDescriptorHeader() {
             }
             VolumeDescriptorHeader.struct = StructClass.create(VolumeDescriptorHeader, [
-                { type: UInt8, name: 'type' },
-                { type: Stringz(5), name: 'id' },
-                { type: UInt8, name: 'version' }
+                { type: UInt8 },
+                { id: Stringz(5) },
+                { version: UInt8 }
             ]);
             return VolumeDescriptorHeader;
         })();
@@ -6839,16 +6854,16 @@ var format;
             });
 
             DirectoryRecord.struct = StructClass.create(DirectoryRecord, [
-                { type: UInt8, name: 'length' },
-                { type: UInt8, name: 'extendedAttributeLength' },
-                { type: UInt32_2lb, name: 'extent' },
-                { type: UInt32_2lb, name: 'size' },
-                { type: DirectoryRecordDate.struct, name: 'date' },
-                { type: UInt8, name: 'flags' },
-                { type: UInt8, name: 'fileUnitSize' },
-                { type: UInt8, name: 'interleave' },
-                { type: UInt16_2lb, name: 'volumeSequenceNumber' },
-                { type: UInt8, name: 'nameLength' }
+                { length: UInt8 },
+                { extendedAttributeLength: UInt8 },
+                { extent: UInt32_2lb },
+                { size: UInt32_2lb },
+                { date: DirectoryRecordDate.struct },
+                { flags: UInt8 },
+                { fileUnitSize: UInt8 },
+                { interleave: UInt8 },
+                { volumeSequenceNumber: UInt16_2lb },
+                { nameLength: UInt8 }
             ]);
             return DirectoryRecord;
         })();
@@ -6857,38 +6872,38 @@ var format;
             function PrimaryVolumeDescriptor() {
             }
             PrimaryVolumeDescriptor.struct = StructClass.create(PrimaryVolumeDescriptor, [
-                { type: VolumeDescriptorHeader.struct, name: 'header' },
-                { type: UInt8, name: '_pad1' },
-                { type: Stringz(0x20), name: 'systemId' },
-                { type: Stringz(0x20), name: 'volumeId' },
-                { type: Int64, name: '_pad2' },
-                { type: UInt32_2lb, name: 'volumeSpaceSize' },
-                { type: StructArray.create(Int64, 4), name: '_pad3' },
-                { type: UInt32, name: 'volumeSetSize' },
-                { type: UInt32, name: 'volumeSequenceNumber' },
-                { type: UInt16_2lb, name: 'logicalBlockSize' },
-                { type: UInt32_2lb, name: 'pathTableSize' },
-                { type: UInt32, name: 'typeLPathTable' },
-                { type: UInt32, name: 'optType1PathTable' },
-                { type: UInt32, name: 'typeMPathTable' },
-                { type: UInt32, name: 'optTypeMPathTable' },
-                { type: DirectoryRecord.struct, name: 'directoryRecord' },
-                { type: UInt8, name: '_pad4' },
-                { type: Stringz(0x80), name: 'volumeSetId' },
-                { type: Stringz(0x80), name: 'publisherId' },
-                { type: Stringz(0x80), name: 'preparerId' },
-                { type: Stringz(0x80), name: 'applicationId' },
-                { type: Stringz(37), name: 'copyrightFileId' },
-                { type: Stringz(37), name: 'abstractFileId' },
-                { type: Stringz(37), name: 'bibliographicFileId' },
-                { type: IsoStringDate.struct, name: 'creationDate' },
-                { type: IsoStringDate.struct, name: 'modificationDate' },
-                { type: IsoStringDate.struct, name: 'expirationDate' },
-                { type: IsoStringDate.struct, name: 'effectiveDate' },
-                { type: UInt8, name: 'fileStructureVersion' },
-                { type: UInt8, name: 'pad5' },
-                { type: StructArray.create(UInt8, 0x200), name: 'pad5' },
-                { type: StructArray.create(UInt8, 653), name: 'pad6' }
+                { header: VolumeDescriptorHeader.struct },
+                { _pad1: UInt8 },
+                { systemId: Stringz(0x20) },
+                { volumeId: Stringz(0x20) },
+                { _pad2: Int64 },
+                { volumeSpaceSize: UInt32_2lb },
+                { _pad3: StructArray(Int64, 4) },
+                { volumeSetSize: UInt32 },
+                { volumeSequenceNumber: UInt32 },
+                { logicalBlockSize: UInt16_2lb },
+                { pathTableSize: UInt32_2lb },
+                { typeLPathTable: UInt32 },
+                { optType1PathTable: UInt32 },
+                { typeMPathTable: UInt32 },
+                { optTypeMPathTable: UInt32 },
+                { directoryRecord: DirectoryRecord.struct },
+                { _pad4: UInt8 },
+                { volumeSetId: Stringz(0x80) },
+                { publisherId: Stringz(0x80) },
+                { preparerId: Stringz(0x80) },
+                { applicationId: Stringz(0x80) },
+                { copyrightFileId: Stringz(37) },
+                { abstractFileId: Stringz(37) },
+                { bibliographicFileId: Stringz(37) },
+                { creationDate: IsoStringDate.struct },
+                { modificationDate: IsoStringDate.struct },
+                { expirationDate: IsoStringDate.struct },
+                { effectiveDate: IsoStringDate.struct },
+                { fileStructureVersion: UInt8 },
+                { pad5: UInt8 },
+                { pad6: StructArray(UInt8, 0x200) },
+                { pad7: StructArray(UInt8, 653) }
             ]);
             return PrimaryVolumeDescriptor;
         })();
@@ -7036,8 +7051,6 @@ var format;
                     if (pvd.header.id != 'CD001')
                         throw ("Not an ISO file");
 
-                    //if (pvd.systemId.rstrip() != 'Win32') throw ("Invalid ISO file systemId:'" + pvd.systemId + "'");
-                    //if (pvd.volumeId.rstrip() != 'CDROM') throw ("Invalid ISO file volumeId:'" + pvd.volumeId + "'");
                     _this._children = [];
                     _this._childrenByPath = {};
                     _this._root = new IsoNode(_this, pvd.directoryRecord);
@@ -7118,9 +7131,9 @@ var format;
             function PbpHeader() {
             }
             PbpHeader.struct = StructClass.create(PbpHeader, [
-                { type: Int32, name: 'magic' },
-                { type: Int32, name: 'version' },
-                { type: new StructArray(Int32, 8), name: 'offsets' }
+                { magic: Int32 },
+                { version: Int32 },
+                { offsets: StructArray(Int32, 8) }
             ]);
             return PbpHeader;
         })();
@@ -7172,11 +7185,11 @@ var format;
             function HeaderStruct() {
             }
             HeaderStruct.struct = StructClass.create(HeaderStruct, [
-                { type: UInt32, name: 'magic' },
-                { type: UInt32, name: 'version' },
-                { type: UInt32, name: 'keyTable' },
-                { type: UInt32, name: 'valueTable' },
-                { type: UInt32, name: 'numberOfPairs' }
+                { magic: UInt32 },
+                { version: UInt32 },
+                { keyTable: UInt32 },
+                { valueTable: UInt32 },
+                { numberOfPairs: UInt32 }
             ]);
             return HeaderStruct;
         })();
@@ -7185,12 +7198,12 @@ var format;
             function EntryStruct() {
             }
             EntryStruct.struct = StructClass.create(EntryStruct, [
-                { type: UInt16, name: 'keyOffset' },
-                { type: UInt8, name: 'unknown' },
-                { type: UInt8, name: 'dataType' },
-                { type: UInt32, name: 'valueSize' },
-                { type: UInt32, name: 'valueSizePad' },
-                { type: UInt32, name: 'valueOffset' }
+                { keyOffset: UInt16 },
+                { unknown: UInt8 },
+                { dataType: UInt8 },
+                { valueSize: UInt32 },
+                { valueSizePad: UInt32 },
+                { valueOffset: UInt32 }
             ]);
             return EntryStruct;
         })();
@@ -7210,7 +7223,7 @@ var format;
                 var header = this.header = HeaderStruct.struct.read(stream);
                 if (header.magic != 0x46535000)
                     throw ("Not a PSF file");
-                var entries = StructArray.create(EntryStruct.struct, header.numberOfPairs).read(stream);
+                var entries = StructArray(EntryStruct.struct, header.numberOfPairs).read(stream);
                 var entriesByName = {};
 
                 var keysStream = stream.sliceWithLength(header.keyTable);
@@ -7278,24 +7291,24 @@ var hle;
             });
 
             ElfHeader.struct = StructClass.create(ElfHeader, [
-                { type: Stringn(4), name: 'magic' },
-                { type: Int8, name: 'class' },
-                { type: Int8, name: 'data' },
-                { type: Int8, name: 'idVersion' },
-                { type: StructArray.create(Int8, 9), name: '_padding' },
-                { type: UInt16, name: 'type' },
-                { type: Int16, name: 'machine' },
-                { type: Int32, name: 'version' },
-                { type: Int32, name: 'entryPoint' },
-                { type: Int32, name: 'programHeaderOffset' },
-                { type: Int32, name: 'sectionHeaderOffset' },
-                { type: Int32, name: 'flags' },
-                { type: Int16, name: 'elfHeaderSize' },
-                { type: Int16, name: 'programHeaderEntrySize' },
-                { type: Int16, name: 'programHeaderCount' },
-                { type: Int16, name: 'sectionHeaderEntrySize' },
-                { type: Int16, name: 'sectionHeaderCount' },
-                { type: Int16, name: 'sectionHeaderStringTable' }
+                { magic: Stringn(4) },
+                { class: Int8 },
+                { data: Int8 },
+                { idVersion: Int8 },
+                { _padding: StructArray(Int8, 9) },
+                { type: UInt16 },
+                { machine: Int16 },
+                { version: Int32 },
+                { entryPoint: Int32 },
+                { programHeaderOffset: Int32 },
+                { sectionHeaderOffset: Int32 },
+                { flags: Int32 },
+                { elfHeaderSize: Int16 },
+                { programHeaderEntrySize: Int16 },
+                { programHeaderCount: Int16 },
+                { sectionHeaderEntrySize: Int16 },
+                { sectionHeaderCount: Int16 },
+                { sectionHeaderStringTable: Int16 }
             ]);
             return ElfHeader;
         })();
@@ -7304,14 +7317,14 @@ var hle;
             function ElfProgramHeader() {
             }
             ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
-                { type: UInt32, name: 'type' },
-                { type: UInt32, name: 'offset' },
-                { type: UInt32, name: 'virtualAddress' },
-                { type: UInt32, name: 'psysicalAddress' },
-                { type: UInt32, name: 'fileSize' },
-                { type: UInt32, name: 'memorySize' },
-                { type: UInt32, name: 'flags' },
-                { type: UInt32, name: 'alignment' }
+                { type: UInt32 },
+                { offset: UInt32 },
+                { virtualAddress: UInt32 },
+                { psysicalAddress: UInt32 },
+                { fileSize: UInt32 },
+                { memorySize: UInt32 },
+                { flags: UInt32 },
+                { alignment: UInt32 }
             ]);
             return ElfProgramHeader;
         })();
@@ -7321,16 +7334,16 @@ var hle;
                 this.stream = null;
             }
             ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
-                { type: UInt32, name: 'nameOffset' },
-                { type: UInt32, name: 'type' },
-                { type: UInt32, name: 'flags' },
-                { type: UInt32, name: 'address' },
-                { type: UInt32, name: 'offset' },
-                { type: UInt32, name: 'size' },
-                { type: UInt32, name: 'link' },
-                { type: UInt32, name: 'info' },
-                { type: UInt32, name: 'addressAlign' },
-                { type: UInt32, name: 'entitySize' }
+                { nameOffset: UInt32 },
+                { type: UInt32 },
+                { flags: UInt32 },
+                { address: UInt32 },
+                { offset: UInt32 },
+                { size: UInt32 },
+                { link: UInt32 },
+                { info: UInt32 },
+                { addressAlign: UInt32 },
+                { entitySize: UInt32 }
             ]);
             return ElfSectionHeader;
         })();
@@ -7423,14 +7436,14 @@ var hle;
             function ElfPspModuleImport() {
             }
             ElfPspModuleImport.struct = Struct.create([
-                { type: UInt32, name: "nameOffset" },
-                { type: UInt16, name: "version" },
-                { type: UInt16, name: "flags" },
-                { type: UInt8, name: "entrySize" },
-                { type: UInt8, name: "variableCount" },
-                { type: UInt16, name: "functionCount" },
-                { type: UInt32, name: "nidAddress" },
-                { type: UInt32, name: "callAddress" }
+                { nameOffset: UInt32 },
+                { version: UInt16 },
+                { flags: UInt16 },
+                { entrySize: UInt8 },
+                { variableCount: UInt8 },
+                { functionCount: UInt16 },
+                { nidAddress: UInt32 },
+                { callAddress: UInt32 }
             ]);
             return ElfPspModuleImport;
         })();
@@ -7439,13 +7452,13 @@ var hle;
             function ElfPspModuleExport() {
             }
             ElfPspModuleExport.struct = Struct.create([
-                { type: UInt32, name: "name" },
-                { type: UInt16, name: "version" },
-                { type: UInt16, name: "flags" },
-                { type: UInt8, name: "entrySize" },
-                { type: UInt8, name: "variableCount" },
-                { type: UInt16, name: "functionCount" },
-                { type: UInt32, name: "exports" }
+                { name: UInt32 },
+                { version: UInt16 },
+                { flags: UInt16 },
+                { entrySize: UInt8 },
+                { variableCount: UInt8 },
+                { functionCount: UInt16 },
+                { exports: UInt32 }
             ]);
             return ElfPspModuleExport;
         })();
@@ -7460,14 +7473,14 @@ var hle;
             function ElfPspModuleInfo() {
             }
             ElfPspModuleInfo.struct = StructClass.create(ElfPspModuleInfo, [
-                { type: UInt16, name: "moduleAtributes" },
-                { type: UInt16, name: "moduleVersion" },
-                { type: Stringz(28), name: "name" },
-                { type: UInt32, name: "gp" },
-                { type: UInt32, name: "exportsStart" },
-                { type: UInt32, name: "exportsEnd" },
-                { type: UInt32, name: "importsStart" },
-                { type: UInt32, name: "importsEnd" }
+                { moduleAtributes: UInt16 },
+                { moduleVersion: UInt16 },
+                { name: Stringz(28) },
+                { gp: UInt32 },
+                { exportsStart: UInt32 },
+                { exportsEnd: UInt32 },
+                { importsStart: UInt32 },
+                { importsEnd: UInt32 }
             ]);
             return ElfPspModuleInfo;
         })();
@@ -7517,8 +7530,8 @@ var hle;
             });
 
             ElfReloc.struct = StructClass.create(ElfReloc, [
-                { type: UInt32, name: "pointerAddress" },
-                { type: UInt32, name: "info" }
+                { pointerAddress: UInt32 },
+                { info: UInt32 }
             ]);
             return ElfReloc;
         })();
@@ -7535,8 +7548,8 @@ var hle;
                 var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
                 var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
 
-                this.programHeaders = StructArray.create(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
-                this.sectionHeaders = StructArray.create(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
+                this.programHeaders = StructArray(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
+                this.sectionHeaders = StructArray(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
 
                 this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
                 this.stringTableStream = this.getSectionHeaderFileStream(this.sectionHeaderStringTable);
@@ -7680,7 +7693,7 @@ var hle;
                             break;
 
                         case ElfSectionHeaderType.PrxRelocation:
-                            var relocs = StructArray.create(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
+                            var relocs = StructArray(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
                             _this.relocateRelocs(relocs);
                             break;
                         case ElfSectionHeaderType.PrxRelocation_FW5:
@@ -7805,7 +7818,7 @@ var hle;
                 var importsBytesSize = moduleInfo.importsEnd - moduleInfo.importsStart;
                 var importsStream = this.memory.sliceWithBounds(moduleInfo.importsStart, moduleInfo.importsEnd);
                 var importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
-                var imports = StructArray.create(ElfPspModuleImport.struct, importsCount).read(importsStream);
+                var imports = StructArray(ElfPspModuleImport.struct, importsCount).read(importsStream);
                 imports.forEach(function (_import) {
                     _import.name = _this.memory.readStringz(_import.nameOffset);
                     _this.updateModuleFunctions(_import);
@@ -8394,6 +8407,8 @@ var hle;
                     console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
                     return _this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
                         return _this.fileUids.allocate(file);
+                    }).catch(function (e) {
+                        return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
                     });
                 });
                 this.sceIoClose = hle.modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
@@ -8490,13 +8505,13 @@ var hle;
                 this.microsecond = 0;
             }
             ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
-                { type: Int16, name: 'year' },
-                { type: Int16, name: 'month' },
-                { type: Int16, name: 'day' },
-                { type: Int16, name: 'hour' },
-                { type: Int16, name: 'minute' },
-                { type: Int16, name: 'second' },
-                { type: Int32, name: 'microsecond' }
+                { year: Int16 },
+                { month: Int16 },
+                { day: Int16 },
+                { hour: Int16 },
+                { minute: Int16 },
+                { second: Int16 },
+                { microsecond: Int32 }
             ]);
             return ScePspDateTime;
         })();
@@ -8512,13 +8527,13 @@ var hle;
                 this.deviceDependentData = [0, 0, 0, 0, 0, 0];
             }
             SceIoStat.struct = StructClass.create(SceIoStat, [
-                { type: Int32, name: 'mode' },
-                { type: Int32, name: 'attributes' },
-                { type: Int64, name: 'size' },
-                { type: ScePspDateTime.struct, name: 'timeCreation' },
-                { type: ScePspDateTime.struct, name: 'timeLastAccess' },
-                { type: ScePspDateTime.struct, name: 'timeLastModification' },
-                { type: StructArray.create(Int32, 6), name: 'deviceDependentData' }
+                { mode: Int32 },
+                { attributes: Int32 },
+                { size: Int64 },
+                { timeCreation: ScePspDateTime.struct },
+                { timeLastAccess: ScePspDateTime.struct },
+                { timeLastModification: ScePspDateTime.struct },
+                { deviceDependentData: StructArray(Int32, 6) }
             ]);
             return SceIoStat;
         })();
@@ -9494,11 +9509,17 @@ var hle;
                 });
                 this.eventFlagUids = new UidCollection(1);
                 this.sceKernelCreateEventFlag = hle.modules.createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
-                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
+                    if (name === null)
+                        return 2147614721 /* ERROR_ERROR */;
+                    if ((attributes & 0x100) != 0 || attributes >= 0x300)
+                        return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
+
+                    //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
                     var eventFlag = new EventFlag();
                     eventFlag.name = name;
                     eventFlag.attributes = attributes;
-                    eventFlag.bitPattern = bitPattern;
+                    eventFlag.initialPattern = bitPattern;
+                    eventFlag.currentPattern = bitPattern;
                     return _this.eventFlagUids.allocate(eventFlag);
                 });
                 this.sceKernelSetEventFlag = hle.modules.createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
@@ -9514,10 +9535,22 @@ var hle;
                     return 0;
                 });
                 this.sceKernelDeleteEventFlag = hle.modules.createNativeFunction(0xEF9E4C70, 150, 'uint', 'int/uint/int/void*/void*', this, function (id) {
-                    console.warn('Not implemented ThreadManForUser.sceKernelDeleteEventFlag');
+                    if (!_this.eventFlagUids.has(id))
+                        return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                    _this.eventFlagUids.remove(id);
                     return 0;
                 });
-                this.sceKernelReferEventFlagStatus = hle.modules.createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (eventFlag, info) {
+                this.sceKernelReferEventFlagStatus = hle.modules.createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (id, infoPtr) {
+                    if (!_this.eventFlagUids.has(id))
+                        return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                    var eventFlag = _this.eventFlagUids.get(id);
+                    var info = new EventFlagInfo();
+                    info.size = EventFlagInfo.struct.length;
+                    info.name = eventFlag.name;
+                    info.currentPattern = eventFlag.currentPattern;
+                    info.initialPattern = eventFlag.initialPattern;
+                    info.attributes = eventFlag.attributes;
+                    EventFlagInfo.struct.write(infoPtr, info);
                     console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
                     return 0;
                 });
@@ -9572,6 +9605,8 @@ var hle;
                     return _this.semaporesUid.get(id).waitAsync(signal);
                 });
                 this.sceKernelReferSemaStatus = hle.modules.createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
+                    if (!_this.semaporesUid.has(id))
+                        return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
                     var semaphore = _this.semaporesUid.get(id);
                     var semaphoreInfo = new SceKernelSemaInfo();
                     semaphoreInfo.size = SceKernelSemaInfo.struct.length;
@@ -9582,6 +9617,7 @@ var hle;
                     semaphoreInfo.name = semaphore.name;
                     semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
                     SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
+                    return 0;
                 });
                 this.sceKernelSignalSema = hle.modules.createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, function (id, signal) {
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d)', id, signal));
@@ -9673,13 +9709,13 @@ var hle;
             function SceKernelSemaInfo() {
             }
             SceKernelSemaInfo.struct = StructClass.create(SceKernelSemaInfo, [
-                { type: Int32, name: 'size' },
-                { type: Stringz(32), name: 'name' },
-                { type: Int32, name: 'attributes' },
-                { type: Int32, name: 'initialCount' },
-                { type: Int32, name: 'currentCount' },
-                { type: Int32, name: 'maximumCount' },
-                { type: Int32, name: 'numberOfWaitingThreads' }
+                { size: Int32 },
+                { name: Stringz(32) },
+                { attributes: Int32 },
+                { initialCount: Int32 },
+                { currentCount: Int32 },
+                { maximumCount: Int32 },
+                { numberOfWaitingThreads: Int32 }
             ]);
             return SceKernelSemaInfo;
         })();
@@ -9688,27 +9724,41 @@ var hle;
             function SceKernelThreadInfo() {
             }
             SceKernelThreadInfo.struct = StructClass.create(SceKernelThreadInfo, [
-                { type: Int32, name: 'size' },
-                { type: Stringz(32), name: 'name' },
-                { type: UInt32, name: 'attributes' },
-                { type: UInt32, name: 'status' },
-                { type: UInt32, name: 'entryPoint' },
-                { type: UInt32, name: 'stackPointer' },
-                { type: Int32, name: 'stackSize' },
-                { type: UInt32, name: 'GP' },
-                { type: Int32, name: 'priorityInit' },
-                { type: Int32, name: 'priority' },
-                { type: UInt32, name: 'waitType' },
-                { type: Int32, name: 'waitId' },
-                { type: Int32, name: 'wakeupCount' },
-                { type: Int32, name: 'exitStatus' },
-                { type: Int32, name: 'runClocksLow' },
-                { type: Int32, name: 'runClocksHigh' },
-                { type: Int32, name: 'interruptPreemptionCount' },
-                { type: Int32, name: 'threadPreemptionCount' },
-                { type: Int32, name: 'releaseCount' }
+                { size: Int32 },
+                { name: Stringz(32) },
+                { attributes: UInt32 },
+                { status: UInt32 },
+                { entryPoint: UInt32 },
+                { stackPointer: UInt32 },
+                { stackSize: Int32 },
+                { GP: UInt32 },
+                { priorityInit: Int32 },
+                { priority: Int32 },
+                { waitType: UInt32 },
+                { waitId: Int32 },
+                { wakeupCount: Int32 },
+                { exitStatus: Int32 },
+                { runClocksLow: Int32 },
+                { runClocksHigh: Int32 },
+                { interruptPreemptionCount: Int32 },
+                { threadPreemptionCount: Int32 },
+                { releaseCount: Int32 }
             ]);
             return SceKernelThreadInfo;
+        })();
+
+        var EventFlagInfo = (function () {
+            function EventFlagInfo() {
+            }
+            EventFlagInfo.struct = StructClass.create(EventFlagInfo, [
+                { size: Int32 },
+                { name: Stringz(32) },
+                { attributes: Int32 },
+                { initialPattern: UInt32 },
+                { currentPattern: UInt32 },
+                { numberOfWaitingThreads: Int32 }
+            ]);
+            return EventFlagInfo;
         })();
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
@@ -11497,8 +11547,8 @@ describe('utils', function () {
         it('should read simple struct', function () {
             var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
             var MyStruct = Struct.create([
-                { name: 'item1', type: Int16 },
-                { name: 'item2', type: Int16 }
+                { item1: Int16 },
+                { item2: Int16 }
             ]);
             assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
         });

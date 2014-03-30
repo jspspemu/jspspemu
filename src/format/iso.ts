@@ -15,13 +15,13 @@
         }
 
         static struct = StructClass.create<DirectoryRecordDate>(DirectoryRecordDate, [
-			{ type: UInt8, name: 'year' },
-			{ type: UInt8, name: 'month' },
-			{ type: UInt8, name: 'day' },
-			{ type: UInt8, name: 'hour' },
-			{ type: UInt8, name: 'minute' },
-			{ type: UInt8, name: 'second' },
-			{ type: UInt8, name: 'offset' },
+			{ year: UInt8 },
+			{ month: UInt8 },
+			{ day: UInt8 },
+			{ hour: UInt8 },
+			{ minute: UInt8 },
+			{ second: UInt8 },
+			{ offset: UInt8 },
 		]);
     }
 
@@ -39,7 +39,7 @@
         get offset() { return parseInt(this.data.substr(16, 1)); }
 
         static struct = StructClass.create<IsoStringDate>(IsoStringDate, [
-            { type: Stringz(17), name: 'data' },
+			{ data: Stringz(17) },
         ]);
     }
 
@@ -58,9 +58,9 @@
 		version: number;
 
 		static struct = StructClass.create<VolumeDescriptorHeader>(VolumeDescriptorHeader, [
-			{ type: UInt8, name: 'type' },
-			{ type: Stringz(5), name: 'id' },
-			{ type: UInt8, name: 'version' },
+			{ type: UInt8 },
+			{ id: Stringz(5) },
+			{ version: UInt8 },
 		]);
     }
 
@@ -90,17 +90,17 @@
 
         get isDirectory() { return (this.flags & DirectoryRecordFlags.Directory) != 0; }
 
-        static struct = StructClass.create<DirectoryRecord>(DirectoryRecord, <StructEntry[]>[
-            { type: UInt8, name: 'length' },
-            { type: UInt8, name: 'extendedAttributeLength' },
-            { type: UInt32_2lb, name: 'extent' },
-            { type: UInt32_2lb, name: 'size' },
-            { type: DirectoryRecordDate.struct, name: 'date' },
-            { type: UInt8, name: 'flags' },
-            { type: UInt8, name: 'fileUnitSize' },
-            { type: UInt8, name: 'interleave' },
-            { type: UInt16_2lb, name: 'volumeSequenceNumber' },
-            { type: UInt8, name: 'nameLength' },
+		static struct = StructClass.create<DirectoryRecord>(DirectoryRecord, <StructEntry[]>[
+			{ length: UInt8 },
+			{ extendedAttributeLength: UInt8 },
+			{ extent: UInt32_2lb },
+			{ size: UInt32_2lb },
+			{ date: DirectoryRecordDate.struct },
+			{ flags: UInt8 },
+			{ fileUnitSize: UInt8 },
+			{ interleave: UInt8 },
+			{ volumeSequenceNumber: UInt16_2lb },
+			{ nameLength: UInt8 },
         ]);
     }
 
@@ -135,50 +135,52 @@
         effectiveDate: IsoStringDate;
 
         fileStructureVersion: number;
-        pad5: number;
+		pad5: number;
+
+		pad6: number;
 
         applicationData: number[];
-        pad6_: number[];
+        pad7: number[];
 
         static struct = StructClass.create<PrimaryVolumeDescriptor>(PrimaryVolumeDescriptor, <StructEntry[]>[
-			{ type: VolumeDescriptorHeader.struct, name: 'header' },
-			{ type: UInt8, name: '_pad1' },
-			{ type: Stringz(0x20), name: 'systemId' },
-			{ type: Stringz(0x20), name: 'volumeId' },
-            { type: Int64, name: '_pad2' },
+			{ header: VolumeDescriptorHeader.struct },
+			{ _pad1: UInt8 },
+			{ systemId: Stringz(0x20) },
+			{ volumeId: Stringz(0x20) },
+			{ _pad2: Int64 },
 
-            { type: UInt32_2lb, name: 'volumeSpaceSize' },
-            { type: StructArray.create(Int64, 4), name: '_pad3' },
-            { type: UInt32, name: 'volumeSetSize' },
-            { type: UInt32, name: 'volumeSequenceNumber' },
-            { type: UInt16_2lb, name: 'logicalBlockSize' },
-            { type: UInt32_2lb, name: 'pathTableSize' },
+			{ volumeSpaceSize: UInt32_2lb },
+			{ _pad3: StructArray(Int64, 4) },
+			{ volumeSetSize: UInt32 },
+			{ volumeSequenceNumber: UInt32 },
+			{ logicalBlockSize: UInt16_2lb },
+			{ pathTableSize: UInt32_2lb },
 
-            { type: UInt32, name: 'typeLPathTable' },
-            { type: UInt32, name: 'optType1PathTable' },
-            { type: UInt32, name: 'typeMPathTable' },
-            { type: UInt32, name: 'optTypeMPathTable' },
+			{ typeLPathTable: UInt32 },
+			{ optType1PathTable: UInt32 },
+			{ typeMPathTable: UInt32 },
+			{ optTypeMPathTable: UInt32 },
 
-            { type: DirectoryRecord.struct, name: 'directoryRecord' },
-            { type: UInt8, name: '_pad4' },
+			{ directoryRecord: DirectoryRecord.struct },
+			{ _pad4: UInt8 },
 
-            { type: Stringz(0x80), name: 'volumeSetId' },
-            { type: Stringz(0x80), name: 'publisherId' },
-            { type: Stringz(0x80), name: 'preparerId' },
-            { type: Stringz(0x80), name: 'applicationId' },
-            { type: Stringz(37), name: 'copyrightFileId' },
-            { type: Stringz(37), name: 'abstractFileId' },
-            { type: Stringz(37), name: 'bibliographicFileId' },
+			{ volumeSetId: Stringz(0x80) },
+			{ publisherId: Stringz(0x80) },
+			{ preparerId: Stringz(0x80) },
+			{ applicationId: Stringz(0x80) },
+			{ copyrightFileId: Stringz(37) },
+			{ abstractFileId: Stringz(37) },
+			{ bibliographicFileId: Stringz(37) },
 
-            { type: IsoStringDate.struct, name: 'creationDate' },
-            { type: IsoStringDate.struct, name: 'modificationDate' },
-            { type: IsoStringDate.struct, name: 'expirationDate' },
-            { type: IsoStringDate.struct, name: 'effectiveDate' },
+			{ creationDate: IsoStringDate.struct },
+			{ modificationDate: IsoStringDate.struct },
+			{ expirationDate: IsoStringDate.struct },
+			{ effectiveDate: IsoStringDate.struct },
 
-            { type: UInt8, name: 'fileStructureVersion' },
-            { type: UInt8, name: 'pad5' },
-            { type: StructArray.create<number>(UInt8, 0x200), name: 'pad5' },
-            { type: StructArray.create<number>(UInt8, 653), name: 'pad6' },
+			{ fileStructureVersion: UInt8 },
+			{ pad5: UInt8 },
+			{ pad6: StructArray<number>(UInt8, 0x200) },
+			{ pad7: StructArray<number>(UInt8, 653) },
 		]);
     }
 
@@ -265,8 +267,6 @@
 				var pvd = PrimaryVolumeDescriptor.struct.read(stream);
 				if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor) throw ("Not an ISO file");
 				if (pvd.header.id != 'CD001') throw ("Not an ISO file");
-				//if (pvd.systemId.rstrip() != 'Win32') throw ("Invalid ISO file systemId:'" + pvd.systemId + "'");
-				//if (pvd.volumeId.rstrip() != 'CDROM') throw ("Invalid ISO file volumeId:'" + pvd.volumeId + "'");
 
 				this._children = [];
 				this._childrenByPath = {};
