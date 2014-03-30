@@ -34,12 +34,14 @@
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
+    <TypeScriptCompile Include="src\context.ts" />
     <TypeScriptCompile Include="src\core\audio.ts" />
     <TypeScriptCompile Include="src\core\cpu\cpu_ast.ts" />
     <TypeScriptCompile Include="src\core\cpu\state.ts" />
     <TypeScriptCompile Include="src\core\gpu\gpu_c2d.ts" />
     <TypeScriptCompile Include="src\core\gpu\gpu_webgl.ts" />
     <TypeScriptCompile Include="src\core\gpu\state.ts" />
+    <TypeScriptCompile Include="src\emulator.ts" />
     <TypeScriptCompile Include="src\format\cso.ts" />
     <TypeScriptCompile Include="src\format\format.ts" />
     <TypeScriptCompile Include="src\format\pbp.ts" />
@@ -89,6 +91,7 @@
     <TypeScriptCompile Include="test\format\psfTest.ts" />
     <TypeScriptCompile Include="test\format\pbpTest.ts" />
     <TypeScriptCompile Include="test\hle\vfs\vfsTest.ts" />
+    <TypeScriptCompile Include="test\pspautotests.ts" />
     <TypeScriptCompile Include="typings\promise\promise.d.ts" />
     <TypeScriptCompile Include="src\app.ts" />
     <TypeScriptCompile Include="src\core\cpu\assembler.ts" />

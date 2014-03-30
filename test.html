@@ -24,10 +24,13 @@
     <script src="pspemu.js"></script>
 </head>
 <body>
+    <div style="display:none;">
+        <canvas id="canvas" width="480" height="272" style="display: none;"></canvas>
+        <canvas id="webgl_canvas" width="480" height="272" style="display: none; "></canvas>
+    </div>
+
     <div id="mocha"></div>
 
-    <script>
-    mocha.run();
-    </script>
+    <script type="text/javascript">mocha.run();</script>
 </body>
 </html>

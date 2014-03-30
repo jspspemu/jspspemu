@@ -134,7 +134,7 @@ module core {
 						}
 					}
 
-					for (var n = 0; n < 15; n++) {
+					for (var n = 0; n < 16; n++) {
 						if (checkButton(buttons[n])) {
 							this.simulateButtonDown(buttonMapping[n]);
 						} else {

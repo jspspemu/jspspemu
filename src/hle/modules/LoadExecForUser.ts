@@ -4,14 +4,15 @@
 
         sceKernelExitGame = createNativeFunction(0xBD2F1094, 150, 'uint', 'HleThread', this, (thread: Thread) => {
             console.info('sceKernelExitGame');
-            thread.stop();
+			thread.stop();
+			this.context.threadManager.exitGame();
             throw (new CpuBreakException());
             return 0;
 		});
 
-		sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'EmulatorContext/CpuState', this, (context: EmulatorContext, state: core.cpu.CpuState) => {
-            var thread = (<Thread>state.thread);
-            console.info('sceKernelExitGame');
+		sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'HleThread', this, (thread: Thread) => {
+			console.info('sceKernelExitGame2');
+			this.context.threadManager.exitGame();
             thread.stop();
             throw (new CpuBreakException());
         });

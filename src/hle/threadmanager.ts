@@ -65,8 +65,13 @@
         interval: number = -1;
 		enqueued: boolean = false;
 		running: boolean = false;
+		exitPromise: Promise<any>;
+		exitResolve: () => void;
 
 		constructor(private memory: core.Memory, private memoryManager: hle.MemoryManager, private display: core.PspDisplay, private syscallManager: core.ISyscallManager, private instructionCache: InstructionCache) {
+			this.exitPromise = new Promise((resolve, reject) => {
+				this.exitResolve = resolve;
+			});
         }
 
         create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000) {
@@ -163,6 +168,14 @@
 			clearInterval(this.interval);
 			this.interval = -1;
 			return Promise.resolve();
-        }
+		}
+
+		exitGame() {
+			this.exitResolve();
+		}
+
+		waitExitGameAsync(): Promise<any> {
+			return this.exitPromise;
+		}
     }
 }

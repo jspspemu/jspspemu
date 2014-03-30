@@ -16,6 +16,13 @@ module core {
 		static MASK = 0x0FFFFFFF;
 		static MAIN_OFFSET = 0x08000000;
 
+
+		private static _instance: Memory;
+		static get instance() {
+			if (!Memory._instance) Memory._instance = new Memory();
+			return Memory._instance;
+		}
+
 		constructor() {
 			this.buffer = new ArrayBuffer(0x10000000);
 			this.data = new DataView(this.buffer);

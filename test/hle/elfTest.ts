@@ -10,7 +10,7 @@
 
     it('load', () => {
         //var stream = Stream.fromBase64(minifireElfBase64);
-		var memory = new core.Memory();
+		var memory = core.Memory.instance;
         var memoryManager = new hle.MemoryManager();
         var display = new core.DummyPspDisplay();
         var syscallManager = new core.SyscallManager(context);

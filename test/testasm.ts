@@ -10,7 +10,7 @@ declare var assert: Assert;
 
 var assembler = new core.cpu.MipsAssembler();
 var disassembler = new core.cpu.MipsDisassembler();
-var memory = new core.Memory();
+var memory = core.Memory.instance;
 
 class TestSyscallManager implements core.ISyscallManager {
 	call(state: core.cpu.CpuState, id: number) {

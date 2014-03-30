@@ -21,11 +21,13 @@
 				case 'emulator:': case 'kemulator:':
 					switch (command) {
 						case 1:
-							output.writeInt32(1);
+							output.writeInt32(0);
 							return 0;
 							break;
 						case 2:
-							$('#output').append(input.readString(input.length));
+							var str = input.readString(input.length);
+							this.context.output += str;
+							$('#output').append(str);
 							//console.info();
 							return 0;
 							break;
