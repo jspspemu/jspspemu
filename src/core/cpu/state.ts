@@ -123,11 +123,13 @@
 		}
 		lb(address: number) { return this.memory.readInt8(address); }
 		lbu(address: number) { return this.memory.readUInt8(address); }
-		lw(address: number) { return this.memory.readInt32(address); }
 		lh(address: number) { return this.memory.readInt16(address); }
 		lhu(address: number) { return this.memory.readUInt16(address); }
+		lw(address: number) { return this.memory.readInt32(address); }
+
 		min(a: number, b: number) { return (a < b) ? a : b; }
 		max(a: number, b: number) { return (a > b) ? a : b; }
+		slt(a: number, b: number) { return ((a | 0) < (b | 0)); }
 		sltu(a: number, b: number) { return ((a >>> 0) < (b >>> 0)); }
 
 		private static LwrMask = [ 0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00 ];

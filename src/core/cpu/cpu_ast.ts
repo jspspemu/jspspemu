@@ -48,23 +48,21 @@
 		subu(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt))); }
 
 		sll(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos))); }
+		sra(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos))); }
 		srl(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos))); }
 		rotr(i: Instruction) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)])); }
-		rotrv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); }
-
-		bitrev(i: Instruction) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); }
-
-		sra(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos))); }
 
 		sllv(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31)))); }
 		srav(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31)))); }
 		srlv(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31)))); }
+		rotrv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); }
+
+		bitrev(i: Instruction) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); }
 
 		and(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt))); }
 		or(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt))); }
 		xor(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt))); }
 		nor(i: Instruction) { return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt)))); }
-
 
 		andi(i: Instruction) { return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16))); }
 		ori(i: Instruction) { return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16))); }
@@ -74,13 +72,13 @@
 		mfhi(i: Instruction) { return assignGpr(i.rd, hi()); }
 		mfic(i: Instruction) { return assignGpr(i.rt, ic()); }
 
-		mtic(i: Instruction) { return assignIC(gpr(i.rt)); }
 		mtlo(i: Instruction) { return assign(lo(), gpr(i.rs)); }
 		mthi(i: Instruction) { return assign(hi(), gpr(i.rs)); }
+		mtic(i: Instruction) { return assignIC(gpr(i.rt)); }
 
-		slt(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '<', gpr(i.rt))); }
-		slti(i: Instruction) { return assignGpr(i.rt, binop(gpr(i.rs), '<', imm32(i.imm16))); }
+		slt(i: Instruction) { return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)])); }
 		sltu(i: Instruction) { return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)])); }
+		slti(i: Instruction) { return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)])); }
 		sltiu(i: Instruction) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.u_imm16)])); }
 
 		movz(i: Instruction) { return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs))); }
@@ -195,16 +193,15 @@
 
 		lb(i: Instruction) { return assignGpr(i.rt, call('state.lb', [rs_imm16(i)])); }
 		lbu(i: Instruction) { return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)])); }
+		lh(i: Instruction) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); }
+		lhu(i: Instruction) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); }
 		lw(i: Instruction) { return assignGpr(i.rt, call('state.lw', [rs_imm16(i)])); }
+
 		lwl(i: Instruction) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		lwr(i: Instruction) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
-
 		swl(i: Instruction) { return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		swr(i: Instruction) { return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		
-		lh(i: Instruction) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); }
-		lhu(i: Instruction) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); }
-
 		j(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); }
 		jr(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), gpr(i.rs)))]); }
 		jal(i: Instruction) { return stms([this.j(i), assignGpr(31, u_imm32(i.PC + 8))]); }

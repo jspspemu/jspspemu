@@ -286,6 +286,9 @@
 		viewPort = new ViewPort();
 		lightning = new Lightning();
 		texture = new TextureState();
+		ambientModelColor = new ColorState();
+		diffuseModelColor = new ColorState();
+		specularModelColor = new ColorState();
 		culling = new CullingState();
 	}
 

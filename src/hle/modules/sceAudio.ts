@@ -70,9 +70,19 @@
 			return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
 		});
 
+		sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream) => {
+			var channel = this.channels[channelId];
+			return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+		});
+
 		sceAudioChangeChannelVolume = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, (channelId: number, volumeLeft: number, volumeRight: number) => {
 			console.warn("Not implemented sceAudioChangeChannelVolume");
 			return 0;
 		});
-    }
+
+		sceAudioGetChannelRestLen = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int', this, (channelId: number) => {
+			console.warn("Not implemented sceAudioGetChannelRestLen");
+			return 0;
+		});
+	}
 }

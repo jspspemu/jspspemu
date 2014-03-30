@@ -274,6 +274,31 @@ module core.gpu {
 					mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
 					break;
 
+				case GpuOpCodes.AMC:
+					this.state.ambientModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+					this.state.ambientModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+					this.state.ambientModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					this.state.ambientModelColor.a = 1;
+					break;
+
+				case GpuOpCodes.AMA:
+					this.state.ambientModelColor.a = BitUtils.extractScale(params24, 0, 8, 1);
+					break;
+
+				case GpuOpCodes.DMC:
+					this.state.diffuseModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+					this.state.diffuseModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+					this.state.diffuseModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					this.state.diffuseModelColor.a = 1;
+					break;
+
+				case GpuOpCodes.SMC:
+					this.state.specularModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+					this.state.specularModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+					this.state.specularModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					this.state.specularModelColor.a = 1;
+					break;
+
 				case GpuOpCodes.CBP:
 					this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
 					break;
@@ -355,7 +380,7 @@ module core.gpu {
 							console.error(sprintf('Stop showing gpu errors'));
 						}
 					} else {
-						//console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+						console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
 					}
             }
 

@@ -7,6 +7,7 @@ module core {
 		u8: Uint8Array;
 		s16: Int16Array;
 		u16: Uint16Array;
+		s32: Uint32Array;
 		u32: Uint32Array;
 		f32: Float32Array;
 		data: DataView;
@@ -30,6 +31,7 @@ module core {
 			this.u8 = new Uint8Array(this.buffer);
 			this.u16 = new Uint16Array(this.buffer);
 			this.s16 = new Int16Array(this.buffer);
+			this.s32 = new Int32Array(this.buffer);
 			this.u32 = new Uint32Array(this.buffer);
 			this.f32 = new Float32Array(this.buffer);
 		}
@@ -63,7 +65,7 @@ module core {
 		readUInt16(address: number) { return this.u16[(address >> 1) & Memory.MASK]; }
 
 		writeInt32(address: number, value: number) { this.u32[(address >> 2) & Memory.MASK] = value; }
-		readInt32(address: number) { return this.u32[(address >> 2) & Memory.MASK]; }
+		readInt32(address: number) { return this.s32[(address >> 2) & Memory.MASK]; }
 		readUInt32(address: number) { return this.u32[(address >> 2) & Memory.MASK]; }
 
 		writeFloat32(address: number, value: number) { this.f32[(address >> 2) & Memory.MASK] = value; }

@@ -114,6 +114,9 @@
 				var w2 = mipmap.bufferWidth;
 
 				var canvas = document.createElement('canvas');
+				
+				//$(document.body).append(canvas);
+
 				canvas.width = w;
 				canvas.height = h;
 				var ctx = canvas.getContext('2d');
@@ -129,6 +132,8 @@
 					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
 				}
 
+				//console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
+				
 				PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
 				ctx.clearRect(0, 0, w, h);

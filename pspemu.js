@@ -2239,22 +2239,14 @@ var core;
                 InstructionAst.prototype.sll = function (i) {
                     return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos)));
                 };
+                InstructionAst.prototype.sra = function (i) {
+                    return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos)));
+                };
                 InstructionAst.prototype.srl = function (i) {
                     return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos)));
                 };
                 InstructionAst.prototype.rotr = function (i) {
                     return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)]));
-                };
-                InstructionAst.prototype.rotrv = function (i) {
-                    return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
-                };
-
-                InstructionAst.prototype.bitrev = function (i) {
-                    return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)]));
-                };
-
-                InstructionAst.prototype.sra = function (i) {
-                    return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos)));
                 };
 
                 InstructionAst.prototype.sllv = function (i) {
@@ -2265,6 +2257,13 @@ var core;
                 };
                 InstructionAst.prototype.srlv = function (i) {
                     return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31))));
+                };
+                InstructionAst.prototype.rotrv = function (i) {
+                    return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
+                };
+
+                InstructionAst.prototype.bitrev = function (i) {
+                    return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)]));
                 };
 
                 InstructionAst.prototype.and = function (i) {
@@ -2300,24 +2299,26 @@ var core;
                     return assignGpr(i.rt, ic());
                 };
 
-                InstructionAst.prototype.mtic = function (i) {
-                    return assignIC(gpr(i.rt));
-                };
                 InstructionAst.prototype.mtlo = function (i) {
                     return assign(lo(), gpr(i.rs));
                 };
                 InstructionAst.prototype.mthi = function (i) {
                     return assign(hi(), gpr(i.rs));
                 };
-
-                InstructionAst.prototype.slt = function (i) {
-                    return assignGpr(i.rd, binop(gpr(i.rs), '<', gpr(i.rt)));
+                InstructionAst.prototype.mtic = function (i) {
+                    return assignIC(gpr(i.rt));
                 };
-                InstructionAst.prototype.slti = function (i) {
-                    return assignGpr(i.rt, binop(gpr(i.rs), '<', imm32(i.imm16)));
+
+                //slt(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '<', gpr(i.rt))); }
+                //slti(i: Instruction) { return assignGpr(i.rt, binop(gpr(i.rs), '<', imm32(i.imm16))); }
+                InstructionAst.prototype.slt = function (i) {
+                    return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)]));
                 };
                 InstructionAst.prototype.sltu = function (i) {
                     return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)]));
+                };
+                InstructionAst.prototype.slti = function (i) {
+                    return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)]));
                 };
                 InstructionAst.prototype.sltiu = function (i) {
                     return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.u_imm16)]));
@@ -2567,28 +2568,27 @@ var core;
                 InstructionAst.prototype.lbu = function (i) {
                     return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)]));
                 };
+                InstructionAst.prototype.lh = function (i) {
+                    return assignGpr(i.rt, call('state.lh', [rs_imm16(i)]));
+                };
+                InstructionAst.prototype.lhu = function (i) {
+                    return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)]));
+                };
                 InstructionAst.prototype.lw = function (i) {
                     return assignGpr(i.rt, call('state.lw', [rs_imm16(i)]));
                 };
+
                 InstructionAst.prototype.lwl = function (i) {
                     return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
                 InstructionAst.prototype.lwr = function (i) {
                     return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
-
                 InstructionAst.prototype.swl = function (i) {
                     return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
                 InstructionAst.prototype.swr = function (i) {
                     return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-                };
-
-                InstructionAst.prototype.lh = function (i) {
-                    return assignGpr(i.rt, call('state.lh', [rs_imm16(i)]));
-                };
-                InstructionAst.prototype.lhu = function (i) {
-                    return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)]));
                 };
 
                 InstructionAst.prototype.j = function (i) {
@@ -3781,20 +3781,24 @@ var core;
             CpuState.prototype.lbu = function (address) {
                 return this.memory.readUInt8(address);
             };
-            CpuState.prototype.lw = function (address) {
-                return this.memory.readInt32(address);
-            };
             CpuState.prototype.lh = function (address) {
                 return this.memory.readInt16(address);
             };
             CpuState.prototype.lhu = function (address) {
                 return this.memory.readUInt16(address);
             };
+            CpuState.prototype.lw = function (address) {
+                return this.memory.readInt32(address);
+            };
+
             CpuState.prototype.min = function (a, b) {
                 return (a < b) ? a : b;
             };
             CpuState.prototype.max = function (a, b) {
                 return (a > b) ? a : b;
+            };
+            CpuState.prototype.slt = function (a, b) {
+                return ((a | 0) < (b | 0));
             };
             CpuState.prototype.sltu = function (a, b) {
                 return ((a >>> 0) < (b >>> 0));
@@ -4387,6 +4391,8 @@ var core;
                         var w2 = mipmap.bufferWidth;
 
                         var canvas = document.createElement('canvas');
+
+                        //$(document.body).append(canvas);
                         canvas.width = w;
                         canvas.height = h;
                         var ctx = canvas.getContext('2d');
@@ -4402,6 +4408,7 @@ var core;
                             core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
                         }
 
+                        //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
                         core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
                         ctx.clearRect(0, 0, w, h);
@@ -5189,6 +5196,9 @@ var core;
                 this.viewPort = new ViewPort();
                 this.lightning = new Lightning();
                 this.texture = new TextureState();
+                this.ambientModelColor = new ColorState();
+                this.diffuseModelColor = new ColorState();
+                this.specularModelColor = new ColorState();
                 this.culling = new CullingState();
             }
             return GpuState;
@@ -5511,6 +5521,7 @@ var core;
             this.u8 = new Uint8Array(this.buffer);
             this.u16 = new Uint16Array(this.buffer);
             this.s16 = new Int16Array(this.buffer);
+            this.s32 = new Int32Array(this.buffer);
             this.u32 = new Uint32Array(this.buffer);
             this.f32 = new Float32Array(this.buffer);
         }
@@ -5571,7 +5582,7 @@ var core;
             this.u32[(address >> 2) & Memory.MASK] = value;
         };
         Memory.prototype.readInt32 = function (address) {
-            return this.u32[(address >> 2) & Memory.MASK];
+            return this.s32[(address >> 2) & Memory.MASK];
         };
         Memory.prototype.readUInt32 = function (address) {
             return this.u32[(address >> 2) & Memory.MASK];
@@ -5952,6 +5963,31 @@ var core;
                         mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
                         break;
 
+                    case 85 /* AMC */:
+                        this.state.ambientModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+                        this.state.ambientModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+                        this.state.ambientModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        this.state.ambientModelColor.a = 1;
+                        break;
+
+                    case 88 /* AMA */:
+                        this.state.ambientModelColor.a = BitUtils.extractScale(params24, 0, 8, 1);
+                        break;
+
+                    case 86 /* DMC */:
+                        this.state.diffuseModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+                        this.state.diffuseModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+                        this.state.diffuseModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        this.state.diffuseModelColor.a = 1;
+                        break;
+
+                    case 87 /* SMC */:
+                        this.state.specularModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
+                        this.state.specularModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
+                        this.state.specularModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        this.state.specularModelColor.a = 1;
+                        break;
+
                     case 176 /* CBP */:
                         this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
                         break;
@@ -6043,7 +6079,7 @@ var core;
                                 console.error(sprintf('Stop showing gpu errors'));
                             }
                         } else {
-                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+                            console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, core.gpu.GpuOpCodes[op]));
                         }
                 }
 
@@ -6492,11 +6528,6 @@ var Emulator = (function () {
 
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
-                        //console.log(new Uint8Array(executableArrayBuffer));
-                        var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
-                        pspElf.load(elfStream);
-                        var moduleInfo = pspElf.moduleInfo;
-
                         var arguments = [pathToFile];
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
                         var argument = arguments.map(function (argument) {
@@ -6504,6 +6535,12 @@ var Emulator = (function () {
                         }).join('');
                         _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
 
+                        //console.log(new Uint8Array(executableArrayBuffer));
+                        var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
+                        pspElf.load(elfStream);
+                        var moduleInfo = pspElf.moduleInfo;
+
+                        //window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');
                         // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
                         thread.state.GP = moduleInfo.gp;
@@ -7661,6 +7698,7 @@ var hle;
             };
 
             PspElfLoader.prototype.allocateMemory = function () {
+                var _this = this;
                 this.baseAddress = 0;
 
                 if (this.elfLoader.needsRelocation) {
@@ -7669,6 +7707,22 @@ var hle;
                     }).reverse().first().low;
                     this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
                 }
+
+                var lowest = 0xFFFFFFFF;
+                var highest = 0;
+                this.elfLoader.sectionHeaders.filter(function (section) {
+                    return ((section.flags & 2 /* Allocate */) != 0);
+                }).forEach(function (section) {
+                    lowest = Math.min(lowest, (_this.baseAddress + section.address));
+                    highest = Math.max(highest, (_this.baseAddress + section.address + section.size));
+                });
+
+                this.elfLoader.programHeaders.forEach(function (program) {
+                    lowest = Math.min(lowest, (_this.baseAddress + program.virtualAddress));
+                    highest = Math.max(highest, (_this.baseAddress + program.virtualAddress + program.memorySize));
+                });
+
+                var memorySegment = this.memoryManager.userPartition.allocateSet(highest - lowest, lowest, 'Elf');
             };
 
             PspElfLoader.prototype.relocateFromHeaders = function () {
@@ -7730,8 +7784,8 @@ var hle;
                         case 0 /* None */:
                             break;
                         case 1 /* Mips16 */:
-                            instruction.u_imm16 += S;
                             break;
+
                         case 2 /* Mips32 */:
                             instruction.data += S;
                             break;
@@ -7801,8 +7855,7 @@ var hle;
 
                             var length = stream.length;
 
-                            var memorySegment = _this.memoryManager.userPartition.allocateSet(length, low);
-
+                            //var memorySegment = this.memoryManager.userPartition.allocateSet(length, low);
                             //console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
                             _this.memory.writeStream(low, stream);
 
@@ -8664,6 +8717,39 @@ var hle;
                 this.sceAtracSetSecondBuffer = hle.modules.createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
                     return 0;
                 });
+                this.sceAtracReleaseAtracID = hle.modules.createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
+                    return 0;
+                });
+                this.sceAtracDecodeData = hle.modules.createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
+                    return 0;
+                });
+                this.sceAtracGetRemainFrame = hle.modules.createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
+                    return 0;
+                });
+                this.sceAtracGetStreamDataInfo = hle.modules.createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
+                    return 0;
+                });
+                this.sceAtracAddStreamData = hle.modules.createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
+                    return 0;
+                });
+                this.sceAtracGetNextDecodePosition = hle.modules.createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
+                    return 0;
+                });
+                this.sceAtracGetSoundSample = hle.modules.createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
+                    return 0;
+                });
+                this.sceAtracSetLoopNum = hle.modules.createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
+                    return 0;
+                });
+                this.sceAtracGetBufferInfoForReseting = hle.modules.createNativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*', this, function (id, uiSample, bufferInfoPtr) {
+                    return 0;
+                });
+                this.sceAtracResetPlayPosition = hle.modules.createNativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint', this, function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
+                    return 0;
+                });
+                this.sceAtracGetInternalErrorInfo = hle.modules.createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, function (id, errorResultPtr) {
+                    return 0;
+                });
             }
             return sceAtrac3plus;
         })();
@@ -8742,8 +8828,16 @@ var hle;
                     var channel = _this.channels[channelId];
                     return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
                 });
+                this.sceAudioOutputPanned = hle.modules.createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+                    var channel = _this.channels[channelId];
+                    return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+                });
                 this.sceAudioChangeChannelVolume = hle.modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
                     console.warn("Not implemented sceAudioChangeChannelVolume");
+                    return 0;
+                });
+                this.sceAudioGetChannelRestLen = hle.modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int', this, function (channelId) {
+                    console.warn("Not implemented sceAudioGetChannelRestLen");
                     return 0;
                 });
                 for (var n = 0; n < 8; n++)

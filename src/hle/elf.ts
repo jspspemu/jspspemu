@@ -408,6 +408,20 @@
 				this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(partition => partition.size).reverse().first().low
 				this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
 			}
+
+			var lowest = 0xFFFFFFFF;
+			var highest = 0;
+			this.elfLoader.sectionHeaders.filter(section => ((section.flags & ElfSectionHeaderFlags.Allocate) != 0)).forEach(section => {
+				lowest = Math.min(lowest, (this.baseAddress + section.address));
+				highest = Math.max(highest, (this.baseAddress + section.address + section.size));
+			});
+
+			this.elfLoader.programHeaders.forEach(program => {
+				lowest = Math.min(lowest, (this.baseAddress + program.virtualAddress));
+				highest = Math.max(highest, (this.baseAddress + program.virtualAddress + program.memorySize));
+			});
+
+			var memorySegment = this.memoryManager.userPartition.allocateSet(highest - lowest, lowest, 'Elf');
 		}
 
 		private relocateFromHeaders() {
@@ -467,7 +481,8 @@
 
 				switch (reloc.type) {
 					case ElfRelocType.None: break;
-					case ElfRelocType.Mips16: instruction.u_imm16 += S; break;
+					case ElfRelocType.Mips16: break;
+					//case ElfRelocType.Mips16: instruction.u_imm16 += S; break;
 					case ElfRelocType.Mips32: instruction.data += S; break;
 					case ElfRelocType.MipsRel32: throw ("Not implemented MipsRel32"); 
 					case ElfRelocType.Mips26: instruction.jump_real = instruction.jump_real + S; break;
@@ -526,7 +541,6 @@
 
 						var length = stream.length;
 							
-						var memorySegment = this.memoryManager.userPartition.allocateSet(length, low);
 						//console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
                         this.memory.writeStream(low, stream);
 
