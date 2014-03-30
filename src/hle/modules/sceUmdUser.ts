@@ -8,8 +8,7 @@
 		});
 
 		sceUmdCheckMedium = createNativeFunction(0x46EBB729, 150, 'uint', '', this, () => {
-			console.warn('Not implemented sceUmdCheckMedium');
-			return 0;
+			return UmdCheckMedium.Inserted;
 		});
 
 		sceUmdWaitDriveStat = createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, (pspUmdState: number) => {
@@ -36,8 +35,12 @@
 		});
 	}
 
-	enum PspUmdState
-	{
+	enum UmdCheckMedium {
+		NoDisc = 0,
+		Inserted = 1,
+	}
+
+	enum PspUmdState {
 		PSP_UMD_INIT = 0x00,
 		PSP_UMD_NOT_PRESENT = 0x01,
 		PSP_UMD_PRESENT = 0x02,

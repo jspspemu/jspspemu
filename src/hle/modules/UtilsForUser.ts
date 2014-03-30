@@ -38,6 +38,24 @@
 			return 0;
 		});
 
+		sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0x3EE30821, 150, 'uint', '', this, () => {
+			return 0;
+		});
+
+		sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
+			if (size < 0) return SceKernelErrors.ERROR_INVALID_SIZE;
+			return 0;
+		});
+
+		sceKernelDcacheWritebackRange = createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
+			pointer >>>= 0;
+			size >>>= 0;
+			if (size < 0) return SceKernelErrors.ERROR_INVALID_SIZE;
+			if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
+			if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
+			return 0;
+		});
+
 		sceKernelDcacheWritebackAll = createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, () => {
 			return 0;
 		});

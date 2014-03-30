@@ -207,8 +207,8 @@
 
 		j(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); }
 		jr(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), gpr(i.rs)))]); }
-		jal(i: Instruction) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.j(i)]); }
-		jalr(i: Instruction) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.jr(i)]); }
+		jal(i: Instruction) { return stms([this.j(i), assignGpr(31, u_imm32(i.PC + 8))]); }
+		jalr(i: Instruction) { return stms([this.jr(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); }
 
 		_comp(i: Instruction, fc02: number, fc3: number) {
 			var fc_unordererd = ((fc02 & 1) != 0);

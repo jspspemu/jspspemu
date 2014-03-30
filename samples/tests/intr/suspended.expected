@@ -1,0 +1,13 @@
+[x] Not suspended:
+[x]   0: 00000001
+[x]   1: 00000000
+[x]   2: 00000000
+[x]   0xDEADBEEF: 00000000
+
+[x] Suspended:
+[x]   0: 00000001
+[x]   1: 00000000
+[x]   2: 00000000
+[x]   0xDEADBEEF: 00000000
+[x]   flags (inner): 00000001
+[x]   flags (outer): 00000000

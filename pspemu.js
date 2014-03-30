@@ -2582,10 +2582,10 @@ var core;
                     return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), gpr(i.rs)))]);
                 };
                 InstructionAst.prototype.jal = function (i) {
-                    return stms([assignGpr(31, u_imm32(i.PC + 8)), this.j(i)]);
+                    return stms([this.j(i), assignGpr(31, u_imm32(i.PC + 8))]);
                 };
                 InstructionAst.prototype.jalr = function (i) {
-                    return stms([assignGpr(31, u_imm32(i.PC + 8)), this.jr(i)]);
+                    return stms([this.jr(i), assignGpr(i.rd, u_imm32(i.PC + 8))]);
                 };
 
                 InstructionAst.prototype._comp = function (i, fc02, fc3) {
@@ -3559,6 +3559,8 @@ var core;
                 this.fcr31_fs = false;
                 this.fcr0_imp = 0;
                 this.fcr0_rev = 0;
+                this.fcr0 = 0x00003351;
+                this.fcr31 = 0x00000e00;
             }
             CpuState.getGprAccessName = function (index) {
                 return 'gpr[' + index + ']';
@@ -3690,7 +3692,8 @@ var core;
                         this.gpr[t] = this.fcr31;
                         break;
                     default:
-                        throw (new Error(sprintf("Unsupported CFC1(%d)", d)));
+                        this.gpr[t] = 0;
+                        break;
                 }
             };
 
@@ -3699,8 +3702,6 @@ var core;
                     case 31:
                         this.fcr31 = t;
                         break;
-                    default:
-                        throw (new Error(sprintf("Unsupported CFC1(%d)", d)));
                 }
             };
 
@@ -6473,23 +6474,24 @@ var Emulator = (function () {
 
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
+                        var arguments = [pathToFile];
+                        var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
+                        var argument = arguments.map(function (argument) {
+                            return argument + String.fromCharCode(0);
+                        }).join('');
+                        _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
+
                         //console.log(new Uint8Array(executableArrayBuffer));
                         var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
                         pspElf.load(elfStream);
                         var moduleInfo = pspElf.moduleInfo;
 
-                        var arguments = [pathToFile];
-                        var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
-
-                        var argument = arguments.map(function (argument) {
-                            return argument + String.fromCharCode(0);
-                        }).join('');
-
-                        _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
-
                         // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
                         thread.state.GP = moduleInfo.gp;
+
+                        //thread.state.gpr[4] = 0;
+                        //thread.state.gpr[5] = 0;
                         thread.state.gpr[4] = argument.length;
                         thread.state.gpr[5] = argumentsPartition.low;
                         thread.start();
@@ -8173,6 +8175,14 @@ var hle;
             this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
         };
 
+        Object.defineProperty(MemoryManager.prototype, "kernelPartition", {
+            get: function () {
+                return this.memoryPartitionsUid[0 /* Kernel0 */];
+            },
+            enumerable: true,
+            configurable: true
+        });
+
         Object.defineProperty(MemoryManager.prototype, "userPartition", {
             get: function () {
                 return this.memoryPartitionsUid[2 /* User */];
@@ -8290,10 +8300,50 @@ var hle;
         var InterruptManager = (function () {
             function InterruptManager(context) {
                 this.context = context;
+                this.sceKernelRegisterSubIntrHandler = hle.modules.createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, function (pspInterrupt, handlerIndex, callbackAddress, callbackArgument) {
+                    console.warn('sceKernelRegisterSubIntrHandler');
+                });
+                this.sceKernelEnableSubIntr = hle.modules.createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
+                    console.warn('sceKernelEnableSubIntr');
+                });
+                this.sceKernelReleaseSubIntrHandler = hle.modules.createNativeFunction(0xD61E6961, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
+                    console.warn('sceKernelReleaseSubIntrHandler');
+                });
             }
             return InterruptManager;
         })();
         modules.InterruptManager = InterruptManager;
+
+        var PspInterrupts;
+        (function (PspInterrupts) {
+            PspInterrupts[PspInterrupts["PSP_GPIO_INT"] = 4] = "PSP_GPIO_INT";
+            PspInterrupts[PspInterrupts["PSP_ATA_INT"] = 5] = "PSP_ATA_INT";
+            PspInterrupts[PspInterrupts["PSP_UMD_INT"] = 6] = "PSP_UMD_INT";
+            PspInterrupts[PspInterrupts["PSP_MSCM0_INT"] = 7] = "PSP_MSCM0_INT";
+            PspInterrupts[PspInterrupts["PSP_WLAN_INT"] = 8] = "PSP_WLAN_INT";
+            PspInterrupts[PspInterrupts["PSP_AUDIO_INT"] = 10] = "PSP_AUDIO_INT";
+            PspInterrupts[PspInterrupts["PSP_I2C_INT"] = 12] = "PSP_I2C_INT";
+            PspInterrupts[PspInterrupts["PSP_SIRCS_INT"] = 14] = "PSP_SIRCS_INT";
+            PspInterrupts[PspInterrupts["PSP_SYSTIMER0_INT"] = 15] = "PSP_SYSTIMER0_INT";
+            PspInterrupts[PspInterrupts["PSP_SYSTIMER1_INT"] = 16] = "PSP_SYSTIMER1_INT";
+            PspInterrupts[PspInterrupts["PSP_SYSTIMER2_INT"] = 17] = "PSP_SYSTIMER2_INT";
+            PspInterrupts[PspInterrupts["PSP_SYSTIMER3_INT"] = 18] = "PSP_SYSTIMER3_INT";
+            PspInterrupts[PspInterrupts["PSP_THREAD0_INT"] = 19] = "PSP_THREAD0_INT";
+            PspInterrupts[PspInterrupts["PSP_NAND_INT"] = 20] = "PSP_NAND_INT";
+            PspInterrupts[PspInterrupts["PSP_DMACPLUS_INT"] = 21] = "PSP_DMACPLUS_INT";
+            PspInterrupts[PspInterrupts["PSP_DMA0_INT"] = 22] = "PSP_DMA0_INT";
+            PspInterrupts[PspInterrupts["PSP_DMA1_INT"] = 23] = "PSP_DMA1_INT";
+            PspInterrupts[PspInterrupts["PSP_MEMLMD_INT"] = 24] = "PSP_MEMLMD_INT";
+            PspInterrupts[PspInterrupts["PSP_GE_INT"] = 25] = "PSP_GE_INT";
+            PspInterrupts[PspInterrupts["PSP_VBLANK_INT"] = 30] = "PSP_VBLANK_INT";
+            PspInterrupts[PspInterrupts["PSP_MECODEC_INT"] = 31] = "PSP_MECODEC_INT";
+            PspInterrupts[PspInterrupts["PSP_HPREMOTE_INT"] = 36] = "PSP_HPREMOTE_INT";
+            PspInterrupts[PspInterrupts["PSP_MSCM1_INT"] = 60] = "PSP_MSCM1_INT";
+            PspInterrupts[PspInterrupts["PSP_MSCM2_INT"] = 61] = "PSP_MSCM2_INT";
+            PspInterrupts[PspInterrupts["PSP_THREAD1_INT"] = 65] = "PSP_THREAD1_INT";
+            PspInterrupts[PspInterrupts["PSP_INTERRUPT_INT"] = 66] = "PSP_INTERRUPT_INT";
+            PspInterrupts[PspInterrupts["_MAX"] = 67] = "_MAX";
+        })(PspInterrupts || (PspInterrupts = {}));
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -8657,6 +8707,17 @@ var hle;
                     channel.allocated = false;
                     channel.channel.stop();
                     channel.channel = null;
+                    return 0;
+                });
+                this.sceAudioChangeChannelConfig = hle.modules.createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
+                    var channel = _this.channels[channelId];
+                    channel.format = format;
+                    return 0;
+                });
+                this.sceAudioSetChannelDataLen = hle.modules.createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
+                    var channel = _this.channels[channelId];
+                    channel.sampleCount = sampleCount;
+                    return 0;
                 });
                 this.sceAudioOutputPannedBlocking = hle.modules.createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
                     var channel = _this.channels[channelId];
@@ -8758,10 +8819,24 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.sceDmacMemcpy = hle.modules.createNativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
-                    _this.context.memory.copy(source, destination, size);
-                    return 0;
+                    return _this._sceDmacMemcpy(destination, source, size);
+                });
+                this.sceDmacTryMemcpy = hle.modules.createNativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
+                    return _this._sceDmacMemcpy(destination, source, size);
                 });
             }
+            sceDmac.prototype._sceDmacMemcpy = function (destination, source, size) {
+                if (size == 0)
+                    return 2147483908 /* ERROR_INVALID_SIZE */;
+                if (destination == 0)
+                    return 2147483907 /* ERROR_INVALID_POINTER */;
+                if (source == 0)
+                    return 2147483907 /* ERROR_INVALID_POINTER */;
+                this.context.memory.copy(source, destination, size);
+                return waitAsycn(10).then(function () {
+                    return 0;
+                });
+            };
             return sceDmac;
         })();
         modules.sceDmac = sceDmac;
@@ -8820,6 +8895,19 @@ var hle;
 var hle;
 (function (hle) {
     (function (modules) {
+        var sceHttp = (function () {
+            function sceHttp(context) {
+                this.context = context;
+            }
+            return sceHttp;
+        })();
+        modules.sceHttp = sceHttp;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
         var sceImpose = (function () {
             function sceImpose(context) {
                 this.context = context;
@@ -8832,6 +8920,32 @@ var hle;
             return sceImpose;
         })();
         modules.sceImpose = sceImpose;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceLibFont = (function () {
+            function sceLibFont(context) {
+                this.context = context;
+            }
+            return sceLibFont;
+        })();
+        modules.sceLibFont = sceLibFont;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceMp3 = (function () {
+            function sceMp3(context) {
+                this.context = context;
+            }
+            return sceMp3;
+        })();
+        modules.sceMp3 = sceMp3;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -8942,6 +9056,58 @@ var hle;
 var hle;
 (function (hle) {
     (function (modules) {
+        var sceNp = (function () {
+            function sceNp(context) {
+                this.context = context;
+            }
+            return sceNp;
+        })();
+        modules.sceNp = sceNp;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceNpAuth = (function () {
+            function sceNpAuth(context) {
+                this.context = context;
+            }
+            return sceNpAuth;
+        })();
+        modules.sceNpAuth = sceNpAuth;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceNpService = (function () {
+            function sceNpService(context) {
+                this.context = context;
+            }
+            return sceNpService;
+        })();
+        modules.sceNpService = sceNpService;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceOpenPSID = (function () {
+            function sceOpenPSID(context) {
+                this.context = context;
+            }
+            return sceOpenPSID;
+        })();
+        modules.sceOpenPSID = sceOpenPSID;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
         var scePower = (function () {
             function scePower(context) {
                 var _this = this;
@@ -8958,6 +9124,19 @@ var hle;
             return scePower;
         })();
         modules.scePower = scePower;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var scePspNpDrm_user = (function () {
+            function scePspNpDrm_user(context) {
+                this.context = context;
+            }
+            return scePspNpDrm_user;
+        })();
+        modules.scePspNpDrm_user = scePspNpDrm_user;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -9010,9 +9189,32 @@ var hle;
 var hle;
 (function (hle) {
     (function (modules) {
+        var sceSsl = (function () {
+            function sceSsl(context) {
+                this.context = context;
+            }
+            return sceSsl;
+        })();
+        modules.sceSsl = sceSsl;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
         var sceSuspendForUser = (function () {
             function sceSuspendForUser(context) {
                 this.context = context;
+                this.sceKernelPowerLock = hle.modules.createNativeFunction(0xEADB1BD7, 150, 'uint', 'uint', this, function (lockType) {
+                    if (lockType != 0)
+                        return 2147483911 /* ERROR_INVALID_MODE */;
+                    return 0;
+                });
+                this.sceKernelPowerUnlock = hle.modules.createNativeFunction(0x3AEE7261, 150, 'uint', 'uint', this, function (lockType) {
+                    if (lockType != 0)
+                        return 2147483911 /* ERROR_INVALID_MODE */;
+                    return 0;
+                });
             }
             return sceSuspendForUser;
         })();
@@ -9031,8 +9233,7 @@ var hle;
                     return 0;
                 });
                 this.sceUmdCheckMedium = hle.modules.createNativeFunction(0x46EBB729, 150, 'uint', '', this, function () {
-                    console.warn('Not implemented sceUmdCheckMedium');
-                    return 0;
+                    return 1 /* Inserted */;
                 });
                 this.sceUmdWaitDriveStat = hle.modules.createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, function (pspUmdState) {
                     console.warn('Not implemented sceUmdWaitDriveStat');
@@ -9056,6 +9257,12 @@ var hle;
             return sceUmdUser;
         })();
         modules.sceUmdUser = sceUmdUser;
+
+        var UmdCheckMedium;
+        (function (UmdCheckMedium) {
+            UmdCheckMedium[UmdCheckMedium["NoDisc"] = 0] = "NoDisc";
+            UmdCheckMedium[UmdCheckMedium["Inserted"] = 1] = "Inserted";
+        })(UmdCheckMedium || (UmdCheckMedium = {}));
 
         var PspUmdState;
         (function (PspUmdState) {
@@ -9107,6 +9314,19 @@ var hle;
             DialogStepEnum[DialogStepEnum["SUCCESS"] = 3] = "SUCCESS";
             DialogStepEnum[DialogStepEnum["SHUTDOWN"] = 4] = "SHUTDOWN";
         })(DialogStepEnum || (DialogStepEnum = {}));
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceVaudio = (function () {
+            function sceVaudio(context) {
+                this.context = context;
+            }
+            return sceVaudio;
+        })();
+        modules.sceVaudio = sceVaudio;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -9289,9 +9509,18 @@ var hle;
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitEventFlag(%d, %08X, %d)', id, bits, waitType));
                     return 0;
                 });
-                //[HlePspFunction(NID = 0x402FCF22, FirmwareVersion = 150)]
-                //public int sceKernelWaitEventFlag(HleEventFlag EventFlag, uint Bits, EventFlagWaitTypeSet WaitType, uint * OutBits, uint * Timeout)
-                //{
+                this.sceKernelWaitEventFlagCB = hle.modules.createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitEventFlagCB(%d, %08X, %d)', id, bits, waitType));
+                    return 0;
+                });
+                this.sceKernelDeleteEventFlag = hle.modules.createNativeFunction(0xEF9E4C70, 150, 'uint', 'int/uint/int/void*/void*', this, function (id) {
+                    console.warn('Not implemented ThreadManForUser.sceKernelDeleteEventFlag');
+                    return 0;
+                });
+                this.sceKernelReferEventFlagStatus = hle.modules.createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (eventFlag, info) {
+                    console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
+                    return 0;
+                });
                 this.sceKernelGetSystemTimeLow = hle.modules.createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
                     return new Date().getTime() * 1000;
@@ -9333,6 +9562,10 @@ var hle;
                         numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
                     semaphore.cancel();
                     return 0;
+                });
+                this.sceKernelWaitSemaCB = hle.modules.createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
+                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSemaCB(%d, %d)', id, signal));
+                    return _this.semaporesUid.get(id).waitAsync(signal);
                 });
                 this.sceKernelWaitSema = hle.modules.createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSema(%d, %d)', id, signal));
@@ -9534,6 +9767,25 @@ var hle;
                 this.sceKernelDcacheWritebackInvalidateRange = hle.modules.createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, function (pointer, size) {
                     return 0;
                 });
+                this.sceKernelDcacheWritebackInvalidateAll = hle.modules.createNativeFunction(0x3EE30821, 150, 'uint', '', this, function () {
+                    return 0;
+                });
+                this.sceKernelDcacheInvalidateRange = hle.modules.createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                    if (size < 0)
+                        return 2147483908 /* ERROR_INVALID_SIZE */;
+                    return 0;
+                });
+                this.sceKernelDcacheWritebackRange = hle.modules.createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                    pointer >>>= 0;
+                    size >>>= 0;
+                    if (size < 0)
+                        return 2147483908 /* ERROR_INVALID_SIZE */;
+                    if (size > 0x7FFFFFFF)
+                        return 2147483908 /* ERROR_INVALID_SIZE */;
+                    if (pointer >= 0x80000000)
+                        return 2147483907 /* ERROR_INVALID_POINTER */;
+                    return 0;
+                });
                 this.sceKernelDcacheWritebackAll = hle.modules.createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
                     return 0;
                 });
@@ -9546,7 +9798,497 @@ var hle;
 })(hle || (hle = {}));
 var SceKernelErrors;
 (function (SceKernelErrors) {
+    /*
+    * PSP Errors:
+    * Represented by a 32-bit value with the following scheme:
+    *
+    *  31  30  29  28  27        16  15        0
+    * | 1 | 0 | 0 | 0 | X | ... | X | E |... | E |
+    *
+    * Bits 31 and 30: Can only be 1 or 0.
+    *      -> If both are 0, there's no error (0x0==SUCCESS).
+    *      -> If 31 is 1 but 30 is 0, there's an error (0x80000000).
+    *      -> If both bits are 1, a critical error stops the PSP (0xC0000000).
+    *
+    * Bits 29 and 28: Unknown. Never change.
+    *
+    * Bits 27 to 16 (X): Represent the system area associated with the error.
+    *      -> 0x000 - Null (can be used anywhere).
+    *      -> 0x001 - Errno (PSP's implementation of errno.h).
+    *      -> 0x002 - Kernel.
+    *      -> 0x011 - Utility.
+    *      -> 0x021 - UMD.
+    *      -> 0x022 - MemStick.
+    *      -> 0x026 - Audio.
+    *      -> 0x02b - Power.
+    *      -> 0x041 - Wlan.
+    *      -> 0x042 - SAS.
+    *      -> 0x043 - HTTP(0x0431)/HTTPS/SSL(0x0435).
+    *      -> 0x044 - WAVE.
+    *      -> 0x046 - Font.
+    *      -> 0x061 - MPEG(0x0618)/PSMF(0x0615)/PSMF Player(0x0616).
+    *      -> 0x062 - AVC.
+    *      -> 0x063 - ATRAC.
+    *      -> 0x07f - Codec.
+    *
+    * Bits 15 to 0 (E): Represent the error code itself (different for each area).
+    *      -> E.g.: 0x80110001 - Error -> Utility -> Some unknown error.
+    */
+    SceKernelErrors[SceKernelErrors["ERROR_OK"] = 0x00000000] = "ERROR_OK";
+
+    SceKernelErrors[SceKernelErrors["ERROR_ERROR"] = 0x80020001] = "ERROR_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_NOTIMP"] = 0x80020002] = "ERROR_NOTIMP";
+
+    SceKernelErrors[SceKernelErrors["ERROR_ALREADY"] = 0x80000020] = "ERROR_ALREADY";
+    SceKernelErrors[SceKernelErrors["ERROR_BUSY"] = 0x80000021] = "ERROR_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_OUT_OF_MEMORY"] = 0x80000022] = "ERROR_OUT_OF_MEMORY";
+
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_ID"] = 0x80000100] = "ERROR_INVALID_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_NAME"] = 0x80000101] = "ERROR_INVALID_NAME";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_INDEX"] = 0x80000102] = "ERROR_INVALID_INDEX";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_POINTER"] = 0x80000103] = "ERROR_INVALID_POINTER";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_SIZE"] = 0x80000104] = "ERROR_INVALID_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_FLAG"] = 0x80000105] = "ERROR_INVALID_FLAG";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_COMMAND"] = 0x80000106] = "ERROR_INVALID_COMMAND";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_MODE"] = 0x80000107] = "ERROR_INVALID_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_FORMAT"] = 0x80000108] = "ERROR_INVALID_FORMAT";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_VALUE"] = 0x800001FE] = "ERROR_INVALID_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_ARGUMENT"] = 0x800001FF] = "ERROR_INVALID_ARGUMENT";
+
+    SceKernelErrors[SceKernelErrors["ERROR_BAD_FILE"] = 0x80000209] = "ERROR_BAD_FILE";
+    SceKernelErrors[SceKernelErrors["ERROR_ACCESS_ERROR"] = 0x8000020D] = "ERROR_ACCESS_ERROR";
+
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_OPERATION_NOT_PERMITTED"] = 0x80010001] = "ERROR_ERRNO_OPERATION_NOT_PERMITTED";
     SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_NOT_FOUND"] = 0x80010002] = "ERROR_ERRNO_FILE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_OPEN_ERROR"] = 0x80010003] = "ERROR_ERRNO_FILE_OPEN_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IO_ERROR"] = 0x80010005] = "ERROR_ERRNO_IO_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ARG_LIST_TOO_LONG"] = 0x80010007] = "ERROR_ERRNO_ARG_LIST_TOO_LONG";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FILE_DESCRIPTOR"] = 0x80010009] = "ERROR_ERRNO_INVALID_FILE_DESCRIPTOR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_RESOURCE_UNAVAILABLE"] = 0x8001000B] = "ERROR_ERRNO_RESOURCE_UNAVAILABLE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_MEMORY"] = 0x8001000C] = "ERROR_ERRNO_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_PERM"] = 0x8001000D] = "ERROR_ERRNO_NO_PERM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_INVALID_ADDR"] = 0x8001000E] = "ERROR_ERRNO_FILE_INVALID_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_BUSY"] = 0x80010010] = "ERROR_ERRNO_DEVICE_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_ALREADY_EXISTS"] = 0x80010011] = "ERROR_ERRNO_FILE_ALREADY_EXISTS";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CROSS_DEV_LINK"] = 0x80010012] = "ERROR_ERRNO_CROSS_DEV_LINK";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_NOT_FOUND"] = 0x80010013] = "ERROR_ERRNO_DEVICE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NOT_A_DIRECTORY"] = 0x80010014] = "ERROR_ERRNO_NOT_A_DIRECTORY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IS_DIRECTORY"] = 0x80010015] = "ERROR_ERRNO_IS_DIRECTORY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_ARGUMENT"] = 0x80010016] = "ERROR_ERRNO_INVALID_ARGUMENT";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_TOO_MANY_OPEN_SYSTEM_FILES"] = 0x80010018] = "ERROR_ERRNO_TOO_MANY_OPEN_SYSTEM_FILES";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_IS_TOO_BIG"] = 0x8001001B] = "ERROR_ERRNO_FILE_IS_TOO_BIG";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_NO_FREE_SPACE"] = 0x8001001C] = "ERROR_ERRNO_DEVICE_NO_FREE_SPACE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_READ_ONLY"] = 0x8001001E] = "ERROR_ERRNO_READ_ONLY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CLOSED"] = 0x80010020] = "ERROR_ERRNO_CLOSED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_PATH_TOO_LONG"] = 0x80010024] = "ERROR_ERRNO_FILE_PATH_TOO_LONG";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_PROTOCOL"] = 0x80010047] = "ERROR_ERRNO_FILE_PROTOCOL";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DIRECTORY_IS_NOT_EMPTY"] = 0x8001005A] = "ERROR_ERRNO_DIRECTORY_IS_NOT_EMPTY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_TOO_MANY_SYMBOLIC_LINKS"] = 0x8001005C] = "ERROR_ERRNO_TOO_MANY_SYMBOLIC_LINKS";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_ADDR_IN_USE"] = 0x80010062] = "ERROR_ERRNO_FILE_ADDR_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CONNECTION_ABORTED"] = 0x80010067] = "ERROR_ERRNO_CONNECTION_ABORTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CONNECTION_RESET"] = 0x80010068] = "ERROR_ERRNO_CONNECTION_RESET";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_FREE_BUF_SPACE"] = 0x80010069] = "ERROR_ERRNO_NO_FREE_BUF_SPACE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_TIMEOUT"] = 0x8001006E] = "ERROR_ERRNO_FILE_TIMEOUT";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IN_PROGRESS"] = 0x80010077] = "ERROR_ERRNO_IN_PROGRESS";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ALREADY"] = 0x80010078] = "ERROR_ERRNO_ALREADY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_MEDIA"] = 0x8001007B] = "ERROR_ERRNO_NO_MEDIA";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_MEDIUM"] = 0x8001007C] = "ERROR_ERRNO_INVALID_MEDIUM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ADDRESS_NOT_AVAILABLE"] = 0x8001007D] = "ERROR_ERRNO_ADDRESS_NOT_AVAILABLE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IS_ALREADY_CONNECTED"] = 0x8001007F] = "ERROR_ERRNO_IS_ALREADY_CONNECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NOT_CONNECTED"] = 0x80010080] = "ERROR_ERRNO_NOT_CONNECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_QUOTA_EXCEEDED"] = 0x80010084] = "ERROR_ERRNO_FILE_QUOTA_EXCEEDED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FUNCTION_NOT_SUPPORTED"] = 0x8001B000] = "ERROR_ERRNO_FUNCTION_NOT_SUPPORTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ADDR_OUT_OF_MAIN_MEM"] = 0x8001B001] = "ERROR_ERRNO_ADDR_OUT_OF_MAIN_MEM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_UNIT_NUM"] = 0x8001B002] = "ERROR_ERRNO_INVALID_UNIT_NUM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FILE_SIZE"] = 0x8001B003] = "ERROR_ERRNO_INVALID_FILE_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FLAG"] = 0x8001B004] = "ERROR_ERRNO_INVALID_FLAG";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT"] = 0x80020064] = "ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_INTERRUPTS_ALREADY_DISABLED"] = 0x80020066] = "ERROR_KERNEL_INTERRUPTS_ALREADY_DISABLED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_UID"] = 0x800200cb] = "ERROR_KERNEL_UNKNOWN_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNMATCH_TYPE_UID"] = 0x800200cc] = "ERROR_KERNEL_UNMATCH_TYPE_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_EXIST_ID"] = 0x800200cd] = "ERROR_KERNEL_NOT_EXIST_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_FUNCTION_UID"] = 0x800200ce] = "ERROR_KERNEL_NOT_FOUND_FUNCTION_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ALREADY_HOLDER_UID"] = 0x800200cf] = "ERROR_KERNEL_ALREADY_HOLDER_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_HOLDER_UID"] = 0x800200d0] = "ERROR_KERNEL_NOT_HOLDER_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PERMISSION"] = 0x800200d1] = "ERROR_KERNEL_ILLEGAL_PERMISSION";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ARGUMENT"] = 0x800200d2] = "ERROR_KERNEL_ILLEGAL_ARGUMENT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ADDR"] = 0x800200d3] = "ERROR_KERNEL_ILLEGAL_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_AREA_OUT_OF_RANGE"] = 0x800200d4] = "ERROR_KERNEL_MEMORY_AREA_OUT_OF_RANGE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_AREA_IS_OVERLAP"] = 0x800200d5] = "ERROR_KERNEL_MEMORY_AREA_IS_OVERLAP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PARTITION_ID"] = 0x800200d6] = "ERROR_KERNEL_ILLEGAL_PARTITION_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PARTITION_IN_USE"] = 0x800200d7] = "ERROR_KERNEL_PARTITION_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE"] = 0x800200d8] = "ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK"] = 0x800200d9] = "ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_INHIBITED_RESIZE_MEMBLOCK"] = 0x800200da] = "ERROR_KERNEL_INHIBITED_RESIZE_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_RESIZE_MEMBLOCK"] = 0x800200db] = "ERROR_KERNEL_FAILED_RESIZE_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_HEAPBLOCK"] = 0x800200dc] = "ERROR_KERNEL_FAILED_ALLOC_HEAPBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_HEAP"] = 0x800200dd] = "ERROR_KERNEL_FAILED_ALLOC_HEAP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_CHUNK_ID"] = 0x800200de] = "ERROR_KERNEL_ILLEGAL_CHUNK_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_FIND_CHUNK_NAME"] = 0x800200df] = "ERROR_KERNEL_CANNOT_FIND_CHUNK_NAME";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_FREE_CHUNK"] = 0x800200e0] = "ERROR_KERNEL_NO_FREE_CHUNK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_FRAGMENTED"] = 0x800200e1] = "ERROR_KERNEL_MEMBLOCK_FRAGMENTED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_CANNOT_JOINT"] = 0x800200e2] = "ERROR_KERNEL_MEMBLOCK_CANNOT_JOINT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_CANNOT_SEPARATE"] = 0x800200e3] = "ERROR_KERNEL_MEMBLOCK_CANNOT_SEPARATE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ALIGNMENT_SIZE"] = 0x800200e4] = "ERROR_KERNEL_ILLEGAL_ALIGNMENT_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_DEVKIT_VER"] = 0x800200e5] = "ERROR_KERNEL_ILLEGAL_DEVKIT_VER";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_LINK_ERROR"] = 0x8002012c] = "ERROR_KERNEL_MODULE_LINK_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_OBJECT_FORMAT"] = 0x8002012d] = "ERROR_KERNEL_ILLEGAL_OBJECT_FORMAT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_MODULE"] = 0x8002012e] = "ERROR_KERNEL_UNKNOWN_MODULE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_MODULE_FILE"] = 0x8002012f] = "ERROR_KERNEL_UNKNOWN_MODULE_FILE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FILE_READ_ERROR"] = 0x80020130] = "ERROR_KERNEL_FILE_READ_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_IN_USE"] = 0x80020131] = "ERROR_KERNEL_MEMORY_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PARTITION_MISMATCH"] = 0x80020132] = "ERROR_KERNEL_PARTITION_MISMATCH";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STARTED"] = 0x80020133] = "ERROR_KERNEL_MODULE_ALREADY_STARTED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_NOT_STARTED"] = 0x80020134] = "ERROR_KERNEL_MODULE_NOT_STARTED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STOPPED"] = 0x80020135] = "ERROR_KERNEL_MODULE_ALREADY_STOPPED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_CANNOT_STOP"] = 0x80020136] = "ERROR_KERNEL_MODULE_CANNOT_STOP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_NOT_STOPPED"] = 0x80020137] = "ERROR_KERNEL_MODULE_NOT_STOPPED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_CANNOT_REMOVE"] = 0x80020138] = "ERROR_KERNEL_MODULE_CANNOT_REMOVE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EXCLUSIVE_LOAD"] = 0x80020139] = "ERROR_KERNEL_EXCLUSIVE_LOAD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_IS_NOT_LINKED"] = 0x8002013a] = "ERROR_KERNEL_LIBRARY_IS_NOT_LINKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_ALREADY_EXISTS"] = 0x8002013b] = "ERROR_KERNEL_LIBRARY_ALREADY_EXISTS";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_NOT_FOUND"] = 0x8002013c] = "ERROR_KERNEL_LIBRARY_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LIBRARY_HEADER"] = 0x8002013d] = "ERROR_KERNEL_ILLEGAL_LIBRARY_HEADER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_IN_USE"] = 0x8002013e] = "ERROR_KERNEL_LIBRARY_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STOPPING"] = 0x8002013f] = "ERROR_KERNEL_MODULE_ALREADY_STOPPING";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_OFFSET_VALUE"] = 0x80020140] = "ERROR_KERNEL_ILLEGAL_OFFSET_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_POSITION_CODE"] = 0x80020141] = "ERROR_KERNEL_ILLEGAL_POSITION_CODE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ACCESS_CODE"] = 0x80020142] = "ERROR_KERNEL_ILLEGAL_ACCESS_CODE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_MANAGER_BUSY"] = 0x80020143] = "ERROR_KERNEL_MODULE_MANAGER_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_FLAG"] = 0x80020144] = "ERROR_KERNEL_ILLEGAL_FLAG";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_GET_MODULE_LIST"] = 0x80020145] = "ERROR_KERNEL_CANNOT_GET_MODULE_LIST";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PROHIBIT_LOADMODULE_DEVICE"] = 0x80020146] = "ERROR_KERNEL_PROHIBIT_LOADMODULE_DEVICE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PROHIBIT_LOADEXEC_DEVICE"] = 0x80020147] = "ERROR_KERNEL_PROHIBIT_LOADEXEC_DEVICE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNSUPPORTED_PRX_TYPE"] = 0x80020148] = "ERROR_KERNEL_UNSUPPORTED_PRX_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PERMISSION_CALL"] = 0x80020149] = "ERROR_KERNEL_ILLEGAL_PERMISSION_CALL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_GET_MODULE_INFO"] = 0x8002014a] = "ERROR_KERNEL_CANNOT_GET_MODULE_INFO";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LOADEXEC_BUFFER"] = 0x8002014b] = "ERROR_KERNEL_ILLEGAL_LOADEXEC_BUFFER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LOADEXEC_FILENAME"] = 0x8002014c] = "ERROR_KERNEL_ILLEGAL_LOADEXEC_FILENAME";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_EXIT_CALLBACK"] = 0x8002014d] = "ERROR_KERNEL_NO_EXIT_CALLBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEDIA_CHANGED"] = 0x8002014e] = "ERROR_KERNEL_MEDIA_CHANGED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_USE_BETA_VER_MODULE"] = 0x8002014f] = "ERROR_KERNEL_CANNOT_USE_BETA_VER_MODULE";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_MEMORY"] = 0x80020190] = "ERROR_KERNEL_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ATTR"] = 0x80020191] = "ERROR_KERNEL_ILLEGAL_ATTR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR"] = 0x80020192] = "ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PRIORITY"] = 0x80020193] = "ERROR_KERNEL_ILLEGAL_PRIORITY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_STACK_SIZE"] = 0x80020194] = "ERROR_KERNEL_ILLEGAL_STACK_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MODE"] = 0x80020195] = "ERROR_KERNEL_ILLEGAL_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MASK"] = 0x80020196] = "ERROR_KERNEL_ILLEGAL_MASK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_THREAD"] = 0x80020197] = "ERROR_KERNEL_ILLEGAL_THREAD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_THREAD"] = 0x80020198] = "ERROR_KERNEL_NOT_FOUND_THREAD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_SEMAPHORE"] = 0x80020199] = "ERROR_KERNEL_NOT_FOUND_SEMAPHORE";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_EVENT_FLAG"] = 0x8002019a] = "ERROR_KERNEL_NOT_FOUND_EVENT_FLAG";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_MESSAGE_BOX"] = 0x8002019b] = "ERROR_KERNEL_NOT_FOUND_MESSAGE_BOX";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_VPOOL"] = 0x8002019c] = "ERROR_KERNEL_NOT_FOUND_VPOOL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_FPOOL"] = 0x8002019d] = "ERROR_KERNEL_NOT_FOUND_FPOOL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_MESSAGE_PIPE"] = 0x8002019e] = "ERROR_KERNEL_NOT_FOUND_MESSAGE_PIPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_ALARM"] = 0x8002019f] = "ERROR_KERNEL_NOT_FOUND_ALARM";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_THREAD_EVENT_HANDLER"] = 0x800201a0] = "ERROR_KERNEL_NOT_FOUND_THREAD_EVENT_HANDLER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_CALLBACK"] = 0x800201a1] = "ERROR_KERNEL_NOT_FOUND_CALLBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_ALREADY_DORMANT"] = 0x800201a2] = "ERROR_KERNEL_THREAD_ALREADY_DORMANT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_ALREADY_SUSPEND"] = 0x800201a3] = "ERROR_KERNEL_THREAD_ALREADY_SUSPEND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_DORMANT"] = 0x800201a4] = "ERROR_KERNEL_THREAD_IS_NOT_DORMANT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_SUSPEND"] = 0x800201a5] = "ERROR_KERNEL_THREAD_IS_NOT_SUSPEND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_WAIT"] = 0x800201a6] = "ERROR_KERNEL_THREAD_IS_NOT_WAIT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_CAN_NOT_WAIT"] = 0x800201a7] = "ERROR_KERNEL_WAIT_CAN_NOT_WAIT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_TIMEOUT"] = 0x800201a8] = "ERROR_KERNEL_WAIT_TIMEOUT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_CANCELLED"] = 0x800201a9] = "ERROR_KERNEL_WAIT_CANCELLED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_STATUS_RELEASED"] = 0x800201aa] = "ERROR_KERNEL_WAIT_STATUS_RELEASED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_STATUS_RELEASED_CALLBACK"] = 0x800201ab] = "ERROR_KERNEL_WAIT_STATUS_RELEASED_CALLBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_TERMINATED"] = 0x800201ac] = "ERROR_KERNEL_THREAD_IS_TERMINATED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SEMA_ZERO"] = 0x800201ad] = "ERROR_KERNEL_SEMA_ZERO";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SEMA_OVERFLOW"] = 0x800201ae] = "ERROR_KERNEL_SEMA_OVERFLOW";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_POLL_FAILED"] = 0x800201af] = "ERROR_KERNEL_EVENT_FLAG_POLL_FAILED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_NO_MULTI_PERM"] = 0x800201b0] = "ERROR_KERNEL_EVENT_FLAG_NO_MULTI_PERM";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN"] = 0x800201b1] = "ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_NO_MESSAGE"] = 0x800201b2] = "ERROR_KERNEL_MESSAGEBOX_NO_MESSAGE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGE_PIPE_FULL"] = 0x800201b3] = "ERROR_KERNEL_MESSAGE_PIPE_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGE_PIPE_EMPTY"] = 0x800201b4] = "ERROR_KERNEL_MESSAGE_PIPE_EMPTY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_DELETE"] = 0x800201b5] = "ERROR_KERNEL_WAIT_DELETE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMBLOCK"] = 0x800201b6] = "ERROR_KERNEL_ILLEGAL_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMSIZE"] = 0x800201b7] = "ERROR_KERNEL_ILLEGAL_MEMSIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_SCRATCHPAD_ADDR"] = 0x800201b8] = "ERROR_KERNEL_ILLEGAL_SCRATCHPAD_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SCRATCHPAD_IN_USE"] = 0x800201b9] = "ERROR_KERNEL_SCRATCHPAD_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SCRATCHPAD_NOT_IN_USE"] = 0x800201ba] = "ERROR_KERNEL_SCRATCHPAD_NOT_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_TYPE"] = 0x800201bb] = "ERROR_KERNEL_ILLEGAL_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_SIZE"] = 0x800201bc] = "ERROR_KERNEL_ILLEGAL_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_COUNT"] = 0x800201bd] = "ERROR_KERNEL_ILLEGAL_COUNT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_VTIMER"] = 0x800201be] = "ERROR_KERNEL_NOT_FOUND_VTIMER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_VTIMER"] = 0x800201bf] = "ERROR_KERNEL_ILLEGAL_VTIMER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_KTLS"] = 0x800201c0] = "ERROR_KERNEL_ILLEGAL_KTLS";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_KTLS_IS_FULL"] = 0x800201c1] = "ERROR_KERNEL_KTLS_IS_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_KTLS_IS_BUSY"] = 0x800201c2] = "ERROR_KERNEL_KTLS_IS_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_NOT_FOUND"] = 0x800201c3] = "ERROR_KERNEL_MUTEX_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_LOCKED"] = 0x800201c4] = "ERROR_KERNEL_MUTEX_LOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCKED"] = 0x800201c5] = "ERROR_KERNEL_MUTEX_UNLOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_LOCK_OVERFLOW"] = 0x800201c6] = "ERROR_KERNEL_MUTEX_LOCK_OVERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW"] = 0x800201c7] = "ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED"] = 0x800201c8] = "ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE"] = 0x800201c9] = "ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE";
+
+    //PSP_LWMUTEX_ERROR_NO_SUCH_LWMUTEX 0x800201CA
+    //PSP_LWMUTEX_ERROR_TRYLOCK_FAILED 0x800201CB
+    //PSP_LWMUTEX_ERROR_NOT_LOCKED 0x800201CC
+    //PSP_LWMUTEX_ERROR_LOCK_OVERFLOW 0x800201CD
+    //PSP_LWMUTEX_ERROR_UNLOCK_UNDERFLOW 0x800201CE
+    //PSP_LWMUTEX_ERROR_ALREADY_LOCKED 0x800201CF
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_NOT_FOUND"] = 0x800201ca] = "ERROR_KERNEL_LWMUTEX_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCKED"] = 0x800201cb] = "ERROR_KERNEL_LWMUTEX_LOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCKED"] = 0x800201cc] = "ERROR_KERNEL_LWMUTEX_UNLOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCK_OVERFLOW"] = 0x800201cd] = "ERROR_KERNEL_LWMUTEX_LOCK_OVERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCK_UNDERFLOW"] = 0x800201ce] = "ERROR_KERNEL_LWMUTEX_UNLOCK_UNDERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_RECURSIVE_NOT_ALLOWED"] = 0x800201cf] = "ERROR_KERNEL_LWMUTEX_RECURSIVE_NOT_ALLOWED";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_POWER_CANNOT_CANCEL"] = 0x80020261] = "ERROR_KERNEL_POWER_CANNOT_CANCEL";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_TOO_MANY_OPEN_FILES"] = 0x80020320] = "ERROR_KERNEL_TOO_MANY_OPEN_FILES";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_SUCH_DEVICE"] = 0x80020321] = "ERROR_KERNEL_NO_SUCH_DEVICE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_BAD_FILE_DESCRIPTOR"] = 0x80020323] = "ERROR_KERNEL_BAD_FILE_DESCRIPTOR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNSUPPORTED_OPERATION"] = 0x80020325] = "ERROR_KERNEL_UNSUPPORTED_OPERATION";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOCWD"] = 0x8002032c] = "ERROR_KERNEL_NOCWD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FILENAME_TOO_LONG"] = 0x8002032d] = "ERROR_KERNEL_FILENAME_TOO_LONG";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ASYNC_BUSY"] = 0x80020329] = "ERROR_KERNEL_ASYNC_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_ASYNC_OP"] = 0x8002032a] = "ERROR_KERNEL_NO_ASYNC_OP";
+
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_CACHE_ALIGNED"] = 0x8002044c] = "ERROR_KERNEL_NOT_CACHE_ALIGNED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MAX_ERROR"] = 0x8002044d] = "ERROR_KERNEL_MAX_ERROR";
+
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_STATUS"] = 0x80110001] = "ERROR_UTILITY_INVALID_STATUS";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_PARAM_ADDR"] = 0x80110002] = "ERROR_UTILITY_INVALID_PARAM_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_IS_UNKNOWN"] = 0x80110003] = "ERROR_UTILITY_IS_UNKNOWN";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_PARAM_SIZE"] = 0x80110004] = "ERROR_UTILITY_INVALID_PARAM_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_WRONG_TYPE"] = 0x80110005] = "ERROR_UTILITY_WRONG_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_MODULE_NOT_FOUND"] = 0x80110006] = "ERROR_UTILITY_MODULE_NOT_FOUND";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_MEMSTICK"] = 0x80110301] = "ERROR_SAVEDATA_LOAD_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_MEMSTICK_REMOVED"] = 0x80110302] = "ERROR_SAVEDATA_LOAD_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_ACCESS_ERROR"] = 0x80110305] = "ERROR_SAVEDATA_LOAD_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_DATA_BROKEN"] = 0x80110306] = "ERROR_SAVEDATA_LOAD_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_DATA"] = 0x80110307] = "ERROR_SAVEDATA_LOAD_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_BAD_PARAMS"] = 0x80110308] = "ERROR_SAVEDATA_LOAD_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_UMD"] = 0x80110309] = "ERROR_SAVEDATA_LOAD_NO_UMD";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_INTERNAL_ERROR"] = 0x80110309] = "ERROR_SAVEDATA_LOAD_INTERNAL_ERROR";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_NO_MEMSTICK"] = 0x80110321] = "ERROR_SAVEDATA_RW_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_REMOVED"] = 0x80110322] = "ERROR_SAVEDATA_RW_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_FULL"] = 0x80110323] = "ERROR_SAVEDATA_RW_MEMSTICK_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_PROTECTED"] = 0x80110324] = "ERROR_SAVEDATA_RW_MEMSTICK_PROTECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_ACCESS_ERROR"] = 0x80110325] = "ERROR_SAVEDATA_RW_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_DATA_BROKEN"] = 0x80110326] = "ERROR_SAVEDATA_RW_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_NO_DATA"] = 0x80110327] = "ERROR_SAVEDATA_RW_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_BAD_PARAMS"] = 0x80110328] = "ERROR_SAVEDATA_RW_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_FILE_NOT_FOUND"] = 0x80110329] = "ERROR_SAVEDATA_RW_FILE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_CAN_NOT_SUSPEND"] = 0x8011032a] = "ERROR_SAVEDATA_RW_CAN_NOT_SUSPEND";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_INTERNAL_ERROR"] = 0x8011032b] = "ERROR_SAVEDATA_RW_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_BAD_STATUS"] = 0x8011032c] = "ERROR_SAVEDATA_RW_BAD_STATUS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_SECURE_FILE_FULL"] = 0x8011032d] = "ERROR_SAVEDATA_RW_SECURE_FILE_FULL";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_NO_MEMSTICK"] = 0x80110341] = "ERROR_SAVEDATA_DELETE_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_MEMSTICK_REMOVED"] = 0x80110342] = "ERROR_SAVEDATA_DELETE_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_MEMSTICK_PROTECTED"] = 0x80110344] = "ERROR_SAVEDATA_DELETE_MEMSTICK_PROTECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_ACCESS_ERROR"] = 0x80110345] = "ERROR_SAVEDATA_DELETE_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_DATA_BROKEN"] = 0x80110346] = "ERROR_SAVEDATA_DELETE_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_NO_DATA"] = 0x80110347] = "ERROR_SAVEDATA_DELETE_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_BAD_PARAMS"] = 0x80110348] = "ERROR_SAVEDATA_DELETE_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_INTERNAL_ERROR"] = 0x8011034b] = "ERROR_SAVEDATA_DELETE_INTERNAL_ERROR";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_MEMSTICK"] = 0x80110381] = "ERROR_SAVEDATA_SAVE_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_MEMSTICK_REMOVED"] = 0x80110382] = "ERROR_SAVEDATA_SAVE_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_SPACE"] = 0x80110383] = "ERROR_SAVEDATA_SAVE_NO_SPACE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_MEMSTICK_PROTECTED"] = 0x80110384] = "ERROR_SAVEDATA_SAVE_MEMSTICK_PROTECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_ACCESS_ERROR"] = 0x80110385] = "ERROR_SAVEDATA_SAVE_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_BAD_PARAMS"] = 0x80110388] = "ERROR_SAVEDATA_SAVE_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_UMD"] = 0x80110389] = "ERROR_SAVEDATA_SAVE_NO_UMD";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_WRONG_UMD"] = 0x8011038a] = "ERROR_SAVEDATA_SAVE_WRONG_UMD";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_INTERNAL_ERROR"] = 0x8011038b] = "ERROR_SAVEDATA_SAVE_INTERNAL_ERROR";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_NO_MEMSTICK"] = 0x801103c1] = "ERROR_SAVEDATA_SIZES_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_MEMSTICK_REMOVED"] = 0x801103c2] = "ERROR_SAVEDATA_SIZES_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_ACCESS_ERROR"] = 0x801103c5] = "ERROR_SAVEDATA_SIZES_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_DATA_BROKEN"] = 0x801103c6] = "ERROR_SAVEDATA_SIZES_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_NO_DATA"] = 0x801103c7] = "ERROR_SAVEDATA_SIZES_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_BAD_PARAMS"] = 0x801103c8] = "ERROR_SAVEDATA_SIZES_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_INTERNAL_ERROR"] = 0x801103cb] = "ERROR_SAVEDATA_SIZES_INTERNAL_ERROR";
+
+    SceKernelErrors[SceKernelErrors["ERROR_NETPARAM_BAD_NETCONF"] = 0x80110601] = "ERROR_NETPARAM_BAD_NETCONF";
+    SceKernelErrors[SceKernelErrors["ERROR_NETPARAM_BAD_PARAM"] = 0x80110604] = "ERROR_NETPARAM_BAD_PARAM";
+
+    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_BAD_ID"] = 0x80110801] = "ERROR_NET_MODULE_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_ALREADY_LOADED"] = 0x80110802] = "ERROR_NET_MODULE_ALREADY_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_NOT_LOADED"] = 0x80110803] = "ERROR_NET_MODULE_NOT_LOADED";
+
+    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_BAD_ID"] = 0x80110901] = "ERROR_AV_MODULE_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_ALREADY_LOADED"] = 0x80110902] = "ERROR_AV_MODULE_ALREADY_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_NOT_LOADED"] = 0x80110903] = "ERROR_AV_MODULE_NOT_LOADED";
+
+    SceKernelErrors[SceKernelErrors["ERROR_MODULE_BAD_ID"] = 0x80111101] = "ERROR_MODULE_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_MODULE_ALREADY_LOADED"] = 0x80111102] = "ERROR_MODULE_ALREADY_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_MODULE_NOT_LOADED"] = 0x80111103] = "ERROR_MODULE_NOT_LOADED";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SCREENSHOT_CONT_MODE_NOT_INIT"] = 0x80111229] = "ERROR_SCREENSHOT_CONT_MODE_NOT_INIT";
+
+    SceKernelErrors[SceKernelErrors["ERROR_UMD_NOT_READY"] = 0x80210001] = "ERROR_UMD_NOT_READY";
+    SceKernelErrors[SceKernelErrors["ERROR_UMD_LBA_OUT_OF_BOUNDS"] = 0x80210002] = "ERROR_UMD_LBA_OUT_OF_BOUNDS";
+    SceKernelErrors[SceKernelErrors["ERROR_UMD_NO_DISC"] = 0x80210003] = "ERROR_UMD_NO_DISC";
+
+    SceKernelErrors[SceKernelErrors["ERROR_MEMSTICK_DEVCTL_BAD_PARAMS"] = 0x80220081] = "ERROR_MEMSTICK_DEVCTL_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_MEMSTICK_DEVCTL_TOO_MANY_CALLBACKS"] = 0x80220082] = "ERROR_MEMSTICK_DEVCTL_TOO_MANY_CALLBACKS";
+
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_NOT_INIT"] = 0x80260001] = "ERROR_AUDIO_CHANNEL_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_BUSY"] = 0x80260002] = "ERROR_AUDIO_CHANNEL_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_CHANNEL"] = 0x80260003] = "ERROR_AUDIO_INVALID_CHANNEL";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_PRIV_REQUIRED"] = 0x80260004] = "ERROR_AUDIO_PRIV_REQUIRED";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_NO_CHANNELS_AVAILABLE"] = 0x80260005] = "ERROR_AUDIO_NO_CHANNELS_AVAILABLE";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED"] = 0x80260006] = "ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FORMAT"] = 0x80260007] = "ERROR_AUDIO_INVALID_FORMAT";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_NOT_RESERVED"] = 0x80260008] = "ERROR_AUDIO_CHANNEL_NOT_RESERVED";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_NOT_OUTPUT"] = 0x80260009] = "ERROR_AUDIO_NOT_OUTPUT";
+
+    SceKernelErrors[SceKernelErrors["ERROR_POWER_VMEM_IN_USE"] = 0x802b0200] = "ERROR_POWER_VMEM_IN_USE";
+
+    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_BAD_ID"] = 0x80410408] = "ERROR_NET_RESOLVER_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_ALREADY_STOPPED"] = 0x8041040a] = "ERROR_NET_RESOLVER_ALREADY_STOPPED";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_INVALID_HOST"] = 0x80410414] = "ERROR_NET_RESOLVER_INVALID_HOST";
+
+    SceKernelErrors[SceKernelErrors["ERROR_WLAN_BAD_PARAMS"] = 0x80410d13] = "ERROR_WLAN_BAD_PARAMS";
+
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_NOT_INIT"] = 0x80431001] = "ERROR_HTTP_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_ALREADY_INIT"] = 0x80431020] = "ERROR_HTTP_ALREADY_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_NO_MEMORY"] = 0x80431077] = "ERROR_HTTP_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_SYSTEM_COOKIE_NOT_LOADED"] = 0x80431078] = "ERROR_HTTP_SYSTEM_COOKIE_NOT_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_INVALID_PARAMETER"] = 0x804311FE] = "ERROR_HTTP_INVALID_PARAMETER";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_NOT_INIT"] = 0x80435001] = "ERROR_SSL_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_ALREADY_INIT"] = 0x80435020] = "ERROR_SSL_ALREADY_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_OUT_OF_MEMORY"] = 0x80435022] = "ERROR_SSL_OUT_OF_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_CERT_ERROR"] = 0x80435060] = "ERROR_HTTPS_CERT_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_HANDSHAKE_ERROR"] = 0x80435061] = "ERROR_HTTPS_HANDSHAKE_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_IO_ERROR"] = 0x80435062] = "ERROR_HTTPS_IO_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_INTERNAL_ERROR"] = 0x80435063] = "ERROR_HTTPS_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_PROXY_ERROR"] = 0x80435064] = "ERROR_HTTPS_PROXY_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_INVALID_PARAMETER"] = 0x804351FE] = "ERROR_SSL_INVALID_PARAMETER";
+
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_NOT_INIT"] = 0x80440001] = "ERROR_WAVE_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_FAILED_EXIT"] = 0x80440002] = "ERROR_WAVE_FAILED_EXIT";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_BAD_VOL"] = 0x8044000a] = "ERROR_WAVE_BAD_VOL";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_INVALID_CHANNEL"] = 0x80440010] = "ERROR_WAVE_INVALID_CHANNEL";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_INVALID_SAMPLE_COUNT"] = 0x80440011] = "ERROR_WAVE_INVALID_SAMPLE_COUNT";
+
+    SceKernelErrors[SceKernelErrors["ERROR_FONT_INVALID_LIBID"] = 0x80460002] = "ERROR_FONT_INVALID_LIBID";
+    SceKernelErrors[SceKernelErrors["ERROR_FONT_INVALID_PARAMETER"] = 0x80460003] = "ERROR_FONT_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_FONT_TOO_MANY_OPEN_FONTS"] = 0x80460009] = "ERROR_FONT_TOO_MANY_OPEN_FONTS";
+
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_BAD_VERSION"] = 0x80610002] = "ERROR_MPEG_BAD_VERSION";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_NO_MEMORY"] = 0x80610022] = "ERROR_MPEG_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_INVALID_ADDR"] = 0x80610103] = "ERROR_MPEG_INVALID_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_INVALID_VALUE"] = 0x806101fe] = "ERROR_MPEG_INVALID_VALUE";
+
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_NOT_INITIALIZED"] = 0x80615001] = "ERROR_PSMF_NOT_INITIALIZED";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_BAD_VERSION"] = 0x80615002] = "ERROR_PSMF_BAD_VERSION";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_NOT_FOUND"] = 0x80615025] = "ERROR_PSMF_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_ID"] = 0x80615100] = "ERROR_PSMF_INVALID_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_VALUE"] = 0x806151fe] = "ERROR_PSMF_INVALID_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_TIMESTAMP"] = 0x80615500] = "ERROR_PSMF_INVALID_TIMESTAMP";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_PSMF"] = 0x80615501] = "ERROR_PSMF_INVALID_PSMF";
+
+    SceKernelErrors[SceKernelErrors["ERROR_PSMFPLAYER_NOT_INITIALIZED"] = 0x80616001] = "ERROR_PSMFPLAYER_NOT_INITIALIZED";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMFPLAYER_NO_MORE_DATA"] = 0x8061600c] = "ERROR_PSMFPLAYER_NO_MORE_DATA";
+
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_NO_DATA"] = 0x80618001] = "ERROR_MPEG_NO_DATA";
+
+    SceKernelErrors[SceKernelErrors["ERROR_AVC_VIDEO_FATAL"] = 0x80628002] = "ERROR_AVC_VIDEO_FATAL";
+
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_NO_ID"] = 0x80630003] = "ERROR_ATRAC_NO_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_INVALID_CODEC"] = 0x80630004] = "ERROR_ATRAC_INVALID_CODEC";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_BAD_ID"] = 0x80630005] = "ERROR_ATRAC_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_ALL_DATA_LOADED"] = 0x80630009] = "ERROR_ATRAC_ALL_DATA_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_NO_DATA"] = 0x80630010] = "ERROR_ATRAC_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_SECOND_BUFFER_NEEDED"] = 0x80630012] = "ERROR_ATRAC_SECOND_BUFFER_NEEDED";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED"] = 0x80630022] = "ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_BUFFER_IS_EMPTY"] = 0x80630023] = "ERROR_ATRAC_BUFFER_IS_EMPTY";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_ALL_DATA_DECODED"] = 0x80630024] = "ERROR_ATRAC_ALL_DATA_DECODED";
+
+    SceKernelErrors[SceKernelErrors["ERROR_CODEC_AUDIO_FATAL"] = 0x807f00fc] = "ERROR_CODEC_AUDIO_FATAL";
+
+    SceKernelErrors[SceKernelErrors["FATAL_UMD_UNKNOWN_MEDIUM"] = 0xC0210004] = "FATAL_UMD_UNKNOWN_MEDIUM";
+    SceKernelErrors[SceKernelErrors["FATAL_UMD_HARDWARE_FAILURE"] = 0xC0210005] = "FATAL_UMD_HARDWARE_FAILURE";
+
+    //ERROR_AUDIO_CHANNEL_NOT_INIT                        = unchecked((int)0x80260001,
+    //ERROR_AUDIO_CHANNEL_BUSY                            = unchecked((int)0x80260002,
+    //ERROR_AUDIO_INVALID_CHANNEL                         = unchecked((int)0x80260003,
+    //ERROR_AUDIO_PRIV_REQUIRED                           = unchecked((int)0x80260004,
+    //ERROR_AUDIO_NO_CHANNELS_AVAILABLE                   = unchecked((int)0x80260005,
+    //ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED     = unchecked((int)0x80260006,
+    //ERROR_AUDIO_INVALID_FORMAT                          = unchecked((int)0x80260007,
+    //ERROR_AUDIO_CHANNEL_NOT_RESERVED                    = unchecked((int)0x80260008,
+    //ERROR_AUDIO_NOT_OUTPUT                              = unchecked((int)0x80260009,
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FREQUENCY"] = 0x8026000A] = "ERROR_AUDIO_INVALID_FREQUENCY";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_VOLUME"] = 0x8026000B] = "ERROR_AUDIO_INVALID_VOLUME";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_ALREADY_RESERVED"] = 0x80268002] = "ERROR_AUDIO_CHANNEL_ALREADY_RESERVED";
+    SceKernelErrors[SceKernelErrors["PSP_AUDIO_ERROR_SRC_FORMAT_4"] = 0x80000003] = "PSP_AUDIO_ERROR_SRC_FORMAT_4";
+
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_API_FAIL"] = 0x80630002] = "ATRAC_ERROR_API_FAIL";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_NO_ATRACID"] = 0x80630003] = "ATRAC_ERROR_NO_ATRACID";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_INVALID_CODECTYPE"] = 0x80630004] = "ATRAC_ERROR_INVALID_CODECTYPE";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_BAD_ATRACID"] = 0x80630005] = "ATRAC_ERROR_BAD_ATRACID";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ALL_DATA_LOADED"] = 0x80630009] = "ATRAC_ERROR_ALL_DATA_LOADED";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_NO_DATA"] = 0x80630010] = "ATRAC_ERROR_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_SECOND_BUFFER_NEEDED"] = 0x80630012] = "ATRAC_ERROR_SECOND_BUFFER_NEEDED";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_INCORRECT_READ_SIZE"] = 0x80630013] = "ATRAC_ERROR_INCORRECT_READ_SIZE";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ADD_DATA_IS_TOO_BIG"] = 0x80630018] = "ATRAC_ERROR_ADD_DATA_IS_TOO_BIG";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_UNSET_PARAM"] = 0x80630021] = "ATRAC_ERROR_UNSET_PARAM";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_SECOND_BUFFER_NOT_NEEDED"] = 0x80630022] = "ATRAC_ERROR_SECOND_BUFFER_NOT_NEEDED";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_BUFFER_IS_EMPTY"] = 0x80630023] = "ATRAC_ERROR_BUFFER_IS_EMPTY";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ALL_DATA_DECODED"] = 0x80630024] = "ATRAC_ERROR_ALL_DATA_DECODED";
+
+    SceKernelErrors[SceKernelErrors["PSP_SYSTEMPARAM_RETVAL"] = 0x80110103] = "PSP_SYSTEMPARAM_RETVAL";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE"] = 0x80420010] = "ERROR_SAS_INVALID_VOICE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_CURVE_MODE"] = 0x80420013] = "ERROR_SAS_INVALID_ADSR_CURVE_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PARAMETER"] = 0x80420014] = "ERROR_SAS_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_VOICE_PAUSED"] = 0x80420016] = "ERROR_SAS_VOICE_PAUSED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_BUSY"] = 0x80420030] = "ERROR_SAS_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_NOT_INIT"] = 0x80420100] = "ERROR_SAS_NOT_INIT";
+
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_GRAIN"] = 0x80420001] = "ERROR_SAS_INVALID_GRAIN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_MAX_VOICES"] = 0x80420002] = "ERROR_SAS_INVALID_MAX_VOICES";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_OUTPUT_MODE"] = 0x80420003] = "ERROR_SAS_INVALID_OUTPUT_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SAMPLE_RATE"] = 0x80420004] = "ERROR_SAS_INVALID_SAMPLE_RATE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADDRESS"] = 0x80420005] = "ERROR_SAS_INVALID_ADDRESS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE_INDEX"] = 0x80420010] = "ERROR_SAS_INVALID_VOICE_INDEX";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_NOISE_CLOCK"] = 0x80420011] = "ERROR_SAS_INVALID_NOISE_CLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PITCH_VAL"] = 0x80420012] = "ERROR_SAS_INVALID_PITCH_VAL";
+
+    //ERROR_SAS_INVALID_ADSR_CURVE_MODE                   = unchecked((int)0x80420013,
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADPCM_SIZE"] = 0x80420014] = "ERROR_SAS_INVALID_ADPCM_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_MODE"] = 0x80420015] = "ERROR_SAS_INVALID_LOOP_MODE";
+
+    //ERROR_SAS_VOICE_PAUSED                              = unchecked((int)0x80420016,
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOLUME_VAL"] = 0x80420018] = "ERROR_SAS_INVALID_VOLUME_VAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_VAL"] = 0x80420019] = "ERROR_SAS_INVALID_ADSR_VAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SIZE"] = 0x8042001A] = "ERROR_SAS_INVALID_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_TYPE"] = 0x80420020] = "ERROR_SAS_INVALID_FX_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_FEEDBACK"] = 0x80420021] = "ERROR_SAS_INVALID_FX_FEEDBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_DELAY"] = 0x80420022] = "ERROR_SAS_INVALID_FX_DELAY";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_VOLUME_VAL"] = 0x80420023] = "ERROR_SAS_INVALID_FX_VOLUME_VAL";
+
+    //ERROR_SAS_BUSY                                      = unchecked((int)0x80420030,
+    //ERROR_SAS_NOT_INIT                                  = unchecked((int)0x80420100,
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_ALREADY_INIT"] = 0x80420101] = "ERROR_SAS_ALREADY_INIT";
+
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_TAKEN_SLOT"] = 0x80000020] = "PSP_POWER_ERROR_TAKEN_SLOT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_SLOTS_FULL"] = 0x80000022] = "PSP_POWER_ERROR_SLOTS_FULL";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_PRIVATE_SLOT"] = 0x80000023] = "PSP_POWER_ERROR_PRIVATE_SLOT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_EMPTY_SLOT"] = 0x80000025] = "PSP_POWER_ERROR_EMPTY_SLOT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_INVALID_CB"] = 0x80000100] = "PSP_POWER_ERROR_INVALID_CB";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_INVALID_SLOT"] = 0x80000102] = "PSP_POWER_ERROR_INVALID_SLOT";
 })(SceKernelErrors || (SceKernelErrors = {}));
 var hle;
 (function (hle) {
@@ -9834,6 +10576,12 @@ var hle;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
+
+function waitAsycn(timems) {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timems);
+    });
+}
 
 function downloadFileAsync(url) {
     return new Promise(function (resolve, reject) {
@@ -10466,7 +11214,22 @@ describe('instruction lookup', function () {
 describe('pspautotests', function () {
     this.timeout(5000);
 
-    var tests = ['cpu_alu', 'cpu_branch', 'dmactest', 'fcr', 'fpu', 'string', 'icache'];
+    var tests = [
+        { cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu'] },
+        { intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
+        { display: ['display', 'hcount', 'vblankmulti'] },
+        { gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
+        { dmac: ['dmactest'] },
+        { loader: ['bss'] },
+        { misc: ['dcache', 'deadbeef', 'libc', 'sdkver', 'testgp', 'timeconv', 'string', 'icache', 'malloc'] },
+        { mstick: ['mstick'] },
+        { power: ['cpu', 'freq', 'power', 'lock', 'trylock', 'unlock'] },
+        { rtc: ['arithmetic', 'convert', 'lookup', 'rtc'] },
+        { sysmem: ['freesize', 'memblock', 'partition', 'sysmem'] },
+        { thread: ['change', 'create', 'exitstatus', 'extend', 'refer', 'release', 'rotate', 'stackfree', 'start', 'suspend', 'terminate', 'threadend', 'threads', 'k0'] },
+        { thread_callbacks: ['callbacks', 'cancel', 'check', 'count', 'create', 'delete', 'exit', 'notify', 'refer'] },
+        { thread_events: ['cancel', 'clear', 'create', 'delete', 'events', 'poll', 'refer', 'set', 'wait'] }
+    ];
 
     function normalizeString(string) {
         return string.replace(/\r\n/g, '\n').replace(/[\r\n]+$/m, '');
@@ -10479,48 +11242,73 @@ describe('pspautotests', function () {
         var output_lines = output.split('\n');
         var expected_lines = expected.split('\n');
 
+        var distinctLines = 0;
+        var totalLines = Math.max(output_lines.length, expected_lines.length);
         console.groupCollapsed('TEST RESULT: ' + name);
-        for (var n = 0; n < output_lines.length; n++) {
+        var linesToShow = {};
+        for (var n = 0; n < totalLines; n++) {
+            if (output_lines[n] != expected_lines[n]) {
+                distinctLines++;
+                for (var m = -2; m <= 2; m++)
+                    linesToShow[n + m] = true;
+            }
+        }
+
+        for (var n = 0; n < totalLines; n++) {
+            var lineNumber = n + 1;
             var output_line = output_lines[n];
             var expected_line = expected_lines[n];
-            if (output_line != expected_line) {
-                console.warn(output_line);
-                console.info(expected_line);
-            } else {
-                console.log(output_line);
+            if (linesToShow[n]) {
+                if (output_line != expected_line) {
+                    console.warn(sprintf('%04d: %s', lineNumber, output_line));
+                    console.info(sprintf('%04d: %s', lineNumber, expected_line));
+                } else {
+                    console.log(sprintf('%04d: %s', lineNumber, output_line));
+                }
             }
-            //assert.equal(output_line, expect_line);
         }
+
+        if (distinctLines == 0)
+            console.log('great: output and expected ar equal!');
+
         console.groupEnd();
 
-        // @TODO: diff!
-        assert.equal(output, expected);
+        assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check console for details.");
     }
 
-    tests.forEach(function (testName) {
-        var groupCollapsed = false;
+    var groupCollapsed = false;
 
-        it(testName, function () {
-            var emulator = new Emulator();
-            var file_prx = 'samples/tests/' + testName + '.prx';
-            var file_expected = 'samples/tests/' + testName + '.expected';
+    tests.forEach(function (testGroup) {
+        _.keys(testGroup).forEach(function (testGroupName) {
+            describe(testGroupName, function () {
+                var testNameList = testGroup[testGroupName];
 
-            if (!groupCollapsed)
-                console.groupEnd();
-            groupCollapsed = false;
-            console.groupCollapsed('EXECUTING: ' + testName);
-            return downloadFileAsync(file_prx).then(function (data_prx) {
-                return downloadFileAsync(file_expected).then(function (data_expected) {
-                    var string_expected = String.fromCharCode.apply(null, new Uint8Array(data_expected));
+                testNameList.forEach(function (testName) {
+                    it(testName, function () {
+                        var emulator = new Emulator();
+                        var file_base = 'samples/tests/' + testGroupName + '/' + testName;
+                        var file_prx = file_base + '.prx';
+                        var file_expected = file_base + '.expected';
 
-                    return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(function () {
-                        groupCollapsed = true;
-                        console.groupEnd();
-                        compareOutput(testName, emulator.context.output, string_expected);
+                        if (!groupCollapsed)
+                            console.groupEnd();
+                        groupCollapsed = false;
+                        console.groupCollapsed('' + testName);
+                        return downloadFileAsync(file_prx).then(function (data_prx) {
+                            return downloadFileAsync(file_expected).then(function (data_expected) {
+                                var string_expected = String.fromCharCode.apply(null, new Uint8Array(data_expected));
+
+                                return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(function () {
+                                    groupCollapsed = true;
+                                    console.groupEnd();
+                                    compareOutput(testName, emulator.context.output, string_expected);
+                                });
+                            });
+                        });
+                        //emulator.executeFileAsync
                     });
                 });
             });
-            //emulator.executeFileAsync
         });
     });
 });

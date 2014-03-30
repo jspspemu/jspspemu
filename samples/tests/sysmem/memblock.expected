@@ -1,0 +1,59 @@
+[x] Names:
+[x]   NULL: Failed (80020001)
+[x]   Blank: OK
+[x]   Long: OK
+
+[x] Types:
+[x]   Type ffffffff: Failed (800200d8)
+[x]   Type 0: OK
+[x]   Type 1: OK
+[x]   Type 2: Failed (800200d8)
+[x]   Type 3: Failed (800200d8)
+[x]   Type 4: Failed (800200d8)
+[x]   Type 5: Failed (800200d8)
+[x]   Type 11: Failed (800200d8)
+[x]   Type 101: Failed (800200d8)
+[x]   Type 1001: Failed (800200d8)
+[x]   Type 10001: Failed (800200d8)
+[x]   Type 100001: Failed (800200d8)
+[x]   Type 1000001: Failed (800200d8)
+[x]   Type 10000001: Failed (800200d8)
+
+[x] Sizes:
+[x]   Size ffffffff: Failed (800200d9)
+[x]   Size 0: Failed (800200d9)
+[x]   Size 1: OK, delta=100
+[x]   Size 2: OK, delta=100
+[x]   Size 3: OK, delta=100
+[x]   Size 4: OK, delta=100
+[x]   Size 5: OK, delta=100
+[x]   Size 11: OK, delta=100
+[x]   Size 101: OK, delta=200
+[x]   Size 1001: OK, delta=1100
+[x]   Size 10001: OK, delta=10100
+
+[x] Param sizes:
+[x]   Type ffffffff: Failed (800200d2)
+[x]   Type 0: Failed (800200d2)
+[x]   Type 1: Failed (800200d2)
+[x]   Type 2: Failed (800200d2)
+[x]   Type 3: Failed (800200d2)
+[x]   Type 4: OK
+[x]   Type 5: Failed (800200d2)
+[x]   Type 11: Failed (800200d2)
+[x]   Type 101: Failed (800200d2)
+[x]   Type 1001: Failed (800200d2)
+[x]   Type 10001: Failed (800200d2)
+[x]   Type 100001: Failed (800200d2)
+[x]   Type 1000001: Failed (800200d2)
+[x]   Type 10000001: Failed (800200d2)
+
+[x] Partition usage:
+[x]   sceKernelGetBlockHeadAddr: 00001337
+[x]   sceKernelFreePartitionMemory: 00000000
+[x]   sceKernelGetMemoryBlockPtr: 00000000
+[x]   sceKernelFreeMemoryBlock: 00000000
+
+[x] Invalid uids:
+[x]   Free: 800200cb
+[x]   BlockPtr: 00000000

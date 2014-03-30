@@ -106,10 +106,20 @@
 			return 0;
 		});
 
-		//[HlePspFunction(NID = 0x402FCF22, FirmwareVersion = 150)]
-		//public int sceKernelWaitEventFlag(HleEventFlag EventFlag, uint Bits, EventFlagWaitTypeSet WaitType, uint * OutBits, uint * Timeout)
-		//{
+		sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: number, outBits: Stream, timeout: Stream) => {
+			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitEventFlagCB(%d, %08X, %d)', id, bits, waitType));
+			return 0;
+		});
 
+		sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number) => {
+			console.warn('Not implemented ThreadManForUser.sceKernelDeleteEventFlag');
+			return 0;
+		});
+
+		sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, (eventFlag: number, info: Stream) => {
+			console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
+			return 0;
+		});
 
         sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, () => {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
@@ -155,6 +165,11 @@
 			if (numWaitingThreadsPtr) numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
 			semaphore.cancel();
 			return 0;
+		});
+
+		sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream) => {
+			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSemaCB(%d, %d)', id, signal));
+			return this.semaporesUid.get(id).waitAsync(signal);
 		});
 
 		sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream) => {

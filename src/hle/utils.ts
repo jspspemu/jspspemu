@@ -59,6 +59,11 @@
     }
 }
 
+function waitAsycn(timems: number) {
+	return new Promise((resolve, reject) => {
+		setTimeout(resolve, timems);
+	});
+}
 
 function downloadFileAsync(url: string) {
 	return new Promise<ArrayBuffer>((resolve, reject) => {

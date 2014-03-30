@@ -45,6 +45,19 @@
 			channel.allocated = false;
 			channel.channel.stop();
 			channel.channel = null;
+			return 0;
+		});
+
+		sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, (channelId: number, format: AudioFormat) => {
+			var channel = this.channels[channelId];
+			channel.format = format;
+			return 0;
+		});
+
+		sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, (channelId: number, sampleCount: number) => {
+			var channel = this.channels[channelId];
+			channel.sampleCount = sampleCount;
+			return 0;
 		});
 
 		sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream) => {

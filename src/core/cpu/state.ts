@@ -33,6 +33,8 @@
 		}
 
 		constructor(public memory: core.Memory, public syscallManager: core.ISyscallManager) {
+			this.fcr0 = 0x00003351;
+			this.fcr31 = 0x00000e00;
 		}
 
 		fcr31_rm: number = 0;
@@ -68,15 +70,13 @@
 			switch (d) {
 				case 0: this.gpr[t] = this.fcr0; break;
 				case 31: this.gpr[t] = this.fcr31; break;
-				default: throw (new Error(sprintf("Unsupported CFC1(%d)", d)));
+				default:  this.gpr[t] = 0; break;
 			}
 		}
-
 
 		_ctc1_impl(d: number, t: number) {
 			switch (d) {
 				case 31: this.fcr31 = t; break;
-				default: throw (new Error(sprintf("Unsupported CFC1(%d)", d)));
 			}
 		}
 

@@ -172,6 +172,10 @@
             this.memoryPartitionsUid[MemoryPartitions.VolatilePartition] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
         }
 
+		get kernelPartition() {
+			return this.memoryPartitionsUid[MemoryPartitions.Kernel0];
+		}
+
         get userPartition() {
             return this.memoryPartitionsUid[MemoryPartitions.User];
         }

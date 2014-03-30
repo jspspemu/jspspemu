@@ -1,0 +1,23 @@
+[x] sceKernelUSec2SysClock
+[x]   Zero: 00000000, 0000000000000000
+[x]   0x1337: 00000000, 0000000000001337
+[x]   -1: 00000000, 00000000ffffffff
+
+[x] sceKernelUSec2SysClockWide
+[x]   Zero: 0000000000000000
+[x]   0x1337: 0000000000001337
+[x]   -1: 00000000ffffffff
+
+[x] sceKernelSysClock2USec
+[x]   Zero: 00000000, 0000000000000000 cccccccccccccccc
+[x]   0x1337: 00000000, 0000000000001337 cccccccccccccccc
+[x]   -1: 00000000, f7a0b5ed00086abf cccccccccccccccc
+[x]   Low only: 00000000, cccccccc00001337 cccccccccccccccc
+[x]   High only: 00000000, 00000000cccccccc cccccccccccccccc
+
+[x] sceKernelSysClock2USecWide
+[x]   Zero: 00000000, 0000000000000000 cccccccccccccccc
+[x]   0x1337: 00000000, 0000000000001337 cccccccccccccccc
+[x]   -1: 00000000, f7a0b5ed00086abf cccccccccccccccc
+[x]   Low only: 00000000, cccccccc00001337 cccccccccccccccc
+[x]   High only: 00000000, 00000000cccccccc cccccccccccccccc
