@@ -50,7 +50,7 @@
 		sll(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos))); }
 		srl(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos))); }
 		rotr(i: Instruction) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)])); }
-		rotrv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.rs)])); }
+		rotrv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); }
 
 		bitrev(i: Instruction) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); }
 
@@ -180,27 +180,15 @@
 		swc1(i: Instruction) { return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)])); }
 		lwc1(i: Instruction) { return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)])); }
 
-		//public AstNodeStm mfc1() { return ast.AssignGPR(RT, ast.CallStatic((Func < float, int>) MathFloat.ReinterpretFloatAsInt, ast.FPR(FS))); }
-		//public AstNodeStm mtc1() { return ast.AssignFPR_F(FS, ast.CallStatic((Func < int, float>) MathFloat.ReinterpretIntAsFloat, ast.GPR_s(RT))); }
-
 		mfc1(i: Instruction) { return assignGpr(i.rt, ast.fpr_i(i.fs)); }
 		mtc1(i: Instruction) { return assignFpr_I(i.fs, ast.gpr(i.rt)); }
-		//mtc1(i: Instruction) { return ast.AssignFPR_F(FS, ast.CallStatic((Func < int, float>) MathFloat.ReinterpretIntAsFloat, ast.GPR_s(RT))); }
-
-		//cfc1(i: Instruction) { }
-		//public AstNodeStm cfc1() { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int, int>) CpuEmitterUtils._cfc1_impl, ast.CpuThreadState, RD, RT)); }
-		//public AstNodeStm ctc1() { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int, int>) CpuEmitterUtils._ctc1_impl, ast.CpuThreadState, RD, RT)); }
-
 		cfc1(i: Instruction) { return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)])); }
 		ctc1(i: Instruction) { return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)])); }
 
-		//public AstNodeStm cvt_w_s() { return ast.AssignFPR_I(FD, ast.CallStatic((Func < CpuThreadState, float, int>) CpuEmitterUtils._cvt_w_s_impl, ast.CpuThreadState, ast.FPR(FS))); }
-
-		//public AstNodeStm cvt_s_w() { return ast.AssignFPR_F(FD, ast.Cast<float>(ast.FPR_I(FS))); }
-
-		//public AstNodeStm trunc_w_s() { return ast.AssignFPR_I(FD, ast.CallStatic((Func < float, int>) MathFloat.Cast, ast.FPR(FS))); }
-
 		"trunc.w.s"(i: Instruction) { return assignFpr_I(i.fd, call('MathFloat.cast', [fpr(i.fs)])); }
+		"round.w.s"(i: Instruction) { return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)])); }
+		"ceil.w.s"(i: Instruction) { return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)])); }
+		"floor.w.s"(i: Instruction) { return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)])); }
 
 		"cvt.s.w"(i: Instruction) { return assignFpr(i.fd, fpr_i(i.fs)); }
 		"cvt.w.s"(i: Instruction) { return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)])); }
@@ -223,7 +211,6 @@
 		jalr(i: Instruction) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.jr(i)]); }
 
 		_comp(i: Instruction, fc02: number, fc3: number) {
-			//throw("Not implemented _comp");
 			var fc_unordererd = ((fc02 & 1) != 0);
 			var fc_equal = ((fc02 & 2) != 0);
 			var fc_less = ((fc02 & 4) != 0);

@@ -1,10 +1,9 @@
 ﻿describe('psf', () => {
 	var rtctestPsfArrayBuffer: ArrayBuffer;
 
-	before((done) => {
-		downloadFileAsync('samples/rtctest.psf').then((data) => {
+	before(() => {
+		return downloadFileAsync('samples/rtctest.psf').then((data) => {
 			rtctestPsfArrayBuffer = data;
-			done();
 		});
 	});
 

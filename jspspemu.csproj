@@ -90,7 +90,7 @@
     <TypeScriptCompile Include="test\format\isoTest.ts" />
     <TypeScriptCompile Include="test\format\psfTest.ts" />
     <TypeScriptCompile Include="test\format\pbpTest.ts" />
-    <TypeScriptCompile Include="test\hle\vfs\vfsTest.ts" />
+    <TypeScriptCompile Include="test\hle\vfsTest.ts" />
     <TypeScriptCompile Include="test\pspautotests.ts" />
     <TypeScriptCompile Include="typings\promise\promise.d.ts" />
     <TypeScriptCompile Include="src\app.ts" />

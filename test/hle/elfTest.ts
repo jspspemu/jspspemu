@@ -1,10 +1,9 @@
 ﻿describe('elf', () => {
 	var stream:Stream;
 
-	before((done) => {
-		downloadFileAsync('samples/counter.elf').then((data) => {
+	before(() => {
+		return downloadFileAsync('samples/counter.elf').then((data) => {
 			stream = Stream.fromArrayBuffer(data);
-			done();
 		});
 	});
 

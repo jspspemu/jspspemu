@@ -1,10 +1,9 @@
 ﻿describe('pbp', () => {
 	var rtctestPbpArrayBuffer: ArrayBuffer;
 
-	before((done) => {
-		downloadFileAsync('samples/rtctest.pbp').then((data) => {
+	before(() => {
+		return downloadFileAsync('samples/rtctest.pbp').then((data) => {
 			rtctestPbpArrayBuffer = data;
-			done();
 		});
 	});
 

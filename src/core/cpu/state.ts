@@ -172,6 +172,8 @@
 		}
 
 		div(rs: number, rt: number) {
+			rs |= 0; // signed
+			rt |= 0; // signed
 			this.LO = (rs / rt) | 0;
 			this.HI = (rs % rt) | 0;
 		}
@@ -184,42 +186,51 @@
 		}
 
 		mult(rs: number, rt: number) {
-			//this.LO = (((rs >> 0) & 0xFFFF) * ((rt >> 0) & 0xFFFF)) | 0;
-			//this.HI = (((rs >> 16) & 0xFFFF) * ((rt >> 16) & 0xFFFF)) | 0; // @TODO: carry!
-
-			var result = rs * rt;
-			this.LO = Math.floor(result % Math.pow(2, 32)) | 0;
-			this.HI = Math.floor(result / Math.pow(2, 32)) | 0;
-		}
-
-		multu(rs: number, rt: number) {
-			var result = (rs >>> 0) * (rt >>> 0);
-			this.LO = Math.floor(result % Math.pow(2, 32)) | 0;
-			this.HI = Math.floor(result / Math.pow(2, 32)) | 0;
+			var a64 = Integer64.fromInt(rs);
+			var b64 = Integer64.fromInt(rt);
+			var result = a64.multiply(b64);
+			this.HI = result.high;
+			this.LO = result.low;
 		}
 
 		madd(rs: number, rt: number) {
-			var result = rs * rt;
-			this.LO = (this.LO + Math.floor(result % Math.pow(2, 32))) | 0;
-			this.HI = (this.HI + Math.floor(result / Math.pow(2, 32))) | 0;
-		}
-
-		maddu(rs: number, rt: number) {
-			var result = rs * rt;
-			this.LO = (this.LO + Math.floor(result % Math.pow(2, 32))) | 0;
-			this.HI = (this.HI + Math.floor(result / Math.pow(2, 32))) | 0;
+			var a64 = Integer64.fromInt(rs);
+			var b64 = Integer64.fromInt(rt);
+			var result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
+			this.HI = result.high;
+			this.LO = result.low;
 		}
 
 		msub(rs: number, rt: number) {
-			var result = rs * rt;
-			this.LO = (this.LO - Math.floor(result % Math.pow(2, 32))) | 0;
-			this.HI = (this.HI - Math.floor(result / Math.pow(2, 32))) | 0;
+			var a64 = Integer64.fromInt(rs);
+			var b64 = Integer64.fromInt(rt);
+			var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
+			this.HI = result.high;
+			this.LO = result.low;
+		}
+
+		multu(rs: number, rt: number) {
+			var a64 = Integer64.fromUnsignedInt(rs);
+			var b64 = Integer64.fromUnsignedInt(rt);
+			var result = a64.multiply(b64);
+			this.HI = result.high;
+			this.LO = result.low;
+		}
+
+		maddu(rs: number, rt: number) {
+			var a64 = Integer64.fromUnsignedInt(rs);
+			var b64 = Integer64.fromUnsignedInt(rt);
+			var result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
+			this.HI = result.high;
+			this.LO = result.low;
 		}
 
 		msubu(rs: number, rt: number) {
-			var result = rs * rt;
-			this.LO = (this.LO - Math.floor(result % Math.pow(2, 32))) | 0;
-			this.HI = (this.HI - Math.floor(result / Math.pow(2, 32))) | 0;
+			var a64 = Integer64.fromUnsignedInt(rs);
+			var b64 = Integer64.fromUnsignedInt(rt);
+			var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
+			this.HI = result.high;
+			this.LO = result.low;
 		}
 
 		break() {

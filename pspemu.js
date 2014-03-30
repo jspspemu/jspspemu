@@ -2230,7 +2230,7 @@ var core;
                     return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)]));
                 };
                 InstructionAst.prototype.rotrv = function (i) {
-                    return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.rs)]));
+                    return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
                 };
 
                 InstructionAst.prototype.bitrev = function (i) {
@@ -2512,19 +2512,12 @@ var core;
                     return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)]));
                 };
 
-                //public AstNodeStm mfc1() { return ast.AssignGPR(RT, ast.CallStatic((Func < float, int>) MathFloat.ReinterpretFloatAsInt, ast.FPR(FS))); }
-                //public AstNodeStm mtc1() { return ast.AssignFPR_F(FS, ast.CallStatic((Func < int, float>) MathFloat.ReinterpretIntAsFloat, ast.GPR_s(RT))); }
                 InstructionAst.prototype.mfc1 = function (i) {
                     return assignGpr(i.rt, ast.fpr_i(i.fs));
                 };
                 InstructionAst.prototype.mtc1 = function (i) {
                     return assignFpr_I(i.fs, ast.gpr(i.rt));
                 };
-
-                //mtc1(i: Instruction) { return ast.AssignFPR_F(FS, ast.CallStatic((Func < int, float>) MathFloat.ReinterpretIntAsFloat, ast.GPR_s(RT))); }
-                //cfc1(i: Instruction) { }
-                //public AstNodeStm cfc1() { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int, int>) CpuEmitterUtils._cfc1_impl, ast.CpuThreadState, RD, RT)); }
-                //public AstNodeStm ctc1() { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int, int>) CpuEmitterUtils._ctc1_impl, ast.CpuThreadState, RD, RT)); }
                 InstructionAst.prototype.cfc1 = function (i) {
                     return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)]));
                 };
@@ -2532,11 +2525,17 @@ var core;
                     return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)]));
                 };
 
-                //public AstNodeStm cvt_w_s() { return ast.AssignFPR_I(FD, ast.CallStatic((Func < CpuThreadState, float, int>) CpuEmitterUtils._cvt_w_s_impl, ast.CpuThreadState, ast.FPR(FS))); }
-                //public AstNodeStm cvt_s_w() { return ast.AssignFPR_F(FD, ast.Cast<float>(ast.FPR_I(FS))); }
-                //public AstNodeStm trunc_w_s() { return ast.AssignFPR_I(FD, ast.CallStatic((Func < float, int>) MathFloat.Cast, ast.FPR(FS))); }
                 InstructionAst.prototype["trunc.w.s"] = function (i) {
                     return assignFpr_I(i.fd, call('MathFloat.cast', [fpr(i.fs)]));
+                };
+                InstructionAst.prototype["round.w.s"] = function (i) {
+                    return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)]));
+                };
+                InstructionAst.prototype["ceil.w.s"] = function (i) {
+                    return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)]));
+                };
+                InstructionAst.prototype["floor.w.s"] = function (i) {
+                    return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)]));
                 };
 
                 InstructionAst.prototype["cvt.s.w"] = function (i) {
@@ -2590,7 +2589,6 @@ var core;
                 };
 
                 InstructionAst.prototype._comp = function (i, fc02, fc3) {
-                    //throw("Not implemented _comp");
                     var fc_unordererd = ((fc02 & 1) != 0);
                     var fc_equal = ((fc02 & 2) != 0);
                     var fc_less = ((fc02 & 4) != 0);
@@ -3815,6 +3813,8 @@ var core;
             };
 
             CpuState.prototype.div = function (rs, rt) {
+                rs |= 0; // signed
+                rt |= 0; // signed
                 this.LO = (rs / rt) | 0;
                 this.HI = (rs % rt) | 0;
             };
@@ -3827,41 +3827,51 @@ var core;
             };
 
             CpuState.prototype.mult = function (rs, rt) {
-                //this.LO = (((rs >> 0) & 0xFFFF) * ((rt >> 0) & 0xFFFF)) | 0;
-                //this.HI = (((rs >> 16) & 0xFFFF) * ((rt >> 16) & 0xFFFF)) | 0; // @TODO: carry!
-                var result = rs * rt;
-                this.LO = Math.floor(result % Math.pow(2, 32)) | 0;
-                this.HI = Math.floor(result / Math.pow(2, 32)) | 0;
-            };
-
-            CpuState.prototype.multu = function (rs, rt) {
-                var result = (rs >>> 0) * (rt >>> 0);
-                this.LO = Math.floor(result % Math.pow(2, 32)) | 0;
-                this.HI = Math.floor(result / Math.pow(2, 32)) | 0;
+                var a64 = Integer64.fromInt(rs);
+                var b64 = Integer64.fromInt(rt);
+                var result = a64.multiply(b64);
+                this.HI = result.high;
+                this.LO = result.low;
             };
 
             CpuState.prototype.madd = function (rs, rt) {
-                var result = rs * rt;
-                this.LO = (this.LO + Math.floor(result % Math.pow(2, 32))) | 0;
-                this.HI = (this.HI + Math.floor(result / Math.pow(2, 32))) | 0;
-            };
-
-            CpuState.prototype.maddu = function (rs, rt) {
-                var result = rs * rt;
-                this.LO = (this.LO + Math.floor(result % Math.pow(2, 32))) | 0;
-                this.HI = (this.HI + Math.floor(result / Math.pow(2, 32))) | 0;
+                var a64 = Integer64.fromInt(rs);
+                var b64 = Integer64.fromInt(rt);
+                var result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
+                this.HI = result.high;
+                this.LO = result.low;
             };
 
             CpuState.prototype.msub = function (rs, rt) {
-                var result = rs * rt;
-                this.LO = (this.LO - Math.floor(result % Math.pow(2, 32))) | 0;
-                this.HI = (this.HI - Math.floor(result / Math.pow(2, 32))) | 0;
+                var a64 = Integer64.fromInt(rs);
+                var b64 = Integer64.fromInt(rt);
+                var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
+                this.HI = result.high;
+                this.LO = result.low;
+            };
+
+            CpuState.prototype.multu = function (rs, rt) {
+                var a64 = Integer64.fromUnsignedInt(rs);
+                var b64 = Integer64.fromUnsignedInt(rt);
+                var result = a64.multiply(b64);
+                this.HI = result.high;
+                this.LO = result.low;
+            };
+
+            CpuState.prototype.maddu = function (rs, rt) {
+                var a64 = Integer64.fromUnsignedInt(rs);
+                var b64 = Integer64.fromUnsignedInt(rt);
+                var result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
+                this.HI = result.high;
+                this.LO = result.low;
             };
 
             CpuState.prototype.msubu = function (rs, rt) {
-                var result = rs * rt;
-                this.LO = (this.LO - Math.floor(result % Math.pow(2, 32))) | 0;
-                this.HI = (this.HI - Math.floor(result / Math.pow(2, 32))) | 0;
+                var a64 = Integer64.fromUnsignedInt(rs);
+                var b64 = Integer64.fromUnsignedInt(rt);
+                var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
+                this.HI = result.high;
+                this.LO = result.low;
             };
 
             CpuState.prototype.break = function () {
@@ -10071,47 +10081,192 @@ var hle;
     })(hle.vfs || (hle.vfs = {}));
     var vfs = hle.vfs;
 })(hle || (hle = {}));
+// Code from: http://docs.closure-library.googlecode.com/git/closure_goog_math_long.js.source.html
+var Integer64 = (function () {
+    function Integer64(low, high) {
+        this._low = low | 0;
+        this._high = high | 0;
+    }
+    Integer64.fromInt = function (value) {
+        return new Integer64(value | 0, value < 0 ? -1 : 0);
+    };
+
+    Integer64.fromUnsignedInt = function (value) {
+        return new Integer64(value | 0, 0);
+    };
+
+    Integer64.fromBits = function (low, high) {
+        return new Integer64(low, high);
+    };
+
+    Object.defineProperty(Integer64.prototype, "low", {
+        get: function () {
+            return this._low;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "high", {
+        get: function () {
+            return this._high;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Integer64.prototype.equals = function (other) {
+        return (this._high == other._high) && (this._low == other._low);
+    };
+
+    Integer64.prototype.negate = function () {
+        if (this.equals(Integer64.MIN_VALUE))
+            return Integer64.MIN_VALUE;
+        return this.not().add(Integer64.ONE);
+    };
+
+    Integer64.prototype.not = function () {
+        return Integer64.fromBits(~this._low, ~this._high);
+    };
+
+    Object.defineProperty(Integer64.prototype, "isZero", {
+        get: function () {
+            return this._high == 0 && this._low == 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Integer64.prototype, "isNegative", {
+        get: function () {
+            return this._high < 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Integer64.prototype, "isOdd", {
+        get: function () {
+            return (this._low & 1) == 1;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Integer64.prototype.sub = function (other) {
+        return this.add(other.negate());
+    };
+
+    Integer64.prototype.add = function (other) {
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 + b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 + b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 + b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 + b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+
+    Integer64.prototype.multiply = function (other) {
+        if (this.isZero)
+            return Integer64.ZERO;
+        if (other.isZero)
+            return Integer64.ZERO;
+
+        if (this.equals(Integer64.MIN_VALUE))
+            return other.isOdd ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (other.equals(Integer64.MIN_VALUE))
+            return this.isOdd ? Integer64.MIN_VALUE : Integer64.ZERO;
+
+        if (this.isNegative) {
+            if (other.isNegative)
+                return this.negate().multiply(other.negate());
+            return this.negate().multiply(other).negate();
+        }
+        if (other.isNegative)
+            return this.multiply(other.negate()).negate();
+
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 * b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 * b00;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c16 += a00 * b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 * b00;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a16 * b16;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a00 * b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    Integer64.ZERO = Integer64.fromInt(0);
+    Integer64.ONE = Integer64.fromInt(1);
+    Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+    return Integer64;
+})();
 describe('cso', function () {
     var testCsoArrayBuffer;
 
-    before(function (done) {
-        downloadFileAsync('samples/test.cso').then(function (data) {
+    before(function () {
+        return downloadFileAsync('samples/test.cso').then(function (data) {
             testCsoArrayBuffer = data;
-            done();
         });
     });
 
-    it('should load fine', function (done) {
-        format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
+    it('should load fine', function () {
+        return format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
             //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
             return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
                 var stream = Stream.fromArrayBuffer(data);
                 stream.skip(10);
                 var CD0001 = stream.readStringz(6);
                 assert.equal(CD0001, '\u0001CD001');
-                done();
             });
             //console.log(cso);
-        }).catch(function (e) {
-            //console.error(e);
-            setImmediate(function () {
-                throw (e);
-            });
         });
     });
 
-    it('should work with iso', function (done) {
-        format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
+    it('should work with iso', function () {
+        return format.cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
             return format.iso.Iso.fromStreamAsync(cso).then(function (iso) {
                 assert.equal(JSON.stringify(iso.children.slice(0, 4).map(function (node) {
                     return node.path;
                 })), JSON.stringify(["path", "path/0", "path/1", "path/2"]));
-                done();
-            });
-        }).catch(function (e) {
-            //console.error(e);
-            setImmediate(function () {
-                throw (e);
             });
         });
     });
@@ -10119,34 +10274,28 @@ describe('cso', function () {
 describe('iso', function () {
     var isoData;
 
-    before(function (done) {
-        downloadFileAsync('samples/cube.iso').then(function (data) {
+    before(function () {
+        return downloadFileAsync('samples/cube.iso').then(function (data) {
             isoData = new Uint8Array(data);
-            done();
         });
     });
 
-    it('should load fine', function (done) {
+    it('should load fine', function () {
         var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
 
-        format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
+        return format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
             assert.equal(JSON.stringify(iso.children.map(function (item) {
                 return item.path;
             })), JSON.stringify(["PSP_GAME", "PSP_GAME/PARAM.SFO", "PSP_GAME/SYSDIR", "PSP_GAME/SYSDIR/BOOT.BIN", "PSP_GAME/SYSDIR/EBOOT.BIN"]));
-
-            done();
-        }).catch(function (e) {
-            throw (e);
         });
     });
 });
 describe('pbp', function () {
     var rtctestPbpArrayBuffer;
 
-    before(function (done) {
-        downloadFileAsync('samples/rtctest.pbp').then(function (data) {
+    before(function () {
+        return downloadFileAsync('samples/rtctest.pbp').then(function (data) {
             rtctestPbpArrayBuffer = data;
-            done();
         });
     });
 
@@ -10160,10 +10309,9 @@ describe('pbp', function () {
 describe('psf', function () {
     var rtctestPsfArrayBuffer;
 
-    before(function (done) {
-        downloadFileAsync('samples/rtctest.psf').then(function (data) {
+    before(function () {
+        return downloadFileAsync('samples/rtctest.psf').then(function (data) {
             rtctestPsfArrayBuffer = data;
-            done();
         });
     });
 
@@ -10227,10 +10375,9 @@ describe('gpu', function () {
 describe('elf', function () {
     var stream;
 
-    before(function (done) {
-        downloadFileAsync('samples/counter.elf').then(function (data) {
+    before(function () {
+        return downloadFileAsync('samples/counter.elf').then(function (data) {
             stream = Stream.fromArrayBuffer(data);
-            done();
         });
     });
 
@@ -10277,26 +10424,24 @@ describe("memory manager", function () {
 describe('vfs', function () {
     var isoData;
 
-    before(function (done) {
-        downloadFileAsync('samples/cube.iso').then(function (data) {
+    before(function () {
+        return downloadFileAsync('samples/cube.iso').then(function (data) {
             isoData = new Uint8Array(data);
-            done();
         });
     });
 
-    it('should work', function (done) {
+    it('should work', function () {
         var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
 
-        format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
+        return format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
             var vfs = new hle.vfs.IsoVfs(iso);
             return vfs.openAsync("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).then(function (file) {
                 return file.readAllAsync().then(function (content) {
                     var psf = format.psf.Psf.fromStream(Stream.fromArrayBuffer(content));
                     assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
-                    done();
                 });
             });
-        }).then(done, done);
+        });
     });
 });
 describe('instruction lookup', function () {
@@ -10323,26 +10468,58 @@ describe('pspautotests', function () {
 
     var tests = ['cpu_alu', 'cpu_branch', 'dmactest', 'fcr', 'fpu', 'string', 'icache'];
 
-    function compareOutput(output, expected) {
+    function normalizeString(string) {
+        return string.replace(/\r\n/g, '\n').replace(/[\r\n]+$/m, '');
+    }
+
+    function compareOutput(name, output, expected) {
+        output = normalizeString(output);
+        expected = normalizeString(expected);
+
+        var output_lines = output.split('\n');
+        var expected_lines = expected.split('\n');
+
+        console.groupCollapsed('TEST RESULT: ' + name);
+        for (var n = 0; n < output_lines.length; n++) {
+            var output_line = output_lines[n];
+            var expected_line = expected_lines[n];
+            if (output_line != expected_line) {
+                console.warn(output_line);
+                console.info(expected_line);
+            } else {
+                console.log(output_line);
+            }
+            //assert.equal(output_line, expect_line);
+        }
+        console.groupEnd();
+
         // @TODO: diff!
         assert.equal(output, expected);
     }
 
     tests.forEach(function (testName) {
-        it(testName, function (done) {
+        var groupCollapsed = false;
+
+        it(testName, function () {
             var emulator = new Emulator();
             var file_prx = 'samples/tests/' + testName + '.prx';
             var file_expected = 'samples/tests/' + testName + '.expected';
+
+            if (!groupCollapsed)
+                console.groupEnd();
+            groupCollapsed = false;
+            console.groupCollapsed('EXECUTING: ' + testName);
             return downloadFileAsync(file_prx).then(function (data_prx) {
                 return downloadFileAsync(file_expected).then(function (data_expected) {
                     var string_expected = String.fromCharCode.apply(null, new Uint8Array(data_expected));
 
                     return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(function () {
-                        compareOutput(emulator.context.output, string_expected);
-                        done();
+                        groupCollapsed = true;
+                        console.groupEnd();
+                        compareOutput(testName, emulator.context.output, string_expected);
                     });
                 });
-            }).catch(done);
+            });
             //emulator.executeFileAsync
         });
     });
