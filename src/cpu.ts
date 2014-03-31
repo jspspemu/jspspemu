@@ -67,14 +67,15 @@ class FunctionGenerator {
                     stms.push(this.instructionAst._postBranch(PC));
                 }
 
-
                 break;
             } else {
                 if (di.type.isSyscall) {
                     stms.push(this.instructionAst._storePC(PC + 4));
                 }
                 stms.push(emitInstruction());
-                if (di.type.isBreak) {
+				if (di.type.isBreak) {
+					stms.push(this.instructionAst._storePC(PC));
+
                     break;
                 }
             }

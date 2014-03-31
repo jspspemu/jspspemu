@@ -111,7 +111,7 @@
 
 
 		syscall(id: number) { this.syscallManager.call(this, id); }
-		dbreak() { throw (new CpuBreakException()); }
+		break() { throw (new CpuBreakException()); }
 		sb(value: number, address: number) { this.memory.writeInt8(address, value); }
 		sh(value: number, address: number) { this.memory.writeInt16(address, value); }
 		sw(value: number, address: number) { this.memory.writeInt32(address, value); }
@@ -127,10 +127,11 @@
 		lhu(address: number) { return this.memory.readUInt16(address); }
 		lw(address: number) { return this.memory.readInt32(address); }
 
-		min(a: number, b: number) { return (a < b) ? a : b; }
-		max(a: number, b: number) { return (a > b) ? a : b; }
-		slt(a: number, b: number) { return ((a | 0) < (b | 0)); }
-		sltu(a: number, b: number) { return ((a >>> 0) < (b >>> 0)); }
+		min(a: number, b: number) { return ((a | 0) < (b | 0)) ? a : b; }
+		max(a: number, b: number) { return ((a | 0) > (b | 0)) ? a : b; }
+
+		slt(a: number, b: number) { return ((a | 0) < (b | 0)) ? 1 : 0; }
+		sltu(a: number, b: number) { return ((a >>> 0) < (b >>> 0)) ? 1 : 0; }
 
 		private static LwrMask = [ 0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00 ];
 		private static LwrShift = [ 0, 8, 16, 24 ];

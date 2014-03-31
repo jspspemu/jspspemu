@@ -296,7 +296,7 @@ var MipsAstBuilder = (function (_super) {
         _super.apply(this, arguments);
     }
     MipsAstBuilder.prototype.debugger = function () {
-        return new ANodeStmRaw("debugger;");
+        return new ANodeStmRaw("debugger;\n");
     };
 
     MipsAstBuilder.prototype.functionPrefix = function () {
@@ -2309,8 +2309,6 @@ var core;
                     return assignIC(gpr(i.rt));
                 };
 
-                //slt(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '<', gpr(i.rt))); }
-                //slti(i: Instruction) { return assignGpr(i.rt, binop(gpr(i.rs), '<', imm32(i.imm16))); }
                 InstructionAst.prototype.slt = function (i) {
                     return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)]));
                 };
@@ -2321,7 +2319,7 @@ var core;
                     return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)]));
                 };
                 InstructionAst.prototype.sltiu = function (i) {
-                    return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.u_imm16)]));
+                    return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)]));
                 };
 
                 InstructionAst.prototype.movz = function (i) {
@@ -2423,8 +2421,11 @@ var core;
                 InstructionAst.prototype.syscall = function (i) {
                     return stm(call('state.syscall', [imm32(i.syscall)]));
                 };
+                InstructionAst.prototype["break"] = function (i) {
+                    return stm(call('state.break', []));
+                };
                 InstructionAst.prototype.dbreak = function (i) {
-                    return stm(call('state.dbreak', []));
+                    return ast.debugger();
                 };
 
                 InstructionAst.prototype._likely = function (isLikely, code) {
@@ -2661,10 +2662,6 @@ var core;
                 };
                 InstructionAst.prototype["c.ngt.s"] = function (i) {
                     return this._comp(i, 7, 1);
-                };
-
-                InstructionAst.prototype["break"] = function (i) {
-                    return assignGpr(i.rt, call('state.break', []));
                 };
                 return InstructionAst;
             })();
@@ -3010,7 +3007,7 @@ var core;
                 ID("cache", VM("101111--------------------------"), "%k, %o", ADDR_TYPE_NONE, 0);
                 ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
 
-                ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, 0);
+                ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);
                 ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
                 ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
 
@@ -3754,7 +3751,7 @@ var core;
             CpuState.prototype.syscall = function (id) {
                 this.syscallManager.call(this, id);
             };
-            CpuState.prototype.dbreak = function () {
+            CpuState.prototype.break = function () {
                 throw (new CpuBreakException());
             };
             CpuState.prototype.sb = function (value, address) {
@@ -3792,16 +3789,17 @@ var core;
             };
 
             CpuState.prototype.min = function (a, b) {
-                return (a < b) ? a : b;
+                return ((a | 0) < (b | 0)) ? a : b;
             };
             CpuState.prototype.max = function (a, b) {
-                return (a > b) ? a : b;
+                return ((a | 0) > (b | 0)) ? a : b;
             };
+
             CpuState.prototype.slt = function (a, b) {
-                return ((a | 0) < (b | 0));
+                return ((a | 0) < (b | 0)) ? 1 : 0;
             };
             CpuState.prototype.sltu = function (a, b) {
-                return ((a >>> 0) < (b >>> 0));
+                return ((a >>> 0) < (b >>> 0)) ? 1 : 0;
             };
 
             CpuState.prototype.lwl = function (RS, Offset, RT) {
@@ -6318,6 +6316,8 @@ var FunctionGenerator = (function () {
                 }
                 stms.push(emitInstruction());
                 if (di.type.isBreak) {
+                    stms.push(this.instructionAst._storePC(PC));
+
                     break;
                 }
             }
@@ -7855,7 +7855,6 @@ var hle;
 
                             var length = stream.length;
 
-                            //var memorySegment = this.memoryManager.userPartition.allocateSet(length, low);
                             //console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
                             _this.memory.writeStream(low, stream);
 
@@ -11359,7 +11358,7 @@ describe('pspautotests', function () {
     this.timeout(5000);
 
     var tests = [
-        { cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu'] },
+        { cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2'] },
         { intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
         { display: ['display', 'hcount', 'vblankmulti'] },
         { gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
@@ -11474,7 +11473,7 @@ var TestSyscallManager = (function () {
 
 function executeProgram(gprInitial, program) {
     program = program.slice();
-    program.push('dbreak');
+    program.push('break');
     assembler.assembleToMemory(memory, 4, program);
     var state = new core.cpu.CpuState(memory, new TestSyscallManager());
     var instructionCache = new InstructionCache(memory);

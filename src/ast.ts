@@ -180,7 +180,7 @@ class AstBuilder {
 
 class MipsAstBuilder extends AstBuilder {
 	debugger():ANodeStm {
-		return new ANodeStmRaw("debugger;");
+		return new ANodeStmRaw("debugger;\n");
 	}
 
     functionPrefix() {

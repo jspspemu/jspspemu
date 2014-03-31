@@ -79,7 +79,7 @@
 		slt(i: Instruction) { return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)])); }
 		sltu(i: Instruction) { return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)])); }
 		slti(i: Instruction) { return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)])); }
-		sltiu(i: Instruction) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.u_imm16)])); }
+		sltiu(i: Instruction) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)])); }
 
 		movz(i: Instruction) { return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs))); }
 		movn(i: Instruction) { return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs))); }
@@ -120,7 +120,8 @@
 		msubu(i: Instruction) { return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)])); }
 
 		syscall(i: Instruction) { return stm(call('state.syscall', [imm32(i.syscall)])); }
-		dbreak(i: Instruction) { return stm(call('state.dbreak', [])); }
+		"break"(i: Instruction) { return stm(call('state.break', [])); }
+		dbreak(i: Instruction) { return ast.debugger(); }
 
 		_likely(isLikely: boolean, code: ANodeStm) {
 			return isLikely ? _if(branchflag(), code) : code;
@@ -233,7 +234,5 @@
 		"c.nge.s"(i: Instruction) { return this._comp(i, 5, 1); }
 		"c.le.s"(i: Instruction) { return this._comp(i, 6, 1); }
 		"c.ngt.s"(i: Instruction) { return this._comp(i, 7, 1); }
-
-		"break"(i: Instruction) { return assignGpr(i.rt, call('state.break', [])); }
 	}
 }

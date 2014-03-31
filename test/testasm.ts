@@ -20,7 +20,7 @@ class TestSyscallManager implements core.ISyscallManager {
 
 function executeProgram(gprInitial: any, program: string[]) {
     program = program.slice();
-    program.push('dbreak');
+    program.push('break');
     assembler.assembleToMemory(memory, 4, program);
 	var state = new core.cpu.CpuState(memory, new TestSyscallManager());
     var instructionCache = new InstructionCache(memory);

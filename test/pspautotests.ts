@@ -2,7 +2,7 @@
 	this.timeout(5000);
 
 	var tests = [
-		{ cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu'] },
+		{ cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2'] },
 		{ intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
 		{ display: ['display', 'hcount', 'vblankmulti'] },
 		{ gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
