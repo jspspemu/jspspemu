@@ -16,6 +16,7 @@
 		{ thread: ['change', 'create', 'exitstatus', 'extend', 'refer', 'release', 'rotate', 'stackfree', 'start', 'suspend', 'terminate', 'threadend', 'threads', 'k0'] },
 		{ thread_callbacks: ['callbacks', 'cancel', 'check', 'count', 'create', 'delete', 'exit', 'notify', 'refer'] },
 		{ thread_events: ['cancel', 'clear', 'create', 'delete', 'events', 'poll', 'refer', 'set', 'wait'] },
+		{ thread_semaphore: ['cancel', 'create', 'delete', 'fifo', 'poll', 'priority', 'refer', 'semaphores', 'signal', 'wait'] },
 	];
 
 	function normalizeString(string: string) {

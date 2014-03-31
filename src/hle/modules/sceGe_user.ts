@@ -8,7 +8,12 @@
         sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, (callbackDataPtr: number) => {
             //console.warn('Not implemented sceGe_user.sceGeSetCallback');
             return 0;
-        });
+		});
+
+		sceGeUnsetCallback = createNativeFunction(0x05DB22CE, 150, 'uint', 'int', this, (callbackId: number) => {
+			//console.warn('Not implemented sceGe_user.sceGeSetCallback');
+			return 0;
+		});
 
         sceGeListEnQueue = createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, (start: number, stall: number, callbackId: number, argsPtr: Stream) => {
             return this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);

@@ -4,10 +4,13 @@
 
         private threadUids = new UidCollection<Thread>(1);
 
-        sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'string/uint/int/int/int/int', this, (name: string, entryPoint: number, initPriority: number, stackSize: number, attribute: number, optionPtr: number) => {
+		sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, (currentThread:Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attribute: number, optionPtr: number) => {
             var stackPartition = this.context.memoryManager.stackPartition;
-            var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
-            newThread.id = this.threadUids.allocate(newThread);
+			var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
+			newThread.id = this.threadUids.allocate(newThread);
+
+			console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d', newThread.id, newThread.name, newThread.priority, currentThread.priority));
+
             return newThread.id;
 		});
 
@@ -24,7 +27,7 @@
 		sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number) => {
 			var newThread = this.threadUids.get(threadId);
 
-			console.info(sprintf('sceKernelStartThread: %d:"%s"', threadId, newThread.name));
+			console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d', threadId, newThread.name, newThread.priority, currentThread.priority));
 
 			var newState = newThread.state;
 			newState.GP = currentThread.state.GP;
@@ -101,27 +104,70 @@
 		});
 
 		sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, (id: number, bitPattern: number) => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSetEventFlag(%d, %08X)', id, bitPattern));
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			this.eventFlagUids.get(id).setBits(bitPattern);
 			return 0;
 		});
 
-		sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: number, outBits: Stream, timeout: Stream) => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitEventFlag(%d, %08X, %d)', id, bits, waitType));
-			return 0;
+		private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: boolean): any {
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			var eventFlag = this.eventFlagUids.get(id);
+
+			if ((waitType & ~(EventFlagWaitTypeSet.MaskValidBits)) != 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+			if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
+			var timedOut = false;
+			var previousPattern = eventFlag.currentPattern;
+			return eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(() => {
+				if (outBits != null) outBits.writeUInt32(previousPattern);
+				return 0;
+			});
+		}
+
+		sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
+			return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, false);
 		});
 
-		sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: number, outBits: Stream, timeout: Stream) => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitEventFlagCB(%d, %08X, %d)', id, bits, waitType));
-			return 0;
+		sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
+			return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, true);
 		});
 
-		sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number) => {
+		sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream) => {
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+			if ((waitType & (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) == (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) {
+				return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+			}
+			if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
+			if (EventFlag == null) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+
+			var matched = this.eventFlagUids.get(id).poll(bits, waitType, outBits);
+
+			return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
+		});
+
+		sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, (id: number) => {
 			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 			this.eventFlagUids.remove(id);
 			return 0;
 		});
 
+		sceKernelClearEventFlag = createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, (id: number, bitsToClear: number) => {
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			this.eventFlagUids.get(id).clearBits(bitsToClear);
+			return 0;
+		});
+
+		sceKernelCancelEventFlag = createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, (id: number, newPattern: number, numWaitThreadPtr: Stream) => {
+			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			this.eventFlagUids.get(id).cancel(newPattern);
+			return 0;
+		});
+
 		sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, (id: number, infoPtr: Stream) => {
+			var size = infoPtr.readUInt32();
+			if (size == 0) return 0;
+
+			infoPtr.position = 0;
 			if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 			var eventFlag = this.eventFlagUids.get(id);
 			var info = new EventFlagInfo();
@@ -130,6 +176,7 @@
 			info.currentPattern = eventFlag.currentPattern;
 			info.initialPattern = eventFlag.initialPattern;
 			info.attributes = eventFlag.attributes;
+			info.numberOfWaitingThreads = eventFlag.waitingThreads.length;
 			EventFlagInfo.struct.write(infoPtr, info);
 			console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
 			return 0;
@@ -168,6 +215,7 @@
 		});
 
 		sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, (id: number) => {
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 			var semaphore = this.semaporesUid.get(id);
 			semaphore.delete();
 			this.semaporesUid.remove(id);
@@ -175,24 +223,27 @@
 		});
 
 		sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, (id: number, count: number, numWaitingThreadsPtr: Stream) => {
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 			var semaphore = this.semaporesUid.get(id);
 			if (numWaitingThreadsPtr) numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
 			semaphore.cancel();
 			return 0;
 		});
 
-		sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream) => {
+		sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream):any => {
 			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSemaCB(%d, %d)', id, signal));
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 			return this.semaporesUid.get(id).waitAsync(signal);
 		});
 
-		sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream) => {
+		sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream): any => {
 			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSema(%d, %d)', id, signal));
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 			return this.semaporesUid.get(id).waitAsync(signal);
 		});
 
 		sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, (id: number, infoStream: Stream) => {
-			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 			var semaphore = this.semaporesUid.get(id);
 			var semaphoreInfo = new SceKernelSemaInfo();
 			semaphoreInfo.size = SceKernelSemaInfo.struct.length;
@@ -208,7 +259,10 @@
 
 		sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, (id: number, signal: number) => {
 			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d)', id, signal));
-			this.semaporesUid.get(id).incrementCount(signal);
+			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
+			var semaphore = this.semaporesUid.get(id);
+			if (semaphore.currentCount + signal > semaphore.maximumCount) return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
+			semaphore.incrementCount(signal);
 			return 0;
 		});
 	}
@@ -269,11 +323,71 @@
 		Priority = 0x100,
 	}
 
+	class EventFlagWaitingThread {
+		constructor(public bitsToMatch: number, public waitType: EventFlagWaitTypeSet, public outBits: Stream, public eventFlag: EventFlag, public wakeUp: () => void) {
+		}
+	}
+
 	class EventFlag {
 		name: string;
 		attributes: number;
 		currentPattern: number;
 		initialPattern: number;
+		waitingThreads = new SortedSet<EventFlagWaitingThread>();
+
+		waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: boolean) {
+			return new Promise((resolve, reject) => {
+				var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
+					this.waitingThreads.delete(waitingSemaphoreThread);
+					resolve();
+				});
+				this.waitingThreads.add(waitingSemaphoreThread);
+			}).then(() => 0);
+		}
+
+		poll(bitsToMatch: number, waitType: EventFlagWaitTypeSet, outBits: Stream) {
+			if (outBits != null) outBits.writeInt32(this.currentPattern);
+
+			if (
+				(waitType & EventFlagWaitTypeSet.Or)
+				? ((this.currentPattern & bitsToMatch) != 0) // one or more bits of the mask
+				: ((this.currentPattern & bitsToMatch) == bitsToMatch)) // all the bits of the mask
+			{
+				this._doClear(bitsToMatch, waitType);
+				return true;
+			}
+
+			return false;
+		}
+
+		private _doClear(bitsToMatch: number, waitType: EventFlagWaitTypeSet) {
+			if (waitType & (EventFlagWaitTypeSet.ClearAll)) this.clearBits(~0xFFFFFFFF, false);
+			if (waitType & (EventFlagWaitTypeSet.Clear)) this.clearBits(~bitsToMatch, false);
+		}
+
+		cancel(newPattern: number) {
+			this.waitingThreads.forEach(item => {
+				item.wakeUp();
+			});
+		}
+
+		clearBits(bitsToClear:number, doUpdateWaitingThreads = true) {
+			this.currentPattern &= bitsToClear;
+			if (doUpdateWaitingThreads) this.updateWaitingThreads();
+		}
+
+		setBits(bits: number, doUpdateWaitingThreads = true) {
+			this.currentPattern |= bits;
+			if (doUpdateWaitingThreads) this.updateWaitingThreads();
+		}
+
+		private updateWaitingThreads() {
+			this.waitingThreads.forEach(waitingThread => {
+				if (this.poll(waitingThread.bitsToMatch, waitingThread.waitType, waitingThread.outBits)) {
+					waitingThread.wakeUp();
+				}
+			});
+		}
 	}
 
 	class SceKernelSemaInfo {
@@ -359,4 +473,11 @@
 		]);
 	}
 
+	enum EventFlagWaitTypeSet {
+		And = 0x00,
+		Or = 0x01,
+		ClearAll = 0x10,
+		Clear = 0x20,
+		MaskValidBits = Or | Clear | ClearAll,
+	}
 }

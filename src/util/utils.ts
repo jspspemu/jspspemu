@@ -691,8 +691,8 @@ class MathFloat {
         return Math.round(value);
     }
 
-    static rint(value: number) {
-        return Math.round(value);
+	static rint(value: number) {
+		return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
     }
 
     static cast(value: number) {

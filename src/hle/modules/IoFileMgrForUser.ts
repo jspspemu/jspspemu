@@ -77,6 +77,8 @@
 		});
 
 		sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
+			console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %d)', fileId, outputLength));
+
 			var file = this.fileUids.get(fileId);
 			
 			return file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
@@ -99,12 +101,16 @@
 
 		sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: number, whence: number) => {
 			console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d)', fileId, offset, whence));
-			return this._seek(fileId, offset, whence);
+			var result = this._seek(fileId, offset, whence);
+			console.log('->' + result);
+			return result;
 		});
 
 		sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, (fileId: number, offset: number, whence: number) => {
 			console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d)', fileId, offset, whence));
-			return this._seek(fileId, offset, whence);
+			var result = this._seek(fileId, offset, whence);
+			console.log('->' + result);
+			return result;
 		});
 
 		_seek(fileId: number, offset: number, whence: number) {
