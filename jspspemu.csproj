@@ -42,6 +42,7 @@
     <TypeScriptCompile Include="src\core\gpu\gpu_c2d.ts" />
     <TypeScriptCompile Include="src\core\gpu\gpu_webgl.ts" />
     <TypeScriptCompile Include="src\core\gpu\state.ts" />
+    <TypeScriptCompile Include="src\core\interruptmanager.ts" />
     <TypeScriptCompile Include="src\emulator.ts" />
     <TypeScriptCompile Include="src\format\cso.ts" />
     <TypeScriptCompile Include="src\format\format.ts" />
@@ -194,7 +195,7 @@
     <VisualStudio>
       <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
         <WebProjectProperties>
-          <UseIIS>True</UseIIS>
+          <UseIIS>False</UseIIS>
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>14027</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
