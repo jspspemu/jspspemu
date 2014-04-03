@@ -673,6 +673,16 @@ class BitUtils {
     }
 }
 
+interface Math {
+	trunc(value: number): number;
+}
+
+if (!Math.trunc) {
+	Math.trunc = function (x: number) {
+		return x < 0 ? Math.ceil(x) : Math.floor(x);
+	}
+}
+
 class MathFloat {
     private static floatArray = new Float32Array(1);
     private static intArray = new Int32Array(MathFloat.floatArray.buffer);
@@ -685,7 +695,12 @@ class MathFloat {
     static reinterpretIntAsFloat(integerValue: number) {
         MathFloat.intArray[0] = integerValue;
         return MathFloat.floatArray[0];
-    }
+	}
+
+	static trunc(value: number) {
+		if (!isFinite(value)) return 2147483647;
+		return Math.trunc(value);
+	}
 
     static round(value: number) {
         return Math.round(value);

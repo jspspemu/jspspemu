@@ -16,7 +16,7 @@
         var context = new EmulatorContext();
 		var moduleManager = new hle.ModuleManager(context);
 
-		context.init(display, null, null, memoryManager, null, null, memory, null, null);
+		context.init(null, display, null, null, memoryManager, null, null, memory, null, null);
 
         var elf = new hle.elf.PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);

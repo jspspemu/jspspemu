@@ -2,6 +2,7 @@
 	public context: EmulatorContext;
 	private memory: core.Memory;
 	private memoryManager: hle.MemoryManager;
+	private interruptManager: core.InterruptManager;
 	private fileManager: hle.FileManager;
 	private audio: core.PspAudio;
 	private canvas: HTMLCanvasElement;
@@ -48,13 +49,14 @@
 			this.fileManager = new hle.FileManager();
 			this.threadManager = new hle.ThreadManager(this.memory, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new hle.ModuleManager(this.context);
+			this.interruptManager = new core.InterruptManager();
 
 			this.fileManager.mount('ms0', this.ms0Vfs = new hle.vfs.MountableVfs());
 			this.fileManager.mount('host0', new hle.vfs.MemoryVfs());
 
 			hle.ModuleManagerSyscalls.registerSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager);
 
 			return Promise.all([
 				this.display.startAsync(),

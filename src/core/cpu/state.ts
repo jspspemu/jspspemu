@@ -38,10 +38,11 @@
 		}
 
 		fcr31_rm: number = 0;
+		fcr31_2_21: number = 0;
+		fcr31_25_7: number = 0;
 		fcr31_cc: boolean = false;
 		fcr31_fs: boolean = false;
-		fcr0_imp = 0;
-		fcr0_rev = 0;
+		fcr0 = 0x00003351;
 
 		_trace_state() {
 			console.info(this);
@@ -51,20 +52,23 @@
 		get fcr31() {
 			var value = 0;
 			value = BitUtils.insert(value, 0, 2, this.fcr31_rm);
+			value = BitUtils.insert(value, 2, 21, this.fcr31_2_21);
 			value = BitUtils.insert(value, 23, 1, this.fcr31_cc ? 1 : 0);
 			value = BitUtils.insert(value, 24, 1, this.fcr31_fs ? 1 : 0);
+			value = BitUtils.insert(value, 25, 7, this.fcr31_25_7);
 			return value;
 		}
-
+		
 		set fcr31(value: number) {
 			this.fcr31_rm = BitUtils.extract(value, 0, 2);
+			this.fcr31_2_21 = BitUtils.extract(value, 2, 21);
 			this.fcr31_cc = (BitUtils.extract(value, 23, 1) != 0);
 			this.fcr31_fs = (BitUtils.extract(value, 24, 1) != 0);
+			this.fcr31_25_7 = BitUtils.extract(value, 25, 7);
 		}
 
-		get fcr0() {
-			return (this.fcr0_imp << 8) | (this.fcr0_rev);
-		}
+		get fcr0_rev() { return BitUtils.extract(this.fcr0, 0, 8); }
+		get fcr0_imp() { return BitUtils.extract(this.fcr0, 8, 24); }
 
 		_cfc1_impl(d: number, t: number) {
 			switch (d) {
@@ -111,7 +115,6 @@
 
 
 		syscall(id: number) { this.syscallManager.call(this, id); }
-		break() { throw (new CpuBreakException()); }
 		sb(value: number, address: number) { this.memory.writeInt8(address, value); }
 		sh(value: number, address: number) { this.memory.writeInt16(address, value); }
 		sw(value: number, address: number) { this.memory.writeInt32(address, value); }
@@ -236,8 +239,6 @@
 			this.LO = result.low;
 		}
 
-		break() {
-			console.log('break!');
-		}
+		break() { throw (new CpuBreakException()); }
 	}
 }

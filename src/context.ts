@@ -9,11 +9,13 @@
 	instructionCache: InstructionCache;
 	fileManager: hle.FileManager;
 	output: string = '';
+	interruptManager: core.InterruptManager;
 
 	constructor() {
 	}
 
-	init(display: core.IPspDisplay, controller: core.IPspController, gpu: core.gpu.IPspGpu, memoryManager: hle.MemoryManager, threadManager: hle.ThreadManager, audio: core.PspAudio, memory: core.Memory, instructionCache: InstructionCache, fileManager: hle.FileManager) {
+	init(interruptManager: core.InterruptManager, display: core.IPspDisplay, controller: core.IPspController, gpu: core.gpu.IPspGpu, memoryManager: hle.MemoryManager, threadManager: hle.ThreadManager, audio: core.PspAudio, memory: core.Memory, instructionCache: InstructionCache, fileManager: hle.FileManager) {
+		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;
 		this.gpu = gpu;

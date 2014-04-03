@@ -365,7 +365,8 @@ var EmulatorContext = (function () {
     function EmulatorContext() {
         this.output = '';
     }
-    EmulatorContext.prototype.init = function (display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager) {
+        this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
         this.gpu = gpu;
@@ -1284,6 +1285,12 @@ var BitUtils = (function () {
     return BitUtils;
 })();
 
+if (!Math.trunc) {
+    Math.trunc = function (x) {
+        return x < 0 ? Math.ceil(x) : Math.floor(x);
+    };
+}
+
 var MathFloat = (function () {
     function MathFloat() {
     }
@@ -1295,6 +1302,12 @@ var MathFloat = (function () {
     MathFloat.reinterpretIntAsFloat = function (integerValue) {
         MathFloat.intArray[0] = integerValue;
         return MathFloat.floatArray[0];
+    };
+
+    MathFloat.trunc = function (value) {
+        if (!isFinite(value))
+            return 2147483647;
+        return Math.trunc(value);
     };
 
     MathFloat.round = function (value) {
@@ -2544,7 +2557,7 @@ var core;
                 };
 
                 InstructionAst.prototype["trunc.w.s"] = function (i) {
-                    return assignFpr_I(i.fd, call('MathFloat.cast', [fpr(i.fs)]));
+                    return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)]));
                 };
                 InstructionAst.prototype["round.w.s"] = function (i) {
                     return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)]));
@@ -3568,10 +3581,11 @@ var core;
                 this.IC = 0;
                 this.thread = null;
                 this.fcr31_rm = 0;
+                this.fcr31_2_21 = 0;
+                this.fcr31_25_7 = 0;
                 this.fcr31_cc = false;
                 this.fcr31_fs = false;
-                this.fcr0_imp = 0;
-                this.fcr0_rev = 0;
+                this.fcr0 = 0x00003351;
                 this.fcr0 = 0x00003351;
                 this.fcr31 = 0x00000e00;
             }
@@ -3674,23 +3688,34 @@ var core;
                 get: function () {
                     var value = 0;
                     value = BitUtils.insert(value, 0, 2, this.fcr31_rm);
+                    value = BitUtils.insert(value, 2, 21, this.fcr31_2_21);
                     value = BitUtils.insert(value, 23, 1, this.fcr31_cc ? 1 : 0);
                     value = BitUtils.insert(value, 24, 1, this.fcr31_fs ? 1 : 0);
+                    value = BitUtils.insert(value, 25, 7, this.fcr31_25_7);
                     return value;
                 },
                 set: function (value) {
                     this.fcr31_rm = BitUtils.extract(value, 0, 2);
+                    this.fcr31_2_21 = BitUtils.extract(value, 2, 21);
                     this.fcr31_cc = (BitUtils.extract(value, 23, 1) != 0);
                     this.fcr31_fs = (BitUtils.extract(value, 24, 1) != 0);
+                    this.fcr31_25_7 = BitUtils.extract(value, 25, 7);
                 },
                 enumerable: true,
                 configurable: true
             });
 
 
-            Object.defineProperty(CpuState.prototype, "fcr0", {
+            Object.defineProperty(CpuState.prototype, "fcr0_rev", {
                 get: function () {
-                    return (this.fcr0_imp << 8) | (this.fcr0_rev);
+                    return BitUtils.extract(this.fcr0, 0, 8);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(CpuState.prototype, "fcr0_imp", {
+                get: function () {
+                    return BitUtils.extract(this.fcr0, 8, 24);
                 },
                 enumerable: true,
                 configurable: true
@@ -3750,9 +3775,6 @@ var core;
 
             CpuState.prototype.syscall = function (id) {
                 this.syscallManager.call(this, id);
-            };
-            CpuState.prototype.break = function () {
-                throw (new CpuBreakException());
             };
             CpuState.prototype.sb = function (value, address) {
                 this.memory.writeInt8(address, value);
@@ -3894,7 +3916,7 @@ var core;
             };
 
             CpuState.prototype.break = function () {
-                console.log('break!');
+                throw (new CpuBreakException());
             };
             CpuState.LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
             CpuState.LwrShift = [0, 8, 16, 24];
@@ -5684,7 +5706,7 @@ var core;
             function VertexBuffer() {
                 this.vertices = [];
                 for (var n = 0; n < 1024; n++)
-                    this.vertices[n] = new core.gpu.Vertex();
+                    this.vertices[n] = new gpu.Vertex();
             }
             return VertexBuffer;
         })();
@@ -5803,7 +5825,7 @@ var core;
                 this.drawDriver = drawDriver;
                 this.runner = runner;
                 this.completed = false;
-                this.state = new core.gpu.GpuState();
+                this.state = new gpu.GpuState();
                 this.errorCount = 0;
             }
             PspGpuList.prototype.complete = function () {
@@ -6081,7 +6103,7 @@ var core;
                                 console.error(sprintf('Stop showing gpu errors'));
                             }
                         } else {
-                            console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, core.gpu.GpuOpCodes[op]));
+                            console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, gpu.GpuOpCodes[op]));
                         }
                 }
 
@@ -6226,6 +6248,91 @@ var core;
         gpu.PspGpu = PspGpu;
     })(core.gpu || (core.gpu = {}));
     var gpu = core.gpu;
+})(core || (core = {}));
+var core;
+(function (core) {
+    var InterruptHandler = (function () {
+        function InterruptHandler() {
+            this.enabled = false;
+            this.address = 0;
+            this.argument = 0;
+        }
+        return InterruptHandler;
+    })();
+    core.InterruptHandler = InterruptHandler;
+
+    var InterruptHandlers = (function () {
+        function InterruptHandlers() {
+            this.handlers = {};
+        }
+        InterruptHandlers.prototype.get = function (handlerIndex) {
+            if (!this.handlers[handlerIndex])
+                this.handlers[handlerIndex] = new InterruptHandler();
+            return this.handlers[handlerIndex];
+        };
+
+        InterruptHandlers.prototype.has = function (handlerIndex) {
+            return (this.handlers[handlerIndex] !== undefined);
+        };
+        return InterruptHandlers;
+    })();
+    core.InterruptHandlers = InterruptHandlers;
+
+    var InterruptManager = (function () {
+        function InterruptManager() {
+            this.enabled = true;
+            this.flags = 0xFFFFFFFF;
+            this.interruptHandlers = {};
+        }
+        InterruptManager.prototype.suspend = function () {
+            var currentFlags = this.flags;
+            this.flags = 0;
+            return currentFlags;
+        };
+
+        InterruptManager.prototype.resume = function (value) {
+            this.flags = value;
+        };
+
+        InterruptManager.prototype.get = function (pspInterrupt) {
+            if (!this.interruptHandlers[pspInterrupt])
+                this.interruptHandlers[pspInterrupt] = new InterruptHandlers();
+            return this.interruptHandlers[pspInterrupt];
+        };
+        return InterruptManager;
+    })();
+    core.InterruptManager = InterruptManager;
+
+    (function (PspInterrupts) {
+        PspInterrupts[PspInterrupts["PSP_GPIO_INT"] = 4] = "PSP_GPIO_INT";
+        PspInterrupts[PspInterrupts["PSP_ATA_INT"] = 5] = "PSP_ATA_INT";
+        PspInterrupts[PspInterrupts["PSP_UMD_INT"] = 6] = "PSP_UMD_INT";
+        PspInterrupts[PspInterrupts["PSP_MSCM0_INT"] = 7] = "PSP_MSCM0_INT";
+        PspInterrupts[PspInterrupts["PSP_WLAN_INT"] = 8] = "PSP_WLAN_INT";
+        PspInterrupts[PspInterrupts["PSP_AUDIO_INT"] = 10] = "PSP_AUDIO_INT";
+        PspInterrupts[PspInterrupts["PSP_I2C_INT"] = 12] = "PSP_I2C_INT";
+        PspInterrupts[PspInterrupts["PSP_SIRCS_INT"] = 14] = "PSP_SIRCS_INT";
+        PspInterrupts[PspInterrupts["PSP_SYSTIMER0_INT"] = 15] = "PSP_SYSTIMER0_INT";
+        PspInterrupts[PspInterrupts["PSP_SYSTIMER1_INT"] = 16] = "PSP_SYSTIMER1_INT";
+        PspInterrupts[PspInterrupts["PSP_SYSTIMER2_INT"] = 17] = "PSP_SYSTIMER2_INT";
+        PspInterrupts[PspInterrupts["PSP_SYSTIMER3_INT"] = 18] = "PSP_SYSTIMER3_INT";
+        PspInterrupts[PspInterrupts["PSP_THREAD0_INT"] = 19] = "PSP_THREAD0_INT";
+        PspInterrupts[PspInterrupts["PSP_NAND_INT"] = 20] = "PSP_NAND_INT";
+        PspInterrupts[PspInterrupts["PSP_DMACPLUS_INT"] = 21] = "PSP_DMACPLUS_INT";
+        PspInterrupts[PspInterrupts["PSP_DMA0_INT"] = 22] = "PSP_DMA0_INT";
+        PspInterrupts[PspInterrupts["PSP_DMA1_INT"] = 23] = "PSP_DMA1_INT";
+        PspInterrupts[PspInterrupts["PSP_MEMLMD_INT"] = 24] = "PSP_MEMLMD_INT";
+        PspInterrupts[PspInterrupts["PSP_GE_INT"] = 25] = "PSP_GE_INT";
+        PspInterrupts[PspInterrupts["PSP_VBLANK_INT"] = 30] = "PSP_VBLANK_INT";
+        PspInterrupts[PspInterrupts["PSP_MECODEC_INT"] = 31] = "PSP_MECODEC_INT";
+        PspInterrupts[PspInterrupts["PSP_HPREMOTE_INT"] = 36] = "PSP_HPREMOTE_INT";
+        PspInterrupts[PspInterrupts["PSP_MSCM1_INT"] = 60] = "PSP_MSCM1_INT";
+        PspInterrupts[PspInterrupts["PSP_MSCM2_INT"] = 61] = "PSP_MSCM2_INT";
+        PspInterrupts[PspInterrupts["PSP_THREAD1_INT"] = 65] = "PSP_THREAD1_INT";
+        PspInterrupts[PspInterrupts["PSP_INTERRUPT_INT"] = 66] = "PSP_INTERRUPT_INT";
+        PspInterrupts[PspInterrupts["PSP_NUMBER_INTERRUPTS"] = 67] = "PSP_NUMBER_INTERRUPTS";
+    })(core.PspInterrupts || (core.PspInterrupts = {}));
+    var PspInterrupts = core.PspInterrupts;
 })(core || (core = {}));
 ///<reference path="../util/utils.ts" />
 var core;
@@ -6481,13 +6588,14 @@ var Emulator = (function () {
             _this.fileManager = new hle.FileManager();
             _this.threadManager = new hle.ThreadManager(_this.memory, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new hle.ModuleManager(_this.context);
+            _this.interruptManager = new core.InterruptManager();
 
             _this.fileManager.mount('ms0', _this.ms0Vfs = new hle.vfs.MountableVfs());
             _this.fileManager.mount('host0', new hle.vfs.MemoryVfs());
 
             hle.ModuleManagerSyscalls.registerSyscalls(_this.syscallManager, _this.moduleManager);
 
-            _this.context.init(_this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager);
 
             return Promise.all([
                 _this.display.startAsync(),
@@ -8368,51 +8476,41 @@ var hle;
     (function (modules) {
         var InterruptManager = (function () {
             function InterruptManager(context) {
+                var _this = this;
                 this.context = context;
-                this.sceKernelRegisterSubIntrHandler = hle.modules.createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, function (pspInterrupt, handlerIndex, callbackAddress, callbackArgument) {
-                    console.warn('sceKernelRegisterSubIntrHandler');
+                this.sceKernelRegisterSubIntrHandler = modules.createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, function (interrupt, handlerIndex, callbackAddress, callbackArgument) {
+                    var interruptManager = _this.context.interruptManager;
+                    var itnerruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+                    itnerruptHandler.address = callbackAddress;
+                    itnerruptHandler.argument = callbackArgument;
+                    return 0;
                 });
-                this.sceKernelEnableSubIntr = hle.modules.createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
-                    console.warn('sceKernelEnableSubIntr');
+                this.sceKernelEnableSubIntr = modules.createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (interrupt, handlerIndex) {
+                    var interruptManager = _this.context.interruptManager;
+
+                    if (interrupt >= 67 /* PSP_NUMBER_INTERRUPTS */)
+                        return -1;
+                    if (!interruptManager.get(interrupt).has(handlerIndex))
+                        return -1;
+
+                    interruptManager.get(interrupt).get(handlerIndex).enabled = true;
+                    return 0;
                 });
-                this.sceKernelReleaseSubIntrHandler = hle.modules.createNativeFunction(0xD61E6961, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
-                    console.warn('sceKernelReleaseSubIntrHandler');
+                this.sceKernelReleaseSubIntrHandler = modules.createNativeFunction(0xD61E6961, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
+                    var interruptManager = _this.context.interruptManager;
+
+                    if (pspInterrupt >= 67 /* PSP_NUMBER_INTERRUPTS */)
+                        return -1;
+                    if (!interruptManager.get(pspInterrupt).has(handlerIndex))
+                        return -1;
+
+                    interruptManager.get(pspInterrupt).get(handlerIndex).enabled = false;
+                    return 0;
                 });
             }
             return InterruptManager;
         })();
         modules.InterruptManager = InterruptManager;
-
-        var PspInterrupts;
-        (function (PspInterrupts) {
-            PspInterrupts[PspInterrupts["PSP_GPIO_INT"] = 4] = "PSP_GPIO_INT";
-            PspInterrupts[PspInterrupts["PSP_ATA_INT"] = 5] = "PSP_ATA_INT";
-            PspInterrupts[PspInterrupts["PSP_UMD_INT"] = 6] = "PSP_UMD_INT";
-            PspInterrupts[PspInterrupts["PSP_MSCM0_INT"] = 7] = "PSP_MSCM0_INT";
-            PspInterrupts[PspInterrupts["PSP_WLAN_INT"] = 8] = "PSP_WLAN_INT";
-            PspInterrupts[PspInterrupts["PSP_AUDIO_INT"] = 10] = "PSP_AUDIO_INT";
-            PspInterrupts[PspInterrupts["PSP_I2C_INT"] = 12] = "PSP_I2C_INT";
-            PspInterrupts[PspInterrupts["PSP_SIRCS_INT"] = 14] = "PSP_SIRCS_INT";
-            PspInterrupts[PspInterrupts["PSP_SYSTIMER0_INT"] = 15] = "PSP_SYSTIMER0_INT";
-            PspInterrupts[PspInterrupts["PSP_SYSTIMER1_INT"] = 16] = "PSP_SYSTIMER1_INT";
-            PspInterrupts[PspInterrupts["PSP_SYSTIMER2_INT"] = 17] = "PSP_SYSTIMER2_INT";
-            PspInterrupts[PspInterrupts["PSP_SYSTIMER3_INT"] = 18] = "PSP_SYSTIMER3_INT";
-            PspInterrupts[PspInterrupts["PSP_THREAD0_INT"] = 19] = "PSP_THREAD0_INT";
-            PspInterrupts[PspInterrupts["PSP_NAND_INT"] = 20] = "PSP_NAND_INT";
-            PspInterrupts[PspInterrupts["PSP_DMACPLUS_INT"] = 21] = "PSP_DMACPLUS_INT";
-            PspInterrupts[PspInterrupts["PSP_DMA0_INT"] = 22] = "PSP_DMA0_INT";
-            PspInterrupts[PspInterrupts["PSP_DMA1_INT"] = 23] = "PSP_DMA1_INT";
-            PspInterrupts[PspInterrupts["PSP_MEMLMD_INT"] = 24] = "PSP_MEMLMD_INT";
-            PspInterrupts[PspInterrupts["PSP_GE_INT"] = 25] = "PSP_GE_INT";
-            PspInterrupts[PspInterrupts["PSP_VBLANK_INT"] = 30] = "PSP_VBLANK_INT";
-            PspInterrupts[PspInterrupts["PSP_MECODEC_INT"] = 31] = "PSP_MECODEC_INT";
-            PspInterrupts[PspInterrupts["PSP_HPREMOTE_INT"] = 36] = "PSP_HPREMOTE_INT";
-            PspInterrupts[PspInterrupts["PSP_MSCM1_INT"] = 60] = "PSP_MSCM1_INT";
-            PspInterrupts[PspInterrupts["PSP_MSCM2_INT"] = 61] = "PSP_MSCM2_INT";
-            PspInterrupts[PspInterrupts["PSP_THREAD1_INT"] = 65] = "PSP_THREAD1_INT";
-            PspInterrupts[PspInterrupts["PSP_INTERRUPT_INT"] = 66] = "PSP_INTERRUPT_INT";
-            PspInterrupts[PspInterrupts["_MAX"] = 67] = "_MAX";
-        })(PspInterrupts || (PspInterrupts = {}));
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -8423,7 +8521,7 @@ var hle;
             function IoFileMgrForUser(context) {
                 var _this = this;
                 this.context = context;
-                this.sceIoDevctl = hle.modules.createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, function (deviceName, command, inputPointer, inputLength, outputPointer, outputLength) {
+                this.sceIoDevctl = modules.createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, function (deviceName, command, inputPointer, inputLength, outputPointer, outputLength) {
                     var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
                     var output = _this.context.memory.getPointerStream(outputPointer, outputLength);
 
@@ -8450,16 +8548,16 @@ var hle;
                     console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoDevctl("%s", %d, %08X, %d, %08X, %d)', deviceName, command, inputPointer, inputLength, outputPointer, outputLength));
                     return 0;
                 });
-                this.sceIoDopen = hle.modules.createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (directoryPath) {
+                this.sceIoDopen = modules.createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (directoryPath) {
                     console.warn('Not implemented IoFileMgrForUser.sceIoDopen("' + directoryPath + '")');
                     return 0;
                 });
-                this.sceIoDclose = hle.modules.createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
+                this.sceIoDclose = modules.createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
                     console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
                     return 0;
                 });
                 this.fileUids = new UidCollection(1);
-                this.sceIoOpen = hle.modules.createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
+                this.sceIoOpen = modules.createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
                     console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
                     return _this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
                         return _this.fileUids.allocate(file);
@@ -8467,7 +8565,7 @@ var hle;
                         return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
                     });
                 });
-                this.sceIoClose = hle.modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
+                this.sceIoClose = modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
                     var file = _this.fileUids.get(fileId);
                     file.close();
 
@@ -8475,14 +8573,14 @@ var hle;
 
                     return 0;
                 });
-                this.sceIoWrite = hle.modules.createNativeFunction(0x42EC03AC, 150, 'int', 'int/uint/int', this, function (fileId, inputPointer, inputLength) {
+                this.sceIoWrite = modules.createNativeFunction(0x42EC03AC, 150, 'int', 'int/uint/int', this, function (fileId, inputPointer, inputLength) {
                     var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
 
                     //console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite("%s")', input.readString(input.length)));
                     //console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite(%d, 0x%08X, %d)', fileId, inputPointer, inputLength));
                     return inputLength;
                 });
-                this.sceIoRead = hle.modules.createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
+                this.sceIoRead = modules.createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
                     console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %d)', fileId, outputLength));
 
                     var file = _this.fileUids.get(fileId);
@@ -8493,22 +8591,22 @@ var hle;
                         return readedData.byteLength;
                     });
                 });
-                this.sceIoGetstat = hle.modules.createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
+                this.sceIoGetstat = modules.createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
                     SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
                     return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
                 });
-                this.sceIoChdir = hle.modules.createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
+                this.sceIoChdir = modules.createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
                     console.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
                     _this.context.fileManager.chdir(path);
                     return 0;
                 });
-                this.sceIoLseek = hle.modules.createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
+                this.sceIoLseek = modules.createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
                     console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d)', fileId, offset, whence));
                     var result = _this._seek(fileId, offset, whence);
                     console.log('->' + result);
                     return result;
                 });
-                this.sceIoLseek32 = hle.modules.createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
+                this.sceIoLseek32 = modules.createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
                     console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d)', fileId, offset, whence));
                     var result = _this._seek(fileId, offset, whence);
                     console.log('->' + result);
@@ -8620,13 +8718,13 @@ var hle;
     (function (modules) {
         var Kernel_Library = (function () {
             function Kernel_Library(context) {
+                var _this = this;
                 this.context = context;
-                this.sceKernelCpuSuspendIntr = hle.modules.createNativeFunction(0x092968F4, 150, 'uint', '', this, function () {
-                    console.warn(sprintf("sceKernelCpuSuspendIntr not implemented"));
-                    return 0;
+                this.sceKernelCpuSuspendIntr = modules.createNativeFunction(0x092968F4, 150, 'uint', '', this, function () {
+                    return _this.context.interruptManager.suspend();
                 });
-                this.sceKernelCpuResumeIntr = hle.modules.createNativeFunction(0x5F10D406, 150, 'uint', '', this, function (flags) {
-                    console.warn(sprintf("sceKernelCpuResumeIntr not implemented"));
+                this.sceKernelCpuResumeIntr = modules.createNativeFunction(0x5F10D406, 150, 'uint', '', this, function (flags) {
+                    _this.context.interruptManager.resume(flags);
                     return 0;
                 });
             }
@@ -8656,20 +8754,20 @@ var hle;
             function LoadExecForUser(context) {
                 var _this = this;
                 this.context = context;
-                this.sceKernelExitGame = hle.modules.createNativeFunction(0xBD2F1094, 150, 'uint', 'HleThread', this, function (thread) {
+                this.sceKernelExitGame = modules.createNativeFunction(0xBD2F1094, 150, 'uint', 'HleThread', this, function (thread) {
                     console.info('sceKernelExitGame');
                     thread.stop();
                     _this.context.threadManager.exitGame();
                     throw (new CpuBreakException());
                     return 0;
                 });
-                this.sceKernelExitGame2 = hle.modules.createNativeFunction(0x05572A5F, 150, 'uint', 'HleThread', this, function (thread) {
+                this.sceKernelExitGame2 = modules.createNativeFunction(0x05572A5F, 150, 'uint', 'HleThread', this, function (thread) {
                     console.info('sceKernelExitGame2');
                     _this.context.threadManager.exitGame();
                     thread.stop();
                     throw (new CpuBreakException());
                 });
-                this.sceKernelRegisterExitCallback = hle.modules.createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
+                this.sceKernelRegisterExitCallback = modules.createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
                     console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
                     return 0;
                 });
@@ -8686,19 +8784,19 @@ var hle;
         var ModuleMgrForUser = (function () {
             function ModuleMgrForUser(context) {
                 this.context = context;
-                this.sceKernelSelfStopUnloadModule = hle.modules.createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int', this, function (unknown, argsize, argp) {
+                this.sceKernelSelfStopUnloadModule = modules.createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int', this, function (unknown, argsize, argp) {
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
                     return 0;
                 });
-                this.sceKernelLoadModule = hle.modules.createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, function (path, flags, sceKernelLMOption) {
+                this.sceKernelLoadModule = modules.createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, function (path, flags, sceKernelLMOption) {
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule(%s, %d)', path, flags));
                     return 0;
                 });
-                this.sceKernelStartModule = hle.modules.createNativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*', this, function (moduleId, argumentSize, argumentPointer, status, sceKernelSMOption) {
+                this.sceKernelStartModule = modules.createNativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*', this, function (moduleId, argumentSize, argumentPointer, status, sceKernelSMOption) {
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
                     return 0;
                 });
-                this.sceKernelGetModuleIdByAddress = hle.modules.createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, function (address) {
+                this.sceKernelGetModuleIdByAddress = modules.createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, function (address) {
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
                     return -1;
                 });
@@ -8715,48 +8813,48 @@ var hle;
         var sceAtrac3plus = (function () {
             function sceAtrac3plus(context) {
                 this.context = context;
-                this.sceAtracSetDataAndGetID = hle.modules.createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, function (dataPointer, dataLength) {
+                this.sceAtracSetDataAndGetID = modules.createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, function (dataPointer, dataLength) {
                     return 0;
                 });
-                this.sceAtracGetSecondBufferInfo = hle.modules.createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
+                this.sceAtracGetSecondBufferInfo = modules.createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
                     puiPosition.writeInt32(0);
                     puiDataByte.writeInt32(0);
                     return 0;
                 });
-                this.sceAtracSetSecondBuffer = hle.modules.createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
+                this.sceAtracSetSecondBuffer = modules.createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
                     return 0;
                 });
-                this.sceAtracReleaseAtracID = hle.modules.createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
+                this.sceAtracReleaseAtracID = modules.createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
                     return 0;
                 });
-                this.sceAtracDecodeData = hle.modules.createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
+                this.sceAtracDecodeData = modules.createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
                     return 0;
                 });
-                this.sceAtracGetRemainFrame = hle.modules.createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
+                this.sceAtracGetRemainFrame = modules.createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
                     return 0;
                 });
-                this.sceAtracGetStreamDataInfo = hle.modules.createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
+                this.sceAtracGetStreamDataInfo = modules.createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
                     return 0;
                 });
-                this.sceAtracAddStreamData = hle.modules.createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
+                this.sceAtracAddStreamData = modules.createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
                     return 0;
                 });
-                this.sceAtracGetNextDecodePosition = hle.modules.createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
+                this.sceAtracGetNextDecodePosition = modules.createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
                     return 0;
                 });
-                this.sceAtracGetSoundSample = hle.modules.createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
+                this.sceAtracGetSoundSample = modules.createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
                     return 0;
                 });
-                this.sceAtracSetLoopNum = hle.modules.createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
+                this.sceAtracSetLoopNum = modules.createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
                     return 0;
                 });
-                this.sceAtracGetBufferInfoForReseting = hle.modules.createNativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*', this, function (id, uiSample, bufferInfoPtr) {
+                this.sceAtracGetBufferInfoForReseting = modules.createNativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*', this, function (id, uiSample, bufferInfoPtr) {
                     return 0;
                 });
-                this.sceAtracResetPlayPosition = hle.modules.createNativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint', this, function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
+                this.sceAtracResetPlayPosition = modules.createNativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint', this, function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
                     return 0;
                 });
-                this.sceAtracGetInternalErrorInfo = hle.modules.createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, function (id, errorResultPtr) {
+                this.sceAtracGetInternalErrorInfo = modules.createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, function (id, errorResultPtr) {
                     return 0;
                 });
             }
@@ -8790,7 +8888,7 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.channels = [];
-                this.sceAudioChReserve = hle.modules.createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
+                this.sceAudioChReserve = modules.createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
                     if (channelId >= _this.channels.length)
                         return -1;
                     if (channelId < 0) {
@@ -8812,40 +8910,40 @@ var hle;
                     channel.channel.start();
                     return channelId;
                 });
-                this.sceAudioChRelease = hle.modules.createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, function (channelId) {
+                this.sceAudioChRelease = modules.createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, function (channelId) {
                     var channel = _this.channels[channelId];
                     channel.allocated = false;
                     channel.channel.stop();
                     channel.channel = null;
                     return 0;
                 });
-                this.sceAudioChangeChannelConfig = hle.modules.createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
+                this.sceAudioChangeChannelConfig = modules.createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
                     var channel = _this.channels[channelId];
                     channel.format = format;
                     return 0;
                 });
-                this.sceAudioSetChannelDataLen = hle.modules.createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
+                this.sceAudioSetChannelDataLen = modules.createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
                     var channel = _this.channels[channelId];
                     channel.sampleCount = sampleCount;
                     return 0;
                 });
-                this.sceAudioOutputPannedBlocking = hle.modules.createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+                this.sceAudioOutputPannedBlocking = modules.createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
                     var channel = _this.channels[channelId];
                     return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
                 });
-                this.sceAudioOutputBlocking = hle.modules.createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
+                this.sceAudioOutputBlocking = modules.createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
                     var channel = _this.channels[channelId];
                     return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
                 });
-                this.sceAudioOutputPanned = hle.modules.createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+                this.sceAudioOutputPanned = modules.createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
                     var channel = _this.channels[channelId];
                     return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
                 });
-                this.sceAudioChangeChannelVolume = hle.modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
+                this.sceAudioChangeChannelVolume = modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
                     console.warn("Not implemented sceAudioChangeChannelVolume");
                     return 0;
                 });
-                this.sceAudioGetChannelRestLen = hle.modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int', this, function (channelId) {
+                this.sceAudioGetChannelRestLen = modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int', this, function (channelId) {
                     console.warn("Not implemented sceAudioGetChannelRestLen");
                     return 0;
                 });
@@ -8865,20 +8963,20 @@ var hle;
             function sceCtrl(context) {
                 var _this = this;
                 this.context = context;
-                this.sceCtrlPeekBufferPositive = hle.modules.createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, function (sceCtrlDataPtr, count) {
+                this.sceCtrlPeekBufferPositive = modules.createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, function (sceCtrlDataPtr, count) {
                     core.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
                     return 0;
                 });
-                this.sceCtrlReadBufferPositive = hle.modules.createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, function (state, sceCtrlDataPtr, count) {
+                this.sceCtrlReadBufferPositive = modules.createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, function (state, sceCtrlDataPtr, count) {
                     core.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
 
                     return _this.context.display.waitVblankAsync();
                 });
-                this.sceCtrlSetSamplingCycle = hle.modules.createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
+                this.sceCtrlSetSamplingCycle = modules.createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
                     console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
                     return 0;
                 });
-                this.sceCtrlSetSamplingMode = hle.modules.createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, function (samplingMode) {
+                this.sceCtrlSetSamplingMode = modules.createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, function (samplingMode) {
                     console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
                     return 0;
                 });
@@ -8896,26 +8994,26 @@ var hle;
             function sceDisplay(context) {
                 var _this = this;
                 this.context = context;
-                this.sceDisplaySetMode = hle.modules.createNativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint', this, function (mode, width, height) {
+                this.sceDisplaySetMode = modules.createNativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint', this, function (mode, width, height) {
                     console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
                     return 0;
                 });
-                this.sceDisplayWaitVblank = hle.modules.createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, function (cycleNum) {
+                this.sceDisplayWaitVblank = modules.createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, function (cycleNum) {
                     return _this.context.display.waitVblankAsync();
                 });
-                this.sceDisplayWaitVblankCB = hle.modules.createNativeFunction(0x8EB9EC49, 150, 'uint', 'int', this, function (cycleNum) {
+                this.sceDisplayWaitVblankCB = modules.createNativeFunction(0x8EB9EC49, 150, 'uint', 'int', this, function (cycleNum) {
                     return _this.context.display.waitVblankAsync();
                 });
-                this.sceDisplayWaitVblankStart = hle.modules.createNativeFunction(0x984C27E7, 150, 'uint', '', this, function () {
+                this.sceDisplayWaitVblankStart = modules.createNativeFunction(0x984C27E7, 150, 'uint', '', this, function () {
                     return _this.context.display.waitVblankAsync();
                 });
-                this.sceDisplayGetVcount = hle.modules.createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
+                this.sceDisplayGetVcount = modules.createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
                     return _this.context.display.vblankCount;
                 });
-                this.sceDisplayWaitVblankStartCB = hle.modules.createNativeFunction(0x46F186C3, 150, 'uint', '', this, function () {
+                this.sceDisplayWaitVblankStartCB = modules.createNativeFunction(0x46F186C3, 150, 'uint', '', this, function () {
                     return _this.context.display.waitVblankAsync();
                 });
-                this.sceDisplaySetFrameBuf = hle.modules.createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
+                this.sceDisplaySetFrameBuf = modules.createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
                     _this.context.display.address = address;
                     _this.context.display.bufferWidth = bufferWidth;
                     _this.context.display.pixelFormat = pixelFormat;
@@ -8936,10 +9034,10 @@ var hle;
             function sceDmac(context) {
                 var _this = this;
                 this.context = context;
-                this.sceDmacMemcpy = hle.modules.createNativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
+                this.sceDmacMemcpy = modules.createNativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
                     return _this._sceDmacMemcpy(destination, source, size);
                 });
-                this.sceDmacTryMemcpy = hle.modules.createNativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
+                this.sceDmacTryMemcpy = modules.createNativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
                     return _this._sceDmacMemcpy(destination, source, size);
                 });
             }
@@ -8968,29 +9066,29 @@ var hle;
             function sceGe_user(context) {
                 var _this = this;
                 this.context = context;
-                this.sceGeEdramGetAddr = hle.modules.createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
+                this.sceGeEdramGetAddr = modules.createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
                     return 0x04000000;
                 });
-                this.sceGeSetCallback = hle.modules.createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, function (callbackDataPtr) {
+                this.sceGeSetCallback = modules.createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, function (callbackDataPtr) {
                     //console.warn('Not implemented sceGe_user.sceGeSetCallback');
                     return 0;
                 });
-                this.sceGeUnsetCallback = hle.modules.createNativeFunction(0x05DB22CE, 150, 'uint', 'int', this, function (callbackId) {
+                this.sceGeUnsetCallback = modules.createNativeFunction(0x05DB22CE, 150, 'uint', 'int', this, function (callbackId) {
                     //console.warn('Not implemented sceGe_user.sceGeSetCallback');
                     return 0;
                 });
-                this.sceGeListEnQueue = hle.modules.createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, function (start, stall, callbackId, argsPtr) {
+                this.sceGeListEnQueue = modules.createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, function (start, stall, callbackId, argsPtr) {
                     return _this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
                 });
-                this.sceGeListSync = hle.modules.createNativeFunction(0x03444EB4, 150, 'uint', 'int/int', this, function (displayListId, syncType) {
+                this.sceGeListSync = modules.createNativeFunction(0x03444EB4, 150, 'uint', 'int/int', this, function (displayListId, syncType) {
                     //console.warn('Not implemented sceGe_user.sceGeListSync');
                     return _this.context.gpu.listSync(displayListId, syncType);
                 });
-                this.sceGeListUpdateStallAddr = hle.modules.createNativeFunction(0xE0D68148, 150, 'uint', 'int/int', this, function (displayListId, stall) {
+                this.sceGeListUpdateStallAddr = modules.createNativeFunction(0xE0D68148, 150, 'uint', 'int/int', this, function (displayListId, stall) {
                     //console.warn('Not implemented sceGe_user.sceGeListUpdateStallAddr');
                     return _this.context.gpu.updateStallAddr(displayListId, stall);
                 });
-                this.sceGeDrawSync = hle.modules.createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
+                this.sceGeDrawSync = modules.createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
                     //console.warn('Not implemented sceGe_user.sceGeDrawSync');
                     return _this.context.gpu.drawSync(syncType);
                 });
@@ -9033,7 +9131,7 @@ var hle;
         var sceImpose = (function () {
             function sceImpose(context) {
                 this.context = context;
-                this.sceImposeGetBatteryIconStatus = hle.modules.createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, function (isChargingPointer, iconStatusPointer) {
+                this.sceImposeGetBatteryIconStatus = modules.createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, function (isChargingPointer, iconStatusPointer) {
                     isChargingPointer.writeInt32(0);
                     iconStatusPointer.writeInt32(0);
                     return 0;
@@ -9235,10 +9333,10 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.cpuFreq = 222;
-                this.scePowerGetCpuClockFrequencyInt = hle.modules.createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () {
+                this.scePowerGetCpuClockFrequencyInt = modules.createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () {
                     return _this.cpuFreq;
                 });
-                this.scePowerRegisterCallback = hle.modules.createNativeFunction(0x04B7766E, 150, 'int', '', this, function (slotIndex, callbackId) {
+                this.scePowerRegisterCallback = modules.createNativeFunction(0x04B7766E, 150, 'int', '', this, function (slotIndex, callbackId) {
                     console.warn("Not implemented scePowerRegisterCallback");
                     return 0;
                 });
@@ -9268,24 +9366,24 @@ var hle;
         var sceRtc = (function () {
             function sceRtc(context) {
                 this.context = context;
-                this.sceRtcGetCurrentTick = hle.modules.createNativeFunction(0x3F7AD767, 150, 'int', 'void*', this, function (tickPtr) {
+                this.sceRtcGetCurrentTick = modules.createNativeFunction(0x3F7AD767, 150, 'int', 'void*', this, function (tickPtr) {
                     tickPtr.writeInt32(new Date().getTime());
                     tickPtr.writeInt32(0);
                     return 0;
                 });
-                this.sceRtcGetDayOfWeek = hle.modules.createNativeFunction(0x57726BC1, 150, 'int', 'int/int/int', this, function (year, month, day) {
+                this.sceRtcGetDayOfWeek = modules.createNativeFunction(0x57726BC1, 150, 'int', 'int/int/int', this, function (year, month, day) {
                     return new Date(year, month, day).getDay();
                 });
-                this.sceRtcGetDaysInMonth = hle.modules.createNativeFunction(0x05EF322C, 150, 'int', 'int/int', this, function (year, month) {
+                this.sceRtcGetDaysInMonth = modules.createNativeFunction(0x05EF322C, 150, 'int', 'int/int', this, function (year, month) {
                     return new Date(year, month, 0).getDate();
                 });
-                this.sceRtcGetTickResolution = hle.modules.createNativeFunction(0xC41C2853, 150, 'uint', '', this, function (tickPtr) {
+                this.sceRtcGetTickResolution = modules.createNativeFunction(0xC41C2853, 150, 'uint', '', this, function (tickPtr) {
                     return 1000000;
                 });
-                this.sceRtcSetTick = hle.modules.createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, function (date, ticks) {
+                this.sceRtcSetTick = modules.createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, function (date, ticks) {
                     throw (new TypeError("Not implemented sceRtcSetTick"));
                 });
-                this.sceRtcGetTick = hle.modules.createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, function (date, ticks) {
+                this.sceRtcGetTick = modules.createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, function (date, ticks) {
                     throw (new TypeError("Not implemented sceRtcGetTick"));
                 });
             }
@@ -9327,12 +9425,12 @@ var hle;
         var sceSuspendForUser = (function () {
             function sceSuspendForUser(context) {
                 this.context = context;
-                this.sceKernelPowerLock = hle.modules.createNativeFunction(0xEADB1BD7, 150, 'uint', 'uint', this, function (lockType) {
+                this.sceKernelPowerLock = modules.createNativeFunction(0xEADB1BD7, 150, 'uint', 'uint', this, function (lockType) {
                     if (lockType != 0)
                         return 2147483911 /* ERROR_INVALID_MODE */;
                     return 0;
                 });
-                this.sceKernelPowerUnlock = hle.modules.createNativeFunction(0x3AEE7261, 150, 'uint', 'uint', this, function (lockType) {
+                this.sceKernelPowerUnlock = modules.createNativeFunction(0x3AEE7261, 150, 'uint', 'uint', this, function (lockType) {
                     if (lockType != 0)
                         return 2147483911 /* ERROR_INVALID_MODE */;
                     return 0;
@@ -9350,29 +9448,29 @@ var hle;
         var sceUmdUser = (function () {
             function sceUmdUser(context) {
                 this.context = context;
-                this.sceUmdRegisterUMDCallBack = hle.modules.createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, function (callbackId) {
+                this.sceUmdRegisterUMDCallBack = modules.createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, function (callbackId) {
                     console.warn('Not implemented sceUmdRegisterUMDCallBack');
                     return 0;
                 });
-                this.sceUmdCheckMedium = hle.modules.createNativeFunction(0x46EBB729, 150, 'uint', '', this, function () {
+                this.sceUmdCheckMedium = modules.createNativeFunction(0x46EBB729, 150, 'uint', '', this, function () {
                     return 1 /* Inserted */;
                 });
-                this.sceUmdWaitDriveStat = hle.modules.createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, function (pspUmdState) {
+                this.sceUmdWaitDriveStat = modules.createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, function (pspUmdState) {
                     console.warn('Not implemented sceUmdWaitDriveStat');
                     return 0;
                 });
-                this.sceUmdWaitDriveStatCB = hle.modules.createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint', this, function (pspUmdState, timeout) {
+                this.sceUmdWaitDriveStatCB = modules.createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint', this, function (pspUmdState, timeout) {
                     console.warn('Not implemented sceUmdWaitDriveStatCB');
                     return 0;
                 });
-                this.sceUmdActivate = hle.modules.createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, function (mode, drive) {
+                this.sceUmdActivate = modules.createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, function (mode, drive) {
                     console.warn('Not implemented sceUmdActivate');
                     return 0;
                 });
-                this.sceUmdGetDriveStat = hle.modules.createNativeFunction(0x6B4A146C, 150, 'uint', '', this, function () {
+                this.sceUmdGetDriveStat = modules.createNativeFunction(0x6B4A146C, 150, 'uint', '', this, function () {
                     return 2 /* PSP_UMD_PRESENT */ | 16 /* PSP_UMD_READY */ | 32 /* PSP_UMD_READABLE */;
                 });
-                this.sceUmdWaitDriveStatWithTimer = hle.modules.createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
+                this.sceUmdWaitDriveStatWithTimer = modules.createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
                     return Promise.resolve(0);
                 });
             }
@@ -9407,15 +9505,15 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.currentStep = 0 /* NONE */;
-                this.sceUtilitySavedataInitStart = hle.modules.createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
+                this.sceUtilitySavedataInitStart = modules.createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
                     _this.currentStep = 3 /* SUCCESS */;
                     return 0;
                 });
-                this.sceUtilitySavedataShutdownStart = hle.modules.createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
+                this.sceUtilitySavedataShutdownStart = modules.createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
                     _this.currentStep = 4 /* SHUTDOWN */;
                     return 0;
                 });
-                this.sceUtilitySavedataGetStatus = hle.modules.createNativeFunction(0x8874DBE0, 150, 'uint', '', this, function () {
+                this.sceUtilitySavedataGetStatus = modules.createNativeFunction(0x8874DBE0, 150, 'uint', '', this, function () {
                     try  {
                         return _this.currentStep;
                     } finally {
@@ -9471,13 +9569,13 @@ var hle;
         var StdioForUser = (function () {
             function StdioForUser(context) {
                 this.context = context;
-                this.sceKernelStdin = hle.modules.createNativeFunction(0x172D316E, 150, 'int', '', this, function () {
+                this.sceKernelStdin = modules.createNativeFunction(0x172D316E, 150, 'int', '', this, function () {
                     return 10000001;
                 });
-                this.sceKernelStdout = hle.modules.createNativeFunction(0xA6BAB2E9, 150, 'int', '', this, function () {
+                this.sceKernelStdout = modules.createNativeFunction(0xA6BAB2E9, 150, 'int', '', this, function () {
                     return 10000002;
                 });
-                this.sceKernelStderr = hle.modules.createNativeFunction(0xF78BA90A, 150, 'int', '', this, function () {
+                this.sceKernelStderr = modules.createNativeFunction(0xF78BA90A, 150, 'int', '', this, function () {
                     return 10000003;
                 });
             }
@@ -9495,37 +9593,37 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.blockUids = new UidCollection(1);
-                this.sceKernelAllocPartitionMemory = hle.modules.createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
+                this.sceKernelAllocPartitionMemory = modules.createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
                     var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
                     var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
                     console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:%s, type:%d, size:%d, address:%08X)", partitionId, name, anchor, size, address));
                     return _this.blockUids.allocate(allocatedPartition);
                 });
-                this.sceKernelFreePartitionMemory = hle.modules.createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (blockId) {
+                this.sceKernelFreePartitionMemory = modules.createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (blockId) {
                     var partition = _this.blockUids.get(blockId);
                     partition.deallocate();
                     _this.blockUids.remove(blockId);
                     return 0;
                 });
-                this.sceKernelGetBlockHeadAddr = hle.modules.createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, function (blockId) {
+                this.sceKernelGetBlockHeadAddr = modules.createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, function (blockId) {
                     var block = _this.blockUids.get(blockId);
                     return block.low;
                 });
                 /**
                 * Get the size of the largest free memory block.
                 */
-                this.sceKernelMaxFreeMemSize = hle.modules.createNativeFunction(0xA291F107, 150, 'int', '', this, function () {
+                this.sceKernelMaxFreeMemSize = modules.createNativeFunction(0xA291F107, 150, 'int', '', this, function () {
                     return _this.context.memoryManager.userPartition.nonAllocatedPartitions.max(function (partition) {
                         return partition.size;
                     });
                 });
-                this.sceKernelSetCompiledSdkVersion = hle.modules.createNativeFunction(0x7591C7DB, 150, 'int', 'uint', this, function (sdkVersion) {
+                this.sceKernelSetCompiledSdkVersion = modules.createNativeFunction(0x7591C7DB, 150, 'int', 'uint', this, function (sdkVersion) {
                     console.info(sprintf('sceKernelSetCompiledSdkVersion: %08X', sdkVersion));
                 });
-                this.sceKernelSetCompilerVersion = hle.modules.createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, function (version) {
+                this.sceKernelSetCompilerVersion = modules.createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, function (version) {
                     console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
                 });
-                this.sceKernelPrintf = hle.modules.createNativeFunction(0x13A5ABEF, 150, 'void', 'string', this, function (format) {
+                this.sceKernelPrintf = modules.createNativeFunction(0x13A5ABEF, 150, 'void', 'string', this, function (format) {
                     console.info('sceKernelPrintf: ' + format);
                 });
             }
@@ -9543,7 +9641,7 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.threadUids = new UidCollection(1);
-                this.sceKernelCreateThread = hle.modules.createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attribute, optionPtr) {
+                this.sceKernelCreateThread = modules.createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attribute, optionPtr) {
                     var stackPartition = _this.context.memoryManager.stackPartition;
                     var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
                     newThread.id = _this.threadUids.allocate(newThread);
@@ -9552,16 +9650,16 @@ var hle;
 
                     return newThread.id;
                 });
-                this.sceKernelDelayThread = hle.modules.createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
+                this.sceKernelDelayThread = modules.createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
                     return PromiseUtils.delayAsync(delayInMicroseconds / 1000);
                 });
-                this.sceKernelDelayThreadCB = hle.modules.createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
+                this.sceKernelDelayThreadCB = modules.createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
                     return PromiseUtils.delayAsync(delayInMicroseconds / 1000);
                 });
-                this.sceKernelGetThreadCurrentPriority = hle.modules.createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, function (currentThread) {
+                this.sceKernelGetThreadCurrentPriority = modules.createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, function (currentThread) {
                     return currentThread.priority;
                 });
-                this.sceKernelStartThread = hle.modules.createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
+                this.sceKernelStartThread = modules.createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
                     var newThread = _this.threadUids.get(threadId);
 
                     console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d', threadId, newThread.name, newThread.priority, currentThread.priority));
@@ -9578,19 +9676,19 @@ var hle;
                     newThread.start();
                     return Promise.resolve(0);
                 });
-                this.sceKernelDeleteThread = hle.modules.createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
+                this.sceKernelDeleteThread = modules.createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
                     var newThread = _this.threadUids.get(threadId);
                     _this.threadUids.remove(threadId);
                     return 0;
                 });
-                this.sceKernelExitThread = hle.modules.createNativeFunction(0xAA73C935, 150, 'int', 'HleThread/int', this, function (currentThread, exitStatus) {
+                this.sceKernelExitThread = modules.createNativeFunction(0xAA73C935, 150, 'int', 'HleThread/int', this, function (currentThread, exitStatus) {
                     console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
                     currentThread.exitStatus = exitStatus;
                     currentThread.stop();
                     throw (new CpuBreakException());
                 });
-                this.sceKernelTerminateThread = hle.modules.createNativeFunction(0x616403BA, 150, 'int', 'int', this, function (threadId) {
+                this.sceKernelTerminateThread = modules.createNativeFunction(0x616403BA, 150, 'int', 'int', this, function (threadId) {
                     console.info(sprintf('sceKernelTerminateThread: %d', threadId));
 
                     var newThread = _this.threadUids.get(threadId);
@@ -9598,27 +9696,27 @@ var hle;
                     newThread.exitStatus = 0x800201ac;
                     return 0;
                 });
-                this.sceKernelExitDeleteThread = hle.modules.createNativeFunction(0x809CE29B, 150, 'uint', 'CpuState/int', this, function (state, exitStatus) {
+                this.sceKernelExitDeleteThread = modules.createNativeFunction(0x809CE29B, 150, 'uint', 'CpuState/int', this, function (state, exitStatus) {
                     var currentThread = state.thread;
                     currentThread.exitStatus = exitStatus;
                     currentThread.stop();
                     throw (new CpuBreakException());
                 });
-                this.sceKernelCreateCallback = hle.modules.createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
+                this.sceKernelCreateCallback = modules.createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
                     console.warn('Not implemented ThreadManForUser.sceKernelCreateCallback');
                     return 0;
                 });
-                this.sceKernelSleepThreadCB = hle.modules.createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, function (currentThread, state) {
+                this.sceKernelSleepThreadCB = modules.createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, function (currentThread, state) {
                     currentThread.suspend();
                     return Promise.resolve(0);
                 });
-                this.sceKernelSleepThread = hle.modules.createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, function (state) {
+                this.sceKernelSleepThread = modules.createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, function (state) {
                     var currentThread = state.thread;
                     currentThread.suspend();
                     return Promise.resolve(0);
                 });
                 this.eventFlagUids = new UidCollection(1);
-                this.sceKernelCreateEventFlag = hle.modules.createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
+                this.sceKernelCreateEventFlag = modules.createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
                     if (name === null)
                         return 2147614721 /* ERROR_ERROR */;
                     if ((attributes & 0x100) != 0 || attributes >= 0x300)
@@ -9632,19 +9730,19 @@ var hle;
                     eventFlag.currentPattern = bitPattern;
                     return _this.eventFlagUids.allocate(eventFlag);
                 });
-                this.sceKernelSetEventFlag = hle.modules.createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
+                this.sceKernelSetEventFlag = modules.createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
                     if (!_this.eventFlagUids.has(id))
                         return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
                     _this.eventFlagUids.get(id).setBits(bitPattern);
                     return 0;
                 });
-                this.sceKernelWaitEventFlag = hle.modules.createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+                this.sceKernelWaitEventFlag = modules.createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
                     return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, false);
                 });
-                this.sceKernelWaitEventFlagCB = hle.modules.createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+                this.sceKernelWaitEventFlagCB = modules.createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
                     return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, true);
                 });
-                this.sceKernelPollEventFlag = hle.modules.createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, function (id, bits, waitType, outBits) {
+                this.sceKernelPollEventFlag = modules.createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, function (id, bits, waitType, outBits) {
                     if (!_this.eventFlagUids.has(id))
                         return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
                     if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0)
@@ -9661,25 +9759,25 @@ var hle;
 
                     return matched ? 0 : 2147615151 /* ERROR_KERNEL_EVENT_FLAG_POLL_FAILED */;
                 });
-                this.sceKernelDeleteEventFlag = hle.modules.createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, function (id) {
+                this.sceKernelDeleteEventFlag = modules.createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, function (id) {
                     if (!_this.eventFlagUids.has(id))
                         return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
                     _this.eventFlagUids.remove(id);
                     return 0;
                 });
-                this.sceKernelClearEventFlag = hle.modules.createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, function (id, bitsToClear) {
+                this.sceKernelClearEventFlag = modules.createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, function (id, bitsToClear) {
                     if (!_this.eventFlagUids.has(id))
                         return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
                     _this.eventFlagUids.get(id).clearBits(bitsToClear);
                     return 0;
                 });
-                this.sceKernelCancelEventFlag = hle.modules.createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, function (id, newPattern, numWaitThreadPtr) {
+                this.sceKernelCancelEventFlag = modules.createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, function (id, newPattern, numWaitThreadPtr) {
                     if (!_this.eventFlagUids.has(id))
                         return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
                     _this.eventFlagUids.get(id).cancel(newPattern);
                     return 0;
                 });
-                this.sceKernelReferEventFlagStatus = hle.modules.createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (id, infoPtr) {
+                this.sceKernelReferEventFlagStatus = modules.createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (id, infoPtr) {
                     var size = infoPtr.readUInt32();
                     if (size == 0)
                         return 0;
@@ -9699,18 +9797,18 @@ var hle;
                     console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
                     return 0;
                 });
-                this.sceKernelGetSystemTimeLow = hle.modules.createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
+                this.sceKernelGetSystemTimeLow = modules.createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
                     return new Date().getTime() * 1000;
                 });
-                this.sceKernelGetSystemTimeWide = hle.modules.createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
+                this.sceKernelGetSystemTimeWide = modules.createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
                     //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
                     return new Date().getTime() * 1000;
                 });
-                this.sceKernelGetThreadId = hle.modules.createNativeFunction(0x293B45B8, 150, 'int', 'HleThread', this, function (currentThread) {
+                this.sceKernelGetThreadId = modules.createNativeFunction(0x293B45B8, 150, 'int', 'HleThread', this, function (currentThread) {
                     return currentThread.id;
                 });
-                this.sceKernelReferThreadStatus = hle.modules.createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
+                this.sceKernelReferThreadStatus = modules.createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
                     var thread = _this.threadUids.get(threadId);
                     var sceKernelThreadInfo = new SceKernelThreadInfo();
                     sceKernelThreadInfo.size = SceKernelThreadInfo.struct.length;
@@ -9724,11 +9822,11 @@ var hle;
                     return 0;
                 });
                 this.semaporesUid = new UidCollection(1);
-                this.sceKernelCreateSema = hle.modules.createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
+                this.sceKernelCreateSema = modules.createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d)', name, attribute, initialCount, maxCount));
                     return _this.semaporesUid.allocate(new Semaphore(name, attribute, initialCount, maxCount));
                 });
-                this.sceKernelDeleteSema = hle.modules.createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
+                this.sceKernelDeleteSema = modules.createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
                     var semaphore = _this.semaporesUid.get(id);
@@ -9736,7 +9834,7 @@ var hle;
                     _this.semaporesUid.remove(id);
                     return 0;
                 });
-                this.sceKernelCancelSema = hle.modules.createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
+                this.sceKernelCancelSema = modules.createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
                     var semaphore = _this.semaporesUid.get(id);
@@ -9745,19 +9843,19 @@ var hle;
                     semaphore.cancel();
                     return 0;
                 });
-                this.sceKernelWaitSemaCB = hle.modules.createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
+                this.sceKernelWaitSemaCB = modules.createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSemaCB(%d, %d)', id, signal));
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
                     return _this.semaporesUid.get(id).waitAsync(signal);
                 });
-                this.sceKernelWaitSema = hle.modules.createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
+                this.sceKernelWaitSema = modules.createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSema(%d, %d)', id, signal));
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
                     return _this.semaporesUid.get(id).waitAsync(signal);
                 });
-                this.sceKernelReferSemaStatus = hle.modules.createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
+                this.sceKernelReferSemaStatus = modules.createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
                     var semaphore = _this.semaporesUid.get(id);
@@ -9772,7 +9870,7 @@ var hle;
                     SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
                     return 0;
                 });
-                this.sceKernelSignalSema = hle.modules.createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, function (id, signal) {
+                this.sceKernelSignalSema = modules.createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, function (id, signal) {
                     console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d)', id, signal));
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
@@ -10026,7 +10124,7 @@ var hle;
             function UtilsForKernel(context) {
                 var _this = this;
                 this.context = context;
-                this.sceKernelIcacheInvalidateRange = hle.modules.createNativeFunction(0xC2DF770E, 150, 'void', 'uint/uint', this, function (address, size) {
+                this.sceKernelIcacheInvalidateRange = modules.createNativeFunction(0xC2DF770E, 150, 'void', 'uint/uint', this, function (address, size) {
                     _this.context.instructionCache.invalidateRange(address, address + size);
                 });
             }
@@ -10042,18 +10140,18 @@ var hle;
         var UtilsForUser = (function () {
             function UtilsForUser(context) {
                 this.context = context;
-                this.sceKernelLibcTime = hle.modules.createNativeFunction(0x27CC57F0, 150, 'uint', '', this, function () {
+                this.sceKernelLibcTime = modules.createNativeFunction(0x27CC57F0, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
                     return new Date().getTime() / 1000;
                 });
-                this.sceKernelUtilsMt19937Init = hle.modules.createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
+                this.sceKernelUtilsMt19937Init = modules.createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
                     console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
                     return 0;
                 });
-                this.sceKernelUtilsMt19937UInt = hle.modules.createNativeFunction(0x06FB8A63, 150, 'uint', 'Memory/uint', this, function (memory, contextPtr) {
+                this.sceKernelUtilsMt19937UInt = modules.createNativeFunction(0x06FB8A63, 150, 'uint', 'Memory/uint', this, function (memory, contextPtr) {
                     return Math.round(Math.random() * 0xFFFFFFFF);
                 });
-                this.sceKernelLibcGettimeofday = hle.modules.createNativeFunction(0x71EC4271, 150, 'uint', 'void*/void*', this, function (timevalPtr, timezonePtr) {
+                this.sceKernelLibcGettimeofday = modules.createNativeFunction(0x71EC4271, 150, 'uint', 'void*/void*', this, function (timevalPtr, timezonePtr) {
                     if (timevalPtr) {
                         var seconds = new Date().getSeconds();
                         var microseconds = new Date().getMilliseconds() * 1000;
@@ -10070,18 +10168,18 @@ var hle;
 
                     return 0;
                 });
-                this.sceKernelDcacheWritebackInvalidateRange = hle.modules.createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                this.sceKernelDcacheWritebackInvalidateRange = modules.createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, function (pointer, size) {
                     return 0;
                 });
-                this.sceKernelDcacheWritebackInvalidateAll = hle.modules.createNativeFunction(0x3EE30821, 150, 'uint', '', this, function () {
+                this.sceKernelDcacheWritebackInvalidateAll = modules.createNativeFunction(0x3EE30821, 150, 'uint', '', this, function () {
                     return 0;
                 });
-                this.sceKernelDcacheInvalidateRange = hle.modules.createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                this.sceKernelDcacheInvalidateRange = modules.createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, function (pointer, size) {
                     if (size < 0)
                         return 2147483908 /* ERROR_INVALID_SIZE */;
                     return 0;
                 });
-                this.sceKernelDcacheWritebackRange = hle.modules.createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                this.sceKernelDcacheWritebackRange = modules.createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, function (pointer, size) {
                     pointer >>>= 0;
                     size >>>= 0;
                     if (size < 0)
@@ -10092,7 +10190,7 @@ var hle;
                         return 2147483907 /* ERROR_INVALID_POINTER */;
                     return 0;
                 });
-                this.sceKernelDcacheWritebackAll = hle.modules.createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
+                this.sceKernelDcacheWritebackAll = modules.createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
                     return 0;
                 });
             }
@@ -11444,7 +11542,7 @@ describe('elf', function () {
         var context = new EmulatorContext();
         var moduleManager = new hle.ModuleManager(context);
 
-        context.init(display, null, null, memoryManager, null, null, memory, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null);
 
         var elf = new hle.elf.PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
