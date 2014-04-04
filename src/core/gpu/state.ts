@@ -206,8 +206,11 @@
 	export class ViewPort {
 		x1 = 0;
 		y1 = 0;
-		x2 = 0;
-		y2 = 0;
+		x2 = 512;
+		y2 = 272;
+
+		get width() { return this.x2 - this.x1; }
+		get height() { return this.y2 - this.y1; }
 	}
 
 	export class Light {

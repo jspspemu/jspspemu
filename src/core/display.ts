@@ -9,6 +9,7 @@
 		waitVblankAsync(): Promise<number>;
 		setEnabledDisplay(enable: boolean): void;
 		vblankCount: number;
+		hcount: number;
 	}
 
 	export enum PixelFormat {
@@ -35,6 +36,7 @@
 
 	export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 		vblankCount: number = 0;
+		public hcount: number = 0;
 
 		constructor() {
 			super();
@@ -63,6 +65,27 @@
 		private interval: number = -1;
 		vblankCount: number = 0;
 		private enabled: boolean = true;
+		private _hcount: number = 0;
+		private startTime: number;
+
+		static ProcessedPixelsPerSecond = 9000000; // hz
+		static CyclesPerPixel = 1;
+		static PixelsInARow = 525;
+		static VsyncRow = 272;
+		static NumberOfRows = 286;
+		static hCountPerVblank = 285.72;
+
+		static HorizontalSyncHertz = (PspDisplay.ProcessedPixelsPerSecond * PspDisplay.CyclesPerPixel) / PspDisplay.PixelsInARow;
+		static VerticalSyncHertz = PspDisplay.HorizontalSyncHertz / PspDisplay.NumberOfRows;
+
+
+		get elapsedTime() {
+			return Date.now() - this.startTime;
+		}
+
+		get hcount() {
+			return ((this.elapsedTime / 1000) / (1 / PspDisplay.HorizontalSyncHertz)) | 0;
+		}
 
 		constructor(public memory: Memory, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 			super();
@@ -91,6 +114,7 @@
 		}
 
 		startAsync() {
+			this.startTime = Date.now();
 			//$(this.canvas).focus();
 			this.interval = setInterval(() => {
 				this.vblankCount++;
@@ -198,19 +222,19 @@
 		private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				var it = from[fromIndex++];
-				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-				to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
-				to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
-				to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 15, 1, 0xFF) : 0xFF;
+				to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
+				to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 5, 0xFF);
+				to[toIndex + n + 2] = BitUtils.extractScalei(it, 10, 5, 0xFF);
+				to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF;
 			}
 		}
 
 		private static update5650(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				var it = from[fromIndex++];
-				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-				to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 6, 0xFF);
-				to[toIndex + n + 2] = BitUtils.extractScale(it, 11, 5, 0xFF);
+				to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
+				to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 6, 0xFF);
+				to[toIndex + n + 2] = BitUtils.extractScalei(it, 11, 5, 0xFF);
 				to[toIndex + n + 3] = 0xFF;
 			}
 		}
@@ -218,10 +242,10 @@
 		private static update4444(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 			for (var n = 0; n < count * 4; n += 4) {
 				var it = from[fromIndex++];
-				to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
-				to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
-				to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
-				to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 12, 4, 0xFF) : 0xFF;
+				to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 4, 0xFF);
+				to[toIndex + n + 1] = BitUtils.extractScalei(it, 4, 4, 0xFF);
+				to[toIndex + n + 2] = BitUtils.extractScalei(it, 8, 4, 0xFF);
+				to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF;
 			}
 		}
 	}

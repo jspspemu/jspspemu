@@ -1262,9 +1262,13 @@ var BitUtils = (function () {
         return (data >>> offset) & BitUtils.mask(length);
     };
 
-    BitUtils.extractScale = function (data, offset, length, scale) {
+    BitUtils.extractScalef = function (data, offset, length, scale) {
         var mask = BitUtils.mask(length);
-        return (((data >>> offset) & mask) * scale / mask) | 0;
+        return (((data >>> offset) & mask) * scale / mask);
+    };
+
+    BitUtils.extractScalei = function (data, offset, length, scale) {
+        return this.extractScalef(data, offset, length, scale) | 0;
     };
 
     BitUtils.extractEnum = function (data, offset, length) {
@@ -1315,7 +1319,8 @@ var MathFloat = (function () {
     };
 
     MathFloat.rint = function (value) {
-        return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
+        //return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
+        return Math.round(value);
     };
 
     MathFloat.cast = function (value) {
@@ -3969,6 +3974,7 @@ var core;
         function DummyPspDisplay() {
             _super.call(this);
             this.vblankCount = 0;
+            this.hcount = 0;
         }
         DummyPspDisplay.prototype.waitVblankAsync = function () {
             return new Promise(function (resolve) {
@@ -4001,10 +4007,27 @@ var core;
             this.interval = -1;
             this.vblankCount = 0;
             this.enabled = true;
+            this._hcount = 0;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
             this.setEnabledDisplay(true);
         }
+        Object.defineProperty(PspDisplay.prototype, "elapsedTime", {
+            get: function () {
+                return Date.now() - this.startTime;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(PspDisplay.prototype, "hcount", {
+            get: function () {
+                return ((this.elapsedTime / 1000) / (1 / PspDisplay.HorizontalSyncHertz)) | 0;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
         PspDisplay.prototype.update = function () {
             if (!this.context || !this.imageData)
                 return;
@@ -4028,6 +4051,8 @@ var core;
 
         PspDisplay.prototype.startAsync = function () {
             var _this = this;
+            this.startTime = Date.now();
+
             //$(this.canvas).focus();
             this.interval = setInterval(function () {
                 _this.vblankCount++;
@@ -4051,6 +4076,15 @@ var core;
                 });
             });
         };
+        PspDisplay.ProcessedPixelsPerSecond = 9000000;
+        PspDisplay.CyclesPerPixel = 1;
+        PspDisplay.PixelsInARow = 525;
+        PspDisplay.VsyncRow = 272;
+        PspDisplay.NumberOfRows = 286;
+        PspDisplay.hCountPerVblank = 285.72;
+
+        PspDisplay.HorizontalSyncHertz = (PspDisplay.ProcessedPixelsPerSecond * PspDisplay.CyclesPerPixel) / PspDisplay.PixelsInARow;
+        PspDisplay.VerticalSyncHertz = PspDisplay.HorizontalSyncHertz / PspDisplay.NumberOfRows;
         return PspDisplay;
     })(BasePspDisplay);
     core.PspDisplay = PspDisplay;
@@ -4157,10 +4191,10 @@ var core;
             if (typeof useAlpha === "undefined") { useAlpha = true; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 5, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScale(it, 10, 5, 0xFF);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 15, 1, 0xFF) : 0xFF;
+                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 5, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScalei(it, 10, 5, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF;
             }
         };
 
@@ -4168,9 +4202,9 @@ var core;
             if (typeof useAlpha === "undefined") { useAlpha = true; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 5, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScale(it, 5, 6, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScale(it, 11, 5, 0xFF);
+                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 6, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScalei(it, 11, 5, 0xFF);
                 to[toIndex + n + 3] = 0xFF;
             }
         };
@@ -4179,10 +4213,10 @@ var core;
             if (typeof useAlpha === "undefined") { useAlpha = true; }
             for (var n = 0; n < count * 4; n += 4) {
                 var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScale(it, 0, 4, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScale(it, 4, 4, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScale(it, 8, 4, 0xFF);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScale(it, 12, 4, 0xFF) : 0xFF;
+                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 4, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScalei(it, 4, 4, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScalei(it, 8, 4, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF;
             }
         };
         return PixelConverter;
@@ -4470,7 +4504,7 @@ var core;
 
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-                    this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 512, 272, 0, 0, -0xFFFF);
+                    this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
                 }
                 WebGlPspDrawDriver.prototype.initAsync = function () {
                     var _this = this;
@@ -4518,6 +4552,8 @@ var core;
 
                     this.gl.enable(this.gl.BLEND);
                     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+                    this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * 2, this.state.viewPort.height * 2);
                 };
 
                 WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
@@ -4626,6 +4662,11 @@ var core;
                     }
                     if (vertexState.hasColor) {
                         this.attributeSetFloats(gl, program, "vColor", 4, colorData);
+                    } else {
+                        var ac = this.state.ambientModelColor;
+
+                        //console.log(ac.r, ac.g, ac.b, ac.a);
+                        gl.uniform4f(gl.getUniformLocation(program, 'uniformColor'), ac.r, ac.g, ac.b, ac.a);
                     }
 
                     switch (primitiveType) {
@@ -5106,9 +5147,23 @@ var core;
             function ViewPort() {
                 this.x1 = 0;
                 this.y1 = 0;
-                this.x2 = 0;
-                this.y2 = 0;
+                this.x2 = 512;
+                this.y2 = 272;
             }
+            Object.defineProperty(ViewPort.prototype, "width", {
+                get: function () {
+                    return this.x2 - this.x1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ViewPort.prototype, "height", {
+                get: function () {
+                    return this.y2 - this.y1;
+                },
+                enumerable: true,
+                configurable: true
+            });
             return ViewPort;
         })();
         gpu.ViewPort = ViewPort;
@@ -5912,9 +5967,9 @@ var core;
                         break;
 
                     case 202 /* TEC */:
-                        this.state.texture.envColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-                        this.state.texture.envColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-                        this.state.texture.envColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        this.state.texture.envColor.r = BitUtils.extractScalei(params24, 0, 8, 1);
+                        this.state.texture.envColor.g = BitUtils.extractScalei(params24, 8, 8, 1);
+                        this.state.texture.envColor.b = BitUtils.extractScalei(params24, 16, 8, 1);
                         break;
 
                     case 201 /* TFUNC */:
@@ -5988,27 +6043,29 @@ var core;
                         break;
 
                     case 85 /* AMC */:
-                        this.state.ambientModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-                        this.state.ambientModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-                        this.state.ambientModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        //printf("%08X: %08X", current, instruction);
+                        this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
                         this.state.ambientModelColor.a = 1;
                         break;
 
                     case 88 /* AMA */:
-                        this.state.ambientModelColor.a = BitUtils.extractScale(params24, 0, 8, 1);
+                        this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
                         break;
 
                     case 86 /* DMC */:
-                        this.state.diffuseModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-                        this.state.diffuseModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-                        this.state.diffuseModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        //printf("AMC:%08X", params24);
+                        this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.diffuseModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.diffuseModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
                         this.state.diffuseModelColor.a = 1;
                         break;
 
                     case 87 /* SMC */:
-                        this.state.specularModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-                        this.state.specularModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-                        this.state.specularModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+                        this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
                         this.state.specularModelColor.a = 1;
                         break;
 
@@ -6103,7 +6160,7 @@ var core;
                                 console.error(sprintf('Stop showing gpu errors'));
                             }
                         } else {
-                            console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, gpu.GpuOpCodes[op]));
+                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
                         }
                 }
 
@@ -6454,6 +6511,10 @@ var InstructionCache = (function () {
         this.cache = {};
         this.functionGenerator = new FunctionGenerator(memory);
     }
+    InstructionCache.prototype.invalidateAll = function () {
+        this.cache = {};
+    };
+
     InstructionCache.prototype.invalidateRange = function (from, to) {
         for (var n = from; n < to; n += 4)
             delete this.cache[n];
@@ -8474,6 +8535,22 @@ var hle;
 var hle;
 (function (hle) {
     (function (modules) {
+        var ExceptionManagerForKernel = (function () {
+            function ExceptionManagerForKernel(context) {
+                this.context = context;
+                this.sceKernelRegisterDefaultExceptionHandler = modules.createNativeFunction(0x565C0B0E, 150, 'uint', 'uint', this, function (exceptionHandlerFunction) {
+                    return 0;
+                });
+            }
+            return ExceptionManagerForKernel;
+        })();
+        modules.ExceptionManagerForKernel = ExceptionManagerForKernel;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
         var InterruptManager = (function () {
             function InterruptManager(context) {
                 var _this = this;
@@ -8581,13 +8658,16 @@ var hle;
                     return inputLength;
                 });
                 this.sceIoRead = modules.createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
-                    console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %d)', fileId, outputLength));
-
                     var file = _this.fileUids.get(fileId);
+
+                    console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d', fileId, outputPointer, outputLength, file.cursor));
 
                     return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
                         file.cursor += readedData.byteLength;
+
+                        //console.log(new Uint8Array(readedData));
                         _this.context.memory.writeBytes(outputPointer, readedData);
+                        console.info(sprintf('->%d', readedData.byteLength));
                         return readedData.byteLength;
                     });
                 });
@@ -8739,7 +8819,11 @@ var hle;
     (function (modules) {
         var LoadCoreForKernel = (function () {
             function LoadCoreForKernel(context) {
+                var _this = this;
                 this.context = context;
+                this.sceKernelIcacheClearAll = modules.createNativeFunction(0xD8779AC6, 150, 'void', '', this, function () {
+                    _this.context.instructionCache.invalidateAll();
+                });
             }
             return LoadCoreForKernel;
         })();
@@ -9019,6 +9103,9 @@ var hle;
                     _this.context.display.pixelFormat = pixelFormat;
                     _this.context.display.sync = sync;
                     return 0;
+                });
+                this.sceDisplayGetCurrentHcount = modules.createNativeFunction(0x773DD3A3, 150, 'uint', '', this, function () {
+                    return _this.context.display.hcount;
                 });
             }
             return sceDisplay;
@@ -9333,11 +9420,19 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.cpuFreq = 222;
+                this.pllFreq = 222;
+                this.busFreq = 111;
                 this.scePowerGetCpuClockFrequencyInt = modules.createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () {
                     return _this.cpuFreq;
                 });
                 this.scePowerRegisterCallback = modules.createNativeFunction(0x04B7766E, 150, 'int', '', this, function (slotIndex, callbackId) {
                     console.warn("Not implemented scePowerRegisterCallback");
+                    return 0;
+                });
+                this.scePowerSetClockFrequency = modules.createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, function (pllFrequency, cpuFrequency, busFrequency) {
+                    _this.pllFreq = pllFrequency;
+                    _this.cpuFreq = cpuFrequency;
+                    _this.busFreq = busFrequency;
                     return 0;
                 });
             }
@@ -9521,10 +9616,44 @@ var hle;
                             _this.currentStep = 0 /* NONE */;
                     }
                 });
+                this.sceUtilityGetSystemParamInt = modules.createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, function (id, valuePtr) {
+                    console.warn("Not implemented sceUtilityGetSystemParamInt");
+                    valuePtr.writeInt32(0);
+                    return 0;
+                });
+                this.sceUtilityMsgDialogInitStart = modules.createNativeFunction(0x2AD8E239, 150, 'uint', 'void*', this, function (paramsPtr) {
+                    console.warn("Not implemented sceUtilityMsgDialogInitStart");
+                    _this.currentStep = 2 /* PROCESSING */;
+
+                    return 0;
+                });
+                this.sceUtilityMsgDialogGetStatus = modules.createNativeFunction(0x9A1C91D7, 150, 'uint', '', this, function () {
+                    try  {
+                        return _this.currentStep;
+                    } finally {
+                        if (_this.currentStep == 4 /* SHUTDOWN */)
+                            _this.currentStep = 0 /* NONE */;
+                    }
+                });
+                this.sceUtilityMsgDialogUpdate = modules.createNativeFunction(0x9A1C91D7, 150, 'uint', 'int', this, function (value) {
+                });
             }
             return sceUtility;
         })();
         modules.sceUtility = sceUtility;
+
+        var PSP_SYSTEMPARAM_ID;
+        (function (PSP_SYSTEMPARAM_ID) {
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["STRING_NICKNAME"] = 1] = "STRING_NICKNAME";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_ADHOC_CHANNEL"] = 2] = "INT_ADHOC_CHANNEL";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_WLAN_POWERSAVE"] = 3] = "INT_WLAN_POWERSAVE";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_DATE_FORMAT"] = 4] = "INT_DATE_FORMAT";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_TIME_FORMAT"] = 5] = "INT_TIME_FORMAT";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_TIMEZONE"] = 6] = "INT_TIMEZONE";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_DAYLIGHTSAVINGS"] = 7] = "INT_DAYLIGHTSAVINGS";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_LANGUAGE"] = 8] = "INT_LANGUAGE";
+            PSP_SYSTEMPARAM_ID[PSP_SYSTEMPARAM_ID["INT_BUTTON_PREFERENCE"] = 9] = "INT_BUTTON_PREFERENCE";
+        })(PSP_SYSTEMPARAM_ID || (PSP_SYSTEMPARAM_ID = {}));
 
         var DialogStepEnum;
         (function (DialogStepEnum) {

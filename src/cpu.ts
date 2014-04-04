@@ -101,6 +101,10 @@ class InstructionCache {
         this.functionGenerator = new FunctionGenerator(memory);
     }
 
+	invalidateAll() {
+		this.cache = {};
+	}
+
 	invalidateRange(from: number, to: number) {
 		for (var n = from; n < to; n += 4) delete this.cache[n];
     }

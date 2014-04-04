@@ -169,7 +169,7 @@
 
 			this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-			this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 512, 272, 0, 0, -0xFFFF);
+			this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
 		}
 
 		private baseShaderFragString = '';
@@ -226,6 +226,9 @@
 
 			this.gl.enable(this.gl.BLEND);
 			this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+			this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * 2, this.state.viewPort.height * 2);
+
 		}
 
 		drawElements(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState) {
@@ -331,6 +334,10 @@
 			}
 			if (vertexState.hasColor) {
 				this.attributeSetFloats(gl, program, "vColor", 4, colorData);
+			} else {
+				var ac = this.state.ambientModelColor;
+				//console.log(ac.r, ac.g, ac.b, ac.a);
+				gl.uniform4f(gl.getUniformLocation(program, 'uniformColor'), ac.r, ac.g, ac.b, ac.a);
 			}
 
 			switch (primitiveType) {

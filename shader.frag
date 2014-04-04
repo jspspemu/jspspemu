@@ -11,6 +11,8 @@ precision mediump float;
 
 #ifdef VERTEX_COLOR
 	varying vec4 v_Color;
+#else
+	uniform vec4 uniformColor;
 #endif
 
 #ifdef VERTEX_TEXTURE
@@ -24,7 +26,7 @@ void main() {
 	#ifdef VERTEX_COLOR
 		gl_FragColor = v_Color;
 	#else
-		gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+		gl_FragColor = uniformColor;
 	#endif
 
 	#ifdef VERTEX_TEXTURE

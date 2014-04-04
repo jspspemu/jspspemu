@@ -77,13 +77,15 @@
 		});
 
 		sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
-			console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %d)', fileId, outputLength));
-
 			var file = this.fileUids.get(fileId);
+
+			console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d', fileId, outputPointer, outputLength, file.cursor));
 			
 			return file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
 				file.cursor += readedData.byteLength;
+				//console.log(new Uint8Array(readedData));
 				this.context.memory.writeBytes(outputPointer, readedData);
+				console.info(sprintf('->%d', readedData.byteLength));
 				return readedData.byteLength;
 			});
 		});

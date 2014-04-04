@@ -211,9 +211,9 @@ module core.gpu {
 				case GpuOpCodes.TME: this.state.texture.enabled = (params24 != 0); break;
 
 				case GpuOpCodes.TEC:
-					this.state.texture.envColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-					this.state.texture.envColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-					this.state.texture.envColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					this.state.texture.envColor.r = BitUtils.extractScalei(params24, 0, 8, 1);
+					this.state.texture.envColor.g = BitUtils.extractScalei(params24, 8, 8, 1);
+					this.state.texture.envColor.b = BitUtils.extractScalei(params24, 16, 8, 1);
 					break;
 
 				case GpuOpCodes.TFUNC:
@@ -275,27 +275,30 @@ module core.gpu {
 					break;
 
 				case GpuOpCodes.AMC:
-					this.state.ambientModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-					this.state.ambientModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-					this.state.ambientModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					//printf("%08X: %08X", current, instruction);
+					this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+					this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+					this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
 					this.state.ambientModelColor.a = 1;
 					break;
 
 				case GpuOpCodes.AMA:
-					this.state.ambientModelColor.a = BitUtils.extractScale(params24, 0, 8, 1);
+					this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
 					break;
 
 				case GpuOpCodes.DMC:
-					this.state.diffuseModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-					this.state.diffuseModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-					this.state.diffuseModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					//printf("AMC:%08X", params24);
+
+					this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+					this.state.diffuseModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+					this.state.diffuseModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
 					this.state.diffuseModelColor.a = 1;
 					break;
 
 				case GpuOpCodes.SMC:
-					this.state.specularModelColor.r = BitUtils.extractScale(params24, 0, 8, 1);
-					this.state.specularModelColor.g = BitUtils.extractScale(params24, 8, 8, 1);
-					this.state.specularModelColor.b = BitUtils.extractScale(params24, 16, 8, 1);
+					this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+					this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+					this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
 					this.state.specularModelColor.a = 1;
 					break;
 
@@ -380,7 +383,7 @@ module core.gpu {
 							console.error(sprintf('Stop showing gpu errors'));
 						}
 					} else {
-						console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+						//console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
 					}
             }
 

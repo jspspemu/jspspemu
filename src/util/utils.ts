@@ -649,11 +649,15 @@ class BitUtils {
 
     static extract(data: number, offset: number, length: number) {
         return (data >>> offset) & BitUtils.mask(length);
-    }
+	}
 
-    static extractScale(data: number, offset: number, length: number, scale: number) {
-        var mask = BitUtils.mask(length);
-        return (((data >>> offset) & mask) * scale / mask) |0;
+	static extractScalef(data: number, offset: number, length: number, scale: number) {
+		var mask = BitUtils.mask(length);
+		return (((data >>> offset) & mask) * scale / mask);
+	}
+
+    static extractScalei(data: number, offset: number, length: number, scale: number) {
+		return this.extractScalef(data, offset, length, scale) |0;
     }
 
     static extractEnum<T>(data: number, offset: number, length: number):T {
@@ -707,7 +711,8 @@ class MathFloat {
     }
 
 	static rint(value: number) {
-		return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
+		//return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
+		return Math.round(value);
     }
 
     static cast(value: number) {

@@ -33,6 +33,10 @@
             this.context.display.pixelFormat = pixelFormat;
             this.context.display.sync = sync;
             return 0;
-        });
+		});
+
+		sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, () => {
+			return this.context.display.hcount;
+		});
     }
 }
