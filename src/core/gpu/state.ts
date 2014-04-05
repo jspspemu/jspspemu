@@ -1,4 +1,13 @@
-﻿module core.gpu {
+﻿///<reference path="../../util/utils.ts" />
+///<reference path="../display.ts" />
+///<reference path="../memory.ts" />
+
+module core.gpu {
+	export enum CullingDirection {
+		CounterClockWise = 0,
+		ClockWise = 1
+	}
+
 	export enum SyncType {
 		ListDone = 0,
 		ListQueued = 1,

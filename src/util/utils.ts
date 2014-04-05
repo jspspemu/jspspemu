@@ -1,4 +1,4 @@
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 
 interface NumberDictionary<V> {
     [key: number]: V;
@@ -95,7 +95,7 @@ class FileAsyncStream implements AsyncStream {
         return new Promise<ArrayBuffer>((resolve, reject) => {
             var fileReader = new FileReader();
             fileReader.onload = (e) => { resolve(fileReader.result); };
-            fileReader.onerror = (e) => { reject(e.error); };
+            fileReader.onerror = (e) => { reject(e['error']); };
             fileReader.readAsArrayBuffer(this.file.slice(offset, offset + count));
         });
     }
@@ -466,17 +466,21 @@ class StructStringz {
     }
 }
 
-var Int16 = new Int16Type(Endian.LITTLE);
-var Int32 = new Int32Type(Endian.LITTLE);
-var Int64 = new Int64Type(Endian.LITTLE);
-var Int8 = new Int8Type(Endian.LITTLE);
+class StructStringzVariable {
+	constructor() {
+	}
 
-var UInt16 = new UInt16Type(Endian.LITTLE);
-var UInt32 = new UInt32Type(Endian.LITTLE);
-var UInt8 = new UInt8Type(Endian.LITTLE);
-
-var UInt16_b = new UInt16Type(Endian.BIG);
-var UInt32_b = new UInt32Type(Endian.BIG);
+	read(stream: Stream): string {
+		return stream.readStringz();
+	}
+	write(stream: Stream, value: string): void {
+		stream.writeString(value);
+		stream.writeUInt8(0);
+	}
+	get length() {
+		return 0;
+	}
+}
 
 class UInt32_2lbStruct implements IType {
     read(stream: Stream): number {
@@ -504,10 +508,22 @@ class UInt16_2lbStruct implements IType {
     get length() { return 4; }
 }
 
-var UInt32_2lb = new UInt32_2lbStruct();
+var Int16 = new Int16Type(Endian.LITTLE);
+var Int32 = new Int32Type(Endian.LITTLE);
+var Int64 = new Int64Type(Endian.LITTLE);
+var Int8 = new Int8Type(Endian.LITTLE);
 
+var UInt16 = new UInt16Type(Endian.LITTLE);
+var UInt32 = new UInt32Type(Endian.LITTLE);
+var UInt8 = new UInt8Type(Endian.LITTLE);
+
+var UInt16_b = new UInt16Type(Endian.BIG);
+var UInt32_b = new UInt32Type(Endian.BIG);
+
+var UInt32_2lb = new UInt32_2lbStruct();
 var UInt16_2lb = new UInt16_2lbStruct();
 
+var StringzVariable = new StructStringzVariable();
 
 function Stringn(count: number) { return new StructStringn(count); }
 function Stringz(count: number) { return new StructStringz(count); }
@@ -742,7 +758,72 @@ interface Array<T> {
 	first(filter?: (item: T) => boolean): T;
 	sum<Q>(selector?: (item: T) => Q);
 	max<Q>(selector?: (item: T) => Q);
+	binarySearchIndex(selector: (item: T) => number): number;
+	binarySearchValue(selector: (item: T) => number): T;
+	contains(item: T): boolean;
 }
+
+function compareNumbers(a, b) {
+	if (a < b) return -1;
+	if (a > b) return +1;
+	return 0;
+}
+
+Array.prototype.contains = function <T>(item: T) {
+	return (<T[]>this).indexOf(item) >= 0;
+}
+
+Array.prototype.binarySearchValue = function <T>(selector: (item: T) => number) {
+	var array = <T[]>this;
+
+	var index = array.binarySearchIndex(selector);
+	if (index < 0) return null;
+	return array[index];
+};
+
+Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) {
+	var array = <T[]>this;
+	var min = 0;
+	var max = array.length - 1;
+	var step = 0;
+
+	//console.log('--------');
+
+	while (true) {
+		var current = Math.floor((min + max) / 2);
+
+		var item = array[current];
+		var result = selector(item);
+
+		if (result == 0) {
+			//console.log('->', current);
+			return current;
+		}
+
+		//console.log(min, current, max);
+
+		if (((current == min) || (current == max))) {
+			if (min != max) {
+				//console.log('*');
+				min = max = current = (current != min) ? min : max;
+				//console.log(min, current, max);
+			} else {
+				//console.log('#');
+				break;
+			}
+		} else {
+			if (result < 0) {
+				max = current;
+			} else if (result > 0) {
+				min = current;
+			}
+		}
+		step++;
+		if (step >= 64) throw(new Error("Too much steps"));
+	}
+
+	return -1;
+};
 
 Array.prototype.max = <any>(function (selector: Function) {
 	var array = <any[]>this;
@@ -772,6 +853,16 @@ Array.prototype.remove = function (item) {
     var index = array.indexOf(item);
     if (index >= 0) array.splice(index, 1);
 };
+
+Object.defineProperty(Array.prototype, "max", { enumerable: false });
+Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
+Object.defineProperty(Array.prototype, "first", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "remove", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
+
+
 
 interface String {
 	rstrip(): string;

@@ -18,7 +18,7 @@ module core {
 			this.x = 0;
 			this.y = 0;
 		}
-
+		
 		get x() { return ((this.lx / 255.0) - 0.5) * 2.0; }
 		get y() { return ((this.ly / 255.0) - 0.5) * 2.0; }
 

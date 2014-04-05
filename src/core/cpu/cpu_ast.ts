@@ -202,11 +202,27 @@
 		lwr(i: Instruction) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		swl(i: Instruction) { return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		swr(i: Instruction) { return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
+
+		_callstackPush(i: Instruction) {
+			return stm(call('state.callstackPush', [imm32(i.PC)]));
+		}
+
+		_callstackPop(i: Instruction) {
+			return stm(call('state.callstackPop', []));
+		}
 		
 		j(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); }
-		jr(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), gpr(i.rs)))]); }
-		jal(i: Instruction) { return stms([this.j(i), assignGpr(31, u_imm32(i.PC + 8))]); }
-		jalr(i: Instruction) { return stms([this.jr(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); }
+		jr(i: Instruction) {
+			var statements = [];
+			statements.push(stm(assign(branchflag(), imm32(1))));
+			statements.push(stm(assign(branchpc(), gpr(i.rs))));
+			if (i.rs == 31) {
+				statements.push(this._callstackPop(i));
+			}
+			return stms(statements);
+		}
+		jal(i: Instruction) { return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]); }
+		jalr(i: Instruction) { return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); }
 
 		_comp(i: Instruction, fc02: number, fc3: number) {
 			var fc_unordererd = ((fc02 & 1) != 0);

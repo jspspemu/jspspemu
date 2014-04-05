@@ -1,4 +1,4 @@
-﻿module format.iso {
+module format.iso {
 	var SECTOR_SIZE = 0x800;
 
     class DirectoryRecordDate {
@@ -235,7 +235,7 @@
 		get name() { return this.asyncStream.name; }
         get root(): IIsoNode { return this._root; }
         get childrenByPath(): StringDictionary<IIsoNode> { return this._childrenByPath; }
-        get children(): IIsoNode[]{ return this._children.slice(); }
+        get children(): IIsoNode[]{ return this._children.slice(0); }
 
         static fromStreamAsync(asyncStream: AsyncStream) {
             return new Iso().loadAsync(asyncStream);

@@ -80,7 +80,7 @@ function downloadFileAsync(url: string) {
 			//console.log(data.length);
 		};
 		request.onerror = function (e) {
-			reject(e.error);
+			reject(e['error']);
 		};
 		request.send();
 	});

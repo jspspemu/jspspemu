@@ -69,7 +69,7 @@
 	}
 
 	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string) {
-		return format.detectFormatAsync(asyncStream).then(fileFormat => {
+		return format.detectFormatAsync(asyncStream).then((fileFormat):any => {
 			console.info(sprintf('File:: size: %d, format: "%s", name: "%s"', asyncStream.size, fileFormat, asyncStream.name));
 			switch (fileFormat) {
 				case 'ciso':
@@ -106,6 +106,7 @@
 						//console.log(new Uint8Array(executableArrayBuffer));
 						var pspElf = new hle.elf.PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager);
 						pspElf.load(elfStream);
+						this.context.symbolLookup = pspElf;
 						var moduleInfo = pspElf.moduleInfo;
 
 						//window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');

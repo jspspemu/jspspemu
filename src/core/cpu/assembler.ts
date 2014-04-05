@@ -1,4 +1,4 @@
-﻿module core.cpu {
+module core.cpu {
 	export class MipsAssembler {
 		private instructions: core.cpu.Instructions = core.cpu.Instructions.instance;
 

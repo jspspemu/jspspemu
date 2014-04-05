@@ -50,6 +50,7 @@
     <TypeScriptCompile Include="src\format\psf.ts" />
     <TypeScriptCompile Include="src\hle\filemanager.ts" />
     <TypeScriptCompile Include="src\hle\modulemanager.ts" />
+    <TypeScriptCompile Include="src\hle\modules\ExceptionManagerForKernel.ts" />
     <TypeScriptCompile Include="src\hle\modules\InterruptManager.ts" />
     <TypeScriptCompile Include="src\hle\modules\IoFileMgrForUser.ts" />
     <TypeScriptCompile Include="src\hle\modules\KDebugForKernel.ts" />

@@ -1,4 +1,4 @@
-﻿///<reference path="../util/utils.ts" />
+///<reference path="../util/utils.ts" />
 
 module core {
 	export class PspAudioBuffer {

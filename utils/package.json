@@ -1,0 +1,19 @@
+{
+	"name": "static_server",
+	"version": "0.0.1",
+	"description": "",
+	"main": "static_server.js",
+	"scripts": {
+		"start": "node --harmony static_server.js"
+	},
+	"dependencies": {
+		"mime": "1.2.x",
+		"node-watch": "0.3.x",
+		"node-dir": "0.1.x",
+		"underscore": "0.6.x",
+		"wrench": "1.5.x"
+	},
+	"engine": {
+		"node": ">=0.10"
+	}
+}

@@ -48,9 +48,7 @@ class FunctionGenerator {
             var di = this.decodeInstruction(PC + 0);
             //console.log(di);
 
-			if (PC == 0x089005D0) {
-				//stms.push(ast.debugger());
-			}
+			//if ([0x0890D0CC, 0x0895DAD8].contains(PC)) stms.push(ast.debugger());
 
             if (di.type.hasDelayedBranch) {
                 var di2 = this.decodeInstruction(PC + 4);

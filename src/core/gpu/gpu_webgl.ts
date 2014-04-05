@@ -368,6 +368,7 @@
 
 		private buffers: StringDictionary<WebGLBuffer> = {};
 
+
 		attributeSetFloats(gl: WebGLRenderingContext, prog: WebGLProgram, attr_name: string, rsize: number, arr: number[]) {
 			if (!this.buffers[attr_name]) this.buffers[attr_name] = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[attr_name]);

@@ -22,7 +22,21 @@
 		get GP():number { return this.gpr[28]; } set GP(value: number) { this.gpr[28] = value; }
 		get SP():number { return this.gpr[29]; } set SP(value: number) { this.gpr[29] = value; }
 		get FP():number { return this.gpr[30]; } set FP(value: number) { this.gpr[30] = value; }
-		get RA():number { return this.gpr[31]; } set RA(value: number) { this.gpr[31] = value; }
+		get RA(): number { return this.gpr[31]; } set RA(value: number) { this.gpr[31] = value; }
+
+		private callstack: number[] = [];
+
+		callstackPush(PC: number) {
+			this.callstack.push(PC);
+		}
+
+		callstackPop() {
+			this.callstack.pop();
+		}
+
+		getCallstack() {
+			return this.callstack.slice(0);
+		}
 
 		getPointerStream(address: number) {
 			return this.memory.getPointerStream(address);

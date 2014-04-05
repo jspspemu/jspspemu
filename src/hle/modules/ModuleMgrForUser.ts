@@ -2,7 +2,11 @@
     export class ModuleMgrForUser {
 		constructor(private context: EmulatorContext) { }
 
-		sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int', this, (unknown: number, argsize: number, argp: number) => {
+		sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'HleThread/int/int/int', this, (thread: hle.Thread, unknown: number, argsize: number, argp: number) => {
+			console.info("Call stack:");
+			thread.state.getCallstack().forEach((PC) => {
+				console.info(sprintf("%08X : %s", PC, this.context.symbolLookup.getSymbolAt(PC)));
+			});
 			console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown ,argsize, argp));
 			return 0;
 		});

@@ -361,25 +361,289 @@ var MipsAstBuilder = (function (_super) {
     };
     return MipsAstBuilder;
 })(AstBuilder);
-var EmulatorContext = (function () {
-    function EmulatorContext() {
-        this.output = '';
-    }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager) {
-        this.interruptManager = interruptManager;
-        this.display = display;
-        this.controller = controller;
-        this.gpu = gpu;
-        this.memoryManager = memoryManager;
-        this.threadManager = threadManager;
-        this.audio = audio;
-        this.memory = memory;
-        this.instructionCache = instructionCache;
-        this.fileManager = fileManager;
-        this.output = '';
-    };
-    return EmulatorContext;
-})();
+var core;
+(function (core) {
+    (function (PixelFormat) {
+        PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
+        PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
+        PixelFormat[PixelFormat["RGBA_5551"] = 1] = "RGBA_5551";
+        PixelFormat[PixelFormat["RGBA_4444"] = 2] = "RGBA_4444";
+        PixelFormat[PixelFormat["RGBA_8888"] = 3] = "RGBA_8888";
+        PixelFormat[PixelFormat["PALETTE_T4"] = 4] = "PALETTE_T4";
+        PixelFormat[PixelFormat["PALETTE_T8"] = 5] = "PALETTE_T8";
+        PixelFormat[PixelFormat["PALETTE_T16"] = 6] = "PALETTE_T16";
+        PixelFormat[PixelFormat["PALETTE_T32"] = 7] = "PALETTE_T32";
+        PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
+        PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
+        PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
+    })(core.PixelFormat || (core.PixelFormat = {}));
+    var PixelFormat = core.PixelFormat;
+
+    var BasePspDisplay = (function () {
+        function BasePspDisplay() {
+            this.address = core.Memory.DEFAULT_FRAME_ADDRESS;
+            this.bufferWidth = 512;
+            this.pixelFormat = 3 /* RGBA_8888 */;
+            this.sync = 1;
+        }
+        return BasePspDisplay;
+    })();
+    core.BasePspDisplay = BasePspDisplay;
+
+    var DummyPspDisplay = (function (_super) {
+        __extends(DummyPspDisplay, _super);
+        function DummyPspDisplay() {
+            _super.call(this);
+            this.vblankCount = 0;
+            this.hcount = 0;
+        }
+        DummyPspDisplay.prototype.waitVblankAsync = function () {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, 20);
+            });
+        };
+
+        DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
+        };
+
+        DummyPspDisplay.prototype.startAsync = function () {
+            return Promise.resolve();
+        };
+
+        DummyPspDisplay.prototype.stopAsync = function () {
+            return Promise.resolve();
+        };
+        return DummyPspDisplay;
+    })(BasePspDisplay);
+    core.DummyPspDisplay = DummyPspDisplay;
+
+    var PspDisplay = (function (_super) {
+        __extends(PspDisplay, _super);
+        function PspDisplay(memory, canvas, webglcanvas) {
+            _super.call(this);
+            this.memory = memory;
+            this.canvas = canvas;
+            this.webglcanvas = webglcanvas;
+            this.vblank = new Signal();
+            this.interval = -1;
+            this.vblankCount = 0;
+            this.enabled = true;
+            this._hcount = 0;
+            this.context = this.canvas.getContext('2d');
+            this.imageData = this.context.createImageData(512, 272);
+            this.setEnabledDisplay(true);
+        }
+        Object.defineProperty(PspDisplay.prototype, "elapsedTime", {
+            get: function () {
+                return Date.now() - this.startTime;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(PspDisplay.prototype, "hcount", {
+            get: function () {
+                return ((this.elapsedTime / 1000) / (1 / PspDisplay.HorizontalSyncHertz)) | 0;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        PspDisplay.prototype.update = function () {
+            if (!this.context || !this.imageData)
+                return;
+            if (!this.enabled)
+                return;
+
+            var count = 512 * 272;
+            var imageData = this.imageData;
+            var w8 = imageData.data;
+            var baseAddress = this.address & 0x0FFFFFFF;
+
+            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
+            this.context.putImageData(imageData, 0, 0);
+        };
+
+        PspDisplay.prototype.setEnabledDisplay = function (enable) {
+            this.enabled = enable;
+            this.canvas.style.display = enable ? 'block' : 'none';
+            this.webglcanvas.style.display = !enable ? 'block' : 'none';
+        };
+
+        PspDisplay.prototype.startAsync = function () {
+            var _this = this;
+            this.startTime = Date.now();
+
+            //$(this.canvas).focus();
+            this.interval = setInterval(function () {
+                _this.vblankCount++;
+                _this.update();
+                _this.vblank.dispatch();
+            }, 1000 / 59.999);
+            return Promise.resolve();
+        };
+
+        PspDisplay.prototype.stopAsync = function () {
+            clearInterval(this.interval);
+            this.interval = -1;
+            return Promise.resolve();
+        };
+
+        PspDisplay.prototype.waitVblankAsync = function () {
+            var _this = this;
+            return new Promise(function (resolve) {
+                _this.vblank.once(function () {
+                    resolve(0);
+                });
+            });
+        };
+        PspDisplay.ProcessedPixelsPerSecond = 9000000;
+        PspDisplay.CyclesPerPixel = 1;
+        PspDisplay.PixelsInARow = 525;
+        PspDisplay.VsyncRow = 272;
+        PspDisplay.NumberOfRows = 286;
+        PspDisplay.hCountPerVblank = 285.72;
+
+        PspDisplay.HorizontalSyncHertz = (PspDisplay.ProcessedPixelsPerSecond * PspDisplay.CyclesPerPixel) / PspDisplay.PixelsInARow;
+        PspDisplay.VerticalSyncHertz = PspDisplay.HorizontalSyncHertz / PspDisplay.NumberOfRows;
+        return PspDisplay;
+    })(BasePspDisplay);
+    core.PspDisplay = PspDisplay;
+
+    var sizes = {};
+    sizes[8 /* COMPRESSED_DXT1 */] = 0.5;
+    sizes[9 /* COMPRESSED_DXT3 */] = 1;
+    sizes[10 /* COMPRESSED_DXT5 */] = 1;
+    sizes[-1 /* NONE */] = 0;
+    sizes[6 /* PALETTE_T16 */] = 2;
+    sizes[7 /* PALETTE_T32 */] = 4;
+    sizes[5 /* PALETTE_T8 */] = 1;
+    sizes[4 /* PALETTE_T4 */] = 0.5;
+    sizes[2 /* RGBA_4444 */] = 2;
+    sizes[1 /* RGBA_5551 */] = 2;
+    sizes[0 /* RGBA_5650 */] = 2;
+    sizes[3 /* RGBA_8888 */] = 4;
+
+    var PixelConverter = (function () {
+        function PixelConverter() {
+        }
+        PixelConverter.getSizeInBytes = function (format, count) {
+            return sizes[format] * count;
+        };
+
+        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            switch (format) {
+                case 3 /* RGBA_8888 */:
+                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 1 /* RGBA_5551 */:
+                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 0 /* RGBA_5650 */:
+                    PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 2 /* RGBA_4444 */:
+                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
+                    break;
+                case 5 /* PALETTE_T8 */:
+                    PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
+                    break;
+                case 4 /* PALETTE_T4 */:
+                    PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
+                    break;
+                default:
+                    throw (new Error(sprintf("Unsupported pixel format %d", format)));
+            }
+        };
+
+        PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            for (var n = 0, m = 0; n < count * 8; n += 8, m++) {
+                var color1 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 0, 4) & clutMask) << clutShift)];
+                var color2 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 4, 4) & clutMask) << clutShift)];
+                to[toIndex + n + 0] = BitUtils.extract(color1, 0, 8);
+                to[toIndex + n + 1] = BitUtils.extract(color1, 8, 8);
+                to[toIndex + n + 2] = BitUtils.extract(color1, 16, 8);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color1, 24, 8) : 0xFF;
+
+                to[toIndex + n + 4] = BitUtils.extract(color2, 0, 8);
+                to[toIndex + n + 5] = BitUtils.extract(color2, 8, 8);
+                to[toIndex + n + 6] = BitUtils.extract(color2, 16, 8);
+                to[toIndex + n + 7] = useAlpha ? BitUtils.extract(color2, 24, 8) : 0xFF;
+            }
+        };
+
+        PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            if (typeof palette === "undefined") { palette = null; }
+            if (typeof clutStart === "undefined") { clutStart = 0; }
+            if (typeof clutShift === "undefined") { clutShift = 0; }
+            if (typeof clutMask === "undefined") { clutMask = 0; }
+            for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
+                var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
+                var color = palette[colorIndex];
+                to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
+                to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
+                to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
+            }
+        };
+
+        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                to[toIndex + n + 0] = from[fromIndex + n + 0];
+                to[toIndex + n + 1] = from[fromIndex + n + 1];
+                to[toIndex + n + 2] = from[fromIndex + n + 2];
+                to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
+            }
+        };
+
+        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 5, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScalei(it, 10, 5, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF;
+            }
+        };
+
+        PixelConverter.update5650 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 6, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScalei(it, 11, 5, 0xFF);
+                to[toIndex + n + 3] = 0xFF;
+            }
+        };
+
+        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+            if (typeof useAlpha === "undefined") { useAlpha = true; }
+            for (var n = 0; n < count * 4; n += 4) {
+                var it = from[fromIndex++];
+                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 4, 0xFF);
+                to[toIndex + n + 1] = BitUtils.extractScalei(it, 4, 4, 0xFF);
+                to[toIndex + n + 2] = BitUtils.extractScalei(it, 8, 4, 0xFF);
+                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF;
+            }
+        };
+        return PixelConverter;
+    })();
+    core.PixelConverter = PixelConverter;
+})(core || (core = {}));
 ///<reference path="../../typings/promise/promise.d.ts" />
 
 function String_repeat(str, num) {
@@ -494,7 +758,7 @@ var FileAsyncStream = (function () {
                 resolve(fileReader.result);
             };
             fileReader.onerror = function (e) {
-                reject(e.error);
+                reject(e['error']);
             };
             fileReader.readAsArrayBuffer(_this.file.slice(offset, offset + count));
         });
@@ -1037,17 +1301,25 @@ var StructStringz = (function () {
     return StructStringz;
 })();
 
-var Int16 = new Int16Type(0 /* LITTLE */);
-var Int32 = new Int32Type(0 /* LITTLE */);
-var Int64 = new Int64Type(0 /* LITTLE */);
-var Int8 = new Int8Type(0 /* LITTLE */);
-
-var UInt16 = new UInt16Type(0 /* LITTLE */);
-var UInt32 = new UInt32Type(0 /* LITTLE */);
-var UInt8 = new UInt8Type(0 /* LITTLE */);
-
-var UInt16_b = new UInt16Type(1 /* BIG */);
-var UInt32_b = new UInt32Type(1 /* BIG */);
+var StructStringzVariable = (function () {
+    function StructStringzVariable() {
+    }
+    StructStringzVariable.prototype.read = function (stream) {
+        return stream.readStringz();
+    };
+    StructStringzVariable.prototype.write = function (stream, value) {
+        stream.writeString(value);
+        stream.writeUInt8(0);
+    };
+    Object.defineProperty(StructStringzVariable.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringzVariable;
+})();
 
 var UInt32_2lbStruct = (function () {
     function UInt32_2lbStruct() {
@@ -1093,9 +1365,22 @@ var UInt16_2lbStruct = (function () {
     return UInt16_2lbStruct;
 })();
 
-var UInt32_2lb = new UInt32_2lbStruct();
+var Int16 = new Int16Type(0 /* LITTLE */);
+var Int32 = new Int32Type(0 /* LITTLE */);
+var Int64 = new Int64Type(0 /* LITTLE */);
+var Int8 = new Int8Type(0 /* LITTLE */);
 
+var UInt16 = new UInt16Type(0 /* LITTLE */);
+var UInt32 = new UInt32Type(0 /* LITTLE */);
+var UInt8 = new UInt8Type(0 /* LITTLE */);
+
+var UInt16_b = new UInt16Type(1 /* BIG */);
+var UInt32_b = new UInt32Type(1 /* BIG */);
+
+var UInt32_2lb = new UInt32_2lbStruct();
 var UInt16_2lb = new UInt16_2lbStruct();
+
+var StringzVariable = new StructStringzVariable();
 
 function Stringn(count) {
     return new StructStringn(count);
@@ -1351,6 +1636,68 @@ function identity(a) {
     return a;
 }
 
+function compareNumbers(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+
+Array.prototype.contains = function (item) {
+    return this.indexOf(item) >= 0;
+};
+
+Array.prototype.binarySearchValue = function (selector) {
+    var array = this;
+
+    var index = array.binarySearchIndex(selector);
+    if (index < 0)
+        return null;
+    return array[index];
+};
+
+Array.prototype.binarySearchIndex = function (selector) {
+    var array = this;
+    var min = 0;
+    var max = array.length - 1;
+    var step = 0;
+
+    while (true) {
+        var current = Math.floor((min + max) / 2);
+
+        var item = array[current];
+        var result = selector(item);
+
+        if (result == 0) {
+            //console.log('->', current);
+            return current;
+        }
+
+        //console.log(min, current, max);
+        if (((current == min) || (current == max))) {
+            if (min != max) {
+                //console.log('*');
+                min = max = current = (current != min) ? min : max;
+                //console.log(min, current, max);
+            } else {
+                break;
+            }
+        } else {
+            if (result < 0) {
+                max = current;
+            } else if (result > 0) {
+                min = current;
+            }
+        }
+        step++;
+        if (step >= 64)
+            throw (new Error("Too much steps"));
+    }
+
+    return -1;
+};
+
 Array.prototype.max = (function (selector) {
     var array = this;
     if (!selector)
@@ -1395,6 +1742,14 @@ Array.prototype.remove = function (item) {
     if (index >= 0)
         array.splice(index, 1);
 };
+
+Object.defineProperty(Array.prototype, "max", { enumerable: false });
+Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
+Object.defineProperty(Array.prototype, "first", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "remove", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
 
 String.prototype.startsWith = function (value) {
     var string = this;
@@ -1528,146 +1883,6 @@ var PromiseUtils = (function () {
 })();
 
 window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    var PspAudioBuffer = (function () {
-        function PspAudioBuffer(readedCallback, data) {
-            this.readedCallback = readedCallback;
-            this.data = data;
-            this.offset = 0;
-        }
-        PspAudioBuffer.prototype.resolve = function () {
-            if (this.readedCallback)
-                this.readedCallback();
-            this.readedCallback = null;
-        };
-
-        Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
-            get: function () {
-                return this.offset < this.length;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        PspAudioBuffer.prototype.read = function () {
-            return this.data[this.offset++];
-        };
-
-        Object.defineProperty(PspAudioBuffer.prototype, "available", {
-            get: function () {
-                return this.length - this.offset;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(PspAudioBuffer.prototype, "length", {
-            get: function () {
-                return this.data.length;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        return PspAudioBuffer;
-    })();
-    core.PspAudioBuffer = PspAudioBuffer;
-
-    var PspAudioChannel = (function () {
-        function PspAudioChannel(audio, context) {
-            var _this = this;
-            this.audio = audio;
-            this.context = context;
-            this.buffers = [];
-            if (this.context) {
-                this.node = this.context.createScriptProcessor(1024, 2, 2);
-                this.node.onaudioprocess = function (e) {
-                    _this.process(e);
-                };
-            }
-        }
-        PspAudioChannel.prototype.start = function () {
-            if (this.node)
-                this.node.connect(this.context.destination);
-            this.audio.playingChannels.add(this);
-        };
-
-        PspAudioChannel.prototype.stop = function () {
-            if (this.node)
-                this.node.disconnect();
-            this.audio.playingChannels.delete(this);
-        };
-
-        PspAudioChannel.prototype.process = function (e) {
-            var left = e.outputBuffer.getChannelData(0);
-            var right = e.outputBuffer.getChannelData(1);
-            var sampleCount = left.length;
-
-            for (var n = 0; n < sampleCount; n++) {
-                if (!this.currentBuffer) {
-                    if (this.buffers.length == 0)
-                        break;
-
-                    this.currentBuffer = this.buffers.shift();
-                    this.currentBuffer.resolve();
-                }
-
-                if (this.currentBuffer.available >= 2) {
-                    left[n] = this.currentBuffer.read();
-                    right[n] = this.currentBuffer.read();
-                } else {
-                    this.currentBuffer = null;
-                }
-            }
-        };
-
-        PspAudioChannel.prototype.playAsync = function (data) {
-            var _this = this;
-            return new Promise(function (resolved, rejected) {
-                if (_this.node) {
-                    _this.buffers.push(new PspAudioBuffer(resolved, data));
-                } else {
-                    resolved();
-                }
-            });
-        };
-        return PspAudioChannel;
-    })();
-    core.PspAudioChannel = PspAudioChannel;
-
-    var PspAudio = (function () {
-        function PspAudio() {
-            this.playingChannels = new SortedSet();
-            try  {
-                this.context = new AudioContext();
-            } catch (e) {
-            }
-        }
-        PspAudio.prototype.createChannel = function () {
-            return new PspAudioChannel(this, this.context);
-        };
-
-        PspAudio.convertS16ToF32 = function (input) {
-            var output = new Float32Array(input.length);
-            for (var n = 0; n < output.length; n++)
-                output[n] = input[n] / 32767.0;
-            return output;
-        };
-
-        PspAudio.prototype.startAsync = function () {
-            return Promise.resolve();
-        };
-
-        PspAudio.prototype.stopAsync = function () {
-            this.playingChannels.forEach(function (channel) {
-                channel.stop();
-            });
-            return Promise.resolve();
-        };
-        return PspAudio;
-    })();
-    core.PspAudio = PspAudio;
-})(core || (core = {}));
 ///<reference path="../util/utils.ts" />
 var core;
 (function (core) {
@@ -1973,6 +2188,2367 @@ var core;
     })(core.HtmlKeyCodes || (core.HtmlKeyCodes = {}));
     var HtmlKeyCodes = core.HtmlKeyCodes;
 })(core || (core = {}));
+///<reference path="../util/utils.ts" />
+var core;
+(function (core) {
+    var Memory = (function () {
+        function Memory() {
+            this.buffer = new ArrayBuffer(0x10000000);
+            this.data = new DataView(this.buffer);
+            this.s8 = new Int8Array(this.buffer);
+            this.u8 = new Uint8Array(this.buffer);
+            this.u16 = new Uint16Array(this.buffer);
+            this.s16 = new Int16Array(this.buffer);
+            this.s32 = new Int32Array(this.buffer);
+            this.u32 = new Uint32Array(this.buffer);
+            this.f32 = new Float32Array(this.buffer);
+        }
+        Object.defineProperty(Memory, "instance", {
+            get: function () {
+                if (!Memory._instance)
+                    Memory._instance = new Memory();
+                return Memory._instance;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Memory.prototype.reset = function () {
+            this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
+        };
+
+        Memory.prototype.availableAfterAddress = function (address) {
+            return this.buffer.byteLength - (address & Memory.MASK);
+        };
+
+        Memory.prototype.getPointerDataView = function (address, size) {
+            if (!size)
+                size = this.availableAfterAddress(address);
+            return new DataView(this.buffer, address & Memory.MASK, size);
+        };
+
+        Memory.prototype.getPointerStream = function (address, size) {
+            address &= Memory.MASK;
+            if (address == 0)
+                return null;
+            if (!size)
+                size = this.availableAfterAddress(address);
+            return new Stream(this.getPointerDataView(address, size));
+        };
+
+        Memory.prototype.writeInt8 = function (address, value) {
+            this.u8[(address >> 0) & Memory.MASK] = value;
+        };
+        Memory.prototype.readInt8 = function (address) {
+            return this.s8[(address >> 0) & Memory.MASK];
+        };
+        Memory.prototype.readUInt8 = function (address) {
+            return this.u8[(address >> 0) & Memory.MASK];
+        };
+
+        Memory.prototype.writeInt16 = function (address, value) {
+            this.u16[(address >> 1) & Memory.MASK] = value;
+        };
+        Memory.prototype.readInt16 = function (address) {
+            return this.s16[(address >> 1) & Memory.MASK];
+        };
+        Memory.prototype.readUInt16 = function (address) {
+            return this.u16[(address >> 1) & Memory.MASK];
+        };
+
+        Memory.prototype.writeInt32 = function (address, value) {
+            this.u32[(address >> 2) & Memory.MASK] = value;
+        };
+        Memory.prototype.readInt32 = function (address) {
+            return this.s32[(address >> 2) & Memory.MASK];
+        };
+        Memory.prototype.readUInt32 = function (address) {
+            return this.u32[(address >> 2) & Memory.MASK];
+        };
+
+        Memory.prototype.writeFloat32 = function (address, value) {
+            this.f32[(address >> 2) & Memory.MASK] = value;
+        };
+        Memory.prototype.readFloat32 = function (address) {
+            return this.f32[(address >> 2) & Memory.MASK];
+        };
+
+        Memory.prototype.writeBytes = function (address, data) {
+            Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
+        };
+
+        Memory.prototype.readBytes = function (address, length) {
+            return new Uint8Array(this.buffer, address, length);
+        };
+
+        Memory.prototype.writeStream = function (address, stream) {
+            stream = stream.sliceWithLength(0, stream.length);
+            while (stream.available > 0) {
+                this.writeInt8(address++, stream.readUInt8());
+            }
+        };
+
+        Memory.prototype.readStringz = function (address) {
+            if (address == 0)
+                return null;
+            var out = '';
+            while (true) {
+                var char = this.readUInt8(address++);
+                if (char == 0)
+                    break;
+                out += String.fromCharCode(char);
+            }
+            return out;
+        };
+
+        Memory.prototype.sliceWithBounds = function (low, high) {
+            return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
+        };
+
+        Memory.prototype.sliceWithSize = function (address, size) {
+            return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
+        };
+
+        Memory.prototype.copy = function (from, to, length) {
+            from &= Memory.MASK;
+            to &= Memory.MASK;
+            for (var n = 0; n < length; n++) {
+                this.u8[to + n] = this.u8[from + n];
+            }
+        };
+
+        Memory.prototype.memset = function (address, value, length) {
+            address &= Memory.MASK;
+            for (var n = 0; n < length; n++) {
+                this.u8[address + n] = value;
+            }
+        };
+
+        Memory.prototype.hash = function (address, count) {
+            var result = 0;
+            for (var n = 0; n < count; n++) {
+                result = Memory.hashItem(result, n, this.u8[address + n]);
+            }
+            return result;
+        };
+
+        Memory.hashItem = function (prev, n, value) {
+            prev ^= n;
+            prev += value;
+            return prev | 0;
+        };
+
+        Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
+            var _source = new Uint8Array(source, sourcePosition, length);
+            var _destination = new Uint8Array(destination, destinationPosition, length);
+            _destination.set(_source);
+        };
+        Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
+
+        Memory.MASK = 0x0FFFFFFF;
+        Memory.MAIN_OFFSET = 0x08000000;
+        return Memory;
+    })();
+    core.Memory = Memory;
+})(core || (core = {}));
+///<reference path="../../util/utils.ts" />
+///<reference path="../display.ts" />
+///<reference path="../memory.ts" />
+var core;
+(function (core) {
+    (function (gpu) {
+        (function (CullingDirection) {
+            CullingDirection[CullingDirection["CounterClockWise"] = 0] = "CounterClockWise";
+            CullingDirection[CullingDirection["ClockWise"] = 1] = "ClockWise";
+        })(gpu.CullingDirection || (gpu.CullingDirection = {}));
+        var CullingDirection = gpu.CullingDirection;
+
+        (function (SyncType) {
+            SyncType[SyncType["ListDone"] = 0] = "ListDone";
+            SyncType[SyncType["ListQueued"] = 1] = "ListQueued";
+            SyncType[SyncType["ListDrawingDone"] = 2] = "ListDrawingDone";
+            SyncType[SyncType["ListStallReached"] = 3] = "ListStallReached";
+            SyncType[SyncType["ListCancelDone"] = 4] = "ListCancelDone";
+        })(gpu.SyncType || (gpu.SyncType = {}));
+        var SyncType = gpu.SyncType;
+
+        var GpuFrameBufferState = (function () {
+            function GpuFrameBufferState() {
+                this.lowAddress = 0;
+                this.highAddress = 0;
+                this.width = 0;
+            }
+            return GpuFrameBufferState;
+        })();
+        gpu.GpuFrameBufferState = GpuFrameBufferState;
+
+        (function (IndexEnum) {
+            IndexEnum[IndexEnum["Void"] = 0] = "Void";
+            IndexEnum[IndexEnum["Byte"] = 1] = "Byte";
+            IndexEnum[IndexEnum["Short"] = 2] = "Short";
+        })(gpu.IndexEnum || (gpu.IndexEnum = {}));
+        var IndexEnum = gpu.IndexEnum;
+
+        (function (NumericEnum) {
+            NumericEnum[NumericEnum["Void"] = 0] = "Void";
+            NumericEnum[NumericEnum["Byte"] = 1] = "Byte";
+            NumericEnum[NumericEnum["Short"] = 2] = "Short";
+            NumericEnum[NumericEnum["Float"] = 3] = "Float";
+        })(gpu.NumericEnum || (gpu.NumericEnum = {}));
+        var NumericEnum = gpu.NumericEnum;
+
+        (function (ColorEnum) {
+            ColorEnum[ColorEnum["Void"] = 0] = "Void";
+            ColorEnum[ColorEnum["Invalid1"] = 1] = "Invalid1";
+            ColorEnum[ColorEnum["Invalid2"] = 2] = "Invalid2";
+            ColorEnum[ColorEnum["Invalid3"] = 3] = "Invalid3";
+            ColorEnum[ColorEnum["Color5650"] = 4] = "Color5650";
+            ColorEnum[ColorEnum["Color5551"] = 5] = "Color5551";
+            ColorEnum[ColorEnum["Color4444"] = 6] = "Color4444";
+            ColorEnum[ColorEnum["Color8888"] = 7] = "Color8888";
+        })(gpu.ColorEnum || (gpu.ColorEnum = {}));
+        var ColorEnum = gpu.ColorEnum;
+
+        var Vertex = (function () {
+            function Vertex() {
+                this.px = 0.0;
+                this.py = 0.0;
+                this.pz = 0.0;
+                this.nx = 0.0;
+                this.ny = 0.0;
+                this.nz = 0.0;
+                this.tx = 0.0;
+                this.ty = 0.0;
+                this.tz = 0.0;
+                this.r = 0.0;
+                this.g = 0.0;
+                this.b = 0.0;
+                this.a = 1.0;
+                this.w0 = 0.0;
+                this.w1 = 0.0;
+                this.w2 = 0.0;
+                this.w3 = 0.0;
+                this.w4 = 0.0;
+                this.w5 = 0.0;
+                this.w6 = 0.0;
+                this.w7 = 0.0;
+            }
+            Vertex.prototype.clone = function () {
+                var vertex = new Vertex();
+                vertex.px = this.px;
+                vertex.py = this.py;
+                vertex.pz = this.pz;
+                vertex.nx = this.nx;
+                vertex.ny = this.ny;
+                vertex.nz = this.nz;
+                vertex.tx = this.tx;
+                vertex.ty = this.ty;
+                vertex.tz = this.tz;
+                vertex.r = this.r;
+                vertex.g = this.g;
+                vertex.b = this.b;
+                vertex.a = this.a;
+                vertex.w0 = this.w0;
+                vertex.w1 = this.w1;
+                vertex.w2 = this.w2;
+                vertex.w3 = this.w3;
+                vertex.w4 = this.w4;
+                vertex.w5 = this.w5;
+                vertex.w6 = this.w6;
+                vertex.w7 = this.w7;
+                return vertex;
+            };
+            return Vertex;
+        })();
+        gpu.Vertex = Vertex;
+
+        var VertexState = (function () {
+            function VertexState() {
+                this.address = 0;
+                this._value = 0;
+                this.reversedNormal = false;
+                this.textureComponentCount = 2;
+            }
+            Object.defineProperty(VertexState.prototype, "value", {
+                get: function () {
+                    return this._value;
+                },
+                set: function (value) {
+                    this._value = value;
+                    this.size = this.getVertexSize();
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+
+            Object.defineProperty(VertexState.prototype, "hash", {
+                //getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
+                get: function () {
+                    return [this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.weightSize, this.morphingVertexCount, this.transform2D, this.textureComponentCount].join('_');
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(VertexState.prototype, "hasTexture", {
+                get: function () {
+                    return this.texture != 0 /* Void */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "hasColor", {
+                get: function () {
+                    return this.color != 0 /* Void */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "hasNormal", {
+                get: function () {
+                    return this.normal != 0 /* Void */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "hasPosition", {
+                get: function () {
+                    return this.position != 0 /* Void */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "hasWeight", {
+                get: function () {
+                    return this.weight != 0 /* Void */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "hasIndex", {
+                get: function () {
+                    return this.index != 0 /* Void */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(VertexState.prototype, "texture", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 0, 2);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "color", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 2, 3);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "normal", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 5, 2);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "position", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 7, 2);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "weight", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 9, 2);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "index", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 11, 2);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "weightCount", {
+                get: function () {
+                    return BitUtils.extract(this.value, 14, 3);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
+                get: function () {
+                    return BitUtils.extract(this.value, 18, 2);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "transform2D", {
+                get: function () {
+                    return BitUtils.extractEnum(this.value, 23, 1);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(VertexState.prototype, "weightSize", {
+                get: function () {
+                    return this.NumericEnumGetSize(this.weight);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "colorSize", {
+                get: function () {
+                    return this.ColorEnumGetSize(this.color);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "textureSize", {
+                get: function () {
+                    return this.NumericEnumGetSize(this.texture);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "positionSize", {
+                get: function () {
+                    return this.NumericEnumGetSize(this.position);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(VertexState.prototype, "normalSize", {
+                get: function () {
+                    return this.NumericEnumGetSize(this.normal);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            VertexState.prototype.IndexEnumGetSize = function (item) {
+                switch (item) {
+                    case 0 /* Void */:
+                        return 0;
+                    case 1 /* Byte */:
+                        return 1;
+                    case 2 /* Short */:
+                        return 2;
+                    default:
+                        throw ("Invalid enum");
+                }
+            };
+
+            VertexState.prototype.NumericEnumGetSize = function (item) {
+                switch (item) {
+                    case 0 /* Void */:
+                        return 0;
+                    case 1 /* Byte */:
+                        return 1;
+                    case 2 /* Short */:
+                        return 2;
+                    case 3 /* Float */:
+                        return 4;
+                    default:
+                        throw ("Invalid enum");
+                }
+            };
+
+            VertexState.prototype.ColorEnumGetSize = function (item) {
+                switch (item) {
+                    case 0 /* Void */:
+                        return 0;
+                    case 4 /* Color5650 */:
+                        return 2;
+                    case 5 /* Color5551 */:
+                        return 2;
+                    case 6 /* Color4444 */:
+                        return 2;
+                    case 7 /* Color8888 */:
+                        return 4;
+                    default:
+                        throw ("Invalid enum");
+                }
+            };
+
+            VertexState.prototype.GetMaxAlignment = function () {
+                return Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
+            };
+
+            Object.defineProperty(VertexState.prototype, "realWeightCount", {
+                get: function () {
+                    return this.weightCount + 1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(VertexState.prototype, "realMorphingVertexCount", {
+                get: function () {
+                    return this.morphingVertexCount + 1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            VertexState.prototype.getVertexSize = function () {
+                var size = 0;
+                size = MathUtils.nextAligned(size, this.weightSize);
+                size += this.realWeightCount * this.weightSize;
+                size = MathUtils.nextAligned(size, this.textureSize);
+                size += this.textureComponentCount * this.textureSize;
+                size = MathUtils.nextAligned(size, this.colorSize);
+                size += 1 * this.colorSize;
+                size = MathUtils.nextAligned(size, this.normalSize);
+                size += 3 * this.normalSize;
+                size = MathUtils.nextAligned(size, this.positionSize);
+                size += 3 * this.positionSize;
+
+                var alignmentSize = this.GetMaxAlignment();
+                size = MathUtils.nextAligned(size, alignmentSize);
+
+                //Console.WriteLine("Size:" + Size);
+                return size;
+            };
+
+            VertexState.prototype.read = function (memory, count) {
+                //console.log('read vertices ' + count);
+                var vertices = [];
+                for (var n = 0; n < count; n++)
+                    vertices.push(this.readOne(memory));
+                return vertices;
+            };
+
+            VertexState.prototype.readOne = function (memory) {
+                var address = this.address;
+                var vertex = {};
+
+                //console.log(vertex);
+                this.address += this.size;
+
+                return vertex;
+            };
+            return VertexState;
+        })();
+        gpu.VertexState = VertexState;
+
+        var Matrix4x4 = (function () {
+            function Matrix4x4() {
+                this.index = 0;
+                this.values = mat4.create();
+            }
+            Matrix4x4.prototype.put = function (value) {
+                this.values[this.index++] = value;
+            };
+
+            Matrix4x4.prototype.reset = function (startIndex) {
+                this.index = startIndex;
+            };
+            return Matrix4x4;
+        })();
+        gpu.Matrix4x4 = Matrix4x4;
+
+        var Matrix4x3 = (function () {
+            function Matrix4x3() {
+                this.index = 0;
+                this.values = mat4.create();
+            }
+            Matrix4x3.prototype.put = function (value) {
+                this.values[Matrix4x3.indices[this.index++]] = value;
+            };
+
+            Matrix4x3.prototype.reset = function (startIndex) {
+                this.index = startIndex;
+            };
+            Matrix4x3.indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
+            return Matrix4x3;
+        })();
+        gpu.Matrix4x3 = Matrix4x3;
+
+        var ViewPort = (function () {
+            function ViewPort() {
+                this.x1 = 0;
+                this.y1 = 0;
+                this.x2 = 512;
+                this.y2 = 272;
+            }
+            Object.defineProperty(ViewPort.prototype, "width", {
+                get: function () {
+                    return this.x2 - this.x1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ViewPort.prototype, "height", {
+                get: function () {
+                    return this.y2 - this.y1;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return ViewPort;
+        })();
+        gpu.ViewPort = ViewPort;
+
+        var Light = (function () {
+            function Light() {
+                this.enabled = false;
+            }
+            return Light;
+        })();
+        gpu.Light = Light;
+
+        var Lightning = (function () {
+            function Lightning() {
+                this.enabled = false;
+                this.lights = [new Light(), new Light(), new Light(), new Light()];
+            }
+            return Lightning;
+        })();
+        gpu.Lightning = Lightning;
+
+        var MipmapState = (function () {
+            function MipmapState() {
+                this.address = 0;
+                this.bufferWidth = 0;
+                this.textureWidth = 0;
+                this.textureHeight = 0;
+            }
+            return MipmapState;
+        })();
+        gpu.MipmapState = MipmapState;
+
+        var ColorState = (function () {
+            function ColorState() {
+                this.r = 1;
+                this.g = 1;
+                this.b = 1;
+                this.a = 1;
+            }
+            return ColorState;
+        })();
+        gpu.ColorState = ColorState;
+
+        var ClutState = (function () {
+            function ClutState() {
+                this.adress = 0;
+                this.numberOfColors = 0;
+                this.pixelFormat = 3 /* RGBA_8888 */;
+                this.shift = 0;
+                this.mask = 0x00;
+                this.start = 0;
+            }
+            return ClutState;
+        })();
+        gpu.ClutState = ClutState;
+
+        var TextureState = (function () {
+            function TextureState() {
+                this.enabled = false;
+                this.swizzled = false;
+                this.mipmapShareClut = false;
+                this.mipmapMaxLevel = 0;
+                this.filterMinification = 0 /* Nearest */;
+                this.filterMagnification = 0 /* Nearest */;
+                this.wrapU = 0 /* Repeat */;
+                this.offsetU = 0;
+                this.offsetV = 0;
+                this.scaleU = 1;
+                this.scaleV = 1;
+                this.wrapV = 0 /* Repeat */;
+                this.effect = 0 /* Modulate */;
+                this.colorComponent = 0 /* Rgb */;
+                this.envColor = new ColorState();
+                this.fragment2X = false;
+                this.pixelFormat = 3 /* RGBA_8888 */;
+                this.clut = new ClutState();
+                this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
+            }
+            Object.defineProperty(TextureState.prototype, "isPixelFormatWithClut", {
+                get: function () {
+                    return (this.pixelFormat == 4 /* PALETTE_T4 */) || (this.pixelFormat == 5 /* PALETTE_T8 */) || (this.pixelFormat == 6 /* PALETTE_T16 */) || (this.pixelFormat == 7 /* PALETTE_T32 */);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return TextureState;
+        })();
+        gpu.TextureState = TextureState;
+
+        var CullingState = (function () {
+            function CullingState() {
+            }
+            return CullingState;
+        })();
+        gpu.CullingState = CullingState;
+
+        var GpuState = (function () {
+            function GpuState() {
+                this.clearing = false;
+                this.clearFlags = 0;
+                this.baseAddress = 0;
+                this.baseOffset = 0;
+                this.indexAddress = 0;
+                this.frameBuffer = new GpuFrameBufferState();
+                this.vertex = new VertexState();
+                this.projectionMatrix = new Matrix4x4();
+                this.viewMatrix = new Matrix4x3();
+                this.worldMatrix = new Matrix4x3();
+                this.viewPort = new ViewPort();
+                this.lightning = new Lightning();
+                this.texture = new TextureState();
+                this.ambientModelColor = new ColorState();
+                this.diffuseModelColor = new ColorState();
+                this.specularModelColor = new ColorState();
+                this.culling = new CullingState();
+            }
+            return GpuState;
+        })();
+        gpu.GpuState = GpuState;
+
+        (function (WrapMode) {
+            WrapMode[WrapMode["Repeat"] = 0] = "Repeat";
+            WrapMode[WrapMode["Clamp"] = 1] = "Clamp";
+        })(gpu.WrapMode || (gpu.WrapMode = {}));
+        var WrapMode = gpu.WrapMode;
+
+        (function (TextureEffect) {
+            TextureEffect[TextureEffect["Modulate"] = 0] = "Modulate";
+            TextureEffect[TextureEffect["Decal"] = 1] = "Decal";
+            TextureEffect[TextureEffect["Blend"] = 2] = "Blend";
+            TextureEffect[TextureEffect["Replace"] = 3] = "Replace";
+            TextureEffect[TextureEffect["Add"] = 4] = "Add";
+        })(gpu.TextureEffect || (gpu.TextureEffect = {}));
+        var TextureEffect = gpu.TextureEffect;
+
+        (function (TextureFilter) {
+            TextureFilter[TextureFilter["Nearest"] = 0] = "Nearest";
+            TextureFilter[TextureFilter["Linear"] = 1] = "Linear";
+            TextureFilter[TextureFilter["NearestMipmapNearest"] = 4] = "NearestMipmapNearest";
+            TextureFilter[TextureFilter["LinearMipmapNearest"] = 5] = "LinearMipmapNearest";
+            TextureFilter[TextureFilter["NearestMipmapLinear"] = 6] = "NearestMipmapLinear";
+            TextureFilter[TextureFilter["LinearMipmapLinear"] = 7] = "LinearMipmapLinear";
+        })(gpu.TextureFilter || (gpu.TextureFilter = {}));
+        var TextureFilter = gpu.TextureFilter;
+
+        (function (TextureColorComponent) {
+            TextureColorComponent[TextureColorComponent["Rgb"] = 0] = "Rgb";
+            TextureColorComponent[TextureColorComponent["Rgba"] = 1] = "Rgba";
+        })(gpu.TextureColorComponent || (gpu.TextureColorComponent = {}));
+        var TextureColorComponent = gpu.TextureColorComponent;
+
+        (function (PrimitiveType) {
+            PrimitiveType[PrimitiveType["Points"] = 0] = "Points";
+            PrimitiveType[PrimitiveType["Lines"] = 1] = "Lines";
+            PrimitiveType[PrimitiveType["LineStrip"] = 2] = "LineStrip";
+            PrimitiveType[PrimitiveType["Triangles"] = 3] = "Triangles";
+            PrimitiveType[PrimitiveType["TriangleStrip"] = 4] = "TriangleStrip";
+            PrimitiveType[PrimitiveType["TriangleFan"] = 5] = "TriangleFan";
+            PrimitiveType[PrimitiveType["Sprites"] = 6] = "Sprites";
+            PrimitiveType[PrimitiveType["ContinuePreviousPrim"] = 7] = "ContinuePreviousPrim";
+        })(gpu.PrimitiveType || (gpu.PrimitiveType = {}));
+        var PrimitiveType = gpu.PrimitiveType;
+
+        (function (GpuOpCodes) {
+            GpuOpCodes[GpuOpCodes["NOP"] = 0x00] = "NOP";
+            GpuOpCodes[GpuOpCodes["VADDR"] = 0x01] = "VADDR";
+            GpuOpCodes[GpuOpCodes["IADDR"] = 0x02] = "IADDR";
+            GpuOpCodes[GpuOpCodes["Unknown0x03"] = 0x03] = "Unknown0x03";
+            GpuOpCodes[GpuOpCodes["PRIM"] = 0x04] = "PRIM";
+            GpuOpCodes[GpuOpCodes["BEZIER"] = 0x05] = "BEZIER";
+            GpuOpCodes[GpuOpCodes["SPLINE"] = 0x06] = "SPLINE";
+            GpuOpCodes[GpuOpCodes["BBOX"] = 0x07] = "BBOX";
+            GpuOpCodes[GpuOpCodes["JUMP"] = 0x08] = "JUMP";
+            GpuOpCodes[GpuOpCodes["BJUMP"] = 0x09] = "BJUMP";
+            GpuOpCodes[GpuOpCodes["CALL"] = 0x0A] = "CALL";
+            GpuOpCodes[GpuOpCodes["RET"] = 0x0B] = "RET";
+            GpuOpCodes[GpuOpCodes["END"] = 0x0C] = "END";
+            GpuOpCodes[GpuOpCodes["Unknown0x0D"] = 0x0D] = "Unknown0x0D";
+            GpuOpCodes[GpuOpCodes["SIGNAL"] = 0x0E] = "SIGNAL";
+            GpuOpCodes[GpuOpCodes["FINISH"] = 0x0F] = "FINISH";
+            GpuOpCodes[GpuOpCodes["BASE"] = 0x10] = "BASE";
+            GpuOpCodes[GpuOpCodes["Unknown0x11"] = 0x11] = "Unknown0x11";
+            GpuOpCodes[GpuOpCodes["VTYPE"] = 0x12] = "VTYPE";
+            GpuOpCodes[GpuOpCodes["OFFSET_ADDR"] = 0x13] = "OFFSET_ADDR";
+            GpuOpCodes[GpuOpCodes["ORIGIN_ADDR"] = 0x14] = "ORIGIN_ADDR";
+            GpuOpCodes[GpuOpCodes["REGION1"] = 0x15] = "REGION1";
+            GpuOpCodes[GpuOpCodes["REGION2"] = 0x16] = "REGION2";
+            GpuOpCodes[GpuOpCodes["LTE"] = 0x17] = "LTE";
+            GpuOpCodes[GpuOpCodes["LTE0"] = 0x18] = "LTE0";
+            GpuOpCodes[GpuOpCodes["LTE1"] = 0x19] = "LTE1";
+            GpuOpCodes[GpuOpCodes["LTE2"] = 0x1A] = "LTE2";
+            GpuOpCodes[GpuOpCodes["LTE3"] = 0x1B] = "LTE3";
+            GpuOpCodes[GpuOpCodes["CPE"] = 0x1C] = "CPE";
+            GpuOpCodes[GpuOpCodes["BCE"] = 0x1D] = "BCE";
+            GpuOpCodes[GpuOpCodes["TME"] = 0x1E] = "TME";
+            GpuOpCodes[GpuOpCodes["FGE"] = 0x1F] = "FGE";
+            GpuOpCodes[GpuOpCodes["DTE"] = 0x20] = "DTE";
+            GpuOpCodes[GpuOpCodes["ABE"] = 0x21] = "ABE";
+            GpuOpCodes[GpuOpCodes["ATE"] = 0x22] = "ATE";
+            GpuOpCodes[GpuOpCodes["ZTE"] = 0x23] = "ZTE";
+            GpuOpCodes[GpuOpCodes["STE"] = 0x24] = "STE";
+            GpuOpCodes[GpuOpCodes["AAE"] = 0x25] = "AAE";
+            GpuOpCodes[GpuOpCodes["PCE"] = 0x26] = "PCE";
+            GpuOpCodes[GpuOpCodes["CTE"] = 0x27] = "CTE";
+            GpuOpCodes[GpuOpCodes["LOE"] = 0x28] = "LOE";
+            GpuOpCodes[GpuOpCodes["Unknown0x29"] = 0x29] = "Unknown0x29";
+            GpuOpCodes[GpuOpCodes["BOFS"] = 0x2A] = "BOFS";
+            GpuOpCodes[GpuOpCodes["BONE"] = 0x2B] = "BONE";
+            GpuOpCodes[GpuOpCodes["MW0"] = 0x2C] = "MW0";
+            GpuOpCodes[GpuOpCodes["MW1"] = 0x2D] = "MW1";
+            GpuOpCodes[GpuOpCodes["MW2"] = 0x2E] = "MW2";
+            GpuOpCodes[GpuOpCodes["MW3"] = 0x2F] = "MW3";
+            GpuOpCodes[GpuOpCodes["MW4"] = 0x30] = "MW4";
+            GpuOpCodes[GpuOpCodes["MW5"] = 0x31] = "MW5";
+            GpuOpCodes[GpuOpCodes["MW6"] = 0x32] = "MW6";
+            GpuOpCodes[GpuOpCodes["MW7"] = 0x33] = "MW7";
+            GpuOpCodes[GpuOpCodes["Unknown0x34"] = 0x34] = "Unknown0x34";
+            GpuOpCodes[GpuOpCodes["Unknown0x35"] = 0x35] = "Unknown0x35";
+            GpuOpCodes[GpuOpCodes["PSUB"] = 0x36] = "PSUB";
+            GpuOpCodes[GpuOpCodes["PPRIM"] = 0x37] = "PPRIM";
+            GpuOpCodes[GpuOpCodes["PFACE"] = 0x38] = "PFACE";
+            GpuOpCodes[GpuOpCodes["Unknown0x39"] = 0x39] = "Unknown0x39";
+            GpuOpCodes[GpuOpCodes["WORLD_START"] = 0x3A] = "WORLD_START";
+            GpuOpCodes[GpuOpCodes["WORLD_PUT"] = 0x3B] = "WORLD_PUT";
+            GpuOpCodes[GpuOpCodes["VIEW_START"] = 0x3C] = "VIEW_START";
+            GpuOpCodes[GpuOpCodes["VIEW_PUT"] = 0x3D] = "VIEW_PUT";
+            GpuOpCodes[GpuOpCodes["PROJ_START"] = 0x3E] = "PROJ_START";
+            GpuOpCodes[GpuOpCodes["PROJ_PUT"] = 0x3F] = "PROJ_PUT";
+            GpuOpCodes[GpuOpCodes["TMS"] = 0x40] = "TMS";
+            GpuOpCodes[GpuOpCodes["TMATRIX"] = 0x41] = "TMATRIX";
+            GpuOpCodes[GpuOpCodes["XSCALE"] = 0x42] = "XSCALE";
+            GpuOpCodes[GpuOpCodes["YSCALE"] = 0x43] = "YSCALE";
+            GpuOpCodes[GpuOpCodes["ZSCALE"] = 0x44] = "ZSCALE";
+            GpuOpCodes[GpuOpCodes["XPOS"] = 0x45] = "XPOS";
+            GpuOpCodes[GpuOpCodes["YPOS"] = 0x46] = "YPOS";
+            GpuOpCodes[GpuOpCodes["ZPOS"] = 0x47] = "ZPOS";
+            GpuOpCodes[GpuOpCodes["USCALE"] = 0x48] = "USCALE";
+            GpuOpCodes[GpuOpCodes["VSCALE"] = 0x49] = "VSCALE";
+            GpuOpCodes[GpuOpCodes["UOFFSET"] = 0x4A] = "UOFFSET";
+            GpuOpCodes[GpuOpCodes["VOFFSET"] = 0x4B] = "VOFFSET";
+            GpuOpCodes[GpuOpCodes["OFFSETX"] = 0x4C] = "OFFSETX";
+            GpuOpCodes[GpuOpCodes["OFFSETY"] = 0x4D] = "OFFSETY";
+            GpuOpCodes[GpuOpCodes["Unknown0x4E"] = 0x4E] = "Unknown0x4E";
+            GpuOpCodes[GpuOpCodes["Unknown0x4F"] = 0x4F] = "Unknown0x4F";
+            GpuOpCodes[GpuOpCodes["SHADE"] = 0x50] = "SHADE";
+            GpuOpCodes[GpuOpCodes["RNORM"] = 0x51] = "RNORM";
+            GpuOpCodes[GpuOpCodes["Unknown0x52"] = 0x52] = "Unknown0x52";
+            GpuOpCodes[GpuOpCodes["CMAT"] = 0x53] = "CMAT";
+            GpuOpCodes[GpuOpCodes["EMC"] = 0x54] = "EMC";
+            GpuOpCodes[GpuOpCodes["AMC"] = 0x55] = "AMC";
+            GpuOpCodes[GpuOpCodes["DMC"] = 0x56] = "DMC";
+            GpuOpCodes[GpuOpCodes["SMC"] = 0x57] = "SMC";
+            GpuOpCodes[GpuOpCodes["AMA"] = 0x58] = "AMA";
+            GpuOpCodes[GpuOpCodes["Unknown0x59"] = 0x59] = "Unknown0x59";
+            GpuOpCodes[GpuOpCodes["Unknown0x5A"] = 0x5A] = "Unknown0x5A";
+            GpuOpCodes[GpuOpCodes["SPOW"] = 0x5B] = "SPOW";
+            GpuOpCodes[GpuOpCodes["ALC"] = 0x5C] = "ALC";
+            GpuOpCodes[GpuOpCodes["ALA"] = 0x5D] = "ALA";
+            GpuOpCodes[GpuOpCodes["LMODE"] = 0x5E] = "LMODE";
+            GpuOpCodes[GpuOpCodes["LT0"] = 0x5F] = "LT0";
+            GpuOpCodes[GpuOpCodes["LT1"] = 0x60] = "LT1";
+            GpuOpCodes[GpuOpCodes["LT2"] = 0x61] = "LT2";
+            GpuOpCodes[GpuOpCodes["LT3"] = 0x62] = "LT3";
+            GpuOpCodes[GpuOpCodes["LXP0"] = 0x63] = "LXP0";
+            GpuOpCodes[GpuOpCodes["LYP0"] = 0x64] = "LYP0";
+            GpuOpCodes[GpuOpCodes["LZP0"] = 0x65] = "LZP0";
+            GpuOpCodes[GpuOpCodes["LXP1"] = 0x66] = "LXP1";
+            GpuOpCodes[GpuOpCodes["LYP1"] = 0x67] = "LYP1";
+            GpuOpCodes[GpuOpCodes["LZP1"] = 0x68] = "LZP1";
+            GpuOpCodes[GpuOpCodes["LXP2"] = 0x69] = "LXP2";
+            GpuOpCodes[GpuOpCodes["LYP2"] = 0x6A] = "LYP2";
+            GpuOpCodes[GpuOpCodes["LZP2"] = 0x6B] = "LZP2";
+            GpuOpCodes[GpuOpCodes["LXP3"] = 0x6C] = "LXP3";
+            GpuOpCodes[GpuOpCodes["LYP3"] = 0x6D] = "LYP3";
+            GpuOpCodes[GpuOpCodes["LZP3"] = 0x6E] = "LZP3";
+            GpuOpCodes[GpuOpCodes["LXD0"] = 0x6F] = "LXD0";
+            GpuOpCodes[GpuOpCodes["LYD0"] = 112] = "LYD0";
+            GpuOpCodes[GpuOpCodes["LZD0"] = 113] = "LZD0";
+            GpuOpCodes[GpuOpCodes["LXD1"] = 114] = "LXD1";
+            GpuOpCodes[GpuOpCodes["LYD1"] = 115] = "LYD1";
+            GpuOpCodes[GpuOpCodes["LZD1"] = 116] = "LZD1";
+            GpuOpCodes[GpuOpCodes["LXD2"] = 117] = "LXD2";
+            GpuOpCodes[GpuOpCodes["LYD2"] = 118] = "LYD2";
+            GpuOpCodes[GpuOpCodes["LZD2"] = 119] = "LZD2";
+            GpuOpCodes[GpuOpCodes["LXD3"] = 120] = "LXD3";
+            GpuOpCodes[GpuOpCodes["LYD3"] = 121] = "LYD3";
+            GpuOpCodes[GpuOpCodes["LZD3"] = 122] = "LZD3";
+            GpuOpCodes[GpuOpCodes["LCA0"] = 123] = "LCA0";
+            GpuOpCodes[GpuOpCodes["LLA0"] = 124] = "LLA0";
+            GpuOpCodes[GpuOpCodes["LQA0"] = 125] = "LQA0";
+            GpuOpCodes[GpuOpCodes["LCA1"] = 126] = "LCA1";
+            GpuOpCodes[GpuOpCodes["LLA1"] = 127] = "LLA1";
+            GpuOpCodes[GpuOpCodes["LQA1"] = 128] = "LQA1";
+            GpuOpCodes[GpuOpCodes["LCA2"] = 129] = "LCA2";
+            GpuOpCodes[GpuOpCodes["LLA2"] = 130] = "LLA2";
+            GpuOpCodes[GpuOpCodes["LQA2"] = 131] = "LQA2";
+            GpuOpCodes[GpuOpCodes["LCA3"] = 132] = "LCA3";
+            GpuOpCodes[GpuOpCodes["LLA3"] = 133] = "LLA3";
+            GpuOpCodes[GpuOpCodes["LQA3"] = 134] = "LQA3";
+            GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 135] = "SPOTEXP0";
+            GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 136] = "SPOTEXP1";
+            GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 137] = "SPOTEXP2";
+            GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 138] = "SPOTEXP3";
+            GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 139] = "SPOTCUT0";
+            GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 140] = "SPOTCUT1";
+            GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 141] = "SPOTCUT2";
+            GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 142] = "SPOTCUT3";
+            GpuOpCodes[GpuOpCodes["ALC0"] = 143] = "ALC0";
+            GpuOpCodes[GpuOpCodes["DLC0"] = 144] = "DLC0";
+            GpuOpCodes[GpuOpCodes["SLC0"] = 145] = "SLC0";
+            GpuOpCodes[GpuOpCodes["ALC1"] = 146] = "ALC1";
+            GpuOpCodes[GpuOpCodes["DLC1"] = 147] = "DLC1";
+            GpuOpCodes[GpuOpCodes["SLC1"] = 148] = "SLC1";
+            GpuOpCodes[GpuOpCodes["ALC2"] = 149] = "ALC2";
+            GpuOpCodes[GpuOpCodes["DLC2"] = 150] = "DLC2";
+            GpuOpCodes[GpuOpCodes["SLC2"] = 151] = "SLC2";
+            GpuOpCodes[GpuOpCodes["ALC3"] = 152] = "ALC3";
+            GpuOpCodes[GpuOpCodes["DLC3"] = 153] = "DLC3";
+            GpuOpCodes[GpuOpCodes["SLC3"] = 154] = "SLC3";
+            GpuOpCodes[GpuOpCodes["FFACE"] = 155] = "FFACE";
+            GpuOpCodes[GpuOpCodes["FBP"] = 156] = "FBP";
+            GpuOpCodes[GpuOpCodes["FBW"] = 157] = "FBW";
+            GpuOpCodes[GpuOpCodes["ZBP"] = 158] = "ZBP";
+            GpuOpCodes[GpuOpCodes["ZBW"] = 159] = "ZBW";
+            GpuOpCodes[GpuOpCodes["TBP0"] = 160] = "TBP0";
+            GpuOpCodes[GpuOpCodes["TBP1"] = 161] = "TBP1";
+            GpuOpCodes[GpuOpCodes["TBP2"] = 162] = "TBP2";
+            GpuOpCodes[GpuOpCodes["TBP3"] = 163] = "TBP3";
+            GpuOpCodes[GpuOpCodes["TBP4"] = 164] = "TBP4";
+            GpuOpCodes[GpuOpCodes["TBP5"] = 165] = "TBP5";
+            GpuOpCodes[GpuOpCodes["TBP6"] = 166] = "TBP6";
+            GpuOpCodes[GpuOpCodes["TBP7"] = 167] = "TBP7";
+            GpuOpCodes[GpuOpCodes["TBW0"] = 168] = "TBW0";
+            GpuOpCodes[GpuOpCodes["TBW1"] = 169] = "TBW1";
+            GpuOpCodes[GpuOpCodes["TBW2"] = 170] = "TBW2";
+            GpuOpCodes[GpuOpCodes["TBW3"] = 171] = "TBW3";
+            GpuOpCodes[GpuOpCodes["TBW4"] = 172] = "TBW4";
+            GpuOpCodes[GpuOpCodes["TBW5"] = 173] = "TBW5";
+            GpuOpCodes[GpuOpCodes["TBW6"] = 174] = "TBW6";
+            GpuOpCodes[GpuOpCodes["TBW7"] = 175] = "TBW7";
+            GpuOpCodes[GpuOpCodes["CBP"] = 176] = "CBP";
+            GpuOpCodes[GpuOpCodes["CBPH"] = 177] = "CBPH";
+            GpuOpCodes[GpuOpCodes["TRXSBP"] = 178] = "TRXSBP";
+            GpuOpCodes[GpuOpCodes["TRXSBW"] = 179] = "TRXSBW";
+            GpuOpCodes[GpuOpCodes["TRXDBP"] = 180] = "TRXDBP";
+            GpuOpCodes[GpuOpCodes["TRXDBW"] = 181] = "TRXDBW";
+            GpuOpCodes[GpuOpCodes["Unknown0xB6"] = 182] = "Unknown0xB6";
+            GpuOpCodes[GpuOpCodes["Unknown0xB7"] = 183] = "Unknown0xB7";
+            GpuOpCodes[GpuOpCodes["TSIZE0"] = 184] = "TSIZE0";
+            GpuOpCodes[GpuOpCodes["TSIZE1"] = 185] = "TSIZE1";
+            GpuOpCodes[GpuOpCodes["TSIZE2"] = 186] = "TSIZE2";
+            GpuOpCodes[GpuOpCodes["TSIZE3"] = 187] = "TSIZE3";
+            GpuOpCodes[GpuOpCodes["TSIZE4"] = 188] = "TSIZE4";
+            GpuOpCodes[GpuOpCodes["TSIZE5"] = 189] = "TSIZE5";
+            GpuOpCodes[GpuOpCodes["TSIZE6"] = 190] = "TSIZE6";
+            GpuOpCodes[GpuOpCodes["TSIZE7"] = 191] = "TSIZE7";
+            GpuOpCodes[GpuOpCodes["TMAP"] = 192] = "TMAP";
+            GpuOpCodes[GpuOpCodes["TEXTURE_ENV_MAP_MATRIX"] = 193] = "TEXTURE_ENV_MAP_MATRIX";
+            GpuOpCodes[GpuOpCodes["TMODE"] = 194] = "TMODE";
+            GpuOpCodes[GpuOpCodes["TPSM"] = 195] = "TPSM";
+            GpuOpCodes[GpuOpCodes["CLOAD"] = 196] = "CLOAD";
+            GpuOpCodes[GpuOpCodes["CMODE"] = 197] = "CMODE";
+            GpuOpCodes[GpuOpCodes["TFLT"] = 198] = "TFLT";
+            GpuOpCodes[GpuOpCodes["TWRAP"] = 199] = "TWRAP";
+            GpuOpCodes[GpuOpCodes["TBIAS"] = 200] = "TBIAS";
+            GpuOpCodes[GpuOpCodes["TFUNC"] = 201] = "TFUNC";
+            GpuOpCodes[GpuOpCodes["TEC"] = 202] = "TEC";
+            GpuOpCodes[GpuOpCodes["TFLUSH"] = 203] = "TFLUSH";
+            GpuOpCodes[GpuOpCodes["TSYNC"] = 204] = "TSYNC";
+            GpuOpCodes[GpuOpCodes["FFAR"] = 205] = "FFAR";
+            GpuOpCodes[GpuOpCodes["FDIST"] = 206] = "FDIST";
+            GpuOpCodes[GpuOpCodes["FCOL"] = 207] = "FCOL";
+            GpuOpCodes[GpuOpCodes["TSLOPE"] = 208] = "TSLOPE";
+            GpuOpCodes[GpuOpCodes["Unknown0xD1"] = 209] = "Unknown0xD1";
+            GpuOpCodes[GpuOpCodes["PSM"] = 210] = "PSM";
+            GpuOpCodes[GpuOpCodes["CLEAR"] = 211] = "CLEAR";
+            GpuOpCodes[GpuOpCodes["SCISSOR1"] = 212] = "SCISSOR1";
+            GpuOpCodes[GpuOpCodes["SCISSOR2"] = 213] = "SCISSOR2";
+            GpuOpCodes[GpuOpCodes["NEARZ"] = 214] = "NEARZ";
+            GpuOpCodes[GpuOpCodes["FARZ"] = 215] = "FARZ";
+            GpuOpCodes[GpuOpCodes["CTST"] = 216] = "CTST";
+            GpuOpCodes[GpuOpCodes["CREF"] = 217] = "CREF";
+            GpuOpCodes[GpuOpCodes["CMSK"] = 218] = "CMSK";
+            GpuOpCodes[GpuOpCodes["ATST"] = 219] = "ATST";
+            GpuOpCodes[GpuOpCodes["STST"] = 220] = "STST";
+            GpuOpCodes[GpuOpCodes["SOP"] = 221] = "SOP";
+            GpuOpCodes[GpuOpCodes["ZTST"] = 222] = "ZTST";
+            GpuOpCodes[GpuOpCodes["ALPHA"] = 223] = "ALPHA";
+            GpuOpCodes[GpuOpCodes["SFIX"] = 224] = "SFIX";
+            GpuOpCodes[GpuOpCodes["DFIX"] = 225] = "DFIX";
+            GpuOpCodes[GpuOpCodes["DTH0"] = 226] = "DTH0";
+            GpuOpCodes[GpuOpCodes["DTH1"] = 227] = "DTH1";
+            GpuOpCodes[GpuOpCodes["DTH2"] = 228] = "DTH2";
+            GpuOpCodes[GpuOpCodes["DTH3"] = 229] = "DTH3";
+            GpuOpCodes[GpuOpCodes["LOP"] = 230] = "LOP";
+            GpuOpCodes[GpuOpCodes["ZMSK"] = 231] = "ZMSK";
+            GpuOpCodes[GpuOpCodes["PMSKC"] = 232] = "PMSKC";
+            GpuOpCodes[GpuOpCodes["PMSKA"] = 233] = "PMSKA";
+            GpuOpCodes[GpuOpCodes["TRXKICK"] = 234] = "TRXKICK";
+            GpuOpCodes[GpuOpCodes["TRXSPOS"] = 235] = "TRXSPOS";
+            GpuOpCodes[GpuOpCodes["TRXDPOS"] = 236] = "TRXDPOS";
+            GpuOpCodes[GpuOpCodes["Unknown0xED"] = 237] = "Unknown0xED";
+            GpuOpCodes[GpuOpCodes["TRXSIZE"] = 238] = "TRXSIZE";
+            GpuOpCodes[GpuOpCodes["Unknown0xEF"] = 239] = "Unknown0xEF";
+            GpuOpCodes[GpuOpCodes["Unknown0xF0"] = 240] = "Unknown0xF0";
+            GpuOpCodes[GpuOpCodes["Unknown0xF1"] = 241] = "Unknown0xF1";
+            GpuOpCodes[GpuOpCodes["Unknown0xF2"] = 242] = "Unknown0xF2";
+            GpuOpCodes[GpuOpCodes["Unknown0xF3"] = 243] = "Unknown0xF3";
+            GpuOpCodes[GpuOpCodes["Unknown0xF4"] = 244] = "Unknown0xF4";
+            GpuOpCodes[GpuOpCodes["Unknown0xF5"] = 245] = "Unknown0xF5";
+            GpuOpCodes[GpuOpCodes["Unknown0xF6"] = 246] = "Unknown0xF6";
+            GpuOpCodes[GpuOpCodes["Unknown0xF7"] = 247] = "Unknown0xF7";
+            GpuOpCodes[GpuOpCodes["Unknown0xF8"] = 248] = "Unknown0xF8";
+            GpuOpCodes[GpuOpCodes["Unknown0xF9"] = 249] = "Unknown0xF9";
+            GpuOpCodes[GpuOpCodes["Unknown0xFA"] = 250] = "Unknown0xFA";
+            GpuOpCodes[GpuOpCodes["Unknown0xFB"] = 251] = "Unknown0xFB";
+            GpuOpCodes[GpuOpCodes["Unknown0xFC"] = 252] = "Unknown0xFC";
+            GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 253] = "Unknown0xFD";
+            GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 254] = "Unknown0xFE";
+            GpuOpCodes[GpuOpCodes["Dummy"] = 255] = "Dummy";
+        })(gpu.GpuOpCodes || (gpu.GpuOpCodes = {}));
+        var GpuOpCodes = gpu.GpuOpCodes;
+    })(core.gpu || (core.gpu = {}));
+    var gpu = core.gpu;
+})(core || (core = {}));
+///<reference path="./memory.ts" />
+///<reference path="../util/utils.ts" />
+///<reference path="gpu/state.ts" />
+var core;
+(function (core) {
+    (function (gpu) {
+        var VertexBuffer = (function () {
+            function VertexBuffer() {
+                this.vertices = [];
+                for (var n = 0; n < 1024; n++)
+                    this.vertices[n] = new gpu.Vertex();
+            }
+            return VertexBuffer;
+        })();
+
+        var VertexReaderFactory = (function () {
+            function VertexReaderFactory() {
+            }
+            VertexReaderFactory.get = function (vertexState) {
+                var cacheId = vertexState.hash;
+                var vertexReader = this.cache[cacheId];
+                if (vertexReader !== undefined)
+                    return vertexReader;
+                return this.cache[cacheId] = new VertexReader(vertexState);
+            };
+            VertexReaderFactory.cache = {};
+            return VertexReaderFactory;
+        })();
+        gpu.VertexReaderFactory = VertexReaderFactory;
+
+        var VertexReader = (function () {
+            function VertexReader(vertexState) {
+                this.vertexState = vertexState;
+                this.readOffset = 0;
+                this.readCode = this.createJs();
+                this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
+            }
+            VertexReader.prototype.readCount = function (output, input, count) {
+                var inputOffset = 0;
+                for (var n = 0; n < count; n++) {
+                    this.readOneFunc(output[n], input, inputOffset);
+                    inputOffset += this.vertexState.size;
+                }
+            };
+
+            VertexReader.prototype.read = function (output, input, inputOffset) {
+                this.readOneFunc(output, input, inputOffset);
+            };
+
+            VertexReader.prototype.createJs = function () {
+                var indentStringGenerator = new IndentStringGenerator();
+
+                this.readOffset = 0;
+
+                this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
+                this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
+                this.createColorJs(indentStringGenerator, this.vertexState.color);
+                this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
+                this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
+
+                return indentStringGenerator.output;
+            };
+
+            VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
+                if (type == 0 /* Void */)
+                    return;
+
+                switch (type) {
+                    case 7 /* Color8888 */:
+                        this.align(4);
+                        indentStringGenerator.write('output.r = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        indentStringGenerator.write('output.g = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                        break;
+                    default:
+                        throw ("Not implemented color format");
+                }
+            };
+
+            VertexReader.prototype.align = function (count) {
+                this.readOffset = MathUtils.nextAligned(this.readOffset, count);
+            };
+
+            VertexReader.prototype.getOffsetAlignAndIncrement = function (size) {
+                this.align(size);
+                var offset = this.readOffset;
+                this.readOffset += size;
+                return offset;
+            };
+
+            VertexReader.prototype.createNumberJs = function (indentStringGenerator, components, type, normalize) {
+                var _this = this;
+                if (type == 0 /* Void */)
+                    return;
+
+                components.forEach(function (component) {
+                    switch (type) {
+                        case 1 /* Byte */:
+                            indentStringGenerator.write('output.' + component + ' = (input.getInt8(inputOffset + ' + _this.getOffsetAlignAndIncrement(1) + ')');
+                            if (normalize)
+                                indentStringGenerator.write(' / 127.0');
+                            break;
+                        case 2 /* Short */:
+                            indentStringGenerator.write('output.' + component + ' = (input.getInt16(inputOffset + ' + _this.getOffsetAlignAndIncrement(2) + ', true)');
+                            if (normalize)
+                                indentStringGenerator.write(' / 32767.0');
+                            break;
+                        case 3 /* Float */:
+                            indentStringGenerator.write('output.' + component + ' = (input.getFloat32(inputOffset + ' + _this.getOffsetAlignAndIncrement(4) + ', true)');
+                            break;
+                    }
+                    indentStringGenerator.write(');\n');
+                });
+            };
+            return VertexReader;
+        })();
+        gpu.VertexReader = VertexReader;
+
+        var vertexBuffer = new VertexBuffer();
+        var singleCallTest = false;
+
+        var PspGpuList = (function () {
+            function PspGpuList(id, memory, drawDriver, runner) {
+                this.id = id;
+                this.memory = memory;
+                this.drawDriver = drawDriver;
+                this.runner = runner;
+                this.completed = false;
+                this.state = new gpu.GpuState();
+                this.errorCount = 0;
+            }
+            PspGpuList.prototype.complete = function () {
+                this.completed = true;
+                this.runner.deallocate(this);
+                this.promiseResolve(0);
+            };
+
+            PspGpuList.prototype.jumpRelativeOffset = function (offset) {
+                this.current = this.state.baseAddress + offset;
+            };
+
+            PspGpuList.prototype.runInstruction = function (current, instruction) {
+                var op = instruction >>> 24;
+                var params24 = instruction & 0xFFFFFF;
+
+                switch (op) {
+                    case 2 /* IADDR */:
+                        this.state.indexAddress = params24;
+                        break;
+                    case 19 /* OFFSET_ADDR */:
+                        this.state.baseOffset = (params24 << 8);
+                        break;
+                    case 156 /* FBP */:
+                        this.state.frameBuffer.lowAddress = params24;
+                        break;
+                    case 21 /* REGION1 */:
+                        this.state.viewPort.x1 = BitUtils.extract(params24, 0, 10);
+                        this.state.viewPort.y1 = BitUtils.extract(params24, 10, 10);
+                        break;
+                    case 22 /* REGION2 */:
+                        this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
+                        this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
+                        break;
+                    case 157 /* FBW */:
+                        this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
+                        this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
+                        break;
+                    case 23 /* LTE */:
+                        this.state.lightning.enabled = params24 != 0;
+                        break;
+                    case 24 /* LTE0 */:
+                        this.state.lightning.lights[0].enabled = params24 != 0;
+                        break;
+                    case 25 /* LTE1 */:
+                        this.state.lightning.lights[1].enabled = params24 != 0;
+                        break;
+                    case 26 /* LTE2 */:
+                        this.state.lightning.lights[2].enabled = params24 != 0;
+                        break;
+                    case 27 /* LTE3 */:
+                        this.state.lightning.lights[3].enabled = params24 != 0;
+                        break;
+                    case 16 /* BASE */:
+                        this.state.baseAddress = ((params24 << 8) & 0xff000000);
+                        break;
+                    case 8 /* JUMP */:
+                        this.jumpRelativeOffset(params24 & ~3);
+                        break;
+                    case 0 /* NOP */:
+                        break;
+                    case 18 /* VTYPE */:
+                        this.state.vertex.value = params24;
+                        break;
+                    case 1 /* VADDR */:
+                        this.state.vertex.address = params24;
+                        break;
+                    case 194 /* TMODE */:
+                        this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
+                        this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
+                        this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
+                        break;
+                    case 198 /* TFLT */:
+                        this.state.texture.filterMinification = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.filterMagnification = BitUtils.extract(params24, 8, 8);
+                        break;
+                    case 199 /* TWRAP */:
+                        this.state.texture.wrapU = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.wrapV = BitUtils.extract(params24, 8, 8);
+                        break;
+
+                    case 30 /* TME */:
+                        this.state.texture.enabled = (params24 != 0);
+                        break;
+
+                    case 202 /* TEC */:
+                        this.state.texture.envColor.r = BitUtils.extractScalei(params24, 0, 8, 1);
+                        this.state.texture.envColor.g = BitUtils.extractScalei(params24, 8, 8, 1);
+                        this.state.texture.envColor.b = BitUtils.extractScalei(params24, 16, 8, 1);
+                        break;
+
+                    case 201 /* TFUNC */:
+                        this.state.texture.effect = BitUtils.extract(params24, 0, 8);
+                        this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
+                        this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
+                        break;
+                    case 74 /* UOFFSET */:
+                        this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+                    case 75 /* VOFFSET */:
+                        this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+
+                    case 72 /* USCALE */:
+                        this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+                    case 73 /* VSCALE */:
+                        this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                        break;
+
+                    case 203 /* TFLUSH */:
+                        this.drawDriver.textureFlush(this.state);
+                        break;
+                    case 195 /* TPSM */:
+                        this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
+                        break;
+
+                    case 184 /* TSIZE0 */:
+                    case 185 /* TSIZE1 */:
+                    case 186 /* TSIZE2 */:
+                    case 187 /* TSIZE3 */:
+                    case 188 /* TSIZE4 */:
+                    case 189 /* TSIZE5 */:
+                    case 190 /* TSIZE6 */:
+                    case 191 /* TSIZE7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 184 /* TSIZE0 */];
+                        var WidthExp = BitUtils.extract(params24, 0, 4);
+                        var HeightExp = BitUtils.extract(params24, 8, 4);
+                        var UnknownFlag = (BitUtils.extract(params24, 15, 1) != 0);
+                        WidthExp = Math.min(WidthExp, 9);
+                        HeightExp = Math.min(HeightExp, 9);
+                        mipMap.textureWidth = 1 << WidthExp;
+                        mipMap.textureHeight = 1 << HeightExp;
+
+                        break;
+
+                    case 160 /* TBP0 */:
+                    case 161 /* TBP1 */:
+                    case 162 /* TBP2 */:
+                    case 163 /* TBP3 */:
+                    case 164 /* TBP4 */:
+                    case 165 /* TBP5 */:
+                    case 166 /* TBP6 */:
+                    case 167 /* TBP7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 160 /* TBP0 */];
+                        mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
+                        break;
+
+                    case 168 /* TBW0 */:
+                    case 169 /* TBW1 */:
+                    case 170 /* TBW2 */:
+                    case 171 /* TBW3 */:
+                    case 172 /* TBW4 */:
+                    case 173 /* TBW5 */:
+                    case 174 /* TBW6 */:
+                    case 175 /* TBW7 */:
+                        var mipMap = this.state.texture.mipmaps[op - 168 /* TBW0 */];
+                        mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
+                        mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
+                        break;
+
+                    case 85 /* AMC */:
+                        //printf("%08X: %08X", current, instruction);
+                        this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+                        this.state.ambientModelColor.a = 1;
+                        break;
+
+                    case 88 /* AMA */:
+                        this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
+                        break;
+
+                    case 86 /* DMC */:
+                        //printf("AMC:%08X", params24);
+                        this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.diffuseModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.diffuseModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+                        this.state.diffuseModelColor.a = 1;
+                        break;
+
+                    case 87 /* SMC */:
+                        this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+                        this.state.specularModelColor.a = 1;
+                        break;
+
+                    case 176 /* CBP */:
+                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
+                        break;
+
+                    case 177 /* CBPH */:
+                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
+                        break;
+
+                    case 196 /* CLOAD */:
+                        this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
+                        break;
+
+                    case 197 /* CMODE */:
+                        this.state.texture.clut.pixelFormat = BitUtils.extract(params24, 0, 2);
+                        this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
+                        this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
+                        this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
+                        break;
+
+                    case 62 /* PROJ_START */:
+                        this.state.projectionMatrix.reset(params24);
+                        break;
+                    case 63 /* PROJ_PUT */:
+                        this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                        break;
+
+                    case 60 /* VIEW_START */:
+                        this.state.viewMatrix.reset(params24);
+                        break;
+                    case 61 /* VIEW_PUT */:
+                        this.state.viewMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                        break;
+
+                    case 58 /* WORLD_START */:
+                        this.state.worldMatrix.reset(params24);
+                        break;
+                    case 59 /* WORLD_PUT */:
+                        this.state.worldMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                        break;
+
+                    case 211 /* CLEAR */:
+                        this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
+                        this.state.clearFlags = BitUtils.extract(params24, 8, 8);
+                        this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
+                        break;
+
+                    case 29 /* BCE */:
+                        this.state.culling.enabled = (params24 != 0);
+                    case 155 /* FFACE */:
+                        this.state.culling.direction = params24; // FrontFaceDirectionEnum
+                        break;
+
+                    case 4 /* PRIM */:
+                        //console.log('GPU PRIM');
+                        var primitiveType = BitUtils.extractEnum(params24, 16, 3);
+                        var vertexCount = BitUtils.extract(params24, 0, 16);
+                        var vertexState = this.state.vertex;
+                        var vertexSize = this.state.vertex.size;
+                        var vertexAddress = this.state.baseAddress + this.state.vertex.address;
+                        var vertexReader = VertexReaderFactory.get(vertexState);
+                        var vertexInput = this.memory.getPointerDataView(vertexAddress);
+                        var vertices = vertexBuffer.vertices;
+                        vertexReader.readCount(vertices, vertexInput, vertexCount);
+
+                        this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
+                        this.drawDriver.setState(this.state);
+
+                        if (this.errorCount < 400) {
+                            //console.log('PRIM:' + primitiveType + ' : ' + vertexCount + ':' + vertexState.hasIndex);
+                        }
+
+                        this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
+
+                        break;
+
+                    case 15 /* FINISH */:
+                        break;
+
+                    case 12 /* END */:
+                        this.complete();
+                        return true;
+                        break;
+
+                    default:
+                        //setTimeout(() => this.complete(), 50);
+                        this.errorCount++;
+                        if (this.errorCount >= 400) {
+                            if (this.errorCount == 400) {
+                                console.error(sprintf('Stop showing gpu errors'));
+                            }
+                        } else {
+                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+                        }
+                }
+
+                return false;
+            };
+
+            Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
+                get: function () {
+                    return !this.completed && ((this.stall == 0) || (this.current < this.stall));
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            PspGpuList.prototype.runUntilStall = function () {
+                while (this.hasMoreInstructions) {
+                    var instruction = this.memory.readUInt32(this.current);
+                    this.current += 4;
+                    if (this.runInstruction(this.current - 4, instruction))
+                        return;
+                }
+            };
+
+            PspGpuList.prototype.enqueueRunUntilStall = function () {
+                var _this = this;
+                setImmediate(function () {
+                    _this.runUntilStall();
+                });
+            };
+
+            PspGpuList.prototype.updateStall = function (stall) {
+                this.stall = stall;
+                this.enqueueRunUntilStall();
+            };
+
+            PspGpuList.prototype.start = function () {
+                var _this = this;
+                this.promise = new Promise(function (resolve, reject) {
+                    _this.promiseResolve = resolve;
+                    _this.promiseReject = reject;
+                });
+                this.completed = false;
+
+                this.enqueueRunUntilStall();
+            };
+
+            PspGpuList.prototype.waitAsync = function () {
+                return this.promise;
+            };
+            return PspGpuList;
+        })();
+
+        var PspGpuListRunner = (function () {
+            function PspGpuListRunner(memory, drawDriver) {
+                this.memory = memory;
+                this.drawDriver = drawDriver;
+                this.lists = [];
+                this.freeLists = [];
+                this.runningLists = [];
+                for (var n = 0; n < 32; n++) {
+                    var list = new PspGpuList(n, memory, drawDriver, this);
+                    this.lists.push(list);
+                    this.freeLists.push(list);
+                }
+            }
+            PspGpuListRunner.prototype.allocate = function () {
+                if (!this.freeLists.length)
+                    throw ('Out of gpu free lists');
+                var list = this.freeLists.pop();
+                this.runningLists.push(list);
+                return list;
+            };
+
+            PspGpuListRunner.prototype.getById = function (id) {
+                return this.lists[id];
+            };
+
+            PspGpuListRunner.prototype.deallocate = function (list) {
+                this.freeLists.push(list);
+                this.runningLists.remove(list);
+            };
+
+            PspGpuListRunner.prototype.waitAsync = function () {
+                return Promise.all(this.runningLists.map(function (list) {
+                    return list.waitAsync();
+                })).then(function () {
+                    return 0;
+                });
+            };
+            return PspGpuListRunner;
+        })();
+
+        var PspGpu = (function () {
+            function PspGpu(memory, display, canvas) {
+                this.memory = memory;
+                this.display = display;
+                this.canvas = canvas;
+                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, display, canvas);
+
+                //this.driver = new Context2dPspDrawDriver(memory, canvas);
+                this.listRunner = new PspGpuListRunner(memory, this.driver);
+            }
+            PspGpu.prototype.startAsync = function () {
+                return this.driver.initAsync();
+            };
+
+            PspGpu.prototype.stopAsync = function () {
+                return Promise.resolve();
+            };
+
+            PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
+                var list = this.listRunner.allocate();
+                list.current = start;
+                list.stall = stall;
+                list.callbackId = callbackId;
+                list.start();
+                return list.id;
+            };
+
+            PspGpu.prototype.listSync = function (displayListId, syncType) {
+                //console.log('listSync');
+                return this.listRunner.getById(displayListId).waitAsync();
+            };
+
+            PspGpu.prototype.updateStallAddr = function (displayListId, stall) {
+                this.listRunner.getById(displayListId).updateStall(stall);
+                return 0;
+            };
+
+            PspGpu.prototype.drawSync = function (syncType) {
+                //console.log('drawSync');
+                return this.listRunner.waitAsync();
+            };
+            return PspGpu;
+        })();
+        gpu.PspGpu = PspGpu;
+    })(core.gpu || (core.gpu = {}));
+    var gpu = core.gpu;
+})(core || (core = {}));
+var CpuBreakException = (function () {
+    function CpuBreakException(name, message) {
+        if (typeof name === "undefined") { name = 'CpuBreakException'; }
+        if (typeof message === "undefined") { message = 'CpuBreakException'; }
+        this.name = name;
+        this.message = message;
+    }
+    return CpuBreakException;
+})();
+
+var FunctionGenerator = (function () {
+    function FunctionGenerator(memory) {
+        this.memory = memory;
+        this.instructions = core.cpu.Instructions.instance;
+        this.instructionAst = new core.cpu.ast.InstructionAst();
+    }
+    FunctionGenerator.prototype.decodeInstruction = function (address) {
+        var instruction = core.cpu.Instruction.fromMemoryAndPC(this.memory, address);
+        var instructionType = this.getInstructionType(instruction);
+        return new core.cpu.DecodedInstruction(instruction, instructionType);
+    };
+
+    FunctionGenerator.prototype.getInstructionType = function (i) {
+        return this.instructions.findByData(i.data, i.PC);
+    };
+
+    FunctionGenerator.prototype.generateInstructionAstNode = function (di) {
+        var instruction = di.instruction;
+        var instructionType = di.type;
+        var func = this.instructionAst[instructionType.name];
+        if (func === undefined)
+            throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
+        return func.call(this.instructionAst, instruction);
+    };
+
+    FunctionGenerator.prototype.create = function (address) {
+        var _this = this;
+        if (address == 0x00000000) {
+            throw (new Error("Trying to execute 0x00000000"));
+        }
+
+        var ast = new MipsAstBuilder();
+
+        var PC = address;
+        var stms = [ast.functionPrefix()];
+
+        var emitInstruction = function () {
+            var result = _this.generateInstructionAstNode(_this.decodeInstruction(PC));
+            PC += 4;
+            return result;
+        };
+
+        for (var n = 0; n < 100000; n++) {
+            var di = this.decodeInstruction(PC + 0);
+
+            //console.log(di);
+            //if ([0x0890D0CC, 0x0895DAD8].contains(PC)) stms.push(ast.debugger());
+            if (di.type.hasDelayedBranch) {
+                var di2 = this.decodeInstruction(PC + 4);
+
+                stms.push(emitInstruction());
+
+                var delayedSlotInstruction = emitInstruction();
+                if (di2.type.isSyscall) {
+                    stms.push(this.instructionAst._postBranch(PC));
+                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+                } else {
+                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+                    stms.push(this.instructionAst._postBranch(PC));
+                }
+
+                break;
+            } else {
+                if (di.type.isSyscall) {
+                    stms.push(this.instructionAst._storePC(PC + 4));
+                }
+                stms.push(emitInstruction());
+                if (di.type.isBreak) {
+                    stms.push(this.instructionAst._storePC(PC));
+
+                    break;
+                }
+            }
+        }
+
+        //console.debug(sprintf("// function_%08X:\n%s", address, ast.stms(stms).toJs()));
+        if (n >= 100000)
+            throw (new Error(sprintf("Too large function PC=%08X", address)));
+
+        return new Function('state', ast.stms(stms).toJs());
+    };
+    return FunctionGenerator;
+})();
+
+var CpuSpecialAddresses;
+(function (CpuSpecialAddresses) {
+    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
+})(CpuSpecialAddresses || (CpuSpecialAddresses = {}));
+
+var InstructionCache = (function () {
+    function InstructionCache(memory) {
+        this.memory = memory;
+        this.cache = {};
+        this.functionGenerator = new FunctionGenerator(memory);
+    }
+    InstructionCache.prototype.invalidateAll = function () {
+        this.cache = {};
+    };
+
+    InstructionCache.prototype.invalidateRange = function (from, to) {
+        for (var n = from; n < to; n += 4)
+            delete this.cache[n];
+    };
+
+    InstructionCache.prototype.getFunction = function (address) {
+        var item = this.cache[address];
+        if (item)
+            return item;
+
+        switch (address) {
+            case 268435455 /* EXIT_THREAD */:
+                return this.cache[address] = function (state) {
+                    console.log(state);
+                    console.log(state.thread);
+                    console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+                    state.thread.stop();
+                    throw (new CpuBreakException());
+                };
+                break;
+            default:
+                return this.cache[address] = this.functionGenerator.create(address);
+        }
+    };
+    return InstructionCache;
+})();
+
+var ProgramExecutor = (function () {
+    function ProgramExecutor(state, instructionCache) {
+        this.state = state;
+        this.instructionCache = instructionCache;
+        this.lastPC = 0;
+    }
+    ProgramExecutor.prototype.executeStep = function () {
+        if (this.state.PC == 0) {
+            console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
+        }
+        this.lastPC = this.state.PC;
+        var func = this.instructionCache.getFunction(this.state.PC);
+        func(this.state);
+    };
+
+    ProgramExecutor.prototype.execute = function (maxIterations) {
+        if (typeof maxIterations === "undefined") { maxIterations = -1; }
+        try  {
+            while (maxIterations != 0) {
+                this.executeStep();
+                if (maxIterations > 0)
+                    maxIterations--;
+            }
+        } catch (e) {
+            if (!(e instanceof CpuBreakException)) {
+                console.log(this.state);
+                throw (e);
+            }
+        }
+    };
+    return ProgramExecutor;
+})();
+///<reference path="../util/utils.ts" />
+var core;
+(function (core) {
+    var PspAudioBuffer = (function () {
+        function PspAudioBuffer(readedCallback, data) {
+            this.readedCallback = readedCallback;
+            this.data = data;
+            this.offset = 0;
+        }
+        PspAudioBuffer.prototype.resolve = function () {
+            if (this.readedCallback)
+                this.readedCallback();
+            this.readedCallback = null;
+        };
+
+        Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
+            get: function () {
+                return this.offset < this.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        PspAudioBuffer.prototype.read = function () {
+            return this.data[this.offset++];
+        };
+
+        Object.defineProperty(PspAudioBuffer.prototype, "available", {
+            get: function () {
+                return this.length - this.offset;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PspAudioBuffer.prototype, "length", {
+            get: function () {
+                return this.data.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return PspAudioBuffer;
+    })();
+    core.PspAudioBuffer = PspAudioBuffer;
+
+    var PspAudioChannel = (function () {
+        function PspAudioChannel(audio, context) {
+            var _this = this;
+            this.audio = audio;
+            this.context = context;
+            this.buffers = [];
+            if (this.context) {
+                this.node = this.context.createScriptProcessor(1024, 2, 2);
+                this.node.onaudioprocess = function (e) {
+                    _this.process(e);
+                };
+            }
+        }
+        PspAudioChannel.prototype.start = function () {
+            if (this.node)
+                this.node.connect(this.context.destination);
+            this.audio.playingChannels.add(this);
+        };
+
+        PspAudioChannel.prototype.stop = function () {
+            if (this.node)
+                this.node.disconnect();
+            this.audio.playingChannels.delete(this);
+        };
+
+        PspAudioChannel.prototype.process = function (e) {
+            var left = e.outputBuffer.getChannelData(0);
+            var right = e.outputBuffer.getChannelData(1);
+            var sampleCount = left.length;
+
+            for (var n = 0; n < sampleCount; n++) {
+                if (!this.currentBuffer) {
+                    if (this.buffers.length == 0)
+                        break;
+
+                    this.currentBuffer = this.buffers.shift();
+                    this.currentBuffer.resolve();
+                }
+
+                if (this.currentBuffer.available >= 2) {
+                    left[n] = this.currentBuffer.read();
+                    right[n] = this.currentBuffer.read();
+                } else {
+                    this.currentBuffer = null;
+                }
+            }
+        };
+
+        PspAudioChannel.prototype.playAsync = function (data) {
+            var _this = this;
+            return new Promise(function (resolved, rejected) {
+                if (_this.node) {
+                    _this.buffers.push(new PspAudioBuffer(resolved, data));
+                } else {
+                    resolved();
+                }
+            });
+        };
+        return PspAudioChannel;
+    })();
+    core.PspAudioChannel = PspAudioChannel;
+
+    var PspAudio = (function () {
+        function PspAudio() {
+            this.playingChannels = new SortedSet();
+            try  {
+                this.context = new AudioContext();
+            } catch (e) {
+            }
+        }
+        PspAudio.prototype.createChannel = function () {
+            return new PspAudioChannel(this, this.context);
+        };
+
+        PspAudio.convertS16ToF32 = function (input) {
+            var output = new Float32Array(input.length);
+            for (var n = 0; n < output.length; n++)
+                output[n] = input[n] / 32767.0;
+            return output;
+        };
+
+        PspAudio.prototype.startAsync = function () {
+            return Promise.resolve();
+        };
+
+        PspAudio.prototype.stopAsync = function () {
+            this.playingChannels.forEach(function (channel) {
+                channel.stop();
+            });
+            return Promise.resolve();
+        };
+        return PspAudio;
+    })();
+    core.PspAudio = PspAudio;
+})(core || (core = {}));
+var hle;
+(function (hle) {
+    var MemoryPartitions;
+    (function (MemoryPartitions) {
+        MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
+        MemoryPartitions[MemoryPartitions["User"] = 2] = "User";
+        MemoryPartitions[MemoryPartitions["VolatilePartition"] = 5] = "VolatilePartition";
+        MemoryPartitions[MemoryPartitions["UserStacks"] = 6] = "UserStacks";
+    })(MemoryPartitions || (MemoryPartitions = {}));
+
+    (function (MemoryAnchor) {
+        MemoryAnchor[MemoryAnchor["Low"] = 0] = "Low";
+        MemoryAnchor[MemoryAnchor["High"] = 1] = "High";
+        MemoryAnchor[MemoryAnchor["Address"] = 2] = "Address";
+        MemoryAnchor[MemoryAnchor["LowAligned"] = 3] = "LowAligned";
+        MemoryAnchor[MemoryAnchor["HighAligned"] = 4] = "HighAligned";
+    })(hle.MemoryAnchor || (hle.MemoryAnchor = {}));
+    var MemoryAnchor = hle.MemoryAnchor;
+
+    var MemoryPartition = (function () {
+        function MemoryPartition(name, low, high, allocated, parent) {
+            this.name = name;
+            this.low = low;
+            this.high = high;
+            this.allocated = allocated;
+            this.parent = parent;
+            this._childPartitions = [];
+        }
+        Object.defineProperty(MemoryPartition.prototype, "size", {
+            get: function () {
+                return this.high - this.low;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryPartition.prototype, "root", {
+            get: function () {
+                return (this.parent) ? this.parent.root : this;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryPartition.prototype, "childPartitions", {
+            get: function () {
+                if (this._childPartitions.length == 0)
+                    this._childPartitions.push(new MemoryPartition("", this.low, this.high, false));
+                return this._childPartitions;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        MemoryPartition.prototype.contains = function (address) {
+            return address >= this.low && address < this.high;
+        };
+
+        MemoryPartition.prototype.deallocate = function () {
+            this.allocated = false;
+            if (this.parent) {
+                this.parent.cleanup();
+            }
+        };
+
+        MemoryPartition.prototype.allocate = function (size, anchor, address, name) {
+            if (typeof address === "undefined") { address = 0; }
+            if (typeof name === "undefined") { name = ''; }
+            switch (anchor) {
+                case 3 /* LowAligned */:
+                case 0 /* Low */:
+                    return this.allocateLow(size, name);
+                case 1 /* High */:
+                    return this.allocateHigh(size, name);
+                case 2 /* Address */:
+                    return this.allocateSet(size, address, name);
+                default:
+                    throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
+            }
+        };
+
+        MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
+            if (typeof name === "undefined") { name = ''; }
+            var childs = this.childPartitions;
+            var addressHigh = addressLow + size;
+
+            if (!this.contains(addressLow) || !this.contains(addressHigh)) {
+                throw (new Error(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
+            }
+
+            for (var n = 0; n < childs.length; n++) {
+                var child = childs[n];
+                if (!child.contains(addressLow))
+                    continue;
+                if (child.allocated)
+                    throw (new Error("Memory already allocated"));
+                if (!child.contains(addressHigh - 1))
+                    throw (new Error("Can't fit memory"));
+
+                var p1 = new MemoryPartition('', child.low, addressLow, false, this);
+                var p2 = new MemoryPartition(name, addressLow, addressHigh, true, this);
+                var p3 = new MemoryPartition('', addressHigh, child.high, false, this);
+
+                childs.splice(n, 1, p1, p2, p3);
+
+                this.cleanup();
+                return p2;
+            }
+            console.log(sprintf('address: %08X, size: %d', addressLow, size));
+            console.log(this);
+            throw (new Error("Can't find the segment"));
+        };
+
+        MemoryPartition.prototype.allocateLow = function (size, name) {
+            if (typeof name === "undefined") { name = ''; }
+            return this.allocateLowHigh(size, true, name);
+        };
+
+        MemoryPartition.prototype.allocateHigh = function (size, name) {
+            if (typeof name === "undefined") { name = ''; }
+            return this.allocateLowHigh(size, false, name);
+        };
+
+        MemoryPartition.prototype.allocateLowHigh = function (size, low, name) {
+            if (typeof name === "undefined") { name = ''; }
+            var childs = this.childPartitions;
+            for (var n = 0; n < childs.length; n++) {
+                var child = childs[n];
+                if (child.allocated)
+                    continue;
+                if (child.size < size)
+                    continue;
+
+                if (low) {
+                    var p1 = child.low;
+                    var p2 = child.low + size;
+                    var p3 = child.high;
+                    var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
+                    var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
+                } else {
+                    var p1 = child.low;
+                    var p2 = child.high - size;
+                    var p3 = child.high;
+                    var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
+                    var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
+                }
+                childs.splice(n, 1, allocatedChild, unallocatedChild);
+                this.cleanup();
+                return allocatedChild;
+            }
+
+            console.info(this);
+            throw ("Can't find a partition with " + size + " available");
+        };
+
+        MemoryPartition.prototype.unallocate = function () {
+            this.name = '';
+            this.allocated = false;
+            if (this.parent)
+                this.parent.cleanup();
+        };
+
+        MemoryPartition.prototype.cleanup = function () {
+            // join contiguous free memory
+            var childs = this.childPartitions;
+            if (childs.length >= 2) {
+                for (var n = 0; n < childs.length - 1; n++) {
+                    var child = childs[n + 0];
+                    var c1 = childs[n + 1];
+                    if (!child.allocated && !c1.allocated) {
+                        childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
+                        n--;
+                    }
+                }
+            }
+
+            for (var n = 0; n < childs.length; n++) {
+                var child = childs[n];
+                if (!child.allocated && child.size == 0)
+                    childs.splice(n, 1);
+            }
+        };
+
+        Object.defineProperty(MemoryPartition.prototype, "nonAllocatedPartitions", {
+            get: function () {
+                return this.childPartitions.filter(function (item) {
+                    return !item.allocated;
+                });
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        MemoryPartition.prototype.getTotalFreeMemory = function () {
+            return this.nonAllocatedPartitions.reduce(function (prev, item) {
+                return item.size + prev;
+            }, 0);
+        };
+
+        MemoryPartition.prototype.getMaxContiguousFreeMemory = function () {
+            var items = this.nonAllocatedPartitions.sort(function (a, b) {
+                return a.size - b.size;
+            });
+            return (items.length) ? items[0].size : 0;
+        };
+
+        MemoryPartition.prototype.findFreeChildWithSize = function (size) {
+        };
+        return MemoryPartition;
+    })();
+    hle.MemoryPartition = MemoryPartition;
+
+    var MemoryManager = (function () {
+        function MemoryManager() {
+            this.memoryPartitionsUid = {};
+            this.init();
+        }
+        MemoryManager.prototype.init = function () {
+            this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
+            this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+            this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+            this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
+        };
+
+        Object.defineProperty(MemoryManager.prototype, "kernelPartition", {
+            get: function () {
+                return this.memoryPartitionsUid[0 /* Kernel0 */];
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryManager.prototype, "userPartition", {
+            get: function () {
+                return this.memoryPartitionsUid[2 /* User */];
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(MemoryManager.prototype, "stackPartition", {
+            get: function () {
+                return this.memoryPartitionsUid[6 /* UserStacks */];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return MemoryManager;
+    })();
+    hle.MemoryManager = MemoryManager;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    var Thread = (function () {
+        function Thread(manager, state, instructionCache) {
+            this.manager = manager;
+            this.state = state;
+            this.instructionCache = instructionCache;
+            this.id = 0;
+            this.initialPriority = 10;
+            this.priority = 10;
+            this.exitStatus = 0;
+            this.running = false;
+            this.state.thread = this;
+            this.programExecutor = new ProgramExecutor(state, instructionCache);
+        }
+        Thread.prototype.suspend = function () {
+            //console.log('suspended ' + this.name);
+            this.running = false;
+            this.manager.eventOcurred();
+        };
+
+        Thread.prototype.suspendUntilPromiseDone = function (promise) {
+            var _this = this;
+            this.suspend();
+
+            //console.log(promise);
+            promise.then(function (result) {
+                if (result !== undefined)
+                    _this.state.V0 = result;
+
+                //console.log('resumed ' + this.name);
+                _this.resume();
+            });
+        };
+
+        Thread.prototype.resume = function () {
+            this.running = true;
+            this.manager.eventOcurred();
+        };
+
+        Thread.prototype.start = function () {
+            this.running = true;
+            this.manager.threads.add(this);
+            this.manager.eventOcurred();
+        };
+
+        Thread.prototype.stop = function () {
+            this.running = false;
+            this.manager.threads.delete(this);
+            this.manager.eventOcurred();
+        };
+
+        Thread.prototype.runStep = function () {
+            try  {
+                this.programExecutor.execute(10000);
+            } catch (e) {
+                this.stop();
+                throw (e);
+            }
+            //this.programExecutor.execute(200000);
+        };
+        return Thread;
+    })();
+    hle.Thread = Thread;
+
+    var ThreadManager = (function () {
+        function ThreadManager(memory, memoryManager, display, syscallManager, instructionCache) {
+            var _this = this;
+            this.memory = memory;
+            this.memoryManager = memoryManager;
+            this.display = display;
+            this.syscallManager = syscallManager;
+            this.instructionCache = instructionCache;
+            this.threads = new DSet();
+            this.interval = -1;
+            this.enqueued = false;
+            this.running = false;
+            this.exitPromise = new Promise(function (resolve, reject) {
+                _this.exitResolve = resolve;
+            });
+        }
+        ThreadManager.prototype.create = function (name, entryPoint, initialPriority, stackSize) {
+            if (typeof stackSize === "undefined") { stackSize = 0x1000; }
+            var thread = new Thread(this, new core.cpu.CpuState(this.memory, this.syscallManager), this.instructionCache);
+            thread.name = name;
+            thread.state.PC = entryPoint;
+            thread.state.RA = 268435455 /* EXIT_THREAD */;
+            thread.state.SP = this.memoryManager.stackPartition.allocateHigh(stackSize).high;
+            thread.initialPriority = initialPriority;
+            thread.priority = initialPriority;
+            return thread;
+        };
+
+        ThreadManager.prototype.eventOcurred = function () {
+            var _this = this;
+            if (!this.running)
+                return;
+            if (this.enqueued)
+                return;
+            this.enqueued = true;
+            setImmediate(function () {
+                return _this.eventOcurredCallback();
+            });
+        };
+
+        //get runningThreads() { return this.threads.filter(thread => thread.running); }
+        ThreadManager.getHighestPriority = function (threads) {
+            var priority = -9999;
+            threads.forEach(function (thread) {
+                priority = Math.max(priority, thread.priority);
+            });
+            return priority;
+        };
+
+        ThreadManager.prototype.eventOcurredCallback = function () {
+            var _this = this;
+            if (!this.running)
+                return;
+
+            this.enqueued = false;
+            var start = window.performance.now();
+
+            while (true) {
+                /*
+                var runningThreads = this.runningThreads;
+                if (runningThreads.length == 0) break;
+                
+                //var priority = HleThreadManager.getHighestPriority(runningThreads);
+                //runningThreads.filter(thread => thread.priority == priority).forEach((thread) => thread.runStep());
+                runningThreads.forEach((thread) => thread.runStep());
+                */
+                var threadCount = 0;
+                var priority = 2147483648;
+
+                this.threads.forEach(function (thread) {
+                    if (thread.running) {
+                        threadCount++;
+                        priority = Math.min(priority, thread.priority);
+                    }
+                });
+
+                if (threadCount == 0)
+                    break;
+
+                this.threads.forEach(function (thread) {
+                    if (thread.running) {
+                        if (thread.priority == priority)
+                            thread.runStep();
+                    }
+                });
+
+                var current = window.performance.now();
+                if (current - start >= 100) {
+                    setTimeout(function () {
+                        return _this.eventOcurred();
+                    }, 100);
+                    return;
+                }
+            }
+        };
+
+        ThreadManager.prototype.debugThreads = function () {
+            var html = '';
+            this.threads.forEach(function (thread) {
+                html += sprintf("%08X:%s:%s", thread.state.PC, thread.name, thread.running);
+            });
+            document.getElementById('thread_list').innerHTML = html;
+        };
+
+        ThreadManager.prototype.startAsync = function () {
+            this.running = true;
+            this.eventOcurred();
+            return Promise.resolve();
+        };
+
+        ThreadManager.prototype.stopAsync = function () {
+            this.running = false;
+            clearInterval(this.interval);
+            this.interval = -1;
+            return Promise.resolve();
+        };
+
+        ThreadManager.prototype.exitGame = function () {
+            this.exitResolve();
+        };
+
+        ThreadManager.prototype.waitExitGameAsync = function () {
+            return this.exitPromise;
+        };
+        return ThreadManager;
+    })();
+    hle.ThreadManager = ThreadManager;
+})(hle || (hle = {}));
+///<reference path="core/display.ts" />
+///<reference path="core/controller.ts" />
+///<reference path="core/gpu.ts" />
+///<reference path="cpu.ts" />
+///<reference path="core/audio.ts" />
+///<reference path="core/memory.ts" />
+///<reference path="hle/memorymanager.ts" />
+///<reference path="hle/threadmanager.ts" />
+///<reference path="util/utils.ts" />
+
+var EmulatorContext = (function () {
+    function EmulatorContext() {
+        this.output = '';
+    }
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager) {
+        this.interruptManager = interruptManager;
+        this.display = display;
+        this.controller = controller;
+        this.gpu = gpu;
+        this.memoryManager = memoryManager;
+        this.threadManager = threadManager;
+        this.audio = audio;
+        this.memory = memory;
+        this.instructionCache = instructionCache;
+        this.fileManager = fileManager;
+        this.output = '';
+    };
+    return EmulatorContext;
+})();
 var core;
 (function (core) {
     (function (cpu) {
@@ -2610,17 +5186,31 @@ var core;
                     return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
 
+                InstructionAst.prototype._callstackPush = function (i) {
+                    return stm(call('state.callstackPush', [imm32(i.PC)]));
+                };
+
+                InstructionAst.prototype._callstackPop = function (i) {
+                    return stm(call('state.callstackPop', []));
+                };
+
                 InstructionAst.prototype.j = function (i) {
                     return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]);
                 };
                 InstructionAst.prototype.jr = function (i) {
-                    return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), gpr(i.rs)))]);
+                    var statements = [];
+                    statements.push(stm(assign(branchflag(), imm32(1))));
+                    statements.push(stm(assign(branchpc(), gpr(i.rs))));
+                    if (i.rs == 31) {
+                        statements.push(this._callstackPop(i));
+                    }
+                    return stms(statements);
                 };
                 InstructionAst.prototype.jal = function (i) {
-                    return stms([this.j(i), assignGpr(31, u_imm32(i.PC + 8))]);
+                    return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]);
                 };
                 InstructionAst.prototype.jalr = function (i) {
-                    return stms([this.jr(i), assignGpr(i.rd, u_imm32(i.PC + 8))]);
+                    return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8))]);
                 };
 
                 InstructionAst.prototype._comp = function (i, fc02, fc3) {
@@ -3585,6 +6175,7 @@ var core;
                 this.HI = 0;
                 this.IC = 0;
                 this.thread = null;
+                this.callstack = [];
                 this.fcr31_rm = 0;
                 this.fcr31_2_21 = 0;
                 this.fcr31_25_7 = 0;
@@ -3671,6 +6262,18 @@ var core;
                 enumerable: true,
                 configurable: true
             });
+
+            CpuState.prototype.callstackPush = function (PC) {
+                this.callstack.push(PC);
+            };
+
+            CpuState.prototype.callstackPop = function () {
+                this.callstack.pop();
+            };
+
+            CpuState.prototype.getCallstack = function () {
+                return this.callstack.slice(0);
+            };
 
             CpuState.prototype.getPointerStream = function (address) {
                 return this.memory.getPointerStream(address);
@@ -3939,289 +6542,6 @@ var core;
         cpu.CpuState = CpuState;
     })(core.cpu || (core.cpu = {}));
     var cpu = core.cpu;
-})(core || (core = {}));
-var core;
-(function (core) {
-    (function (PixelFormat) {
-        PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
-        PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
-        PixelFormat[PixelFormat["RGBA_5551"] = 1] = "RGBA_5551";
-        PixelFormat[PixelFormat["RGBA_4444"] = 2] = "RGBA_4444";
-        PixelFormat[PixelFormat["RGBA_8888"] = 3] = "RGBA_8888";
-        PixelFormat[PixelFormat["PALETTE_T4"] = 4] = "PALETTE_T4";
-        PixelFormat[PixelFormat["PALETTE_T8"] = 5] = "PALETTE_T8";
-        PixelFormat[PixelFormat["PALETTE_T16"] = 6] = "PALETTE_T16";
-        PixelFormat[PixelFormat["PALETTE_T32"] = 7] = "PALETTE_T32";
-        PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
-        PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
-        PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
-    })(core.PixelFormat || (core.PixelFormat = {}));
-    var PixelFormat = core.PixelFormat;
-
-    var BasePspDisplay = (function () {
-        function BasePspDisplay() {
-            this.address = core.Memory.DEFAULT_FRAME_ADDRESS;
-            this.bufferWidth = 512;
-            this.pixelFormat = 3 /* RGBA_8888 */;
-            this.sync = 1;
-        }
-        return BasePspDisplay;
-    })();
-    core.BasePspDisplay = BasePspDisplay;
-
-    var DummyPspDisplay = (function (_super) {
-        __extends(DummyPspDisplay, _super);
-        function DummyPspDisplay() {
-            _super.call(this);
-            this.vblankCount = 0;
-            this.hcount = 0;
-        }
-        DummyPspDisplay.prototype.waitVblankAsync = function () {
-            return new Promise(function (resolve) {
-                setTimeout(resolve, 20);
-            });
-        };
-
-        DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
-        };
-
-        DummyPspDisplay.prototype.startAsync = function () {
-            return Promise.resolve();
-        };
-
-        DummyPspDisplay.prototype.stopAsync = function () {
-            return Promise.resolve();
-        };
-        return DummyPspDisplay;
-    })(BasePspDisplay);
-    core.DummyPspDisplay = DummyPspDisplay;
-
-    var PspDisplay = (function (_super) {
-        __extends(PspDisplay, _super);
-        function PspDisplay(memory, canvas, webglcanvas) {
-            _super.call(this);
-            this.memory = memory;
-            this.canvas = canvas;
-            this.webglcanvas = webglcanvas;
-            this.vblank = new Signal();
-            this.interval = -1;
-            this.vblankCount = 0;
-            this.enabled = true;
-            this._hcount = 0;
-            this.context = this.canvas.getContext('2d');
-            this.imageData = this.context.createImageData(512, 272);
-            this.setEnabledDisplay(true);
-        }
-        Object.defineProperty(PspDisplay.prototype, "elapsedTime", {
-            get: function () {
-                return Date.now() - this.startTime;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(PspDisplay.prototype, "hcount", {
-            get: function () {
-                return ((this.elapsedTime / 1000) / (1 / PspDisplay.HorizontalSyncHertz)) | 0;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        PspDisplay.prototype.update = function () {
-            if (!this.context || !this.imageData)
-                return;
-            if (!this.enabled)
-                return;
-
-            var count = 512 * 272;
-            var imageData = this.imageData;
-            var w8 = imageData.data;
-            var baseAddress = this.address & 0x0FFFFFFF;
-
-            PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
-            this.context.putImageData(imageData, 0, 0);
-        };
-
-        PspDisplay.prototype.setEnabledDisplay = function (enable) {
-            this.enabled = enable;
-            this.canvas.style.display = enable ? 'block' : 'none';
-            this.webglcanvas.style.display = !enable ? 'block' : 'none';
-        };
-
-        PspDisplay.prototype.startAsync = function () {
-            var _this = this;
-            this.startTime = Date.now();
-
-            //$(this.canvas).focus();
-            this.interval = setInterval(function () {
-                _this.vblankCount++;
-                _this.update();
-                _this.vblank.dispatch();
-            }, 1000 / 59.999);
-            return Promise.resolve();
-        };
-
-        PspDisplay.prototype.stopAsync = function () {
-            clearInterval(this.interval);
-            this.interval = -1;
-            return Promise.resolve();
-        };
-
-        PspDisplay.prototype.waitVblankAsync = function () {
-            var _this = this;
-            return new Promise(function (resolve) {
-                _this.vblank.once(function () {
-                    resolve(0);
-                });
-            });
-        };
-        PspDisplay.ProcessedPixelsPerSecond = 9000000;
-        PspDisplay.CyclesPerPixel = 1;
-        PspDisplay.PixelsInARow = 525;
-        PspDisplay.VsyncRow = 272;
-        PspDisplay.NumberOfRows = 286;
-        PspDisplay.hCountPerVblank = 285.72;
-
-        PspDisplay.HorizontalSyncHertz = (PspDisplay.ProcessedPixelsPerSecond * PspDisplay.CyclesPerPixel) / PspDisplay.PixelsInARow;
-        PspDisplay.VerticalSyncHertz = PspDisplay.HorizontalSyncHertz / PspDisplay.NumberOfRows;
-        return PspDisplay;
-    })(BasePspDisplay);
-    core.PspDisplay = PspDisplay;
-
-    var sizes = {};
-    sizes[8 /* COMPRESSED_DXT1 */] = 0.5;
-    sizes[9 /* COMPRESSED_DXT3 */] = 1;
-    sizes[10 /* COMPRESSED_DXT5 */] = 1;
-    sizes[-1 /* NONE */] = 0;
-    sizes[6 /* PALETTE_T16 */] = 2;
-    sizes[7 /* PALETTE_T32 */] = 4;
-    sizes[5 /* PALETTE_T8 */] = 1;
-    sizes[4 /* PALETTE_T4 */] = 0.5;
-    sizes[2 /* RGBA_4444 */] = 2;
-    sizes[1 /* RGBA_5551 */] = 2;
-    sizes[0 /* RGBA_5650 */] = 2;
-    sizes[3 /* RGBA_8888 */] = 4;
-
-    var PixelConverter = (function () {
-        function PixelConverter() {
-        }
-        PixelConverter.getSizeInBytes = function (format, count) {
-            return sizes[format] * count;
-        };
-
-        PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            if (typeof palette === "undefined") { palette = null; }
-            if (typeof clutStart === "undefined") { clutStart = 0; }
-            if (typeof clutShift === "undefined") { clutShift = 0; }
-            if (typeof clutMask === "undefined") { clutMask = 0; }
-            switch (format) {
-                case 3 /* RGBA_8888 */:
-                    PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 1 /* RGBA_5551 */:
-                    PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 0 /* RGBA_5650 */:
-                    PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 2 /* RGBA_4444 */:
-                    PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & core.Memory.MASK, to, toIndex, count, useAlpha);
-                    break;
-                case 5 /* PALETTE_T8 */:
-                    PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
-                    break;
-                case 4 /* PALETTE_T4 */:
-                    PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & core.Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
-                    break;
-                default:
-                    throw (new Error(sprintf("Unsupported pixel format %d", format)));
-            }
-        };
-
-        PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            if (typeof palette === "undefined") { palette = null; }
-            if (typeof clutStart === "undefined") { clutStart = 0; }
-            if (typeof clutShift === "undefined") { clutShift = 0; }
-            if (typeof clutMask === "undefined") { clutMask = 0; }
-            for (var n = 0, m = 0; n < count * 8; n += 8, m++) {
-                var color1 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 0, 4) & clutMask) << clutShift)];
-                var color2 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 4, 4) & clutMask) << clutShift)];
-                to[toIndex + n + 0] = BitUtils.extract(color1, 0, 8);
-                to[toIndex + n + 1] = BitUtils.extract(color1, 8, 8);
-                to[toIndex + n + 2] = BitUtils.extract(color1, 16, 8);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color1, 24, 8) : 0xFF;
-
-                to[toIndex + n + 4] = BitUtils.extract(color2, 0, 8);
-                to[toIndex + n + 5] = BitUtils.extract(color2, 8, 8);
-                to[toIndex + n + 6] = BitUtils.extract(color2, 16, 8);
-                to[toIndex + n + 7] = useAlpha ? BitUtils.extract(color2, 24, 8) : 0xFF;
-            }
-        };
-
-        PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            if (typeof palette === "undefined") { palette = null; }
-            if (typeof clutStart === "undefined") { clutStart = 0; }
-            if (typeof clutShift === "undefined") { clutShift = 0; }
-            if (typeof clutMask === "undefined") { clutMask = 0; }
-            for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
-                var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
-                var color = palette[colorIndex];
-                to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
-                to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
-                to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
-            }
-        };
-
-        PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                to[toIndex + n + 0] = from[fromIndex + n + 0];
-                to[toIndex + n + 1] = from[fromIndex + n + 1];
-                to[toIndex + n + 2] = from[fromIndex + n + 2];
-                to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
-            }
-        };
-
-        PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 5, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScalei(it, 10, 5, 0xFF);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF;
-            }
-        };
-
-        PixelConverter.update5650 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 6, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScalei(it, 11, 5, 0xFF);
-                to[toIndex + n + 3] = 0xFF;
-            }
-        };
-
-        PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
-            if (typeof useAlpha === "undefined") { useAlpha = true; }
-            for (var n = 0; n < count * 4; n += 4) {
-                var it = from[fromIndex++];
-                to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 4, 0xFF);
-                to[toIndex + n + 1] = BitUtils.extractScalei(it, 4, 4, 0xFF);
-                to[toIndex + n + 2] = BitUtils.extractScalei(it, 8, 4, 0xFF);
-                to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF;
-            }
-        };
-        return PixelConverter;
-    })();
-    core.PixelConverter = PixelConverter;
 })(core || (core = {}));
 var core;
 (function (core) {
@@ -4732,1582 +7052,6 @@ var core;
 })(core || (core = {}));
 var core;
 (function (core) {
-    (function (gpu) {
-        (function (SyncType) {
-            SyncType[SyncType["ListDone"] = 0] = "ListDone";
-            SyncType[SyncType["ListQueued"] = 1] = "ListQueued";
-            SyncType[SyncType["ListDrawingDone"] = 2] = "ListDrawingDone";
-            SyncType[SyncType["ListStallReached"] = 3] = "ListStallReached";
-            SyncType[SyncType["ListCancelDone"] = 4] = "ListCancelDone";
-        })(gpu.SyncType || (gpu.SyncType = {}));
-        var SyncType = gpu.SyncType;
-
-        var GpuFrameBufferState = (function () {
-            function GpuFrameBufferState() {
-                this.lowAddress = 0;
-                this.highAddress = 0;
-                this.width = 0;
-            }
-            return GpuFrameBufferState;
-        })();
-        gpu.GpuFrameBufferState = GpuFrameBufferState;
-
-        (function (IndexEnum) {
-            IndexEnum[IndexEnum["Void"] = 0] = "Void";
-            IndexEnum[IndexEnum["Byte"] = 1] = "Byte";
-            IndexEnum[IndexEnum["Short"] = 2] = "Short";
-        })(gpu.IndexEnum || (gpu.IndexEnum = {}));
-        var IndexEnum = gpu.IndexEnum;
-
-        (function (NumericEnum) {
-            NumericEnum[NumericEnum["Void"] = 0] = "Void";
-            NumericEnum[NumericEnum["Byte"] = 1] = "Byte";
-            NumericEnum[NumericEnum["Short"] = 2] = "Short";
-            NumericEnum[NumericEnum["Float"] = 3] = "Float";
-        })(gpu.NumericEnum || (gpu.NumericEnum = {}));
-        var NumericEnum = gpu.NumericEnum;
-
-        (function (ColorEnum) {
-            ColorEnum[ColorEnum["Void"] = 0] = "Void";
-            ColorEnum[ColorEnum["Invalid1"] = 1] = "Invalid1";
-            ColorEnum[ColorEnum["Invalid2"] = 2] = "Invalid2";
-            ColorEnum[ColorEnum["Invalid3"] = 3] = "Invalid3";
-            ColorEnum[ColorEnum["Color5650"] = 4] = "Color5650";
-            ColorEnum[ColorEnum["Color5551"] = 5] = "Color5551";
-            ColorEnum[ColorEnum["Color4444"] = 6] = "Color4444";
-            ColorEnum[ColorEnum["Color8888"] = 7] = "Color8888";
-        })(gpu.ColorEnum || (gpu.ColorEnum = {}));
-        var ColorEnum = gpu.ColorEnum;
-
-        var Vertex = (function () {
-            function Vertex() {
-                this.px = 0.0;
-                this.py = 0.0;
-                this.pz = 0.0;
-                this.nx = 0.0;
-                this.ny = 0.0;
-                this.nz = 0.0;
-                this.tx = 0.0;
-                this.ty = 0.0;
-                this.tz = 0.0;
-                this.r = 0.0;
-                this.g = 0.0;
-                this.b = 0.0;
-                this.a = 1.0;
-                this.w0 = 0.0;
-                this.w1 = 0.0;
-                this.w2 = 0.0;
-                this.w3 = 0.0;
-                this.w4 = 0.0;
-                this.w5 = 0.0;
-                this.w6 = 0.0;
-                this.w7 = 0.0;
-            }
-            Vertex.prototype.clone = function () {
-                var vertex = new Vertex();
-                vertex.px = this.px;
-                vertex.py = this.py;
-                vertex.pz = this.pz;
-                vertex.nx = this.nx;
-                vertex.ny = this.ny;
-                vertex.nz = this.nz;
-                vertex.tx = this.tx;
-                vertex.ty = this.ty;
-                vertex.tz = this.tz;
-                vertex.r = this.r;
-                vertex.g = this.g;
-                vertex.b = this.b;
-                vertex.a = this.a;
-                vertex.w0 = this.w0;
-                vertex.w1 = this.w1;
-                vertex.w2 = this.w2;
-                vertex.w3 = this.w3;
-                vertex.w4 = this.w4;
-                vertex.w5 = this.w5;
-                vertex.w6 = this.w6;
-                vertex.w7 = this.w7;
-                return vertex;
-            };
-            return Vertex;
-        })();
-        gpu.Vertex = Vertex;
-
-        var VertexState = (function () {
-            function VertexState() {
-                this.address = 0;
-                this._value = 0;
-                this.reversedNormal = false;
-                this.textureComponentCount = 2;
-            }
-            Object.defineProperty(VertexState.prototype, "value", {
-                get: function () {
-                    return this._value;
-                },
-                set: function (value) {
-                    this._value = value;
-                    this.size = this.getVertexSize();
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-
-            Object.defineProperty(VertexState.prototype, "hash", {
-                //getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
-                get: function () {
-                    return [this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.weightSize, this.morphingVertexCount, this.transform2D, this.textureComponentCount].join('_');
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "hasTexture", {
-                get: function () {
-                    return this.texture != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasColor", {
-                get: function () {
-                    return this.color != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasNormal", {
-                get: function () {
-                    return this.normal != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasPosition", {
-                get: function () {
-                    return this.position != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasWeight", {
-                get: function () {
-                    return this.weight != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "hasIndex", {
-                get: function () {
-                    return this.index != 0 /* Void */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "texture", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 0, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "color", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 2, 3);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "normal", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 5, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "position", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 7, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "weight", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 9, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "index", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 11, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "weightCount", {
-                get: function () {
-                    return BitUtils.extract(this.value, 14, 3);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
-                get: function () {
-                    return BitUtils.extract(this.value, 18, 2);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "transform2D", {
-                get: function () {
-                    return BitUtils.extractEnum(this.value, 23, 1);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "weightSize", {
-                get: function () {
-                    return this.NumericEnumGetSize(this.weight);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "colorSize", {
-                get: function () {
-                    return this.ColorEnumGetSize(this.color);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "textureSize", {
-                get: function () {
-                    return this.NumericEnumGetSize(this.texture);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "positionSize", {
-                get: function () {
-                    return this.NumericEnumGetSize(this.position);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(VertexState.prototype, "normalSize", {
-                get: function () {
-                    return this.NumericEnumGetSize(this.normal);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            VertexState.prototype.IndexEnumGetSize = function (item) {
-                switch (item) {
-                    case 0 /* Void */:
-                        return 0;
-                    case 1 /* Byte */:
-                        return 1;
-                    case 2 /* Short */:
-                        return 2;
-                    default:
-                        throw ("Invalid enum");
-                }
-            };
-
-            VertexState.prototype.NumericEnumGetSize = function (item) {
-                switch (item) {
-                    case 0 /* Void */:
-                        return 0;
-                    case 1 /* Byte */:
-                        return 1;
-                    case 2 /* Short */:
-                        return 2;
-                    case 3 /* Float */:
-                        return 4;
-                    default:
-                        throw ("Invalid enum");
-                }
-            };
-
-            VertexState.prototype.ColorEnumGetSize = function (item) {
-                switch (item) {
-                    case 0 /* Void */:
-                        return 0;
-                    case 4 /* Color5650 */:
-                        return 2;
-                    case 5 /* Color5551 */:
-                        return 2;
-                    case 6 /* Color4444 */:
-                        return 2;
-                    case 7 /* Color8888 */:
-                        return 4;
-                    default:
-                        throw ("Invalid enum");
-                }
-            };
-
-            VertexState.prototype.GetMaxAlignment = function () {
-                return Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
-            };
-
-            Object.defineProperty(VertexState.prototype, "realWeightCount", {
-                get: function () {
-                    return this.weightCount + 1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(VertexState.prototype, "realMorphingVertexCount", {
-                get: function () {
-                    return this.morphingVertexCount + 1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            VertexState.prototype.getVertexSize = function () {
-                var size = 0;
-                size = MathUtils.nextAligned(size, this.weightSize);
-                size += this.realWeightCount * this.weightSize;
-                size = MathUtils.nextAligned(size, this.textureSize);
-                size += this.textureComponentCount * this.textureSize;
-                size = MathUtils.nextAligned(size, this.colorSize);
-                size += 1 * this.colorSize;
-                size = MathUtils.nextAligned(size, this.normalSize);
-                size += 3 * this.normalSize;
-                size = MathUtils.nextAligned(size, this.positionSize);
-                size += 3 * this.positionSize;
-
-                var alignmentSize = this.GetMaxAlignment();
-                size = MathUtils.nextAligned(size, alignmentSize);
-
-                //Console.WriteLine("Size:" + Size);
-                return size;
-            };
-
-            VertexState.prototype.read = function (memory, count) {
-                //console.log('read vertices ' + count);
-                var vertices = [];
-                for (var n = 0; n < count; n++)
-                    vertices.push(this.readOne(memory));
-                return vertices;
-            };
-
-            VertexState.prototype.readOne = function (memory) {
-                var address = this.address;
-                var vertex = {};
-
-                //console.log(vertex);
-                this.address += this.size;
-
-                return vertex;
-            };
-            return VertexState;
-        })();
-        gpu.VertexState = VertexState;
-
-        var Matrix4x4 = (function () {
-            function Matrix4x4() {
-                this.index = 0;
-                this.values = mat4.create();
-            }
-            Matrix4x4.prototype.put = function (value) {
-                this.values[this.index++] = value;
-            };
-
-            Matrix4x4.prototype.reset = function (startIndex) {
-                this.index = startIndex;
-            };
-            return Matrix4x4;
-        })();
-        gpu.Matrix4x4 = Matrix4x4;
-
-        var Matrix4x3 = (function () {
-            function Matrix4x3() {
-                this.index = 0;
-                this.values = mat4.create();
-            }
-            Matrix4x3.prototype.put = function (value) {
-                this.values[Matrix4x3.indices[this.index++]] = value;
-            };
-
-            Matrix4x3.prototype.reset = function (startIndex) {
-                this.index = startIndex;
-            };
-            Matrix4x3.indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
-            return Matrix4x3;
-        })();
-        gpu.Matrix4x3 = Matrix4x3;
-
-        var ViewPort = (function () {
-            function ViewPort() {
-                this.x1 = 0;
-                this.y1 = 0;
-                this.x2 = 512;
-                this.y2 = 272;
-            }
-            Object.defineProperty(ViewPort.prototype, "width", {
-                get: function () {
-                    return this.x2 - this.x1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ViewPort.prototype, "height", {
-                get: function () {
-                    return this.y2 - this.y1;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            return ViewPort;
-        })();
-        gpu.ViewPort = ViewPort;
-
-        var Light = (function () {
-            function Light() {
-                this.enabled = false;
-            }
-            return Light;
-        })();
-        gpu.Light = Light;
-
-        var Lightning = (function () {
-            function Lightning() {
-                this.enabled = false;
-                this.lights = [new Light(), new Light(), new Light(), new Light()];
-            }
-            return Lightning;
-        })();
-        gpu.Lightning = Lightning;
-
-        var MipmapState = (function () {
-            function MipmapState() {
-                this.address = 0;
-                this.bufferWidth = 0;
-                this.textureWidth = 0;
-                this.textureHeight = 0;
-            }
-            return MipmapState;
-        })();
-        gpu.MipmapState = MipmapState;
-
-        var ColorState = (function () {
-            function ColorState() {
-                this.r = 1;
-                this.g = 1;
-                this.b = 1;
-                this.a = 1;
-            }
-            return ColorState;
-        })();
-        gpu.ColorState = ColorState;
-
-        var ClutState = (function () {
-            function ClutState() {
-                this.adress = 0;
-                this.numberOfColors = 0;
-                this.pixelFormat = 3 /* RGBA_8888 */;
-                this.shift = 0;
-                this.mask = 0x00;
-                this.start = 0;
-            }
-            return ClutState;
-        })();
-        gpu.ClutState = ClutState;
-
-        var TextureState = (function () {
-            function TextureState() {
-                this.enabled = false;
-                this.swizzled = false;
-                this.mipmapShareClut = false;
-                this.mipmapMaxLevel = 0;
-                this.filterMinification = 0 /* Nearest */;
-                this.filterMagnification = 0 /* Nearest */;
-                this.wrapU = 0 /* Repeat */;
-                this.offsetU = 0;
-                this.offsetV = 0;
-                this.scaleU = 1;
-                this.scaleV = 1;
-                this.wrapV = 0 /* Repeat */;
-                this.effect = 0 /* Modulate */;
-                this.colorComponent = 0 /* Rgb */;
-                this.envColor = new ColorState();
-                this.fragment2X = false;
-                this.pixelFormat = 3 /* RGBA_8888 */;
-                this.clut = new ClutState();
-                this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
-            }
-            Object.defineProperty(TextureState.prototype, "isPixelFormatWithClut", {
-                get: function () {
-                    return (this.pixelFormat == 4 /* PALETTE_T4 */) || (this.pixelFormat == 5 /* PALETTE_T8 */) || (this.pixelFormat == 6 /* PALETTE_T16 */) || (this.pixelFormat == 7 /* PALETTE_T32 */);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            return TextureState;
-        })();
-        gpu.TextureState = TextureState;
-
-        var CullingState = (function () {
-            function CullingState() {
-            }
-            return CullingState;
-        })();
-        gpu.CullingState = CullingState;
-
-        var GpuState = (function () {
-            function GpuState() {
-                this.clearing = false;
-                this.clearFlags = 0;
-                this.baseAddress = 0;
-                this.baseOffset = 0;
-                this.indexAddress = 0;
-                this.frameBuffer = new GpuFrameBufferState();
-                this.vertex = new VertexState();
-                this.projectionMatrix = new Matrix4x4();
-                this.viewMatrix = new Matrix4x3();
-                this.worldMatrix = new Matrix4x3();
-                this.viewPort = new ViewPort();
-                this.lightning = new Lightning();
-                this.texture = new TextureState();
-                this.ambientModelColor = new ColorState();
-                this.diffuseModelColor = new ColorState();
-                this.specularModelColor = new ColorState();
-                this.culling = new CullingState();
-            }
-            return GpuState;
-        })();
-        gpu.GpuState = GpuState;
-
-        (function (WrapMode) {
-            WrapMode[WrapMode["Repeat"] = 0] = "Repeat";
-            WrapMode[WrapMode["Clamp"] = 1] = "Clamp";
-        })(gpu.WrapMode || (gpu.WrapMode = {}));
-        var WrapMode = gpu.WrapMode;
-
-        (function (TextureEffect) {
-            TextureEffect[TextureEffect["Modulate"] = 0] = "Modulate";
-            TextureEffect[TextureEffect["Decal"] = 1] = "Decal";
-            TextureEffect[TextureEffect["Blend"] = 2] = "Blend";
-            TextureEffect[TextureEffect["Replace"] = 3] = "Replace";
-            TextureEffect[TextureEffect["Add"] = 4] = "Add";
-        })(gpu.TextureEffect || (gpu.TextureEffect = {}));
-        var TextureEffect = gpu.TextureEffect;
-
-        (function (TextureFilter) {
-            TextureFilter[TextureFilter["Nearest"] = 0] = "Nearest";
-            TextureFilter[TextureFilter["Linear"] = 1] = "Linear";
-            TextureFilter[TextureFilter["NearestMipmapNearest"] = 4] = "NearestMipmapNearest";
-            TextureFilter[TextureFilter["LinearMipmapNearest"] = 5] = "LinearMipmapNearest";
-            TextureFilter[TextureFilter["NearestMipmapLinear"] = 6] = "NearestMipmapLinear";
-            TextureFilter[TextureFilter["LinearMipmapLinear"] = 7] = "LinearMipmapLinear";
-        })(gpu.TextureFilter || (gpu.TextureFilter = {}));
-        var TextureFilter = gpu.TextureFilter;
-
-        (function (TextureColorComponent) {
-            TextureColorComponent[TextureColorComponent["Rgb"] = 0] = "Rgb";
-            TextureColorComponent[TextureColorComponent["Rgba"] = 1] = "Rgba";
-        })(gpu.TextureColorComponent || (gpu.TextureColorComponent = {}));
-        var TextureColorComponent = gpu.TextureColorComponent;
-
-        (function (PrimitiveType) {
-            PrimitiveType[PrimitiveType["Points"] = 0] = "Points";
-            PrimitiveType[PrimitiveType["Lines"] = 1] = "Lines";
-            PrimitiveType[PrimitiveType["LineStrip"] = 2] = "LineStrip";
-            PrimitiveType[PrimitiveType["Triangles"] = 3] = "Triangles";
-            PrimitiveType[PrimitiveType["TriangleStrip"] = 4] = "TriangleStrip";
-            PrimitiveType[PrimitiveType["TriangleFan"] = 5] = "TriangleFan";
-            PrimitiveType[PrimitiveType["Sprites"] = 6] = "Sprites";
-            PrimitiveType[PrimitiveType["ContinuePreviousPrim"] = 7] = "ContinuePreviousPrim";
-        })(gpu.PrimitiveType || (gpu.PrimitiveType = {}));
-        var PrimitiveType = gpu.PrimitiveType;
-
-        (function (GpuOpCodes) {
-            GpuOpCodes[GpuOpCodes["NOP"] = 0x00] = "NOP";
-            GpuOpCodes[GpuOpCodes["VADDR"] = 0x01] = "VADDR";
-            GpuOpCodes[GpuOpCodes["IADDR"] = 0x02] = "IADDR";
-            GpuOpCodes[GpuOpCodes["Unknown0x03"] = 0x03] = "Unknown0x03";
-            GpuOpCodes[GpuOpCodes["PRIM"] = 0x04] = "PRIM";
-            GpuOpCodes[GpuOpCodes["BEZIER"] = 0x05] = "BEZIER";
-            GpuOpCodes[GpuOpCodes["SPLINE"] = 0x06] = "SPLINE";
-            GpuOpCodes[GpuOpCodes["BBOX"] = 0x07] = "BBOX";
-            GpuOpCodes[GpuOpCodes["JUMP"] = 0x08] = "JUMP";
-            GpuOpCodes[GpuOpCodes["BJUMP"] = 0x09] = "BJUMP";
-            GpuOpCodes[GpuOpCodes["CALL"] = 0x0A] = "CALL";
-            GpuOpCodes[GpuOpCodes["RET"] = 0x0B] = "RET";
-            GpuOpCodes[GpuOpCodes["END"] = 0x0C] = "END";
-            GpuOpCodes[GpuOpCodes["Unknown0x0D"] = 0x0D] = "Unknown0x0D";
-            GpuOpCodes[GpuOpCodes["SIGNAL"] = 0x0E] = "SIGNAL";
-            GpuOpCodes[GpuOpCodes["FINISH"] = 0x0F] = "FINISH";
-            GpuOpCodes[GpuOpCodes["BASE"] = 0x10] = "BASE";
-            GpuOpCodes[GpuOpCodes["Unknown0x11"] = 0x11] = "Unknown0x11";
-            GpuOpCodes[GpuOpCodes["VTYPE"] = 0x12] = "VTYPE";
-            GpuOpCodes[GpuOpCodes["OFFSET_ADDR"] = 0x13] = "OFFSET_ADDR";
-            GpuOpCodes[GpuOpCodes["ORIGIN_ADDR"] = 0x14] = "ORIGIN_ADDR";
-            GpuOpCodes[GpuOpCodes["REGION1"] = 0x15] = "REGION1";
-            GpuOpCodes[GpuOpCodes["REGION2"] = 0x16] = "REGION2";
-            GpuOpCodes[GpuOpCodes["LTE"] = 0x17] = "LTE";
-            GpuOpCodes[GpuOpCodes["LTE0"] = 0x18] = "LTE0";
-            GpuOpCodes[GpuOpCodes["LTE1"] = 0x19] = "LTE1";
-            GpuOpCodes[GpuOpCodes["LTE2"] = 0x1A] = "LTE2";
-            GpuOpCodes[GpuOpCodes["LTE3"] = 0x1B] = "LTE3";
-            GpuOpCodes[GpuOpCodes["CPE"] = 0x1C] = "CPE";
-            GpuOpCodes[GpuOpCodes["BCE"] = 0x1D] = "BCE";
-            GpuOpCodes[GpuOpCodes["TME"] = 0x1E] = "TME";
-            GpuOpCodes[GpuOpCodes["FGE"] = 0x1F] = "FGE";
-            GpuOpCodes[GpuOpCodes["DTE"] = 0x20] = "DTE";
-            GpuOpCodes[GpuOpCodes["ABE"] = 0x21] = "ABE";
-            GpuOpCodes[GpuOpCodes["ATE"] = 0x22] = "ATE";
-            GpuOpCodes[GpuOpCodes["ZTE"] = 0x23] = "ZTE";
-            GpuOpCodes[GpuOpCodes["STE"] = 0x24] = "STE";
-            GpuOpCodes[GpuOpCodes["AAE"] = 0x25] = "AAE";
-            GpuOpCodes[GpuOpCodes["PCE"] = 0x26] = "PCE";
-            GpuOpCodes[GpuOpCodes["CTE"] = 0x27] = "CTE";
-            GpuOpCodes[GpuOpCodes["LOE"] = 0x28] = "LOE";
-            GpuOpCodes[GpuOpCodes["Unknown0x29"] = 0x29] = "Unknown0x29";
-            GpuOpCodes[GpuOpCodes["BOFS"] = 0x2A] = "BOFS";
-            GpuOpCodes[GpuOpCodes["BONE"] = 0x2B] = "BONE";
-            GpuOpCodes[GpuOpCodes["MW0"] = 0x2C] = "MW0";
-            GpuOpCodes[GpuOpCodes["MW1"] = 0x2D] = "MW1";
-            GpuOpCodes[GpuOpCodes["MW2"] = 0x2E] = "MW2";
-            GpuOpCodes[GpuOpCodes["MW3"] = 0x2F] = "MW3";
-            GpuOpCodes[GpuOpCodes["MW4"] = 0x30] = "MW4";
-            GpuOpCodes[GpuOpCodes["MW5"] = 0x31] = "MW5";
-            GpuOpCodes[GpuOpCodes["MW6"] = 0x32] = "MW6";
-            GpuOpCodes[GpuOpCodes["MW7"] = 0x33] = "MW7";
-            GpuOpCodes[GpuOpCodes["Unknown0x34"] = 0x34] = "Unknown0x34";
-            GpuOpCodes[GpuOpCodes["Unknown0x35"] = 0x35] = "Unknown0x35";
-            GpuOpCodes[GpuOpCodes["PSUB"] = 0x36] = "PSUB";
-            GpuOpCodes[GpuOpCodes["PPRIM"] = 0x37] = "PPRIM";
-            GpuOpCodes[GpuOpCodes["PFACE"] = 0x38] = "PFACE";
-            GpuOpCodes[GpuOpCodes["Unknown0x39"] = 0x39] = "Unknown0x39";
-            GpuOpCodes[GpuOpCodes["WORLD_START"] = 0x3A] = "WORLD_START";
-            GpuOpCodes[GpuOpCodes["WORLD_PUT"] = 0x3B] = "WORLD_PUT";
-            GpuOpCodes[GpuOpCodes["VIEW_START"] = 0x3C] = "VIEW_START";
-            GpuOpCodes[GpuOpCodes["VIEW_PUT"] = 0x3D] = "VIEW_PUT";
-            GpuOpCodes[GpuOpCodes["PROJ_START"] = 0x3E] = "PROJ_START";
-            GpuOpCodes[GpuOpCodes["PROJ_PUT"] = 0x3F] = "PROJ_PUT";
-            GpuOpCodes[GpuOpCodes["TMS"] = 0x40] = "TMS";
-            GpuOpCodes[GpuOpCodes["TMATRIX"] = 0x41] = "TMATRIX";
-            GpuOpCodes[GpuOpCodes["XSCALE"] = 0x42] = "XSCALE";
-            GpuOpCodes[GpuOpCodes["YSCALE"] = 0x43] = "YSCALE";
-            GpuOpCodes[GpuOpCodes["ZSCALE"] = 0x44] = "ZSCALE";
-            GpuOpCodes[GpuOpCodes["XPOS"] = 0x45] = "XPOS";
-            GpuOpCodes[GpuOpCodes["YPOS"] = 0x46] = "YPOS";
-            GpuOpCodes[GpuOpCodes["ZPOS"] = 0x47] = "ZPOS";
-            GpuOpCodes[GpuOpCodes["USCALE"] = 0x48] = "USCALE";
-            GpuOpCodes[GpuOpCodes["VSCALE"] = 0x49] = "VSCALE";
-            GpuOpCodes[GpuOpCodes["UOFFSET"] = 0x4A] = "UOFFSET";
-            GpuOpCodes[GpuOpCodes["VOFFSET"] = 0x4B] = "VOFFSET";
-            GpuOpCodes[GpuOpCodes["OFFSETX"] = 0x4C] = "OFFSETX";
-            GpuOpCodes[GpuOpCodes["OFFSETY"] = 0x4D] = "OFFSETY";
-            GpuOpCodes[GpuOpCodes["Unknown0x4E"] = 0x4E] = "Unknown0x4E";
-            GpuOpCodes[GpuOpCodes["Unknown0x4F"] = 0x4F] = "Unknown0x4F";
-            GpuOpCodes[GpuOpCodes["SHADE"] = 0x50] = "SHADE";
-            GpuOpCodes[GpuOpCodes["RNORM"] = 0x51] = "RNORM";
-            GpuOpCodes[GpuOpCodes["Unknown0x52"] = 0x52] = "Unknown0x52";
-            GpuOpCodes[GpuOpCodes["CMAT"] = 0x53] = "CMAT";
-            GpuOpCodes[GpuOpCodes["EMC"] = 0x54] = "EMC";
-            GpuOpCodes[GpuOpCodes["AMC"] = 0x55] = "AMC";
-            GpuOpCodes[GpuOpCodes["DMC"] = 0x56] = "DMC";
-            GpuOpCodes[GpuOpCodes["SMC"] = 0x57] = "SMC";
-            GpuOpCodes[GpuOpCodes["AMA"] = 0x58] = "AMA";
-            GpuOpCodes[GpuOpCodes["Unknown0x59"] = 0x59] = "Unknown0x59";
-            GpuOpCodes[GpuOpCodes["Unknown0x5A"] = 0x5A] = "Unknown0x5A";
-            GpuOpCodes[GpuOpCodes["SPOW"] = 0x5B] = "SPOW";
-            GpuOpCodes[GpuOpCodes["ALC"] = 0x5C] = "ALC";
-            GpuOpCodes[GpuOpCodes["ALA"] = 0x5D] = "ALA";
-            GpuOpCodes[GpuOpCodes["LMODE"] = 0x5E] = "LMODE";
-            GpuOpCodes[GpuOpCodes["LT0"] = 0x5F] = "LT0";
-            GpuOpCodes[GpuOpCodes["LT1"] = 0x60] = "LT1";
-            GpuOpCodes[GpuOpCodes["LT2"] = 0x61] = "LT2";
-            GpuOpCodes[GpuOpCodes["LT3"] = 0x62] = "LT3";
-            GpuOpCodes[GpuOpCodes["LXP0"] = 0x63] = "LXP0";
-            GpuOpCodes[GpuOpCodes["LYP0"] = 0x64] = "LYP0";
-            GpuOpCodes[GpuOpCodes["LZP0"] = 0x65] = "LZP0";
-            GpuOpCodes[GpuOpCodes["LXP1"] = 0x66] = "LXP1";
-            GpuOpCodes[GpuOpCodes["LYP1"] = 0x67] = "LYP1";
-            GpuOpCodes[GpuOpCodes["LZP1"] = 0x68] = "LZP1";
-            GpuOpCodes[GpuOpCodes["LXP2"] = 0x69] = "LXP2";
-            GpuOpCodes[GpuOpCodes["LYP2"] = 0x6A] = "LYP2";
-            GpuOpCodes[GpuOpCodes["LZP2"] = 0x6B] = "LZP2";
-            GpuOpCodes[GpuOpCodes["LXP3"] = 0x6C] = "LXP3";
-            GpuOpCodes[GpuOpCodes["LYP3"] = 0x6D] = "LYP3";
-            GpuOpCodes[GpuOpCodes["LZP3"] = 0x6E] = "LZP3";
-            GpuOpCodes[GpuOpCodes["LXD0"] = 0x6F] = "LXD0";
-            GpuOpCodes[GpuOpCodes["LYD0"] = 112] = "LYD0";
-            GpuOpCodes[GpuOpCodes["LZD0"] = 113] = "LZD0";
-            GpuOpCodes[GpuOpCodes["LXD1"] = 114] = "LXD1";
-            GpuOpCodes[GpuOpCodes["LYD1"] = 115] = "LYD1";
-            GpuOpCodes[GpuOpCodes["LZD1"] = 116] = "LZD1";
-            GpuOpCodes[GpuOpCodes["LXD2"] = 117] = "LXD2";
-            GpuOpCodes[GpuOpCodes["LYD2"] = 118] = "LYD2";
-            GpuOpCodes[GpuOpCodes["LZD2"] = 119] = "LZD2";
-            GpuOpCodes[GpuOpCodes["LXD3"] = 120] = "LXD3";
-            GpuOpCodes[GpuOpCodes["LYD3"] = 121] = "LYD3";
-            GpuOpCodes[GpuOpCodes["LZD3"] = 122] = "LZD3";
-            GpuOpCodes[GpuOpCodes["LCA0"] = 123] = "LCA0";
-            GpuOpCodes[GpuOpCodes["LLA0"] = 124] = "LLA0";
-            GpuOpCodes[GpuOpCodes["LQA0"] = 125] = "LQA0";
-            GpuOpCodes[GpuOpCodes["LCA1"] = 126] = "LCA1";
-            GpuOpCodes[GpuOpCodes["LLA1"] = 127] = "LLA1";
-            GpuOpCodes[GpuOpCodes["LQA1"] = 128] = "LQA1";
-            GpuOpCodes[GpuOpCodes["LCA2"] = 129] = "LCA2";
-            GpuOpCodes[GpuOpCodes["LLA2"] = 130] = "LLA2";
-            GpuOpCodes[GpuOpCodes["LQA2"] = 131] = "LQA2";
-            GpuOpCodes[GpuOpCodes["LCA3"] = 132] = "LCA3";
-            GpuOpCodes[GpuOpCodes["LLA3"] = 133] = "LLA3";
-            GpuOpCodes[GpuOpCodes["LQA3"] = 134] = "LQA3";
-            GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 135] = "SPOTEXP0";
-            GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 136] = "SPOTEXP1";
-            GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 137] = "SPOTEXP2";
-            GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 138] = "SPOTEXP3";
-            GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 139] = "SPOTCUT0";
-            GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 140] = "SPOTCUT1";
-            GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 141] = "SPOTCUT2";
-            GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 142] = "SPOTCUT3";
-            GpuOpCodes[GpuOpCodes["ALC0"] = 143] = "ALC0";
-            GpuOpCodes[GpuOpCodes["DLC0"] = 144] = "DLC0";
-            GpuOpCodes[GpuOpCodes["SLC0"] = 145] = "SLC0";
-            GpuOpCodes[GpuOpCodes["ALC1"] = 146] = "ALC1";
-            GpuOpCodes[GpuOpCodes["DLC1"] = 147] = "DLC1";
-            GpuOpCodes[GpuOpCodes["SLC1"] = 148] = "SLC1";
-            GpuOpCodes[GpuOpCodes["ALC2"] = 149] = "ALC2";
-            GpuOpCodes[GpuOpCodes["DLC2"] = 150] = "DLC2";
-            GpuOpCodes[GpuOpCodes["SLC2"] = 151] = "SLC2";
-            GpuOpCodes[GpuOpCodes["ALC3"] = 152] = "ALC3";
-            GpuOpCodes[GpuOpCodes["DLC3"] = 153] = "DLC3";
-            GpuOpCodes[GpuOpCodes["SLC3"] = 154] = "SLC3";
-            GpuOpCodes[GpuOpCodes["FFACE"] = 155] = "FFACE";
-            GpuOpCodes[GpuOpCodes["FBP"] = 156] = "FBP";
-            GpuOpCodes[GpuOpCodes["FBW"] = 157] = "FBW";
-            GpuOpCodes[GpuOpCodes["ZBP"] = 158] = "ZBP";
-            GpuOpCodes[GpuOpCodes["ZBW"] = 159] = "ZBW";
-            GpuOpCodes[GpuOpCodes["TBP0"] = 160] = "TBP0";
-            GpuOpCodes[GpuOpCodes["TBP1"] = 161] = "TBP1";
-            GpuOpCodes[GpuOpCodes["TBP2"] = 162] = "TBP2";
-            GpuOpCodes[GpuOpCodes["TBP3"] = 163] = "TBP3";
-            GpuOpCodes[GpuOpCodes["TBP4"] = 164] = "TBP4";
-            GpuOpCodes[GpuOpCodes["TBP5"] = 165] = "TBP5";
-            GpuOpCodes[GpuOpCodes["TBP6"] = 166] = "TBP6";
-            GpuOpCodes[GpuOpCodes["TBP7"] = 167] = "TBP7";
-            GpuOpCodes[GpuOpCodes["TBW0"] = 168] = "TBW0";
-            GpuOpCodes[GpuOpCodes["TBW1"] = 169] = "TBW1";
-            GpuOpCodes[GpuOpCodes["TBW2"] = 170] = "TBW2";
-            GpuOpCodes[GpuOpCodes["TBW3"] = 171] = "TBW3";
-            GpuOpCodes[GpuOpCodes["TBW4"] = 172] = "TBW4";
-            GpuOpCodes[GpuOpCodes["TBW5"] = 173] = "TBW5";
-            GpuOpCodes[GpuOpCodes["TBW6"] = 174] = "TBW6";
-            GpuOpCodes[GpuOpCodes["TBW7"] = 175] = "TBW7";
-            GpuOpCodes[GpuOpCodes["CBP"] = 176] = "CBP";
-            GpuOpCodes[GpuOpCodes["CBPH"] = 177] = "CBPH";
-            GpuOpCodes[GpuOpCodes["TRXSBP"] = 178] = "TRXSBP";
-            GpuOpCodes[GpuOpCodes["TRXSBW"] = 179] = "TRXSBW";
-            GpuOpCodes[GpuOpCodes["TRXDBP"] = 180] = "TRXDBP";
-            GpuOpCodes[GpuOpCodes["TRXDBW"] = 181] = "TRXDBW";
-            GpuOpCodes[GpuOpCodes["Unknown0xB6"] = 182] = "Unknown0xB6";
-            GpuOpCodes[GpuOpCodes["Unknown0xB7"] = 183] = "Unknown0xB7";
-            GpuOpCodes[GpuOpCodes["TSIZE0"] = 184] = "TSIZE0";
-            GpuOpCodes[GpuOpCodes["TSIZE1"] = 185] = "TSIZE1";
-            GpuOpCodes[GpuOpCodes["TSIZE2"] = 186] = "TSIZE2";
-            GpuOpCodes[GpuOpCodes["TSIZE3"] = 187] = "TSIZE3";
-            GpuOpCodes[GpuOpCodes["TSIZE4"] = 188] = "TSIZE4";
-            GpuOpCodes[GpuOpCodes["TSIZE5"] = 189] = "TSIZE5";
-            GpuOpCodes[GpuOpCodes["TSIZE6"] = 190] = "TSIZE6";
-            GpuOpCodes[GpuOpCodes["TSIZE7"] = 191] = "TSIZE7";
-            GpuOpCodes[GpuOpCodes["TMAP"] = 192] = "TMAP";
-            GpuOpCodes[GpuOpCodes["TEXTURE_ENV_MAP_MATRIX"] = 193] = "TEXTURE_ENV_MAP_MATRIX";
-            GpuOpCodes[GpuOpCodes["TMODE"] = 194] = "TMODE";
-            GpuOpCodes[GpuOpCodes["TPSM"] = 195] = "TPSM";
-            GpuOpCodes[GpuOpCodes["CLOAD"] = 196] = "CLOAD";
-            GpuOpCodes[GpuOpCodes["CMODE"] = 197] = "CMODE";
-            GpuOpCodes[GpuOpCodes["TFLT"] = 198] = "TFLT";
-            GpuOpCodes[GpuOpCodes["TWRAP"] = 199] = "TWRAP";
-            GpuOpCodes[GpuOpCodes["TBIAS"] = 200] = "TBIAS";
-            GpuOpCodes[GpuOpCodes["TFUNC"] = 201] = "TFUNC";
-            GpuOpCodes[GpuOpCodes["TEC"] = 202] = "TEC";
-            GpuOpCodes[GpuOpCodes["TFLUSH"] = 203] = "TFLUSH";
-            GpuOpCodes[GpuOpCodes["TSYNC"] = 204] = "TSYNC";
-            GpuOpCodes[GpuOpCodes["FFAR"] = 205] = "FFAR";
-            GpuOpCodes[GpuOpCodes["FDIST"] = 206] = "FDIST";
-            GpuOpCodes[GpuOpCodes["FCOL"] = 207] = "FCOL";
-            GpuOpCodes[GpuOpCodes["TSLOPE"] = 208] = "TSLOPE";
-            GpuOpCodes[GpuOpCodes["Unknown0xD1"] = 209] = "Unknown0xD1";
-            GpuOpCodes[GpuOpCodes["PSM"] = 210] = "PSM";
-            GpuOpCodes[GpuOpCodes["CLEAR"] = 211] = "CLEAR";
-            GpuOpCodes[GpuOpCodes["SCISSOR1"] = 212] = "SCISSOR1";
-            GpuOpCodes[GpuOpCodes["SCISSOR2"] = 213] = "SCISSOR2";
-            GpuOpCodes[GpuOpCodes["NEARZ"] = 214] = "NEARZ";
-            GpuOpCodes[GpuOpCodes["FARZ"] = 215] = "FARZ";
-            GpuOpCodes[GpuOpCodes["CTST"] = 216] = "CTST";
-            GpuOpCodes[GpuOpCodes["CREF"] = 217] = "CREF";
-            GpuOpCodes[GpuOpCodes["CMSK"] = 218] = "CMSK";
-            GpuOpCodes[GpuOpCodes["ATST"] = 219] = "ATST";
-            GpuOpCodes[GpuOpCodes["STST"] = 220] = "STST";
-            GpuOpCodes[GpuOpCodes["SOP"] = 221] = "SOP";
-            GpuOpCodes[GpuOpCodes["ZTST"] = 222] = "ZTST";
-            GpuOpCodes[GpuOpCodes["ALPHA"] = 223] = "ALPHA";
-            GpuOpCodes[GpuOpCodes["SFIX"] = 224] = "SFIX";
-            GpuOpCodes[GpuOpCodes["DFIX"] = 225] = "DFIX";
-            GpuOpCodes[GpuOpCodes["DTH0"] = 226] = "DTH0";
-            GpuOpCodes[GpuOpCodes["DTH1"] = 227] = "DTH1";
-            GpuOpCodes[GpuOpCodes["DTH2"] = 228] = "DTH2";
-            GpuOpCodes[GpuOpCodes["DTH3"] = 229] = "DTH3";
-            GpuOpCodes[GpuOpCodes["LOP"] = 230] = "LOP";
-            GpuOpCodes[GpuOpCodes["ZMSK"] = 231] = "ZMSK";
-            GpuOpCodes[GpuOpCodes["PMSKC"] = 232] = "PMSKC";
-            GpuOpCodes[GpuOpCodes["PMSKA"] = 233] = "PMSKA";
-            GpuOpCodes[GpuOpCodes["TRXKICK"] = 234] = "TRXKICK";
-            GpuOpCodes[GpuOpCodes["TRXSPOS"] = 235] = "TRXSPOS";
-            GpuOpCodes[GpuOpCodes["TRXDPOS"] = 236] = "TRXDPOS";
-            GpuOpCodes[GpuOpCodes["Unknown0xED"] = 237] = "Unknown0xED";
-            GpuOpCodes[GpuOpCodes["TRXSIZE"] = 238] = "TRXSIZE";
-            GpuOpCodes[GpuOpCodes["Unknown0xEF"] = 239] = "Unknown0xEF";
-            GpuOpCodes[GpuOpCodes["Unknown0xF0"] = 240] = "Unknown0xF0";
-            GpuOpCodes[GpuOpCodes["Unknown0xF1"] = 241] = "Unknown0xF1";
-            GpuOpCodes[GpuOpCodes["Unknown0xF2"] = 242] = "Unknown0xF2";
-            GpuOpCodes[GpuOpCodes["Unknown0xF3"] = 243] = "Unknown0xF3";
-            GpuOpCodes[GpuOpCodes["Unknown0xF4"] = 244] = "Unknown0xF4";
-            GpuOpCodes[GpuOpCodes["Unknown0xF5"] = 245] = "Unknown0xF5";
-            GpuOpCodes[GpuOpCodes["Unknown0xF6"] = 246] = "Unknown0xF6";
-            GpuOpCodes[GpuOpCodes["Unknown0xF7"] = 247] = "Unknown0xF7";
-            GpuOpCodes[GpuOpCodes["Unknown0xF8"] = 248] = "Unknown0xF8";
-            GpuOpCodes[GpuOpCodes["Unknown0xF9"] = 249] = "Unknown0xF9";
-            GpuOpCodes[GpuOpCodes["Unknown0xFA"] = 250] = "Unknown0xFA";
-            GpuOpCodes[GpuOpCodes["Unknown0xFB"] = 251] = "Unknown0xFB";
-            GpuOpCodes[GpuOpCodes["Unknown0xFC"] = 252] = "Unknown0xFC";
-            GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 253] = "Unknown0xFD";
-            GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 254] = "Unknown0xFE";
-            GpuOpCodes[GpuOpCodes["Dummy"] = 255] = "Dummy";
-        })(gpu.GpuOpCodes || (gpu.GpuOpCodes = {}));
-        var GpuOpCodes = gpu.GpuOpCodes;
-    })(core.gpu || (core.gpu = {}));
-    var gpu = core.gpu;
-})(core || (core = {}));
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    var Memory = (function () {
-        function Memory() {
-            this.buffer = new ArrayBuffer(0x10000000);
-            this.data = new DataView(this.buffer);
-            this.s8 = new Int8Array(this.buffer);
-            this.u8 = new Uint8Array(this.buffer);
-            this.u16 = new Uint16Array(this.buffer);
-            this.s16 = new Int16Array(this.buffer);
-            this.s32 = new Int32Array(this.buffer);
-            this.u32 = new Uint32Array(this.buffer);
-            this.f32 = new Float32Array(this.buffer);
-        }
-        Object.defineProperty(Memory, "instance", {
-            get: function () {
-                if (!Memory._instance)
-                    Memory._instance = new Memory();
-                return Memory._instance;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Memory.prototype.reset = function () {
-            this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
-        };
-
-        Memory.prototype.availableAfterAddress = function (address) {
-            return this.buffer.byteLength - (address & Memory.MASK);
-        };
-
-        Memory.prototype.getPointerDataView = function (address, size) {
-            if (!size)
-                size = this.availableAfterAddress(address);
-            return new DataView(this.buffer, address & Memory.MASK, size);
-        };
-
-        Memory.prototype.getPointerStream = function (address, size) {
-            address &= Memory.MASK;
-            if (address == 0)
-                return null;
-            if (!size)
-                size = this.availableAfterAddress(address);
-            return new Stream(this.getPointerDataView(address, size));
-        };
-
-        Memory.prototype.writeInt8 = function (address, value) {
-            this.u8[(address >> 0) & Memory.MASK] = value;
-        };
-        Memory.prototype.readInt8 = function (address) {
-            return this.s8[(address >> 0) & Memory.MASK];
-        };
-        Memory.prototype.readUInt8 = function (address) {
-            return this.u8[(address >> 0) & Memory.MASK];
-        };
-
-        Memory.prototype.writeInt16 = function (address, value) {
-            this.u16[(address >> 1) & Memory.MASK] = value;
-        };
-        Memory.prototype.readInt16 = function (address) {
-            return this.s16[(address >> 1) & Memory.MASK];
-        };
-        Memory.prototype.readUInt16 = function (address) {
-            return this.u16[(address >> 1) & Memory.MASK];
-        };
-
-        Memory.prototype.writeInt32 = function (address, value) {
-            this.u32[(address >> 2) & Memory.MASK] = value;
-        };
-        Memory.prototype.readInt32 = function (address) {
-            return this.s32[(address >> 2) & Memory.MASK];
-        };
-        Memory.prototype.readUInt32 = function (address) {
-            return this.u32[(address >> 2) & Memory.MASK];
-        };
-
-        Memory.prototype.writeFloat32 = function (address, value) {
-            this.f32[(address >> 2) & Memory.MASK] = value;
-        };
-        Memory.prototype.readFloat32 = function (address) {
-            return this.f32[(address >> 2) & Memory.MASK];
-        };
-
-        Memory.prototype.writeBytes = function (address, data) {
-            Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
-        };
-
-        Memory.prototype.readBytes = function (address, length) {
-            return new Uint8Array(this.buffer, address, length);
-        };
-
-        Memory.prototype.writeStream = function (address, stream) {
-            stream = stream.sliceWithLength(0, stream.length);
-            while (stream.available > 0) {
-                this.writeInt8(address++, stream.readUInt8());
-            }
-        };
-
-        Memory.prototype.readStringz = function (address) {
-            if (address == 0)
-                return null;
-            var out = '';
-            while (true) {
-                var char = this.readUInt8(address++);
-                if (char == 0)
-                    break;
-                out += String.fromCharCode(char);
-            }
-            return out;
-        };
-
-        Memory.prototype.sliceWithBounds = function (low, high) {
-            return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
-        };
-
-        Memory.prototype.sliceWithSize = function (address, size) {
-            return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
-        };
-
-        Memory.prototype.copy = function (from, to, length) {
-            from &= Memory.MASK;
-            to &= Memory.MASK;
-            for (var n = 0; n < length; n++) {
-                this.u8[to + n] = this.u8[from + n];
-            }
-        };
-
-        Memory.prototype.memset = function (address, value, length) {
-            address &= Memory.MASK;
-            for (var n = 0; n < length; n++) {
-                this.u8[address + n] = value;
-            }
-        };
-
-        Memory.prototype.hash = function (address, count) {
-            var result = 0;
-            for (var n = 0; n < count; n++) {
-                result = Memory.hashItem(result, n, this.u8[address + n]);
-            }
-            return result;
-        };
-
-        Memory.hashItem = function (prev, n, value) {
-            prev ^= n;
-            prev += value;
-            return prev | 0;
-        };
-
-        Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
-            var _source = new Uint8Array(source, sourcePosition, length);
-            var _destination = new Uint8Array(destination, destinationPosition, length);
-            _destination.set(_source);
-        };
-        Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
-
-        Memory.MASK = 0x0FFFFFFF;
-        Memory.MAIN_OFFSET = 0x08000000;
-        return Memory;
-    })();
-    core.Memory = Memory;
-})(core || (core = {}));
-///<reference path="./memory.ts" />
-///<reference path="../util/utils.ts" />
-var core;
-(function (core) {
-    (function (gpu) {
-        var VertexBuffer = (function () {
-            function VertexBuffer() {
-                this.vertices = [];
-                for (var n = 0; n < 1024; n++)
-                    this.vertices[n] = new gpu.Vertex();
-            }
-            return VertexBuffer;
-        })();
-
-        var VertexReaderFactory = (function () {
-            function VertexReaderFactory() {
-            }
-            VertexReaderFactory.get = function (vertexState) {
-                var cacheId = vertexState.hash;
-                var vertexReader = this.cache[cacheId];
-                if (vertexReader !== undefined)
-                    return vertexReader;
-                return this.cache[cacheId] = new VertexReader(vertexState);
-            };
-            VertexReaderFactory.cache = {};
-            return VertexReaderFactory;
-        })();
-        gpu.VertexReaderFactory = VertexReaderFactory;
-
-        var VertexReader = (function () {
-            function VertexReader(vertexState) {
-                this.vertexState = vertexState;
-                this.readOffset = 0;
-                this.readCode = this.createJs();
-                this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
-            }
-            VertexReader.prototype.readCount = function (output, input, count) {
-                var inputOffset = 0;
-                for (var n = 0; n < count; n++) {
-                    this.readOneFunc(output[n], input, inputOffset);
-                    inputOffset += this.vertexState.size;
-                }
-            };
-
-            VertexReader.prototype.read = function (output, input, inputOffset) {
-                this.readOneFunc(output, input, inputOffset);
-            };
-
-            VertexReader.prototype.createJs = function () {
-                var indentStringGenerator = new IndentStringGenerator();
-
-                this.readOffset = 0;
-
-                this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
-                this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
-                this.createColorJs(indentStringGenerator, this.vertexState.color);
-                this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
-                this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
-
-                return indentStringGenerator.output;
-            };
-
-            VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
-                if (type == 0 /* Void */)
-                    return;
-
-                switch (type) {
-                    case 7 /* Color8888 */:
-                        this.align(4);
-                        indentStringGenerator.write('output.r = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        indentStringGenerator.write('output.g = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                        break;
-                    default:
-                        throw ("Not implemented color format");
-                }
-            };
-
-            VertexReader.prototype.align = function (count) {
-                this.readOffset = MathUtils.nextAligned(this.readOffset, count);
-            };
-
-            VertexReader.prototype.getOffsetAlignAndIncrement = function (size) {
-                this.align(size);
-                var offset = this.readOffset;
-                this.readOffset += size;
-                return offset;
-            };
-
-            VertexReader.prototype.createNumberJs = function (indentStringGenerator, components, type, normalize) {
-                var _this = this;
-                if (type == 0 /* Void */)
-                    return;
-
-                components.forEach(function (component) {
-                    switch (type) {
-                        case 1 /* Byte */:
-                            indentStringGenerator.write('output.' + component + ' = (input.getInt8(inputOffset + ' + _this.getOffsetAlignAndIncrement(1) + ')');
-                            if (normalize)
-                                indentStringGenerator.write(' / 127.0');
-                            break;
-                        case 2 /* Short */:
-                            indentStringGenerator.write('output.' + component + ' = (input.getInt16(inputOffset + ' + _this.getOffsetAlignAndIncrement(2) + ', true)');
-                            if (normalize)
-                                indentStringGenerator.write(' / 32767.0');
-                            break;
-                        case 3 /* Float */:
-                            indentStringGenerator.write('output.' + component + ' = (input.getFloat32(inputOffset + ' + _this.getOffsetAlignAndIncrement(4) + ', true)');
-                            break;
-                    }
-                    indentStringGenerator.write(');\n');
-                });
-            };
-            return VertexReader;
-        })();
-        gpu.VertexReader = VertexReader;
-
-        var vertexBuffer = new VertexBuffer();
-        var singleCallTest = false;
-
-        var PspGpuList = (function () {
-            function PspGpuList(id, memory, drawDriver, runner) {
-                this.id = id;
-                this.memory = memory;
-                this.drawDriver = drawDriver;
-                this.runner = runner;
-                this.completed = false;
-                this.state = new gpu.GpuState();
-                this.errorCount = 0;
-            }
-            PspGpuList.prototype.complete = function () {
-                this.completed = true;
-                this.runner.deallocate(this);
-                this.promiseResolve(0);
-            };
-
-            PspGpuList.prototype.jumpRelativeOffset = function (offset) {
-                this.current = this.state.baseAddress + offset;
-            };
-
-            PspGpuList.prototype.runInstruction = function (current, instruction) {
-                var op = instruction >>> 24;
-                var params24 = instruction & 0xFFFFFF;
-
-                switch (op) {
-                    case 2 /* IADDR */:
-                        this.state.indexAddress = params24;
-                        break;
-                    case 19 /* OFFSET_ADDR */:
-                        this.state.baseOffset = (params24 << 8);
-                        break;
-                    case 156 /* FBP */:
-                        this.state.frameBuffer.lowAddress = params24;
-                        break;
-                    case 21 /* REGION1 */:
-                        this.state.viewPort.x1 = BitUtils.extract(params24, 0, 10);
-                        this.state.viewPort.y1 = BitUtils.extract(params24, 10, 10);
-                        break;
-                    case 22 /* REGION2 */:
-                        this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
-                        this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
-                        break;
-                    case 157 /* FBW */:
-                        this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
-                        this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
-                        break;
-                    case 23 /* LTE */:
-                        this.state.lightning.enabled = params24 != 0;
-                        break;
-                    case 24 /* LTE0 */:
-                        this.state.lightning.lights[0].enabled = params24 != 0;
-                        break;
-                    case 25 /* LTE1 */:
-                        this.state.lightning.lights[1].enabled = params24 != 0;
-                        break;
-                    case 26 /* LTE2 */:
-                        this.state.lightning.lights[2].enabled = params24 != 0;
-                        break;
-                    case 27 /* LTE3 */:
-                        this.state.lightning.lights[3].enabled = params24 != 0;
-                        break;
-                    case 16 /* BASE */:
-                        this.state.baseAddress = ((params24 << 8) & 0xff000000);
-                        break;
-                    case 8 /* JUMP */:
-                        this.jumpRelativeOffset(params24 & ~3);
-                        break;
-                    case 0 /* NOP */:
-                        break;
-                    case 18 /* VTYPE */:
-                        this.state.vertex.value = params24;
-                        break;
-                    case 1 /* VADDR */:
-                        this.state.vertex.address = params24;
-                        break;
-                    case 194 /* TMODE */:
-                        this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
-                        this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
-                        this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
-                        break;
-                    case 198 /* TFLT */:
-                        this.state.texture.filterMinification = BitUtils.extract(params24, 0, 8);
-                        this.state.texture.filterMagnification = BitUtils.extract(params24, 8, 8);
-                        break;
-                    case 199 /* TWRAP */:
-                        this.state.texture.wrapU = BitUtils.extract(params24, 0, 8);
-                        this.state.texture.wrapV = BitUtils.extract(params24, 8, 8);
-                        break;
-
-                    case 30 /* TME */:
-                        this.state.texture.enabled = (params24 != 0);
-                        break;
-
-                    case 202 /* TEC */:
-                        this.state.texture.envColor.r = BitUtils.extractScalei(params24, 0, 8, 1);
-                        this.state.texture.envColor.g = BitUtils.extractScalei(params24, 8, 8, 1);
-                        this.state.texture.envColor.b = BitUtils.extractScalei(params24, 16, 8, 1);
-                        break;
-
-                    case 201 /* TFUNC */:
-                        this.state.texture.effect = BitUtils.extract(params24, 0, 8);
-                        this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
-                        this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
-                        break;
-                    case 74 /* UOFFSET */:
-                        this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-                    case 75 /* VOFFSET */:
-                        this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-
-                    case 72 /* USCALE */:
-                        this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-                    case 73 /* VSCALE */:
-                        this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8);
-                        break;
-
-                    case 203 /* TFLUSH */:
-                        this.drawDriver.textureFlush(this.state);
-                        break;
-                    case 195 /* TPSM */:
-                        this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
-                        break;
-
-                    case 184 /* TSIZE0 */:
-                    case 185 /* TSIZE1 */:
-                    case 186 /* TSIZE2 */:
-                    case 187 /* TSIZE3 */:
-                    case 188 /* TSIZE4 */:
-                    case 189 /* TSIZE5 */:
-                    case 190 /* TSIZE6 */:
-                    case 191 /* TSIZE7 */:
-                        var mipMap = this.state.texture.mipmaps[op - 184 /* TSIZE0 */];
-                        var WidthExp = BitUtils.extract(params24, 0, 4);
-                        var HeightExp = BitUtils.extract(params24, 8, 4);
-                        var UnknownFlag = (BitUtils.extract(params24, 15, 1) != 0);
-                        WidthExp = Math.min(WidthExp, 9);
-                        HeightExp = Math.min(HeightExp, 9);
-                        mipMap.textureWidth = 1 << WidthExp;
-                        mipMap.textureHeight = 1 << HeightExp;
-
-                        break;
-
-                    case 160 /* TBP0 */:
-                    case 161 /* TBP1 */:
-                    case 162 /* TBP2 */:
-                    case 163 /* TBP3 */:
-                    case 164 /* TBP4 */:
-                    case 165 /* TBP5 */:
-                    case 166 /* TBP6 */:
-                    case 167 /* TBP7 */:
-                        var mipMap = this.state.texture.mipmaps[op - 160 /* TBP0 */];
-                        mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
-                        break;
-
-                    case 168 /* TBW0 */:
-                    case 169 /* TBW1 */:
-                    case 170 /* TBW2 */:
-                    case 171 /* TBW3 */:
-                    case 172 /* TBW4 */:
-                    case 173 /* TBW5 */:
-                    case 174 /* TBW6 */:
-                    case 175 /* TBW7 */:
-                        var mipMap = this.state.texture.mipmaps[op - 168 /* TBW0 */];
-                        mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
-                        mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
-                        break;
-
-                    case 85 /* AMC */:
-                        //printf("%08X: %08X", current, instruction);
-                        this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-                        this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-                        this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-                        this.state.ambientModelColor.a = 1;
-                        break;
-
-                    case 88 /* AMA */:
-                        this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
-                        break;
-
-                    case 86 /* DMC */:
-                        //printf("AMC:%08X", params24);
-                        this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-                        this.state.diffuseModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-                        this.state.diffuseModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-                        this.state.diffuseModelColor.a = 1;
-                        break;
-
-                    case 87 /* SMC */:
-                        this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-                        this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-                        this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-                        this.state.specularModelColor.a = 1;
-                        break;
-
-                    case 176 /* CBP */:
-                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
-                        break;
-
-                    case 177 /* CBPH */:
-                        this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
-                        break;
-
-                    case 196 /* CLOAD */:
-                        this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
-                        break;
-
-                    case 197 /* CMODE */:
-                        this.state.texture.clut.pixelFormat = BitUtils.extract(params24, 0, 2);
-                        this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
-                        this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
-                        this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
-                        break;
-
-                    case 62 /* PROJ_START */:
-                        this.state.projectionMatrix.reset(params24);
-                        break;
-                    case 63 /* PROJ_PUT */:
-                        this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
-                        break;
-
-                    case 60 /* VIEW_START */:
-                        this.state.viewMatrix.reset(params24);
-                        break;
-                    case 61 /* VIEW_PUT */:
-                        this.state.viewMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
-                        break;
-
-                    case 58 /* WORLD_START */:
-                        this.state.worldMatrix.reset(params24);
-                        break;
-                    case 59 /* WORLD_PUT */:
-                        this.state.worldMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
-                        break;
-
-                    case 211 /* CLEAR */:
-                        this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
-                        this.state.clearFlags = BitUtils.extract(params24, 8, 8);
-                        this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
-                        break;
-
-                    case 29 /* BCE */:
-                        this.state.culling.enabled = (params24 != 0);
-                    case 155 /* FFACE */:
-                        this.state.culling.direction = params24; // FrontFaceDirectionEnum
-                        break;
-
-                    case 4 /* PRIM */:
-                        //console.log('GPU PRIM');
-                        var primitiveType = BitUtils.extractEnum(params24, 16, 3);
-                        var vertexCount = BitUtils.extract(params24, 0, 16);
-                        var vertexState = this.state.vertex;
-                        var vertexSize = this.state.vertex.size;
-                        var vertexAddress = this.state.baseAddress + this.state.vertex.address;
-                        var vertexReader = VertexReaderFactory.get(vertexState);
-                        var vertexInput = this.memory.getPointerDataView(vertexAddress);
-                        var vertices = vertexBuffer.vertices;
-                        vertexReader.readCount(vertices, vertexInput, vertexCount);
-
-                        this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
-                        this.drawDriver.setState(this.state);
-
-                        if (this.errorCount < 400) {
-                            //console.log('PRIM:' + primitiveType + ' : ' + vertexCount + ':' + vertexState.hasIndex);
-                        }
-
-                        this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
-
-                        break;
-
-                    case 15 /* FINISH */:
-                        break;
-
-                    case 12 /* END */:
-                        this.complete();
-                        return true;
-                        break;
-
-                    default:
-                        //setTimeout(() => this.complete(), 50);
-                        this.errorCount++;
-                        if (this.errorCount >= 400) {
-                            if (this.errorCount == 400) {
-                                console.error(sprintf('Stop showing gpu errors'));
-                            }
-                        } else {
-                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
-                        }
-                }
-
-                return false;
-            };
-
-            Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
-                get: function () {
-                    return !this.completed && ((this.stall == 0) || (this.current < this.stall));
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            PspGpuList.prototype.runUntilStall = function () {
-                while (this.hasMoreInstructions) {
-                    var instruction = this.memory.readUInt32(this.current);
-                    this.current += 4;
-                    if (this.runInstruction(this.current - 4, instruction))
-                        return;
-                }
-            };
-
-            PspGpuList.prototype.enqueueRunUntilStall = function () {
-                var _this = this;
-                setImmediate(function () {
-                    _this.runUntilStall();
-                });
-            };
-
-            PspGpuList.prototype.updateStall = function (stall) {
-                this.stall = stall;
-                this.enqueueRunUntilStall();
-            };
-
-            PspGpuList.prototype.start = function () {
-                var _this = this;
-                this.promise = new Promise(function (resolve, reject) {
-                    _this.promiseResolve = resolve;
-                    _this.promiseReject = reject;
-                });
-                this.completed = false;
-
-                this.enqueueRunUntilStall();
-            };
-
-            PspGpuList.prototype.waitAsync = function () {
-                return this.promise;
-            };
-            return PspGpuList;
-        })();
-
-        (function (CullingDirection) {
-            CullingDirection[CullingDirection["CounterClockWise"] = 0] = "CounterClockWise";
-            CullingDirection[CullingDirection["ClockWise"] = 1] = "ClockWise";
-        })(gpu.CullingDirection || (gpu.CullingDirection = {}));
-        var CullingDirection = gpu.CullingDirection;
-
-        var PspGpuListRunner = (function () {
-            function PspGpuListRunner(memory, drawDriver) {
-                this.memory = memory;
-                this.drawDriver = drawDriver;
-                this.lists = [];
-                this.freeLists = [];
-                this.runningLists = [];
-                for (var n = 0; n < 32; n++) {
-                    var list = new PspGpuList(n, memory, drawDriver, this);
-                    this.lists.push(list);
-                    this.freeLists.push(list);
-                }
-            }
-            PspGpuListRunner.prototype.allocate = function () {
-                if (!this.freeLists.length)
-                    throw ('Out of gpu free lists');
-                var list = this.freeLists.pop();
-                this.runningLists.push(list);
-                return list;
-            };
-
-            PspGpuListRunner.prototype.getById = function (id) {
-                return this.lists[id];
-            };
-
-            PspGpuListRunner.prototype.deallocate = function (list) {
-                this.freeLists.push(list);
-                this.runningLists.remove(list);
-            };
-
-            PspGpuListRunner.prototype.waitAsync = function () {
-                return Promise.all(this.runningLists.map(function (list) {
-                    return list.waitAsync();
-                })).then(function () {
-                    return 0;
-                });
-            };
-            return PspGpuListRunner;
-        })();
-
-        var PspGpu = (function () {
-            function PspGpu(memory, display, canvas) {
-                this.memory = memory;
-                this.display = display;
-                this.canvas = canvas;
-                this.driver = new core.gpu.impl.WebGlPspDrawDriver(memory, display, canvas);
-
-                //this.driver = new Context2dPspDrawDriver(memory, canvas);
-                this.listRunner = new PspGpuListRunner(memory, this.driver);
-            }
-            PspGpu.prototype.startAsync = function () {
-                return this.driver.initAsync();
-            };
-
-            PspGpu.prototype.stopAsync = function () {
-                return Promise.resolve();
-            };
-
-            PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
-                var list = this.listRunner.allocate();
-                list.current = start;
-                list.stall = stall;
-                list.callbackId = callbackId;
-                list.start();
-                return list.id;
-            };
-
-            PspGpu.prototype.listSync = function (displayListId, syncType) {
-                //console.log('listSync');
-                return this.listRunner.getById(displayListId).waitAsync();
-            };
-
-            PspGpu.prototype.updateStallAddr = function (displayListId, stall) {
-                this.listRunner.getById(displayListId).updateStall(stall);
-                return 0;
-            };
-
-            PspGpu.prototype.drawSync = function (syncType) {
-                //console.log('drawSync');
-                return this.listRunner.waitAsync();
-            };
-            return PspGpu;
-        })();
-        gpu.PspGpu = PspGpu;
-    })(core.gpu || (core.gpu = {}));
-    var gpu = core.gpu;
-})(core || (core = {}));
-var core;
-(function (core) {
     var InterruptHandler = (function () {
         function InterruptHandler() {
             this.enabled = false;
@@ -6403,177 +7147,6 @@ var core;
         return PspRtc;
     })();
 })(core || (core = {}));
-var CpuBreakException = (function () {
-    function CpuBreakException(name, message) {
-        if (typeof name === "undefined") { name = 'CpuBreakException'; }
-        if (typeof message === "undefined") { message = 'CpuBreakException'; }
-        this.name = name;
-        this.message = message;
-    }
-    return CpuBreakException;
-})();
-
-var FunctionGenerator = (function () {
-    function FunctionGenerator(memory) {
-        this.memory = memory;
-        this.instructions = core.cpu.Instructions.instance;
-        this.instructionAst = new core.cpu.ast.InstructionAst();
-    }
-    FunctionGenerator.prototype.decodeInstruction = function (address) {
-        var instruction = core.cpu.Instruction.fromMemoryAndPC(this.memory, address);
-        var instructionType = this.getInstructionType(instruction);
-        return new core.cpu.DecodedInstruction(instruction, instructionType);
-    };
-
-    FunctionGenerator.prototype.getInstructionType = function (i) {
-        return this.instructions.findByData(i.data, i.PC);
-    };
-
-    FunctionGenerator.prototype.generateInstructionAstNode = function (di) {
-        var instruction = di.instruction;
-        var instructionType = di.type;
-        var func = this.instructionAst[instructionType.name];
-        if (func === undefined)
-            throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
-        return func.call(this.instructionAst, instruction);
-    };
-
-    FunctionGenerator.prototype.create = function (address) {
-        var _this = this;
-        if (address == 0x00000000) {
-            throw (new Error("Trying to execute 0x00000000"));
-        }
-
-        var ast = new MipsAstBuilder();
-
-        var PC = address;
-        var stms = [ast.functionPrefix()];
-
-        var emitInstruction = function () {
-            var result = _this.generateInstructionAstNode(_this.decodeInstruction(PC));
-            PC += 4;
-            return result;
-        };
-
-        for (var n = 0; n < 100000; n++) {
-            var di = this.decodeInstruction(PC + 0);
-
-            //console.log(di);
-            if (PC == 0x089005D0) {
-                //stms.push(ast.debugger());
-            }
-
-            if (di.type.hasDelayedBranch) {
-                var di2 = this.decodeInstruction(PC + 4);
-
-                stms.push(emitInstruction());
-
-                var delayedSlotInstruction = emitInstruction();
-                if (di2.type.isSyscall) {
-                    stms.push(this.instructionAst._postBranch(PC));
-                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                } else {
-                    stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                    stms.push(this.instructionAst._postBranch(PC));
-                }
-
-                break;
-            } else {
-                if (di.type.isSyscall) {
-                    stms.push(this.instructionAst._storePC(PC + 4));
-                }
-                stms.push(emitInstruction());
-                if (di.type.isBreak) {
-                    stms.push(this.instructionAst._storePC(PC));
-
-                    break;
-                }
-            }
-        }
-
-        //console.debug(sprintf("// function_%08X:\n%s", address, ast.stms(stms).toJs()));
-        if (n >= 100000)
-            throw (new Error(sprintf("Too large function PC=%08X", address)));
-
-        return new Function('state', ast.stms(stms).toJs());
-    };
-    return FunctionGenerator;
-})();
-
-var CpuSpecialAddresses;
-(function (CpuSpecialAddresses) {
-    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
-})(CpuSpecialAddresses || (CpuSpecialAddresses = {}));
-
-var InstructionCache = (function () {
-    function InstructionCache(memory) {
-        this.memory = memory;
-        this.cache = {};
-        this.functionGenerator = new FunctionGenerator(memory);
-    }
-    InstructionCache.prototype.invalidateAll = function () {
-        this.cache = {};
-    };
-
-    InstructionCache.prototype.invalidateRange = function (from, to) {
-        for (var n = from; n < to; n += 4)
-            delete this.cache[n];
-    };
-
-    InstructionCache.prototype.getFunction = function (address) {
-        var item = this.cache[address];
-        if (item)
-            return item;
-
-        switch (address) {
-            case 268435455 /* EXIT_THREAD */:
-                return this.cache[address] = function (state) {
-                    console.log(state);
-                    console.log(state.thread);
-                    console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
-                    state.thread.stop();
-                    throw (new CpuBreakException());
-                };
-                break;
-            default:
-                return this.cache[address] = this.functionGenerator.create(address);
-        }
-    };
-    return InstructionCache;
-})();
-
-var ProgramExecutor = (function () {
-    function ProgramExecutor(state, instructionCache) {
-        this.state = state;
-        this.instructionCache = instructionCache;
-        this.lastPC = 0;
-    }
-    ProgramExecutor.prototype.executeStep = function () {
-        if (this.state.PC == 0) {
-            console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
-        }
-        this.lastPC = this.state.PC;
-        var func = this.instructionCache.getFunction(this.state.PC);
-        func(this.state);
-    };
-
-    ProgramExecutor.prototype.execute = function (maxIterations) {
-        if (typeof maxIterations === "undefined") { maxIterations = -1; }
-        try  {
-            while (maxIterations != 0) {
-                this.executeStep();
-                if (maxIterations > 0)
-                    maxIterations--;
-            }
-        } catch (e) {
-            if (!(e instanceof CpuBreakException)) {
-                console.log(this.state);
-                throw (e);
-            }
-        }
-    };
-    return ProgramExecutor;
-})();
 ///<reference path="../util/utils.ts" />
 ///<reference path="./cpu/state.ts" />
 ///<reference path="../cpu.ts" />
@@ -6711,6 +7284,7 @@ var Emulator = (function () {
                         //console.log(new Uint8Array(executableArrayBuffer));
                         var pspElf = new hle.elf.PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
                         pspElf.load(elfStream);
+                        _this.context.symbolLookup = pspElf;
                         var moduleInfo = pspElf.moduleInfo;
 
                         //window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');
@@ -6886,6 +7460,637 @@ var format;
         cso.Cso = Cso;
     })(format.cso || (format.cso = {}));
     var cso = format.cso;
+})(format || (format = {}));
+var format;
+(function (format) {
+    (function (_elf) {
+        var ElfHeader = (function () {
+            function ElfHeader() {
+            }
+            Object.defineProperty(ElfHeader.prototype, "hasValidMagic", {
+                get: function () {
+                    return this.magic == String.fromCharCode(0x7F) + 'ELF';
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
+                get: function () {
+                    return this.machine == 8 /* ALLEGREX */;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ElfHeader.prototype, "hasValidType", {
+                get: function () {
+                    return [2 /* Executable */, 65440 /* Prx */].indexOf(this.type) >= 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            ElfHeader.struct = StructClass.create(ElfHeader, [
+                { magic: Stringn(4) },
+                { class: Int8 },
+                { data: Int8 },
+                { idVersion: Int8 },
+                { _padding: StructArray(Int8, 9) },
+                { type: UInt16 },
+                { machine: Int16 },
+                { version: Int32 },
+                { entryPoint: Int32 },
+                { programHeaderOffset: Int32 },
+                { sectionHeaderOffset: Int32 },
+                { flags: Int32 },
+                { elfHeaderSize: Int16 },
+                { programHeaderEntrySize: Int16 },
+                { programHeaderCount: Int16 },
+                { sectionHeaderEntrySize: Int16 },
+                { sectionHeaderCount: Int16 },
+                { sectionHeaderStringTable: Int16 }
+            ]);
+            return ElfHeader;
+        })();
+        _elf.ElfHeader = ElfHeader;
+
+        var ElfProgramHeader = (function () {
+            function ElfProgramHeader() {
+            }
+            ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
+                { type: UInt32 },
+                { offset: UInt32 },
+                { virtualAddress: UInt32 },
+                { psysicalAddress: UInt32 },
+                { fileSize: UInt32 },
+                { memorySize: UInt32 },
+                { flags: UInt32 },
+                { alignment: UInt32 }
+            ]);
+            return ElfProgramHeader;
+        })();
+        _elf.ElfProgramHeader = ElfProgramHeader;
+
+        var ElfSectionHeader = (function () {
+            function ElfSectionHeader() {
+                this.stream = null;
+            }
+            ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
+                { nameOffset: UInt32 },
+                { type: UInt32 },
+                { flags: UInt32 },
+                { address: UInt32 },
+                { offset: UInt32 },
+                { size: UInt32 },
+                { link: UInt32 },
+                { info: UInt32 },
+                { addressAlign: UInt32 },
+                { entitySize: UInt32 }
+            ]);
+            return ElfSectionHeader;
+        })();
+        _elf.ElfSectionHeader = ElfSectionHeader;
+
+        (function (ElfProgramHeaderType) {
+            ElfProgramHeaderType[ElfProgramHeaderType["NoLoad"] = 0] = "NoLoad";
+            ElfProgramHeaderType[ElfProgramHeaderType["Load"] = 1] = "Load";
+            ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 0x700000A0] = "Reloc1";
+            ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 0x700000A1] = "Reloc2";
+        })(_elf.ElfProgramHeaderType || (_elf.ElfProgramHeaderType = {}));
+        var ElfProgramHeaderType = _elf.ElfProgramHeaderType;
+
+        (function (ElfSectionHeaderType) {
+            ElfSectionHeaderType[ElfSectionHeaderType["Null"] = 0] = "Null";
+            ElfSectionHeaderType[ElfSectionHeaderType["ProgramBits"] = 1] = "ProgramBits";
+            ElfSectionHeaderType[ElfSectionHeaderType["SYMTAB"] = 2] = "SYMTAB";
+            ElfSectionHeaderType[ElfSectionHeaderType["STRTAB"] = 3] = "STRTAB";
+            ElfSectionHeaderType[ElfSectionHeaderType["RELA"] = 4] = "RELA";
+            ElfSectionHeaderType[ElfSectionHeaderType["HASH"] = 5] = "HASH";
+            ElfSectionHeaderType[ElfSectionHeaderType["DYNAMIC"] = 6] = "DYNAMIC";
+            ElfSectionHeaderType[ElfSectionHeaderType["NOTE"] = 7] = "NOTE";
+            ElfSectionHeaderType[ElfSectionHeaderType["NoBits"] = 8] = "NoBits";
+            ElfSectionHeaderType[ElfSectionHeaderType["Relocation"] = 9] = "Relocation";
+            ElfSectionHeaderType[ElfSectionHeaderType["SHLIB"] = 10] = "SHLIB";
+            ElfSectionHeaderType[ElfSectionHeaderType["DYNSYM"] = 11] = "DYNSYM";
+
+            ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 0x70000000] = "LOPROC";
+            ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 0x7FFFFFFF] = "HIPROC";
+            ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 0x80000000] = "LOUSER";
+            ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 0xFFFFFFFF] = "HIUSER";
+
+            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = (ElfSectionHeaderType.LOPROC | 0xA0)] = "PrxRelocation";
+            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = (ElfSectionHeaderType.LOPROC | 0xA1)] = "PrxRelocation_FW5";
+        })(_elf.ElfSectionHeaderType || (_elf.ElfSectionHeaderType = {}));
+        var ElfSectionHeaderType = _elf.ElfSectionHeaderType;
+
+        (function (ElfSectionHeaderFlags) {
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["None"] = 0] = "None";
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Write"] = 1] = "Write";
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Allocate"] = 2] = "Allocate";
+            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Execute"] = 4] = "Execute";
+        })(_elf.ElfSectionHeaderFlags || (_elf.ElfSectionHeaderFlags = {}));
+        var ElfSectionHeaderFlags = _elf.ElfSectionHeaderFlags;
+
+        (function (ElfProgramHeaderFlags) {
+            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 0x1] = "Executable";
+
+            // Note: demo PRX's were found to be not writable
+            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 0x2] = "Writable";
+            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 0x4] = "Readable";
+        })(_elf.ElfProgramHeaderFlags || (_elf.ElfProgramHeaderFlags = {}));
+        var ElfProgramHeaderFlags = _elf.ElfProgramHeaderFlags;
+
+        (function (ElfType) {
+            ElfType[ElfType["Executable"] = 0x0002] = "Executable";
+            ElfType[ElfType["Prx"] = 0xFFA0] = "Prx";
+        })(_elf.ElfType || (_elf.ElfType = {}));
+        var ElfType = _elf.ElfType;
+
+        (function (ElfMachine) {
+            ElfMachine[ElfMachine["ALLEGREX"] = 8] = "ALLEGREX";
+        })(_elf.ElfMachine || (_elf.ElfMachine = {}));
+        var ElfMachine = _elf.ElfMachine;
+
+        (function (ElfPspModuleFlags) {
+            ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0x0000] = "User";
+            ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 0x1000] = "Kernel";
+        })(_elf.ElfPspModuleFlags || (_elf.ElfPspModuleFlags = {}));
+        var ElfPspModuleFlags = _elf.ElfPspModuleFlags;
+
+        (function (ElfPspLibFlags) {
+            ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 0x0001] = "DirectJump";
+            ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 0x4000] = "Syscall";
+            ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 0x8000] = "SysLib";
+        })(_elf.ElfPspLibFlags || (_elf.ElfPspLibFlags = {}));
+        var ElfPspLibFlags = _elf.ElfPspLibFlags;
+
+        (function (ElfPspModuleNids) {
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 0xF01D73A7] = "MODULE_INFO";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 0xD3744BE0] = "MODULE_BOOTSTART";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 0x2F064FA6] = "MODULE_REBOOT_BEFORE";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 0xD632ACDB] = "MODULE_START";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 0x0F7C276C] = "MODULE_START_THREAD_PARAMETER";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 0xCEE8593C] = "MODULE_STOP";
+            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 0xCF0CC697] = "MODULE_STOP_THREAD_PARAMETER";
+        })(_elf.ElfPspModuleNids || (_elf.ElfPspModuleNids = {}));
+        var ElfPspModuleNids = _elf.ElfPspModuleNids;
+
+        (function (ElfRelocType) {
+            ElfRelocType[ElfRelocType["None"] = 0] = "None";
+            ElfRelocType[ElfRelocType["Mips16"] = 1] = "Mips16";
+            ElfRelocType[ElfRelocType["Mips32"] = 2] = "Mips32";
+            ElfRelocType[ElfRelocType["MipsRel32"] = 3] = "MipsRel32";
+            ElfRelocType[ElfRelocType["Mips26"] = 4] = "Mips26";
+            ElfRelocType[ElfRelocType["MipsHi16"] = 5] = "MipsHi16";
+            ElfRelocType[ElfRelocType["MipsLo16"] = 6] = "MipsLo16";
+            ElfRelocType[ElfRelocType["MipsGpRel16"] = 7] = "MipsGpRel16";
+            ElfRelocType[ElfRelocType["MipsLiteral"] = 8] = "MipsLiteral";
+            ElfRelocType[ElfRelocType["MipsGot16"] = 9] = "MipsGot16";
+            ElfRelocType[ElfRelocType["MipsPc16"] = 10] = "MipsPc16";
+            ElfRelocType[ElfRelocType["MipsCall16"] = 11] = "MipsCall16";
+            ElfRelocType[ElfRelocType["MipsGpRel32"] = 12] = "MipsGpRel32";
+            ElfRelocType[ElfRelocType["StopRelocation"] = 0xFF] = "StopRelocation";
+        })(_elf.ElfRelocType || (_elf.ElfRelocType = {}));
+        var ElfRelocType = _elf.ElfRelocType;
+
+        var ElfReloc = (function () {
+            function ElfReloc() {
+            }
+            Object.defineProperty(ElfReloc.prototype, "pointeeSectionHeaderBase", {
+                get: function () {
+                    return (this.info >> 16) & 0xFF;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ElfReloc.prototype, "pointerSectionHeaderBase", {
+                get: function () {
+                    return (this.info >> 8) & 0xFF;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ElfReloc.prototype, "type", {
+                get: function () {
+                    return ((this.info >> 0) & 0xFF);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            ElfReloc.struct = StructClass.create(ElfReloc, [
+                { pointerAddress: UInt32 },
+                { info: UInt32 }
+            ]);
+            return ElfReloc;
+        })();
+        _elf.ElfReloc = ElfReloc;
+
+        var ElfLoader = (function () {
+            function ElfLoader() {
+                this.header = null;
+                this.stream = null;
+            }
+            ElfLoader.prototype.load = function (stream) {
+                var _this = this;
+                this.readAndCheckHeaders(stream);
+
+                var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
+                var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
+
+                this.programHeaders = StructArray(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
+                this.sectionHeaders = StructArray(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
+
+                this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
+                this.stringTableStream = this.getSectionHeaderFileStream(this.sectionHeaderStringTable);
+
+                this.sectionHeadersByName = {};
+                this.sectionHeaders.forEach(function (sectionHeader) {
+                    var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
+                    sectionHeader.name = name;
+                    if (sectionHeader.type != 0 /* Null */) {
+                        sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
+                    }
+                    _this.sectionHeadersByName[name] = sectionHeader;
+                });
+
+                console.log(this.sectionHeadersByName);
+            };
+
+            ElfLoader.prototype.readAndCheckHeaders = function (stream) {
+                this.stream = stream;
+                var header = this.header = ElfHeader.struct.read(stream);
+                if (!header.hasValidMagic)
+                    throw ('Not an ELF file');
+                if (!header.hasValidMachine)
+                    throw ('Not a PSP ELF file');
+                if (!header.hasValidType)
+                    throw ('Not a executable or a Prx but has type ' + header.type);
+            };
+
+            ElfLoader.prototype.getStringFromStringTable = function (index) {
+                this.stringTableStream.position = index;
+                return this.stringTableStream.readStringz();
+            };
+
+            ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
+                switch (sectionHeader.type) {
+                    case 8 /* NoBits */:
+                    case 0 /* Null */:
+                        return this.stream.sliceWithLength(0, 0);
+                        break;
+                    default:
+                        return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
+                }
+            };
+
+            ElfLoader.fromStream = function (stream) {
+                var elf = new ElfLoader();
+                elf.load(stream);
+                return elf;
+            };
+
+            Object.defineProperty(ElfLoader.prototype, "isPrx", {
+                get: function () {
+                    return (this.header.type & 65440 /* Prx */) != 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ElfLoader.prototype, "needsRelocation", {
+                get: function () {
+                    return this.isPrx || (this.header.entryPoint < core.Memory.MAIN_OFFSET);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return ElfLoader;
+        })();
+        _elf.ElfLoader = ElfLoader;
+    })(format.elf || (format.elf = {}));
+    var elf = format.elf;
+})(format || (format = {}));
+var format;
+(function (format) {
+    (function (_elf) {
+        (function (dwarf) {
+            // https://github.com/soywiz/pspemu/blob/master/src/pspemu/hle/elf/ElfDwarf.d
+            var Uleb128Class = (function () {
+                function Uleb128Class() {
+                }
+                Uleb128Class.prototype.read = function (stream) {
+                    var val = 0;
+                    var b = 0x80;
+
+                    for (var shift = 0; ((stream.available) > 0 && (b & 0x80)); shift += 7) {
+                        b = stream.readUInt8();
+                        val |= (b & 0x7F) << shift;
+                    }
+
+                    return val;
+                };
+                Uleb128Class.prototype.write = function (stream, value) {
+                    throw (new Error("Not implemented"));
+                };
+                Object.defineProperty(Uleb128Class.prototype, "length", {
+                    get: function () {
+                        return 0;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                return Uleb128Class;
+            })();
+
+            var Uleb128 = new Uleb128Class();
+
+            var ElfDwarfHeader = (function () {
+                function ElfDwarfHeader() {
+                }
+                Object.defineProperty(ElfDwarfHeader.prototype, "total_length_real", {
+                    get: function () {
+                        return this.total_length + 4;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+
+                ElfDwarfHeader.struct = StructClass.create(ElfDwarfHeader, [
+                    { total_length: UInt32 },
+                    { version: UInt16 },
+                    { prologue_length: UInt32 },
+                    { minimum_instruction_length: UInt8 },
+                    { default_is_stmt: UInt8 },
+                    { line_base: Int8 },
+                    { line_range: UInt8 },
+                    { opcode_base: UInt8 }
+                ]);
+                return ElfDwarfHeader;
+            })();
+
+            var DW_LNS;
+            (function (DW_LNS) {
+                DW_LNS[DW_LNS["extended_op"] = 0] = "extended_op";
+                DW_LNS[DW_LNS["copy"] = 1] = "copy";
+                DW_LNS[DW_LNS["advance_pc"] = 2] = "advance_pc";
+                DW_LNS[DW_LNS["advance_line"] = 3] = "advance_line";
+                DW_LNS[DW_LNS["set_file"] = 4] = "set_file";
+                DW_LNS[DW_LNS["set_column"] = 5] = "set_column";
+                DW_LNS[DW_LNS["negate_stmt"] = 6] = "negate_stmt";
+                DW_LNS[DW_LNS["set_basic_block"] = 7] = "set_basic_block";
+                DW_LNS[DW_LNS["const_add_pc"] = 8] = "const_add_pc";
+                DW_LNS[DW_LNS["fixed_advance_pc"] = 9] = "fixed_advance_pc";
+            })(DW_LNS || (DW_LNS = {}));
+
+            var DW_LNE;
+            (function (DW_LNE) {
+                DW_LNE[DW_LNE["end_sequence"] = 1] = "end_sequence";
+                DW_LNE[DW_LNE["set_address"] = 2] = "set_address";
+                DW_LNE[DW_LNE["define_file"] = 3] = "define_file";
+            })(DW_LNE || (DW_LNE = {}));
+
+            // 6.2.2 State Machine Registers
+            /*
+            class State {
+            uint address = 0;
+            uint file = 1;
+            uint line = 1;
+            uint column = 0;
+            bool is_stmt = false; // Must be setted by the header.
+            bool basic_block = false;
+            bool end_sequence = false;
+            FileEntry * file_entry;
+            
+            string file_full_path() { return file_entry.full_path; }
+            
+            //writefln("DW_LNS_copy: %08X, %s/%s:%d", state.address, directories[files[state.file].directory_index], files[state.file].name, state.line);
+            string toString() {
+            //return std.string.format("%08X: is_stmt(%d) basic_block(%d) end_sequence(%d) '%s':%d:%d ", address, is_stmt, basic_block, end_sequence, file_entry.full_path, line, column);
+            return std.string.format("%08X: '%s':%d:%d ", address, file_entry.full_path, line, column);
+            }
+            }
+            */
+            var FileEntry = (function () {
+                function FileEntry() {
+                    this.name = '';
+                    this.directory = '';
+                    this.directory_index = 0;
+                    this.time_mod = 0;
+                    this.size = 0;
+                }
+                FileEntry.prototype.full_path = function () {
+                    if (this.directory.length) {
+                        return this.directory + "/" + this.name;
+                    } else {
+                        return name;
+                    }
+                };
+
+                FileEntry.struct = StructClass.create(FileEntry, [
+                    { name: StringzVariable },
+                    { directory_index: Uleb128 },
+                    { time_mod: Uleb128 },
+                    { size: Uleb128 }
+                ]);
+                return FileEntry;
+            })();
+
+            var ElfSymbol = (function () {
+                function ElfSymbol() {
+                    this.name = '';
+                    this.index = -1;
+                    this.nameIndex = 0;
+                    this.value = 0;
+                    this.size = 0;
+                    this.info = 0;
+                    this.other = 0;
+                    this.shndx = 0;
+                }
+                Object.defineProperty(ElfSymbol.prototype, "type", {
+                    get: function () {
+                        return BitUtils.extract(this.info, 0, 4);
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                Object.defineProperty(ElfSymbol.prototype, "bind", {
+                    get: function () {
+                        return BitUtils.extract(this.info, 4, 4);
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+
+                Object.defineProperty(ElfSymbol.prototype, "typeName", {
+                    get: function () {
+                        return SymInfoType[this.type];
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                Object.defineProperty(ElfSymbol.prototype, "bindName", {
+                    get: function () {
+                        return SymInfoBind[this.bind];
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+
+                Object.defineProperty(ElfSymbol.prototype, "address", {
+                    get: function () {
+                        return this.value;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                Object.defineProperty(ElfSymbol.prototype, "low", {
+                    get: function () {
+                        return this.value;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                Object.defineProperty(ElfSymbol.prototype, "high", {
+                    get: function () {
+                        return this.value + this.size;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+
+                ElfSymbol.prototype.toString = function () {
+                    return sprintf('ElfSymbol("%s", %08X-%08X)', this.name, this.low, this.high);
+                };
+
+                ElfSymbol.prototype.contains = function (address) {
+                    return (address >= this.low) && (address < (this.high));
+                };
+
+                ElfSymbol.struct = StructClass.create(ElfSymbol, [
+                    { nameIndex: UInt32 },
+                    { value: UInt32 },
+                    { size: UInt32 },
+                    { info: UInt8 },
+                    { other: UInt8 },
+                    { shndx: UInt16 }
+                ]);
+                return ElfSymbol;
+            })();
+            dwarf.ElfSymbol = ElfSymbol;
+
+            (function (SymInfoBind) {
+                SymInfoBind[SymInfoBind["LOCAL"] = 0] = "LOCAL";
+                SymInfoBind[SymInfoBind["GLOBAL"] = 1] = "GLOBAL";
+                SymInfoBind[SymInfoBind["WEAK"] = 2] = "WEAK";
+                SymInfoBind[SymInfoBind["OS_1"] = 10] = "OS_1";
+                SymInfoBind[SymInfoBind["OS_2"] = 11] = "OS_2";
+                SymInfoBind[SymInfoBind["OS_3"] = 12] = "OS_3";
+                SymInfoBind[SymInfoBind["PROC_1"] = 13] = "PROC_1";
+                SymInfoBind[SymInfoBind["PROC_2"] = 14] = "PROC_2";
+                SymInfoBind[SymInfoBind["PROC_3"] = 15] = "PROC_3";
+            })(dwarf.SymInfoBind || (dwarf.SymInfoBind = {}));
+            var SymInfoBind = dwarf.SymInfoBind;
+
+            (function (SymInfoType) {
+                SymInfoType[SymInfoType["NOTYPE"] = 0] = "NOTYPE";
+                SymInfoType[SymInfoType["OBJECT"] = 1] = "OBJECT";
+                SymInfoType[SymInfoType["FUNC"] = 2] = "FUNC";
+                SymInfoType[SymInfoType["SECTION"] = 3] = "SECTION";
+                SymInfoType[SymInfoType["FILE"] = 4] = "FILE";
+                SymInfoType[SymInfoType["OS_1"] = 10] = "OS_1";
+                SymInfoType[SymInfoType["OS_2"] = 11] = "OS_2";
+                SymInfoType[SymInfoType["OS_3"] = 12] = "OS_3";
+                SymInfoType[SymInfoType["PROC_1"] = 13] = "PROC_1";
+                SymInfoType[SymInfoType["PROC_2"] = 14] = "PROC_2";
+                SymInfoType[SymInfoType["PROC_3"] = 15] = "PROC_3";
+            })(dwarf.SymInfoType || (dwarf.SymInfoType = {}));
+            var SymInfoType = dwarf.SymInfoType;
+
+            var ElfDwarfLoader = (function () {
+                function ElfDwarfLoader() {
+                    this.symbolEntries = [];
+                }
+                ElfDwarfLoader.prototype.parseElfLoader = function (elf) {
+                    //this.parseDebugLine(elf);
+                    this.parseSymtab(elf);
+                };
+
+                ElfDwarfLoader.prototype.parseSymtab = function (elf) {
+                    console.log('ElfDwarfLoader.parseSymtab');
+                    var symtabHeader = elf.sectionHeadersByName[".symtab"];
+                    if (!symtabHeader)
+                        return;
+
+                    var nameSection = elf.sectionHeaders[symtabHeader.link];
+
+                    var nameStream = nameSection.stream.sliceWithLength(0);
+                    var stream = symtabHeader.stream.sliceWithLength(0);
+
+                    var n = 0;
+                    try  {
+                        while (stream.available > 0) {
+                            var entry = ElfSymbol.struct.read(stream);
+                            entry.name = nameStream.sliceWithLength(entry.nameIndex).readStringz();
+                            entry.index = n;
+                            this.symbolEntries.push(entry);
+                            n++;
+                        }
+                    } catch (e) {
+                        console.warn(e);
+                    }
+
+                    this.symbolEntries.sortBy(function (item) {
+                        return item.value;
+                    });
+                };
+
+                ElfDwarfLoader.prototype.getSymbolAt = function (address) {
+                    for (var n = 0; n < this.symbolEntries.length; n++) {
+                        var entry = this.symbolEntries[n];
+                        if (entry.contains(address))
+                            return entry;
+                    }
+                    return this.symbolEntries.binarySearchValue(function (item) {
+                        if (address < item.value)
+                            return +1;
+                        if (address >= item.value + item.size)
+                            return -1;
+                        return 0;
+                    });
+                };
+
+                ElfDwarfLoader.prototype.parseDebugLine = function (elf) {
+                    console.log('ElfDwarfLoader.parseDebugLine');
+                    console.log(sectionHeader);
+                    var sectionHeader = elf.sectionHeadersByName[".debug_line"];
+                    var stream = sectionHeader.stream.sliceWithLength(0);
+                    var header = ElfDwarfHeader.struct.read(stream);
+                    console.log(header);
+                    var opcodes = StructArray(Uleb128, header.opcode_base).read(stream);
+                    console.log(opcodes);
+                    while (stream.available > 0) {
+                        console.log('item:');
+                        var item = StringzVariable.read(stream);
+                        if (!item.length)
+                            break;
+                        console.log(item);
+                    }
+
+                    while (stream.available > 0) {
+                        var entry = FileEntry.struct.read(stream);
+                        console.log(entry);
+                        if (!entry.name.length)
+                            break;
+                    }
+                };
+                return ElfDwarfLoader;
+            })();
+            dwarf.ElfDwarfLoader = ElfDwarfLoader;
+        })(_elf.dwarf || (_elf.dwarf = {}));
+        var dwarf = _elf.dwarf;
+    })(format.elf || (format.elf = {}));
+    var elf = format.elf;
 })(format || (format = {}));
 var format;
 (function (format) {
@@ -7214,7 +8419,7 @@ var format;
             });
             Object.defineProperty(Iso.prototype, "children", {
                 get: function () {
-                    return this._children.slice();
+                    return this._children.slice(0);
                 },
                 enumerable: true,
                 configurable: true
@@ -7472,212 +8677,15 @@ var format;
 })(format || (format = {}));
 var hle;
 (function (hle) {
-    (function (_elf) {
-        var ElfHeader = (function () {
-            function ElfHeader() {
-            }
-            Object.defineProperty(ElfHeader.prototype, "hasValidMagic", {
-                get: function () {
-                    return this.magic == String.fromCharCode(0x7F) + 'ELF';
-                },
-                enumerable: true,
-                configurable: true
-            });
+    (function (elf) {
+        var ElfLoader = format.elf.ElfLoader;
 
-            Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
-                get: function () {
-                    return this.machine == 8 /* ALLEGREX */;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(ElfHeader.prototype, "hasValidType", {
-                get: function () {
-                    return [2 /* Executable */, 65440 /* Prx */].indexOf(this.type) >= 0;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            ElfHeader.struct = StructClass.create(ElfHeader, [
-                { magic: Stringn(4) },
-                { class: Int8 },
-                { data: Int8 },
-                { idVersion: Int8 },
-                { _padding: StructArray(Int8, 9) },
-                { type: UInt16 },
-                { machine: Int16 },
-                { version: Int32 },
-                { entryPoint: Int32 },
-                { programHeaderOffset: Int32 },
-                { sectionHeaderOffset: Int32 },
-                { flags: Int32 },
-                { elfHeaderSize: Int16 },
-                { programHeaderEntrySize: Int16 },
-                { programHeaderCount: Int16 },
-                { sectionHeaderEntrySize: Int16 },
-                { sectionHeaderCount: Int16 },
-                { sectionHeaderStringTable: Int16 }
-            ]);
-            return ElfHeader;
-        })();
-
-        var ElfProgramHeader = (function () {
-            function ElfProgramHeader() {
-            }
-            ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
-                { type: UInt32 },
-                { offset: UInt32 },
-                { virtualAddress: UInt32 },
-                { psysicalAddress: UInt32 },
-                { fileSize: UInt32 },
-                { memorySize: UInt32 },
-                { flags: UInt32 },
-                { alignment: UInt32 }
-            ]);
-            return ElfProgramHeader;
-        })();
-
-        var ElfSectionHeader = (function () {
-            function ElfSectionHeader() {
-                this.stream = null;
-            }
-            ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
-                { nameOffset: UInt32 },
-                { type: UInt32 },
-                { flags: UInt32 },
-                { address: UInt32 },
-                { offset: UInt32 },
-                { size: UInt32 },
-                { link: UInt32 },
-                { info: UInt32 },
-                { addressAlign: UInt32 },
-                { entitySize: UInt32 }
-            ]);
-            return ElfSectionHeader;
-        })();
-
-        var ElfProgramHeaderType;
-        (function (ElfProgramHeaderType) {
-            ElfProgramHeaderType[ElfProgramHeaderType["NoLoad"] = 0] = "NoLoad";
-            ElfProgramHeaderType[ElfProgramHeaderType["Load"] = 1] = "Load";
-            ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 0x700000A0] = "Reloc1";
-            ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 0x700000A1] = "Reloc2";
-        })(ElfProgramHeaderType || (ElfProgramHeaderType = {}));
-
-        var ElfSectionHeaderType;
-        (function (ElfSectionHeaderType) {
-            ElfSectionHeaderType[ElfSectionHeaderType["Null"] = 0] = "Null";
-            ElfSectionHeaderType[ElfSectionHeaderType["ProgramBits"] = 1] = "ProgramBits";
-            ElfSectionHeaderType[ElfSectionHeaderType["SYMTAB"] = 2] = "SYMTAB";
-            ElfSectionHeaderType[ElfSectionHeaderType["STRTAB"] = 3] = "STRTAB";
-            ElfSectionHeaderType[ElfSectionHeaderType["RELA"] = 4] = "RELA";
-            ElfSectionHeaderType[ElfSectionHeaderType["HASH"] = 5] = "HASH";
-            ElfSectionHeaderType[ElfSectionHeaderType["DYNAMIC"] = 6] = "DYNAMIC";
-            ElfSectionHeaderType[ElfSectionHeaderType["NOTE"] = 7] = "NOTE";
-            ElfSectionHeaderType[ElfSectionHeaderType["NoBits"] = 8] = "NoBits";
-            ElfSectionHeaderType[ElfSectionHeaderType["Relocation"] = 9] = "Relocation";
-            ElfSectionHeaderType[ElfSectionHeaderType["SHLIB"] = 10] = "SHLIB";
-            ElfSectionHeaderType[ElfSectionHeaderType["DYNSYM"] = 11] = "DYNSYM";
-
-            ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 0x70000000] = "LOPROC";
-            ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 0x7FFFFFFF] = "HIPROC";
-            ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 0x80000000] = "LOUSER";
-            ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 0xFFFFFFFF] = "HIUSER";
-
-            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = (ElfSectionHeaderType.LOPROC | 0xA0)] = "PrxRelocation";
-            ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = (ElfSectionHeaderType.LOPROC | 0xA1)] = "PrxRelocation_FW5";
-        })(ElfSectionHeaderType || (ElfSectionHeaderType = {}));
-
-        var ElfSectionHeaderFlags;
-        (function (ElfSectionHeaderFlags) {
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["None"] = 0] = "None";
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Write"] = 1] = "Write";
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Allocate"] = 2] = "Allocate";
-            ElfSectionHeaderFlags[ElfSectionHeaderFlags["Execute"] = 4] = "Execute";
-        })(ElfSectionHeaderFlags || (ElfSectionHeaderFlags = {}));
-
-        var ElfProgramHeaderFlags;
-        (function (ElfProgramHeaderFlags) {
-            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 0x1] = "Executable";
-
-            // Note: demo PRX's were found to be not writable
-            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 0x2] = "Writable";
-            ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 0x4] = "Readable";
-        })(ElfProgramHeaderFlags || (ElfProgramHeaderFlags = {}));
-
-        var ElfType;
-        (function (ElfType) {
-            ElfType[ElfType["Executable"] = 0x0002] = "Executable";
-            ElfType[ElfType["Prx"] = 0xFFA0] = "Prx";
-        })(ElfType || (ElfType = {}));
-
-        var ElfMachine;
-        (function (ElfMachine) {
-            ElfMachine[ElfMachine["ALLEGREX"] = 8] = "ALLEGREX";
-        })(ElfMachine || (ElfMachine = {}));
-
-        var ElfPspModuleFlags;
-        (function (ElfPspModuleFlags) {
-            ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0x0000] = "User";
-            ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 0x1000] = "Kernel";
-        })(ElfPspModuleFlags || (ElfPspModuleFlags = {}));
-
-        var ElfPspLibFlags;
-        (function (ElfPspLibFlags) {
-            ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 0x0001] = "DirectJump";
-            ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 0x4000] = "Syscall";
-            ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 0x8000] = "SysLib";
-        })(ElfPspLibFlags || (ElfPspLibFlags = {}));
-
-        var ElfPspModuleNids;
-        (function (ElfPspModuleNids) {
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 0xF01D73A7] = "MODULE_INFO";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 0xD3744BE0] = "MODULE_BOOTSTART";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 0x2F064FA6] = "MODULE_REBOOT_BEFORE";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 0xD632ACDB] = "MODULE_START";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 0x0F7C276C] = "MODULE_START_THREAD_PARAMETER";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 0xCEE8593C] = "MODULE_STOP";
-            ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 0xCF0CC697] = "MODULE_STOP_THREAD_PARAMETER";
-        })(ElfPspModuleNids || (ElfPspModuleNids = {}));
-
-        var ElfPspModuleImport = (function () {
-            function ElfPspModuleImport() {
-            }
-            ElfPspModuleImport.struct = Struct.create([
-                { nameOffset: UInt32 },
-                { version: UInt16 },
-                { flags: UInt16 },
-                { entrySize: UInt8 },
-                { variableCount: UInt8 },
-                { functionCount: UInt16 },
-                { nidAddress: UInt32 },
-                { callAddress: UInt32 }
-            ]);
-            return ElfPspModuleImport;
-        })();
-
-        var ElfPspModuleExport = (function () {
-            function ElfPspModuleExport() {
-            }
-            ElfPspModuleExport.struct = Struct.create([
-                { name: UInt32 },
-                { version: UInt16 },
-                { flags: UInt16 },
-                { entrySize: UInt8 },
-                { variableCount: UInt8 },
-                { functionCount: UInt16 },
-                { exports: UInt32 }
-            ]);
-            return ElfPspModuleExport;
-        })();
-
-        var ElfPspModuleInfoAtributesEnum;
-        (function (ElfPspModuleInfoAtributesEnum) {
-            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0x0000] = "UserMode";
-            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 0x100] = "KernelMode";
-        })(ElfPspModuleInfoAtributesEnum || (ElfPspModuleInfoAtributesEnum = {}));
+        var ElfSectionHeaderFlags = format.elf.ElfSectionHeaderFlags;
+        var ElfSectionHeaderType = format.elf.ElfSectionHeaderType;
+        var ElfReloc = format.elf.ElfReloc;
+        var ElfRelocType = format.elf.ElfRelocType;
+        var ElfProgramHeaderType = format.elf.ElfProgramHeaderType;
+        var ElfDwarfLoader = format.elf.dwarf.ElfDwarfLoader;
 
         var ElfPspModuleInfo = (function () {
             function ElfPspModuleInfo() {
@@ -7694,136 +8702,46 @@ var hle;
             ]);
             return ElfPspModuleInfo;
         })();
-        _elf.ElfPspModuleInfo = ElfPspModuleInfo;
+        elf.ElfPspModuleInfo = ElfPspModuleInfo;
 
-        var ElfRelocType;
-        (function (ElfRelocType) {
-            ElfRelocType[ElfRelocType["None"] = 0] = "None";
-            ElfRelocType[ElfRelocType["Mips16"] = 1] = "Mips16";
-            ElfRelocType[ElfRelocType["Mips32"] = 2] = "Mips32";
-            ElfRelocType[ElfRelocType["MipsRel32"] = 3] = "MipsRel32";
-            ElfRelocType[ElfRelocType["Mips26"] = 4] = "Mips26";
-            ElfRelocType[ElfRelocType["MipsHi16"] = 5] = "MipsHi16";
-            ElfRelocType[ElfRelocType["MipsLo16"] = 6] = "MipsLo16";
-            ElfRelocType[ElfRelocType["MipsGpRel16"] = 7] = "MipsGpRel16";
-            ElfRelocType[ElfRelocType["MipsLiteral"] = 8] = "MipsLiteral";
-            ElfRelocType[ElfRelocType["MipsGot16"] = 9] = "MipsGot16";
-            ElfRelocType[ElfRelocType["MipsPc16"] = 10] = "MipsPc16";
-            ElfRelocType[ElfRelocType["MipsCall16"] = 11] = "MipsCall16";
-            ElfRelocType[ElfRelocType["MipsGpRel32"] = 12] = "MipsGpRel32";
-            ElfRelocType[ElfRelocType["StopRelocation"] = 0xFF] = "StopRelocation";
-        })(ElfRelocType || (ElfRelocType = {}));
-
-        var ElfReloc = (function () {
-            function ElfReloc() {
+        var ElfPspModuleImport = (function () {
+            function ElfPspModuleImport() {
             }
-            Object.defineProperty(ElfReloc.prototype, "pointeeSectionHeaderBase", {
-                get: function () {
-                    return (this.info >> 16) & 0xFF;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ElfReloc.prototype, "pointerSectionHeaderBase", {
-                get: function () {
-                    return (this.info >> 8) & 0xFF;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ElfReloc.prototype, "type", {
-                get: function () {
-                    return ((this.info >> 0) & 0xFF);
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            ElfReloc.struct = StructClass.create(ElfReloc, [
-                { pointerAddress: UInt32 },
-                { info: UInt32 }
+            ElfPspModuleImport.struct = Struct.create([
+                { nameOffset: UInt32 },
+                { version: UInt16 },
+                { flags: UInt16 },
+                { entrySize: UInt8 },
+                { variableCount: UInt8 },
+                { functionCount: UInt16 },
+                { nidAddress: UInt32 },
+                { callAddress: UInt32 }
             ]);
-            return ElfReloc;
+            return ElfPspModuleImport;
         })();
+        elf.ElfPspModuleImport = ElfPspModuleImport;
 
-        var ElfLoader = (function () {
-            function ElfLoader() {
-                this.header = null;
-                this.stream = null;
+        var ElfPspModuleExport = (function () {
+            function ElfPspModuleExport() {
             }
-            ElfLoader.prototype.load = function (stream) {
-                var _this = this;
-                this.readAndCheckHeaders(stream);
-
-                var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
-                var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
-
-                this.programHeaders = StructArray(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
-                this.sectionHeaders = StructArray(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
-
-                this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
-                this.stringTableStream = this.getSectionHeaderFileStream(this.sectionHeaderStringTable);
-
-                this.sectionHeadersByName = {};
-                this.sectionHeaders.forEach(function (sectionHeader) {
-                    var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
-                    sectionHeader.name = name;
-                    if (sectionHeader.type != 0 /* Null */) {
-                        sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
-                    }
-                    _this.sectionHeadersByName[name] = sectionHeader;
-                });
-            };
-
-            ElfLoader.prototype.readAndCheckHeaders = function (stream) {
-                this.stream = stream;
-                var header = this.header = ElfHeader.struct.read(stream);
-                if (!header.hasValidMagic)
-                    throw ('Not an ELF file');
-                if (!header.hasValidMachine)
-                    throw ('Not a PSP ELF file');
-                if (!header.hasValidType)
-                    throw ('Not a executable or a Prx but has type ' + header.type);
-            };
-
-            ElfLoader.prototype.getStringFromStringTable = function (index) {
-                this.stringTableStream.position = index;
-                return this.stringTableStream.readStringz();
-            };
-
-            ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
-                switch (sectionHeader.type) {
-                    case 8 /* NoBits */:
-                    case 0 /* Null */:
-                        return this.stream.sliceWithLength(0, 0);
-                        break;
-                    default:
-                        return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
-                }
-            };
-
-            ElfLoader.fromStream = function (stream) {
-                var elf = new ElfLoader();
-                elf.load(stream);
-                return elf;
-            };
-
-            Object.defineProperty(ElfLoader.prototype, "isPrx", {
-                get: function () {
-                    return (this.header.type & 65440 /* Prx */) != 0;
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(ElfLoader.prototype, "needsRelocation", {
-                get: function () {
-                    return this.isPrx || (this.header.entryPoint < core.Memory.MAIN_OFFSET);
-                },
-                enumerable: true,
-                configurable: true
-            });
-            return ElfLoader;
+            ElfPspModuleExport.struct = Struct.create([
+                { name: UInt32 },
+                { version: UInt16 },
+                { flags: UInt16 },
+                { entrySize: UInt8 },
+                { variableCount: UInt8 },
+                { functionCount: UInt16 },
+                { exports: UInt32 }
+            ]);
+            return ElfPspModuleExport;
         })();
+        elf.ElfPspModuleExport = ElfPspModuleExport;
+
+        (function (ElfPspModuleInfoAtributesEnum) {
+            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0x0000] = "UserMode";
+            ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 0x100] = "KernelMode";
+        })(elf.ElfPspModuleInfoAtributesEnum || (elf.ElfPspModuleInfoAtributesEnum = {}));
+        var ElfPspModuleInfoAtributesEnum = elf.ElfPspModuleInfoAtributesEnum;
 
         var InstructionReader = (function () {
             function InstructionReader(memory) {
@@ -7849,6 +8767,7 @@ var hle;
                 this.baseAddress = 0;
             }
             PspElfLoader.prototype.load = function (stream) {
+                console.warn('PspElfLoader.load');
                 this.elfLoader = ElfLoader.fromStream(stream);
 
                 //ElfSectionHeaderFlags.Allocate
@@ -7858,7 +8777,15 @@ var hle;
                 this.readModuleInfo();
                 this.updateModuleImports();
 
+                this.elfDwarfLoader = new ElfDwarfLoader();
+                this.elfDwarfLoader.parseElfLoader(this.elfLoader);
+
+                //this.elfDwarfLoader.getSymbolAt();
                 console.log(this.moduleInfo);
+            };
+
+            PspElfLoader.prototype.getSymbolAt = function (address) {
+                return this.elfDwarfLoader.getSymbolAt(address);
             };
 
             PspElfLoader.prototype.getSectionHeaderMemoryStream = function (sectionHeader) {
@@ -8091,7 +9018,7 @@ var hle;
             };
             return PspElfLoader;
         })();
-        _elf.PspElfLoader = PspElfLoader;
+        elf.PspElfLoader = PspElfLoader;
     })(hle.elf || (hle.elf = {}));
     var elf = hle.elf;
 })(hle || (hle = {}));
@@ -8188,257 +9115,6 @@ var hle;
         return FileManager;
     })();
     hle.FileManager = FileManager;
-})(hle || (hle = {}));
-var hle;
-(function (hle) {
-    var MemoryPartitions;
-    (function (MemoryPartitions) {
-        MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
-        MemoryPartitions[MemoryPartitions["User"] = 2] = "User";
-        MemoryPartitions[MemoryPartitions["VolatilePartition"] = 5] = "VolatilePartition";
-        MemoryPartitions[MemoryPartitions["UserStacks"] = 6] = "UserStacks";
-    })(MemoryPartitions || (MemoryPartitions = {}));
-
-    (function (MemoryAnchor) {
-        MemoryAnchor[MemoryAnchor["Low"] = 0] = "Low";
-        MemoryAnchor[MemoryAnchor["High"] = 1] = "High";
-        MemoryAnchor[MemoryAnchor["Address"] = 2] = "Address";
-        MemoryAnchor[MemoryAnchor["LowAligned"] = 3] = "LowAligned";
-        MemoryAnchor[MemoryAnchor["HighAligned"] = 4] = "HighAligned";
-    })(hle.MemoryAnchor || (hle.MemoryAnchor = {}));
-    var MemoryAnchor = hle.MemoryAnchor;
-
-    var MemoryPartition = (function () {
-        function MemoryPartition(name, low, high, allocated, parent) {
-            this.name = name;
-            this.low = low;
-            this.high = high;
-            this.allocated = allocated;
-            this.parent = parent;
-            this._childPartitions = [];
-        }
-        Object.defineProperty(MemoryPartition.prototype, "size", {
-            get: function () {
-                return this.high - this.low;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryPartition.prototype, "root", {
-            get: function () {
-                return (this.parent) ? this.parent.root : this;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryPartition.prototype, "childPartitions", {
-            get: function () {
-                if (this._childPartitions.length == 0)
-                    this._childPartitions.push(new MemoryPartition("", this.low, this.high, false));
-                return this._childPartitions;
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        MemoryPartition.prototype.contains = function (address) {
-            return address >= this.low && address < this.high;
-        };
-
-        MemoryPartition.prototype.deallocate = function () {
-            this.allocated = false;
-            if (this.parent) {
-                this.parent.cleanup();
-            }
-        };
-
-        MemoryPartition.prototype.allocate = function (size, anchor, address, name) {
-            if (typeof address === "undefined") { address = 0; }
-            if (typeof name === "undefined") { name = ''; }
-            switch (anchor) {
-                case 3 /* LowAligned */:
-                case 0 /* Low */:
-                    return this.allocateLow(size, name);
-                case 1 /* High */:
-                    return this.allocateHigh(size, name);
-                case 2 /* Address */:
-                    return this.allocateSet(size, address, name);
-                default:
-                    throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
-            }
-        };
-
-        MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
-            if (typeof name === "undefined") { name = ''; }
-            var childs = this.childPartitions;
-            var addressHigh = addressLow + size;
-
-            if (!this.contains(addressLow) || !this.contains(addressHigh)) {
-                throw (new Error(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
-            }
-
-            for (var n = 0; n < childs.length; n++) {
-                var child = childs[n];
-                if (!child.contains(addressLow))
-                    continue;
-                if (child.allocated)
-                    throw (new Error("Memory already allocated"));
-                if (!child.contains(addressHigh - 1))
-                    throw (new Error("Can't fit memory"));
-
-                var p1 = new MemoryPartition('', child.low, addressLow, false, this);
-                var p2 = new MemoryPartition(name, addressLow, addressHigh, true, this);
-                var p3 = new MemoryPartition('', addressHigh, child.high, false, this);
-
-                childs.splice(n, 1, p1, p2, p3);
-
-                this.cleanup();
-                return p2;
-            }
-            console.log(sprintf('address: %08X, size: %d', addressLow, size));
-            console.log(this);
-            throw (new Error("Can't find the segment"));
-        };
-
-        MemoryPartition.prototype.allocateLow = function (size, name) {
-            if (typeof name === "undefined") { name = ''; }
-            return this.allocateLowHigh(size, true, name);
-        };
-
-        MemoryPartition.prototype.allocateHigh = function (size, name) {
-            if (typeof name === "undefined") { name = ''; }
-            return this.allocateLowHigh(size, false, name);
-        };
-
-        MemoryPartition.prototype.allocateLowHigh = function (size, low, name) {
-            if (typeof name === "undefined") { name = ''; }
-            var childs = this.childPartitions;
-            for (var n = 0; n < childs.length; n++) {
-                var child = childs[n];
-                if (child.allocated)
-                    continue;
-                if (child.size < size)
-                    continue;
-
-                if (low) {
-                    var p1 = child.low;
-                    var p2 = child.low + size;
-                    var p3 = child.high;
-                    var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
-                    var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
-                } else {
-                    var p1 = child.low;
-                    var p2 = child.high - size;
-                    var p3 = child.high;
-                    var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
-                    var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
-                }
-                childs.splice(n, 1, allocatedChild, unallocatedChild);
-                this.cleanup();
-                return allocatedChild;
-            }
-
-            console.info(this);
-            throw ("Can't find a partition with " + size + " available");
-        };
-
-        MemoryPartition.prototype.unallocate = function () {
-            this.name = '';
-            this.allocated = false;
-            if (this.parent)
-                this.parent.cleanup();
-        };
-
-        MemoryPartition.prototype.cleanup = function () {
-            // join contiguous free memory
-            var childs = this.childPartitions;
-            if (childs.length >= 2) {
-                for (var n = 0; n < childs.length - 1; n++) {
-                    var child = childs[n + 0];
-                    var c1 = childs[n + 1];
-                    if (!child.allocated && !c1.allocated) {
-                        childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
-                        n--;
-                    }
-                }
-            }
-
-            for (var n = 0; n < childs.length; n++) {
-                var child = childs[n];
-                if (!child.allocated && child.size == 0)
-                    childs.splice(n, 1);
-            }
-        };
-
-        Object.defineProperty(MemoryPartition.prototype, "nonAllocatedPartitions", {
-            get: function () {
-                return this.childPartitions.filter(function (item) {
-                    return !item.allocated;
-                });
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        MemoryPartition.prototype.getTotalFreeMemory = function () {
-            return this.nonAllocatedPartitions.reduce(function (prev, item) {
-                return item.size + prev;
-            }, 0);
-        };
-
-        MemoryPartition.prototype.getMaxContiguousFreeMemory = function () {
-            var items = this.nonAllocatedPartitions.sort(function (a, b) {
-                return a.size - b.size;
-            });
-            return (items.length) ? items[0].size : 0;
-        };
-
-        MemoryPartition.prototype.findFreeChildWithSize = function (size) {
-        };
-        return MemoryPartition;
-    })();
-    hle.MemoryPartition = MemoryPartition;
-
-    var MemoryManager = (function () {
-        function MemoryManager() {
-            this.memoryPartitionsUid = {};
-            this.init();
-        }
-        MemoryManager.prototype.init = function () {
-            this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
-            this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
-            this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
-            this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
-        };
-
-        Object.defineProperty(MemoryManager.prototype, "kernelPartition", {
-            get: function () {
-                return this.memoryPartitionsUid[0 /* Kernel0 */];
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryManager.prototype, "userPartition", {
-            get: function () {
-                return this.memoryPartitionsUid[2 /* User */];
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(MemoryManager.prototype, "stackPartition", {
-            get: function () {
-                return this.memoryPartitionsUid[6 /* UserStacks */];
-            },
-            enumerable: true,
-            configurable: true
-        });
-        return MemoryManager;
-    })();
-    hle.MemoryManager = MemoryManager;
 })(hle || (hle = {}));
 var hle;
 (function (hle) {
@@ -8867,8 +9543,13 @@ var hle;
     (function (modules) {
         var ModuleMgrForUser = (function () {
             function ModuleMgrForUser(context) {
+                var _this = this;
                 this.context = context;
-                this.sceKernelSelfStopUnloadModule = modules.createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int', this, function (unknown, argsize, argp) {
+                this.sceKernelSelfStopUnloadModule = modules.createNativeFunction(0xD675EBB8, 150, 'uint', 'HleThread/int/int/int', this, function (thread, unknown, argsize, argp) {
+                    console.info("Call stack:");
+                    thread.state.getCallstack().forEach(function (PC) {
+                        console.info(sprintf("%08X : %s", PC, _this.context.symbolLookup.getSymbolAt(PC)));
+                    });
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
                     return 0;
                 });
@@ -10825,199 +11506,6 @@ var SceKernelErrors;
 })(SceKernelErrors || (SceKernelErrors = {}));
 var hle;
 (function (hle) {
-    var Thread = (function () {
-        function Thread(manager, state, instructionCache) {
-            this.manager = manager;
-            this.state = state;
-            this.instructionCache = instructionCache;
-            this.id = 0;
-            this.initialPriority = 10;
-            this.priority = 10;
-            this.exitStatus = 0;
-            this.running = false;
-            this.state.thread = this;
-            this.programExecutor = new ProgramExecutor(state, instructionCache);
-        }
-        Thread.prototype.suspend = function () {
-            //console.log('suspended ' + this.name);
-            this.running = false;
-            this.manager.eventOcurred();
-        };
-
-        Thread.prototype.suspendUntilPromiseDone = function (promise) {
-            var _this = this;
-            this.suspend();
-
-            //console.log(promise);
-            promise.then(function (result) {
-                if (result !== undefined)
-                    _this.state.V0 = result;
-
-                //console.log('resumed ' + this.name);
-                _this.resume();
-            });
-        };
-
-        Thread.prototype.resume = function () {
-            this.running = true;
-            this.manager.eventOcurred();
-        };
-
-        Thread.prototype.start = function () {
-            this.running = true;
-            this.manager.threads.add(this);
-            this.manager.eventOcurred();
-        };
-
-        Thread.prototype.stop = function () {
-            this.running = false;
-            this.manager.threads.delete(this);
-            this.manager.eventOcurred();
-        };
-
-        Thread.prototype.runStep = function () {
-            try  {
-                this.programExecutor.execute(10000);
-            } catch (e) {
-                this.stop();
-                throw (e);
-            }
-            //this.programExecutor.execute(200000);
-        };
-        return Thread;
-    })();
-    hle.Thread = Thread;
-
-    var ThreadManager = (function () {
-        function ThreadManager(memory, memoryManager, display, syscallManager, instructionCache) {
-            var _this = this;
-            this.memory = memory;
-            this.memoryManager = memoryManager;
-            this.display = display;
-            this.syscallManager = syscallManager;
-            this.instructionCache = instructionCache;
-            this.threads = new DSet();
-            this.interval = -1;
-            this.enqueued = false;
-            this.running = false;
-            this.exitPromise = new Promise(function (resolve, reject) {
-                _this.exitResolve = resolve;
-            });
-        }
-        ThreadManager.prototype.create = function (name, entryPoint, initialPriority, stackSize) {
-            if (typeof stackSize === "undefined") { stackSize = 0x1000; }
-            var thread = new Thread(this, new core.cpu.CpuState(this.memory, this.syscallManager), this.instructionCache);
-            thread.name = name;
-            thread.state.PC = entryPoint;
-            thread.state.RA = 268435455 /* EXIT_THREAD */;
-            thread.state.SP = this.memoryManager.stackPartition.allocateHigh(stackSize).high;
-            thread.initialPriority = initialPriority;
-            thread.priority = initialPriority;
-            return thread;
-        };
-
-        ThreadManager.prototype.eventOcurred = function () {
-            var _this = this;
-            if (!this.running)
-                return;
-            if (this.enqueued)
-                return;
-            this.enqueued = true;
-            setImmediate(function () {
-                return _this.eventOcurredCallback();
-            });
-        };
-
-        //get runningThreads() { return this.threads.filter(thread => thread.running); }
-        ThreadManager.getHighestPriority = function (threads) {
-            var priority = -9999;
-            threads.forEach(function (thread) {
-                priority = Math.max(priority, thread.priority);
-            });
-            return priority;
-        };
-
-        ThreadManager.prototype.eventOcurredCallback = function () {
-            var _this = this;
-            if (!this.running)
-                return;
-
-            this.enqueued = false;
-            var start = window.performance.now();
-
-            while (true) {
-                /*
-                var runningThreads = this.runningThreads;
-                if (runningThreads.length == 0) break;
-                
-                //var priority = HleThreadManager.getHighestPriority(runningThreads);
-                //runningThreads.filter(thread => thread.priority == priority).forEach((thread) => thread.runStep());
-                runningThreads.forEach((thread) => thread.runStep());
-                */
-                var threadCount = 0;
-                var priority = 2147483648;
-
-                this.threads.forEach(function (thread) {
-                    if (thread.running) {
-                        threadCount++;
-                        priority = Math.min(priority, thread.priority);
-                    }
-                });
-
-                if (threadCount == 0)
-                    break;
-
-                this.threads.forEach(function (thread) {
-                    if (thread.running) {
-                        if (thread.priority == priority)
-                            thread.runStep();
-                    }
-                });
-
-                var current = window.performance.now();
-                if (current - start >= 100) {
-                    setTimeout(function () {
-                        return _this.eventOcurred();
-                    }, 100);
-                    return;
-                }
-            }
-        };
-
-        ThreadManager.prototype.debugThreads = function () {
-            var html = '';
-            this.threads.forEach(function (thread) {
-                html += sprintf("%08X:%s:%s", thread.state.PC, thread.name, thread.running);
-            });
-            document.getElementById('thread_list').innerHTML = html;
-        };
-
-        ThreadManager.prototype.startAsync = function () {
-            this.running = true;
-            this.eventOcurred();
-            return Promise.resolve();
-        };
-
-        ThreadManager.prototype.stopAsync = function () {
-            this.running = false;
-            clearInterval(this.interval);
-            this.interval = -1;
-            return Promise.resolve();
-        };
-
-        ThreadManager.prototype.exitGame = function () {
-            this.exitResolve();
-        };
-
-        ThreadManager.prototype.waitExitGameAsync = function () {
-            return this.exitPromise;
-        };
-        return ThreadManager;
-    })();
-    hle.ThreadManager = ThreadManager;
-})(hle || (hle = {}));
-var hle;
-(function (hle) {
     (function (modules) {
         function createNativeFunction(exportId, firmwareVersion, retval, arguments, _this, internalFunc) {
             var code = '';
@@ -11132,7 +11620,7 @@ function downloadFileAsync(url) {
             //console.log(data.length);
         };
         request.onerror = function (e) {
-            reject(e.error);
+            reject(e['error']);
         };
         request.send();
     });
@@ -11863,7 +12351,7 @@ var TestSyscallManager = (function () {
 })();
 
 function executeProgram(gprInitial, program) {
-    program = program.slice();
+    program = program.slice(0);
     program.push('break');
     assembler.assembleToMemory(memory, 4, program);
     var state = new core.cpu.CpuState(memory, new TestSyscallManager());
@@ -12035,6 +12523,90 @@ describe('utils', function () {
                 { item2: Int16 }
             ]);
             assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
+        });
+    });
+
+    describe('Binary search', function () {
+        it('odd', function () {
+            var test = [10, 20, 30, 50, 100];
+            assert.equal(0, test.binarySearchIndex(function (b) {
+                return compareNumbers(10, b);
+            }));
+            assert.equal(1, test.binarySearchIndex(function (b) {
+                return compareNumbers(20, b);
+            }));
+            assert.equal(2, test.binarySearchIndex(function (b) {
+                return compareNumbers(30, b);
+            }));
+            assert.equal(3, test.binarySearchIndex(function (b) {
+                return compareNumbers(50, b);
+            }));
+            assert.equal(4, test.binarySearchIndex(function (b) {
+                return compareNumbers(100, b);
+            }));
+
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(0, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(11, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(21, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(31, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(51, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(101, b);
+            }));
+        });
+
+        it('even', function () {
+            var test = [10, 20, 30, 50, 100, 110];
+            assert.equal(0, test.binarySearchIndex(function (b) {
+                return compareNumbers(10, b);
+            }));
+            assert.equal(1, test.binarySearchIndex(function (b) {
+                return compareNumbers(20, b);
+            }));
+            assert.equal(2, test.binarySearchIndex(function (b) {
+                return compareNumbers(30, b);
+            }));
+            assert.equal(3, test.binarySearchIndex(function (b) {
+                return compareNumbers(50, b);
+            }));
+            assert.equal(4, test.binarySearchIndex(function (b) {
+                return compareNumbers(100, b);
+            }));
+            assert.equal(5, test.binarySearchIndex(function (b) {
+                return compareNumbers(110, b);
+            }));
+
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(0, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(11, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(21, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(31, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(51, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(101, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(111, b);
+            }));
         });
     });
 });

@@ -1,5 +1,6 @@
 ﻿///<reference path="./memory.ts" />
 ///<reference path="../util/utils.ts" />
+///<reference path="gpu/state.ts" />
 
 module core.gpu {
     export interface IPspGpu {
@@ -426,11 +427,6 @@ module core.gpu {
         waitAsync() {
             return this.promise;
         }
-	}
-
-	export enum CullingDirection {
-		CounterClockWise = 0,
-		ClockWise = 1
 	}
 
     class PspGpuListRunner {

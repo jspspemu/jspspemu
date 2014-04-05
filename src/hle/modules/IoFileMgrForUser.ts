@@ -16,7 +16,6 @@
 			}
 			*/
 
-
 			switch (deviceName) {
 				case 'emulator:': case 'kemulator:':
 					switch (command) {
