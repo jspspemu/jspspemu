@@ -158,6 +158,41 @@
 			return sizes[format] * count;
 		}
 
+		static unswizzleInline(format: PixelFormat, from: ArrayBuffer, fromIndex: number, width: number, height: number) {
+			return PixelConverter.unswizzleInline2(from, fromIndex, PixelConverter.getSizeInBytes(format, width), height);
+		}
+
+		private static unswizzleInline2(from: ArrayBuffer, fromIndex: number, rowWidth: number, textureHeight: number) {
+			var size = rowWidth * textureHeight;
+			var temp = new Uint8Array(size);
+			PixelConverter.unswizzle(new DataView(from, fromIndex), new DataView(temp.buffer), rowWidth, textureHeight);
+			new Uint8Array(from, fromIndex, size).set(temp);
+		}
+
+		private static unswizzle(input: DataView, output: DataView, rowWidth: number, textureHeight: number) {
+			var pitch = (rowWidth - 16) / 4;
+			var bxc = rowWidth / 16;
+			var byc = textureHeight / 8;
+
+			var src = 0;
+			var ydest = 0;
+			for (var by = 0; by < byc; by++) {
+				var xdest = ydest;
+				for (var bx = 0; bx < bxc; bx++) {
+					var dest = xdest;
+					for (var n = 0; n < 8; n++, dest += pitch * 4) {
+						for (var m = 0; m < 4; m++) {
+							output.setInt32(dest, input.getInt32(src));
+							dest += 4;
+							src += 4;
+						}
+					}
+					xdest += 16;
+				}
+				ydest += rowWidth * 8;
+			}
+		}
+
 		static decode(format: PixelFormat, from: ArrayBuffer, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 			//console.log(format + ':' + PixelFormat[format]);
 			switch (format) {

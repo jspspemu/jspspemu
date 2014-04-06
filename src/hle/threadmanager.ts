@@ -142,10 +142,9 @@
                     }
                 });
 
-
                 var current = window.performance.now();
-                if (current - start >= 100) {
-                    setTimeout(() => this.eventOcurred(), 100);
+				if (current - start >= 100) {
+					setImmediate(() => this.eventOcurred());
                     return;
                 }
             }

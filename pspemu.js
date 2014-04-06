@@ -531,6 +531,41 @@ var core;
             return sizes[format] * count;
         };
 
+        PixelConverter.unswizzleInline = function (format, from, fromIndex, width, height) {
+            return PixelConverter.unswizzleInline2(from, fromIndex, PixelConverter.getSizeInBytes(format, width), height);
+        };
+
+        PixelConverter.unswizzleInline2 = function (from, fromIndex, rowWidth, textureHeight) {
+            var size = rowWidth * textureHeight;
+            var temp = new Uint8Array(size);
+            PixelConverter.unswizzle(new DataView(from, fromIndex), new DataView(temp.buffer), rowWidth, textureHeight);
+            new Uint8Array(from, fromIndex, size).set(temp);
+        };
+
+        PixelConverter.unswizzle = function (input, output, rowWidth, textureHeight) {
+            var pitch = (rowWidth - 16) / 4;
+            var bxc = rowWidth / 16;
+            var byc = textureHeight / 8;
+
+            var src = 0;
+            var ydest = 0;
+            for (var by = 0; by < byc; by++) {
+                var xdest = ydest;
+                for (var bx = 0; bx < bxc; bx++) {
+                    var dest = xdest;
+                    for (var n = 0; n < 8; n++, dest += pitch * 4) {
+                        for (var m = 0; m < 4; m++) {
+                            output.setInt32(dest, input.getInt32(src));
+                            dest += 4;
+                            src += 4;
+                        }
+                    }
+                    xdest += 16;
+                }
+                ydest += rowWidth * 8;
+            }
+        };
+
         PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
             if (typeof useAlpha === "undefined") { useAlpha = true; }
             if (typeof palette === "undefined") { palette = null; }
@@ -1774,10 +1809,6 @@ String.prototype.contains = function (value) {
     return string.indexOf(value) >= 0;
 };
 
-function setImmediate(callback) {
-    setTimeout(callback, 0);
-}
-
 var MathUtils = (function () {
     function MathUtils() {
     }
@@ -2340,15 +2371,10 @@ var core;
         Memory.prototype.hash = function (address, count) {
             var result = 0;
             for (var n = 0; n < count; n++) {
-                result = Memory.hashItem(result, n, this.u8[address + n]);
+                result ^= n << 28;
+                result += this.u8[address + n];
             }
             return result;
-        };
-
-        Memory.hashItem = function (prev, n, value) {
-            prev ^= n;
-            prev += value;
-            return prev | 0;
         };
 
         Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
@@ -3475,6 +3501,9 @@ var core;
                     case 203 /* TFLUSH */:
                         this.drawDriver.textureFlush(this.state);
                         break;
+                    case 204 /* TSYNC */:
+                        this.drawDriver.textureSync(this.state);
+                        break;
                     case 195 /* TPSM */:
                         this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
                         break;
@@ -3634,7 +3663,6 @@ var core;
                         break;
 
                     default:
-                        //setTimeout(() => this.complete(), 50);
                         this.errorCount++;
                         if (this.errorCount >= 400) {
                             if (this.errorCount == 400) {
@@ -4513,9 +4541,9 @@ var hle;
 
                 var current = window.performance.now();
                 if (current - start >= 100) {
-                    setTimeout(function () {
+                    setImmediate(function () {
                         return _this.eventOcurred();
-                    }, 100);
+                    });
                     return;
                 }
             }
@@ -6762,22 +6790,24 @@ var core;
                     var mipmap = state.texture.mipmaps[0];
                     var clut = state.texture.clut;
 
-                    var hash = '';
+                    var hash_number = 0;
 
-                    hash += '_' + state.texture.pixelFormat;
-                    hash += '_' + mipmap.bufferWidth;
-                    hash += '_' + mipmap.textureWidth;
-                    hash += '_' + mipmap.textureHeight;
-                    hash += '_' + memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
+                    hash_number += (state.texture.swizzled ? 1 : 0) << 0;
+                    hash_number += (state.texture.pixelFormat) << 1;
+                    hash_number += (mipmap.bufferWidth) << 3;
+                    hash_number += (mipmap.textureWidth) << 6;
+                    hash_number += (mipmap.textureHeight) << 8;
+                    hash_number += memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 24);
+
                     if (state.texture.isPixelFormatWithClut) {
-                        hash += '_' + memory.hash(clut.adress + core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
-                        hash += '_' + clut.mask;
-                        hash += '_' + clut.numberOfColors;
-                        hash += '_' + clut.pixelFormat;
-                        hash += '_' + clut.shift;
-                        hash += '_' + clut.start;
+                        hash_number += memory.hash(clut.adress + core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
+                        hash_number += clut.mask << 17;
+                        hash_number += clut.numberOfColors << 19;
+                        hash_number += clut.pixelFormat << 22;
+                        hash_number += clut.shift << 25;
+                        hash_number += clut.start << 27;
                     }
-                    return hash;
+                    return hash_number;
                 };
                 return Texture;
             })();
@@ -6787,14 +6817,36 @@ var core;
                     this.memory = memory;
                     this.gl = gl;
                     this.textures = {};
+                    this.texturesByHash1 = {};
+                    this.recheckTimestamp = 0;
                 }
+                TextureHandler.prototype.recheckAll = function () {
+                    this.recheckTimestamp = performance.now();
+                };
+
                 TextureHandler.prototype.bindTexture = function (program, state) {
                     var gl = this.gl;
-                    var hash = Texture.hash(this.memory, state);
+
+                    if (state.texture.isPixelFormatWithClut) {
+                        var hash1 = state.texture.clut.adress + '_' + state.texture.mipmaps[0].address;
+                    } else {
+                        var hash1 = '' + state.texture.mipmaps[0].address;
+                    }
+
+                    if (this.textures[hash1]) {
+                        var texture = this.textures[hash1];
+                        if (this.recheckTimestamp < texture.recheckTimestamp) {
+                            return texture;
+                        }
+                        //return texture;
+                    }
+
+                    var hash2 = Texture.hash(this.memory, state);
 
                     //console.log(hash);
-                    if (!this.textures[hash]) {
-                        var texture = this.textures[hash] = new Texture(gl);
+                    if (!this.textures[hash2]) {
+                        var texture = this.textures[hash2] = this.textures[hash1] = new Texture(gl);
+                        texture.recheckTimestamp = this.recheckTimestamp;
 
                         var mipmap = state.texture.mipmaps[0];
 
@@ -6821,6 +6873,9 @@ var core;
                         }
 
                         //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
+                        if (state.texture.swizzled) {
+                            core.PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
+                        }
                         core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
                         ctx.clearRect(0, 0, w, h);
@@ -6829,7 +6884,7 @@ var core;
                         texture.fromCanvas(canvas);
                     }
 
-                    this.textures[hash].bind();
+                    this.textures[hash2].bind();
                     gl.uniform1i(gl.getUniformLocation(program, "uSampler"), 0);
                 };
 
@@ -6921,6 +6976,10 @@ var core;
                 };
 
                 WebGlPspDrawDriver.prototype.textureFlush = function (state) {
+                    this.textureHandler.recheckAll();
+                };
+
+                WebGlPspDrawDriver.prototype.textureSync = function (state) {
                 };
 
                 WebGlPspDrawDriver.prototype.drawSprites = function (vertices, count, vertexState) {

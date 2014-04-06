@@ -44,6 +44,7 @@
 
 	class Texture {
 		private texture: WebGLTexture;
+		recheckTimestamp: number;
 
 		constructor(private gl: WebGLRenderingContext) {
 			this.texture = gl.createTexture();
@@ -76,22 +77,24 @@
 			var mipmap = state.texture.mipmaps[0];
 			var clut = state.texture.clut;
 
-			var hash = '';
+			var hash_number = 0;
 
-			hash += '_' + state.texture.pixelFormat;
-			hash += '_' + mipmap.bufferWidth;
-			hash += '_' + mipmap.textureWidth;
-			hash += '_' + mipmap.textureHeight;
-			hash += '_' + memory.hash(mipmap.address, PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
+			hash_number += (state.texture.swizzled ? 1 : 0) << 0;
+			hash_number += (state.texture.pixelFormat) << 1;
+			hash_number += (mipmap.bufferWidth) << 3;
+			hash_number += (mipmap.textureWidth) << 6;
+			hash_number += (mipmap.textureHeight) << 8;
+			hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 24);
+
 			if (state.texture.isPixelFormatWithClut) {
-				hash += '_' + memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors));
-				hash += '_' + clut.mask;
-				hash += '_' + clut.numberOfColors;
-				hash += '_' + clut.pixelFormat;
-				hash += '_' + clut.shift;
-				hash += '_' + clut.start;
+				hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
+				hash_number += clut.mask << 17;
+				hash_number += clut.numberOfColors << 19;
+				hash_number += clut.pixelFormat << 22;
+				hash_number += clut.shift << 25;
+				hash_number += clut.start << 27;
 			}
-			return hash;
+			return hash_number;
 		}
 	}
 
@@ -100,16 +103,38 @@
 		}
 
 		private textures: StringDictionary<Texture> = {};
+		private texturesByHash1: StringDictionary<Texture> = {};
+		private recheckTimestamp: number = 0;
+
+		recheckAll() {
+			this.recheckTimestamp = performance.now();
+		}
 
 		bindTexture(program: WebGLProgram, state: GpuState) {
 			var gl = this.gl;
-			var hash = Texture.hash(this.memory, state);
+
+			if (state.texture.isPixelFormatWithClut) {
+				var hash1 = state.texture.clut.adress + '_' + state.texture.mipmaps[0].address;
+			} else {
+				var hash1 = '' + state.texture.mipmaps[0].address;
+			}
+
+			if (this.textures[hash1]) {
+				var texture = this.textures[hash1];
+				if (this.recheckTimestamp < texture.recheckTimestamp) {
+					return texture;
+				}
+				//return texture;
+			}
+
+			var hash2 = Texture.hash(this.memory, state);
 
 			//console.log(hash);
 
-			if (!this.textures[hash])
+			if (!this.textures[hash2])
 			{
-				var texture = this.textures[hash] = new Texture(gl);
+				var texture = this.textures[hash2] = this.textures[hash1] = new Texture(gl);
+				texture.recheckTimestamp = this.recheckTimestamp;
 
 				var mipmap = state.texture.mipmaps[0];
 
@@ -137,7 +162,10 @@
 				}
 
 				//console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
-				
+
+				if (state.texture.swizzled) {
+					PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
+				}
 				PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
 				ctx.clearRect(0, 0, w, h);
@@ -146,7 +174,7 @@
 				texture.fromCanvas(canvas);
 			}
 			
-			this.textures[hash].bind();
+			this.textures[hash2].bind();
 			gl.uniform1i(gl.getUniformLocation(program, "uSampler"), 0);
 
 		}
@@ -242,6 +270,10 @@
 		}
 
 		textureFlush(state: GpuState) {
+			this.textureHandler.recheckAll();
+		}
+
+		textureSync(state: GpuState) {
 		}
 
 		private drawSprites(vertices: Vertex[], count: number, vertexState: VertexState) {

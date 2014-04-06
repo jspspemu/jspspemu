@@ -123,15 +123,10 @@ module core {
 		hash(address: number, count: number) {
 			var result = 0;
 			for (var n = 0; n < count; n++) {
-				result = Memory.hashItem(result, n, this.u8[address + n]);
+				result ^= n << 28;
+				result += this.u8[address + n];
 			}
 			return result;
-		}
-
-		private static hashItem(prev: number, n: number, value: number) {
-			prev ^= n;
-			prev += value;
-			return prev | 0;
 		}
 
 		static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {

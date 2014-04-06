@@ -163,7 +163,6 @@ $RECYCLE.BIN/
 /*.iml
 /pspemu.js.map
 /samples/reminiscence
-/samples/goldminer
 /samples/games
 /src_js
 /samples/cavestory/after_allocate_and_write_dump.bin

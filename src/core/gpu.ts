@@ -22,6 +22,7 @@ module core.gpu {
 		//drawSprites(vertices: Vertex[], vertexCount: number, transform2d: boolean);
 		//drawTriangles(vertices: Vertex[], vertexCount: number, transform2d: boolean);
 		textureFlush(state: any);
+		textureSync(state: any);
 		drawElements(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState);
 		initAsync();
 	}
@@ -229,6 +230,7 @@ module core.gpu {
 				case GpuOpCodes.VSCALE: this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8); break;
 
 				case GpuOpCodes.TFLUSH: this.drawDriver.textureFlush(this.state); break;
+				case GpuOpCodes.TSYNC: this.drawDriver.textureSync(this.state); break;
 				case GpuOpCodes.TPSM: this.state.texture.pixelFormat = <core.PixelFormat>BitUtils.extract(params24, 0, 4); break;
 
 				case GpuOpCodes.TSIZE0:
@@ -377,7 +379,6 @@ module core.gpu {
                     break;
 
                 default:
-					//setTimeout(() => this.complete(), 50);
 					this.errorCount++;
 					if (this.errorCount >= 400) {
 						if (this.errorCount == 400) {

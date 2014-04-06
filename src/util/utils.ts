@@ -893,9 +893,7 @@ String.prototype.contains = function (value: string) {
 	return string.indexOf(value) >= 0;
 };
 
-function setImmediate(callback: () => void) {
-    setTimeout(callback, 0);
-}
+declare function setImmediate(callback: () => void): number;
 
 class MathUtils {
 	static prevAligned(value: number, alignment: number) {
