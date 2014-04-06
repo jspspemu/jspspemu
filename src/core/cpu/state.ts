@@ -156,18 +156,18 @@
 		private static LwlMask = [ 0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000 ];
 		private static LwlShift = [ 24, 16, 8, 0 ];
 
-		lwl(RS: number, Offset: number, RT: number) {
+		lwl(RS: number, Offset: number, ValueToWrite: number) {
 			var Address = (RS + Offset);
 			var AddressAlign = Address & 3;
 			var Value = this.memory.readInt32(Address & ~3);
-			return ((Value << CpuState.LwlShift[AddressAlign]) | (RT & CpuState.LwlMask[AddressAlign]));
+			return ((Value << CpuState.LwlShift[AddressAlign]) | (ValueToWrite & CpuState.LwlMask[AddressAlign]));
 		}
 
-		lwr(RS: number, Offset: number, RT: number) {
+		lwr(RS: number, Offset: number, ValueToWrite: number) {
 			var Address = (RS + Offset);
 			var AddressAlign = Address & 3;
 			var Value = this.memory.readInt32(Address & ~3);
-			return ((Value >>> CpuState.LwrShift[AddressAlign]) | (RT & CpuState.LwrMask[AddressAlign]));
+			return ((Value >>> CpuState.LwrShift[AddressAlign]) | (ValueToWrite & CpuState.LwrMask[AddressAlign]));
 		}
 
 		private static SwlMask = [ 0xFFFFFF00, 0xFFFF0000, 0xFF000000, 0x00000000 ];
@@ -176,19 +176,20 @@
 		private static SwrMask = [0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF];
 		private static SwrShift = [0, 8, 16, 24];
 
-		swl(RS: number, Offset: number, RT: number) {
+		swl(RS: number, Offset: number, ValueToWrite: number) {
 			var Address = (RS + Offset);
 			var AddressAlign = Address & 3;
-			var AddressPointer = Address & 0xFFFFFFFC;
-			this.memory.writeInt32(AddressPointer, (RT >>> CpuState.SwlShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwlMask[AddressAlign]));
+			var AddressPointer = Address & ~3;
+			var WordToWrite = (ValueToWrite >>> CpuState.SwlShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwlMask[AddressAlign]);
+			this.memory.writeInt32(AddressPointer, WordToWrite);
 		}
 
-		swr(RS: number, Offset: number, RT: number) {
+		swr(RS: number, Offset: number, ValueToWrite: number) {
 			var Address = (RS + Offset);
 			var AddressAlign = Address & 3;
-			var AddressPointer = Address & 0xFFFFFFFC;
-
-			this.memory.writeInt32(AddressPointer, (RT << CpuState.SwrShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwrMask[AddressAlign]));
+			var AddressPointer = Address & ~3;
+			var WordToWrite = (ValueToWrite << CpuState.SwrShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwrMask[AddressAlign]);
+			this.memory.writeInt32(AddressPointer, WordToWrite);
 		}
 
 		div(rs: number, rt: number) {

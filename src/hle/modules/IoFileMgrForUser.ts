@@ -21,6 +21,7 @@
 					switch (command) {
 						case 1:
 							output.writeInt32(0);
+							//output.writeInt32(1);
 							return 0;
 							break;
 						case 2:
@@ -70,7 +71,7 @@
 
 		sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/uint/int', this, (fileId: number, inputPointer: number, inputLength: number) => {
 			var input = this.context.memory.getPointerStream(inputPointer, inputLength);
-			//console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite("%s")', input.readString(input.length)));
+			console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite("%s")', input.readString(input.length)));
 			//console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite(%d, 0x%08X, %d)', fileId, inputPointer, inputLength));
 			return inputLength;
 		});
@@ -101,16 +102,14 @@
 		});
 
 		sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: number, whence: number) => {
-			console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d)', fileId, offset, whence));
 			var result = this._seek(fileId, offset, whence);
-			console.log('->' + result);
+			console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
 			return result;
 		});
 
 		sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, (fileId: number, offset: number, whence: number) => {
-			console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d)', fileId, offset, whence));
 			var result = this._seek(fileId, offset, whence);
-			console.log('->' + result);
+			console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
 			return result;
 		});
 

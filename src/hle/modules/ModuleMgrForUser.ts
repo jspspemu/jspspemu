@@ -7,7 +7,8 @@
 			thread.state.getCallstack().forEach((PC) => {
 				console.info(sprintf("%08X : %s", PC, this.context.symbolLookup.getSymbolAt(PC)));
 			});
-			console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown ,argsize, argp));
+			//this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
+			console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
 			return 0;
 		});
 

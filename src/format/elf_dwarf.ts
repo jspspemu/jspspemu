@@ -216,11 +216,14 @@
 				var entry = this.symbolEntries[n];
 				if (entry.contains(address)) return entry;
 			}
+			/*
 			return this.symbolEntries.binarySearchValue((item) => {
 				if (address < item.value) return +1;
 				if (address >= item.value + item.size) return -1;
 				return 0;
 			});
+			*/
+			return null;
 		}
 
 		private parseDebugLine(elf: format.elf.ElfLoader) {

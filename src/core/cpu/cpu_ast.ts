@@ -121,7 +121,7 @@
 
 		syscall(i: Instruction) { return stm(call('state.syscall', [imm32(i.syscall)])); }
 		"break"(i: Instruction) { return stm(call('state.break', [])); }
-		dbreak(i: Instruction) { return ast.debugger(); }
+		dbreak(i: Instruction) { return ast.debugger("dbreak"); }
 
 		_likely(isLikely: boolean, code: ANodeStm) {
 			return isLikely ? _if(branchflag(), code) : code;
@@ -200,8 +200,8 @@
 
 		lwl(i: Instruction) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 		lwr(i: Instruction) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
-		swl(i: Instruction) { return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
-		swr(i: Instruction) { return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
+		swl(i: Instruction) { return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
+		swr(i: Instruction) { return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
 
 		_callstackPush(i: Instruction) {
 			return stm(call('state.callstackPush', [imm32(i.PC)]));

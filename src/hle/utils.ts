@@ -13,7 +13,7 @@
 			argindex = MathUtils.nextAligned(argindex, 2);
 			var gprLow = readGpr32();
 			var gprHigh = readGpr32();
-			return sprintf('%s + %s * Math.pow(2, 32)', gprLow, gprHigh);
+			return sprintf('(Integer64.fromBits(%s, %s).low >>> 0)', gprLow, gprHigh);
 		}
 
         arguments.split('/').forEach(item => {

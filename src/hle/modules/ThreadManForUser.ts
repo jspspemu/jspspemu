@@ -5,7 +5,7 @@
         private threadUids = new UidCollection<Thread>(1);
 
 		sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, (currentThread:Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attribute: number, optionPtr: number) => {
-            var stackPartition = this.context.memoryManager.stackPartition;
+            //var stackPartition = this.context.memoryManager.stackPartition;
 			var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
 			newThread.id = this.threadUids.allocate(newThread);
 
@@ -27,17 +27,22 @@
 		sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number) => {
 			var newThread = this.threadUids.get(threadId);
 
-			console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d', threadId, newThread.name, newThread.priority, currentThread.priority));
-
 			var newState = newThread.state;
 			newState.GP = currentThread.state.GP;
 			newState.RA = CpuSpecialAddresses.EXIT_THREAD;
+
+			var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
+
 			if (userDataPointer != null) {
-				newState.SP -= userDataLength;
-				newState.memory.copy(userDataPointer, newState.SP, userDataLength);
+				newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
 				newState.gpr[4] = userDataLength;
-				newState.gpr[5] = newState.SP;
-            }
+				newState.gpr[5] = copiedDataAddress;
+			}
+
+			newState.SP = copiedDataAddress - 0x40;
+
+			console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
+
 			newThread.start();
             return Promise.resolve(0);
 		});

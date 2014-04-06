@@ -7,7 +7,7 @@
 		sceKernelAllocPartitionMemory = createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, (partitionId: number, name: string, anchor: hle.MemoryAnchor, size: number, address: number) => {
 			var parentPartition = this.context.memoryManager.memoryPartitionsUid[partitionId];
 			var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
-			console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:%s, type:%d, size:%d, address:%08X)", partitionId, name, anchor, size, address));
+			console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
 			return this.blockUids.allocate(allocatedPartition);
 		});
 

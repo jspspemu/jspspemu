@@ -3,9 +3,25 @@
     }
 }
 
+interface InstructionUsage {
+	name: string;
+	count: number;
+}
+
 class FunctionGenerator {
 	private instructions: core.cpu.Instructions = core.cpu.Instructions.instance;
-    private instructionAst = new core.cpu.ast.InstructionAst();
+	private instructionAst = new core.cpu.ast.InstructionAst();
+	private instructionUsageCount: StringDictionary<number> = {};
+
+	getInstructionUsageCount(): InstructionUsage[] {
+		var items: InstructionUsage[] = [];
+		for (var key in this.instructionUsageCount) {
+			var value = this.instructionUsageCount[key];
+			items.push({ name : key, count : value });
+		}
+		items.sort((a, b) => compareNumbers(a.count, b.count)).reverse();
+		return items;
+	}
 
 	constructor(public memory: core.Memory) {
     }
@@ -46,9 +62,15 @@ class FunctionGenerator {
 
         for (var n = 0; n < 100000; n++) {
             var di = this.decodeInstruction(PC + 0);
-            //console.log(di);
+			//console.log(di);
 
-			//if ([0x0890D0CC, 0x0895DAD8].contains(PC)) stms.push(ast.debugger());
+			if (this.instructionUsageCount[di.type.name] === undefined) {
+				this.instructionUsageCount[di.type.name] = 0;
+				console.warn('NEW instruction: ', di.type.name);
+			}
+			this.instructionUsageCount[di.type.name]++;
+			
+			//if ([0x089162F8, 0x08916318].contains(PC)) stms.push(ast.debugger(sprintf('PC: %08X', PC)));
 
             if (di.type.hasDelayedBranch) {
                 var di2 = this.decodeInstruction(PC + 4);
@@ -92,7 +114,7 @@ enum CpuSpecialAddresses {
 }
 
 class InstructionCache {
-    private functionGenerator: FunctionGenerator;
+    functionGenerator: FunctionGenerator;
     private cache: any = {};
 
 	constructor(public memory: core.Memory) {

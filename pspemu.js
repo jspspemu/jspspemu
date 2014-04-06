@@ -295,8 +295,8 @@ var MipsAstBuilder = (function (_super) {
     function MipsAstBuilder() {
         _super.apply(this, arguments);
     }
-    MipsAstBuilder.prototype.debugger = function () {
-        return new ANodeStmRaw("debugger;\n");
+    MipsAstBuilder.prototype.debugger = function (comment) {
+        return new ANodeStmRaw("debugger; // " + comment + "\n");
     };
 
     MipsAstBuilder.prototype.functionPrefix = function () {
@@ -1663,6 +1663,9 @@ Array.prototype.binarySearchIndex = function (selector) {
     var max = array.length - 1;
     var step = 0;
 
+    if (array.length == 0)
+        return -1;
+
     while (true) {
         var current = Math.floor((min + max) / 2);
 
@@ -2193,7 +2196,7 @@ var core;
 (function (core) {
     var Memory = (function () {
         function Memory() {
-            this.buffer = new ArrayBuffer(0x10000000);
+            this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
             this.data = new DataView(this.buffer);
             this.s8 = new Int8Array(this.buffer);
             this.u8 = new Uint8Array(this.buffer);
@@ -3783,7 +3786,20 @@ var FunctionGenerator = (function () {
         this.memory = memory;
         this.instructions = core.cpu.Instructions.instance;
         this.instructionAst = new core.cpu.ast.InstructionAst();
+        this.instructionUsageCount = {};
     }
+    FunctionGenerator.prototype.getInstructionUsageCount = function () {
+        var items = [];
+        for (var key in this.instructionUsageCount) {
+            var value = this.instructionUsageCount[key];
+            items.push({ name: key, count: value });
+        }
+        items.sort(function (a, b) {
+            return compareNumbers(a.count, b.count);
+        }).reverse();
+        return items;
+    };
+
     FunctionGenerator.prototype.decodeInstruction = function (address) {
         var instruction = core.cpu.Instruction.fromMemoryAndPC(this.memory, address);
         var instructionType = this.getInstructionType(instruction);
@@ -3824,7 +3840,13 @@ var FunctionGenerator = (function () {
             var di = this.decodeInstruction(PC + 0);
 
             //console.log(di);
-            //if ([0x0890D0CC, 0x0895DAD8].contains(PC)) stms.push(ast.debugger());
+            if (this.instructionUsageCount[di.type.name] === undefined) {
+                this.instructionUsageCount[di.type.name] = 0;
+                console.warn('NEW instruction: ', di.type.name);
+            }
+            this.instructionUsageCount[di.type.name]++;
+
+            //if ([0x089162F8, 0x08916318].contains(PC)) stms.push(ast.debugger(sprintf('PC: %08X', PC)));
             if (di.type.hasDelayedBranch) {
                 var di2 = this.decodeInstruction(PC + 4);
 
@@ -4411,10 +4433,11 @@ var hle;
         ThreadManager.prototype.create = function (name, entryPoint, initialPriority, stackSize) {
             if (typeof stackSize === "undefined") { stackSize = 0x1000; }
             var thread = new Thread(this, new core.cpu.CpuState(this.memory, this.syscallManager), this.instructionCache);
+            thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize);
             thread.name = name;
             thread.state.PC = entryPoint;
             thread.state.RA = 268435455 /* EXIT_THREAD */;
-            thread.state.SP = this.memoryManager.stackPartition.allocateHigh(stackSize).high;
+            thread.state.SP = thread.stackPartition.high;
             thread.initialPriority = initialPriority;
             thread.priority = initialPriority;
             return thread;
@@ -5019,7 +5042,7 @@ var core;
                     return stm(call('state.break', []));
                 };
                 InstructionAst.prototype.dbreak = function (i) {
-                    return ast.debugger();
+                    return ast.debugger("dbreak");
                 };
 
                 InstructionAst.prototype._likely = function (isLikely, code) {
@@ -5180,10 +5203,10 @@ var core;
                     return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
                 InstructionAst.prototype.swl = function (i) {
-                    return assignGpr(i.rt, call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
+                    return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
                 InstructionAst.prototype.swr = function (i) {
-                    return assignGpr(i.rt, call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
+                    return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
                 };
 
                 InstructionAst.prototype._callstackPush = function (i) {
@@ -6432,33 +6455,34 @@ var core;
                 return ((a >>> 0) < (b >>> 0)) ? 1 : 0;
             };
 
-            CpuState.prototype.lwl = function (RS, Offset, RT) {
+            CpuState.prototype.lwl = function (RS, Offset, ValueToWrite) {
                 var Address = (RS + Offset);
                 var AddressAlign = Address & 3;
                 var Value = this.memory.readInt32(Address & ~3);
-                return ((Value << CpuState.LwlShift[AddressAlign]) | (RT & CpuState.LwlMask[AddressAlign]));
+                return ((Value << CpuState.LwlShift[AddressAlign]) | (ValueToWrite & CpuState.LwlMask[AddressAlign]));
             };
 
-            CpuState.prototype.lwr = function (RS, Offset, RT) {
+            CpuState.prototype.lwr = function (RS, Offset, ValueToWrite) {
                 var Address = (RS + Offset);
                 var AddressAlign = Address & 3;
                 var Value = this.memory.readInt32(Address & ~3);
-                return ((Value >>> CpuState.LwrShift[AddressAlign]) | (RT & CpuState.LwrMask[AddressAlign]));
+                return ((Value >>> CpuState.LwrShift[AddressAlign]) | (ValueToWrite & CpuState.LwrMask[AddressAlign]));
             };
 
-            CpuState.prototype.swl = function (RS, Offset, RT) {
+            CpuState.prototype.swl = function (RS, Offset, ValueToWrite) {
                 var Address = (RS + Offset);
                 var AddressAlign = Address & 3;
-                var AddressPointer = Address & 0xFFFFFFFC;
-                this.memory.writeInt32(AddressPointer, (RT >>> CpuState.SwlShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwlMask[AddressAlign]));
+                var AddressPointer = Address & ~3;
+                var WordToWrite = (ValueToWrite >>> CpuState.SwlShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwlMask[AddressAlign]);
+                this.memory.writeInt32(AddressPointer, WordToWrite);
             };
 
-            CpuState.prototype.swr = function (RS, Offset, RT) {
+            CpuState.prototype.swr = function (RS, Offset, ValueToWrite) {
                 var Address = (RS + Offset);
                 var AddressAlign = Address & 3;
-                var AddressPointer = Address & 0xFFFFFFFC;
-
-                this.memory.writeInt32(AddressPointer, (RT << CpuState.SwrShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwrMask[AddressAlign]));
+                var AddressPointer = Address & ~3;
+                var WordToWrite = (ValueToWrite << CpuState.SwrShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwrMask[AddressAlign]);
+                this.memory.writeInt32(AddressPointer, WordToWrite);
             };
 
             CpuState.prototype.div = function (rs, rt) {
@@ -8051,13 +8075,15 @@ var format;
                         if (entry.contains(address))
                             return entry;
                     }
-                    return this.symbolEntries.binarySearchValue(function (item) {
-                        if (address < item.value)
-                            return +1;
-                        if (address >= item.value + item.size)
-                            return -1;
-                        return 0;
+
+                    /*
+                    return this.symbolEntries.binarySearchValue((item) => {
+                    if (address < item.value) return +1;
+                    if (address >= item.value + item.size) return -1;
+                    return 0;
                     });
+                    */
+                    return null;
                 };
 
                 ElfDwarfLoader.prototype.parseDebugLine = function (elf) {
@@ -9284,6 +9310,8 @@ var hle;
                             switch (command) {
                                 case 1:
                                     output.writeInt32(0);
+
+                                    //output.writeInt32(1);
                                     return 0;
                                     break;
                                 case 2:
@@ -9328,8 +9356,8 @@ var hle;
                 });
                 this.sceIoWrite = modules.createNativeFunction(0x42EC03AC, 150, 'int', 'int/uint/int', this, function (fileId, inputPointer, inputLength) {
                     var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
+                    console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite("%s")', input.readString(input.length)));
 
-                    //console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite("%s")', input.readString(input.length)));
                     //console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite(%d, 0x%08X, %d)', fileId, inputPointer, inputLength));
                     return inputLength;
                 });
@@ -9357,15 +9385,13 @@ var hle;
                     return 0;
                 });
                 this.sceIoLseek = modules.createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
-                    console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d)', fileId, offset, whence));
                     var result = _this._seek(fileId, offset, whence);
-                    console.log('->' + result);
+                    console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
                     return result;
                 });
                 this.sceIoLseek32 = modules.createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
-                    console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d)', fileId, offset, whence));
                     var result = _this._seek(fileId, offset, whence);
-                    console.log('->' + result);
+                    console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
                     return result;
                 });
             }
@@ -9522,6 +9548,12 @@ var hle;
                     return 0;
                 });
                 this.sceKernelExitGame2 = modules.createNativeFunction(0x05572A5F, 150, 'uint', 'HleThread', this, function (thread) {
+                    console.info("Call stack:");
+                    thread.state.getCallstack().forEach(function (PC) {
+                        console.info(sprintf("%08X : %s", PC, _this.context.symbolLookup.getSymbolAt(PC)));
+                    });
+
+                    //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
                     console.info('sceKernelExitGame2');
                     _this.context.threadManager.exitGame();
                     thread.stop();
@@ -9550,6 +9582,8 @@ var hle;
                     thread.state.getCallstack().forEach(function (PC) {
                         console.info(sprintf("%08X : %s", PC, _this.context.symbolLookup.getSymbolAt(PC)));
                     });
+
+                    //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
                     console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
                     return 0;
                 });
@@ -9743,6 +9777,10 @@ var hle;
                 });
                 this.sceCtrlSetSamplingMode = modules.createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, function (samplingMode) {
                     console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
+                    return 0;
+                });
+                this.sceCtrlReadLatch = modules.createNativeFunction(0x0B588501, 150, 'uint', 'void*', this, function (currentLatchPtr) {
+                    console.warn('Not implemented sceCtrl.sceCtrlReadLatch');
                     return 0;
                 });
             }
@@ -10406,7 +10444,7 @@ var hle;
                 this.sceKernelAllocPartitionMemory = modules.createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
                     var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
                     var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
-                    console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:%s, type:%d, size:%d, address:%08X)", partitionId, name, anchor, size, address));
+                    console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
                     return _this.blockUids.allocate(allocatedPartition);
                 });
                 this.sceKernelFreePartitionMemory = modules.createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (blockId) {
@@ -10452,7 +10490,7 @@ var hle;
                 this.context = context;
                 this.threadUids = new UidCollection(1);
                 this.sceKernelCreateThread = modules.createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attribute, optionPtr) {
-                    var stackPartition = _this.context.memoryManager.stackPartition;
+                    //var stackPartition = this.context.memoryManager.stackPartition;
                     var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
                     newThread.id = _this.threadUids.allocate(newThread);
 
@@ -10472,17 +10510,22 @@ var hle;
                 this.sceKernelStartThread = modules.createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
                     var newThread = _this.threadUids.get(threadId);
 
-                    console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d', threadId, newThread.name, newThread.priority, currentThread.priority));
-
                     var newState = newThread.state;
                     newState.GP = currentThread.state.GP;
                     newState.RA = 268435455 /* EXIT_THREAD */;
+
+                    var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
+
                     if (userDataPointer != null) {
-                        newState.SP -= userDataLength;
-                        newState.memory.copy(userDataPointer, newState.SP, userDataLength);
+                        newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
                         newState.gpr[4] = userDataLength;
-                        newState.gpr[5] = newState.SP;
+                        newState.gpr[5] = copiedDataAddress;
                     }
+
+                    newState.SP = copiedDataAddress - 0x40;
+
+                    console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
+
                     newThread.start();
                     return Promise.resolve(0);
                 });
@@ -11521,7 +11564,7 @@ var hle;
                 argindex = MathUtils.nextAligned(argindex, 2);
                 var gprLow = readGpr32();
                 var gprHigh = readGpr32();
-                return sprintf('%s + %s * Math.pow(2, 32)', gprLow, gprHigh);
+                return sprintf('(Integer64.fromBits(%s, %s).low >>> 0)', gprLow, gprHigh);
             }
 
             arguments.split('/').forEach(function (item) {
@@ -12236,7 +12279,8 @@ describe('pspautotests', function () {
     this.timeout(5000);
 
     var tests = [
-        { cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2'] },
+        { cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2', 'lsu'] },
+        { vfpu: ['colors', 'convert', 'gum', 'matrix', 'prefixes', 'vector'] },
         { intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
         { display: ['display', 'hcount', 'vblankmulti'] },
         { gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
@@ -12254,7 +12298,7 @@ describe('pspautotests', function () {
     ];
 
     function normalizeString(string) {
-        return string.replace(/\r\n/g, '\n').replace(/[\r\n]+$/m, '');
+        return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
     }
 
     function compareOutput(name, output, expected) {
@@ -12527,6 +12571,30 @@ describe('utils', function () {
     });
 
     describe('Binary search', function () {
+        it('none', function () {
+            var test = [];
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(0, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(11, b);
+            }));
+        });
+
+        it('one', function () {
+            var test = [10];
+            assert.equal(0, test.binarySearchIndex(function (b) {
+                return compareNumbers(10, b);
+            }));
+
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(0, b);
+            }));
+            assert.equal(-1, test.binarySearchIndex(function (b) {
+                return compareNumbers(11, b);
+            }));
+        });
+
         it('odd', function () {
             var test = [10, 20, 30, 50, 100];
             assert.equal(0, test.binarySearchIndex(function (b) {

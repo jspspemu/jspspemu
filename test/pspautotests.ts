@@ -2,7 +2,8 @@
 	this.timeout(5000);
 
 	var tests = [
-		{ cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2'] },
+		{ cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2', 'lsu'] },
+		{ vfpu: ['colors', 'convert', 'gum', 'matrix', 'prefixes', 'vector'] },
 		{ intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
 		{ display: ['display', 'hcount', 'vblankmulti'] },
 		{ gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
@@ -20,7 +21,7 @@
 	];
 
 	function normalizeString(string: string) {
-		return string.replace(/\r\n/g, '\n').replace(/[\r\n]+$/m, '');
+		return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
 	}
 
 	function compareOutput(name:string, output: string, expected: string) {

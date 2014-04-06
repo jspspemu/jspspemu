@@ -31,6 +31,20 @@
 	}); 
 
 	describe('Binary search', () => {
+		it('none', () => {
+			var test = [];
+			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
+			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(11, b)));
+		});
+
+		it('one', () => {
+			var test = [10];
+			assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
+
+			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
+			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(11, b)));
+		});
+
 		it('odd', () => {
 			var test = [10, 20, 30, 50, 100];
 			assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));

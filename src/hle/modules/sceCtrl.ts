@@ -21,6 +21,11 @@
         sceCtrlSetSamplingMode = createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, (samplingMode: number) => {
             console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
             return 0;
-        });
+		});
+
+		sceCtrlReadLatch = createNativeFunction(0x0B588501, 150, 'uint', 'void*', this, (currentLatchPtr: Stream) => {
+			console.warn('Not implemented sceCtrl.sceCtrlReadLatch');
+			return 0;
+		});
     }
 }

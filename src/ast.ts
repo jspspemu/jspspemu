@@ -179,8 +179,8 @@ class AstBuilder {
 }
 
 class MipsAstBuilder extends AstBuilder {
-	debugger():ANodeStm {
-		return new ANodeStmRaw("debugger;\n");
+	debugger(comment: string):ANodeStm {
+		return new ANodeStmRaw("debugger; // " + comment + "\n");
 	}
 
     functionPrefix() {

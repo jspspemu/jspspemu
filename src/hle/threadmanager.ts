@@ -7,6 +7,7 @@
         priority: number = 10;
         exitStatus: number = 0;
         running: boolean = false;
+		stackPartition: hle.MemoryPartition;
 
         constructor(public manager: ThreadManager, public state: core.cpu.CpuState, private instructionCache: InstructionCache) {
             this.state.thread = this;
@@ -75,11 +76,12 @@
         }
 
         create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000) {
-            var thread = new Thread(this, new core.cpu.CpuState(this.memory, this.syscallManager), this.instructionCache);
+			var thread = new Thread(this, new core.cpu.CpuState(this.memory, this.syscallManager), this.instructionCache);
+			thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize);
             thread.name = name;
             thread.state.PC = entryPoint;
             thread.state.RA = CpuSpecialAddresses.EXIT_THREAD;
-			thread.state.SP = this.memoryManager.stackPartition.allocateHigh(stackSize).high;
+			thread.state.SP = thread.stackPartition.high;
 			thread.initialPriority = initialPriority;
             thread.priority = initialPriority;
             return thread;

@@ -45,6 +45,8 @@
     <TypeScriptCompile Include="src\core\interruptmanager.ts" />
     <TypeScriptCompile Include="src\emulator.ts" />
     <TypeScriptCompile Include="src\format\cso.ts" />
+    <TypeScriptCompile Include="src\format\elf.ts" />
+    <TypeScriptCompile Include="src\format\elf_dwarf.ts" />
     <TypeScriptCompile Include="src\format\format.ts" />
     <TypeScriptCompile Include="src\format\pbp.ts" />
     <TypeScriptCompile Include="src\format\psf.ts" />
@@ -115,7 +117,7 @@
     <TypeScriptCompile Include="src\core\display.ts" />
     <TypeScriptCompile Include="src\format\iso.ts" />
     <TypeScriptCompile Include="src\core\gpu.ts" />
-    <TypeScriptCompile Include="src\hle\elf.ts" />
+    <TypeScriptCompile Include="src\hle\elf_psp.ts" />
     <TypeScriptCompile Include="src\hle\memorymanager.ts" />
     <TypeScriptCompile Include="src\hle\threadmanager.ts" />
     <TypeScriptCompile Include="src\core\cpu\instructions.ts" />

@@ -787,6 +787,8 @@ Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) 
 	var max = array.length - 1;
 	var step = 0;
 
+	if (array.length == 0) return -1;
+
 	//console.log('--------');
 
 	while (true) {

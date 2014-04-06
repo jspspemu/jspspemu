@@ -25,7 +25,7 @@ module core {
 		}
 
 		constructor() {
-			this.buffer = new ArrayBuffer(0x10000000);
+			this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
 			this.data = new DataView(this.buffer);
 			this.s8 = new Int8Array(this.buffer);
 			this.u8 = new Uint8Array(this.buffer);
