@@ -54,6 +54,8 @@
 			this.fileManager.mount('ms0', this.ms0Vfs = new hle.vfs.MountableVfs());
 			this.fileManager.mount('host0', new hle.vfs.MemoryVfs());
 
+			this.ms0Vfs.mountVfs('/', new hle.vfs.MemoryVfs());
+
 			hle.ModuleManagerSyscalls.registerSyscalls(this.syscallManager, this.moduleManager);
 
 			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager);

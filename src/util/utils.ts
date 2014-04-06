@@ -1062,3 +1062,12 @@ declare var mat4: {
 
 window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
 
+function setToString(Enum: any, value: number) {
+	var items = [];
+	for (var key in Enum) {
+		if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
+			items.push(key);
+		}
+	}
+	return items.join(' | ');
+}

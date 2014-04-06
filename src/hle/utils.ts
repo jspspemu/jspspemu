@@ -85,3 +85,50 @@ function downloadFileAsync(url: string) {
 		request.send();
 	});
 }
+
+interface StatInfo {
+	size: number;
+	date: Date;
+}
+
+function statFileAsync(url: string) {
+	return new Promise<StatInfo>((resolve, reject) => {
+		var request = new XMLHttpRequest();
+
+		console.info('HEAD:', url);
+		console.info(request);
+		request.open("HEAD", url, true);
+		request.overrideMimeType("text/plain; charset=x-user-defined");
+		request.responseType = "arraybuffer";
+		request.onload = function (e) {
+			var headers = request.getAllResponseHeaders();
+			var date = new Date();
+			var size = 0;
+
+			console.info(headers);
+
+			var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
+			if (sizeMatch) size = parseInt(sizeMatch[1]);
+
+			var dateMatch = headers.match(/date:(.*)/i);
+			if (dateMatch) {
+				//console.log(dateMatch);
+				date = new Date(Date.parse(dateMatch[1].trim()));
+			}
+
+			console.log('date', date);
+			console.log('size', size);
+
+			resolve({
+				size: size,
+				date: date
+			});
+			//console.log(data);
+			//console.log(data.length);
+		};
+		request.onerror = function (e) {
+			reject(e['error']);
+		};
+		request.send();
+	});
+}

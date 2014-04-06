@@ -2,6 +2,10 @@
 	export function detectFormatAsync(asyncStream: AsyncStream): Promise<string> {
 		return asyncStream.readChunkAsync(0, 4).then((data):any => {
 			var stream = Stream.fromArrayBuffer(data);
+			if (stream.length < 4) {
+				console.error(asyncStream);
+				throw (new Error("detectFormatAsync: Buffer is too small (" + data.byteLength + ")"));
+			}
 			var magic = stream.readString(4);
 			switch (magic) {
 				case '\u0000PBP': return 'pbp';

@@ -6,6 +6,7 @@
 		readAllAsync() { return this.readChunkAsync(0, this.size); }
 		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync")); }
 		close() { }
+		stat(): VfsStat { throw(new Error("Must override stat")); }
 	}
 
 	export enum FileOpenFlags {
@@ -27,9 +28,25 @@
 	export enum FileMode {
 	}
 
+	export class VfsStat {
+		size: number = 0;
+		isDirectory: boolean = false;
+		timeCreation: Date = new Date();
+		timeLastAccess: Date = new Date();
+		timeLastModification: Date = new Date();
+	}
+
 	export class Vfs {
 		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			console.error(this);
 			throw (new Error("Must override open"));
+			return null;
+		}
+
+		getStatAsync(path: string): Promise<VfsStat> {
+			console.error(this);
+			throw (new Error("Must override getStatAsync"));
+			return null;
 		}
 	}
 
@@ -42,6 +59,16 @@
 		get size() { return this.node.size; }
 		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 		close() { }
+
+		stat(): VfsStat {
+			return {
+				size: this.node.size,
+				isDirectory: this.node.isDirectory,
+				timeCreation: this.node.date,
+				timeLastAccess: this.node.date,
+				timeLastModification: this.node.date,
+			};
+		}
 	}
 
 	export class IsoVfs extends Vfs {
@@ -51,6 +78,10 @@
 
 		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 			return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
+		}
+
+		getStatAsync(path: string): Promise<VfsStat> {
+			return Promise.resolve(new IsoVfsFile(this.iso.get(path)).stat());
 		}
 	}
 
@@ -80,6 +111,18 @@
 			if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
 			return Promise.resolve(new MemoryVfsEntry(file));
 		}
+
+		getStatAsync(path: string): Promise<VfsStat> {
+			var file = this.files[path];
+			if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
+			return Promise.resolve({
+				size: file.byteLength,
+				isDirectory: false,
+				timeCreation: new Date(),
+				timeLastAccess: new Date(),
+				timeLastModification: new Date(),
+			});
+		}
 	}
 
 	export class UriVfs extends Vfs {
@@ -88,10 +131,27 @@
 		}
 
 		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			if (flags & FileOpenFlags.Write) {
+				return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
+			}
+
 			return downloadFileAsync(this.baseUri + '/' + path).then((data) => {
 				return new MemoryVfsEntry(data);
 			});
 		}
+
+		getStatAsync(path: string): Promise<VfsStat> {
+			return statFileAsync(this.baseUri + '/' + path).then(() => {
+				return {
+					size: 0,
+					isDirectory: false,
+					timeCreation: new Date(),
+					timeLastAccess: new Date(),
+					timeLastModification: new Date(),
+				};
+			});
+		}
+		
 	}
 
 	class MountableEntry {
@@ -103,18 +163,18 @@
 		private mounts: MountableEntry[] = [];
 
 		mountVfs(path: string, vfs: Vfs) {
-			this.mounts.push(new MountableEntry(this.normalizePath(path), vfs, null));
+			this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null));
 		}
 
 		mountFileData(path: string, data: ArrayBuffer) {
-			this.mounts.push(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
+			this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
 		}
 
 		private normalizePath(path: string) {
 			return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
 		}
 
-		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+		private transformPath(path: string) {
 			path = this.normalizePath(path);
 
 			for (var n = 0; n < this.mounts.length; n++) {
@@ -122,14 +182,31 @@
 				//console.log(mount.path + ' -- ' + path);
 				if (path.startsWith(mount.path)) {
 					var part = path.substr(mount.path.length);
-					if (mount.file) {
-						return Promise.resolve(mount.file);
-					} else {
-						return mount.vfs.openAsync(part, flags, mode);
-					}
+					return { mount: mount, part: part };
 				}
 			}
-			throw(new Error("Can't find file '" + path + "'"));
+			console.info(this.mounts);
+			throw (new Error("MountableVfs: Can't find file '" + path + "'"));
+		}
+
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			var info = this.transformPath(path);
+
+			if (info.mount.file) {
+				return Promise.resolve(info.mount.file);
+			} else {
+				return info.mount.vfs.openAsync(info.part, flags, mode);
+			}
+		}
+
+		getStatAsync(path: string): Promise<VfsStat> {
+			var info = this.transformPath(path);
+
+			if (info.mount.file) {
+				return Promise.resolve(info.mount.file.stat());
+			} else {
+				return info.mount.vfs.getStatAsync(info.part);
+			}
 		}
 	}
 

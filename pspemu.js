@@ -1886,6 +1886,16 @@ var PromiseUtils = (function () {
 })();
 
 window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
+
+function setToString(Enum, value) {
+    var items = [];
+    for (var key in Enum) {
+        if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
+            items.push(key);
+        }
+    }
+    return items.join(' | ');
+}
 ///<reference path="../util/utils.ts" />
 var core;
 (function (core) {
@@ -7251,6 +7261,8 @@ var Emulator = (function () {
             _this.fileManager.mount('ms0', _this.ms0Vfs = new hle.vfs.MountableVfs());
             _this.fileManager.mount('host0', new hle.vfs.MemoryVfs());
 
+            _this.ms0Vfs.mountVfs('/', new hle.vfs.MemoryVfs());
+
             hle.ModuleManagerSyscalls.registerSyscalls(_this.syscallManager, _this.moduleManager);
 
             _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager);
@@ -8123,6 +8135,10 @@ var format;
     function detectFormatAsync(asyncStream) {
         return asyncStream.readChunkAsync(0, 4).then(function (data) {
             var stream = Stream.fromArrayBuffer(data);
+            if (stream.length < 4) {
+                console.error(asyncStream);
+                throw (new Error("detectFormatAsync: Buffer is too small (" + data.byteLength + ")"));
+            }
             var magic = stream.readString(4);
             switch (magic) {
                 case '\u0000PBP':
@@ -9059,6 +9075,10 @@ var hle;
         Device.prototype.openAsync = function (uri, flags, mode) {
             return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
         };
+
+        Device.prototype.getStatAsync = function (uri) {
+            return this.vfs.getStatAsync(uri.pathWithoutDevice);
+        };
         return Device;
     })();
     hle.Device = Device;
@@ -9133,6 +9153,11 @@ var hle;
             return this.getDevice(uri.device).openAsync(uri, flags, mode).then(function (entry) {
                 return new HleFile(entry);
             });
+        };
+
+        FileManager.prototype.getStatAsync = function (name) {
+            var uri = this.cwd.append(new Uri(name));
+            return this.getDevice(uri.device).getStatAsync(uri);
         };
 
         FileManager.prototype.mount = function (device, vfs) {
@@ -9339,7 +9364,8 @@ var hle;
                 });
                 this.fileUids = new UidCollection(1);
                 this.sceIoOpen = modules.createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-                    console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d, 0%o)', filename, flags, mode));
+                    console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
+
                     return _this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
                         return _this.fileUids.allocate(file);
                     }).catch(function (e) {
@@ -9364,20 +9390,40 @@ var hle;
                 this.sceIoRead = modules.createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
                     var file = _this.fileUids.get(fileId);
 
-                    console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d', fileId, outputPointer, outputLength, file.cursor));
-
                     return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
                         file.cursor += readedData.byteLength;
 
                         //console.log(new Uint8Array(readedData));
                         _this.context.memory.writeBytes(outputPointer, readedData);
-                        console.info(sprintf('->%d', readedData.byteLength));
+
+                        //console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d ->%d', fileId, outputPointer, outputLength, file.cursor, readedData.byteLength));
                         return readedData.byteLength;
                     });
                 });
                 this.sceIoGetstat = modules.createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
                     SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
-                    return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                    return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
+                        var stat2 = new SceIoStat();
+                        stat2.mode = parseInt('777', 8);
+                        stat2.size = stat.size;
+                        stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
+                        stat2.timeLastAccess = ScePspDateTime.fromDate(stat.timeLastAccess);
+                        stat2.timeLastModification = ScePspDateTime.fromDate(stat.timeLastModification);
+                        stat2.attributes = 0;
+                        stat2.attributes |= 1 /* CanExecute */;
+                        stat2.attributes |= 4 /* CanRead */;
+                        stat2.attributes |= 2 /* CanWrite */;
+                        if (stat.isDirectory) {
+                            stat2.attributes |= 16 /* Directory */;
+                        } else {
+                            stat2.attributes |= 32 /* File */;
+                        }
+                        console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
+                        SceIoStat.struct.write(sceIoStatPointer, stat2);
+                        return 0;
+                    }).catch(function (error) {
+                        return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                    });
                 });
                 this.sceIoChdir = modules.createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
                     console.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
@@ -9386,12 +9432,14 @@ var hle;
                 });
                 this.sceIoLseek = modules.createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
                     var result = _this._seek(fileId, offset, whence);
-                    console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
+
+                    //console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
                     return result;
                 });
                 this.sceIoLseek32 = modules.createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
                     var result = _this._seek(fileId, offset, whence);
-                    console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
+
+                    //console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
                     return result;
                 });
             }
@@ -9446,6 +9494,18 @@ var hle;
                 this.second = 0;
                 this.microsecond = 0;
             }
+            ScePspDateTime.fromDate = function (date) {
+                var pspdate = new ScePspDateTime();
+                pspdate.year = date.getFullYear();
+                pspdate.month = date.getMonth();
+                pspdate.day = date.getDay();
+                pspdate.hour = date.getHours();
+                pspdate.minute = date.getMinutes();
+                pspdate.second = date.getSeconds();
+                pspdate.microsecond = date.getMilliseconds() * 1000;
+                return pspdate;
+            };
+
             ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
                 { year: Int16 },
                 { month: Int16 },
@@ -10152,6 +10212,14 @@ var hle;
                     _this.pllFreq = pllFrequency;
                     _this.cpuFreq = cpuFrequency;
                     _this.busFreq = busFrequency;
+                    return 0;
+                });
+                this.scePowerSetBusClockFrequency = modules.createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, function (busFrequency) {
+                    _this.busFreq = busFrequency;
+                    return 0;
+                });
+                this.scePowerSetCpuClockFrequency = modules.createNativeFunction(0x843FBF43, 150, 'int', 'int', this, function (cpuFrequency) {
+                    _this.cpuFreq = cpuFrequency;
                     return 0;
                 });
             }
@@ -11668,6 +11736,49 @@ function downloadFileAsync(url) {
         request.send();
     });
 }
+
+function statFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        console.info('HEAD:', url);
+        console.info(request);
+        request.open("HEAD", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onload = function (e) {
+            var headers = request.getAllResponseHeaders();
+            var date = new Date();
+            var size = 0;
+
+            console.info(headers);
+
+            var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
+            if (sizeMatch)
+                size = parseInt(sizeMatch[1]);
+
+            var dateMatch = headers.match(/date:(.*)/i);
+            if (dateMatch) {
+                //console.log(dateMatch);
+                date = new Date(Date.parse(dateMatch[1].trim()));
+            }
+
+            console.log('date', date);
+            console.log('size', size);
+
+            resolve({
+                size: size,
+                date: date
+            });
+            //console.log(data);
+            //console.log(data.length);
+        };
+        request.onerror = function (e) {
+            reject(e['error']);
+        };
+        request.send();
+    });
+}
 var hle;
 (function (hle) {
     (function (_vfs) {
@@ -11699,6 +11810,9 @@ var hle;
             };
             VfsEntry.prototype.close = function () {
             };
+            VfsEntry.prototype.stat = function () {
+                throw (new Error("Must override stat"));
+            };
             return VfsEntry;
         })();
         _vfs.VfsEntry = VfsEntry;
@@ -11724,11 +11838,31 @@ var hle;
         })(_vfs.FileMode || (_vfs.FileMode = {}));
         var FileMode = _vfs.FileMode;
 
+        var VfsStat = (function () {
+            function VfsStat() {
+                this.size = 0;
+                this.isDirectory = false;
+                this.timeCreation = new Date();
+                this.timeLastAccess = new Date();
+                this.timeLastModification = new Date();
+            }
+            return VfsStat;
+        })();
+        _vfs.VfsStat = VfsStat;
+
         var Vfs = (function () {
             function Vfs() {
             }
             Vfs.prototype.openAsync = function (path, flags, mode) {
+                console.error(this);
                 throw (new Error("Must override open"));
+                return null;
+            };
+
+            Vfs.prototype.getStatAsync = function (path) {
+                console.error(this);
+                throw (new Error("Must override getStatAsync"));
+                return null;
             };
             return Vfs;
         })();
@@ -11759,6 +11893,16 @@ var hle;
             };
             IsoVfsFile.prototype.close = function () {
             };
+
+            IsoVfsFile.prototype.stat = function () {
+                return {
+                    size: this.node.size,
+                    isDirectory: this.node.isDirectory,
+                    timeCreation: this.node.date,
+                    timeLastAccess: this.node.date,
+                    timeLastModification: this.node.date
+                };
+            };
             return IsoVfsFile;
         })(VfsEntry);
 
@@ -11770,6 +11914,10 @@ var hle;
             }
             IsoVfs.prototype.openAsync = function (path, flags, mode) {
                 return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
+            };
+
+            IsoVfs.prototype.getStatAsync = function (path) {
+                return Promise.resolve(new IsoVfsFile(this.iso.get(path)).stat());
             };
             return IsoVfs;
         })(Vfs);
@@ -11823,6 +11971,19 @@ var hle;
                     throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
                 return Promise.resolve(new MemoryVfsEntry(file));
             };
+
+            MemoryVfs.prototype.getStatAsync = function (path) {
+                var file = this.files[path];
+                if (!file)
+                    throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
+                return Promise.resolve({
+                    size: file.byteLength,
+                    isDirectory: false,
+                    timeCreation: new Date(),
+                    timeLastAccess: new Date(),
+                    timeLastModification: new Date()
+                });
+            };
             return MemoryVfs;
         })(Vfs);
         _vfs.MemoryVfs = MemoryVfs;
@@ -11834,8 +11995,24 @@ var hle;
                 this.baseUri = baseUri;
             }
             UriVfs.prototype.openAsync = function (path, flags, mode) {
+                if (flags & 2 /* Write */) {
+                    return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
+                }
+
                 return downloadFileAsync(this.baseUri + '/' + path).then(function (data) {
                     return new MemoryVfsEntry(data);
+                });
+            };
+
+            UriVfs.prototype.getStatAsync = function (path) {
+                return statFileAsync(this.baseUri + '/' + path).then(function () {
+                    return {
+                        size: 0,
+                        isDirectory: false,
+                        timeCreation: new Date(),
+                        timeLastAccess: new Date(),
+                        timeLastModification: new Date()
+                    };
                 });
             };
             return UriVfs;
@@ -11858,18 +12035,18 @@ var hle;
                 this.mounts = [];
             }
             MountableVfs.prototype.mountVfs = function (path, vfs) {
-                this.mounts.push(new MountableEntry(this.normalizePath(path), vfs, null));
+                this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null));
             };
 
             MountableVfs.prototype.mountFileData = function (path, data) {
-                this.mounts.push(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
+                this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
             };
 
             MountableVfs.prototype.normalizePath = function (path) {
                 return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
             };
 
-            MountableVfs.prototype.openAsync = function (path, flags, mode) {
+            MountableVfs.prototype.transformPath = function (path) {
                 path = this.normalizePath(path);
 
                 for (var n = 0; n < this.mounts.length; n++) {
@@ -11878,14 +12055,31 @@ var hle;
                     //console.log(mount.path + ' -- ' + path);
                     if (path.startsWith(mount.path)) {
                         var part = path.substr(mount.path.length);
-                        if (mount.file) {
-                            return Promise.resolve(mount.file);
-                        } else {
-                            return mount.vfs.openAsync(part, flags, mode);
-                        }
+                        return { mount: mount, part: part };
                     }
                 }
-                throw (new Error("Can't find file '" + path + "'"));
+                console.info(this.mounts);
+                throw (new Error("MountableVfs: Can't find file '" + path + "'"));
+            };
+
+            MountableVfs.prototype.openAsync = function (path, flags, mode) {
+                var info = this.transformPath(path);
+
+                if (info.mount.file) {
+                    return Promise.resolve(info.mount.file);
+                } else {
+                    return info.mount.vfs.openAsync(info.part, flags, mode);
+                }
+            };
+
+            MountableVfs.prototype.getStatAsync = function (path) {
+                var info = this.transformPath(path);
+
+                if (info.mount.file) {
+                    return Promise.resolve(info.mount.file.stat());
+                } else {
+                    return info.mount.vfs.getStatAsync(info.part);
+                }
             };
             return MountableVfs;
         })(Vfs);

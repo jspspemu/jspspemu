@@ -18,5 +18,15 @@
 			this.busFreq = busFrequency;
 			return 0;
 		});
+
+		scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, (busFrequency: number) => {
+			this.busFreq = busFrequency;
+			return 0;
+		});
+
+		scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, (cpuFrequency: number) => {
+			this.cpuFreq = cpuFrequency;
+			return 0;
+		});
     }
 }
