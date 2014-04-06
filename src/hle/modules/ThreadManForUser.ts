@@ -47,6 +47,12 @@
             return Promise.resolve(0);
 		});
 
+		sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'HleThread/int/int', this, (currentThread: Thread, threadId: number, priority: number) => {
+			var thread = this.threadUids.get(threadId);
+			thread.priority = priority;
+			return Promise.resolve(0);
+		});
+
 		sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, (threadId: number) => {
 			var newThread = this.threadUids.get(threadId);
 			this.threadUids.remove(threadId);

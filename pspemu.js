@@ -4541,9 +4541,9 @@ var hle;
 
                 var current = window.performance.now();
                 if (current - start >= 100) {
-                    setImmediate(function () {
+                    setTimeout(function () {
                         return _this.eventOcurred();
-                    });
+                    }, 10);
                     return;
                 }
             }
@@ -9425,11 +9425,12 @@ var hle;
                 this.sceIoOpen = modules.createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
                     console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
 
-                    return _this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
-                        return _this.fileUids.allocate(file);
-                    }).catch(function (e) {
-                        return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
-                    });
+                    return _this._sceIoOpen(filename, flags, mode);
+                });
+                this.sceIoOpenAsync = modules.createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
+                    console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
+
+                    return _this._sceIoOpen(filename, flags, mode);
                 });
                 this.sceIoClose = modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
                     var file = _this.fileUids.get(fileId);
@@ -9502,6 +9503,15 @@ var hle;
                     return result;
                 });
             }
+            IoFileMgrForUser.prototype._sceIoOpen = function (filename, flags, mode) {
+                var _this = this;
+                return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
+                    return _this.fileUids.allocate(file);
+                }).catch(function (e) {
+                    return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                });
+            };
+
             IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
                 var file = this.fileUids.get(fileId);
                 switch (whence) {
@@ -10569,16 +10579,24 @@ var hle;
                 this.context = context;
                 this.blockUids = new UidCollection(1);
                 this.sceKernelAllocPartitionMemory = modules.createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
-                    var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
-                    var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
-                    console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
-                    return _this.blockUids.allocate(allocatedPartition);
+                    try  {
+                        var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
+                        var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
+                        console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
+                        return _this.blockUids.allocate(allocatedPartition);
+                    } catch (e) {
+                        console.error(e);
+                        return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
+                    }
                 });
                 this.sceKernelFreePartitionMemory = modules.createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (blockId) {
                     var partition = _this.blockUids.get(blockId);
                     partition.deallocate();
                     _this.blockUids.remove(blockId);
                     return 0;
+                });
+                this.sceKernelTotalFreeMemSize = modules.createNativeFunction(0xF919F628, 150, 'int', '', this, function () {
+                    return _this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
                 });
                 this.sceKernelGetBlockHeadAddr = modules.createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, function (blockId) {
                     var block = _this.blockUids.get(blockId);
@@ -10654,6 +10672,11 @@ var hle;
                     console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
 
                     newThread.start();
+                    return Promise.resolve(0);
+                });
+                this.sceKernelChangeThreadPriority = modules.createNativeFunction(0x71BC9871, 150, 'uint', 'HleThread/int/int', this, function (currentThread, threadId, priority) {
+                    var thread = _this.threadUids.get(threadId);
+                    thread.priority = priority;
                     return Promise.resolve(0);
                 });
                 this.sceKernelDeleteThread = modules.createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {

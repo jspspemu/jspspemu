@@ -55,10 +55,20 @@
 		sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
 			console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
 
+			return this._sceIoOpen(filename, flags, mode);
+		});
+
+		private _sceIoOpen(filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
 			return this.context.fileManager.openAsync(filename, flags, mode)
 				.then(file => this.fileUids.allocate(file))
 				.catch(e => SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND)
 				;
+		}
+
+		sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
+			console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
+
+			return this._sceIoOpen(filename, flags, mode);
 		});
 
 		sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {

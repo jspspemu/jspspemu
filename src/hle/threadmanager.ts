@@ -144,7 +144,7 @@
 
                 var current = window.performance.now();
 				if (current - start >= 100) {
-					setImmediate(() => this.eventOcurred());
+					setTimeout(() => this.eventOcurred(), 10);
                     return;
                 }
             }

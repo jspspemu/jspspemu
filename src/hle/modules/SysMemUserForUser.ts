@@ -5,10 +5,15 @@
 		private blockUids = new UidCollection<MemoryPartition>(1);
 
 		sceKernelAllocPartitionMemory = createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, (partitionId: number, name: string, anchor: hle.MemoryAnchor, size: number, address: number) => {
-			var parentPartition = this.context.memoryManager.memoryPartitionsUid[partitionId];
-			var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
-			console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
-			return this.blockUids.allocate(allocatedPartition);
+			try {
+				var parentPartition = this.context.memoryManager.memoryPartitionsUid[partitionId];
+				var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
+				console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
+				return this.blockUids.allocate(allocatedPartition);
+			} catch (e) {
+				console.error(e);
+				return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
+			}
 		});
 
 		sceKernelFreePartitionMemory = createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, (blockId: number) => {
@@ -16,6 +21,10 @@
 			partition.deallocate();
 			this.blockUids.remove(blockId);
 			return 0;
+		});
+
+		sceKernelTotalFreeMemSize = createNativeFunction(0xF919F628, 150, 'int', '', this, () => {
+			return this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
 		});
 
 		sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, (blockId: number) => {
