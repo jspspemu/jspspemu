@@ -232,6 +232,9 @@ module core.gpu {
 				case GpuOpCodes.TFLUSH: this.drawDriver.textureFlush(this.state); break;
 				case GpuOpCodes.TSYNC: this.drawDriver.textureSync(this.state); break;
 				case GpuOpCodes.TPSM: this.state.texture.pixelFormat = <core.PixelFormat>BitUtils.extract(params24, 0, 4); break;
+				case GpuOpCodes.PSM:
+					this.state.drawPixelFormat = <core.PixelFormat>BitUtils.extract(params24, 0, 4);
+					break;
 
 				case GpuOpCodes.TSIZE0:
 				case GpuOpCodes.TSIZE1:
@@ -385,7 +388,7 @@ module core.gpu {
 							console.error(sprintf('Stop showing gpu errors'));
 						}
 					} else {
-						//console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+						console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
 					}
             }
 

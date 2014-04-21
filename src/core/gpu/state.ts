@@ -302,6 +302,7 @@ module core.gpu {
 		diffuseModelColor = new ColorState();
 		specularModelColor = new ColorState();
 		culling = new CullingState();
+		drawPixelFormat = PixelFormat.RGBA_8888;
 	}
 
 	export enum WrapMode {

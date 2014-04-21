@@ -155,12 +155,11 @@ class ProgramExecutor {
     }
 
 	executeStep() {
-		if (this.state.PC == 0) {
-			console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
-		}
+		if (this.state.PC == 0) console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
 		this.lastPC = this.state.PC;
-        var func = this.instructionCache.getFunction(this.state.PC);
-        func(this.state);
+		var func = this.instructionCache.getFunction(this.state.PC);
+		func(this.state);
+		//this.instructionCache.getFunction(this.state.PC)(this.state);
     }
 
     execute(maxIterations: number = -1) {

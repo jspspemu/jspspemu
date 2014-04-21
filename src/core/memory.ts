@@ -56,20 +56,21 @@ module core {
 			return new Stream(this.getPointerDataView(address, size));
 		}
 
-		writeInt8(address: number, value: number) { this.u8[(address >> 0) & Memory.MASK] = value; }
-		readInt8(address: number) { return this.s8[(address >> 0) & Memory.MASK]; }
-		readUInt8(address: number) { return this.u8[(address >> 0) & Memory.MASK]; }
 
-		writeInt16(address: number, value: number) { this.u16[(address >> 1) & Memory.MASK] = value; }
-		readInt16(address: number) { return this.s16[(address >> 1) & Memory.MASK]; }
-		readUInt16(address: number) { return this.u16[(address >> 1) & Memory.MASK]; }
+		writeInt8(address: number, value: number) { this.u8[(address & Memory.MASK) >> 0] = value; }
+		readInt8(address: number) { return this.s8[(address & Memory.MASK) >> 0]; }
+		readUInt8(address: number) { return this.u8[(address & Memory.MASK) >> 0]; }
 
-		writeInt32(address: number, value: number) { this.u32[(address >> 2) & Memory.MASK] = value; }
-		readInt32(address: number) { return this.s32[(address >> 2) & Memory.MASK]; }
-		readUInt32(address: number) { return this.u32[(address >> 2) & Memory.MASK]; }
+		writeInt16(address: number, value: number) { this.u16[(address & Memory.MASK) >> 1] = value; }
+		readInt16(address: number) { return this.s16[(address & Memory.MASK) >> 1]; }
+		readUInt16(address: number) { return this.u16[(address & Memory.MASK) >> 1]; }
 
-		writeFloat32(address: number, value: number) { this.f32[(address >> 2) & Memory.MASK] = value; }
-		readFloat32(address: number) { return this.f32[(address >> 2) & Memory.MASK]; }
+		writeInt32(address: number, value: number) { this.u32[(address & Memory.MASK) >> 2] = value; }
+		readInt32(address: number) { return this.s32[(address & Memory.MASK) >> 2]; }
+		readUInt32(address: number) { return this.u32[(address & Memory.MASK) >> 2]; }
+
+		writeFloat32(address: number, value: number) { this.f32[(address & Memory.MASK) >> 2] = value; }
+		readFloat32(address: number) { return this.f32[(address & Memory.MASK) >> 2]; }
 
 		writeBytes(address: number, data: ArrayBuffer) {
 			Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);

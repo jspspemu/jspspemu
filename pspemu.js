@@ -315,7 +315,8 @@ var MipsAstBuilder = (function (_super) {
     };
 
     MipsAstBuilder.prototype.fpr_i = function (index) {
-        return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
+        //return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
+        return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
     };
 
     MipsAstBuilder.prototype.fcr31_cc = function () {
@@ -343,8 +344,6 @@ var MipsAstBuilder = (function (_super) {
     MipsAstBuilder.prototype.assignGpr = function (index, expr) {
         if (index == 0)
             return this.stmEmpty();
-
-        //return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
         return this.stm(this.assign(this.gpr(index), expr));
     };
 
@@ -357,7 +356,8 @@ var MipsAstBuilder = (function (_super) {
     };
 
     MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), this.call('MathFloat.reinterpretIntAsFloat', [expr])));
+        //return this.stm(this.assign(this.fpr(index), this.call('MathFloat.reinterpretIntAsFloat', [expr])));
+        return this.stm(this.assign(this.fpr_i(index), expr));
     };
     return MipsAstBuilder;
 })(AstBuilder);
@@ -1523,6 +1523,43 @@ var Signal = (function () {
     return Signal;
 })();
 
+if (!Math.clz32) {
+    Math.clz32 = function (x) {
+        x >>>= 0;
+        if (x == 0)
+            return 32;
+        var result = 0;
+
+        // Binary search.
+        if ((x & 0xFFFF0000) === 0) {
+            x <<= 16;
+            result += 16;
+        }
+        ;
+        if ((x & 0xFF000000) === 0) {
+            x <<= 8;
+            result += 8;
+        }
+        ;
+        if ((x & 0xF0000000) === 0) {
+            x <<= 4;
+            result += 4;
+        }
+        ;
+        if ((x & 0xC0000000) === 0) {
+            x <<= 2;
+            result += 2;
+        }
+        ;
+        if ((x & 0x80000000) === 0) {
+            x <<= 1;
+            result += 1;
+        }
+        ;
+        return result;
+    };
+}
+
 var BitUtils = (function () {
     function BitUtils() {
     }
@@ -1544,16 +1581,11 @@ var BitUtils = (function () {
     };
 
     BitUtils.clo = function (x) {
-        var ret = 0;
-        while ((x & 0x80000000) != 0) {
-            x <<= 1;
-            ret++;
-        }
-        return ret;
+        return Math.clz32(~x);
     };
 
     BitUtils.clz = function (x) {
-        return BitUtils.clo(~x);
+        return Math.clz32(x);
     };
 
     BitUtils.seb = function (x) {
@@ -1808,6 +1840,15 @@ String.prototype.contains = function (value) {
     var string = this;
     return string.indexOf(value) >= 0;
 };
+
+if (!window['setImmediate']) {
+    window['setImmediate'] = function (callback) {
+        return setTimeout(callback, 0);
+    };
+    window['clearImmediate'] = function (timer) {
+        clearTimeout(timer);
+    };
+}
 
 var MathUtils = (function () {
     function MathUtils() {
@@ -2281,40 +2322,40 @@ var core;
         };
 
         Memory.prototype.writeInt8 = function (address, value) {
-            this.u8[(address >> 0) & Memory.MASK] = value;
+            this.u8[(address & Memory.MASK) >> 0] = value;
         };
         Memory.prototype.readInt8 = function (address) {
-            return this.s8[(address >> 0) & Memory.MASK];
+            return this.s8[(address & Memory.MASK) >> 0];
         };
         Memory.prototype.readUInt8 = function (address) {
-            return this.u8[(address >> 0) & Memory.MASK];
+            return this.u8[(address & Memory.MASK) >> 0];
         };
 
         Memory.prototype.writeInt16 = function (address, value) {
-            this.u16[(address >> 1) & Memory.MASK] = value;
+            this.u16[(address & Memory.MASK) >> 1] = value;
         };
         Memory.prototype.readInt16 = function (address) {
-            return this.s16[(address >> 1) & Memory.MASK];
+            return this.s16[(address & Memory.MASK) >> 1];
         };
         Memory.prototype.readUInt16 = function (address) {
-            return this.u16[(address >> 1) & Memory.MASK];
+            return this.u16[(address & Memory.MASK) >> 1];
         };
 
         Memory.prototype.writeInt32 = function (address, value) {
-            this.u32[(address >> 2) & Memory.MASK] = value;
+            this.u32[(address & Memory.MASK) >> 2] = value;
         };
         Memory.prototype.readInt32 = function (address) {
-            return this.s32[(address >> 2) & Memory.MASK];
+            return this.s32[(address & Memory.MASK) >> 2];
         };
         Memory.prototype.readUInt32 = function (address) {
-            return this.u32[(address >> 2) & Memory.MASK];
+            return this.u32[(address & Memory.MASK) >> 2];
         };
 
         Memory.prototype.writeFloat32 = function (address, value) {
-            this.f32[(address >> 2) & Memory.MASK] = value;
+            this.f32[(address & Memory.MASK) >> 2] = value;
         };
         Memory.prototype.readFloat32 = function (address) {
-            return this.f32[(address >> 2) & Memory.MASK];
+            return this.f32[(address & Memory.MASK) >> 2];
         };
 
         Memory.prototype.writeBytes = function (address, data) {
@@ -2948,6 +2989,7 @@ var core;
                 this.diffuseModelColor = new ColorState();
                 this.specularModelColor = new ColorState();
                 this.culling = new CullingState();
+                this.drawPixelFormat = 3 /* RGBA_8888 */;
             }
             return GpuState;
         })();
@@ -3507,6 +3549,9 @@ var core;
                     case 195 /* TPSM */:
                         this.state.texture.pixelFormat = BitUtils.extract(params24, 0, 4);
                         break;
+                    case 210 /* PSM */:
+                        this.state.drawPixelFormat = BitUtils.extract(params24, 0, 4);
+                        break;
 
                     case 184 /* TSIZE0 */:
                     case 185 /* TSIZE1 */:
@@ -3669,7 +3714,7 @@ var core;
                                 console.error(sprintf('Stop showing gpu errors'));
                             }
                         } else {
-                            //console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+                            console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, gpu.GpuOpCodes[op]));
                         }
                 }
 
@@ -3971,12 +4016,12 @@ var ProgramExecutor = (function () {
         this.lastPC = 0;
     }
     ProgramExecutor.prototype.executeStep = function () {
-        if (this.state.PC == 0) {
+        if (this.state.PC == 0)
             console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
-        }
         this.lastPC = this.state.PC;
         var func = this.instructionCache.getFunction(this.state.PC);
         func(this.state);
+        //this.instructionCache.getFunction(this.state.PC)(this.state);
     };
 
     ProgramExecutor.prototype.execute = function (maxIterations) {
@@ -4399,6 +4444,8 @@ var hle;
             this.priority = 10;
             this.exitStatus = 0;
             this.running = false;
+            this.preemptionCount = 0;
+            this.waitingPromise = null;
             this.state.thread = this;
             this.programExecutor = new ProgramExecutor(state, instructionCache);
         }
@@ -4410,10 +4457,13 @@ var hle;
 
         Thread.prototype.suspendUntilPromiseDone = function (promise) {
             var _this = this;
+            this.waitingPromise = promise;
+
             this.suspend();
 
             //console.log(promise);
             promise.then(function (result) {
+                _this.waitingPromise = null;
                 if (result !== undefined)
                     _this.state.V0 = result;
 
@@ -4440,13 +4490,15 @@ var hle;
         };
 
         Thread.prototype.runStep = function () {
+            this.preemptionCount++;
             try  {
                 this.programExecutor.execute(10000);
+                //this.programExecutor.execute(200000);
+                //this.programExecutor.execute(2000000);
             } catch (e) {
                 this.stop();
                 throw (e);
             }
-            //this.programExecutor.execute(200000);
         };
         return Thread;
     })();
@@ -5560,6 +5612,7 @@ var core;
                 ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
                 ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
 
+                // Branch Equal (Likely).
                 ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
                 ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
 
@@ -5596,8 +5649,8 @@ var core;
                 // Branch on C1 False/True (Likely).
                 ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
                 ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-                ID("bc1tl", VM("010001:01000:00011:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+                ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+                ID("bc1tl", VM("010001:01000:00011:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
 
                 ID("lb", VM("100000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
                 ID("lh", VM("100001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
@@ -5873,6 +5926,7 @@ var core;
                 ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
 
                 //ID("vwb.q",       VM("111110------------------------1-"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+                // Branch Vfpu (True/False) (Likely)
                 ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
                 ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
                 ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
@@ -6227,8 +6281,10 @@ var core;
                 this.memory = memory;
                 this.syscallManager = syscallManager;
                 this.gpr = new Int32Array(32);
-                this.fpr = new Float32Array(32);
-                //fpr: Float64Array = new Float64Array(32);
+                this.fpr_Buffer = new ArrayBuffer(32 * 4);
+                this.fpr = new Float32Array(this.fpr_Buffer);
+                this.fpr_i = new Int32Array(this.fpr_Buffer);
+                //fpr: Float32Array = new Float32Array(32);
                 this.BRANCHFLAG = false;
                 this.BRANCHPC = 0;
                 this.PC = 0;
@@ -6456,12 +6512,6 @@ var core;
             };
             CpuState.prototype.swc1 = function (value, address) {
                 this.memory.writeFloat32(address, value);
-            };
-            CpuState.prototype.lwc1 = function (address) {
-                var value = this.memory.readFloat32(address);
-
-                //console.warn('lwc1: ' + value);
-                return this.memory.readFloat32(address);
             };
             CpuState.prototype.lb = function (address) {
                 return this.memory.readInt8(address);
@@ -10711,12 +10761,13 @@ var hle;
                 });
                 this.sceKernelSleepThreadCB = modules.createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, function (currentThread, state) {
                     currentThread.suspend();
-                    return Promise.resolve(0);
+                    return new Promise(function (resolve, reject) {
+                    });
                 });
                 this.sceKernelSleepThread = modules.createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, function (state) {
                     var currentThread = state.thread;
-                    currentThread.suspend();
-                    return Promise.resolve(0);
+                    return new Promise(function (resolve, reject) {
+                    });
                 });
                 this.eventFlagUids = new UidCollection(1);
                 this.sceKernelCreateEventFlag = modules.createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {

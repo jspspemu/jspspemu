@@ -199,8 +199,9 @@ class MipsAstBuilder extends AstBuilder {
     }
 
     fpr_i(index: number): ANodeExprLValueVar {
-        return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
-    }
+        //return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
+		return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
+	}
 
     fcr31_cc() { return new ANodeExprLValueVar('state.fcr31_cc'); }
     lo() { return new ANodeExprLValueVar('state.LO'); }
@@ -212,7 +213,6 @@ class MipsAstBuilder extends AstBuilder {
 
     assignGpr(index: number, expr: ANodeStm) {
         if (index == 0) return this.stmEmpty();
-        //return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
         return this.stm(this.assign(this.gpr(index), expr));
     }
 
@@ -224,7 +224,8 @@ class MipsAstBuilder extends AstBuilder {
         return this.stm(this.assign(this.fpr(index), expr));
     }
 
-    assignFpr_I(index: number, expr: ANodeStm) {
-        return this.stm(this.assign(this.fpr(index), this.call('MathFloat.reinterpretIntAsFloat', [expr])));
+	assignFpr_I(index: number, expr: ANodeStm) {
+		//return this.stm(this.assign(this.fpr(index), this.call('MathFloat.reinterpretIntAsFloat', [expr])));
+		return this.stm(this.assign(this.fpr_i(index), expr));
     }
 }

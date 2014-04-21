@@ -90,13 +90,14 @@
 
 		sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, (currentThread: Thread, state: core.cpu.CpuState) => {
             currentThread.suspend();
-            return Promise.resolve(0);
+			return new Promise((resolve, reject) => {
+			});
         });
 
 		sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, (state: core.cpu.CpuState) => {
             var currentThread = (<Thread>state.thread);
-            currentThread.suspend();
-			return Promise.resolve(0);
+			return new Promise((resolve, reject) => {
+			});
 		});
 
 		private eventFlagUids = new UidCollection<EventFlag>(1);

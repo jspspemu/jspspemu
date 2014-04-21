@@ -610,6 +610,25 @@ class Signal {
     }
 }
 
+interface Math {
+	clz32(value: number): number;
+}
+
+if (!Math.clz32) {
+	Math.clz32 = (x: number) => {
+		x >>>= 0;
+		if (x == 0) return 32;
+		var result = 0;
+		// Binary search.
+		if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; };
+		if ((x & 0xFF000000) === 0) { x <<= 8; result += 8; };
+		if ((x & 0xF0000000) === 0) { x <<= 4; result += 4; };
+		if ((x & 0xC0000000) === 0) { x <<= 2; result += 2; };
+		if ((x & 0x80000000) === 0) { x <<= 1; result += 1; };
+		return result;
+	};
+}
+
 class BitUtils {
     static mask(value: number) {
         return (1 << value) - 1;
@@ -629,13 +648,11 @@ class BitUtils {
 	}
 
     static clo(x: number) {
-        var ret = 0;
-        while ((x & 0x80000000) != 0) { x <<= 1; ret++; }
-        return ret;
+		return Math.clz32(~x);
     }
-
+	
     static clz(x: number) {
-        return BitUtils.clo(~x);
+        return Math.clz32(x);
 	}
 
 	static seb(x: number) {
@@ -894,6 +911,15 @@ String.prototype.contains = function (value: string) {
 };
 
 declare function setImmediate(callback: () => void): number;
+
+if (!window['setImmediate']) {
+	window['setImmediate'] = function (callback: () => void) {
+		return setTimeout(callback, 0);
+	};
+	window['clearImmediate'] = function (timer:number) {
+		clearTimeout(timer);
+	};
+}
 
 class MathUtils {
 	static prevAligned(value: number, alignment: number) {

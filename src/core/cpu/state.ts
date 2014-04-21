@@ -1,8 +1,12 @@
 ﻿module core.cpu {
 	export class CpuState {
 		gpr: Int32Array = new Int32Array(32);
-		fpr: Float32Array = new Float32Array(32);
-		//fpr: Float64Array = new Float64Array(32);
+
+		fpr_Buffer = new ArrayBuffer(32 * 4);
+		fpr: Float32Array = new Float32Array(this.fpr_Buffer);
+		fpr_i: Int32Array = new Int32Array(this.fpr_Buffer);
+		//fpr: Float32Array = new Float32Array(32);
+
 		BRANCHFLAG: boolean = false;
 		BRANCHPC: number = 0;
 
@@ -133,11 +137,6 @@
 		sh(value: number, address: number) { this.memory.writeInt16(address, value); }
 		sw(value: number, address: number) { this.memory.writeInt32(address, value); }
 		swc1(value: number, address: number) { this.memory.writeFloat32(address, value); }
-		lwc1(address: number) {
-			var value = this.memory.readFloat32(address);
-			//console.warn('lwc1: ' + value);
-			return this.memory.readFloat32(address);
-		}
 		lb(address: number) { return this.memory.readInt8(address); }
 		lbu(address: number) { return this.memory.readUInt8(address); }
 		lh(address: number) { return this.memory.readInt16(address); }
