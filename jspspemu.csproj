@@ -40,7 +40,6 @@
     <TypeScriptCompile Include="src\core\audio.ts" />
     <TypeScriptCompile Include="src\core\cpu\cpu_ast.ts" />
     <TypeScriptCompile Include="src\core\cpu\state.ts" />
-    <TypeScriptCompile Include="src\core\gpu\gpu_c2d.ts" />
     <TypeScriptCompile Include="src\core\gpu\gpu_webgl.ts" />
     <TypeScriptCompile Include="src\core\gpu\state.ts" />
     <TypeScriptCompile Include="src\core\interruptmanager.ts" />

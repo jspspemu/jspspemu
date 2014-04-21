@@ -25,7 +25,7 @@
 		hour: number = 0;
 		minute: number = 0;
 		second: number = 0;
-		microsecond: number = 0;
+		microseconds: number = 0;
 
 		static fromDate(date: Date) {
 			var pspdate = new ScePspDateTime();
@@ -35,16 +35,18 @@
 			pspdate.hour = date.getHours();
 			pspdate.minute = date.getMinutes();
 			pspdate.second = date.getSeconds();
-			pspdate.microsecond = date.getMilliseconds() * 1000;
+			pspdate.microseconds = date.getMilliseconds() * 1000;
 			return pspdate;
 		}
 
 		static fromTicks(ticks: Integer64) {
-			return new ScePspDateTime();
+			return ScePspDateTime.fromDate(new Date(ticks.number));
 		}
 
 		getTotalMicroseconds() {
-			return Integer64.fromNumber(0);
+			return Integer64.fromNumber(
+				(Date.UTC(this.year + 1970, this.month - 1, this.day, this.hour, this.minute, this.second, this.microseconds / 1000) * 1000)// + 62135596800000000
+			);
 		}
 
 		static struct = StructClass.create<ScePspDateTime>(ScePspDateTime, [

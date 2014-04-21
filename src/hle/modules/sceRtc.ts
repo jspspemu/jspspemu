@@ -26,9 +26,13 @@
 		});
 
 		sceRtcGetTick = createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, (datePtr: Stream, ticksPtr: Stream) => {
-			var date = ScePspDateTime.struct.read(datePtr);
-			ticksPtr.writeUInt64(date.getTotalMicroseconds());
-			return 0;
+			try {
+				var date = ScePspDateTime.struct.read(datePtr);
+				ticksPtr.writeUInt64(date.getTotalMicroseconds());
+				return 0;
+			} catch (e) {
+				return SceKernelErrors.ERROR_INVALID_VALUE;
+			}
 		});
     }
 }

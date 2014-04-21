@@ -173,3 +173,4 @@ node_modules
 /samples/Doom
 /samples/UraKaitenPatissierPSP
 /samples/abuse
+/samples/after_allocate_and_write_dump.bin
