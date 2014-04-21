@@ -1,4 +1,4 @@
-﻿// Code from: http://docs.closure-library.googlecode.com/git/closure_goog_math_long.js.source.html
+﻿// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
 class Integer64 {
 	private _low: number;
 	private _high: number;
@@ -6,6 +6,9 @@ class Integer64 {
 	static ZERO = Integer64.fromInt(0);
 	static ONE = Integer64.fromInt(1);
 	static MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+	static MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+	private static _TWO_PWR_32_DBL = Math.pow(2, 32);
+	private static _TWO_PWR_63_DBL = Math.pow(2, 63);
 
 	constructor(low: number, high: number) {
 		this._low = low | 0;
@@ -24,8 +27,27 @@ class Integer64 {
 		return new Integer64(low, high);
 	}
 
+	static fromNumber(value: number): Integer64 {
+		if (isNaN(value) || !isFinite(value)) {
+			return Integer64.ZERO;
+		} else if (value <= -Integer64._TWO_PWR_63_DBL) {
+			return Integer64.MIN_VALUE;
+		} else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
+			return Integer64.MAX_VALUE;
+		} else if (value < 0) {
+			return Integer64.fromNumber(-value).negate();
+		} else {
+			return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
+		}
+	}
+
 	get low() { return this._low; }
+	get lowUnsigned() { return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low); }
 	get high() { return this._high; }
+
+	get number() {
+		return this._high * Integer64._TWO_PWR_32_DBL+ this.lowUnsigned;
+	}
 
 	equals(other: Integer64) {
 		return (this._high == other._high) && (this._low == other._low);

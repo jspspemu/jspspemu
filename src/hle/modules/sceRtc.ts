@@ -9,7 +9,7 @@
         });
 
 		sceRtcGetDayOfWeek = createNativeFunction(0x57726BC1, 150, 'int', 'int/int/int', this, (year: number, month: number, day: number) => {
-			return new Date(year, month, day).getDay();
+			return new Date(year, month - 1, day).getDay();
 		});
 
 
@@ -19,12 +19,16 @@
 
 		sceRtcGetTickResolution = createNativeFunction(0xC41C2853, 150, 'uint', '', this, (tickPtr: Stream) => 1000000);
 
-		sceRtcSetTick = createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, (date:Stream, ticks:Stream) => {
-			throw (new TypeError("Not implemented sceRtcSetTick"));
+		sceRtcSetTick = createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, (datePtr: Stream, ticksPtr: Stream) => {
+			var ticks = ticksPtr.readInt64();
+			datePtr.writeStruct(ScePspDateTime.struct, ScePspDateTime.fromTicks(ticks));
+			return 0;
 		});
 
-		sceRtcGetTick = createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, (date: Stream, ticks: Stream) => {
-			throw (new TypeError("Not implemented sceRtcGetTick"));
+		sceRtcGetTick = createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, (datePtr: Stream, ticksPtr: Stream) => {
+			var date = ScePspDateTime.struct.read(datePtr);
+			ticksPtr.writeUInt64(date.getTotalMicroseconds());
+			return 0;
 		});
     }
 }

@@ -13,7 +13,7 @@
 			argindex = MathUtils.nextAligned(argindex, 2);
 			var gprLow = readGpr32();
 			var gprHigh = readGpr32();
-			return sprintf('(Integer64.fromBits(%s, %s).low >>> 0)', gprLow, gprHigh);
+			return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
 		}
 
         arguments.split('/').forEach(item => {
@@ -33,14 +33,15 @@
 
         code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
 
-        code += 'if (typeof result == "object") { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+		code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+		code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
 
         switch (retval) {
             case 'void': break;
-            //case 'Promise': code += 'state.thread.suspendUntilPromiseDone(result);'; break; break;
             case 'uint': case 'int': code += 'state.V0 = result | 0;'; break;
-            case 'long':
-                code += 'state.V0 = (result >>> 0) & 0xFFFFFFFF; state.V1 = (result >>> 32) & 0xFFFFFFFF;'; break;
+			case 'long':
+				code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
+                code += 'state.V0 = result.low; state.V1 = result.high;'; break;
                 break;
             default: throw ('Invalid return value "' + retval + '"');
         }

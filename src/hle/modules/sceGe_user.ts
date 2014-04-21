@@ -32,6 +32,11 @@
 		sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: core.gpu.SyncType) => {
             //console.warn('Not implemented sceGe_user.sceGeDrawSync');
             return this.context.gpu.drawSync(syncType);
-        });
+		});
+
+		sceGeEdramGetSize = createNativeFunction(0x1F6752AD, 150, 'uint', '', this, () => {
+			//console.warn('Not implemented sceGe_user.sceGeEdramGetSize');
+			return 0x00200000; // 2MB
+		});
     }
 }

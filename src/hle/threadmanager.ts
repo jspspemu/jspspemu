@@ -9,6 +9,9 @@
         running: boolean = false;
 		stackPartition: hle.MemoryPartition;
 		preemptionCount: number = 0;
+		info: WaitingThreadInfo<any> = null;
+		waitingName: string = null;
+		waitingObject: string = null;
 		waitingPromise: Promise<any> = null;
 
         constructor(public manager: ThreadManager, public state: core.cpu.CpuState, private instructionCache: InstructionCache) {
@@ -20,7 +23,14 @@
 			//console.log('suspended ' + this.name);
             this.running = false;
             this.manager.eventOcurred();
-        }
+		}
+
+		suspendUntileDone(info: WaitingThreadInfo<any>) {
+			this.info = info;
+			this.waitingName = info.name;
+			this.waitingObject = info.object;
+			this.suspendUntilPromiseDone(info.promise);
+		}
 
 		suspendUntilPromiseDone(promise: Promise<any>) {
 			this.waitingPromise = promise;
@@ -31,9 +41,11 @@
 
 			promise.then((result: number) => {
 				this.waitingPromise = null;
+				this.waitingName = null;
+				this.waitingObject = null;
 				if (result !== undefined) this.state.V0 = result;
 				
-				//console.log('resumed ' + this.name);
+				//console.error('resumed ' + this.name);
                 this.resume();
             });
         }
@@ -57,6 +69,7 @@
 
 		runStep() {
 			this.preemptionCount++;
+			//console.error("Running: " + this.name);
 			try {
 				this.programExecutor.execute(10000);
 				//this.programExecutor.execute(200000);

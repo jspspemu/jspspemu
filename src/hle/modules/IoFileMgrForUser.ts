@@ -132,10 +132,10 @@
 			return 0;
 		});
 
-		sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: number, whence: number) => {
-			var result = this._seek(fileId, offset, whence);
+		sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
+			var result = this._seek(fileId, offset.number, whence);
 			//console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
-			return result;
+			return Integer64.fromNumber(result);
 		});
 
 		sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, (fileId: number, offset: number, whence: number) => {
@@ -159,77 +159,5 @@
 			}
 			return file.cursor;
 		}
-	}
-
-	enum SeekAnchor {
-		Set = 0,
-		Cursor = 1,
-		End = 2,
-	}
-
-	enum SceMode {
-	}
-
-	enum IOFileModes {
-		FormatMask = 0x0038,
-		SymbolicLink = 0x0008,
-		Directory = 0x0010,
-		File = 0x0020,
-		CanRead = 0x0004,
-		CanWrite = 0x0002,
-		CanExecute = 0x0001,
-	}
-
-	class ScePspDateTime {
-		year: number = 0;
-		month: number = 0;
-		day: number = 0;
-		hour: number = 0;
-		minute: number = 0;
-		second: number = 0;
-		microsecond: number = 0;
-
-		static fromDate(date: Date) {
-			var pspdate = new ScePspDateTime();
-			pspdate.year = date.getFullYear();
-			pspdate.month = date.getMonth();
-			pspdate.day = date.getDay();
-			pspdate.hour = date.getHours();
-			pspdate.minute = date.getMinutes();
-			pspdate.second = date.getSeconds();
-			pspdate.microsecond = date.getMilliseconds() * 1000;
-			return pspdate;
-		}
-
-		static struct = StructClass.create<ScePspDateTime>(ScePspDateTime, [
-			{ year: Int16 },
-			{ month: Int16 },
-			{ day: Int16 },
-			{ hour: Int16 },
-			{ minute: Int16 },
-			{ second: Int16 },
-			{ microsecond: Int32 },
-		]);
-	}
-
-	class SceIoStat
-	{
-		mode: SceMode = 0;
-		attributes: IOFileModes = 0;
-		size: number = 0;
-		timeCreation: ScePspDateTime = new ScePspDateTime();
-		timeLastAccess: ScePspDateTime = new ScePspDateTime();
-		timeLastModification: ScePspDateTime = new ScePspDateTime();
-		deviceDependentData: number[] = [0, 0, 0, 0, 0, 0];
-
-		static struct = StructClass.create<SceIoStat>(SceIoStat, <StructEntry[]>[
-			{ mode: Int32 },
-			{ attributes: Int32 },
-			{ size: Int64 },
-			{ timeCreation: ScePspDateTime.struct },
-			{ timeLastAccess: ScePspDateTime.struct },
-			{ timeLastModification: ScePspDateTime.struct },
-			{ deviceDependentData: StructArray(Int32, 6) },
-		]);
 	}
 }

@@ -89,15 +89,15 @@
         });
 
 		sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, (currentThread: Thread, state: core.cpu.CpuState) => {
-            currentThread.suspend();
-			return new Promise((resolve, reject) => {
-			});
+			currentThread.suspend();
+			return new WaitingThreadInfo('sceKernelSleepThreadCB', null, new Promise((resolve, reject) => {
+			}));
         });
 
 		sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, (state: core.cpu.CpuState) => {
             var currentThread = (<Thread>state.thread);
-			return new Promise((resolve, reject) => {
-			});
+			return new WaitingThreadInfo('sceKernelSleepThread', null, new Promise((resolve, reject) => {
+			}));
 		});
 
 		private eventFlagUids = new UidCollection<EventFlag>(1);
@@ -129,10 +129,10 @@
 			if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
 			var timedOut = false;
 			var previousPattern = eventFlag.currentPattern;
-			return eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(() => {
+			return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(() => {
 				if (outBits != null) outBits.writeUInt32(previousPattern);
 				return 0;
-			});
+			}));
 		}
 
 		sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
@@ -194,14 +194,19 @@
 			return 0;
 		});
 
+		_getCurrentMicroseconds() {
+			return new Date().getTime() * 1000;
+			//return window.performance.now() * 1000;
+		}
+
         sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, () => {
-            //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
-            return new Date().getTime() * 1000;
+			//console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
+			return this._getCurrentMicroseconds();
         });
 
         sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, () => {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
-            return new Date().getTime() * 1000;
+			return Integer64.fromNumber(this._getCurrentMicroseconds());
         });
 
         sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'HleThread', this, (currentThread: Thread) => currentThread.id);
@@ -222,8 +227,11 @@
 		private semaporesUid = new UidCollection<Semaphore>(1);
 
 		sceKernelCreateSema = createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, (name: string, attribute: SemaphoreAttribute, initialCount: number, maxCount: number, options: Stream) => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d)', name, attribute, initialCount, maxCount));
-			return this.semaporesUid.allocate(new Semaphore(name, attribute, initialCount, maxCount));
+			var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
+			var id = this.semaporesUid.allocate(semaphore);
+			semaphore.id = id;
+			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
+			return id;
 		});
 
 		sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, (id: number) => {
@@ -242,16 +250,24 @@
 			return 0;
 		});
 
-		sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream):any => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSemaCB(%d, %d)', id, signal));
+		private _sceKernelWaitSemaCB(currentThread: hle.Thread, id: number, signal: number, timeout: Stream): any {
+			//console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
 			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
-			return this.semaporesUid.get(id).waitAsync(signal);
+			var semaphore = this.semaporesUid.get(id);
+			var promise = semaphore.waitAsync(currentThread, signal);
+			if (promise) {
+				return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise);
+			} else {
+				return 0;
+			}
+		}
+
+		sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'HleThread/int/int/void*', this, (currentThread: hle.Thread, id: number, signal: number, timeout: Stream): any => {
+			return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
 		});
 
-		sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, (id: number, signal: number, timeout: Stream): any => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSema(%d, %d)', id, signal));
-			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
-			return this.semaporesUid.get(id).waitAsync(signal);
+		sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'HleThread/int/int/void*', this, (currentThread: hle.Thread, id: number, signal: number, timeout: Stream): any => {
+			return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
 		});
 
 		sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, (id: number, infoStream: Stream) => {
@@ -269,13 +285,19 @@
 			return 0;
 		});
 
-		sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, (id: number, signal: number) => {
-			console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d)', id, signal));
+		sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'HleThread/int/int', this, (currentThread:hle.Thread, id: number, signal: number):any => {
+			//console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
 			if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 			var semaphore = this.semaporesUid.get(id);
+			var previousCount = semaphore.currentCount;
 			if (semaphore.currentCount + signal > semaphore.maximumCount) return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
-			semaphore.incrementCount(signal);
-			return 0;
+			var awakeCount = semaphore.incrementCount(signal);
+			//console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
+			if (awakeCount > 0) {
+				return Promise.resolve(0);
+			} else {
+				return 0;
+			}
 		});
 	}
 
@@ -285,6 +307,7 @@
 	}
 
 	class Semaphore {
+		id: number;
 		currentCount: number;
 		waitingSemaphoreThreadList = new SortedSet<WaitingSemaphoreThread>();
 
@@ -296,7 +319,7 @@
 
 		incrementCount(count: number) {
 			this.currentCount = Math.min(this.currentCount + count, this.maximumCount);
-			this.updatedCount();
+			return this.updatedCount();
 		}
 
 		cancel() {
@@ -306,24 +329,34 @@
 		}
 
 		private updatedCount() {
+			var awakeCount = 0;
 			this.waitingSemaphoreThreadList.forEach(item => {
 				if (this.currentCount >= item.expectedCount) {
+					//console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
 					this.currentCount -= item.expectedCount;
 					item.wakeUp();
+					awakeCount++;
 				}
 			});
+			return awakeCount;
 		}
 
-		waitAsync(expectedCount: number) {
-			var promise = new Promise((resolve, reject) => {
-				var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, () => {
-					this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
-					resolve();
+		waitAsync(thread: hle.Thread, expectedCount: number) {
+			if (this.currentCount >= expectedCount) {
+				this.currentCount -= expectedCount;
+				return null;
+			} else {
+				var promise = new Promise((resolve, reject) => {
+					var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, () => {
+						//console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
+						this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
+						resolve();
+					});
+					this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
 				});
-				this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
-			});
-			this.updatedCount();
-			return promise;
+				this.updatedCount();
+				return promise;
+			}
 		}
 
 		delete() {
@@ -352,6 +385,7 @@
 				var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 					this.waitingThreads.delete(waitingSemaphoreThread);
 					resolve();
+					throw(new CpuBreakException());
 				});
 				this.waitingThreads.add(waitingSemaphoreThread);
 			}).then(() => 0);

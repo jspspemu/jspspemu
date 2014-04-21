@@ -108,8 +108,13 @@
 				this.files[path] = new ArrayBuffer(0);
 			}
 			var file = this.files[path];
-			if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
-			return Promise.resolve(new MemoryVfsEntry(file));
+			if (!file) {
+				var error = new Error(sprintf("MemoryVfs: Can't find '%s'", path));
+				console.error(error);
+				return Promise.reject(error);
+			} else {
+				return Promise.resolve(new MemoryVfsEntry(file));
+			}
 		}
 
 		getStatAsync(path: string): Promise<VfsStat> {

@@ -168,14 +168,21 @@ class Stream {
     readInt8(endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.getInt8(this.offset)); }
     readInt16(endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.getInt16(this.offset, (endian == Endian.LITTLE))); }
     readInt32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getInt32(this.offset, (endian == Endian.LITTLE))); }
-    //readInt64() { return this.skip(8, this.data.getInt32(this.offset + 0, true) * Math.pow(2, 32) + this.data.getInt32(this.offset + 4, true) * Math.pow(2, 0)); }
-
+	readInt64(endian: Endian = Endian.LITTLE) {
+		var items = [this.readUInt32(endian), this.readUInt32(endian)];
+		var low = items[(endian == Endian.LITTLE) ? 0 : 1];
+		var high = items[(endian == Endian.LITTLE) ? 1 : 0];
+		return Integer64.fromBits(low, high);
+	}
     readFloat32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getFloat32(this.offset, (endian == Endian.LITTLE))); }
 
     readUInt8(endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.getUint8(this.offset)); }
     readUInt16(endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.getUint16(this.offset, (endian == Endian.LITTLE))); }
-    readUInt32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getUint32(this.offset, (endian == Endian.LITTLE))); }
-    readUInt64(endian: Endian = Endian.LITTLE) { return this.skip(8, this.data.getUint32(this.offset, (endian == Endian.LITTLE))); }
+	readUInt32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getUint32(this.offset, (endian == Endian.LITTLE))); }
+
+	readStruct<T>(struct: IType) {
+		return <any>struct.read(this);
+	}
 
     writeInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setInt8(this.offset, value)); }
     writeInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setInt16(this.offset, value, (endian == Endian.LITTLE))); }
@@ -183,7 +190,15 @@ class Stream {
 
     writeUInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setUint8(this.offset, value)); }
     writeUInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setUint16(this.offset, value, (endian == Endian.LITTLE))); }
-    writeUInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setUint32(this.offset, value, (endian == Endian.LITTLE))); }
+	writeUInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setUint32(this.offset, value, (endian == Endian.LITTLE))); }
+	writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) {
+		this.writeUInt32((endian == Endian.LITTLE) ? value.low : value.high, endian);
+		this.writeUInt32((endian == Endian.LITTLE) ? value.high : value.low, endian);
+	}
+
+	writeStruct<T>(struct: IType, value: T) {
+		struct.write(this, value);
+	}
 
     readBytes(count: number) {
         return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
@@ -1094,4 +1109,9 @@ function setToString(Enum: any, value: number) {
 		}
 	}
 	return items.join(' | ');
+}
+
+class WaitingThreadInfo<T> {
+	public constructor(public name: string, public object: any, public promise: Promise<T>) {
+	}
 }

@@ -893,8 +893,13 @@ var Stream = (function () {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(4, this.data.getInt32(this.offset, (endian == 0 /* LITTLE */)));
     };
-
-    //readInt64() { return this.skip(8, this.data.getInt32(this.offset + 0, true) * Math.pow(2, 32) + this.data.getInt32(this.offset + 4, true) * Math.pow(2, 0)); }
+    Stream.prototype.readInt64 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        var items = [this.readUInt32(endian), this.readUInt32(endian)];
+        var low = items[(endian == 0 /* LITTLE */) ? 0 : 1];
+        var high = items[(endian == 0 /* LITTLE */) ? 1 : 0];
+        return Integer64.fromBits(low, high);
+    };
     Stream.prototype.readFloat32 = function (endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(4, this.data.getFloat32(this.offset, (endian == 0 /* LITTLE */)));
@@ -912,9 +917,9 @@ var Stream = (function () {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(4, this.data.getUint32(this.offset, (endian == 0 /* LITTLE */)));
     };
-    Stream.prototype.readUInt64 = function (endian) {
-        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(8, this.data.getUint32(this.offset, (endian == 0 /* LITTLE */)));
+
+    Stream.prototype.readStruct = function (struct) {
+        return struct.read(this);
     };
 
     Stream.prototype.writeInt8 = function (value, endian) {
@@ -941,6 +946,15 @@ var Stream = (function () {
     Stream.prototype.writeUInt32 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(4, this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeUInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        this.writeUInt32((endian == 0 /* LITTLE */) ? value.low : value.high, endian);
+        this.writeUInt32((endian == 0 /* LITTLE */) ? value.high : value.low, endian);
+    };
+
+    Stream.prototype.writeStruct = function (struct, value) {
+        struct.write(this, value);
     };
 
     Stream.prototype.readBytes = function (count) {
@@ -1968,6 +1982,15 @@ function setToString(Enum, value) {
     }
     return items.join(' | ');
 }
+
+var WaitingThreadInfo = (function () {
+    function WaitingThreadInfo(name, object, promise) {
+        this.name = name;
+        this.object = object;
+        this.promise = promise;
+    }
+    return WaitingThreadInfo;
+})();
 ///<reference path="../util/utils.ts" />
 var core;
 (function (core) {
@@ -4445,6 +4468,9 @@ var hle;
             this.exitStatus = 0;
             this.running = false;
             this.preemptionCount = 0;
+            this.info = null;
+            this.waitingName = null;
+            this.waitingObject = null;
             this.waitingPromise = null;
             this.state.thread = this;
             this.programExecutor = new ProgramExecutor(state, instructionCache);
@@ -4453,6 +4479,13 @@ var hle;
             //console.log('suspended ' + this.name);
             this.running = false;
             this.manager.eventOcurred();
+        };
+
+        Thread.prototype.suspendUntileDone = function (info) {
+            this.info = info;
+            this.waitingName = info.name;
+            this.waitingObject = info.object;
+            this.suspendUntilPromiseDone(info.promise);
         };
 
         Thread.prototype.suspendUntilPromiseDone = function (promise) {
@@ -4464,10 +4497,12 @@ var hle;
             //console.log(promise);
             promise.then(function (result) {
                 _this.waitingPromise = null;
+                _this.waitingName = null;
+                _this.waitingObject = null;
                 if (result !== undefined)
                     _this.state.V0 = result;
 
-                //console.log('resumed ' + this.name);
+                //console.error('resumed ' + this.name);
                 _this.resume();
             });
         };
@@ -4491,6 +4526,7 @@ var hle;
 
         Thread.prototype.runStep = function () {
             this.preemptionCount++;
+
             try  {
                 this.programExecutor.execute(10000);
                 //this.programExecutor.execute(200000);
@@ -9511,14 +9547,14 @@ var hle;
                     });
                 });
                 this.sceIoGetstat = modules.createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
-                    SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
+                    hle.SceIoStat.struct.write(sceIoStatPointer, new hle.SceIoStat());
                     return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
-                        var stat2 = new SceIoStat();
+                        var stat2 = new hle.SceIoStat();
                         stat2.mode = parseInt('777', 8);
                         stat2.size = stat.size;
-                        stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
-                        stat2.timeLastAccess = ScePspDateTime.fromDate(stat.timeLastAccess);
-                        stat2.timeLastModification = ScePspDateTime.fromDate(stat.timeLastModification);
+                        stat2.timeCreation = hle.ScePspDateTime.fromDate(stat.timeCreation);
+                        stat2.timeLastAccess = hle.ScePspDateTime.fromDate(stat.timeLastAccess);
+                        stat2.timeLastModification = hle.ScePspDateTime.fromDate(stat.timeLastModification);
                         stat2.attributes = 0;
                         stat2.attributes |= 1 /* CanExecute */;
                         stat2.attributes |= 4 /* CanRead */;
@@ -9529,7 +9565,7 @@ var hle;
                             stat2.attributes |= 32 /* File */;
                         }
                         console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-                        SceIoStat.struct.write(sceIoStatPointer, stat2);
+                        hle.SceIoStat.struct.write(sceIoStatPointer, stat2);
                         return 0;
                     }).catch(function (error) {
                         return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
@@ -9541,10 +9577,10 @@ var hle;
                     return 0;
                 });
                 this.sceIoLseek = modules.createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
-                    var result = _this._seek(fileId, offset, whence);
+                    var result = _this._seek(fileId, offset.number, whence);
 
                     //console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
-                    return result;
+                    return Integer64.fromNumber(result);
                 });
                 this.sceIoLseek32 = modules.createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
                     var result = _this._seek(fileId, offset, whence);
@@ -9580,84 +9616,6 @@ var hle;
             return IoFileMgrForUser;
         })();
         modules.IoFileMgrForUser = IoFileMgrForUser;
-
-        var SeekAnchor;
-        (function (SeekAnchor) {
-            SeekAnchor[SeekAnchor["Set"] = 0] = "Set";
-            SeekAnchor[SeekAnchor["Cursor"] = 1] = "Cursor";
-            SeekAnchor[SeekAnchor["End"] = 2] = "End";
-        })(SeekAnchor || (SeekAnchor = {}));
-
-        var SceMode;
-        (function (SceMode) {
-        })(SceMode || (SceMode = {}));
-
-        var IOFileModes;
-        (function (IOFileModes) {
-            IOFileModes[IOFileModes["FormatMask"] = 0x0038] = "FormatMask";
-            IOFileModes[IOFileModes["SymbolicLink"] = 0x0008] = "SymbolicLink";
-            IOFileModes[IOFileModes["Directory"] = 0x0010] = "Directory";
-            IOFileModes[IOFileModes["File"] = 0x0020] = "File";
-            IOFileModes[IOFileModes["CanRead"] = 0x0004] = "CanRead";
-            IOFileModes[IOFileModes["CanWrite"] = 0x0002] = "CanWrite";
-            IOFileModes[IOFileModes["CanExecute"] = 0x0001] = "CanExecute";
-        })(IOFileModes || (IOFileModes = {}));
-
-        var ScePspDateTime = (function () {
-            function ScePspDateTime() {
-                this.year = 0;
-                this.month = 0;
-                this.day = 0;
-                this.hour = 0;
-                this.minute = 0;
-                this.second = 0;
-                this.microsecond = 0;
-            }
-            ScePspDateTime.fromDate = function (date) {
-                var pspdate = new ScePspDateTime();
-                pspdate.year = date.getFullYear();
-                pspdate.month = date.getMonth();
-                pspdate.day = date.getDay();
-                pspdate.hour = date.getHours();
-                pspdate.minute = date.getMinutes();
-                pspdate.second = date.getSeconds();
-                pspdate.microsecond = date.getMilliseconds() * 1000;
-                return pspdate;
-            };
-
-            ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
-                { year: Int16 },
-                { month: Int16 },
-                { day: Int16 },
-                { hour: Int16 },
-                { minute: Int16 },
-                { second: Int16 },
-                { microsecond: Int32 }
-            ]);
-            return ScePspDateTime;
-        })();
-
-        var SceIoStat = (function () {
-            function SceIoStat() {
-                this.mode = 0;
-                this.attributes = 0;
-                this.size = 0;
-                this.timeCreation = new ScePspDateTime();
-                this.timeLastAccess = new ScePspDateTime();
-                this.timeLastModification = new ScePspDateTime();
-                this.deviceDependentData = [0, 0, 0, 0, 0, 0];
-            }
-            SceIoStat.struct = StructClass.create(SceIoStat, [
-                { mode: Int32 },
-                { attributes: Int32 },
-                { size: Int64 },
-                { timeCreation: ScePspDateTime.struct },
-                { timeLastAccess: ScePspDateTime.struct },
-                { timeLastModification: ScePspDateTime.struct },
-                { deviceDependentData: StructArray(Int32, 6) }
-            ]);
-            return SceIoStat;
-        })();
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -9792,21 +9750,29 @@ var hle;
             function sceAtrac3plus(context) {
                 this.context = context;
                 this.sceAtracSetDataAndGetID = modules.createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, function (dataPointer, dataLength) {
-                    return 0;
+                    return waitAsycn(10).then(function () {
+                        return 0;
+                    });
                 });
                 this.sceAtracGetSecondBufferInfo = modules.createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
                     puiPosition.writeInt32(0);
                     puiDataByte.writeInt32(0);
-                    return 0;
+                    return waitAsycn(10).then(function () {
+                        return 0;
+                    });
                 });
                 this.sceAtracSetSecondBuffer = modules.createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
-                    return 0;
+                    return waitAsycn(10).then(function () {
+                        return 0;
+                    });
                 });
                 this.sceAtracReleaseAtracID = modules.createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
                     return 0;
                 });
                 this.sceAtracDecodeData = modules.createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
-                    return 0;
+                    return waitAsycn(10).then(function () {
+                        return 0;
+                    });
                 });
                 this.sceAtracGetRemainFrame = modules.createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
                     return 0;
@@ -9948,14 +9914,14 @@ var hle;
                 this.sceCtrlReadBufferPositive = modules.createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, function (state, sceCtrlDataPtr, count) {
                     core.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
 
-                    return _this.context.display.waitVblankAsync();
+                    return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankAsync());
                 });
                 this.sceCtrlSetSamplingCycle = modules.createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
-                    console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
+                    //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
                     return 0;
                 });
                 this.sceCtrlSetSamplingMode = modules.createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, function (samplingMode) {
-                    console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
+                    //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
                     return 0;
                 });
                 this.sceCtrlReadLatch = modules.createNativeFunction(0x0B588501, 150, 'uint', 'void*', this, function (currentLatchPtr) {
@@ -9981,19 +9947,19 @@ var hle;
                     return 0;
                 });
                 this.sceDisplayWaitVblank = modules.createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, function (cycleNum) {
-                    return _this.context.display.waitVblankAsync();
+                    return _this._waitVblankAsync();
                 });
                 this.sceDisplayWaitVblankCB = modules.createNativeFunction(0x8EB9EC49, 150, 'uint', 'int', this, function (cycleNum) {
-                    return _this.context.display.waitVblankAsync();
+                    return _this._waitVblankAsync();
                 });
                 this.sceDisplayWaitVblankStart = modules.createNativeFunction(0x984C27E7, 150, 'uint', '', this, function () {
-                    return _this.context.display.waitVblankAsync();
+                    return _this._waitVblankAsync();
                 });
                 this.sceDisplayGetVcount = modules.createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
                     return _this.context.display.vblankCount;
                 });
                 this.sceDisplayWaitVblankStartCB = modules.createNativeFunction(0x46F186C3, 150, 'uint', '', this, function () {
-                    return _this.context.display.waitVblankAsync();
+                    return _this._waitVblankAsync();
                 });
                 this.sceDisplaySetFrameBuf = modules.createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
                     _this.context.display.address = address;
@@ -10006,6 +9972,9 @@ var hle;
                     return _this.context.display.hcount;
                 });
             }
+            sceDisplay.prototype._waitVblankAsync = function () {
+                return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync());
+            };
             return sceDisplay;
         })();
         modules.sceDisplay = sceDisplay;
@@ -10077,6 +10046,10 @@ var hle;
                     //console.warn('Not implemented sceGe_user.sceGeDrawSync');
                     return _this.context.gpu.drawSync(syncType);
                 });
+                this.sceGeEdramGetSize = modules.createNativeFunction(0x1F6752AD, 150, 'uint', '', this, function () {
+                    //console.warn('Not implemented sceGe_user.sceGeEdramGetSize');
+                    return 0x00200000;
+                });
             }
             return sceGe_user;
         })();
@@ -10090,6 +10063,10 @@ var hle;
         var sceHprm = (function () {
             function sceHprm(context) {
                 this.context = context;
+                this.sceHprmPeekCurrentKey = modules.createNativeFunction(0x1910B327, 150, 'uint', 'void*', this, function (PspHprmKeysEnumKeyPtr) {
+                    PspHprmKeysEnumKeyPtr.writeInt32(0);
+                    return 0;
+                });
             }
             return sceHprm;
         })();
@@ -10373,7 +10350,7 @@ var hle;
                     return 0;
                 });
                 this.sceRtcGetDayOfWeek = modules.createNativeFunction(0x57726BC1, 150, 'int', 'int/int/int', this, function (year, month, day) {
-                    return new Date(year, month, day).getDay();
+                    return new Date(year, month - 1, day).getDay();
                 });
                 this.sceRtcGetDaysInMonth = modules.createNativeFunction(0x05EF322C, 150, 'int', 'int/int', this, function (year, month) {
                     return new Date(year, month, 0).getDate();
@@ -10381,11 +10358,15 @@ var hle;
                 this.sceRtcGetTickResolution = modules.createNativeFunction(0xC41C2853, 150, 'uint', '', this, function (tickPtr) {
                     return 1000000;
                 });
-                this.sceRtcSetTick = modules.createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, function (date, ticks) {
-                    throw (new TypeError("Not implemented sceRtcSetTick"));
+                this.sceRtcSetTick = modules.createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, function (datePtr, ticksPtr) {
+                    var ticks = ticksPtr.readInt64();
+                    datePtr.writeStruct(hle.ScePspDateTime.struct, hle.ScePspDateTime.fromTicks(ticks));
+                    return 0;
                 });
-                this.sceRtcGetTick = modules.createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, function (date, ticks) {
-                    throw (new TypeError("Not implemented sceRtcGetTick"));
+                this.sceRtcGetTick = modules.createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, function (datePtr, ticksPtr) {
+                    var date = hle.ScePspDateTime.struct.read(datePtr);
+                    ticksPtr.writeUInt64(date.getTotalMicroseconds());
+                    return 0;
                 });
             }
             return sceRtc;
@@ -10761,13 +10742,13 @@ var hle;
                 });
                 this.sceKernelSleepThreadCB = modules.createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, function (currentThread, state) {
                     currentThread.suspend();
-                    return new Promise(function (resolve, reject) {
-                    });
+                    return new WaitingThreadInfo('sceKernelSleepThreadCB', null, new Promise(function (resolve, reject) {
+                    }));
                 });
                 this.sceKernelSleepThread = modules.createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, function (state) {
                     var currentThread = state.thread;
-                    return new Promise(function (resolve, reject) {
-                    });
+                    return new WaitingThreadInfo('sceKernelSleepThread', null, new Promise(function (resolve, reject) {
+                    }));
                 });
                 this.eventFlagUids = new UidCollection(1);
                 this.sceKernelCreateEventFlag = modules.createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
@@ -10853,11 +10834,11 @@ var hle;
                 });
                 this.sceKernelGetSystemTimeLow = modules.createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
-                    return new Date().getTime() * 1000;
+                    return _this._getCurrentMicroseconds();
                 });
                 this.sceKernelGetSystemTimeWide = modules.createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
                     //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
-                    return new Date().getTime() * 1000;
+                    return Integer64.fromNumber(_this._getCurrentMicroseconds());
                 });
                 this.sceKernelGetThreadId = modules.createNativeFunction(0x293B45B8, 150, 'int', 'HleThread', this, function (currentThread) {
                     return currentThread.id;
@@ -10877,8 +10858,11 @@ var hle;
                 });
                 this.semaporesUid = new UidCollection(1);
                 this.sceKernelCreateSema = modules.createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
-                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d)', name, attribute, initialCount, maxCount));
-                    return _this.semaporesUid.allocate(new Semaphore(name, attribute, initialCount, maxCount));
+                    var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
+                    var id = _this.semaporesUid.allocate(semaphore);
+                    semaphore.id = id;
+                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
+                    return id;
                 });
                 this.sceKernelDeleteSema = modules.createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
                     if (!_this.semaporesUid.has(id))
@@ -10897,17 +10881,11 @@ var hle;
                     semaphore.cancel();
                     return 0;
                 });
-                this.sceKernelWaitSemaCB = modules.createNativeFunction(0x6D212BAC, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
-                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSemaCB(%d, %d)', id, signal));
-                    if (!_this.semaporesUid.has(id))
-                        return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-                    return _this.semaporesUid.get(id).waitAsync(signal);
+                this.sceKernelWaitSemaCB = modules.createNativeFunction(0x6D212BAC, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
+                    return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
                 });
-                this.sceKernelWaitSema = modules.createNativeFunction(0x4E3A1105, 150, 'int', 'int/int/void*', this, function (id, signal, timeout) {
-                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelWaitSema(%d, %d)', id, signal));
-                    if (!_this.semaporesUid.has(id))
-                        return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-                    return _this.semaporesUid.get(id).waitAsync(signal);
+                this.sceKernelWaitSema = modules.createNativeFunction(0x4E3A1105, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
+                    return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
                 });
                 this.sceKernelReferSemaStatus = modules.createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
                     if (!_this.semaporesUid.has(id))
@@ -10924,15 +10902,22 @@ var hle;
                     SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
                     return 0;
                 });
-                this.sceKernelSignalSema = modules.createNativeFunction(0x3F53E640, 150, 'int', 'int/int', this, function (id, signal) {
-                    console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d)', id, signal));
+                this.sceKernelSignalSema = modules.createNativeFunction(0x3F53E640, 150, 'int', 'HleThread/int/int', this, function (currentThread, id, signal) {
+                    //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
                     if (!_this.semaporesUid.has(id))
                         return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
                     var semaphore = _this.semaporesUid.get(id);
+                    var previousCount = semaphore.currentCount;
                     if (semaphore.currentCount + signal > semaphore.maximumCount)
                         return 2147615150 /* ERROR_KERNEL_SEMA_OVERFLOW */;
-                    semaphore.incrementCount(signal);
-                    return 0;
+                    var awakeCount = semaphore.incrementCount(signal);
+
+                    //console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
+                    if (awakeCount > 0) {
+                        return Promise.resolve(0);
+                    } else {
+                        return 0;
+                    }
                 });
             }
             ThreadManForUser.prototype._sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout, callbacks) {
@@ -10946,11 +10931,29 @@ var hle;
                     return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
                 var timedOut = false;
                 var previousPattern = eventFlag.currentPattern;
-                return eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(function () {
+                return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(function () {
                     if (outBits != null)
                         outBits.writeUInt32(previousPattern);
                     return 0;
-                });
+                }));
+            };
+
+            ThreadManForUser.prototype._getCurrentMicroseconds = function () {
+                return new Date().getTime() * 1000;
+                //return window.performance.now() * 1000;
+            };
+
+            ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout) {
+                //console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
+                if (!this.semaporesUid.has(id))
+                    return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+                var semaphore = this.semaporesUid.get(id);
+                var promise = semaphore.waitAsync(currentThread, signal);
+                if (promise) {
+                    return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise);
+                } else {
+                    return 0;
+                }
             };
             return ThreadManForUser;
         })();
@@ -10983,7 +10986,7 @@ var hle;
 
             Semaphore.prototype.incrementCount = function (count) {
                 this.currentCount = Math.min(this.currentCount + count, this.maximumCount);
-                this.updatedCount();
+                return this.updatedCount();
             };
 
             Semaphore.prototype.cancel = function () {
@@ -10994,25 +10997,35 @@ var hle;
 
             Semaphore.prototype.updatedCount = function () {
                 var _this = this;
+                var awakeCount = 0;
                 this.waitingSemaphoreThreadList.forEach(function (item) {
                     if (_this.currentCount >= item.expectedCount) {
+                        //console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
                         _this.currentCount -= item.expectedCount;
                         item.wakeUp();
+                        awakeCount++;
                     }
                 });
+                return awakeCount;
             };
 
-            Semaphore.prototype.waitAsync = function (expectedCount) {
+            Semaphore.prototype.waitAsync = function (thread, expectedCount) {
                 var _this = this;
-                var promise = new Promise(function (resolve, reject) {
-                    var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
-                        _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
-                        resolve();
+                if (this.currentCount >= expectedCount) {
+                    this.currentCount -= expectedCount;
+                    return null;
+                } else {
+                    var promise = new Promise(function (resolve, reject) {
+                        var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
+                            //console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
+                            _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
+                            resolve();
+                        });
+                        _this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
                     });
-                    _this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
-                });
-                this.updatedCount();
-                return promise;
+                    this.updatedCount();
+                    return promise;
+                }
             };
 
             Semaphore.prototype.delete = function () {
@@ -11047,6 +11060,7 @@ var hle;
                     var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, _this, function () {
                         _this.waitingThreads.delete(waitingSemaphoreThread);
                         resolve();
+                        throw (new CpuBreakException());
                     });
                     _this.waitingThreads.add(waitingSemaphoreThread);
                 }).then(function () {
@@ -11750,6 +11764,96 @@ var SceKernelErrors;
 })(SceKernelErrors || (SceKernelErrors = {}));
 var hle;
 (function (hle) {
+    (function (SeekAnchor) {
+        SeekAnchor[SeekAnchor["Set"] = 0] = "Set";
+        SeekAnchor[SeekAnchor["Cursor"] = 1] = "Cursor";
+        SeekAnchor[SeekAnchor["End"] = 2] = "End";
+    })(hle.SeekAnchor || (hle.SeekAnchor = {}));
+    var SeekAnchor = hle.SeekAnchor;
+
+    (function (SceMode) {
+    })(hle.SceMode || (hle.SceMode = {}));
+    var SceMode = hle.SceMode;
+
+    (function (IOFileModes) {
+        IOFileModes[IOFileModes["FormatMask"] = 0x0038] = "FormatMask";
+        IOFileModes[IOFileModes["SymbolicLink"] = 0x0008] = "SymbolicLink";
+        IOFileModes[IOFileModes["Directory"] = 0x0010] = "Directory";
+        IOFileModes[IOFileModes["File"] = 0x0020] = "File";
+        IOFileModes[IOFileModes["CanRead"] = 0x0004] = "CanRead";
+        IOFileModes[IOFileModes["CanWrite"] = 0x0002] = "CanWrite";
+        IOFileModes[IOFileModes["CanExecute"] = 0x0001] = "CanExecute";
+    })(hle.IOFileModes || (hle.IOFileModes = {}));
+    var IOFileModes = hle.IOFileModes;
+
+    var ScePspDateTime = (function () {
+        function ScePspDateTime() {
+            this.year = 0;
+            this.month = 0;
+            this.day = 0;
+            this.hour = 0;
+            this.minute = 0;
+            this.second = 0;
+            this.microsecond = 0;
+        }
+        ScePspDateTime.fromDate = function (date) {
+            var pspdate = new ScePspDateTime();
+            pspdate.year = date.getFullYear();
+            pspdate.month = date.getMonth();
+            pspdate.day = date.getDay();
+            pspdate.hour = date.getHours();
+            pspdate.minute = date.getMinutes();
+            pspdate.second = date.getSeconds();
+            pspdate.microsecond = date.getMilliseconds() * 1000;
+            return pspdate;
+        };
+
+        ScePspDateTime.fromTicks = function (ticks) {
+            return new ScePspDateTime();
+        };
+
+        ScePspDateTime.prototype.getTotalMicroseconds = function () {
+            return Integer64.fromNumber(0);
+        };
+
+        ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
+            { year: Int16 },
+            { month: Int16 },
+            { day: Int16 },
+            { hour: Int16 },
+            { minute: Int16 },
+            { second: Int16 },
+            { microsecond: Int32 }
+        ]);
+        return ScePspDateTime;
+    })();
+    hle.ScePspDateTime = ScePspDateTime;
+
+    var SceIoStat = (function () {
+        function SceIoStat() {
+            this.mode = 0;
+            this.attributes = 0;
+            this.size = 0;
+            this.timeCreation = new ScePspDateTime();
+            this.timeLastAccess = new ScePspDateTime();
+            this.timeLastModification = new ScePspDateTime();
+            this.deviceDependentData = [0, 0, 0, 0, 0, 0];
+        }
+        SceIoStat.struct = StructClass.create(SceIoStat, [
+            { mode: Int32 },
+            { attributes: Int32 },
+            { size: Int64 },
+            { timeCreation: ScePspDateTime.struct },
+            { timeLastAccess: ScePspDateTime.struct },
+            { timeLastModification: ScePspDateTime.struct },
+            { deviceDependentData: StructArray(Int32, 6) }
+        ]);
+        return SceIoStat;
+    })();
+    hle.SceIoStat = SceIoStat;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
     (function (modules) {
         function createNativeFunction(exportId, firmwareVersion, retval, arguments, _this, internalFunc) {
             var code = '';
@@ -11765,7 +11869,7 @@ var hle;
                 argindex = MathUtils.nextAligned(argindex, 2);
                 var gprLow = readGpr32();
                 var gprHigh = readGpr32();
-                return sprintf('(Integer64.fromBits(%s, %s).low >>> 0)', gprLow, gprHigh);
+                return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
             }
 
             arguments.split('/').forEach(function (item) {
@@ -11805,18 +11909,19 @@ var hle;
 
             code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
 
-            code += 'if (typeof result == "object") { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+            code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+            code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
 
             switch (retval) {
                 case 'void':
                     break;
-
                 case 'uint':
                 case 'int':
                     code += 'state.V0 = result | 0;';
                     break;
                 case 'long':
-                    code += 'state.V0 = (result >>> 0) & 0xFFFFFFFF; state.V1 = (result >>> 32) & 0xFFFFFFFF;';
+                    code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
+                    code += 'state.V0 = result.low; state.V1 = result.high;';
                     break;
                     break;
                 default:
@@ -12100,9 +12205,13 @@ var hle;
                     this.files[path] = new ArrayBuffer(0);
                 }
                 var file = this.files[path];
-                if (!file)
-                    throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
-                return Promise.resolve(new MemoryVfsEntry(file));
+                if (!file) {
+                    var error = new Error(sprintf("MemoryVfs: Can't find '%s'", path));
+                    console.error(error);
+                    return Promise.reject(error);
+                } else {
+                    return Promise.resolve(new MemoryVfsEntry(file));
+                }
             };
 
             MemoryVfs.prototype.getStatAsync = function (path) {
@@ -12220,7 +12329,7 @@ var hle;
     })(hle.vfs || (hle.vfs = {}));
     var vfs = hle.vfs;
 })(hle || (hle = {}));
-// Code from: http://docs.closure-library.googlecode.com/git/closure_goog_math_long.js.source.html
+// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
 var Integer64 = (function () {
     function Integer64(low, high) {
         this._low = low | 0;
@@ -12238,6 +12347,20 @@ var Integer64 = (function () {
         return new Integer64(low, high);
     };
 
+    Integer64.fromNumber = function (value) {
+        if (isNaN(value) || !isFinite(value)) {
+            return Integer64.ZERO;
+        } else if (value <= -Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MIN_VALUE;
+        } else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MAX_VALUE;
+        } else if (value < 0) {
+            return Integer64.fromNumber(-value).negate();
+        } else {
+            return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
+        }
+    };
+
     Object.defineProperty(Integer64.prototype, "low", {
         get: function () {
             return this._low;
@@ -12245,9 +12368,24 @@ var Integer64 = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(Integer64.prototype, "lowUnsigned", {
+        get: function () {
+            return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low);
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(Integer64.prototype, "high", {
         get: function () {
             return this._high;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Integer64.prototype, "number", {
+        get: function () {
+            return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
         },
         enumerable: true,
         configurable: true
@@ -12376,6 +12514,9 @@ var Integer64 = (function () {
     Integer64.ZERO = Integer64.fromInt(0);
     Integer64.ONE = Integer64.fromInt(1);
     Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+    Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+    Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
+    Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
     return Integer64;
 })();
 describe('cso', function () {
