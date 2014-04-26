@@ -310,12 +310,51 @@ module core.gpu {
 		enabled = false;
 	}
 
+	export enum ShadingModelEnum {
+		Flat = 0,
+		Smooth = 1,
+	}
+
+	export enum GuBlendingFactor {
+		GU_SRC_COLOR                     = 0,// = 0x0300,
+		GU_ONE_MINUS_SRC_COLOR           = 1,// = 0x0301,
+		GU_SRC_ALPHA                     = 2,// = 0x0302,
+		GU_ONE_MINUS_SRC_ALPHA           = 3,// = 0x0303,
+		GU_DST_ALPHA                     = 4,// = 0x0304,
+		GU_ONE_MINUS_DST_ALPHA           = 5,// = 0x0305,
+		GU_FIX = 10,
+	}
+	
+	export enum GuBlendingEquation {
+		Add = 0,
+		Substract = 1,
+		ReverseSubstract = 2,
+		Min = 3,
+		Max = 4,
+		Abs = 5,
+	}
+
+	export class Blending {
+		enabled = false;
+		functionSource = GuBlendingFactor.GU_SRC_ALPHA;
+		functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
+		equation = GuBlendingEquation.Add;
+	}
+
+	export class AlphaTest {
+		enabled = false;
+		value = 0;
+		mask = 0xFF;
+		func = TestFunctionEnum.Always;
+	}
+
 	export class GpuState {
 		clearing = false;
 		clearFlags = 0;
 		baseAddress = 0;
 		baseOffset = 0;
 		indexAddress = 0;
+		shadeModel = ShadingModelEnum.Flat;
 		frameBuffer = new GpuFrameBufferState();
 		vertex = new VertexState();
 		projectionMatrix = new Matrix4x4();
@@ -323,6 +362,8 @@ module core.gpu {
 		worldMatrix = new Matrix4x3();
 		viewPort = new ViewPort();
 		lightning = new Lightning();
+		alphaTest = new AlphaTest();
+		blending = new Blending();
 		texture = new TextureState();
 		ambientModelColor = new ColorState();
 		lighting = new LightingState();

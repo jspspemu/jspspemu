@@ -79,16 +79,18 @@
 		constructor(private gl: WebGLRenderingContext, private shaderVertString: string, private shaderFragString: string) {
 		}
 
-		getProgram(vertex: VertexState) {
+		getProgram(vertex: VertexState, state: GpuState) {
 			var hash = vertex.hash;
+			hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
 			if (this.programs[hash]) return this.programs[hash];
-			return this.programs[hash] = this.createProgram(vertex);
+			return this.programs[hash] = this.createProgram(vertex, state);
 		}
 
-		createProgram(vertex: VertexState) {
+		createProgram(vertex: VertexState, state: GpuState) {
 			var defines = [];
 			if (vertex.hasColor) defines.push('VERTEX_COLOR');
 			if (vertex.hasTexture) defines.push('VERTEX_TEXTURE');
+			if (state.alphaTest.enabled) defines.push('ALPHATEST');
 
 			var preppend = defines.map(item => '#define ' + item + ' 1').join("\n");
 
@@ -119,6 +121,10 @@
 	class Texture {
 		private texture: WebGLTexture;
 		recheckTimestamp: number;
+		valid: boolean = true;
+		hash1: number;
+		hash2: number;
+		address: number;
 
 		constructor(private gl: WebGLRenderingContext) {
 			this.texture = gl.createTexture();
@@ -149,9 +155,9 @@
 
 		static hashFast(state: GpuState) {
 			if (state.texture.isPixelFormatWithClut()) {
-				return state.texture.clut.adress + '_' + state.texture.mipmaps[0].address;
+				return state.texture.clut.adress + (state.texture.mipmaps[0].address * Math.pow(2, 24));
 			} else {
-				return '' + state.texture.mipmaps[0].address;
+				return state.texture.mipmaps[0].address;
 			}
 		}
 
@@ -175,82 +181,149 @@
 			}
 			return hash_number;
 		}
+
+		toString() {
+			return 'Texture(address:' + this.address + ' : hash1: ' + this.hash1 + ' : hash2: ' + this.hash2 + ')';
+		}
 	}
 
 	class TextureHandler {
 		constructor(private memory: Memory, private gl: WebGLRenderingContext) {
+			memory.invalidateDataRange.add((range) => this.invalidatedMemory(range));
 		}
 
-		private textures: StringDictionary<Texture> = {};
+		private texturesByHash2: StringDictionary<Texture> = {};
 		private texturesByHash1: StringDictionary<Texture> = {};
 		private recheckTimestamp: number = 0;
+		private lastTexture: Texture;
+		//private updatedTextures = new SortedSet<Texture>();
+
+		private invalidatedMemoryFlag: boolean = true;
 
 		flush() {
-			this.recheckTimestamp = performance.now();
+			if (this.lastTexture) {
+				//this.lastTexture.valid = false;
+			}
+			//this.invalidatedMemory({ start: 0, end : 0xFFFFFFFF });
+			//this.recheckTimestamp = performance.now();
+
+			/*
+			this.updatedTextures.forEach((texture) => {
+				texture.valid = false;
+			});
+			this.updatedTextures = new SortedSet<Texture>(); 
+			*/
+			if (this.invalidatedMemoryFlag)
+			{
+				this.invalidatedMemoryFlag = false;
+				this._invalidatedMemory();
+			}
 		}
 
 		sync() {
-			this.recheckTimestamp = performance.now();
+			// sceGuCopyImage
+
+			//this.recheckTimestamp = performance.now();
+		}
+
+		private _invalidatedMemory() {
+			// should invalidate just  the right textures
+			for (var hash1 in this.texturesByHash1) {
+				var texture = this.texturesByHash1[hash1];
+				texture.valid = false;
+			}
+
+			for (var hash2 in this.texturesByHash2) {
+				var texture = this.texturesByHash2[hash2];
+				texture.valid = false;
+			}
+		}
+
+		private invalidatedMemory(range: NumericRange) {
+			this.invalidatedMemoryFlag = true;
+
+			//this._invalidatedMemory();
+
+			//this.recheckTimestamp = performance.now();
+			//console.warn('invalidatedMemory: ' + JSON.stringify(range));
+		}
+
+		private mustRecheckSlowHash(texture: Texture) {
+			//return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
+			return !texture || !texture.valid;
 		}
 
 		bindTexture(prog: WrappedWebGLProgram, state: GpuState) {
 			var gl = this.gl;
 
 			var hash1 = Texture.hashFast(state);
-			var texture = this.textures[hash1];
-			if (texture && this.recheckTimestamp < texture.recheckTimestamp) return texture;
+			var texture = this.texturesByHash1[hash1];
+			//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
+			if (this.mustRecheckSlowHash(texture)) {
+				var hash2 = Texture.hashSlow(this.memory, state);
 
-			var hash2 = Texture.hashSlow(this.memory, state);
+				//console.log(hash);
 
-			//console.log(hash);
+				if (!this.texturesByHash2[hash2]) {
+					var texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
 
-			if (!this.textures[hash2])
-			{
-				var texture = this.textures[hash2] = this.textures[hash1] = new Texture(gl);
-				texture.recheckTimestamp = this.recheckTimestamp;
+					texture.address = state.texture.mipmaps[0].address;
+					texture.hash1 = hash1;
+					texture.hash2 = hash2;
 
-				var mipmap = state.texture.mipmaps[0];
+					//this.updatedTextures.add(texture);
 
-				var h = mipmap.textureHeight;
-				var w = mipmap.textureWidth;
-				var w2 = mipmap.bufferWidth;
+					texture.recheckTimestamp = this.recheckTimestamp;
 
-				var canvas = document.createElement('canvas');
-				
-				//$(document.body).append(canvas);
+					var mipmap = state.texture.mipmaps[0];
 
-				canvas.width = w;
-				canvas.height = h;
-				var ctx = canvas.getContext('2d');
-				var imageData = ctx.createImageData(w2, h);
-				var u8 = imageData.data;
+					var h = mipmap.textureHeight;
+					var w = mipmap.textureWidth;
+					var w2 = mipmap.bufferWidth;
 
-				var clut = state.texture.clut;
-				var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
-				var paletteU8 = new Uint8Array(paletteBuffer);
-				var palette = new Uint32Array(paletteBuffer);
+					var canvas = document.createElement('canvas');
 
-				if (state.texture.isPixelFormatWithClut()) {
-					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+					//$(document.body).append(canvas);
+
+					canvas.width = w;
+					canvas.height = h;
+					var ctx = canvas.getContext('2d');
+					var imageData = ctx.createImageData(w2, h);
+					var u8 = imageData.data;
+
+					var clut = state.texture.clut;
+					var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
+					var paletteU8 = new Uint8Array(paletteBuffer);
+					var palette = new Uint32Array(paletteBuffer);
+
+					if (state.texture.isPixelFormatWithClut()) {
+						PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+					}
+
+					//console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
+
+					if (state.texture.swizzled) {
+						PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
+					}
+					PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+
+					ctx.clearRect(0, 0, w, h);
+					ctx.putImageData(imageData, 0, 0);
+
+					console.error('generated texture!' + texture.toString());
+					$(document.body).append(
+						$('<div style="color:white;" />')
+							.append(canvas)
+							.append(texture.toString())
+					);
+
+					texture.fromCanvas(canvas);
 				}
-
-				//console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
-
-				if (state.texture.swizzled) {
-					PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
-				}
-				PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
-
-				ctx.clearRect(0, 0, w, h);
-				ctx.putImageData(imageData, 0, 0);
-
-				texture.fromCanvas(canvas);
 			}
-			
-			this.textures[hash2].bind();
 
+			this.lastTexture = texture;
+			texture.bind();
 			prog.getUniform('uSampler').set1i(0);
-
 		}
 
 		unbindTexture(program: WrappedWebGLProgram, state: GpuState) {
@@ -329,6 +402,7 @@
 
 		setClearMode(clearing: boolean, flags: number) {
 			this.clearing = clearing;
+			//console.log('clearing: ' + clearing + '; ' + flags);
 		}
 
 		projectionMatrix: Matrix4x4;
@@ -358,15 +432,39 @@
 
 		setState(state: GpuState) {
 			this.state = state;
-			if (this.enableDisable(this.gl.CULL_FACE, state.culling.enabled)) {
-				this.gl.cullFace((state.culling.direction == CullingDirection.ClockWise) ? this.gl.FRONT : this.gl.BACK);
+		}
+
+		private updateState(program: WrappedWebGLProgram) {
+			var state = this.state;
+			var gl = this.gl;
+			if (this.enableDisable(gl.CULL_FACE, state.culling.enabled)) {
+				gl.cullFace((state.culling.direction == CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 			}
 
-			this.gl.enable(this.gl.BLEND);
-			this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+			var blending = state.blending;
+			if (this.enableDisable(gl.BLEND, state.blending.enabled)) {
+
+				gl.blendFunc(gl.SRC_COLOR + state.blending.functionSource, gl.SRC_COLOR + state.blending.functionDestination);
+				switch (state.blending.equation) {
+					case GuBlendingEquation.Abs:
+					case GuBlendingEquation.Max:
+					case GuBlendingEquation.Min:
+					case GuBlendingEquation.Add: gl.blendEquation(gl.FUNC_ADD); break;
+					case GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
+					case GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
+				}
+			}
+
+			var alphaTest = state.alphaTest;
+			if (alphaTest.enabled) {
+				//console.log(TestFunctionEnum[alphaTest.func] + '; ' + alphaTest.value + '; ' + alphaTest.mask);
+				program.getUniform('alphaTestFunc').set1i(alphaTest.func);
+				program.getUniform('alphaTestReference').set1i(alphaTest.value);
+				program.getUniform('alphaTestMask').set1i(alphaTest.mask);
+			}
 
 			var ratio = this.getScaleRatio();
-			
+
 			this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * ratio, this.state.viewPort.height * ratio);
 		}
 
@@ -508,8 +606,9 @@
 
 			var gl = this.gl;
 
-			var program = this.cache.getProgram(vertexState);
+			var program = this.cache.getProgram(vertexState, this.state);
 			program.use();
+			this.updateState(program);
 
 			if (this.clearing) {
 				this.textureHandler.unbindTexture(program, this.state);

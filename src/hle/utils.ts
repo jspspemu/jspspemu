@@ -74,13 +74,19 @@ function downloadFileAsync(url: string) {
 		request.overrideMimeType("text/plain; charset=x-user-defined");
 		request.responseType = "arraybuffer";
 		request.onload = function (e) {
-			var arraybuffer: ArrayBuffer = request.response; // not responseText
-			//var data = new Uint8Array(arraybuffer);
-			resolve(arraybuffer);
-			//console.log(data);
-			//console.log(data.length);
+			console.log('request.onload -> ' + request.status);
+			if (request.status < 400) {
+				var arraybuffer: ArrayBuffer = request.response; // not responseText
+				//var data = new Uint8Array(arraybuffer);
+				resolve(arraybuffer);
+				//console.log(data);
+				//console.log(data.length);
+			} else {
+				reject(new Error("HTTP " + request.status));
+			}
 		};
 		request.onerror = function (e) {
+			console.error('request.onerror');
 			reject(e['error']);
 		};
 		request.send();

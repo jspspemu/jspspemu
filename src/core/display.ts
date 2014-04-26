@@ -172,8 +172,8 @@
 			return Promise.resolve();
 		}
 
-		mustWaitVBlank = true;
-		//mustWaitVBlank = false;
+		//mustWaitVBlank = true;
+		mustWaitVBlank = false;
 
 		waitVblankAsync() {
 			this.updateTime();

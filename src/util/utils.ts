@@ -187,7 +187,7 @@ class Stream {
     writeInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setInt8(this.offset, value)); }
     writeInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setInt16(this.offset, value, (endian == Endian.LITTLE))); }
 	writeInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setInt32(this.offset, value, (endian == Endian.LITTLE))); }
-	writeInt64(value: number, endian: Endian = Endian.LITTLE) { return this._writeUInt64(value, endian); }
+	writeInt64(value: Integer64, endian: Endian = Endian.LITTLE) { return this._writeUInt64(value, endian); }
 
     writeUInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setUint8(this.offset, value)); }
     writeUInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setUint16(this.offset, value, (endian == Endian.LITTLE))); }
@@ -602,18 +602,27 @@ class UidCollection<T>
     }
 }
 
-class Signal {
-    callbacks = new SortedSet < Function>();
+interface SignalCallback<T> {
+	(value?: T): void;
+}
 
-    add(callback: Function) {
+interface NumericRange {
+	start: number;
+	end: number;
+}
+
+class Signal<T> {
+	callbacks = new SortedSet<SignalCallback<T>>();
+
+	add(callback: SignalCallback<T>) {
         this.callbacks.add(callback);
     }
 
-    remove(callback: Function) {
+	remove(callback: SignalCallback<T>) {
         this.callbacks.delete(callback);
     }
 
-    once(callback: Function) {
+	once(callback: SignalCallback<T>) {
         var once = () => {
             this.remove(once);
             callback();
@@ -621,9 +630,9 @@ class Signal {
         this.add(once);
     }
 
-    dispatch() {
+    dispatch(value?: T) {
         this.callbacks.forEach((callback) => {
-            callback();
+            callback(value);
         });
     }
 }

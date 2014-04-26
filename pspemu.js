@@ -445,7 +445,8 @@ var core;
             this.secondsLeftForVblank = 0;
             this.rowsLeftForVblankStart = 0;
             this.secondsLeftForVblankStart = 0;
-            this.mustWaitVBlank = true;
+            //mustWaitVBlank = true;
+            this.mustWaitVBlank = false;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
             this.setEnabledDisplay(true);
@@ -516,7 +517,6 @@ var core;
             return Promise.resolve();
         };
 
-        //mustWaitVBlank = false;
         PspDisplay.prototype.waitVblankAsync = function () {
             this.updateTime();
             if (!this.mustWaitVBlank)
@@ -1578,9 +1578,9 @@ var Signal = (function () {
         this.add(once);
     };
 
-    Signal.prototype.dispatch = function () {
+    Signal.prototype.dispatch = function (value) {
         this.callbacks.forEach(function (callback) {
-            callback();
+            callback(value);
         });
     };
     return Signal;
@@ -2383,6 +2383,7 @@ var core;
 (function (core) {
     var Memory = (function () {
         function Memory() {
+            this.invalidateDataRange = new Signal();
             this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
             this.data = new DataView(this.buffer);
             this.s8 = new Int8Array(this.buffer);
@@ -3135,6 +3136,55 @@ var core;
         })();
         gpu.DepthTestState = DepthTestState;
 
+        (function (ShadingModelEnum) {
+            ShadingModelEnum[ShadingModelEnum["Flat"] = 0] = "Flat";
+            ShadingModelEnum[ShadingModelEnum["Smooth"] = 1] = "Smooth";
+        })(gpu.ShadingModelEnum || (gpu.ShadingModelEnum = {}));
+        var ShadingModelEnum = gpu.ShadingModelEnum;
+
+        (function (GuBlendingFactor) {
+            GuBlendingFactor[GuBlendingFactor["GU_SRC_COLOR"] = 0] = "GU_SRC_COLOR";
+            GuBlendingFactor[GuBlendingFactor["GU_ONE_MINUS_SRC_COLOR"] = 1] = "GU_ONE_MINUS_SRC_COLOR";
+            GuBlendingFactor[GuBlendingFactor["GU_SRC_ALPHA"] = 2] = "GU_SRC_ALPHA";
+            GuBlendingFactor[GuBlendingFactor["GU_ONE_MINUS_SRC_ALPHA"] = 3] = "GU_ONE_MINUS_SRC_ALPHA";
+            GuBlendingFactor[GuBlendingFactor["GU_DST_ALPHA"] = 4] = "GU_DST_ALPHA";
+            GuBlendingFactor[GuBlendingFactor["GU_ONE_MINUS_DST_ALPHA"] = 5] = "GU_ONE_MINUS_DST_ALPHA";
+            GuBlendingFactor[GuBlendingFactor["GU_FIX"] = 10] = "GU_FIX";
+        })(gpu.GuBlendingFactor || (gpu.GuBlendingFactor = {}));
+        var GuBlendingFactor = gpu.GuBlendingFactor;
+
+        (function (GuBlendingEquation) {
+            GuBlendingEquation[GuBlendingEquation["Add"] = 0] = "Add";
+            GuBlendingEquation[GuBlendingEquation["Substract"] = 1] = "Substract";
+            GuBlendingEquation[GuBlendingEquation["ReverseSubstract"] = 2] = "ReverseSubstract";
+            GuBlendingEquation[GuBlendingEquation["Min"] = 3] = "Min";
+            GuBlendingEquation[GuBlendingEquation["Max"] = 4] = "Max";
+            GuBlendingEquation[GuBlendingEquation["Abs"] = 5] = "Abs";
+        })(gpu.GuBlendingEquation || (gpu.GuBlendingEquation = {}));
+        var GuBlendingEquation = gpu.GuBlendingEquation;
+
+        var Blending = (function () {
+            function Blending() {
+                this.enabled = false;
+                this.functionSource = 2 /* GU_SRC_ALPHA */;
+                this.functionDestination = 5 /* GU_ONE_MINUS_DST_ALPHA */;
+                this.equation = 0 /* Add */;
+            }
+            return Blending;
+        })();
+        gpu.Blending = Blending;
+
+        var AlphaTest = (function () {
+            function AlphaTest() {
+                this.enabled = false;
+                this.value = 0;
+                this.mask = 0xFF;
+                this.func = 1 /* Always */;
+            }
+            return AlphaTest;
+        })();
+        gpu.AlphaTest = AlphaTest;
+
         var GpuState = (function () {
             function GpuState() {
                 this.clearing = false;
@@ -3142,6 +3192,7 @@ var core;
                 this.baseAddress = 0;
                 this.baseOffset = 0;
                 this.indexAddress = 0;
+                this.shadeModel = 0 /* Flat */;
                 this.frameBuffer = new GpuFrameBufferState();
                 this.vertex = new VertexState();
                 this.projectionMatrix = new Matrix4x4();
@@ -3149,6 +3200,8 @@ var core;
                 this.worldMatrix = new Matrix4x3();
                 this.viewPort = new ViewPort();
                 this.lightning = new Lightning();
+                this.alphaTest = new AlphaTest();
+                this.blending = new Blending();
                 this.texture = new TextureState();
                 this.ambientModelColor = new ColorState();
                 this.lighting = new LightingState();
@@ -3635,9 +3688,33 @@ var core;
                         this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
                         this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
                         break;
-                    case 23 /* LTE */:
-                        this.state.lightning.enabled = params24 != 0;
+                    case 80 /* SHADE */:
+                        this.state.shadeModel = BitUtils.extractEnum(params24, 0, 16);
                         break;
+
+                    case 23 /* LTE */:
+                        this.state.lightning.enabled = (params24 != 0);
+                        break;
+
+                    case 34 /* ATE */:
+                        this.state.alphaTest.enabled = (params24 != 0);
+                        break;
+
+                    case 219 /* ATST */:
+                        this.state.alphaTest.func = BitUtils.extractEnum(params24, 0, 8);
+                        this.state.alphaTest.value = BitUtils.extract(params24, 8, 8);
+                        this.state.alphaTest.mask = BitUtils.extract(params24, 16, 8);
+                        break;
+
+                    case 33 /* ABE */:
+                        this.state.blending.enabled = (params24 != 0);
+                        break;
+                    case 223 /* ALPHA */:
+                        this.state.blending.functionSource = BitUtils.extractEnum(params24, 0, 4);
+                        this.state.blending.functionDestination = BitUtils.extractEnum(params24, 4, 4);
+                        this.state.blending.equation = BitUtils.extractEnum(params24, 8, 4);
+                        break;
+
                     case 24 /* LTE0 */:
                         this.state.lightning.lights[0].enabled = params24 != 0;
                         break;
@@ -6956,19 +7033,22 @@ var core;
                     this.shaderFragString = shaderFragString;
                     this.programs = {};
                 }
-                ShaderCache.prototype.getProgram = function (vertex) {
+                ShaderCache.prototype.getProgram = function (vertex, state) {
                     var hash = vertex.hash;
+                    hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
                     if (this.programs[hash])
                         return this.programs[hash];
-                    return this.programs[hash] = this.createProgram(vertex);
+                    return this.programs[hash] = this.createProgram(vertex, state);
                 };
 
-                ShaderCache.prototype.createProgram = function (vertex) {
+                ShaderCache.prototype.createProgram = function (vertex, state) {
                     var defines = [];
                     if (vertex.hasColor)
                         defines.push('VERTEX_COLOR');
                     if (vertex.hasTexture)
                         defines.push('VERTEX_TEXTURE');
+                    if (state.alphaTest.enabled)
+                        defines.push('ALPHATEST');
 
                     var preppend = defines.map(function (item) {
                         return '#define ' + item + ' 1';
@@ -7000,6 +7080,7 @@ var core;
             var Texture = (function () {
                 function Texture(gl) {
                     this.gl = gl;
+                    this.valid = true;
                     this.texture = gl.createTexture();
                 }
                 Texture.prototype.fromCanvas = function (canvas) {
@@ -7026,9 +7107,9 @@ var core;
 
                 Texture.hashFast = function (state) {
                     if (state.texture.isPixelFormatWithClut()) {
-                        return state.texture.clut.adress + '_' + state.texture.mipmaps[0].address;
+                        return state.texture.clut.adress + (state.texture.mipmaps[0].address * Math.pow(2, 24));
                     } else {
-                        return '' + state.texture.mipmaps[0].address;
+                        return state.texture.mipmaps[0].address;
                     }
                 };
 
@@ -7052,78 +7133,138 @@ var core;
                     }
                     return hash_number;
                 };
+
+                Texture.prototype.toString = function () {
+                    return 'Texture(address:' + this.address + ' : hash1: ' + this.hash1 + ' : hash2: ' + this.hash2 + ')';
+                };
                 return Texture;
             })();
 
             var TextureHandler = (function () {
                 function TextureHandler(memory, gl) {
+                    var _this = this;
                     this.memory = memory;
                     this.gl = gl;
-                    this.textures = {};
+                    this.texturesByHash2 = {};
                     this.texturesByHash1 = {};
                     this.recheckTimestamp = 0;
+                    //private updatedTextures = new SortedSet<Texture>();
+                    this.invalidatedMemoryFlag = true;
+                    memory.invalidateDataRange.add(function (range) {
+                        return _this.invalidatedMemory(range);
+                    });
                 }
                 TextureHandler.prototype.flush = function () {
-                    this.recheckTimestamp = performance.now();
+                    if (this.lastTexture) {
+                        //this.lastTexture.valid = false;
+                    }
+
+                    //this.invalidatedMemory({ start: 0, end : 0xFFFFFFFF });
+                    //this.recheckTimestamp = performance.now();
+                    /*
+                    this.updatedTextures.forEach((texture) => {
+                    texture.valid = false;
+                    });
+                    this.updatedTextures = new SortedSet<Texture>();
+                    */
+                    if (this.invalidatedMemoryFlag) {
+                        this.invalidatedMemoryFlag = false;
+                        this._invalidatedMemory();
+                    }
                 };
 
                 TextureHandler.prototype.sync = function () {
-                    this.recheckTimestamp = performance.now();
+                    // sceGuCopyImage
+                    //this.recheckTimestamp = performance.now();
+                };
+
+                TextureHandler.prototype._invalidatedMemory = function () {
+                    for (var hash1 in this.texturesByHash1) {
+                        var texture = this.texturesByHash1[hash1];
+                        texture.valid = false;
+                    }
+
+                    for (var hash2 in this.texturesByHash2) {
+                        var texture = this.texturesByHash2[hash2];
+                        texture.valid = false;
+                    }
+                };
+
+                TextureHandler.prototype.invalidatedMemory = function (range) {
+                    this.invalidatedMemoryFlag = true;
+                    //this._invalidatedMemory();
+                    //this.recheckTimestamp = performance.now();
+                    //console.warn('invalidatedMemory: ' + JSON.stringify(range));
+                };
+
+                TextureHandler.prototype.mustRecheckSlowHash = function (texture) {
+                    //return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
+                    return !texture || !texture.valid;
                 };
 
                 TextureHandler.prototype.bindTexture = function (prog, state) {
                     var gl = this.gl;
 
                     var hash1 = Texture.hashFast(state);
-                    var texture = this.textures[hash1];
-                    if (texture && this.recheckTimestamp < texture.recheckTimestamp)
-                        return texture;
+                    var texture = this.texturesByHash1[hash1];
 
-                    var hash2 = Texture.hashSlow(this.memory, state);
+                    //if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
+                    if (this.mustRecheckSlowHash(texture)) {
+                        var hash2 = Texture.hashSlow(this.memory, state);
 
-                    //console.log(hash);
-                    if (!this.textures[hash2]) {
-                        var texture = this.textures[hash2] = this.textures[hash1] = new Texture(gl);
-                        texture.recheckTimestamp = this.recheckTimestamp;
+                        //console.log(hash);
+                        if (!this.texturesByHash2[hash2]) {
+                            var texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
 
-                        var mipmap = state.texture.mipmaps[0];
+                            texture.address = state.texture.mipmaps[0].address;
+                            texture.hash1 = hash1;
+                            texture.hash2 = hash2;
 
-                        var h = mipmap.textureHeight;
-                        var w = mipmap.textureWidth;
-                        var w2 = mipmap.bufferWidth;
+                            //this.updatedTextures.add(texture);
+                            texture.recheckTimestamp = this.recheckTimestamp;
 
-                        var canvas = document.createElement('canvas');
+                            var mipmap = state.texture.mipmaps[0];
 
-                        //$(document.body).append(canvas);
-                        canvas.width = w;
-                        canvas.height = h;
-                        var ctx = canvas.getContext('2d');
-                        var imageData = ctx.createImageData(w2, h);
-                        var u8 = imageData.data;
+                            var h = mipmap.textureHeight;
+                            var w = mipmap.textureWidth;
+                            var w2 = mipmap.bufferWidth;
 
-                        var clut = state.texture.clut;
-                        var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
-                        var paletteU8 = new Uint8Array(paletteBuffer);
-                        var palette = new Uint32Array(paletteBuffer);
+                            var canvas = document.createElement('canvas');
 
-                        if (state.texture.isPixelFormatWithClut()) {
-                            core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+                            //$(document.body).append(canvas);
+                            canvas.width = w;
+                            canvas.height = h;
+                            var ctx = canvas.getContext('2d');
+                            var imageData = ctx.createImageData(w2, h);
+                            var u8 = imageData.data;
+
+                            var clut = state.texture.clut;
+                            var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
+                            var paletteU8 = new Uint8Array(paletteBuffer);
+                            var palette = new Uint32Array(paletteBuffer);
+
+                            if (state.texture.isPixelFormatWithClut()) {
+                                core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+                            }
+
+                            //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
+                            if (state.texture.swizzled) {
+                                core.PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
+                            }
+                            core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+
+                            ctx.clearRect(0, 0, w, h);
+                            ctx.putImageData(imageData, 0, 0);
+
+                            console.error('generated texture!' + texture.toString());
+                            $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString()));
+
+                            texture.fromCanvas(canvas);
                         }
-
-                        //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
-                        if (state.texture.swizzled) {
-                            core.PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
-                        }
-                        core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
-
-                        ctx.clearRect(0, 0, w, h);
-                        ctx.putImageData(imageData, 0, 0);
-
-                        texture.fromCanvas(canvas);
                     }
 
-                    this.textures[hash2].bind();
-
+                    this.lastTexture = texture;
+                    texture.bind();
                     prog.getUniform('uSampler').set1i(0);
                 };
 
@@ -7210,6 +7351,7 @@ var core;
 
                 WebGlPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
                     this.clearing = clearing;
+                    //console.log('clearing: ' + clearing + '; ' + flags);
                 };
 
                 WebGlPspDrawDriver.prototype.setMatrices = function (projectionMatrix, viewMatrix, worldMatrix) {
@@ -7235,12 +7377,41 @@ var core;
 
                 WebGlPspDrawDriver.prototype.setState = function (state) {
                     this.state = state;
-                    if (this.enableDisable(this.gl.CULL_FACE, state.culling.enabled)) {
-                        this.gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? this.gl.FRONT : this.gl.BACK);
+                };
+
+                WebGlPspDrawDriver.prototype.updateState = function (program) {
+                    var state = this.state;
+                    var gl = this.gl;
+                    if (this.enableDisable(gl.CULL_FACE, state.culling.enabled)) {
+                        gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
                     }
 
-                    this.gl.enable(this.gl.BLEND);
-                    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                    var blending = state.blending;
+                    if (this.enableDisable(gl.BLEND, state.blending.enabled)) {
+                        gl.blendFunc(gl.SRC_COLOR + state.blending.functionSource, gl.SRC_COLOR + state.blending.functionDestination);
+                        switch (state.blending.equation) {
+                            case 5 /* Abs */:
+                            case 4 /* Max */:
+                            case 3 /* Min */:
+                            case 0 /* Add */:
+                                gl.blendEquation(gl.FUNC_ADD);
+                                break;
+                            case 1 /* Substract */:
+                                gl.blendEquation(gl.FUNC_SUBTRACT);
+                                break;
+                            case 2 /* ReverseSubstract */:
+                                gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
+                                break;
+                        }
+                    }
+
+                    var alphaTest = state.alphaTest;
+                    if (alphaTest.enabled) {
+                        //console.log(TestFunctionEnum[alphaTest.func] + '; ' + alphaTest.value + '; ' + alphaTest.mask);
+                        program.getUniform('alphaTestFunc').set1i(alphaTest.func);
+                        program.getUniform('alphaTestReference').set1i(alphaTest.value);
+                        program.getUniform('alphaTestMask').set1i(alphaTest.mask);
+                    }
 
                     var ratio = this.getScaleRatio();
 
@@ -7379,8 +7550,9 @@ var core;
                     //console.log(primitiveType);
                     var gl = this.gl;
 
-                    var program = this.cache.getProgram(vertexState);
+                    var program = this.cache.getProgram(vertexState, this.state);
                     program.use();
+                    this.updateState(program);
 
                     if (this.clearing) {
                         this.textureHandler.unbindTexture(program, this.state);
@@ -9773,6 +9945,7 @@ var hle;
                 return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
                     return _this.fileUids.allocate(file);
                 }).catch(function (e) {
+                    console.log('SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND: ' + 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
                     return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
                 });
             };
@@ -11396,6 +11569,7 @@ var hle;
     (function (modules) {
         var UtilsForUser = (function () {
             function UtilsForUser(context) {
+                var _this = this;
                 this.context = context;
                 this.sceKernelLibcTime = modules.createNativeFunction(0x27CC57F0, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
@@ -11426,14 +11600,17 @@ var hle;
                     return 0;
                 });
                 this.sceKernelDcacheWritebackInvalidateRange = modules.createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                    _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
                     return 0;
                 });
                 this.sceKernelDcacheWritebackInvalidateAll = modules.createNativeFunction(0x3EE30821, 150, 'uint', '', this, function () {
+                    _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
                     return 0;
                 });
                 this.sceKernelDcacheInvalidateRange = modules.createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, function (pointer, size) {
                     if (size < 0)
                         return 2147483908 /* ERROR_INVALID_SIZE */;
+                    _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
                     return 0;
                 });
                 this.sceKernelDcacheWritebackRange = modules.createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, function (pointer, size) {
@@ -11445,9 +11622,11 @@ var hle;
                         return 2147483908 /* ERROR_INVALID_SIZE */;
                     if (pointer >= 0x80000000)
                         return 2147483907 /* ERROR_INVALID_POINTER */;
+                    _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
                     return 0;
                 });
                 this.sceKernelDcacheWritebackAll = modules.createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
+                    _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
                     return 0;
                 });
             }
@@ -12150,14 +12329,20 @@ function downloadFileAsync(url) {
         request.overrideMimeType("text/plain; charset=x-user-defined");
         request.responseType = "arraybuffer";
         request.onload = function (e) {
-            var arraybuffer = request.response;
+            console.log('request.onload -> ' + request.status);
+            if (request.status < 400) {
+                var arraybuffer = request.response;
 
-            //var data = new Uint8Array(arraybuffer);
-            resolve(arraybuffer);
-            //console.log(data);
-            //console.log(data.length);
+                //var data = new Uint8Array(arraybuffer);
+                resolve(arraybuffer);
+                //console.log(data);
+                //console.log(data.length);
+            } else {
+                reject(new Error("HTTP " + request.status));
+            }
         };
         request.onerror = function (e) {
+            console.error('request.onerror');
             reject(e['error']);
         };
         request.send();

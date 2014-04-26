@@ -61,7 +61,10 @@
 		private _sceIoOpen(filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
 			return this.context.fileManager.openAsync(filename, flags, mode)
 				.then(file => this.fileUids.allocate(file))
-				.catch(e => SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND)
+				.catch(e => {
+					console.log('SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND: ' + SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+					return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+				})
 				;
 		}
 

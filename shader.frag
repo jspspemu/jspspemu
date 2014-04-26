@@ -9,6 +9,15 @@ precision mediump float;
 #define GU_TCC_RGB       0
 #define GU_TCC_RGBA      1
 
+#define GU_NEVER 0
+#define GU_ALWAYS 1
+#define GU_EQUAL 2
+#define GU_NOT_EQUAL 3
+#define GU_LESS 4
+#define GU_LESS_OR_EQUAL 5
+#define GU_GREATER 6
+#define GU_GREATER_OR_EQUAL 7
+
 #ifdef VERTEX_COLOR
 	varying vec4 v_Color;
 #else
@@ -20,6 +29,12 @@ precision mediump float;
 	uniform int tfx;
 	uniform int tcc;
 	varying vec4 v_Texcoord;
+#endif
+
+#ifdef ALPHATEST
+	uniform int alphaTestFunc;
+	uniform int alphaTestReference;
+	uniform int alphaTestMask;
 #endif
 
 void main() {
@@ -40,5 +55,19 @@ void main() {
 		} else {
 			gl_FragColor *= texColor;
 		}
+	#endif
+
+	#ifdef ALPHATEST
+		int alphaTestColor = int(gl_FragColor.a * 255.0);
+		if (alphaTestMask != 0xFF) alphaTestColor = 0;
+
+		     if (alphaTestFunc == GU_NEVER           ) { discard; }
+		else if (alphaTestFunc == GU_ALWAYS          ) { }
+		else if (alphaTestFunc == GU_EQUAL           ) { if (!(alphaTestColor == alphaTestReference)) discard; }
+		else if (alphaTestFunc == GU_NOT_EQUAL       ) { if (!(alphaTestColor != alphaTestReference)) discard; }
+		else if (alphaTestFunc == GU_LESS            ) { if (!(alphaTestColor  < alphaTestReference)) discard; }
+		else if (alphaTestFunc == GU_LESS_OR_EQUAL   ) { if (!(alphaTestColor <= alphaTestReference)) discard; }
+		else if (alphaTestFunc == GU_GREATER         ) { if (!(alphaTestColor  > alphaTestReference)) discard; }
+		else if (alphaTestFunc == GU_GREATER_OR_EQUAL) { if (!(alphaTestColor >= alphaTestReference)) discard; }
 	#endif
 }

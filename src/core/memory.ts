@@ -17,6 +17,7 @@ module core {
 		static MASK = 0x0FFFFFFF;
 		static MAIN_OFFSET = 0x08000000;
 
+		invalidateDataRange = new Signal<NumericRange>();
 
 		private static _instance: Memory;
 		static get instance() {

@@ -21,7 +21,19 @@ module core.gpu {
 		setMatrices(projectionMatrix: Matrix4x4, viewMatrix: Matrix4x3, worldMatrix: Matrix4x3);
 		//drawSprites(vertices: Vertex[], vertexCount: number, transform2d: boolean);
 		//drawTriangles(vertices: Vertex[], vertexCount: number, transform2d: boolean);
+
+		/**
+		Flush texture page-cache.
+
+		Do this if you have copied/rendered into an area currently in the texture-cache
+		*/
 		textureFlush(state: any);
+
+		/**
+		Synchronize rendering pipeline with image upload.
+
+		This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
+		*/
 		textureSync(state: any);
 		drawElements(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState);
 		initAsync();
@@ -184,9 +196,37 @@ module core.gpu {
                     this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
                     this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
 					break;
-				case GpuOpCodes.LTE:
-					this.state.lightning.enabled = params24 != 0;
+				case GpuOpCodes.SHADE:
+					this.state.shadeModel = BitUtils.extractEnum<ShadingModelEnum>(params24, 0, 16)
 					break;
+
+				case GpuOpCodes.LTE:
+					this.state.lightning.enabled = (params24 != 0);
+					break;
+
+				case GpuOpCodes.ATE:
+					this.state.alphaTest.enabled = (params24 != 0);
+					break;
+
+				case GpuOpCodes.ATST:
+					this.state.alphaTest.func = BitUtils.extractEnum<TestFunctionEnum>(params24, 0, 8);
+					this.state.alphaTest.value = BitUtils.extract(params24, 8, 8);
+					this.state.alphaTest.mask = BitUtils.extract(params24, 16, 8);
+					break;
+
+				case GpuOpCodes.ABE:
+					this.state.blending.enabled = (params24 != 0);
+					break;
+				case GpuOpCodes.ALPHA:
+					this.state.blending.functionSource = BitUtils.extractEnum<GuBlendingFactor>(params24, 0, 4);
+					this.state.blending.functionDestination = BitUtils.extractEnum<GuBlendingFactor>(params24, 4, 4);
+					this.state.blending.equation = BitUtils.extractEnum<GuBlendingEquation>(params24, 8, 4);
+					break;
+
+				//case GpuOpCodes.SFIX:
+				//	this.state.blending;
+				//	break;
+
 				case GpuOpCodes.LTE0: this.state.lightning.lights[0].enabled = params24 != 0; break;
 				case GpuOpCodes.LTE1: this.state.lightning.lights[1].enabled = params24 != 0; break;
 				case GpuOpCodes.LTE2: this.state.lightning.lights[2].enabled = params24 != 0; break;

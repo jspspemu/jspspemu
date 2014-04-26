@@ -140,9 +140,7 @@
 				return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
 			}
 
-			return downloadFileAsync(this.baseUri + '/' + path).then((data) => {
-				return new MemoryVfsEntry(data);
-			});
+			return downloadFileAsync(this.baseUri + '/' + path).then((data) => new MemoryVfsEntry(data));
 		}
 
 		getStatAsync(path: string): Promise<VfsStat> {

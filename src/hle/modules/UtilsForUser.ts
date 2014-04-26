@@ -35,15 +35,18 @@
 		});
 
 		sceKernelDcacheWritebackInvalidateRange = createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
+			this.context.memory.invalidateDataRange.dispatch({ start: pointer, end : pointer + size });
 			return 0;
 		});
 
 		sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0x3EE30821, 150, 'uint', '', this, () => {
+			this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
 			return 0;
 		});
 
 		sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
 			if (size < 0) return SceKernelErrors.ERROR_INVALID_SIZE;
+			this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
 			return 0;
 		});
 
@@ -53,10 +56,12 @@
 			if (size < 0) return SceKernelErrors.ERROR_INVALID_SIZE;
 			if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 			if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
+			this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
 			return 0;
 		});
 
 		sceKernelDcacheWritebackAll = createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, () => {
+			this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
 			return 0;
 		});
     }
