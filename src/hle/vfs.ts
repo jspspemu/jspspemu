@@ -1,10 +1,10 @@
 ﻿module hle.vfs {
 	export class VfsEntry {
-		get isDirectory(): boolean { throw (new Error("Must override isDirectory")); }
-		enumerateAsync(): Promise<VfsStat[]> { throw (new Error("Must override enumerateAsync")); }
-		get size(): number { throw (new Error("Must override size")); }
+		get isDirectory(): boolean { throw (new Error("Must override isDirectory : " + this)); }
+		enumerateAsync(): Promise<VfsStat[]> { throw (new Error("Must override enumerateAsync : " + this)); }
+		get size(): number { throw (new Error("Must override size : " + this)); }
 		readAllAsync() { return this.readChunkAsync(0, this.size); }
-		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync")); }
+		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync : " + this)); }
 		close() { }
 		stat(): VfsStat { throw(new Error("Must override stat")); }
 	}
@@ -39,8 +39,8 @@
 
 	export class Vfs {
 		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
-			console.error(this);
-			throw (new Error("Must override open"));
+			console.error('VfsMustOverride openAsync', this);
+			throw (new Error("Must override open : " + this));
 			return null;
 		}
 
@@ -151,6 +151,10 @@
 		get size() { return this.data.byteLength; }
 		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return Promise.resolve(this.data.slice(offset, offset + length)); }
 		close() { }
+
+		enumerateAsync() {
+			return Promise.resolve([]);
+		}
 	}
 
 	export class MemoryVfs extends Vfs {
@@ -200,6 +204,10 @@
 			}
 
 			return downloadFileAsync(this.baseUri + '/' + path).then((data) => new MemoryVfsEntry(data));
+		}
+
+		openDirectoryAsync(path: string) {
+			return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
 		}
 
 		getStatAsync(path: string): Promise<VfsStat> {
@@ -278,6 +286,16 @@
 				return Promise.resolve(info.mount.file);
 			} else {
 				return info.mount.vfs.openAsync(info.part, flags, mode);
+			}
+		}
+
+		openDirectoryAsync(path: string) {
+			var info = this.transformPath(path);
+
+			if (info.mount.file) {
+				return Promise.resolve(info.mount.file);
+			} else {
+				return info.mount.vfs.openDirectoryAsync(info.part);
 			}
 		}
 

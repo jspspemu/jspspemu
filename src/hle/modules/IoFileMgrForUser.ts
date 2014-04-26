@@ -143,9 +143,14 @@
 			return result;
 		});
 
-		sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, (directoryPath: string) => {
-			return this.context.fileManager.openDirectoryAsync(directoryPath).then((directory) => {
+		sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, (path: string) => {
+			console.log('sceIoDopen("' + path + '")');
+			return this.context.fileManager.openDirectoryAsync(path).then((directory) => {
+				console.log('opened directory "' + path + '"');
 				return this.directoryUids.allocate(directory);
+			}).catch((error) => {
+				console.error(error);
+				return -1;
 			});
 		});
 

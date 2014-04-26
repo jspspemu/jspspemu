@@ -10369,9 +10369,14 @@ var hle;
                     //console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
                     return result;
                 });
-                this.sceIoDopen = modules.createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (directoryPath) {
-                    return _this.context.fileManager.openDirectoryAsync(directoryPath).then(function (directory) {
+                this.sceIoDopen = modules.createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (path) {
+                    console.log('sceIoDopen("' + path + '")');
+                    return _this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
+                        console.log('opened directory "' + path + '"');
                         return _this.directoryUids.allocate(directory);
+                    }).catch(function (error) {
+                        console.error(error);
+                        return -1;
                     });
                 });
                 this.sceIoDclose = modules.createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
@@ -12055,9 +12060,12 @@ var hle;
             function UtilsForUser(context) {
                 var _this = this;
                 this.context = context;
+                this.sceKernelLibcClock = modules.createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, function () {
+                    return Date.now() * 1000;
+                });
                 this.sceKernelLibcTime = modules.createNativeFunction(0x27CC57F0, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
-                    return new Date().getTime() / 1000;
+                    return Date.now() / 1000;
                 });
                 this.sceKernelUtilsMt19937Init = modules.createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
                     console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
@@ -12900,17 +12908,17 @@ var hle;
             }
             Object.defineProperty(VfsEntry.prototype, "isDirectory", {
                 get: function () {
-                    throw (new Error("Must override isDirectory"));
+                    throw (new Error("Must override isDirectory : " + this));
                 },
                 enumerable: true,
                 configurable: true
             });
             VfsEntry.prototype.enumerateAsync = function () {
-                throw (new Error("Must override enumerateAsync"));
+                throw (new Error("Must override enumerateAsync : " + this));
             };
             Object.defineProperty(VfsEntry.prototype, "size", {
                 get: function () {
-                    throw (new Error("Must override size"));
+                    throw (new Error("Must override size : " + this));
                 },
                 enumerable: true,
                 configurable: true
@@ -12919,7 +12927,7 @@ var hle;
                 return this.readChunkAsync(0, this.size);
             };
             VfsEntry.prototype.readChunkAsync = function (offset, length) {
-                throw (new Error("Must override readChunkAsync"));
+                throw (new Error("Must override readChunkAsync : " + this));
             };
             VfsEntry.prototype.close = function () {
             };
@@ -12955,8 +12963,8 @@ var hle;
             function Vfs() {
             }
             Vfs.prototype.openAsync = function (path, flags, mode) {
-                console.error(this);
-                throw (new Error("Must override open"));
+                console.error('VfsMustOverride openAsync', this);
+                throw (new Error("Must override open : " + this));
                 return null;
             };
 
@@ -13130,6 +13138,10 @@ var hle;
             };
             MemoryVfsEntry.prototype.close = function () {
             };
+
+            MemoryVfsEntry.prototype.enumerateAsync = function () {
+                return Promise.resolve([]);
+            };
             return MemoryVfsEntry;
         })(VfsEntry);
         _vfs.MemoryVfsEntry = MemoryVfsEntry;
@@ -13175,6 +13187,10 @@ var hle;
                 return downloadFileAsync(this.baseUri + '/' + path).then(function (data) {
                     return new MemoryVfsEntry(data);
                 });
+            };
+
+            UriVfs.prototype.openDirectoryAsync = function (path) {
+                return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
             };
 
             UriVfs.prototype.getStatAsync = function (path) {
@@ -13260,6 +13276,16 @@ var hle;
                     return Promise.resolve(info.mount.file);
                 } else {
                     return info.mount.vfs.openAsync(info.part, flags, mode);
+                }
+            };
+
+            MountableVfs.prototype.openDirectoryAsync = function (path) {
+                var info = this.transformPath(path);
+
+                if (info.mount.file) {
+                    return Promise.resolve(info.mount.file);
+                } else {
+                    return info.mount.vfs.openDirectoryAsync(info.part);
                 }
             };
 

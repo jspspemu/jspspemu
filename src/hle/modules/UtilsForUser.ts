@@ -1,10 +1,14 @@
 ﻿module hle.modules {
     export class UtilsForUser {
-        constructor(private context: EmulatorContext) { }
+		constructor(private context: EmulatorContext) { }
+
+		sceKernelLibcClock = createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, () => {
+			return Date.now() * 1000;
+		});
 
         sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', '', this, () => {
             //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
-            return new Date().getTime() / 1000;
+            return Date.now() / 1000;
         });
 
 		sceKernelUtilsMt19937Init = createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, (memory: core.Memory, contextPtr: number, seed: number) => {
