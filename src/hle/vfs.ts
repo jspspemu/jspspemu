@@ -1,7 +1,7 @@
 ﻿module hle.vfs {
 	export class VfsEntry {
 		get isDirectory(): boolean { throw (new Error("Must override isDirectory")); }
-		enumerateAsync() { throw (new Error("Must override enumerateAsync")); }
+		enumerateAsync(): Promise<VfsStat[]> { throw (new Error("Must override enumerateAsync")); }
 		get size(): number { throw (new Error("Must override size")); }
 		readAllAsync() { return this.readChunkAsync(0, this.size); }
 		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync")); }
@@ -28,12 +28,13 @@
 	export enum FileMode {
 	}
 
-	export class VfsStat {
-		size: number = 0;
-		isDirectory: boolean = false;
-		timeCreation: Date = new Date();
-		timeLastAccess: Date = new Date();
-		timeLastModification: Date = new Date();
+	export interface VfsStat {
+		name?: string;
+		size: number;
+		isDirectory: boolean;
+		timeCreation: Date;
+		timeLastAccess: Date;
+		timeLastModification: Date;
 	}
 
 	export class Vfs {
@@ -41,6 +42,10 @@
 			console.error(this);
 			throw (new Error("Must override open"));
 			return null;
+		}
+
+		openDirectoryAsync(path: string) {
+			return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
 		}
 
 		getStatAsync(path: string): Promise<VfsStat> {
@@ -58,14 +63,23 @@
 		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 		close() { }
 
-		stat(): VfsStat {
+		private static statNode(node: format.iso.IIsoNode): VfsStat {
 			return {
-				size: this.node.size,
-				isDirectory: this.node.isDirectory,
-				timeCreation: this.node.date,
-				timeLastAccess: this.node.date,
-				timeLastModification: this.node.date,
+				name: node.name,
+				size: node.size,
+				isDirectory: node.isDirectory,
+				timeCreation: node.date,
+				timeLastAccess: node.date,
+				timeLastModification: node.date,
 			};
+		}
+
+		stat(): VfsStat {
+			return IsoVfsFile.statNode(this.node);
+		}
+
+		enumerateAsync() {
+			return Promise.resolve(this.node.childs.map(node => IsoVfsFile.statNode(node)));
 		}
 	}
 
@@ -93,14 +107,23 @@
 		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 		close() { }
 
-		stat(): VfsStat {
+		private static statNode(node: format.zip.ZipEntry): VfsStat {
 			return {
-				size: this.node.size,
-				isDirectory: this.node.isDirectory,
-				timeCreation: this.node.date,
-				timeLastAccess: this.node.date,
-				timeLastModification: this.node.date,
+				name: node.name,
+				size: node.size,
+				isDirectory: node.isDirectory,
+				timeCreation: node.date,
+				timeLastAccess: node.date,
+				timeLastModification: node.date,
 			};
+		}
+
+		stat(): VfsStat {
+			return ZipVfsFile.statNode(this.node);
+		}
+
+		enumerateAsync() {
+			return Promise.resolve(this.node.getChildList().map(node => ZipVfsFile.statNode(node)));
 		}
 	}
 

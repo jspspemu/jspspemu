@@ -9,6 +9,10 @@
 			return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
 		}
 
+		openDirectoryAsync(uri: Uri) {
+			return this.vfs.openDirectoryAsync(uri.pathWithoutDevice);
+		}
+
 		getStatAsync(uri: Uri) {
 			return this.vfs.getStatAsync(uri.pathWithoutDevice);
 		}
@@ -22,6 +26,24 @@
 
 		close() {
 			this.entry.close();
+		}
+	}
+
+	export class HleDirectory {
+		cursor = 0;
+
+		constructor(public childs: vfs.VfsStat[]) {
+		}
+
+		read() {
+			return this.childs[this.cursor++];
+		}
+
+		get left() {
+			return this.childs.length - this.cursor;
+		}
+
+		close() {
 		}
 	}
 
@@ -64,6 +86,16 @@
 		openAsync(name: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) {
 			var uri = this.cwd.append(new Uri(name));
 			return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
+		}
+
+		openDirectoryAsync(name: string) {
+			var uri = this.cwd.append(new Uri(name));
+			return this.getDevice(uri.device).openDirectoryAsync(uri).then(entry => {
+				return entry.enumerateAsync().then((items) => {
+					entry.close();
+					return new HleDirectory(items);
+				});
+			});
 		}
 
 		getStatAsync(name:string) {

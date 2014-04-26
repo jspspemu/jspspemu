@@ -61,13 +61,13 @@
 	}
 
 	export class SceIoStat {
-		mode: SceMode = 0;
-		attributes: IOFileModes = 0;
-		size: number = 0;
-		timeCreation: ScePspDateTime = new ScePspDateTime();
-		timeLastAccess: ScePspDateTime = new ScePspDateTime();
-		timeLastModification: ScePspDateTime = new ScePspDateTime();
-		deviceDependentData: number[] = [0, 0, 0, 0, 0, 0];
+		mode = <SceMode>0;
+		attributes = IOFileModes.File;
+		size = 0;
+		timeCreation = new ScePspDateTime();
+		timeLastAccess = new ScePspDateTime();
+		timeLastModification = new ScePspDateTime();
+		deviceDependentData = [0, 0, 0, 0, 0, 0];
 
 		static struct = StructClass.create<SceIoStat>(SceIoStat, <StructEntry[]>[
 			{ mode: Int32 },
@@ -77,6 +77,20 @@
 			{ timeLastAccess: ScePspDateTime.struct },
 			{ timeLastModification: ScePspDateTime.struct },
 			{ deviceDependentData: StructArray(Int32, 6) },
+		]);
+	}
+
+	export class HleIoDirent {
+		stat = new SceIoStat();
+		name = '';
+		privateData = 0;
+		dummy = 0;
+
+		static struct = StructClass.create<HleIoDirent>(HleIoDirent, <StructEntry[]>[
+			{ stat: SceIoStat.struct },
+			{ name: Stringz(256) },
+			{ privateData: Int32 },
+			{ dummy: Int32 },
 		]);
 	}
 }

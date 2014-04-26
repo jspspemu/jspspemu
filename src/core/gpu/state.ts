@@ -55,13 +55,12 @@ module core.gpu {
 		w4 = 0.0; w5 = 0.0; w6 = 0.0; w7 = 0.0;
 
 		copyFrom(that: Vertex) {
-			var _this = this;
-			_this.px = that.px; _this.py = that.py; _this.pz = that.pz;
-			_this.nx = that.nx; _this.ny = that.ny; _this.nz = that.nz;
-			_this.tx = that.tx; _this.ty = that.ty; _this.tz = that.tz;
-			_this.r = that.r; _this.g = that.g; _this.b = that.b; _this.a = that.a;
-			_this.w0 = that.w0; _this.w1 = that.w1; _this.w2 = that.w2; _this.w3 = that.w3;
-			_this.w4 = that.w4; _this.w5 = that.w5; _this.w6 = that.w6; _this.w7 = that.w7;
+			this.px = that.px; this.py = that.py; this.pz = that.pz;
+			this.nx = that.nx; this.ny = that.ny; this.nz = that.nz;
+			this.tx = that.tx; this.ty = that.ty; this.tz = that.tz;
+			this.r = that.r; this.g = that.g; this.b = that.b; this.a = that.a;
+			this.w0 = that.w0; this.w1 = that.w1; this.w2 = that.w2; this.w3 = that.w3;
+			this.w4 = that.w4; this.w5 = that.w5; this.w6 = that.w6; this.w7 = that.w7;
 		}
 
 		clone() {
@@ -89,6 +88,21 @@ module core.gpu {
 
 		get hash() {
 			return this.value + (this.textureComponentCount * Math.pow(2, 32));
+		}
+
+		toString() {
+			return 'VertexState(' + JSON.stringify({
+				address: this.address,
+				texture: this.texture,
+				color: this.color,
+				normal: this.normal,
+				position: this.position,
+				weight: this.weight,
+				index: this.index,
+				weightCount: this.weightCount,
+				morphingVertexCount: this.morphingVertexCount,
+				transform2D: this.transform2D,
+			}) + ')';
 		}
 
 		get hasTexture() { return this.texture != NumericEnum.Void; }

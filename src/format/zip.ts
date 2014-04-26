@@ -11,6 +11,12 @@
 			return this.uncompressedSize;
 		}
 
+		getChildList() {
+			var list:ZipEntry[] = [];
+			for (var key in this.children) list.push(this.children[key]);
+			return list;
+		}
+
 		get date() {
 			var dosDate = this.zipDirEntry.dosDate;
 			var dosTime = this.zipDirEntry.dosTime;
@@ -37,7 +43,7 @@
 			return this.zipDirEntry.compType;
 		}
 
-		constructor(private zip: Zip, private name: string, private parent: ZipEntry) {
+		constructor(private zip: Zip, public name: string, private parent: ZipEntry) {
 			this.normalizedName = ZipEntry.normalizeString(name);
 		}
 

@@ -141,15 +141,31 @@
 			this.clutFormat = texture.clut.pixelFormat;
 		}
 
-		fromCanvas(canvas: HTMLCanvasElement) {
+		private _create(callbackTex2D: () => void) {
 			var gl = this.gl;
 
 			gl.bindTexture(gl.TEXTURE_2D, this.texture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
+			callbackTex2D();
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 			gl.generateMipmap(gl.TEXTURE_2D);
 			gl.bindTexture(gl.TEXTURE_2D, null);
+		}
+
+		fromBytes(data: ArrayBufferView, width: number, height: number) {
+			var gl = this.gl;
+
+			this._create(() => {
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, <any>data);
+			});
+		}
+
+		fromCanvas(canvas: HTMLCanvasElement) {
+			var gl = this.gl;
+
+			this._create(() => {
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
+			});
 
 		}
 
@@ -300,15 +316,7 @@
 					var w = mipmap.textureWidth;
 					var w2 = mipmap.bufferWidth;
 
-					var canvas = document.createElement('canvas');
-
-					//$(document.body).append(canvas);
-
-					canvas.width = w;
-					canvas.height = h;
-					var ctx = canvas.getContext('2d');
-					var imageData = ctx.createImageData(w2, h);
-					var u8 = imageData.data;
+					var data2 = new Uint8Array(w2 * h * 4);
 
 					var clut = state.texture.clut;
 					var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
@@ -324,19 +332,32 @@
 					if (state.texture.swizzled) {
 						PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
 					}
-					PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+					PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
-					ctx.clearRect(0, 0, w, h);
-					ctx.putImageData(imageData, 0, 0);
+					texture.fromBytes(data2, w2, h);
 
-					console.error('generated texture!' + texture.toString());
-					$(document.body).append(
-						$('<div style="color:white;" />')
-							.append(canvas)
-							.append(texture.toString())
-					);
+					if (true) {
+						var canvas = document.createElement('canvas');
+						canvas.width = w;
+						canvas.height = h;
+						var ctx = canvas.getContext('2d');
+						var imageData = ctx.createImageData(w2, h);
+						var u8 = imageData.data;
 
-					texture.fromCanvas(canvas);
+						ctx.clearRect(0, 0, w, h);
+						for (var n = 0; n < w2 * h * 4; n++) u8[n] = data2[n];
+						ctx.putImageData(imageData, 0, 0);
+
+						console.error('generated texture!' + texture.toString());
+						$(document.body).append(
+							$('<div style="color:white;" />')
+								.append(canvas)
+								.append(texture.toString())
+							);
+
+					}
+
+					//texture.fromCanvas(canvas);
 				}
 			}
 
@@ -456,6 +477,7 @@
 		private updateState(program: WrappedWebGLProgram) {
 			var state = this.state;
 			var gl = this.gl;
+
 			if (this.enableDisable(gl.CULL_FACE, state.culling.enabled)) {
 				gl.cullFace((state.culling.direction == CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 			}
@@ -516,28 +538,25 @@
 			var vertices2 = [];
 
 			for (var n = 0; n < count; n += 2) {
-				var v0 = vertices[n + 0];
-				var v1 = vertices[n + 1];
+				var tl = vertices[n + 0].clone();
+				var br = vertices[n + 1].clone();
 
-				//console.log(sprintf('%f, %f : %f, %f', v1.px, v1.py, v1.tx, v1.ty));
+				tl.r = br.r;
+				tl.g = br.g;
+				tl.b = br.b;
+				tl.a = br.a;
 
-				v0.r = v1.r;
-				v0.g = v1.g;
-				v0.b = v1.b;
-				v0.a = v1.a;
-				var vtl = v0.clone();
-				var vtr = v0.clone();
-				var vbl = v1.clone();
-				var vbr = v1.clone();
+				var vtr = tl.clone();
+				var vbl = br.clone();
 
-				vtr.px = v1.px;
-				vbl.px = v0.px;
+				vtr.px = br.px; vtr.py = tl.py;
+				vtr.tx = br.tx; vtr.ty = tl.ty;
 
-				vtr.tx = v1.tx;
-				vbl.tx = v0.tx;
+				vbl.px = tl.px; vbl.py = br.py;
+				vbl.tx = tl.tx; vbl.ty = br.ty;
 
-				vertices2.push(vtl, vtr, vbl);
-				vertices2.push(vtr, vbr, vbl);
+				vertices2.push(tl, vtr, vbl);
+				vertices2.push(vtr, br, vbl);
 			}
 			this.drawElementsInternal(PrimitiveType.Triangles, vertices2, vertices2.length, vertexState);
 		}
@@ -548,13 +567,15 @@
 		private textureData = new FastFloat32Buffer();
 		private lastBaseAddress = 0;
 
-		private demuxVertices(vertices: Vertex[], count: number, vertexState: VertexState) {
+		private demuxVertices(vertices: Vertex[], count: number, vertexState: VertexState, primitiveType: PrimitiveType) {
 			var textureState = this.state.texture;
 
 			this.positionData.restart();
 			this.colorData.restart();
 			this.textureData.restart();
 
+			var mipmap = this.state.texture.mipmaps[0];
+			//console.log('demuxVertices: ' + vertices.length + ', ' + count + ', ' + vertexState + ', PrimitiveType=' + primitiveType);
 			for (var n = 0; n < count; n++) {
 				var v = vertices[n];
 				this.positionData.push3(v.px, v.py, v.pz);
@@ -562,19 +583,30 @@
 				if (vertexState.hasColor) {
 					this.colorData.push4(v.r, v.g, v.b, v.a);
 				}
+
 				if (vertexState.hasTexture) {
 					if (vertexState.transform2D) {
 						this.textureData.push3(
-							v.tx / this.state.texture.mipmaps[0].bufferWidth,
-							v.ty / this.state.texture.mipmaps[0].textureHeight,
+							v.tx / mipmap.bufferWidth,
+							v.ty / mipmap.textureHeight,
 							1.0
 							);
+
+						if (DebugOnce('demuxVertices', 120)) {
+							//console.log(v.px, v.py, ':', v.tx, v.ty);
+							console.log(v.px, v.py, ':', v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight);
+							//console.log(vertices[0], vertices[1], vertices[2], vertices[3], vertices[4], vertices[5], vertices[6]);
+							//console.log('vertexState=' + vertexState + '');
+						}
+
 					} else {
 						this.textureData.push3(
 							v.tx * textureState.scaleU,
 							v.ty * textureState.scaleV,
 							v.tz
 							);
+
+
 					}
 				}
 			}
@@ -645,7 +677,7 @@
 				this.textureHandler.unbindTexture(program, this.state);
 			}
 
-			this.demuxVertices(vertices, count, vertexState);
+			this.demuxVertices(vertices, count, vertexState, primitiveType);
 			this.setProgramParameters(gl, program, vertexState);
 			this.drawArraysActual(gl, primitiveType, count);
 			this.unsetProgramParameters(gl, program, vertexState);

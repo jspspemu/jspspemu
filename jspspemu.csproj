@@ -86,6 +86,7 @@
     <TypeScriptCompile Include="src\hle\modules\sceOpenPSID.ts" />
     <TypeScriptCompile Include="src\hle\modules\scePower.ts" />
     <TypeScriptCompile Include="src\hle\modules\scePspNpDrm_user.ts" />
+    <TypeScriptCompile Include="src\hle\modules\sceReg.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceRtc.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceSasCore.ts" />
     <TypeScriptCompile Include="src\hle\modules\sceSsl.ts" />

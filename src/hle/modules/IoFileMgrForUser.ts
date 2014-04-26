@@ -40,17 +40,8 @@
 		});
 
 
-		sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, (directoryPath: string) => {
-			console.warn('Not implemented IoFileMgrForUser.sceIoDopen("' + directoryPath + '")');
-			return 0;
-		});
-
-		sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, (fileId: number) => {
-			console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
-			return 0;
-		});
-
 		fileUids = new UidCollection<hle.HleFile>(1);
+		directoryUids = new UidCollection<hle.HleDirectory>(1);
 
 		sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
 			console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
@@ -102,25 +93,30 @@
 			});
 		});
 
+		_vfsStatToSceIoStat(stat: hle.vfs.VfsStat) {
+			var stat2 = new SceIoStat();
+			stat2.mode = <SceMode>parseInt('777', 8)
+					stat2.size = stat.size;
+			stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
+			stat2.timeLastAccess = ScePspDateTime.fromDate(stat.timeLastAccess);
+			stat2.timeLastModification = ScePspDateTime.fromDate(stat.timeLastModification);
+			stat2.attributes = 0;
+			stat2.attributes |= IOFileModes.CanExecute;
+			stat2.attributes |= IOFileModes.CanRead;
+			stat2.attributes |= IOFileModes.CanWrite;
+			if (stat.isDirectory) {
+				stat2.attributes |= IOFileModes.Directory;
+			} else {
+				stat2.attributes |= IOFileModes.File;
+			}
+			return stat2;
+		}
+
 		sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, (fileName: string, sceIoStatPointer: Stream) => {
 			SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
 			return this.context.fileManager.getStatAsync(fileName)
 				.then(stat => {
-					var stat2 = new SceIoStat();
-					stat2.mode = <SceMode>parseInt('777', 8)
-					stat2.size = stat.size;
-					stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
-					stat2.timeLastAccess = ScePspDateTime.fromDate(stat.timeLastAccess);
-					stat2.timeLastModification = ScePspDateTime.fromDate(stat.timeLastModification);
-					stat2.attributes = 0;
-					stat2.attributes |= IOFileModes.CanExecute;
-					stat2.attributes |= IOFileModes.CanRead;
-					stat2.attributes |= IOFileModes.CanWrite;
-					if (stat.isDirectory) {
-						stat2.attributes |= IOFileModes.Directory;
-					} else {
-						stat2.attributes |= IOFileModes.File;
-					}
+					var stat2 = this._vfsStatToSceIoStat(stat);
 					console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
 					SceIoStat.struct.write(sceIoStatPointer, stat2);
 					return 0;
@@ -145,6 +141,31 @@
 			var result = this._seek(fileId, offset, whence);
 			//console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
 			return result;
+		});
+
+		sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, (directoryPath: string) => {
+			return this.context.fileManager.openDirectoryAsync(directoryPath).then((directory) => {
+				return this.directoryUids.allocate(directory);
+			});
+		});
+
+		sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, (fileId: number) => {
+			console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
+			this.directoryUids.remove(fileId);
+			return 0;
+		});
+
+		sceIoDread = createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, (fileId: number, hleIoDirentPtr: Stream) => {
+			var directory = this.directoryUids.get(fileId);
+			if (directory.left > 0) {
+				var stat = directory.read();
+				var hleIoDirent = new HleIoDirent();
+				hleIoDirent.name = stat.name;
+				hleIoDirent.stat = this._vfsStatToSceIoStat(stat);
+				hleIoDirent.privateData = 0;
+				HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
+			}
+			return directory.left;
 		});
 
 		_seek(fileId: number, offset: number, whence: number) {

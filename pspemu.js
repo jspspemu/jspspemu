@@ -455,8 +455,7 @@ var core;
             this.secondsLeftForVblank = 0;
             this.rowsLeftForVblankStart = 0;
             this.secondsLeftForVblankStart = 0;
-            //mustWaitVBlank = true;
-            this.mustWaitVBlank = false;
+            this.mustWaitVBlank = true;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
             this.setEnabledDisplay(true);
@@ -527,6 +526,7 @@ var core;
             return Promise.resolve();
         };
 
+        //mustWaitVBlank = false;
         PspDisplay.prototype.waitVblankAsync = function () {
             this.updateTime();
             if (!this.mustWaitVBlank)
@@ -547,7 +547,9 @@ var core;
         PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000;
         PspDisplay.CYCLES_PER_PIXEL = 1;
         PspDisplay.PIXELS_IN_A_ROW = 525;
-        PspDisplay.VSYNC_ROW = 272;
+
+        PspDisplay.VSYNC_ROW = 100;
+
         PspDisplay.NUMBER_OF_ROWS = 286;
         PspDisplay.HCOUNT_PER_VBLANK = 285.72;
 
@@ -2106,6 +2108,19 @@ var WaitingThreadInfo = (function () {
     }
     return WaitingThreadInfo;
 })();
+
+var DebugOnceArray = {};
+function DebugOnce(name, times) {
+    if (typeof times === "undefined") { times = 1; }
+    if (DebugOnceArray[name] >= times)
+        return false;
+    if (DebugOnceArray[name]) {
+        DebugOnceArray[name]++;
+    } else {
+        DebugOnceArray[name] = 1;
+    }
+    return true;
+}
 ///<reference path="../util/utils.ts" />
 var core;
 (function (core) {
@@ -2678,28 +2693,27 @@ var core;
                 this.w7 = 0.0;
             }
             Vertex.prototype.copyFrom = function (that) {
-                var _this = this;
-                _this.px = that.px;
-                _this.py = that.py;
-                _this.pz = that.pz;
-                _this.nx = that.nx;
-                _this.ny = that.ny;
-                _this.nz = that.nz;
-                _this.tx = that.tx;
-                _this.ty = that.ty;
-                _this.tz = that.tz;
-                _this.r = that.r;
-                _this.g = that.g;
-                _this.b = that.b;
-                _this.a = that.a;
-                _this.w0 = that.w0;
-                _this.w1 = that.w1;
-                _this.w2 = that.w2;
-                _this.w3 = that.w3;
-                _this.w4 = that.w4;
-                _this.w5 = that.w5;
-                _this.w6 = that.w6;
-                _this.w7 = that.w7;
+                this.px = that.px;
+                this.py = that.py;
+                this.pz = that.pz;
+                this.nx = that.nx;
+                this.ny = that.ny;
+                this.nz = that.nz;
+                this.tx = that.tx;
+                this.ty = that.ty;
+                this.tz = that.tz;
+                this.r = that.r;
+                this.g = that.g;
+                this.b = that.b;
+                this.a = that.a;
+                this.w0 = that.w0;
+                this.w1 = that.w1;
+                this.w2 = that.w2;
+                this.w3 = that.w3;
+                this.w4 = that.w4;
+                this.w5 = that.w5;
+                this.w6 = that.w6;
+                this.w7 = that.w7;
             };
 
             Vertex.prototype.clone = function () {
@@ -2739,6 +2753,21 @@ var core;
                 enumerable: true,
                 configurable: true
             });
+
+            VertexState.prototype.toString = function () {
+                return 'VertexState(' + JSON.stringify({
+                    address: this.address,
+                    texture: this.texture,
+                    color: this.color,
+                    normal: this.normal,
+                    position: this.position,
+                    weight: this.weight,
+                    index: this.index,
+                    weightCount: this.weightCount,
+                    morphingVertexCount: this.morphingVertexCount,
+                    transform2D: this.transform2D
+                }) + ')';
+            };
 
             Object.defineProperty(VertexState.prototype, "hasTexture", {
                 get: function () {
@@ -4228,7 +4257,7 @@ var FunctionGenerator = (function () {
             //console.log(di);
             if (this.instructionUsageCount[di.type.name] === undefined) {
                 this.instructionUsageCount[di.type.name] = 0;
-                console.warn('NEW instruction: ', di.type.name);
+                //console.warn('NEW instruction: ', di.type.name);
             }
             this.instructionUsageCount[di.type.name]++;
 
@@ -7123,15 +7152,31 @@ var core;
                     this.clutFormat = texture.clut.pixelFormat;
                 };
 
-                Texture.prototype.fromCanvas = function (canvas) {
+                Texture.prototype._create = function (callbackTex2D) {
                     var gl = this.gl;
 
                     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+                    callbackTex2D();
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
                     gl.generateMipmap(gl.TEXTURE_2D);
                     gl.bindTexture(gl.TEXTURE_2D, null);
+                };
+
+                Texture.prototype.fromBytes = function (data, width, height) {
+                    var gl = this.gl;
+
+                    this._create(function () {
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+                    });
+                };
+
+                Texture.prototype.fromCanvas = function (canvas) {
+                    var gl = this.gl;
+
+                    this._create(function () {
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+                    });
                 };
 
                 Texture.prototype.bind = function () {
@@ -7277,14 +7322,7 @@ var core;
                             var w = mipmap.textureWidth;
                             var w2 = mipmap.bufferWidth;
 
-                            var canvas = document.createElement('canvas');
-
-                            //$(document.body).append(canvas);
-                            canvas.width = w;
-                            canvas.height = h;
-                            var ctx = canvas.getContext('2d');
-                            var imageData = ctx.createImageData(w2, h);
-                            var u8 = imageData.data;
+                            var data2 = new Uint8Array(w2 * h * 4);
 
                             var clut = state.texture.clut;
                             var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
@@ -7299,15 +7337,27 @@ var core;
                             if (state.texture.swizzled) {
                                 core.PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
                             }
-                            core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, u8, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+                            core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
-                            ctx.clearRect(0, 0, w, h);
-                            ctx.putImageData(imageData, 0, 0);
+                            texture.fromBytes(data2, w2, h);
 
-                            console.error('generated texture!' + texture.toString());
-                            $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString()));
+                            if (true) {
+                                var canvas = document.createElement('canvas');
+                                canvas.width = w;
+                                canvas.height = h;
+                                var ctx = canvas.getContext('2d');
+                                var imageData = ctx.createImageData(w2, h);
+                                var u8 = imageData.data;
 
-                            texture.fromCanvas(canvas);
+                                ctx.clearRect(0, 0, w, h);
+                                for (var n = 0; n < w2 * h * 4; n++)
+                                    u8[n] = data2[n];
+                                ctx.putImageData(imageData, 0, 0);
+
+                                console.error('generated texture!' + texture.toString());
+                                $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString()));
+                            }
+                            //texture.fromCanvas(canvas);
                         }
                     }
 
@@ -7430,6 +7480,7 @@ var core;
                 WebGlPspDrawDriver.prototype.updateState = function (program) {
                     var state = this.state;
                     var gl = this.gl;
+
                     if (this.enableDisable(gl.CULL_FACE, state.culling.enabled)) {
                         gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
                     }
@@ -7495,37 +7546,41 @@ var core;
                     var vertices2 = [];
 
                     for (var n = 0; n < count; n += 2) {
-                        var v0 = vertices[n + 0];
-                        var v1 = vertices[n + 1];
+                        var tl = vertices[n + 0].clone();
+                        var br = vertices[n + 1].clone();
 
-                        //console.log(sprintf('%f, %f : %f, %f', v1.px, v1.py, v1.tx, v1.ty));
-                        v0.r = v1.r;
-                        v0.g = v1.g;
-                        v0.b = v1.b;
-                        v0.a = v1.a;
-                        var vtl = v0.clone();
-                        var vtr = v0.clone();
-                        var vbl = v1.clone();
-                        var vbr = v1.clone();
+                        tl.r = br.r;
+                        tl.g = br.g;
+                        tl.b = br.b;
+                        tl.a = br.a;
 
-                        vtr.px = v1.px;
-                        vbl.px = v0.px;
+                        var vtr = tl.clone();
+                        var vbl = br.clone();
 
-                        vtr.tx = v1.tx;
-                        vbl.tx = v0.tx;
+                        vtr.px = br.px;
+                        vtr.py = tl.py;
+                        vtr.tx = br.tx;
+                        vtr.ty = tl.ty;
 
-                        vertices2.push(vtl, vtr, vbl);
-                        vertices2.push(vtr, vbr, vbl);
+                        vbl.px = tl.px;
+                        vbl.py = br.py;
+                        vbl.tx = tl.tx;
+                        vbl.ty = br.ty;
+
+                        vertices2.push(tl, vtr, vbl);
+                        vertices2.push(vtr, br, vbl);
                     }
                     this.drawElementsInternal(3 /* Triangles */, vertices2, vertices2.length, vertexState);
                 };
 
-                WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState) {
+                WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType) {
                     var textureState = this.state.texture;
 
                     this.positionData.restart();
                     this.colorData.restart();
                     this.textureData.restart();
+
+                    var mipmap = this.state.texture.mipmaps[0];
 
                     for (var n = 0; n < count; n++) {
                         var v = vertices[n];
@@ -7534,9 +7589,17 @@ var core;
                         if (vertexState.hasColor) {
                             this.colorData.push4(v.r, v.g, v.b, v.a);
                         }
+
                         if (vertexState.hasTexture) {
                             if (vertexState.transform2D) {
-                                this.textureData.push3(v.tx / this.state.texture.mipmaps[0].bufferWidth, v.ty / this.state.texture.mipmaps[0].textureHeight, 1.0);
+                                this.textureData.push3(v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight, 1.0);
+
+                                if (DebugOnce('demuxVertices', 120)) {
+                                    //console.log(v.px, v.py, ':', v.tx, v.ty);
+                                    console.log(v.px, v.py, ':', v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight);
+                                    //console.log(vertices[0], vertices[1], vertices[2], vertices[3], vertices[4], vertices[5], vertices[6]);
+                                    //console.log('vertexState=' + vertexState + '');
+                                }
                             } else {
                                 this.textureData.push3(v.tx * textureState.scaleU, v.ty * textureState.scaleV, v.tz);
                             }
@@ -7618,7 +7681,7 @@ var core;
                         this.textureHandler.unbindTexture(program, this.state);
                     }
 
-                    this.demuxVertices(vertices, count, vertexState);
+                    this.demuxVertices(vertices, count, vertexState, primitiveType);
                     this.setProgramParameters(gl, program, vertexState);
                     this.drawArraysActual(gl, primitiveType, count);
                     this.unsetProgramParameters(gl, program, vertexState);
@@ -9305,6 +9368,13 @@ var format;
                 configurable: true
             });
 
+            ZipEntry.prototype.getChildList = function () {
+                var list = [];
+                for (var key in this.children)
+                    list.push(this.children[key]);
+                return list;
+            };
+
             Object.defineProperty(ZipEntry.prototype, "date", {
                 get: function () {
                     var dosDate = this.zipDirEntry.dosDate;
@@ -9916,6 +9986,10 @@ var hle;
             return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
         };
 
+        Device.prototype.openDirectoryAsync = function (uri) {
+            return this.vfs.openDirectoryAsync(uri.pathWithoutDevice);
+        };
+
         Device.prototype.getStatAsync = function (uri) {
             return this.vfs.getStatAsync(uri.pathWithoutDevice);
         };
@@ -9934,6 +10008,29 @@ var hle;
         return HleFile;
     })();
     hle.HleFile = HleFile;
+
+    var HleDirectory = (function () {
+        function HleDirectory(childs) {
+            this.childs = childs;
+            this.cursor = 0;
+        }
+        HleDirectory.prototype.read = function () {
+            return this.childs[this.cursor++];
+        };
+
+        Object.defineProperty(HleDirectory.prototype, "left", {
+            get: function () {
+                return this.childs.length - this.cursor;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        HleDirectory.prototype.close = function () {
+        };
+        return HleDirectory;
+    })();
+    hle.HleDirectory = HleDirectory;
 
     var Uri = (function () {
         function Uri(path) {
@@ -9992,6 +10089,16 @@ var hle;
             var uri = this.cwd.append(new Uri(name));
             return this.getDevice(uri.device).openAsync(uri, flags, mode).then(function (entry) {
                 return new HleFile(entry);
+            });
+        };
+
+        FileManager.prototype.openDirectoryAsync = function (name) {
+            var uri = this.cwd.append(new Uri(name));
+            return this.getDevice(uri.device).openDirectoryAsync(uri).then(function (entry) {
+                return entry.enumerateAsync().then(function (items) {
+                    entry.close();
+                    return new HleDirectory(items);
+                });
             });
         };
 
@@ -10194,15 +10301,8 @@ var hle;
                     console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoDevctl("%s", %d, %08X, %d, %08X, %d)', deviceName, command, inputPointer, inputLength, outputPointer, outputLength));
                     return 0;
                 });
-                this.sceIoDopen = modules.createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (directoryPath) {
-                    console.warn('Not implemented IoFileMgrForUser.sceIoDopen("' + directoryPath + '")');
-                    return 0;
-                });
-                this.sceIoDclose = modules.createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
-                    console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
-                    return 0;
-                });
                 this.fileUids = new UidCollection(1);
+                this.directoryUids = new UidCollection(1);
                 this.sceIoOpen = modules.createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
                     console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
 
@@ -10244,21 +10344,7 @@ var hle;
                 this.sceIoGetstat = modules.createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
                     hle.SceIoStat.struct.write(sceIoStatPointer, new hle.SceIoStat());
                     return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
-                        var stat2 = new hle.SceIoStat();
-                        stat2.mode = parseInt('777', 8);
-                        stat2.size = stat.size;
-                        stat2.timeCreation = hle.ScePspDateTime.fromDate(stat.timeCreation);
-                        stat2.timeLastAccess = hle.ScePspDateTime.fromDate(stat.timeLastAccess);
-                        stat2.timeLastModification = hle.ScePspDateTime.fromDate(stat.timeLastModification);
-                        stat2.attributes = 0;
-                        stat2.attributes |= 1 /* CanExecute */;
-                        stat2.attributes |= 4 /* CanRead */;
-                        stat2.attributes |= 2 /* CanWrite */;
-                        if (stat.isDirectory) {
-                            stat2.attributes |= 16 /* Directory */;
-                        } else {
-                            stat2.attributes |= 32 /* File */;
-                        }
+                        var stat2 = _this._vfsStatToSceIoStat(stat);
                         console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
                         hle.SceIoStat.struct.write(sceIoStatPointer, stat2);
                         return 0;
@@ -10283,6 +10369,28 @@ var hle;
                     //console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
                     return result;
                 });
+                this.sceIoDopen = modules.createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (directoryPath) {
+                    return _this.context.fileManager.openDirectoryAsync(directoryPath).then(function (directory) {
+                        return _this.directoryUids.allocate(directory);
+                    });
+                });
+                this.sceIoDclose = modules.createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
+                    console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
+                    _this.directoryUids.remove(fileId);
+                    return 0;
+                });
+                this.sceIoDread = modules.createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, function (fileId, hleIoDirentPtr) {
+                    var directory = _this.directoryUids.get(fileId);
+                    if (directory.left > 0) {
+                        var stat = directory.read();
+                        var hleIoDirent = new hle.HleIoDirent();
+                        hleIoDirent.name = stat.name;
+                        hleIoDirent.stat = _this._vfsStatToSceIoStat(stat);
+                        hleIoDirent.privateData = 0;
+                        hle.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
+                    }
+                    return directory.left;
+                });
             }
             IoFileMgrForUser.prototype._sceIoOpen = function (filename, flags, mode) {
                 var _this = this;
@@ -10292,6 +10400,25 @@ var hle;
                     console.log('SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND: ' + 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
                     return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
                 });
+            };
+
+            IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
+                var stat2 = new hle.SceIoStat();
+                stat2.mode = parseInt('777', 8);
+                stat2.size = stat.size;
+                stat2.timeCreation = hle.ScePspDateTime.fromDate(stat.timeCreation);
+                stat2.timeLastAccess = hle.ScePspDateTime.fromDate(stat.timeLastAccess);
+                stat2.timeLastModification = hle.ScePspDateTime.fromDate(stat.timeLastModification);
+                stat2.attributes = 0;
+                stat2.attributes |= 1 /* CanExecute */;
+                stat2.attributes |= 4 /* CanRead */;
+                stat2.attributes |= 2 /* CanWrite */;
+                if (stat.isDirectory) {
+                    stat2.attributes |= 16 /* Directory */;
+                } else {
+                    stat2.attributes |= 32 /* File */;
+                }
+                return stat2;
             };
 
             IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
@@ -11038,6 +11165,19 @@ var hle;
             return scePspNpDrm_user;
         })();
         modules.scePspNpDrm_user = scePspNpDrm_user;
+    })(hle.modules || (hle.modules = {}));
+    var modules = hle.modules;
+})(hle || (hle = {}));
+var hle;
+(function (hle) {
+    (function (modules) {
+        var sceReg = (function () {
+            function sceReg(context) {
+                this.context = context;
+            }
+            return sceReg;
+        })();
+        modules.sceReg = sceReg;
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -12544,7 +12684,7 @@ var hle;
     var SceIoStat = (function () {
         function SceIoStat() {
             this.mode = 0;
-            this.attributes = 0;
+            this.attributes = 32 /* File */;
             this.size = 0;
             this.timeCreation = new ScePspDateTime();
             this.timeLastAccess = new ScePspDateTime();
@@ -12563,6 +12703,23 @@ var hle;
         return SceIoStat;
     })();
     hle.SceIoStat = SceIoStat;
+
+    var HleIoDirent = (function () {
+        function HleIoDirent() {
+            this.stat = new SceIoStat();
+            this.name = '';
+            this.privateData = 0;
+            this.dummy = 0;
+        }
+        HleIoDirent.struct = StructClass.create(HleIoDirent, [
+            { stat: SceIoStat.struct },
+            { name: Stringz(256) },
+            { privateData: Int32 },
+            { dummy: Int32 }
+        ]);
+        return HleIoDirent;
+    })();
+    hle.HleIoDirent = HleIoDirent;
 })(hle || (hle = {}));
 var hle;
 (function (hle) {
@@ -12794,18 +12951,6 @@ var hle;
         })(_vfs.FileMode || (_vfs.FileMode = {}));
         var FileMode = _vfs.FileMode;
 
-        var VfsStat = (function () {
-            function VfsStat() {
-                this.size = 0;
-                this.isDirectory = false;
-                this.timeCreation = new Date();
-                this.timeLastAccess = new Date();
-                this.timeLastModification = new Date();
-            }
-            return VfsStat;
-        })();
-        _vfs.VfsStat = VfsStat;
-
         var Vfs = (function () {
             function Vfs() {
             }
@@ -12813,6 +12958,10 @@ var hle;
                 console.error(this);
                 throw (new Error("Must override open"));
                 return null;
+            };
+
+            Vfs.prototype.openDirectoryAsync = function (path) {
+                return this.openAsync(path, 1 /* Read */, parseInt('0777', 8));
             };
 
             Vfs.prototype.getStatAsync = function (path) {
@@ -12850,14 +12999,25 @@ var hle;
             IsoVfsFile.prototype.close = function () {
             };
 
-            IsoVfsFile.prototype.stat = function () {
+            IsoVfsFile.statNode = function (node) {
                 return {
-                    size: this.node.size,
-                    isDirectory: this.node.isDirectory,
-                    timeCreation: this.node.date,
-                    timeLastAccess: this.node.date,
-                    timeLastModification: this.node.date
+                    name: node.name,
+                    size: node.size,
+                    isDirectory: node.isDirectory,
+                    timeCreation: node.date,
+                    timeLastAccess: node.date,
+                    timeLastModification: node.date
                 };
+            };
+
+            IsoVfsFile.prototype.stat = function () {
+                return IsoVfsFile.statNode(this.node);
+            };
+
+            IsoVfsFile.prototype.enumerateAsync = function () {
+                return Promise.resolve(this.node.childs.map(function (node) {
+                    return IsoVfsFile.statNode(node);
+                }));
             };
             return IsoVfsFile;
         })(VfsEntry);
@@ -12905,14 +13065,25 @@ var hle;
             ZipVfsFile.prototype.close = function () {
             };
 
-            ZipVfsFile.prototype.stat = function () {
+            ZipVfsFile.statNode = function (node) {
                 return {
-                    size: this.node.size,
-                    isDirectory: this.node.isDirectory,
-                    timeCreation: this.node.date,
-                    timeLastAccess: this.node.date,
-                    timeLastModification: this.node.date
+                    name: node.name,
+                    size: node.size,
+                    isDirectory: node.isDirectory,
+                    timeCreation: node.date,
+                    timeLastAccess: node.date,
+                    timeLastModification: node.date
                 };
+            };
+
+            ZipVfsFile.prototype.stat = function () {
+                return ZipVfsFile.statNode(this.node);
+            };
+
+            ZipVfsFile.prototype.enumerateAsync = function () {
+                return Promise.resolve(this.node.getChildList().map(function (node) {
+                    return ZipVfsFile.statNode(node);
+                }));
             };
             return ZipVfsFile;
         })(VfsEntry);

@@ -85,7 +85,10 @@
 		static PROCESSED_PIXELS_PER_SECOND = 9000000; // hz
 		static CYCLES_PER_PIXEL = 1;
 		static PIXELS_IN_A_ROW = 525;
-		static VSYNC_ROW = 272;
+
+		//static VSYNC_ROW = 272;
+		static VSYNC_ROW = 100;
+
 		static NUMBER_OF_ROWS = 286;
 		static HCOUNT_PER_VBLANK = 285.72;
 
@@ -178,8 +181,8 @@
 			return Promise.resolve();
 		}
 
-		//mustWaitVBlank = true;
-		mustWaitVBlank = false;
+		mustWaitVBlank = true;
+		//mustWaitVBlank = false;
 
 		waitVblankAsync() {
 			this.updateTime();

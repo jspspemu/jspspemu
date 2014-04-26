@@ -1179,3 +1179,14 @@ class WaitingThreadInfo<T> {
 	public constructor(public name: string, public object: any, public promise: Promise<T>) {
 	}
 }
+
+var DebugOnceArray = {};
+function DebugOnce(name: string, times: number = 1) {
+	if (DebugOnceArray[name] >= times) return false;
+	if (DebugOnceArray[name]) {
+		DebugOnceArray[name]++;
+	} else {
+		DebugOnceArray[name] = 1;
+	}
+	return true;
+}
