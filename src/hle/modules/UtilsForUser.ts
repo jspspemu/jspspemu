@@ -3,12 +3,12 @@
 		constructor(private context: EmulatorContext) { }
 
 		sceKernelLibcClock = createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, () => {
-			return Date.now() * 1000;
+			return (performance.now() * 1000) | 0;
 		});
 
         sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', '', this, () => {
             //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
-            return Date.now() / 1000;
+            return (Date.now() / 1000) | 0;
         });
 
 		sceKernelUtilsMt19937Init = createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, (memory: core.Memory, contextPtr: number, seed: number) => {
@@ -21,10 +21,12 @@
         });
 
         sceKernelLibcGettimeofday = createNativeFunction(0x71EC4271, 150, 'uint', 'void*/void*', this, (timevalPtr: Stream, timezonePtr: Stream) => {
-            if (timevalPtr) {
-                var seconds = new Date().getSeconds();
-                var microseconds = new Date().getMilliseconds() * 1000;
-                timevalPtr.writeInt32(seconds);
+			if (timevalPtr) {
+				var totalMilliseconds = Date.now();
+				var totalSeconds = Math.floor(totalMilliseconds / 1000);
+				var milliseconds = Math.floor(totalMilliseconds % 1000);
+				var microseconds = milliseconds * 1000;
+                timevalPtr.writeInt32(totalSeconds);
                 timevalPtr.writeInt32(microseconds);
             }
 

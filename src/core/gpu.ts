@@ -322,6 +322,7 @@ module core.gpu {
 
 				case GpuOpCodes.AMC:
 					//printf("%08X: %08X", current, instruction);
+					//printf("GpuOpCodes.AMC: Params24: %08X", params24);
 					this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
 					this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
 					this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
@@ -329,6 +330,7 @@ module core.gpu {
 					break;
 
 				case GpuOpCodes.AMA:
+					//printf("GpuOpCodes.AMA: Params24: %08X", params24);
 					this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
 					break;
 

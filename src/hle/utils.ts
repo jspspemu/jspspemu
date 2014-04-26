@@ -33,7 +33,7 @@
 
         code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
 
-		code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+		code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
 		code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
 
         switch (retval) {
@@ -46,17 +46,17 @@
             default: throw ('Invalid return value "' + retval + '"');
         }
 
-        var out = new core.NativeFunction();
-        out.name = 'unknown';
-        out.nid = exportId;
-        out.firmwareVersion = firmwareVersion;
+        var nativeFunction = new core.NativeFunction();
+        nativeFunction.name = 'unknown';
+        nativeFunction.nid = exportId;
+        nativeFunction.firmwareVersion = firmwareVersion;
         //console.log(code);
-        var func = <any>new Function('_this', 'internalFunc', 'context', 'state', code);
-		out.call = (context: EmulatorContext, state: core.cpu.CpuState) => {
-            func(_this, internalFunc, context, state);
+        var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
+		nativeFunction.call = (context: EmulatorContext, state: core.cpu.CpuState) => {
+            func(_this, internalFunc, context, state, nativeFunction);
         };
         //console.log(out);
-        return out;
+        return nativeFunction;
     }
 }
 

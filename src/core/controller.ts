@@ -37,6 +37,15 @@ module core {
 	export class PspController {
 		data: SceCtrlData = new SceCtrlData();
 		buttonMapping: any = {};
+		fieldMapping: any = {};
+
+		analogUp: boolean = false;
+		analogDown: boolean = false;
+		analogLeft: boolean = false;
+		analogRight: boolean = false;
+
+		analogAddX: number = 0;
+		analogAddY: number = 0;
 
 		constructor() {
 			this.buttonMapping = {};
@@ -53,21 +62,28 @@ module core {
 			this.buttonMapping[HtmlKeyCodes.a] = PspCtrlButtons.square;
 			this.buttonMapping[HtmlKeyCodes.d] = PspCtrlButtons.circle;
 			//this.buttonMapping[KeyCodes.Down] = PspCtrlButtons.Down;
+
+			this.fieldMapping[HtmlKeyCodes.i] = 'analogUp';
+			this.fieldMapping[HtmlKeyCodes.k] = 'analogDown';
+			this.fieldMapping[HtmlKeyCodes.j] = 'analogLeft';
+			this.fieldMapping[HtmlKeyCodes.l] = 'analogRight';
 		}
 
 		private keyDown(e: KeyboardEvent) {
 			//console.log(e.keyCode);
 			var button = this.buttonMapping[e.keyCode];
-			if (button !== undefined) {
-				this.data.buttons |= button;
-			}
+			if (button !== undefined) this.data.buttons |= button;
+
+			var field = this.fieldMapping[e.keyCode];
+			if (field !== undefined) this[field] =true;
 		}
 
 		private keyUp(e: KeyboardEvent) {
 			var button = this.buttonMapping[e.keyCode];
-			if (button !== undefined) {
-				this.data.buttons &= ~button;
-			}
+			if (button !== undefined) this.data.buttons &= ~button;
+
+			var field = this.fieldMapping[e.keyCode];
+			if (field !== undefined) this[field] = false;
 		}
 
 		simulateButtonDown(button: number) {
@@ -95,6 +111,20 @@ module core {
 		private gamepadsButtons = [];
 
 		private frame(timestamp: number) {
+			if (this.analogUp) { this.analogAddY -= 0.1; }
+			else if (this.analogDown) { this.analogAddY += 0.1; }
+			else { this.analogAddY *= 0.3; }
+
+			if (this.analogLeft) { this.analogAddX -= 0.1; }
+			else if (this.analogRight) { this.analogAddX += 0.1; }
+			else { this.analogAddX *= 0.3; }
+
+			this.analogAddX = MathUtils.clamp(this.analogAddX, -1, +1);
+			this.analogAddY = MathUtils.clamp(this.analogAddY, -1, +1);
+
+			this.data.x = this.analogAddX;
+			this.data.y = this.analogAddY;
+
 			//console.log('zzzzzzzzz');
 			if (navigator['getGamepads']) {
 				//console.log('bbbbbbbbb');
@@ -123,8 +153,8 @@ module core {
 					var gamepad = gamepads[0];
 					var buttons = gamepad['buttons'];
 					var axes = gamepad['axes'];
-					this.data.x = axes[0];
-					this.data.y = axes[1];
+					this.data.x += axes[0];
+					this.data.y += axes[1];
 
 					function checkButton(button) {
 						if (typeof button == 'number') {
@@ -143,6 +173,10 @@ module core {
 					}
 				}
 			}
+
+			this.data.x = MathUtils.clamp(this.data.x, -1, +1);
+			this.data.y = MathUtils.clamp(this.data.y, -1, +1);
+
 			this.animationTimeId = requestAnimationFrame((timestamp: number) => this.frame(timestamp));
 		}
 

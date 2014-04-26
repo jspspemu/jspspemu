@@ -2,18 +2,22 @@
 	export class sceAtrac3plus {
 		constructor(private context: EmulatorContext) { }
 
+		_waitAsync(name: string, time: number) {
+			return new WaitingThreadInfo(name, this, waitAsycn(time).then(() => 0));
+		}
+
 		sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, (dataPointer: Stream, dataLength: number) => {
-			return waitAsycn(10).then(() => 0);
+			return this._waitAsync('sceAtracSetDataAndGetID', 10);
 		});
 
 		sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, (id: number, puiPosition: Stream, puiDataByte: Stream) => {
 			puiPosition.writeInt32(0);
 			puiDataByte.writeInt32(0);
-			return waitAsycn(10).then(() => 0);
+			return this._waitAsync('sceAtracGetSecondBufferInfo', 10);
 		});
 
 		sceAtracSetSecondBuffer = createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, (id: number, pucSecondBufferAddr: Stream, uiSecondBufferByte: number) => {
-			return waitAsycn(10).then(() => 0);
+			return this._waitAsync('sceAtracSetSecondBuffer', 10);
 		});
 
 		sceAtracReleaseAtracID = createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, (id: number) => {
@@ -21,7 +25,7 @@
 		});
 
 		sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, (id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) => {
-			return waitAsycn(10).then(() => 0);
+			return this._waitAsync('sceAtracDecodeData', 10);
 		});
 
 		sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, (id: number, remainFramePtr: Stream) => {

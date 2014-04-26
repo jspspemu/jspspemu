@@ -455,7 +455,8 @@ var core;
             this.secondsLeftForVblank = 0;
             this.rowsLeftForVblankStart = 0;
             this.secondsLeftForVblankStart = 0;
-            this.mustWaitVBlank = true;
+            //mustWaitVBlank = true;
+            this.mustWaitVBlank = false;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
             this.setEnabledDisplay(true);
@@ -526,7 +527,6 @@ var core;
             return Promise.resolve();
         };
 
-        //mustWaitVBlank = false;
         PspDisplay.prototype.waitVblankAsync = function () {
             this.updateTime();
             if (!this.mustWaitVBlank)
@@ -548,7 +548,7 @@ var core;
         PspDisplay.CYCLES_PER_PIXEL = 1;
         PspDisplay.PIXELS_IN_A_ROW = 525;
 
-        PspDisplay.VSYNC_ROW = 100;
+        PspDisplay.VSYNC_ROW = 272;
 
         PspDisplay.NUMBER_OF_ROWS = 286;
         PspDisplay.HCOUNT_PER_VBLANK = 285.72;
@@ -1989,6 +1989,14 @@ var MathUtils = (function () {
             return value;
         return value + (alignment - (value % alignment));
     };
+
+    MathUtils.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
     return MathUtils;
 })();
 
@@ -2171,6 +2179,13 @@ var core;
         function PspController() {
             this.data = new SceCtrlData();
             this.buttonMapping = {};
+            this.fieldMapping = {};
+            this.analogUp = false;
+            this.analogDown = false;
+            this.analogLeft = false;
+            this.analogRight = false;
+            this.analogAddX = 0;
+            this.analogAddY = 0;
             this.animationTimeId = 0;
             this.gamepadsButtons = [];
             this.buttonMapping = {};
@@ -2186,21 +2201,32 @@ var core;
             this.buttonMapping[83 /* s */] = 16384 /* cross */;
             this.buttonMapping[65 /* a */] = 32768 /* square */;
             this.buttonMapping[68 /* d */] = 8192 /* circle */;
+
             //this.buttonMapping[KeyCodes.Down] = PspCtrlButtons.Down;
+            this.fieldMapping[73 /* i */] = 'analogUp';
+            this.fieldMapping[75 /* k */] = 'analogDown';
+            this.fieldMapping[74 /* j */] = 'analogLeft';
+            this.fieldMapping[76 /* l */] = 'analogRight';
         }
         PspController.prototype.keyDown = function (e) {
             //console.log(e.keyCode);
             var button = this.buttonMapping[e.keyCode];
-            if (button !== undefined) {
+            if (button !== undefined)
                 this.data.buttons |= button;
-            }
+
+            var field = this.fieldMapping[e.keyCode];
+            if (field !== undefined)
+                this[field] = true;
         };
 
         PspController.prototype.keyUp = function (e) {
             var button = this.buttonMapping[e.keyCode];
-            if (button !== undefined) {
+            if (button !== undefined)
                 this.data.buttons &= ~button;
-            }
+
+            var field = this.fieldMapping[e.keyCode];
+            if (field !== undefined)
+                this[field] = false;
         };
 
         PspController.prototype.simulateButtonDown = function (button) {
@@ -2233,6 +2259,28 @@ var core;
 
         PspController.prototype.frame = function (timestamp) {
             var _this = this;
+            if (this.analogUp) {
+                this.analogAddY -= 0.1;
+            } else if (this.analogDown) {
+                this.analogAddY += 0.1;
+            } else {
+                this.analogAddY *= 0.3;
+            }
+
+            if (this.analogLeft) {
+                this.analogAddX -= 0.1;
+            } else if (this.analogRight) {
+                this.analogAddX += 0.1;
+            } else {
+                this.analogAddX *= 0.3;
+            }
+
+            this.analogAddX = MathUtils.clamp(this.analogAddX, -1, +1);
+            this.analogAddY = MathUtils.clamp(this.analogAddY, -1, +1);
+
+            this.data.x = this.analogAddX;
+            this.data.y = this.analogAddY;
+
             //console.log('zzzzzzzzz');
             if (navigator['getGamepads']) {
                 //console.log('bbbbbbbbb');
@@ -2261,8 +2309,8 @@ var core;
                     var gamepad = gamepads[0];
                     var buttons = gamepad['buttons'];
                     var axes = gamepad['axes'];
-                    this.data.x = axes[0];
-                    this.data.y = axes[1];
+                    this.data.x += axes[0];
+                    this.data.y += axes[1];
 
                     function checkButton(button) {
                         if (typeof button == 'number') {
@@ -2281,6 +2329,10 @@ var core;
                     }
                 }
             }
+
+            this.data.x = MathUtils.clamp(this.data.x, -1, +1);
+            this.data.y = MathUtils.clamp(this.data.y, -1, +1);
+
             this.animationTimeId = requestAnimationFrame(function (timestamp) {
                 return _this.frame(timestamp);
             });
@@ -3897,6 +3949,7 @@ var core;
 
                     case 85 /* AMC */:
                         //printf("%08X: %08X", current, instruction);
+                        //printf("GpuOpCodes.AMC: Params24: %08X", params24);
                         this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
                         this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
                         this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
@@ -3904,6 +3957,7 @@ var core;
                         break;
 
                     case 88 /* AMA */:
+                        //printf("GpuOpCodes.AMA: Params24: %08X", params24);
                         this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
                         break;
 
@@ -4794,10 +4848,16 @@ var hle;
             this.info = info;
             this.waitingName = info.name;
             this.waitingObject = info.object;
-            this.suspendUntilPromiseDone(info.promise);
+            this._suspendUntilPromiseDone(info.promise);
         };
 
-        Thread.prototype.suspendUntilPromiseDone = function (promise) {
+        Thread.prototype.suspendUntilPromiseDone = function (promise, info) {
+            this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
+            this.waitingObject = info;
+            this._suspendUntilPromiseDone(promise);
+        };
+
+        Thread.prototype._suspendUntilPromiseDone = function (promise) {
             var _this = this;
             this.waitingPromise = promise;
 
@@ -7052,7 +7112,7 @@ var core;
                     if (!this.buffer)
                         this.buffer = this.gl.createBuffer();
                     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-                    gl.bufferData(gl.ARRAY_BUFFER, arr.slice(), gl.STATIC_DRAW);
+                    gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
                     this.enable();
                     gl.vertexAttribPointer(this.location, rsize, gl.FLOAT, false, 0, 0);
                 };
@@ -7060,9 +7120,11 @@ var core;
             })();
 
             var WrappedWebGLProgram = (function () {
-                function WrappedWebGLProgram(gl, program) {
+                function WrappedWebGLProgram(gl, program, vs, fs) {
                     this.gl = gl;
                     this.program = program;
+                    this.vs = vs;
+                    this.fs = fs;
                     this.uniforms = {};
                     this.attribs = {};
                 }
@@ -7132,7 +7194,7 @@ var core;
                     gl.linkProgram(prog);
                     if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
                         throw (new Error("Could not link the shader program!"));
-                    return new WrappedWebGLProgram(gl, prog);
+                    return new WrappedWebGLProgram(gl, prog, vs, fs);
                 };
                 return ShaderCache;
             })();
@@ -7185,7 +7247,9 @@ var core;
                     gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, this.texture);
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
                 };
@@ -7339,9 +7403,9 @@ var core;
                             }
                             core.PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
-                            texture.fromBytes(data2, w2, h);
-
                             if (true) {
+                                texture.fromBytes(data2, w2, h);
+                            } else {
                                 var canvas = document.createElement('canvas');
                                 canvas.width = w;
                                 canvas.height = h;
@@ -7356,12 +7420,13 @@ var core;
 
                                 console.error('generated texture!' + texture.toString());
                                 $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString()));
+                                texture.fromCanvas(canvas);
                             }
-                            //texture.fromCanvas(canvas);
                         }
                     }
 
                     this.lastTexture = texture;
+                    gl.activeTexture(gl.TEXTURE0);
                     texture.bind();
                     prog.getUniform('uSampler').set1i(0);
                 };
@@ -7584,6 +7649,7 @@ var core;
 
                     for (var n = 0; n < count; n++) {
                         var v = vertices[n];
+
                         this.positionData.push3(v.px, v.py, v.pz);
 
                         if (vertexState.hasColor) {
@@ -7593,13 +7659,6 @@ var core;
                         if (vertexState.hasTexture) {
                             if (vertexState.transform2D) {
                                 this.textureData.push3(v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight, 1.0);
-
-                                if (DebugOnce('demuxVertices', 120)) {
-                                    //console.log(v.px, v.py, ':', v.tx, v.ty);
-                                    console.log(v.px, v.py, ':', v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight);
-                                    //console.log(vertices[0], vertices[1], vertices[2], vertices[3], vertices[4], vertices[5], vertices[6]);
-                                    //console.log('vertexState=' + vertexState + '');
-                                }
                             } else {
                                 this.textureData.push3(v.tx * textureState.scaleU, v.ty * textureState.scaleV, v.tz);
                             }
@@ -7608,16 +7667,18 @@ var core;
                 };
 
                 WebGlPspDrawDriver.prototype.setProgramParameters = function (gl, program, vertexState) {
-                    program.getUniform('u_modelViewProjMatrix').setMat4(vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
+                    this.usedMatrix = vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix;
+                    program.getUniform('u_modelViewProjMatrix').setMat4(this.usedMatrix);
 
-                    program.getAttrib("vPosition").setFloats(3, this.positionData);
+                    program.getAttrib("vPosition").setFloats(3, this.positionData.slice());
                     if (vertexState.hasTexture) {
                         program.getUniform('tfx').set1i(this.state.texture.effect);
                         program.getUniform('tcc').set1i(this.state.texture.colorComponent);
-                        program.getAttrib("vTexcoord").setFloats(3, this.textureData);
+                        program.getAttrib("vTexcoord").setFloats(3, this.textureData.slice());
                     }
+
                     if (vertexState.hasColor) {
-                        program.getAttrib("vColor").setFloats(4, this.colorData);
+                        program.getAttrib("vColor").setFloats(4, this.colorData.slice());
                     } else {
                         var ac = this.state.ambientModelColor;
 
@@ -7660,14 +7721,18 @@ var core;
                     }
                 };
 
+                WebGlPspDrawDriver.prototype.prepareTexture = function (gl, program, vertexState) {
+                    if (vertexState.hasTexture) {
+                        this.textureHandler.bindTexture(program, this.state);
+                    } else {
+                        this.textureHandler.unbindTexture(program, this.state);
+                    }
+                };
+
                 WebGlPspDrawDriver.prototype.drawElementsInternal = function (primitiveType, vertices, count, vertexState) {
-                    //console.log(primitiveType);
                     var gl = this.gl;
 
-                    var program = this.cache.getProgram(vertexState, this.state);
-                    program.use();
-                    this.updateState(program);
-
+                    //console.log(primitiveType);
                     if (this.clearing) {
                         this.textureHandler.unbindTexture(program, this.state);
                         gl.clearColor(0, 0, 0, 1);
@@ -7675,14 +7740,13 @@ var core;
                         return;
                     }
 
-                    if (vertexState.hasTexture) {
-                        this.textureHandler.bindTexture(program, this.state);
-                    } else {
-                        this.textureHandler.unbindTexture(program, this.state);
-                    }
+                    var program = this.cache.getProgram(vertexState, this.state);
+                    program.use();
+                    this.updateState(program);
 
                     this.demuxVertices(vertices, count, vertexState, primitiveType);
                     this.setProgramParameters(gl, program, vertexState);
+                    this.prepareTexture(gl, program, vertexState);
                     this.drawArraysActual(gl, primitiveType, count);
                     this.unsetProgramParameters(gl, program, vertexState);
                 };
@@ -10576,31 +10640,24 @@ var hle;
     (function (modules) {
         var sceAtrac3plus = (function () {
             function sceAtrac3plus(context) {
+                var _this = this;
                 this.context = context;
                 this.sceAtracSetDataAndGetID = modules.createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, function (dataPointer, dataLength) {
-                    return waitAsycn(10).then(function () {
-                        return 0;
-                    });
+                    return _this._waitAsync('sceAtracSetDataAndGetID', 10);
                 });
                 this.sceAtracGetSecondBufferInfo = modules.createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
                     puiPosition.writeInt32(0);
                     puiDataByte.writeInt32(0);
-                    return waitAsycn(10).then(function () {
-                        return 0;
-                    });
+                    return _this._waitAsync('sceAtracGetSecondBufferInfo', 10);
                 });
                 this.sceAtracSetSecondBuffer = modules.createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
-                    return waitAsycn(10).then(function () {
-                        return 0;
-                    });
+                    return _this._waitAsync('sceAtracSetSecondBuffer', 10);
                 });
                 this.sceAtracReleaseAtracID = modules.createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
                     return 0;
                 });
                 this.sceAtracDecodeData = modules.createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
-                    return waitAsycn(10).then(function () {
-                        return 0;
-                    });
+                    return _this._waitAsync('sceAtracDecodeData', 10);
                 });
                 this.sceAtracGetRemainFrame = modules.createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
                     return 0;
@@ -10630,6 +10687,11 @@ var hle;
                     return 0;
                 });
             }
+            sceAtrac3plus.prototype._waitAsync = function (name, time) {
+                return new WaitingThreadInfo(name, this, waitAsycn(time).then(function () {
+                    return 0;
+                }));
+            };
             return sceAtrac3plus;
         })();
         modules.sceAtrac3plus = sceAtrac3plus;
@@ -10701,15 +10763,15 @@ var hle;
                 });
                 this.sceAudioOutputPannedBlocking = modules.createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
                     var channel = _this.channels[channelId];
-                    return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+                    return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
                 });
                 this.sceAudioOutputBlocking = modules.createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
                     var channel = _this.channels[channelId];
-                    return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+                    return new WaitingThreadInfo('sceAudioOutputBlocking', channel, channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
                 });
                 this.sceAudioOutputPanned = modules.createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
                     var channel = _this.channels[channelId];
-                    return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+                    return new WaitingThreadInfo('sceAudioOutputPanned', channel, channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
                 });
                 this.sceAudioChangeChannelVolume = modules.createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
                     console.warn("Not implemented sceAudioChangeChannelVolume");
@@ -11526,10 +11588,10 @@ var hle;
                     return newThread.id;
                 });
                 this.sceKernelDelayThread = modules.createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
-                    return PromiseUtils.delayAsync(delayInMicroseconds / 1000);
+                    return _this._sceKernelDelayThreadCB(delayInMicroseconds);
                 });
                 this.sceKernelDelayThreadCB = modules.createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
-                    return PromiseUtils.delayAsync(delayInMicroseconds / 1000);
+                    return _this._sceKernelDelayThreadCB(delayInMicroseconds);
                 });
                 this.sceKernelGetThreadCurrentPriority = modules.createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, function (currentThread) {
                     return currentThread.priority;
@@ -11771,6 +11833,10 @@ var hle;
                     }
                 });
             }
+            ThreadManForUser.prototype._sceKernelDelayThreadCB = function (delayInMicroseconds) {
+                return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
+            };
+
             ThreadManForUser.prototype._sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout, callbacks) {
                 if (!this.eventFlagUids.has(id))
                     return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
@@ -12061,11 +12127,11 @@ var hle;
                 var _this = this;
                 this.context = context;
                 this.sceKernelLibcClock = modules.createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, function () {
-                    return Date.now() * 1000;
+                    return (performance.now() * 1000) | 0;
                 });
                 this.sceKernelLibcTime = modules.createNativeFunction(0x27CC57F0, 150, 'uint', '', this, function () {
                     //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
-                    return Date.now() / 1000;
+                    return (Date.now() / 1000) | 0;
                 });
                 this.sceKernelUtilsMt19937Init = modules.createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
                     console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
@@ -12076,9 +12142,11 @@ var hle;
                 });
                 this.sceKernelLibcGettimeofday = modules.createNativeFunction(0x71EC4271, 150, 'uint', 'void*/void*', this, function (timevalPtr, timezonePtr) {
                     if (timevalPtr) {
-                        var seconds = new Date().getSeconds();
-                        var microseconds = new Date().getMilliseconds() * 1000;
-                        timevalPtr.writeInt32(seconds);
+                        var totalMilliseconds = Date.now();
+                        var totalSeconds = Math.floor(totalMilliseconds / 1000);
+                        var milliseconds = Math.floor(totalMilliseconds % 1000);
+                        var microseconds = milliseconds * 1000;
+                        timevalPtr.writeInt32(totalSeconds);
                         timevalPtr.writeInt32(microseconds);
                     }
 
@@ -12786,7 +12854,7 @@ var hle;
 
             code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
 
-            code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result); throw (new CpuBreakException()); } ';
+            code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
             code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
 
             switch (retval) {
@@ -12805,19 +12873,19 @@ var hle;
                     throw ('Invalid return value "' + retval + '"');
             }
 
-            var out = new core.NativeFunction();
-            out.name = 'unknown';
-            out.nid = exportId;
-            out.firmwareVersion = firmwareVersion;
+            var nativeFunction = new core.NativeFunction();
+            nativeFunction.name = 'unknown';
+            nativeFunction.nid = exportId;
+            nativeFunction.firmwareVersion = firmwareVersion;
 
             //console.log(code);
-            var func = new Function('_this', 'internalFunc', 'context', 'state', code);
-            out.call = function (context, state) {
-                func(_this, internalFunc, context, state);
+            var func = new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
+            nativeFunction.call = function (context, state) {
+                func(_this, internalFunc, context, state, nativeFunction);
             };
 
             //console.log(out);
-            return out;
+            return nativeFunction;
         }
         modules.createNativeFunction = createNativeFunction;
     })(hle.modules || (hle.modules = {}));

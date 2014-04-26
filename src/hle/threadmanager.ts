@@ -11,7 +11,7 @@
 		preemptionCount: number = 0;
 		info: WaitingThreadInfo<any> = null;
 		waitingName: string = null;
-		waitingObject: string = null;
+		waitingObject: any = null;
 		waitingPromise: Promise<any> = null;
 
         constructor(public manager: ThreadManager, public state: core.cpu.CpuState, private instructionCache: InstructionCache) {
@@ -29,10 +29,16 @@
 			this.info = info;
 			this.waitingName = info.name;
 			this.waitingObject = info.object;
-			this.suspendUntilPromiseDone(info.promise);
+			this._suspendUntilPromiseDone(info.promise);
 		}
 
-		suspendUntilPromiseDone(promise: Promise<any>) {
+		suspendUntilPromiseDone(promise: Promise<any>, info:core.NativeFunction) {
+			this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
+			this.waitingObject = info;
+			this._suspendUntilPromiseDone(promise);
+		}
+
+		_suspendUntilPromiseDone(promise: Promise<any>) {
 			this.waitingPromise = promise;
 
 			this.suspend();

@@ -37,13 +37,13 @@
 			this.gl.disableVertexAttribArray(this.location);
 		}
 
-		setFloats(rsize: number, arr: FastFloat32Buffer) {
+		setFloats(rsize: number, arr: Float32Array) {
 			if (this.location < 0) return;
 
 			var gl = this.gl;
 			if (!this.buffer) this.buffer = this.gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-			(<any>gl.bufferData)(gl.ARRAY_BUFFER, arr.slice(), gl.STATIC_DRAW);
+			(<any>gl.bufferData)(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
 			this.enable();
 			gl.vertexAttribPointer(this.location, rsize, gl.FLOAT, false, 0, 0);
 		}
@@ -53,7 +53,7 @@
 		private uniforms: StringDictionary<WrappedWebGLUniform> = {};
 		private attribs: StringDictionary<WrappedWebGLAttrib> = {};
 
-		constructor(private gl: WebGLRenderingContext, private program: WebGLProgram) {
+		constructor(private gl: WebGLRenderingContext, private program: WebGLProgram, public vs: string, public fs: string) {
 		}
 
 		use() {
@@ -114,7 +114,7 @@
 			addshader('fragment', fs);
 			gl.linkProgram(prog);
 			if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw (new Error("Could not link the shader program!"));
-			return new WrappedWebGLProgram(gl, prog);
+			return new WrappedWebGLProgram(gl, prog, vs, fs);
 		}
 	}
 
@@ -175,7 +175,8 @@
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, this.texture);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+			//gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		}
@@ -334,9 +335,9 @@
 					}
 					PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
-					texture.fromBytes(data2, w2, h);
-
 					if (true) {
+						texture.fromBytes(data2, w2, h);
+					} else {
 						var canvas = document.createElement('canvas');
 						canvas.width = w;
 						canvas.height = h;
@@ -354,14 +355,14 @@
 								.append(canvas)
 								.append(texture.toString())
 							);
-
+						texture.fromCanvas(canvas);
 					}
 
-					//texture.fromCanvas(canvas);
 				}
 			}
 
 			this.lastTexture = texture;
+			gl.activeTexture(gl.TEXTURE0);
 			texture.bind();
 			prog.getUniform('uSampler').set1i(0);
 		}
@@ -578,6 +579,7 @@
 			//console.log('demuxVertices: ' + vertices.length + ', ' + count + ', ' + vertexState + ', PrimitiveType=' + primitiveType);
 			for (var n = 0; n < count; n++) {
 				var v = vertices[n];
+
 				this.positionData.push3(v.px, v.py, v.pz);
 
 				if (vertexState.hasColor) {
@@ -586,43 +588,29 @@
 
 				if (vertexState.hasTexture) {
 					if (vertexState.transform2D) {
-						this.textureData.push3(
-							v.tx / mipmap.bufferWidth,
-							v.ty / mipmap.textureHeight,
-							1.0
-							);
-
-						if (DebugOnce('demuxVertices', 120)) {
-							//console.log(v.px, v.py, ':', v.tx, v.ty);
-							console.log(v.px, v.py, ':', v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight);
-							//console.log(vertices[0], vertices[1], vertices[2], vertices[3], vertices[4], vertices[5], vertices[6]);
-							//console.log('vertexState=' + vertexState + '');
-						}
-
+						this.textureData.push3(v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight, 1.0);
 					} else {
-						this.textureData.push3(
-							v.tx * textureState.scaleU,
-							v.ty * textureState.scaleV,
-							v.tz
-							);
-
-
+						this.textureData.push3(v.tx * textureState.scaleU, v.ty * textureState.scaleV, v.tz);
 					}
 				}
 			}
 		}
 
-		private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: VertexState) {
-			program.getUniform('u_modelViewProjMatrix').setMat4(vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
+		private usedMatrix: Float32Array;
 
-			program.getAttrib("vPosition").setFloats(3, this.positionData);
+		private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: VertexState) {
+			this.usedMatrix = vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix;
+			program.getUniform('u_modelViewProjMatrix').setMat4(this.usedMatrix);
+
+			program.getAttrib("vPosition").setFloats(3, this.positionData.slice());
 			if (vertexState.hasTexture) {
 				program.getUniform('tfx').set1i(this.state.texture.effect);
 				program.getUniform('tcc').set1i(this.state.texture.colorComponent);
-				program.getAttrib("vTexcoord").setFloats(3, this.textureData);
+				program.getAttrib("vTexcoord").setFloats(3, this.textureData.slice());
 			}
+
 			if (vertexState.hasColor) {
-				program.getAttrib("vColor").setFloats(4, this.colorData);
+				program.getAttrib("vColor").setFloats(4, this.colorData.slice());
 			} else {
 				var ac = this.state.ambientModelColor;
 				//console.log(ac.r, ac.g, ac.b, ac.a);
@@ -637,7 +625,7 @@
 			if (vertexState.hasColor) program.getAttrib("vColor").disable();
 		}
 
-		private drawArraysActual(gl: WebGLRenderingContext, primitiveType: PrimitiveType, count:number) {
+		private drawArraysActual(gl: WebGLRenderingContext, primitiveType: PrimitiveType, count: number) {
 			switch (primitiveType) {
 				case PrimitiveType.Points: gl.drawArrays(gl.POINTS, 0, count); break;
 				case PrimitiveType.Lines:
@@ -655,15 +643,18 @@
 			}
 		}
 
-		drawElementsInternal(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState) {
-			//console.log(primitiveType);
+		private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState:VertexState) {
+			if (vertexState.hasTexture) {
+				this.textureHandler.bindTexture(program, this.state);
+			} else {
+				this.textureHandler.unbindTexture(program, this.state);
+			}
+		}
 
+		drawElementsInternal(primitiveType: PrimitiveType, vertices: Vertex[], count: number, vertexState: VertexState) {
 			var gl = this.gl;
 
-			var program = this.cache.getProgram(vertexState, this.state);
-			program.use();
-			this.updateState(program);
-
+			//console.log(primitiveType);
 			if (this.clearing) {
 				this.textureHandler.unbindTexture(program, this.state);
 				gl.clearColor(0, 0, 0, 1);
@@ -671,14 +662,13 @@
 				return;
 			}
 
-			if (vertexState.hasTexture) {
-				this.textureHandler.bindTexture(program, this.state);
-			} else {
-				this.textureHandler.unbindTexture(program, this.state);
-			}
+			var program = this.cache.getProgram(vertexState, this.state);
+			program.use();
+			this.updateState(program);
 
 			this.demuxVertices(vertices, count, vertexState, primitiveType);
 			this.setProgramParameters(gl, program, vertexState);
+			this.prepareTexture(gl, program, vertexState);
 			this.drawArraysActual(gl, primitiveType, count);
 			this.unsetProgramParameters(gl, program, vertexState);
 		}

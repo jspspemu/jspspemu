@@ -14,12 +14,16 @@
             return newThread.id;
 		});
 
+		_sceKernelDelayThreadCB(delayInMicroseconds: number) {
+			return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
+		}
+
 		sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, (delayInMicroseconds: number) => {
-			return PromiseUtils.delayAsync(delayInMicroseconds / 1000);
+			return this._sceKernelDelayThreadCB(delayInMicroseconds);
 		});
 
 		sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, (delayInMicroseconds: number) => {
-			return PromiseUtils.delayAsync(delayInMicroseconds / 1000);
+			return this._sceKernelDelayThreadCB(delayInMicroseconds);
 		});
 
 		sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, (currentThread: Thread) => currentThread.priority);

@@ -1004,7 +1004,13 @@ class MathUtils {
         if (alignment <= 1) return value;
         if ((value % alignment) == 0) return value;
         return value + (alignment - (value % alignment));
-    }
+	}
+
+	static clamp(v: number, min: number, max: number) {
+		if (v < min) return min;
+		if (v > max) return max;
+		return v;
+	}
 }
 
 declare function escape(input: string): string;
