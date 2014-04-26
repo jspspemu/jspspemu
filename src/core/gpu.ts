@@ -468,12 +468,18 @@ module core.gpu {
             return !this.completed && ((this.stall == 0) || (this.current < this.stall));
         }
 
-        private runUntilStall() {
-            while (this.hasMoreInstructions) {
-                var instruction = this.memory.readUInt32(this.current);
-                this.current += 4
-                if (this.runInstruction(this.current - 4, instruction)) return;
-            }
+		private runUntilStall() {
+			while (this.hasMoreInstructions) {
+				try {
+					while (this.hasMoreInstructions) {
+						var instruction = this.memory.readUInt32(this.current);
+						this.current += 4
+						if (this.runInstruction(this.current - 4, instruction)) return;
+					}
+				} catch (e) {
+					console.log(e);
+				}
+			}
         }
 
         private enqueueRunUntilStall() {

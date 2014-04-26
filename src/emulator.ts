@@ -81,17 +81,33 @@
 						var pbp = format.pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
 						return this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get('psp.data').toArrayBuffer()), pathToFile);
 					});
+				case 'zip':
+					return format.zip.Zip.fromStreamAsync(asyncStream).then(zip => {
+						var zipFs = new hle.vfs.ZipVfs(zip);
+						var mountableVfs = (<hle.vfs.MountableVfs>this.fileManager.getDevice('ms0').vfs);
+						mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
+
+						var availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item));
+
+						console.log('elf: ' + availableElf);
+
+						return zipFs.openAsync(availableElf, hle.vfs.FileOpenFlags.Read, parseInt('0777', 8)).then((node) => {
+							return node.readAllAsync().then((data) => {
+								return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'ms0:/PSP/GAME/virtual/EBOOT.ELF');
+							});
+						});
+					});
 				case 'iso':
 					return format.iso.Iso.fromStreamAsync(asyncStream).then(iso => {
 						var isoFs = new hle.vfs.IsoVfs(iso);
 						this.fileManager.mount('umd0', isoFs);
 						this.fileManager.mount('disc0', isoFs);
-						
+
 						return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', hle.vfs.FileOpenFlags.Read, parseInt('777', 8)).then(file => {
 							return file.readAllAsync().then((data) => {
-								return this._loadAndExecuteAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+								return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
 							});
-						})
+						});
 					});
 				case 'elf':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {

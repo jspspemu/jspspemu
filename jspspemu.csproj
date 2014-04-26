@@ -50,6 +50,7 @@
     <TypeScriptCompile Include="src\format\format.ts" />
     <TypeScriptCompile Include="src\format\pbp.ts" />
     <TypeScriptCompile Include="src\format\psf.ts" />
+    <TypeScriptCompile Include="src\format\zip.ts" />
     <TypeScriptCompile Include="src\hle\filemanager.ts" />
     <TypeScriptCompile Include="src\hle\modulemanager.ts" />
     <TypeScriptCompile Include="src\hle\modules\ExceptionManagerForKernel.ts" />
@@ -107,6 +108,7 @@
     <TypeScriptCompile Include="test\format\isoTest.ts" />
     <TypeScriptCompile Include="test\format\psfTest.ts" />
     <TypeScriptCompile Include="test\format\pbpTest.ts" />
+    <TypeScriptCompile Include="test\format\zipTest.ts" />
     <TypeScriptCompile Include="test\hle\vfsTest.ts" />
     <TypeScriptCompile Include="test\pspautotests.ts" />
     <TypeScriptCompile Include="src\app.ts" />

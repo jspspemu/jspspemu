@@ -14,6 +14,12 @@
 		hcountTotal: number;
 	}
 
+	export class PixelFormatUtils {
+		static hasClut(pixelFormat: PixelFormat) {
+			return ((pixelFormat >= core.PixelFormat.PALETTE_T4) && (pixelFormat <= core.PixelFormat.PALETTE_T32));
+		}
+	}
+
 	export enum PixelFormat {
 		NONE = -1,
 		RGBA_5650 = 0,

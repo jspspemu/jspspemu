@@ -363,6 +363,16 @@ var MipsAstBuilder = (function (_super) {
 })(AstBuilder);
 var core;
 (function (core) {
+    var PixelFormatUtils = (function () {
+        function PixelFormatUtils() {
+        }
+        PixelFormatUtils.hasClut = function (pixelFormat) {
+            return ((pixelFormat >= 4 /* PALETTE_T4 */) && (pixelFormat <= 7 /* PALETTE_T32 */));
+        };
+        return PixelFormatUtils;
+    })();
+    core.PixelFormatUtils = PixelFormatUtils;
+
     (function (PixelFormat) {
         PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
         PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
@@ -1247,13 +1257,13 @@ var Struct = (function () {
     Struct.prototype.read = function (stream) {
         var out = {};
         this.processedItems.forEach(function (item) {
-            out[item.name] = item.type.read(stream);
+            out[item.name] = item.type.read(stream, out);
         });
         return out;
     };
     Struct.prototype.write = function (stream, value) {
         this.processedItems.forEach(function (item) {
-            item.type.write(stream, value[item.name]);
+            item.type.write(stream, value[item.name], value);
         });
     };
     Object.defineProperty(Struct.prototype, "length", {
@@ -1291,13 +1301,13 @@ var StructClass = (function () {
         var _class = this._class;
         var out = new _class();
         this.processedItems.forEach(function (item) {
-            out[item.name] = item.type.read(stream);
+            out[item.name] = item.type.read(stream, out);
         });
         return out;
     };
     StructClass.prototype.write = function (stream, value) {
         this.processedItems.forEach(function (item) {
-            item.type.write(stream, value[item.name]);
+            item.type.write(stream, value[item.name], value);
         });
     };
     Object.defineProperty(StructClass.prototype, "length", {
@@ -1326,13 +1336,13 @@ var StructArrayClass = (function () {
     StructArrayClass.prototype.read = function (stream) {
         var out = [];
         for (var n = 0; n < this.count; n++) {
-            out.push(this.elementType.read(stream));
+            out.push(this.elementType.read(stream, out));
         }
         return out;
     };
     StructArrayClass.prototype.write = function (stream, value) {
         for (var n = 0; n < this.count; n++)
-            this.elementType.write(stream, value[n]);
+            this.elementType.write(stream, value[n], value);
     };
     Object.defineProperty(StructArrayClass.prototype, "length", {
         get: function () {
@@ -1480,11 +1490,34 @@ var UInt16_2lb = new UInt16_2lbStruct();
 
 var StringzVariable = new StructStringzVariable();
 
+var StructStringWithSize = (function () {
+    function StructStringWithSize(getStringSize) {
+        this.getStringSize = getStringSize;
+    }
+    StructStringWithSize.prototype.read = function (stream, context) {
+        return stream.readString(this.getStringSize(context));
+    };
+    StructStringWithSize.prototype.write = function (stream, value, context) {
+        stream.writeString(value);
+    };
+    Object.defineProperty(StructStringWithSize.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringWithSize;
+})();
+
 function Stringn(count) {
     return new StructStringn(count);
 }
 function Stringz(count) {
     return new StructStringz(count);
+}
+function StringWithSize(callback) {
+    return new StructStringWithSize(callback);
 }
 
 var SortedSet = (function () {
@@ -2522,23 +2555,20 @@ var core;
         var count4 = (count >> 2);
         var m = 0;
         for (var n = 0; n < count4; n++) {
-        var val = u32[address4++];
-        result ^= m++ << 28;
-        result += (val >> 0) & 0xFF;
-        result ^= m++ << 28;
-        result += (val >> 8) & 0xFF;
-        result ^= m++ << 28;
-        result += (val >> 16) & 0xFF;
-        result ^= m++ << 28;
-        result += (val >> 24) & 0xFF;
+        var v = u32[address4++];
+        result ^= n << 22;
+        result += (v >> 24) & 0xFF;
+        result += (v >> 16) & 0xFF;
+        result += (v >> 8) & 0xFF;
+        result += (v >> 0) & 0xFF;
         }
         return result;
         }
         
         hash(address: number, count: number) {
         var result = 0;
-        //var u8 = this.u8;
-        //while (address & 3) { result += u8[address++]; count--; }
+        var u8 = this.u8;
+        while (address & 3) { result += u8[address++]; count--; }
         this.hashAligned(result, address, count);
         return result;
         }
@@ -2546,10 +2576,8 @@ var core;
         Memory.prototype.hash = function (address, count) {
             var result = 0;
             var u8 = this.u8;
-            var n = 0;
-            while (count-- > 0) {
-                result ^= n++ << 28;
-                result += u8[address++];
+            for (var n = 0; n < count; n++) {
+                result = ((result + u8[address++]) ^ (n << 16)) | 0;
             }
             return result;
         };
@@ -3093,9 +3121,6 @@ var core;
                 this.clut = new ClutState();
                 this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
             }
-            TextureState.prototype.isPixelFormatWithClut = function () {
-                return ((this.pixelFormat >= 4 /* PALETTE_T4 */) && (this.pixelFormat <= 7 /* PALETTE_T32 */));
-            };
             return TextureState;
         })();
         gpu.TextureState = TextureState;
@@ -4003,10 +4028,16 @@ var core;
 
             PspGpuList.prototype.runUntilStall = function () {
                 while (this.hasMoreInstructions) {
-                    var instruction = this.memory.readUInt32(this.current);
-                    this.current += 4;
-                    if (this.runInstruction(this.current - 4, instruction))
-                        return;
+                    try  {
+                        while (this.hasMoreInstructions) {
+                            var instruction = this.memory.readUInt32(this.current);
+                            this.current += 4;
+                            if (this.runInstruction(this.current - 4, instruction))
+                                return;
+                        }
+                    } catch (e) {
+                        console.log(e);
+                    }
                 }
             };
 
@@ -7083,6 +7114,15 @@ var core;
                     this.valid = true;
                     this.texture = gl.createTexture();
                 }
+                Texture.prototype.setInfo = function (state) {
+                    var texture = state.texture;
+                    var mipmap = texture.mipmaps[0];
+
+                    this.address = mipmap.address;
+                    this.pixelFormat = texture.pixelFormat;
+                    this.clutFormat = texture.clut.pixelFormat;
+                };
+
                 Texture.prototype.fromCanvas = function (canvas) {
                     var gl = this.gl;
 
@@ -7106,7 +7146,7 @@ var core;
                 };
 
                 Texture.hashFast = function (state) {
-                    if (state.texture.isPixelFormatWithClut()) {
+                    if (core.PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
                         return state.texture.clut.adress + (state.texture.mipmaps[0].address * Math.pow(2, 24));
                     } else {
                         return state.texture.mipmaps[0].address;
@@ -7125,9 +7165,9 @@ var core;
                     hash_number += (mipmap.bufferWidth) << 3;
                     hash_number += (mipmap.textureWidth) << 6;
                     hash_number += (mipmap.textureHeight) << 8;
-                    hash_number += memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 24);
+                    hash_number += memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 16);
 
-                    if (texture.isPixelFormatWithClut()) {
+                    if (core.PixelFormatUtils.hasClut(texture.pixelFormat)) {
                         hash_number += memory.hash(clut.adress + core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
                         hash_number += clut.info << 17;
                     }
@@ -7135,7 +7175,13 @@ var core;
                 };
 
                 Texture.prototype.toString = function () {
-                    return 'Texture(address:' + this.address + ' : hash1: ' + this.hash1 + ' : hash2: ' + this.hash2 + ')';
+                    var out = '';
+                    out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + '';
+                    if (core.PixelFormatUtils.hasClut(this.pixelFormat)) {
+                        out += ', clutFormat=' + this.clutFormat;
+                    }
+                    out += ')';
+                    return out;
                 };
                 return Texture;
             })();
@@ -7213,10 +7259,12 @@ var core;
                         var hash2 = Texture.hashSlow(this.memory, state);
 
                         //console.log(hash);
-                        if (!this.texturesByHash2[hash2]) {
-                            var texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
+                        texture = this.texturesByHash2[hash2];
 
-                            texture.address = state.texture.mipmaps[0].address;
+                        if (!texture) {
+                            texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
+
+                            texture.setInfo(state);
                             texture.hash1 = hash1;
                             texture.hash2 = hash2;
 
@@ -7243,7 +7291,7 @@ var core;
                             var paletteU8 = new Uint8Array(paletteBuffer);
                             var palette = new Uint32Array(paletteBuffer);
 
-                            if (state.texture.isPixelFormatWithClut()) {
+                            if (core.PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
                                 core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
                             }
 
@@ -7407,10 +7455,13 @@ var core;
 
                     var alphaTest = state.alphaTest;
                     if (alphaTest.enabled) {
+                        //console.log(alphaTest.value);
                         //console.log(TestFunctionEnum[alphaTest.func] + '; ' + alphaTest.value + '; ' + alphaTest.mask);
                         program.getUniform('alphaTestFunc').set1i(alphaTest.func);
                         program.getUniform('alphaTestReference').set1i(alphaTest.value);
                         program.getUniform('alphaTestMask').set1i(alphaTest.mask);
+                    } else {
+                        //console.warn("alphaTest.enabled = false");
                     }
 
                     var ratio = this.getScaleRatio();
@@ -7787,6 +7838,24 @@ var Emulator = (function () {
                         var pbp = format.pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
                         return _this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get('psp.data').toArrayBuffer()), pathToFile);
                     });
+                case 'zip':
+                    return format.zip.Zip.fromStreamAsync(asyncStream).then(function (zip) {
+                        var zipFs = new hle.vfs.ZipVfs(zip);
+                        var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
+                        mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
+
+                        var availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(function (item) {
+                            return zip.has(item);
+                        });
+
+                        console.log('elf: ' + availableElf);
+
+                        return zipFs.openAsync(availableElf, 1 /* Read */, parseInt('0777', 8)).then(function (node) {
+                            return node.readAllAsync().then(function (data) {
+                                return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'ms0:/PSP/GAME/virtual/EBOOT.ELF');
+                            });
+                        });
+                    });
                 case 'iso':
                     return format.iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
                         var isoFs = new hle.vfs.IsoVfs(iso);
@@ -7795,7 +7864,7 @@ var Emulator = (function () {
 
                         return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).then(function (file) {
                             return file.readAllAsync().then(function (data) {
-                                return _this._loadAndExecuteAsync(new MemoryAsyncStream(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                                return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
                             });
                         });
                     });
@@ -8637,6 +8706,10 @@ var format;
             }
             var magic = stream.readString(4);
             switch (magic) {
+                case 'PK\u0001\u0002':
+                case 'PK\u0003\u0004':
+                case 'PK\u0005\u0006':
+                    return 'zip';
                 case '\u0000PBP':
                     return 'pbp';
                 case '\u007FELF':
@@ -9212,6 +9285,276 @@ var format;
         _psf.Psf = Psf;
     })(format.psf || (format.psf = {}));
     var psf = format.psf;
+})(format || (format = {}));
+var format;
+(function (format) {
+    (function (_zip) {
+        var ZipEntry = (function () {
+            function ZipEntry(zip, name, parent) {
+                this.zip = zip;
+                this.name = name;
+                this.parent = parent;
+                this.children = {};
+                this.normalizedName = ZipEntry.normalizeString(name);
+            }
+            Object.defineProperty(ZipEntry.prototype, "size", {
+                get: function () {
+                    return this.uncompressedSize;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ZipEntry.prototype, "date", {
+                get: function () {
+                    var dosDate = this.zipDirEntry.dosDate;
+                    var dosTime = this.zipDirEntry.dosTime;
+
+                    var seconds = BitUtils.extract(dosTime, 0, 5) * 2;
+                    var minutes = BitUtils.extract(dosTime, 5, 6);
+                    var hours = BitUtils.extract(dosTime, 11, 6);
+                    var day = BitUtils.extract(dosDate, 0, 5);
+                    var month = BitUtils.extract(dosDate, 5, 4);
+                    var year = BitUtils.extract(dosDate, 9, 7) + 1980;
+
+                    return new Date(year, month - 1, day, hours, minutes, seconds);
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ZipEntry.prototype, "compressedSize", {
+                get: function () {
+                    return this.zipDirEntry.compressedSize;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ZipEntry.prototype, "uncompressedSize", {
+                get: function () {
+                    return this.zipDirEntry.uncompressedSize;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(ZipEntry.prototype, "compressionType", {
+                get: function () {
+                    return this.zipDirEntry.compType;
+                },
+                enumerable: true,
+                configurable: true
+            });
+
+            ZipEntry.normalizeString = function (string) {
+                return string.toUpperCase();
+            };
+
+            ZipEntry.prototype.readRawCompressedAsync = function () {
+                var _this = this;
+                if (this.compressedData)
+                    return Promise.resolve(this.compressedData);
+                return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then(function (data) {
+                    var stream = Stream.fromArrayBuffer(data);
+                    var zipFileRecord = ZipFileRecord.struct.read(stream);
+                    return _this.compressedData = stream.readBytes(zipFileRecord.compressedSize);
+                });
+            };
+
+            ZipEntry.prototype.readChunkAsync = function (offset, length) {
+                return this.readAsync().then(function (data) {
+                    return ArrayBufferUtils.fromUInt8Array(data.subarray(offset, offset + length));
+                });
+            };
+
+            ZipEntry.prototype.readAsync = function () {
+                var _this = this;
+                if (this.uncompressedData)
+                    return Promise.resolve(this.uncompressedData);
+                return this.readRawCompressedAsync().then(function (data) {
+                    switch (_this.compressionType) {
+                        case 8 /* DEFLATE */:
+                            return new Zlib.RawInflate(data).decompress();
+                        case 0 /* STORED */:
+                            return data;
+                        default:
+                            throw (new Error("Unsupported compression type '" + _this.compressionType + "'"));
+                    }
+                }).then(function (data) {
+                    return _this.uncompressedData = data;
+                });
+            };
+
+            ZipEntry.prototype.access = function (path, create, fullPath) {
+                if (typeof create === "undefined") { create = false; }
+                if (typeof fullPath === "undefined") { fullPath = null; }
+                if (fullPath === null)
+                    fullPath = path;
+                if (path == '')
+                    return this;
+                if (path == '.')
+                    return this;
+                if (path == '..')
+                    return this.parent || this;
+
+                var pathIndex = path.indexOf('/');
+
+                // Single component
+                if (pathIndex < 0) {
+                    var normalizedName = ZipEntry.normalizeString(path);
+                    var child = this.children[normalizedName];
+                    if (!child) {
+                        if (!create) {
+                            throw (new Error("ZIP: Can't access to path '" + fullPath + "'"));
+                        } else {
+                            child = this.children[normalizedName] = new ZipEntry(this.zip, path, this);
+                        }
+                    }
+                    return child;
+                } else {
+                    return this.access(path.substr(0, pathIndex), create, fullPath).access(path.substr(pathIndex + 1), create, fullPath);
+                }
+            };
+            return ZipEntry;
+        })();
+        _zip.ZipEntry = ZipEntry;
+
+        var Zip = (function () {
+            function Zip(zipStream, zipDirEntries) {
+                var _this = this;
+                this.zipStream = zipStream;
+                this.zipDirEntries = zipDirEntries;
+                this.root = new ZipEntry(this, '', null);
+                zipDirEntries.forEach(function (zipDirEntry) {
+                    var item = _this.root.access(zipDirEntry.fileName, true);
+                    item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
+                    item.zipDirEntry = zipDirEntry;
+                });
+                console.log(this.root);
+            }
+            Zip.prototype.get = function (path) {
+                return this.root.access(path);
+            };
+
+            Zip.prototype.has = function (path) {
+                try  {
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            Zip.fromStreamAsync = function (zipStream) {
+                return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then(function (data) {
+                    var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
+
+                    console.log(zipEndLocator);
+
+                    return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then(function (data) {
+                        var dirEntries = StructArray(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
+
+                        return new Zip(zipStream, dirEntries);
+                    });
+                });
+            };
+            return Zip;
+        })();
+        _zip.Zip = Zip;
+
+        (function (ZipCompressionType) {
+            ZipCompressionType[ZipCompressionType["STORED"] = 0] = "STORED";
+            ZipCompressionType[ZipCompressionType["SHRUNK"] = 1] = "SHRUNK";
+            ZipCompressionType[ZipCompressionType["REDUCED1"] = 2] = "REDUCED1";
+            ZipCompressionType[ZipCompressionType["REDUCED2"] = 3] = "REDUCED2";
+            ZipCompressionType[ZipCompressionType["REDUCED3"] = 4] = "REDUCED3";
+            ZipCompressionType[ZipCompressionType["REDUCED4"] = 5] = "REDUCED4";
+            ZipCompressionType[ZipCompressionType["IMPLODED"] = 6] = "IMPLODED";
+            ZipCompressionType[ZipCompressionType["TOKEN"] = 7] = "TOKEN";
+            ZipCompressionType[ZipCompressionType["DEFLATE"] = 8] = "DEFLATE";
+            ZipCompressionType[ZipCompressionType["DEFLATE64"] = 9] = "DEFLATE64";
+        })(_zip.ZipCompressionType || (_zip.ZipCompressionType = {}));
+        var ZipCompressionType = _zip.ZipCompressionType;
+
+        var ZipEndLocator = (function () {
+            function ZipEndLocator() {
+            }
+            ZipEndLocator.struct = StructClass.create(ZipEndLocator, [
+                { magic: UInt32 },
+                { currentDiskNumber: UInt16 },
+                { startDiskNumber: UInt16 },
+                { entriesOnDisk: UInt16 },
+                { entriesInDirectory: UInt16 },
+                { directorySize: UInt32 },
+                { directoryOffset: UInt32 },
+                { commentLength: UInt16 }
+            ]);
+            return ZipEndLocator;
+        })();
+        _zip.ZipEndLocator = ZipEndLocator;
+
+        var ZipFileRecord = (function () {
+            function ZipFileRecord() {
+            }
+            ZipFileRecord.struct = StructClass.create(ZipFileRecord, [
+                { magic: UInt32 },
+                { version: UInt16 },
+                { flags: UInt16 },
+                { compType: UInt16 },
+                { dosTime: UInt16 },
+                { dosDate: UInt16 },
+                { crc32: UInt32 },
+                { compressedSize: UInt32 },
+                { uncompressedSize: UInt32 },
+                { fileNameLength: UInt16 },
+                { extraFieldLength: UInt16 },
+                { fileName: StringWithSize(function (context) {
+                        return context.fileNameLength;
+                    }) },
+                { extraField: StringWithSize(function (context) {
+                        return context.extraFieldLength;
+                    }) }
+            ]);
+            return ZipFileRecord;
+        })();
+        _zip.ZipFileRecord = ZipFileRecord;
+
+        var ZipDirEntry = (function () {
+            function ZipDirEntry() {
+            }
+            ZipDirEntry.struct = StructClass.create(ZipDirEntry, [
+                { magic: UInt32 },
+                { versionMadeBy: UInt16 },
+                { versionToExtract: UInt16 },
+                { flags: UInt16 },
+                { compType: UInt16 },
+                { dosTime: UInt16 },
+                { dosDate: UInt16 },
+                { crc32: UInt32 },
+                { compressedSize: UInt32 },
+                { uncompressedSize: UInt32 },
+                { fileNameLength: UInt16 },
+                { extraFieldLength: UInt16 },
+                { fileCommentsLength: UInt16 },
+                { diskNumberStart: UInt16 },
+                { internalAttributes: UInt16 },
+                { externalAttributes: UInt32 },
+                { headerOffset: UInt32 },
+                { fileName: StringWithSize(function (context) {
+                        return context.fileNameLength;
+                    }) },
+                { extraField: StringWithSize(function (context) {
+                        return context.extraFieldLength;
+                    }) },
+                { fileComments: StringWithSize(function (context) {
+                        return context.fileCommentsLength;
+                    }) }
+            ]);
+            return ZipDirEntry;
+        })();
+        _zip.ZipDirEntry = ZipDirEntry;
+    })(format.zip || (format.zip = {}));
+    var zip = format.zip;
 })(format || (format = {}));
 var hle;
 (function (hle) {
@@ -12472,9 +12815,9 @@ var hle;
             };
 
             Vfs.prototype.getStatAsync = function (path) {
-                console.error(this);
-                throw (new Error("Must override getStatAsync"));
-                return null;
+                return this.openAsync(path, 1 /* Read */, parseInt('0777', 8)).then(function (entry) {
+                    return entry.stat();
+                });
             };
             return Vfs;
         })();
@@ -12525,15 +12868,70 @@ var hle;
                 this.iso = iso;
             }
             IsoVfs.prototype.openAsync = function (path, flags, mode) {
-                return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
-            };
-
-            IsoVfs.prototype.getStatAsync = function (path) {
-                return Promise.resolve(new IsoVfsFile(this.iso.get(path)).stat());
+                try  {
+                    return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
+                } catch (e) {
+                    return Promise.reject(e);
+                }
             };
             return IsoVfs;
         })(Vfs);
         _vfs.IsoVfs = IsoVfs;
+
+        var ZipVfsFile = (function (_super) {
+            __extends(ZipVfsFile, _super);
+            function ZipVfsFile(node) {
+                _super.call(this);
+                this.node = node;
+            }
+            Object.defineProperty(ZipVfsFile.prototype, "isDirectory", {
+                get: function () {
+                    return this.node.isDirectory;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(ZipVfsFile.prototype, "size", {
+                get: function () {
+                    return this.node.size;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            ZipVfsFile.prototype.readChunkAsync = function (offset, length) {
+                return this.node.readChunkAsync(offset, length);
+            };
+            ZipVfsFile.prototype.close = function () {
+            };
+
+            ZipVfsFile.prototype.stat = function () {
+                return {
+                    size: this.node.size,
+                    isDirectory: this.node.isDirectory,
+                    timeCreation: this.node.date,
+                    timeLastAccess: this.node.date,
+                    timeLastModification: this.node.date
+                };
+            };
+            return ZipVfsFile;
+        })(VfsEntry);
+
+        var ZipVfs = (function (_super) {
+            __extends(ZipVfs, _super);
+            function ZipVfs(zip) {
+                _super.call(this);
+                this.zip = zip;
+            }
+            ZipVfs.prototype.openAsync = function (path, flags, mode) {
+                try  {
+                    return Promise.resolve(new ZipVfsFile(this.zip.get(path)));
+                } catch (e) {
+                    return Promise.reject(e);
+                }
+            };
+            return ZipVfs;
+        })(Vfs);
+        _vfs.ZipVfs = ZipVfs;
 
         var MemoryVfsEntry = (function (_super) {
             __extends(MemoryVfsEntry, _super);
@@ -12587,19 +12985,6 @@ var hle;
                     return Promise.resolve(new MemoryVfsEntry(file));
                 }
             };
-
-            MemoryVfs.prototype.getStatAsync = function (path) {
-                var file = this.files[path];
-                if (!file)
-                    throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
-                return Promise.resolve({
-                    size: file.byteLength,
-                    isDirectory: false,
-                    timeCreation: new Date(),
-                    timeLastAccess: new Date(),
-                    timeLastModification: new Date()
-                });
-            };
             return MemoryVfs;
         })(Vfs);
         _vfs.MemoryVfs = MemoryVfs;
@@ -12644,6 +13029,24 @@ var hle;
             return MountableEntry;
         })();
 
+        //window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+        //window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
+        //window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+        //export class IndexedDbVfs extends Vfs {
+        //	initAsync() {
+        //		var request = indexedDB.open("mydatabase");
+        //
+        //		request.onsuccess = (e) => {
+        //			var db = <IDBDatabase>request.result;
+        //
+        //			var trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
+        //			trans.objectStore("objectstore1").put(myblob, "somekey");
+        //			trans.objectStore("objectstore2").put(myblob, "otherkey");
+        //		};
+        //		request.onerror = (e) => {
+        //		};
+        //	}
+        //}
         var MountableVfs = (function (_super) {
             __extends(MountableVfs, _super);
             function MountableVfs() {
@@ -13015,6 +13418,39 @@ describe('psf', function () {
         assert.equal(psf.entriesByName['PSP_SYSTEM_VER'], '1.00');
         assert.equal(psf.entriesByName['REGION'], 32768);
         assert.equal(psf.entriesByName['TITLE'], 'rtctest');
+    });
+});
+describe('zip', function () {
+    var arrayBuffer;
+
+    before(function () {
+        return downloadFileAsync('samples/TrigWars.zip').then(function (data) {
+            arrayBuffer = data;
+        });
+    });
+
+    it('should load fine', function () {
+        return format.zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then(function (zip) {
+            assert.equal(27233, zip.get('/EBOOT.PBP').uncompressedSize);
+            assert.equal(63548, zip.get('/Data/Sounds/bullet.wav').uncompressedSize);
+
+            assert.equal(63548, zip.get('/DATA/SOUNDS/Bullet.Wav').uncompressedSize);
+
+            return zip.get('/DATA/SOUNDS/Bullet.Wav').readAsync().then(function (data) {
+                assert.equal(63548, data.length);
+                //console.log(data);
+            });
+        });
+    });
+
+    it('zip vfs should work', function () {
+        return format.zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then(function (zip) {
+            var vfs = new hle.vfs.ZipVfs(zip);
+            return vfs.getStatAsync('/Data/Sounds/bullet.wav').then(function (info) {
+                assert.equal(false, info.isDirectory);
+                assert.equal(63548, info.size);
+            });
+        });
     });
 });
 describe('gpu', function () {

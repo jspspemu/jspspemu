@@ -44,9 +44,7 @@
 		}
 
 		getStatAsync(path: string): Promise<VfsStat> {
-			console.error(this);
-			throw (new Error("Must override getStatAsync"));
-			return null;
+			return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.stat());
 		}
 	}
 
@@ -77,13 +75,49 @@
 		}
 
 		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
-			return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
-		}
-
-		getStatAsync(path: string): Promise<VfsStat> {
-			return Promise.resolve(new IsoVfsFile(this.iso.get(path)).stat());
+			try {
+				return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
+			} catch (e) {
+				return Promise.reject(e);
+			}
 		}
 	}
+
+	class ZipVfsFile extends VfsEntry {
+		constructor(private node: format.zip.ZipEntry) {
+			super();
+		}
+
+		get isDirectory() { return this.node.isDirectory; }
+		get size() { return this.node.size; }
+		readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
+		close() { }
+
+		stat(): VfsStat {
+			return {
+				size: this.node.size,
+				isDirectory: this.node.isDirectory,
+				timeCreation: this.node.date,
+				timeLastAccess: this.node.date,
+				timeLastModification: this.node.date,
+			};
+		}
+	}
+
+	export class ZipVfs extends Vfs {
+		constructor(private zip: format.zip.Zip) {
+			super();
+		}
+
+		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+			try {
+				return Promise.resolve(new ZipVfsFile(this.zip.get(path)));
+			} catch (e) {
+				return Promise.reject(e);
+			}
+		}
+	}
+
 
 	export class MemoryVfsEntry extends VfsEntry {
 		constructor(private data: ArrayBuffer) {
@@ -117,6 +151,7 @@
 			}
 		}
 
+		/*
 		getStatAsync(path: string): Promise<VfsStat> {
 			var file = this.files[path];
 			if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
@@ -128,6 +163,7 @@
 				timeLastModification: new Date(),
 			});
 		}
+		*/
 	}
 
 	export class UriVfs extends Vfs {
@@ -161,6 +197,26 @@
 		constructor(public path: string, public vfs: Vfs, public file: VfsEntry) {
 		}
 	}
+
+	//window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+	//window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
+	//window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+
+	//export class IndexedDbVfs extends Vfs {
+	//	initAsync() {
+	//		var request = indexedDB.open("mydatabase");
+	//
+	//		request.onsuccess = (e) => {
+	//			var db = <IDBDatabase>request.result;
+	//			
+	//			var trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
+	//			trans.objectStore("objectstore1").put(myblob, "somekey");
+	//			trans.objectStore("objectstore2").put(myblob, "otherkey");
+	//		};
+	//		request.onerror = (e) => {
+	//		};
+	//	}
+	//}
 
 	export class MountableVfs extends Vfs {
 		private mounts: MountableEntry[] = [];

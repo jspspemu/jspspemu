@@ -278,9 +278,6 @@ module core.gpu {
 		envColor = new ColorState();
 		fragment2X = false;
 		pixelFormat = core.PixelFormat.RGBA_8888;
-		isPixelFormatWithClut() {
-			return ((this.pixelFormat >= core.PixelFormat.PALETTE_T4) && (this.pixelFormat <= core.PixelFormat.PALETTE_T32));
-		}
 		clut = new ClutState();
 		mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
 	}

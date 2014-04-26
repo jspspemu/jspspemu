@@ -129,23 +129,20 @@ module core {
 			var count4 = (count >> 2);
 			var m = 0;
 			for (var n = 0; n < count4; n++) {
-				var val = u32[address4++];
-				result ^= m++ << 28;
-				result += (val >> 0) & 0xFF;
-				result ^= m++ << 28;
-				result += (val >> 8) & 0xFF;
-				result ^= m++ << 28;
-				result += (val >> 16) & 0xFF;
-				result ^= m++ << 28;
-				result += (val >> 24) & 0xFF;
+				var v = u32[address4++];
+				result ^= n << 22;
+				result += (v >> 24) & 0xFF;
+				result += (v >> 16) & 0xFF;
+				result += (v >> 8) & 0xFF;
+				result += (v >> 0) & 0xFF;
 			}
 			return result;
 		}
 
 		hash(address: number, count: number) {
 			var result = 0;
-			//var u8 = this.u8;
-			//while (address & 3) { result += u8[address++]; count--; }
+			var u8 = this.u8;
+			while (address & 3) { result += u8[address++]; count--; }
 			this.hashAligned(result, address, count);
 			return result;
 		}
@@ -154,10 +151,8 @@ module core {
 		hash(address: number, count: number) {
 			var result = 0;
 			var u8 = this.u8;
-			var n = 0;
-			while (count-- > 0) {
-				result ^= n++ << 28;
-				result += u8[address++];
+			for (var n = 0; n < count; n++) {
+				result = ((result + u8[address++]) ^ (n << 16)) | 0;
 			}
 			return result;
 		}

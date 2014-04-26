@@ -8,6 +8,10 @@
 			}
 			var magic = stream.readString(4);
 			switch (magic) {
+				case 'PK\u0001\u0002': 
+				case 'PK\u0003\u0004':
+				case 'PK\u0005\u0006':
+					return 'zip';
 				case '\u0000PBP': return 'pbp';
 				case '\u007FELF': return 'elf';
 				case 'CISO': return 'ciso';

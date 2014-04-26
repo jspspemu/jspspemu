@@ -268,8 +268,8 @@ class Stream {
 }
 
 interface IType {
-    read(stream: Stream): any;
-    write(stream: Stream, value: any): void;
+	read(stream: Stream, context?: any): any;
+	write(stream: Stream, value: any, context?: any): void;
     length: number;
 }
 
@@ -372,11 +372,11 @@ class Struct<T> implements IType {
 
     read(stream: Stream): T {
         var out:any = {};
-		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream); });
+		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream, out); });
         return out;
     }
     write(stream: Stream, value: T): void {
-		this.processedItems.forEach(item => { item.type.write(stream, value[item.name]); });
+		this.processedItems.forEach(item => { item.type.write(stream, value[item.name], value); });
     }
     get length() {
 		return this.processedItems.sum<number>(item => {
@@ -404,11 +404,11 @@ class StructClass<T> implements IType {
     read(stream: Stream): T {
         var _class = this._class;
         var out: T = new _class();
-		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream); });
+		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream, out); });
         return out;
     }
     write(stream: Stream, value: T): void {
-		this.processedItems.forEach(item => { item.type.write(stream, value[item.name]); });
+		this.processedItems.forEach(item => { item.type.write(stream, value[item.name], value); });
     }
     get length() {
 		return this.processedItems.sum<number>(item => {
@@ -429,12 +429,12 @@ class StructArrayClass<T> implements IType {
     read(stream: Stream): T[] {
         var out = [];
         for (var n = 0; n < this.count; n++) {
-            out.push(this.elementType.read(stream));
+            out.push(this.elementType.read(stream, out));
         }
         return out;
     }
     write(stream: Stream, value: T[]): void {
-        for (var n = 0; n < this.count; n++) this.elementType.write(stream, value[n]);
+        for (var n = 0; n < this.count; n++) this.elementType.write(stream, value[n], value);
     }
     get length() {
         return this.elementType.length * this.count;
@@ -543,8 +543,27 @@ var UInt16_2lb = new UInt16_2lbStruct();
 
 var StringzVariable = new StructStringzVariable();
 
+class StructStringWithSize {
+	constructor(private getStringSize: (context: any) => number) {
+	}
+
+	read(stream: Stream, context: any): string {
+		return stream.readString(this.getStringSize(context));
+	}
+	write(stream: Stream, value: string, context: any): void {
+		stream.writeString(value);
+	}
+	get length() {
+		return 0;
+	}
+}
+
+
 function Stringn(count: number) { return new StructStringn(count); }
 function Stringz(count: number) { return new StructStringz(count); }
+function StringWithSize(callback: (context: any) => number) {
+	return new StructStringWithSize(callback);
+}
 
 class SortedSet<T> {
     public elements: T[] = [];

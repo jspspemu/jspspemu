@@ -124,10 +124,21 @@
 		valid: boolean = true;
 		hash1: number;
 		hash2: number;
-		address: number;
+		private address: number;
+		private pixelFormat: core.PixelFormat;
+		private clutFormat: core.PixelFormat;
 
 		constructor(private gl: WebGLRenderingContext) {
 			this.texture = gl.createTexture();
+		}
+
+		setInfo(state: GpuState) {
+			var texture = state.texture;
+			var mipmap = texture.mipmaps[0];
+
+			this.address = mipmap.address;
+			this.pixelFormat = texture.pixelFormat;
+			this.clutFormat = texture.clut.pixelFormat;
 		}
 
 		fromCanvas(canvas: HTMLCanvasElement) {
@@ -154,7 +165,7 @@
 		}
 
 		static hashFast(state: GpuState) {
-			if (state.texture.isPixelFormatWithClut()) {
+			if (core.PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
 				return state.texture.clut.adress + (state.texture.mipmaps[0].address * Math.pow(2, 24));
 			} else {
 				return state.texture.mipmaps[0].address;
@@ -173,9 +184,9 @@
 			hash_number += (mipmap.bufferWidth) << 3;
 			hash_number += (mipmap.textureWidth) << 6;
 			hash_number += (mipmap.textureHeight) << 8;
-			hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 24);
+			hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 16);
 
-			if (texture.isPixelFormatWithClut()) {
+			if (core.PixelFormatUtils.hasClut(texture.pixelFormat)) {
 				hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
 				hash_number += clut.info << 17;
 			}
@@ -183,7 +194,13 @@
 		}
 
 		toString() {
-			return 'Texture(address:' + this.address + ' : hash1: ' + this.hash1 + ' : hash2: ' + this.hash2 + ')';
+			var out = '';
+			out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + '';
+			if (core.PixelFormatUtils.hasClut(this.pixelFormat)) {
+				out += ', clutFormat=' + this.clutFormat;
+			}
+			out += ')';
+			return out;
 		}
 	}
 
@@ -264,10 +281,12 @@
 
 				//console.log(hash);
 
-				if (!this.texturesByHash2[hash2]) {
-					var texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
+				texture = this.texturesByHash2[hash2];
 
-					texture.address = state.texture.mipmaps[0].address;
+				if (!texture) {
+					texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
+
+					texture.setInfo(state);
 					texture.hash1 = hash1;
 					texture.hash2 = hash2;
 
@@ -296,7 +315,7 @@
 					var paletteU8 = new Uint8Array(paletteBuffer);
 					var palette = new Uint32Array(paletteBuffer);
 
-					if (state.texture.isPixelFormatWithClut()) {
+					if (core.PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
 						PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
 					}
 
@@ -457,10 +476,13 @@
 
 			var alphaTest = state.alphaTest;
 			if (alphaTest.enabled) {
+				//console.log(alphaTest.value);
 				//console.log(TestFunctionEnum[alphaTest.func] + '; ' + alphaTest.value + '; ' + alphaTest.mask);
 				program.getUniform('alphaTestFunc').set1i(alphaTest.func);
 				program.getUniform('alphaTestReference').set1i(alphaTest.value);
 				program.getUniform('alphaTestMask').set1i(alphaTest.mask);
+			} else {
+				//console.warn("alphaTest.enabled = false");
 			}
 
 			var ratio = this.getScaleRatio();
