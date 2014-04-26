@@ -9439,6 +9439,7 @@ var format;
 
             Zip.prototype.has = function (path) {
                 try  {
+                    this.root.access(path);
                     return true;
                 } catch (e) {
                     return false;

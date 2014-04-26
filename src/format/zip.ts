@@ -119,6 +119,7 @@
 
 		has(path: string) {
 			try {
+				this.root.access(path);
 				return true;
 			} catch (e) {
 				return false;
