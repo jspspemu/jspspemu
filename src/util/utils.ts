@@ -186,12 +186,15 @@ class Stream {
 
     writeInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setInt8(this.offset, value)); }
     writeInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setInt16(this.offset, value, (endian == Endian.LITTLE))); }
-    writeInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setInt32(this.offset, value, (endian == Endian.LITTLE))); }
+	writeInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setInt32(this.offset, value, (endian == Endian.LITTLE))); }
+	writeInt64(value: number, endian: Endian = Endian.LITTLE) { return this._writeUInt64(value, endian); }
 
     writeUInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setUint8(this.offset, value)); }
     writeUInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setUint16(this.offset, value, (endian == Endian.LITTLE))); }
 	writeUInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setUint32(this.offset, value, (endian == Endian.LITTLE))); }
-	writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) {
+	writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) { return this._writeUInt64(value, endian); }
+
+	private _writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) {
 		this.writeUInt32((endian == Endian.LITTLE) ? value.low : value.high, endian);
 		this.writeUInt32((endian == Endian.LITTLE) ? value.high : value.low, endian);
 	}

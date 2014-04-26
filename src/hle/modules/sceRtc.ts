@@ -2,9 +2,8 @@
     export class sceRtc {
         constructor(private context: EmulatorContext) { }
 
-        sceRtcGetCurrentTick = createNativeFunction(0x3F7AD767, 150, 'int', 'void*', this, (tickPtr: Stream) => {
-            tickPtr.writeInt32(new Date().getTime());
-            tickPtr.writeInt32(0);
+		sceRtcGetCurrentTick = createNativeFunction(0x3F7AD767, 150, 'int', 'void*', this, (tickPtr: Stream) => {
+			tickPtr.writeUInt64(ScePspDateTime.fromDate(new Date()).getTotalMicroseconds());
             return 0;
         });
 

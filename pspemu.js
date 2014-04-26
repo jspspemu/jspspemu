@@ -445,8 +445,7 @@ var core;
             this.secondsLeftForVblank = 0;
             this.rowsLeftForVblankStart = 0;
             this.secondsLeftForVblankStart = 0;
-            //mustWaitVBlank = true;
-            this.mustWaitVBlank = false;
+            this.mustWaitVBlank = true;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
             this.setEnabledDisplay(true);
@@ -517,6 +516,7 @@ var core;
             return Promise.resolve();
         };
 
+        //mustWaitVBlank = false;
         PspDisplay.prototype.waitVblankAsync = function () {
             this.updateTime();
             if (!this.mustWaitVBlank)
@@ -974,6 +974,10 @@ var Stream = (function () {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(4, this.data.setInt32(this.offset, value, (endian == 0 /* LITTLE */)));
     };
+    Stream.prototype.writeInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this._writeUInt64(value, endian);
+    };
 
     Stream.prototype.writeUInt8 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
@@ -988,6 +992,11 @@ var Stream = (function () {
         return this.skip(4, this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */)));
     };
     Stream.prototype.writeUInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this._writeUInt64(value, endian);
+    };
+
+    Stream.prototype._writeUInt64 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         this.writeUInt32((endian == 0 /* LITTLE */) ? value.low : value.high, endian);
         this.writeUInt32((endian == 0 /* LITTLE */) ? value.high : value.low, endian);
@@ -10522,8 +10531,7 @@ var hle;
             function sceRtc(context) {
                 this.context = context;
                 this.sceRtcGetCurrentTick = modules.createNativeFunction(0x3F7AD767, 150, 'int', 'void*', this, function (tickPtr) {
-                    tickPtr.writeInt32(new Date().getTime());
-                    tickPtr.writeInt32(0);
+                    tickPtr.writeUInt64(hle.ScePspDateTime.fromDate(new Date()).getTotalMicroseconds());
                     return 0;
                 });
                 this.sceRtcGetDayOfWeek = modules.createNativeFunction(0x57726BC1, 150, 'int', 'int/int/int', this, function (year, month, day) {
