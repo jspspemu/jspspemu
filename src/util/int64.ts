@@ -7,8 +7,13 @@ class Integer64 {
 	static ONE = Integer64.fromInt(1);
 	static MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
 	static MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+	private static _TWO_PWR_16_DBL = Math.pow(2, 16);
+	private static _TWO_PWR_23_DBL = Math.pow(2, 23);
+	private static _TWO_PWR_24_DBL = Math.pow(2, 24);
 	private static _TWO_PWR_32_DBL = Math.pow(2, 32);
 	private static _TWO_PWR_63_DBL = Math.pow(2, 63);
+
+	private static _TWO_PWR_24 = Integer64.fromInt(1 << 24);
 
 	constructor(low: number, high: number) {
 		this._low = low | 0;
@@ -46,7 +51,11 @@ class Integer64 {
 	get high() { return this._high; }
 
 	get number() {
-		return this._high * Integer64._TWO_PWR_32_DBL+ this.lowUnsigned;
+		return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+	}
+
+	getNumber() {
+		return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
 	}
 
 	equals(other: Integer64) {
@@ -62,15 +71,15 @@ class Integer64 {
 		return Integer64.fromBits(~this._low, ~this._high);
 	}
 
-	get isZero() {
+	isZero() {
 		return this._high == 0 && this._low == 0;
 	}
 
-	get isNegative() {
+	isNegative() {
 		return this._high < 0;
 	}
 
-	get isOdd() {
+	isOdd() {
 		return (this._low & 1) == 1;
 	}
 
@@ -104,18 +113,54 @@ class Integer64 {
 		return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
 	}
 
+	lessThan(other: Integer64) {
+		return this.compare(other) < 0;
+	}
+
+	compare(other:Integer64) {
+		if (this.equals(other)) {
+			return 0;
+		}
+
+		var thisNeg = this.isNegative();
+		var otherNeg = other.isNegative();
+		if (thisNeg && !otherNeg) {
+			return -1;
+		}
+		if (!thisNeg && otherNeg) {
+			return 1;
+		}
+
+		// at this point, the signs are the same, so subtraction will not overflow
+		if (this.sub(other).isNegative()) {
+			return -1;
+		} else {
+			return 1;
+		}
+	}
+
+	isLowEnoughForMul() {
+		if (this._high == 0 && this._low < Integer64._TWO_PWR_23_DBL) return true;
+		if (this._high == -1 && -this._low < Integer64._TWO_PWR_23_DBL) return true;
+		return false;
+	}
+
 	multiply(other: Integer64):Integer64 {
-		if (this.isZero) return Integer64.ZERO;
-		if (other.isZero) return Integer64.ZERO;
+		if (this.isZero()) return Integer64.ZERO;
+		if (other.isZero()) return Integer64.ZERO;
 
-		if (this.equals(Integer64.MIN_VALUE)) return other.isOdd ? Integer64.MIN_VALUE : Integer64.ZERO;
-		if (other.equals(Integer64.MIN_VALUE)) return this.isOdd ? Integer64.MIN_VALUE : Integer64.ZERO;
+		if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
+			return Integer64.fromNumber(this.getNumber() * other.getNumber());
+		}
 
-		if (this.isNegative) {
-			if (other.isNegative) return this.negate().multiply(other.negate());
+		if (this.equals(Integer64.MIN_VALUE)) return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+		if (other.equals(Integer64.MIN_VALUE)) return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+
+		if (this.isNegative()) {
+			if (other.isNegative()) return this.negate().multiply(other.negate());
 			return this.negate().multiply(other).negate();
 		}
-		if (other.isNegative) return this.multiply(other.negate()).negate();
+		if (other.isNegative()) return this.multiply(other.negate()).negate();
 
 		var a48 = this._high >>> 16;
 		var a32 = this._high & 0xFFFF;

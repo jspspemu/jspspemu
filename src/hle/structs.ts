@@ -40,7 +40,7 @@
 		}
 
 		static fromTicks(ticks: Integer64) {
-			return ScePspDateTime.fromDate(new Date(ticks.number));
+			return ScePspDateTime.fromDate(new Date(ticks.getNumber()));
 		}
 
 		getTotalMicroseconds() {

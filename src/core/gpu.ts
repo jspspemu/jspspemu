@@ -292,6 +292,26 @@ module core.gpu {
 					this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
 					break;
 
+				case GpuOpCodes.ALC:
+					//printf("%08X: %08X", current, instruction);
+					this.state.lighting.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+					this.state.lighting.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+					this.state.lighting.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+					this.state.lighting.ambientLightColor.a = 1;
+					break;
+
+				case GpuOpCodes.ZTST:
+					this.state.depthTest.func = BitUtils.extractEnum<TestFunctionEnum>(params24, 0, 8);
+					break;
+
+				case GpuOpCodes.ZTE:
+					this.state.depthTest.enabled = (params24 != 0);
+					break;
+
+				case GpuOpCodes.ALA:
+					this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
+					break;
+
 				case GpuOpCodes.DMC:
 					//printf("AMC:%08X", params24);
 
@@ -321,6 +341,7 @@ module core.gpu {
 					break;
 
 				case GpuOpCodes.CMODE:
+					this.state.texture.clut.info = params24;
 					this.state.texture.clut.pixelFormat = <PixelFormat>BitUtils.extract(params24, 0, 2);
 					this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
 					this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
@@ -348,6 +369,14 @@ module core.gpu {
 					break;
 
 				case GpuOpCodes.PRIM:
+					//if (this.current < this.stall) {
+					//	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
+					//
+					//	if (nextOp == GpuOpCodes.PRIM) {
+					//		console.log('PRIM_BATCH!');
+					//	}
+					//}
+
 					//console.log('GPU PRIM');
 
                     var primitiveType = BitUtils.extractEnum<PrimitiveType>(params24, 16, 3);

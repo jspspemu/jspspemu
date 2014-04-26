@@ -164,9 +164,9 @@
 
                 var current = window.performance.now();
 				if (current - start >= 100) {
-					setTimeout(() => this.eventOcurred(), 10);
+					setTimeout(() => this.eventOcurred(), 0);
                     return;
-                }
+				}
             }
         }
 

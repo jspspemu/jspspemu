@@ -11,6 +11,10 @@
 			return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync());
 		}
 
+		_waitVblankStartAsync() {
+			return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync());
+		}
+
         sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, (cycleNum: number) => {
 			return this._waitVblankAsync();
 		});
@@ -20,15 +24,16 @@
 		});
 
         sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', '', this, () => {
-			return this._waitVblankAsync();
-		});
-
-		sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, () => {
-			return this.context.display.vblankCount;
+			return this._waitVblankStartAsync();
 		});
 
 		sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', '', this, () => {
-			return this._waitVblankAsync()
+			return this._waitVblankStartAsync()
+		});
+
+		sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, () => {
+			this.context.display.updateTime();
+			return this.context.display.vblankCount;
 		});
 
         sceDisplaySetFrameBuf = createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, (address: number, bufferWidth: number, pixelFormat: core.PixelFormat, sync: number) => {
@@ -40,7 +45,8 @@
 		});
 
 		sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, () => {
-			return this.context.display.hcount;
+			this.context.display.updateTime();
+			return this.context.display.hcountTotal;
 		});
     }
 }

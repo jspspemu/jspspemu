@@ -54,15 +54,20 @@ module core.gpu {
 		w0 = 0.0; w1 = 0.0; w2 = 0.0; w3 = 0.0;
 		w4 = 0.0; w5 = 0.0; w6 = 0.0; w7 = 0.0;
 
+		copyFrom(that: Vertex) {
+			var _this = this;
+			_this.px = that.px; _this.py = that.py; _this.pz = that.pz;
+			_this.nx = that.nx; _this.ny = that.ny; _this.nz = that.nz;
+			_this.tx = that.tx; _this.ty = that.ty; _this.tz = that.tz;
+			_this.r = that.r; _this.g = that.g; _this.b = that.b; _this.a = that.a;
+			_this.w0 = that.w0; _this.w1 = that.w1; _this.w2 = that.w2; _this.w3 = that.w3;
+			_this.w4 = that.w4; _this.w5 = that.w5; _this.w6 = that.w6; _this.w7 = that.w7;
+		}
+
 		clone() {
-			var vertex = new Vertex();
-			vertex.px = this.px; vertex.py = this.py; vertex.pz = this.pz;
-			vertex.nx = this.nx; vertex.ny = this.ny; vertex.nz = this.nz;
-			vertex.tx = this.tx; vertex.ty = this.ty; vertex.tz = this.tz;
-			vertex.r = this.r; vertex.g = this.g; vertex.b = this.b; vertex.a = this.a;
-			vertex.w0 = this.w0; vertex.w1 = this.w1; vertex.w2 = this.w2; vertex.w3 = this.w3;
-			vertex.w4 = this.w4; vertex.w5 = this.w5; vertex.w6 = this.w6; vertex.w7 = this.w7;
-			return vertex;
+			var that = new Vertex();
+			that.copyFrom(this);
+			return that;
 		}
 	}
 
@@ -83,7 +88,7 @@ module core.gpu {
 		//getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
 
 		get hash() {
-			return [this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.weightSize, this.morphingVertexCount, this.transform2D, this.textureComponentCount].join('_');
+			return this.value + (this.textureComponentCount * Math.pow(2, 32));
 		}
 
 		get hasTexture() { return this.texture != NumericEnum.Void; }
@@ -246,6 +251,7 @@ module core.gpu {
 	}
 
 	export class ClutState {
+		info: number;
 		adress = 0;
 		numberOfColors = 0;
 		pixelFormat = PixelFormat.RGBA_8888;
@@ -272,8 +278,8 @@ module core.gpu {
 		envColor = new ColorState();
 		fragment2X = false;
 		pixelFormat = core.PixelFormat.RGBA_8888;
-		get isPixelFormatWithClut() {
-			return (this.pixelFormat == core.PixelFormat.PALETTE_T4) || (this.pixelFormat == core.PixelFormat.PALETTE_T8) || (this.pixelFormat == core.PixelFormat.PALETTE_T16) || (this.pixelFormat == core.PixelFormat.PALETTE_T32);
+		isPixelFormatWithClut() {
+			return ((this.pixelFormat >= core.PixelFormat.PALETTE_T4) && (this.pixelFormat <= core.PixelFormat.PALETTE_T32));
 		}
 		clut = new ClutState();
 		mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
@@ -282,6 +288,26 @@ module core.gpu {
 	export class CullingState {
 		enabled: boolean;
 		direction: CullingDirection;
+	}
+
+	export class LightingState {
+		ambientLightColor = new ColorState();
+	}
+
+	export enum TestFunctionEnum {
+		Never = 0,
+		Always = 1,
+		Equal = 2,
+		NotEqual = 3,
+		Less = 4,
+		LessOrEqual = 5,
+		Greater = 6,
+		GreaterOrEqual = 7,
+	}
+
+	export class DepthTestState {
+		func = TestFunctionEnum.Always;
+		enabled = false;
 	}
 
 	export class GpuState {
@@ -299,9 +325,11 @@ module core.gpu {
 		lightning = new Lightning();
 		texture = new TextureState();
 		ambientModelColor = new ColorState();
+		lighting = new LightingState();
 		diffuseModelColor = new ColorState();
 		specularModelColor = new ColorState();
 		culling = new CullingState();
+		depthTest = new DepthTestState();
 		drawPixelFormat = PixelFormat.RGBA_8888;
 	}
 

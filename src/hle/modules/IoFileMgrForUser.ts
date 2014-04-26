@@ -133,7 +133,7 @@
 		});
 
 		sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
-			var result = this._seek(fileId, offset.number, whence);
+			var result = this._seek(fileId, offset.getNumber(), whence);
 			//console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
 			return Integer64.fromNumber(result);
 		});

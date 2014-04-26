@@ -121,11 +121,42 @@ module core {
 			}
 		}
 
+		/*
+		private hashAligned(result:number, address: number, count: number) {
+			var u32 = this.u32;
+			var address4 = (address >> 2);
+			var count4 = (count >> 2);
+			var m = 0;
+			for (var n = 0; n < count4; n++) {
+				var val = u32[address4++];
+				result ^= m++ << 28;
+				result += (val >> 0) & 0xFF;
+				result ^= m++ << 28;
+				result += (val >> 8) & 0xFF;
+				result ^= m++ << 28;
+				result += (val >> 16) & 0xFF;
+				result ^= m++ << 28;
+				result += (val >> 24) & 0xFF;
+			}
+			return result;
+		}
+
 		hash(address: number, count: number) {
 			var result = 0;
-			for (var n = 0; n < count; n++) {
-				result ^= n << 28;
-				result += this.u8[address + n];
+			//var u8 = this.u8;
+			//while (address & 3) { result += u8[address++]; count--; }
+			this.hashAligned(result, address, count);
+			return result;
+		}
+		*/
+
+		hash(address: number, count: number) {
+			var result = 0;
+			var u8 = this.u8;
+			var n = 0;
+			while (count-- > 0) {
+				result ^= n++ << 28;
+				result += u8[address++];
 			}
 			return result;
 		}

@@ -26,7 +26,9 @@
     <script src="lib/sprintf.js"></script>
     <script src="lib/FileSaver.js"></script>
     <script src="polyfills/promise-0.1.1.js"></script>
+    <!--
     <script src="polyfills/setImmediate.js"></script>
+    -->
     <script src="lib/mocha.js"></script>
     <script src="lib/chai.js"></script>
     <script>
@@ -51,6 +53,9 @@
         </div>
         <div>
             <canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
+            <!--
+            <canvas id="webgl_canvas" width="480" height="272" style="background: black; width: 480px; height: 272px; border: 0; display: none; "></canvas>
+            -->
             <canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
         </div>
         <div id="thread_list" style="color:white;"></div>

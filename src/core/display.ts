@@ -7,9 +7,11 @@
 		startAsync(): Promise<void>;
 		stopAsync(): Promise<void>;
 		waitVblankAsync(): Promise<number>;
+		waitVblankStartAsync(): Promise<number>;
 		setEnabledDisplay(enable: boolean): void;
+		updateTime(): void;
 		vblankCount: number;
-		hcount: number;
+		hcountTotal: number;
 	}
 
 	export enum PixelFormat {
@@ -36,13 +38,20 @@
 
 	export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 		vblankCount: number = 0;
-		public hcount: number = 0;
+		public hcountTotal: number = 0;
 
 		constructor() {
 			super();
 		}
 
+		updateTime() {
+		}
+
 		waitVblankAsync() {
+			return new Promise((resolve) => { setTimeout(resolve, 20); });
+		}
+
+		waitVblankStartAsync() {
 			return new Promise((resolve) => { setTimeout(resolve, 20); });
 		}
 
@@ -63,28 +72,58 @@
 		private vblank = new Signal();
 		private imageData: ImageData;
 		private interval: number = -1;
-		vblankCount: number = 0;
 		private enabled: boolean = true;
 		private _hcount: number = 0;
 		private startTime: number;
 
-		static ProcessedPixelsPerSecond = 9000000; // hz
-		static CyclesPerPixel = 1;
-		static PixelsInARow = 525;
-		static VsyncRow = 272;
-		static NumberOfRows = 286;
-		static hCountPerVblank = 285.72;
+		static PROCESSED_PIXELS_PER_SECOND = 9000000; // hz
+		static CYCLES_PER_PIXEL = 1;
+		static PIXELS_IN_A_ROW = 525;
+		static VSYNC_ROW = 272;
+		static NUMBER_OF_ROWS = 286;
+		static HCOUNT_PER_VBLANK = 285.72;
 
-		static HorizontalSyncHertz = (PspDisplay.ProcessedPixelsPerSecond * PspDisplay.CyclesPerPixel) / PspDisplay.PixelsInARow;
-		static VerticalSyncHertz = PspDisplay.HorizontalSyncHertz / PspDisplay.NumberOfRows;
+		static HORIZONTAL_SYNC_HZ = (PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL) / PspDisplay.PIXELS_IN_A_ROW; // 17142.85714285714
+		static HORIZONTAL_SECONDS = 1 / PspDisplay.HORIZONTAL_SYNC_HZ; // 5.8333333333333E-5
 
+		static VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK; // 59.998800024
+		static VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ; // 0.016667
 
-		get elapsedTime() {
-			return Date.now() - this.startTime;
+		private currentMs;
+		private elapsedSeconds;
+		hcountTotal = 0;
+		hcountCurrent = 0;
+		vblankCount = 0;
+		private isInVblank = false;
+
+		private rowsLeftForVblank = 0;
+		private secondsLeftForVblank = 0;
+
+		private rowsLeftForVblankStart = 0;
+		private secondsLeftForVblankStart = 0;
+
+		private getCurrentMs() {
+			return performance.now();
+			//return Date.now();
 		}
 
-		get hcount() {
-			return ((this.elapsedTime / 1000) / (1 / PspDisplay.HorizontalSyncHertz)) | 0;
+		updateTime() {
+			this.currentMs = this.getCurrentMs();
+			this.elapsedSeconds = (this.currentMs - this.startTime) / 1000;
+			this.hcountTotal = (this.elapsedSeconds * PspDisplay.HORIZONTAL_SYNC_HZ) | 0;
+			this.hcountCurrent = (((this.elapsedSeconds % 1.00002) * PspDisplay.HORIZONTAL_SYNC_HZ) | 0) % PspDisplay.NUMBER_OF_ROWS;
+			this.vblankCount = (this.elapsedSeconds * PspDisplay.VERTICAL_SYNC_HZ) | 0;
+			if (this.hcountCurrent >= PspDisplay.VSYNC_ROW) {
+				this.isInVblank = true;
+				this.rowsLeftForVblank = 0;
+				this.rowsLeftForVblankStart = (PspDisplay.NUMBER_OF_ROWS - this.hcountCurrent) + PspDisplay.VSYNC_ROW;
+			} else {
+				this.isInVblank = false;
+				this.rowsLeftForVblank = PspDisplay.VSYNC_ROW - this.hcountCurrent;
+				this.rowsLeftForVblankStart = this.rowsLeftForVblank;
+			}
+			this.secondsLeftForVblank = this.rowsLeftForVblank * PspDisplay.HORIZONTAL_SECONDS;
+			this.secondsLeftForVblankStart = this.rowsLeftForVblankStart * PspDisplay.HORIZONTAL_SECONDS;
 		}
 
 		constructor(public memory: Memory, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
@@ -114,13 +153,16 @@
 		}
 
 		startAsync() {
-			this.startTime = Date.now();
+			this.startTime = this.currentMs;
+			this.updateTime();
+
 			//$(this.canvas).focus();
 			this.interval = setInterval(() => {
+				this.updateTime();
 				this.vblankCount++;
 				this.update();
 				this.vblank.dispatch();
-			}, 1000 / 59.999);
+			}, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
 			return Promise.resolve();
 		}
 
@@ -130,12 +172,19 @@
 			return Promise.resolve();
 		}
 
+		//mustWaitVBlank = true;
+		mustWaitVBlank = false;
+
 		waitVblankAsync() {
-			return new Promise<number>((resolve) => {
-				this.vblank.once(() => {
-					resolve(0);
-				});
-			});
+			this.updateTime();
+			if (!this.mustWaitVBlank) return Promise.resolve(0);
+			return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblank).then(() => 0);
+		}
+
+		waitVblankStartAsync() {
+			this.updateTime();
+			if (!this.mustWaitVBlank) return Promise.resolve(0);
+			return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblankStart).then(() => 0);
 		}
 	}
 

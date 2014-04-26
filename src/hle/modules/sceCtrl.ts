@@ -10,7 +10,8 @@
 		sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, (state: core.cpu.CpuState, sceCtrlDataPtr: Stream, count: number) => {
 			core.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 
-			return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankAsync());
+			return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync());
+			//return 0;
         });
 
         sceCtrlSetSamplingCycle = createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, (samplingCycle: number) => {

@@ -395,9 +395,18 @@ var core;
         function DummyPspDisplay() {
             _super.call(this);
             this.vblankCount = 0;
-            this.hcount = 0;
+            this.hcountTotal = 0;
         }
+        DummyPspDisplay.prototype.updateTime = function () {
+        };
+
         DummyPspDisplay.prototype.waitVblankAsync = function () {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, 20);
+            });
+        };
+
+        DummyPspDisplay.prototype.waitVblankStartAsync = function () {
             return new Promise(function (resolve) {
                 setTimeout(resolve, 20);
             });
@@ -426,28 +435,45 @@ var core;
             this.webglcanvas = webglcanvas;
             this.vblank = new Signal();
             this.interval = -1;
-            this.vblankCount = 0;
             this.enabled = true;
             this._hcount = 0;
+            this.hcountTotal = 0;
+            this.hcountCurrent = 0;
+            this.vblankCount = 0;
+            this.isInVblank = false;
+            this.rowsLeftForVblank = 0;
+            this.secondsLeftForVblank = 0;
+            this.rowsLeftForVblankStart = 0;
+            this.secondsLeftForVblankStart = 0;
+            //mustWaitVBlank = true;
+            this.mustWaitVBlank = false;
             this.context = this.canvas.getContext('2d');
             this.imageData = this.context.createImageData(512, 272);
             this.setEnabledDisplay(true);
         }
-        Object.defineProperty(PspDisplay.prototype, "elapsedTime", {
-            get: function () {
-                return Date.now() - this.startTime;
-            },
-            enumerable: true,
-            configurable: true
-        });
+        PspDisplay.prototype.getCurrentMs = function () {
+            return performance.now();
+            //return Date.now();
+        };
 
-        Object.defineProperty(PspDisplay.prototype, "hcount", {
-            get: function () {
-                return ((this.elapsedTime / 1000) / (1 / PspDisplay.HorizontalSyncHertz)) | 0;
-            },
-            enumerable: true,
-            configurable: true
-        });
+        PspDisplay.prototype.updateTime = function () {
+            this.currentMs = this.getCurrentMs();
+            this.elapsedSeconds = (this.currentMs - this.startTime) / 1000;
+            this.hcountTotal = (this.elapsedSeconds * PspDisplay.HORIZONTAL_SYNC_HZ) | 0;
+            this.hcountCurrent = (((this.elapsedSeconds % 1.00002) * PspDisplay.HORIZONTAL_SYNC_HZ) | 0) % PspDisplay.NUMBER_OF_ROWS;
+            this.vblankCount = (this.elapsedSeconds * PspDisplay.VERTICAL_SYNC_HZ) | 0;
+            if (this.hcountCurrent >= PspDisplay.VSYNC_ROW) {
+                this.isInVblank = true;
+                this.rowsLeftForVblank = 0;
+                this.rowsLeftForVblankStart = (PspDisplay.NUMBER_OF_ROWS - this.hcountCurrent) + PspDisplay.VSYNC_ROW;
+            } else {
+                this.isInVblank = false;
+                this.rowsLeftForVblank = PspDisplay.VSYNC_ROW - this.hcountCurrent;
+                this.rowsLeftForVblankStart = this.rowsLeftForVblank;
+            }
+            this.secondsLeftForVblank = this.rowsLeftForVblank * PspDisplay.HORIZONTAL_SECONDS;
+            this.secondsLeftForVblankStart = this.rowsLeftForVblankStart * PspDisplay.HORIZONTAL_SECONDS;
+        };
 
         PspDisplay.prototype.update = function () {
             if (!this.context || !this.imageData)
@@ -472,14 +498,16 @@ var core;
 
         PspDisplay.prototype.startAsync = function () {
             var _this = this;
-            this.startTime = Date.now();
+            this.startTime = this.currentMs;
+            this.updateTime();
 
             //$(this.canvas).focus();
             this.interval = setInterval(function () {
+                _this.updateTime();
                 _this.vblankCount++;
                 _this.update();
                 _this.vblank.dispatch();
-            }, 1000 / 59.999);
+            }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
             return Promise.resolve();
         };
 
@@ -490,22 +518,34 @@ var core;
         };
 
         PspDisplay.prototype.waitVblankAsync = function () {
-            var _this = this;
-            return new Promise(function (resolve) {
-                _this.vblank.once(function () {
-                    resolve(0);
-                });
+            this.updateTime();
+            if (!this.mustWaitVBlank)
+                return Promise.resolve(0);
+            return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblank).then(function () {
+                return 0;
             });
         };
-        PspDisplay.ProcessedPixelsPerSecond = 9000000;
-        PspDisplay.CyclesPerPixel = 1;
-        PspDisplay.PixelsInARow = 525;
-        PspDisplay.VsyncRow = 272;
-        PspDisplay.NumberOfRows = 286;
-        PspDisplay.hCountPerVblank = 285.72;
 
-        PspDisplay.HorizontalSyncHertz = (PspDisplay.ProcessedPixelsPerSecond * PspDisplay.CyclesPerPixel) / PspDisplay.PixelsInARow;
-        PspDisplay.VerticalSyncHertz = PspDisplay.HorizontalSyncHertz / PspDisplay.NumberOfRows;
+        PspDisplay.prototype.waitVblankStartAsync = function () {
+            this.updateTime();
+            if (!this.mustWaitVBlank)
+                return Promise.resolve(0);
+            return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblankStart).then(function () {
+                return 0;
+            });
+        };
+        PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000;
+        PspDisplay.CYCLES_PER_PIXEL = 1;
+        PspDisplay.PIXELS_IN_A_ROW = 525;
+        PspDisplay.VSYNC_ROW = 272;
+        PspDisplay.NUMBER_OF_ROWS = 286;
+        PspDisplay.HCOUNT_PER_VBLANK = 285.72;
+
+        PspDisplay.HORIZONTAL_SYNC_HZ = (PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL) / PspDisplay.PIXELS_IN_A_ROW;
+        PspDisplay.HORIZONTAL_SECONDS = 1 / PspDisplay.HORIZONTAL_SYNC_HZ;
+
+        PspDisplay.VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK;
+        PspDisplay.VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ;
         return PspDisplay;
     })(BasePspDisplay);
     core.PspDisplay = PspDisplay;
@@ -1855,12 +1895,39 @@ String.prototype.contains = function (value) {
     return string.indexOf(value) >= 0;
 };
 
+var Microtask = (function () {
+    function Microtask() {
+    }
+    Microtask.queue = function (callback) {
+        Microtask.callbacks.push(callback);
+        if (!Microtask.queued) {
+            Microtask.queued = true;
+            setTimeout(Microtask.execute, 0);
+        }
+    };
+
+    Microtask.execute = function () {
+        while (Microtask.callbacks.length > 0) {
+            var callback = Microtask.callbacks.shift();
+            callback();
+        }
+        Microtask.queued = false;
+    };
+    Microtask.queued = false;
+    Microtask.callbacks = [];
+    return Microtask;
+})();
+
 if (!window['setImmediate']) {
     window['setImmediate'] = function (callback) {
-        return setTimeout(callback, 0);
+        Microtask.queue(callback);
+
+        //return setTimeout(callback, 0);
+        return -1;
     };
     window['clearImmediate'] = function (timer) {
-        clearTimeout(timer);
+        throw (new Error("Not implemented!"));
+        //clearTimeout(timer);
     };
 }
 
@@ -1964,9 +2031,15 @@ var PromiseUtils = (function () {
     };
 
     PromiseUtils.delayAsync = function (ms) {
+        if (ms <= 0)
+            return Promise.resolve(null);
         return new Promise(function (resolve, reject) {
             return setTimeout(resolve, ms);
         });
+    };
+
+    PromiseUtils.delaySecondsAsync = function (seconds) {
+        return PromiseUtils.delayAsync(seconds * 1000);
     };
     return PromiseUtils;
 })();
@@ -2432,11 +2505,41 @@ var core;
             }
         };
 
+        /*
+        private hashAligned(result:number, address: number, count: number) {
+        var u32 = this.u32;
+        var address4 = (address >> 2);
+        var count4 = (count >> 2);
+        var m = 0;
+        for (var n = 0; n < count4; n++) {
+        var val = u32[address4++];
+        result ^= m++ << 28;
+        result += (val >> 0) & 0xFF;
+        result ^= m++ << 28;
+        result += (val >> 8) & 0xFF;
+        result ^= m++ << 28;
+        result += (val >> 16) & 0xFF;
+        result ^= m++ << 28;
+        result += (val >> 24) & 0xFF;
+        }
+        return result;
+        }
+        
+        hash(address: number, count: number) {
+        var result = 0;
+        //var u8 = this.u8;
+        //while (address & 3) { result += u8[address++]; count--; }
+        this.hashAligned(result, address, count);
+        return result;
+        }
+        */
         Memory.prototype.hash = function (address, count) {
             var result = 0;
-            for (var n = 0; n < count; n++) {
-                result ^= n << 28;
-                result += this.u8[address + n];
+            var u8 = this.u8;
+            var n = 0;
+            while (count-- > 0) {
+                result ^= n++ << 28;
+                result += u8[address++];
             }
             return result;
         };
@@ -2536,30 +2639,35 @@ var core;
                 this.w6 = 0.0;
                 this.w7 = 0.0;
             }
+            Vertex.prototype.copyFrom = function (that) {
+                var _this = this;
+                _this.px = that.px;
+                _this.py = that.py;
+                _this.pz = that.pz;
+                _this.nx = that.nx;
+                _this.ny = that.ny;
+                _this.nz = that.nz;
+                _this.tx = that.tx;
+                _this.ty = that.ty;
+                _this.tz = that.tz;
+                _this.r = that.r;
+                _this.g = that.g;
+                _this.b = that.b;
+                _this.a = that.a;
+                _this.w0 = that.w0;
+                _this.w1 = that.w1;
+                _this.w2 = that.w2;
+                _this.w3 = that.w3;
+                _this.w4 = that.w4;
+                _this.w5 = that.w5;
+                _this.w6 = that.w6;
+                _this.w7 = that.w7;
+            };
+
             Vertex.prototype.clone = function () {
-                var vertex = new Vertex();
-                vertex.px = this.px;
-                vertex.py = this.py;
-                vertex.pz = this.pz;
-                vertex.nx = this.nx;
-                vertex.ny = this.ny;
-                vertex.nz = this.nz;
-                vertex.tx = this.tx;
-                vertex.ty = this.ty;
-                vertex.tz = this.tz;
-                vertex.r = this.r;
-                vertex.g = this.g;
-                vertex.b = this.b;
-                vertex.a = this.a;
-                vertex.w0 = this.w0;
-                vertex.w1 = this.w1;
-                vertex.w2 = this.w2;
-                vertex.w3 = this.w3;
-                vertex.w4 = this.w4;
-                vertex.w5 = this.w5;
-                vertex.w6 = this.w6;
-                vertex.w7 = this.w7;
-                return vertex;
+                var that = new Vertex();
+                that.copyFrom(this);
+                return that;
             };
             return Vertex;
         })();
@@ -2588,7 +2696,7 @@ var core;
             Object.defineProperty(VertexState.prototype, "hash", {
                 //getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
                 get: function () {
-                    return [this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.weightSize, this.morphingVertexCount, this.transform2D, this.textureComponentCount].join('_');
+                    return this.value + (this.textureComponentCount * Math.pow(2, 32));
                 },
                 enumerable: true,
                 configurable: true
@@ -2975,13 +3083,9 @@ var core;
                 this.clut = new ClutState();
                 this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
             }
-            Object.defineProperty(TextureState.prototype, "isPixelFormatWithClut", {
-                get: function () {
-                    return (this.pixelFormat == 4 /* PALETTE_T4 */) || (this.pixelFormat == 5 /* PALETTE_T8 */) || (this.pixelFormat == 6 /* PALETTE_T16 */) || (this.pixelFormat == 7 /* PALETTE_T32 */);
-                },
-                enumerable: true,
-                configurable: true
-            });
+            TextureState.prototype.isPixelFormatWithClut = function () {
+                return ((this.pixelFormat >= 4 /* PALETTE_T4 */) && (this.pixelFormat <= 7 /* PALETTE_T32 */));
+            };
             return TextureState;
         })();
         gpu.TextureState = TextureState;
@@ -2992,6 +3096,35 @@ var core;
             return CullingState;
         })();
         gpu.CullingState = CullingState;
+
+        var LightingState = (function () {
+            function LightingState() {
+                this.ambientLightColor = new ColorState();
+            }
+            return LightingState;
+        })();
+        gpu.LightingState = LightingState;
+
+        (function (TestFunctionEnum) {
+            TestFunctionEnum[TestFunctionEnum["Never"] = 0] = "Never";
+            TestFunctionEnum[TestFunctionEnum["Always"] = 1] = "Always";
+            TestFunctionEnum[TestFunctionEnum["Equal"] = 2] = "Equal";
+            TestFunctionEnum[TestFunctionEnum["NotEqual"] = 3] = "NotEqual";
+            TestFunctionEnum[TestFunctionEnum["Less"] = 4] = "Less";
+            TestFunctionEnum[TestFunctionEnum["LessOrEqual"] = 5] = "LessOrEqual";
+            TestFunctionEnum[TestFunctionEnum["Greater"] = 6] = "Greater";
+            TestFunctionEnum[TestFunctionEnum["GreaterOrEqual"] = 7] = "GreaterOrEqual";
+        })(gpu.TestFunctionEnum || (gpu.TestFunctionEnum = {}));
+        var TestFunctionEnum = gpu.TestFunctionEnum;
+
+        var DepthTestState = (function () {
+            function DepthTestState() {
+                this.func = 1 /* Always */;
+                this.enabled = false;
+            }
+            return DepthTestState;
+        })();
+        gpu.DepthTestState = DepthTestState;
 
         var GpuState = (function () {
             function GpuState() {
@@ -3009,9 +3142,11 @@ var core;
                 this.lightning = new Lightning();
                 this.texture = new TextureState();
                 this.ambientModelColor = new ColorState();
+                this.lighting = new LightingState();
                 this.diffuseModelColor = new ColorState();
                 this.specularModelColor = new ColorState();
                 this.culling = new CullingState();
+                this.depthTest = new DepthTestState();
                 this.drawPixelFormat = 3 /* RGBA_8888 */;
             }
             return GpuState;
@@ -3632,6 +3767,26 @@ var core;
                         this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
                         break;
 
+                    case 92 /* ALC */:
+                        //printf("%08X: %08X", current, instruction);
+                        this.state.lighting.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                        this.state.lighting.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                        this.state.lighting.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+                        this.state.lighting.ambientLightColor.a = 1;
+                        break;
+
+                    case 222 /* ZTST */:
+                        this.state.depthTest.func = BitUtils.extractEnum(params24, 0, 8);
+                        break;
+
+                    case 35 /* ZTE */:
+                        this.state.depthTest.enabled = (params24 != 0);
+                        break;
+
+                    case 93 /* ALA */:
+                        this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
+                        break;
+
                     case 86 /* DMC */:
                         //printf("AMC:%08X", params24);
                         this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
@@ -3660,6 +3815,7 @@ var core;
                         break;
 
                     case 197 /* CMODE */:
+                        this.state.texture.clut.info = params24;
                         this.state.texture.clut.pixelFormat = BitUtils.extract(params24, 0, 2);
                         this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
                         this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
@@ -3700,6 +3856,13 @@ var core;
                         break;
 
                     case 4 /* PRIM */:
+                        //if (this.current < this.stall) {
+                        //	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
+                        //
+                        //	if (nextOp == GpuOpCodes.PRIM) {
+                        //		console.log('PRIM_BATCH!');
+                        //	}
+                        //}
                         //console.log('GPU PRIM');
                         var primitiveType = BitUtils.extractEnum(params24, 16, 3);
                         var vertexCount = BitUtils.extract(params24, 0, 16);
@@ -4631,7 +4794,7 @@ var hle;
                 if (current - start >= 100) {
                     setTimeout(function () {
                         return _this.eventOcurred();
-                    }, 10);
+                    }, 0);
                     return;
                 }
             }
@@ -6695,6 +6858,88 @@ var core;
 (function (core) {
     (function (gpu) {
         (function (impl) {
+            var WrappedWebGLUniform = (function () {
+                function WrappedWebGLUniform(gl, program, name) {
+                    this.gl = gl;
+                    this.program = program;
+                    this.name = name;
+                    this.location = gl.getUniformLocation(program, name);
+                }
+                WrappedWebGLUniform.prototype.setMat4 = function (data) {
+                    this.gl.uniformMatrix4fv(this.location, false, data);
+                };
+
+                WrappedWebGLUniform.prototype.set1i = function (value) {
+                    this.gl.uniform1i(this.location, value);
+                };
+
+                WrappedWebGLUniform.prototype.set4f = function (x, y, z, w) {
+                    this.gl.uniform4f(this.location, x, y, z, w);
+                };
+                return WrappedWebGLUniform;
+            })();
+
+            var WrappedWebGLAttrib = (function () {
+                function WrappedWebGLAttrib(gl, program, name) {
+                    this.gl = gl;
+                    this.program = program;
+                    this.name = name;
+                    this.location = gl.getAttribLocation(program, name);
+                }
+                WrappedWebGLAttrib.prototype.enable = function () {
+                    if (this.location < 0)
+                        return;
+                    this.gl.enableVertexAttribArray(this.location);
+                };
+
+                WrappedWebGLAttrib.prototype.disable = function () {
+                    if (this.location < 0)
+                        return;
+                    this.gl.disableVertexAttribArray(this.location);
+                };
+
+                WrappedWebGLAttrib.prototype.setFloats = function (rsize, arr) {
+                    if (this.location < 0)
+                        return;
+
+                    var gl = this.gl;
+                    if (!this.buffer)
+                        this.buffer = this.gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, arr.slice(), gl.STATIC_DRAW);
+                    this.enable();
+                    gl.vertexAttribPointer(this.location, rsize, gl.FLOAT, false, 0, 0);
+                };
+                return WrappedWebGLAttrib;
+            })();
+
+            var WrappedWebGLProgram = (function () {
+                function WrappedWebGLProgram(gl, program) {
+                    this.gl = gl;
+                    this.program = program;
+                    this.uniforms = {};
+                    this.attribs = {};
+                }
+                WrappedWebGLProgram.prototype.use = function () {
+                    this.gl.useProgram(this.program);
+                };
+
+                WrappedWebGLProgram.prototype.getUniform = function (name) {
+                    var uniform = this.uniforms[name];
+                    if (!uniform)
+                        uniform = this.uniforms[name] = new WrappedWebGLUniform(this.gl, this.program, name);
+                    return uniform;
+                };
+
+                WrappedWebGLProgram.prototype.getAttrib = function (name) {
+                    var attrib = this.attribs[name];
+                    if (!attrib)
+                        attrib = this.attribs[name] = new WrappedWebGLAttrib(this.gl, this.program, name);
+                    return attrib;
+                };
+                return WrappedWebGLProgram;
+            })();
+
             var ShaderCache = (function () {
                 function ShaderCache(gl, shaderVertString, shaderFragString) {
                     this.gl = gl;
@@ -6738,7 +6983,7 @@ var core;
                     gl.linkProgram(prog);
                     if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
                         throw (new Error("Could not link the shader program!"));
-                    return prog;
+                    return new WrappedWebGLProgram(gl, prog);
                 };
                 return ShaderCache;
             })();
@@ -6770,26 +7015,31 @@ var core;
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
                 };
 
-                Texture.hash = function (memory, state) {
-                    var mipmap = state.texture.mipmaps[0];
-                    var clut = state.texture.clut;
+                Texture.hashFast = function (state) {
+                    if (state.texture.isPixelFormatWithClut()) {
+                        return state.texture.clut.adress + '_' + state.texture.mipmaps[0].address;
+                    } else {
+                        return '' + state.texture.mipmaps[0].address;
+                    }
+                };
+
+                Texture.hashSlow = function (memory, state) {
+                    var texture = state.texture;
+                    var mipmap = texture.mipmaps[0];
+                    var clut = texture.clut;
 
                     var hash_number = 0;
 
-                    hash_number += (state.texture.swizzled ? 1 : 0) << 0;
-                    hash_number += (state.texture.pixelFormat) << 1;
+                    hash_number += (texture.swizzled ? 1 : 0) << 0;
+                    hash_number += (texture.pixelFormat) << 1;
                     hash_number += (mipmap.bufferWidth) << 3;
                     hash_number += (mipmap.textureWidth) << 6;
                     hash_number += (mipmap.textureHeight) << 8;
-                    hash_number += memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(state.texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 24);
+                    hash_number += memory.hash(mipmap.address, core.PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 24);
 
-                    if (state.texture.isPixelFormatWithClut) {
+                    if (texture.isPixelFormatWithClut()) {
                         hash_number += memory.hash(clut.adress + core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), core.PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
-                        hash_number += clut.mask << 17;
-                        hash_number += clut.numberOfColors << 19;
-                        hash_number += clut.pixelFormat << 22;
-                        hash_number += clut.shift << 25;
-                        hash_number += clut.start << 27;
+                        hash_number += clut.info << 17;
                     }
                     return hash_number;
                 };
@@ -6804,28 +7054,23 @@ var core;
                     this.texturesByHash1 = {};
                     this.recheckTimestamp = 0;
                 }
-                TextureHandler.prototype.recheckAll = function () {
+                TextureHandler.prototype.flush = function () {
                     this.recheckTimestamp = performance.now();
                 };
 
-                TextureHandler.prototype.bindTexture = function (program, state) {
+                TextureHandler.prototype.sync = function () {
+                    this.recheckTimestamp = performance.now();
+                };
+
+                TextureHandler.prototype.bindTexture = function (prog, state) {
                     var gl = this.gl;
 
-                    if (state.texture.isPixelFormatWithClut) {
-                        var hash1 = state.texture.clut.adress + '_' + state.texture.mipmaps[0].address;
-                    } else {
-                        var hash1 = '' + state.texture.mipmaps[0].address;
-                    }
+                    var hash1 = Texture.hashFast(state);
+                    var texture = this.textures[hash1];
+                    if (texture && this.recheckTimestamp < texture.recheckTimestamp)
+                        return texture;
 
-                    if (this.textures[hash1]) {
-                        var texture = this.textures[hash1];
-                        if (this.recheckTimestamp < texture.recheckTimestamp) {
-                            return texture;
-                        }
-                        //return texture;
-                    }
-
-                    var hash2 = Texture.hash(this.memory, state);
+                    var hash2 = Texture.hashSlow(this.memory, state);
 
                     //console.log(hash);
                     if (!this.textures[hash2]) {
@@ -6852,7 +7097,7 @@ var core;
                         var paletteU8 = new Uint8Array(paletteBuffer);
                         var palette = new Uint32Array(paletteBuffer);
 
-                        if (state.texture.isPixelFormatWithClut) {
+                        if (state.texture.isPixelFormatWithClut()) {
                             core.PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
                         }
 
@@ -6869,7 +7114,8 @@ var core;
                     }
 
                     this.textures[hash2].bind();
-                    gl.uniform1i(gl.getUniformLocation(program, "uSampler"), 0);
+
+                    prog.getUniform('uSampler').set1i(0);
                 };
 
                 TextureHandler.prototype.unbindTexture = function (program, state) {
@@ -6878,6 +7124,44 @@ var core;
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 };
                 return TextureHandler;
+            })();
+
+            var FastFloat32Buffer = (function () {
+                function FastFloat32Buffer() {
+                    this.arrayBuffer = new ArrayBuffer(4 * 64 * 1024);
+                    this.float32Array = new Float32Array(this.arrayBuffer);
+                    this.index = 0;
+                }
+                FastFloat32Buffer.prototype.restart = function () {
+                    this.index = 0;
+                };
+
+                FastFloat32Buffer.prototype.push = function (value) {
+                    this.float32Array[this.index++] = value;
+                };
+
+                FastFloat32Buffer.prototype.push2 = function (x, y) {
+                    this.float32Array[this.index++] = x;
+                    this.float32Array[this.index++] = y;
+                };
+
+                FastFloat32Buffer.prototype.push3 = function (x, y, z) {
+                    this.float32Array[this.index++] = x;
+                    this.float32Array[this.index++] = y;
+                    this.float32Array[this.index++] = z;
+                };
+
+                FastFloat32Buffer.prototype.push4 = function (x, y, z, w) {
+                    this.float32Array[this.index++] = x;
+                    this.float32Array[this.index++] = y;
+                    this.float32Array[this.index++] = z;
+                    this.float32Array[this.index++] = w;
+                };
+
+                FastFloat32Buffer.prototype.slice = function () {
+                    return new Float32Array(this.arrayBuffer, 0, this.index * 4);
+                };
+                return FastFloat32Buffer;
             })();
 
             var WebGlPspDrawDriver = (function () {
@@ -6890,7 +7174,10 @@ var core;
                     this.transformMatrix = mat4.create();
                     this.transformMatrix2d = mat4.create();
                     this.testCount = 20;
-                    this.buffers = {};
+                    this.positionData = new FastFloat32Buffer();
+                    this.colorData = new FastFloat32Buffer();
+                    this.textureData = new FastFloat32Buffer();
+                    this.lastBaseAddress = 0;
                     this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
                     if (!this.gl)
                         this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
@@ -6946,7 +7233,13 @@ var core;
                     this.gl.enable(this.gl.BLEND);
                     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
-                    this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * 2, this.state.viewPort.height * 2);
+                    var ratio = this.getScaleRatio();
+
+                    this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * ratio, this.state.viewPort.height * ratio);
+                };
+
+                WebGlPspDrawDriver.prototype.getScaleRatio = function () {
+                    return this.canvas.width / 480;
                 };
 
                 WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
@@ -6960,10 +7253,11 @@ var core;
                 };
 
                 WebGlPspDrawDriver.prototype.textureFlush = function (state) {
-                    this.textureHandler.recheckAll();
+                    this.textureHandler.flush();
                 };
 
                 WebGlPspDrawDriver.prototype.textureSync = function (state) {
+                    this.textureHandler.sync();
                 };
 
                 WebGlPspDrawDriver.prototype.drawSprites = function (vertices, count, vertexState) {
@@ -6995,86 +7289,70 @@ var core;
                     this.drawElementsInternal(3 /* Triangles */, vertices2, vertices2.length, vertexState);
                 };
 
-                WebGlPspDrawDriver.prototype.drawElementsInternal = function (primitiveType, vertices, count, vertexState) {
-                    //console.log(primitiveType);
-                    var gl = this.gl;
-
-                    if (this.clearing) {
-                        gl.clearColor(0, 0, 0, 1);
-                        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-                    }
-
-                    var program = this.cache.getProgram(vertexState);
-
-                    gl.useProgram(program);
-
+                WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState) {
                     var textureState = this.state.texture;
 
-                    var positionData = [];
-                    var colorData = [];
-                    var textureData = [];
+                    this.positionData.restart();
+                    this.colorData.restart();
+                    this.textureData.restart();
+
                     for (var n = 0; n < count; n++) {
                         var v = vertices[n];
-                        positionData.push(v.px);
-                        positionData.push(v.py);
-                        positionData.push(v.pz);
+                        this.positionData.push3(v.px, v.py, v.pz);
 
                         if (vertexState.hasColor) {
-                            colorData.push(v.r);
-                            colorData.push(v.g);
-                            colorData.push(v.b);
-                            colorData.push(v.a);
+                            this.colorData.push4(v.r, v.g, v.b, v.a);
                         }
                         if (vertexState.hasTexture) {
                             if (vertexState.transform2D) {
-                                textureData.push(v.tx / this.state.texture.mipmaps[0].bufferWidth);
-                                textureData.push(v.ty / this.state.texture.mipmaps[0].textureHeight);
-                                textureData.push(1.0);
+                                this.textureData.push3(v.tx / this.state.texture.mipmaps[0].bufferWidth, v.ty / this.state.texture.mipmaps[0].textureHeight, 1.0);
                             } else {
-                                textureData.push(v.tx * textureState.scaleU);
-                                textureData.push(v.ty * textureState.scaleV);
-                                textureData.push(v.tz);
+                                this.textureData.push3(v.tx * textureState.scaleU, v.ty * textureState.scaleV, v.tz);
                             }
                         }
                     }
+                };
 
+                WebGlPspDrawDriver.prototype.setProgramParameters = function (gl, program, vertexState) {
+                    program.getUniform('u_modelViewProjMatrix').setMat4(vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
+
+                    program.getAttrib("vPosition").setFloats(3, this.positionData);
                     if (vertexState.hasTexture) {
-                        this.textureHandler.bindTexture(program, this.state);
-                    } else {
-                        this.textureHandler.unbindTexture(program, this.state);
-                    }
-
-                    if (this.testCount-- >= 0) {
-                        //console.log(textureData);
-                        //console.log(this.state.texture);
-                    }
-
-                    this.uniformSetMat4(gl, program, 'u_modelViewProjMatrix', vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
-
-                    this.attributeSetFloats(gl, program, "vPosition", 3, positionData);
-                    if (vertexState.hasTexture) {
-                        gl.uniform1i(gl.getUniformLocation(program, 'tfx'), this.state.texture.effect);
-                        gl.uniform1i(gl.getUniformLocation(program, 'tcc'), this.state.texture.colorComponent);
-                        this.attributeSetFloats(gl, program, "vTexcoord", 3, textureData);
+                        program.getUniform('tfx').set1i(this.state.texture.effect);
+                        program.getUniform('tcc').set1i(this.state.texture.colorComponent);
+                        program.getAttrib("vTexcoord").setFloats(3, this.textureData);
                     }
                     if (vertexState.hasColor) {
-                        this.attributeSetFloats(gl, program, "vColor", 4, colorData);
+                        program.getAttrib("vColor").setFloats(4, this.colorData);
                     } else {
                         var ac = this.state.ambientModelColor;
 
                         //console.log(ac.r, ac.g, ac.b, ac.a);
-                        gl.uniform4f(gl.getUniformLocation(program, 'uniformColor'), ac.r, ac.g, ac.b, ac.a);
+                        program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
                     }
+                };
 
+                WebGlPspDrawDriver.prototype.unsetProgramParameters = function (gl, program, vertexState) {
+                    program.getAttrib("vPosition").disable();
+                    if (vertexState.hasTexture)
+                        program.getAttrib("vTexcoord").disable();
+                    if (vertexState.hasColor)
+                        program.getAttrib("vColor").disable();
+                };
+
+                WebGlPspDrawDriver.prototype.drawArraysActual = function (gl, primitiveType, count) {
                     switch (primitiveType) {
                         case 0 /* Points */:
                             gl.drawArrays(gl.POINTS, 0, count);
                             break;
                         case 1 /* Lines */:
-                            gl.drawArrays(gl.LINES, 0, count);
-                            break;
                         case 2 /* LineStrip */:
-                            gl.drawArrays(gl.LINE_STRIP, 0, count);
+                            gl.lineWidth(this.getScaleRatio());
+                            if (primitiveType == 1 /* Lines */) {
+                                gl.drawArrays(gl.LINES, 0, count);
+                            } else {
+                                gl.drawArrays(gl.LINE_STRIP, 0, count);
+                            }
                             break;
                         case 3 /* Triangles */:
                             gl.drawArrays(gl.TRIANGLES, 0, count);
@@ -7086,38 +7364,32 @@ var core;
                             gl.drawArrays(gl.TRIANGLE_FAN, 0, count);
                             break;
                     }
-
-                    this.attributeDisable(gl, program, 'vPosition');
-                    if (vertexState.hasTexture)
-                        this.attributeDisable(gl, program, 'vTexcoord');
-                    if (vertexState.hasColor)
-                        this.attributeDisable(gl, program, 'vColor');
                 };
 
-                WebGlPspDrawDriver.prototype.uniformSetMat4 = function (gl, prog, uniform_name, arr) {
-                    var uniform = gl.getUniformLocation(prog, uniform_name);
-                    if (uniform)
-                        gl.uniformMatrix4fv(uniform, false, new Float32Array(arr));
-                };
+                WebGlPspDrawDriver.prototype.drawElementsInternal = function (primitiveType, vertices, count, vertexState) {
+                    //console.log(primitiveType);
+                    var gl = this.gl;
 
-                WebGlPspDrawDriver.prototype.attributeDisable = function (gl, prog, attr_name) {
-                    var attr = gl.getAttribLocation(prog, attr_name);
-                    if (attr >= 0) {
-                        gl.disableVertexAttribArray(attr);
+                    var program = this.cache.getProgram(vertexState);
+                    program.use();
+
+                    if (this.clearing) {
+                        this.textureHandler.unbindTexture(program, this.state);
+                        gl.clearColor(0, 0, 0, 1);
+                        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                        return;
                     }
-                };
 
-                WebGlPspDrawDriver.prototype.attributeSetFloats = function (gl, prog, attr_name, rsize, arr) {
-                    if (!this.buffers[attr_name])
-                        this.buffers[attr_name] = gl.createBuffer();
-                    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[attr_name]);
-                    var varr = new Float32Array(arr);
-                    gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
-                    var attr = gl.getAttribLocation(prog, attr_name);
-                    if (attr >= 0) {
-                        gl.enableVertexAttribArray(attr);
-                        gl.vertexAttribPointer(attr, rsize, gl.FLOAT, false, 0, 0);
+                    if (vertexState.hasTexture) {
+                        this.textureHandler.bindTexture(program, this.state);
+                    } else {
+                        this.textureHandler.unbindTexture(program, this.state);
                     }
+
+                    this.demuxVertices(vertices, count, vertexState);
+                    this.setProgramParameters(gl, program, vertexState);
+                    this.drawArraysActual(gl, primitiveType, count);
+                    this.unsetProgramParameters(gl, program, vertexState);
                 };
                 return WebGlPspDrawDriver;
             })();
@@ -9475,7 +9747,7 @@ var hle;
                     return 0;
                 });
                 this.sceIoLseek = modules.createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
-                    var result = _this._seek(fileId, offset.number, whence);
+                    var result = _this._seek(fileId, offset.getNumber(), whence);
 
                     //console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
                     return Integer64.fromNumber(result);
@@ -9812,7 +10084,8 @@ var hle;
                 this.sceCtrlReadBufferPositive = modules.createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, function (state, sceCtrlDataPtr, count) {
                     core.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
 
-                    return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankAsync());
+                    return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync());
+                    //return 0;
                 });
                 this.sceCtrlSetSamplingCycle = modules.createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
                     //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
@@ -9851,13 +10124,14 @@ var hle;
                     return _this._waitVblankAsync();
                 });
                 this.sceDisplayWaitVblankStart = modules.createNativeFunction(0x984C27E7, 150, 'uint', '', this, function () {
-                    return _this._waitVblankAsync();
-                });
-                this.sceDisplayGetVcount = modules.createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
-                    return _this.context.display.vblankCount;
+                    return _this._waitVblankStartAsync();
                 });
                 this.sceDisplayWaitVblankStartCB = modules.createNativeFunction(0x46F186C3, 150, 'uint', '', this, function () {
-                    return _this._waitVblankAsync();
+                    return _this._waitVblankStartAsync();
+                });
+                this.sceDisplayGetVcount = modules.createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
+                    _this.context.display.updateTime();
+                    return _this.context.display.vblankCount;
                 });
                 this.sceDisplaySetFrameBuf = modules.createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
                     _this.context.display.address = address;
@@ -9867,11 +10141,16 @@ var hle;
                     return 0;
                 });
                 this.sceDisplayGetCurrentHcount = modules.createNativeFunction(0x773DD3A3, 150, 'uint', '', this, function () {
-                    return _this.context.display.hcount;
+                    _this.context.display.updateTime();
+                    return _this.context.display.hcountTotal;
                 });
             }
             sceDisplay.prototype._waitVblankAsync = function () {
                 return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync());
+            };
+
+            sceDisplay.prototype._waitVblankStartAsync = function () {
+                return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync());
             };
             return sceDisplay;
         })();
@@ -11711,7 +11990,7 @@ var hle;
         };
 
         ScePspDateTime.fromTicks = function (ticks) {
-            return ScePspDateTime.fromDate(new Date(ticks.number));
+            return ScePspDateTime.fromDate(new Date(ticks.getNumber()));
         };
 
         ScePspDateTime.prototype.getTotalMicroseconds = function () {
@@ -12293,6 +12572,10 @@ var Integer64 = (function () {
         configurable: true
     });
 
+    Integer64.prototype.getNumber = function () {
+        return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+    };
+
     Integer64.prototype.equals = function (other) {
         return (this._high == other._high) && (this._low == other._low);
     };
@@ -12307,29 +12590,17 @@ var Integer64 = (function () {
         return Integer64.fromBits(~this._low, ~this._high);
     };
 
-    Object.defineProperty(Integer64.prototype, "isZero", {
-        get: function () {
-            return this._high == 0 && this._low == 0;
-        },
-        enumerable: true,
-        configurable: true
-    });
+    Integer64.prototype.isZero = function () {
+        return this._high == 0 && this._low == 0;
+    };
 
-    Object.defineProperty(Integer64.prototype, "isNegative", {
-        get: function () {
-            return this._high < 0;
-        },
-        enumerable: true,
-        configurable: true
-    });
+    Integer64.prototype.isNegative = function () {
+        return this._high < 0;
+    };
 
-    Object.defineProperty(Integer64.prototype, "isOdd", {
-        get: function () {
-            return (this._low & 1) == 1;
-        },
-        enumerable: true,
-        configurable: true
-    });
+    Integer64.prototype.isOdd = function () {
+        return (this._low & 1) == 1;
+    };
 
     Integer64.prototype.sub = function (other) {
         return this.add(other.negate());
@@ -12361,23 +12632,61 @@ var Integer64 = (function () {
         return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
     };
 
+    Integer64.prototype.lessThan = function (other) {
+        return this.compare(other) < 0;
+    };
+
+    Integer64.prototype.compare = function (other) {
+        if (this.equals(other)) {
+            return 0;
+        }
+
+        var thisNeg = this.isNegative();
+        var otherNeg = other.isNegative();
+        if (thisNeg && !otherNeg) {
+            return -1;
+        }
+        if (!thisNeg && otherNeg) {
+            return 1;
+        }
+
+        // at this point, the signs are the same, so subtraction will not overflow
+        if (this.sub(other).isNegative()) {
+            return -1;
+        } else {
+            return 1;
+        }
+    };
+
+    Integer64.prototype.isLowEnoughForMul = function () {
+        if (this._high == 0 && this._low < Integer64._TWO_PWR_23_DBL)
+            return true;
+        if (this._high == -1 && -this._low < Integer64._TWO_PWR_23_DBL)
+            return true;
+        return false;
+    };
+
     Integer64.prototype.multiply = function (other) {
-        if (this.isZero)
+        if (this.isZero())
             return Integer64.ZERO;
-        if (other.isZero)
+        if (other.isZero())
             return Integer64.ZERO;
+
+        if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
+            return Integer64.fromNumber(this.getNumber() * other.getNumber());
+        }
 
         if (this.equals(Integer64.MIN_VALUE))
-            return other.isOdd ? Integer64.MIN_VALUE : Integer64.ZERO;
+            return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
         if (other.equals(Integer64.MIN_VALUE))
-            return this.isOdd ? Integer64.MIN_VALUE : Integer64.ZERO;
+            return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
 
-        if (this.isNegative) {
-            if (other.isNegative)
+        if (this.isNegative()) {
+            if (other.isNegative())
                 return this.negate().multiply(other.negate());
             return this.negate().multiply(other).negate();
         }
-        if (other.isNegative)
+        if (other.isNegative())
             return this.multiply(other.negate()).negate();
 
         var a48 = this._high >>> 16;
@@ -12417,8 +12726,13 @@ var Integer64 = (function () {
     Integer64.ONE = Integer64.fromInt(1);
     Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
     Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+    Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
+    Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
+    Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
     Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
     Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
+
+    Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
     return Integer64;
 })();
 describe('cso', function () {

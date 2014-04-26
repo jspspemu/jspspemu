@@ -109,7 +109,6 @@
     <TypeScriptCompile Include="test\format\pbpTest.ts" />
     <TypeScriptCompile Include="test\hle\vfsTest.ts" />
     <TypeScriptCompile Include="test\pspautotests.ts" />
-    <TypeScriptCompile Include="typings\promise\promise.d.ts" />
     <TypeScriptCompile Include="src\app.ts" />
     <TypeScriptCompile Include="src\core\cpu\assembler.ts" />
     <TypeScriptCompile Include="src\ast.ts" />
@@ -135,6 +134,7 @@
     <TypeScriptCompile Include="test\util\utilsTest.ts" />
     <TypeScriptCompile Include="typings\chai\chai.d.ts" />
     <TypeScriptCompile Include="typings\mocha\mocha.d.ts" />
+    <TypeScriptCompile Include="typings\promise\promise.d.ts" />
     <TypeScriptCompile Include="typings\underscore\underscore.d.ts" />
     <TypeScriptCompile Include="typings\zlib.d.ts" />
   </ItemGroup>

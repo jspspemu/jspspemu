@@ -927,12 +927,40 @@ String.prototype.contains = function (value: string) {
 
 declare function setImmediate(callback: () => void): number;
 
+interface MicrotaskCallback {
+	(): void;
+}
+
+class Microtask {
+	private static queued: boolean = false;
+	private static callbacks: MicrotaskCallback[] = [];
+
+	static queue(callback: MicrotaskCallback) {
+		Microtask.callbacks.push(callback);
+		if (!Microtask.queued) {
+			Microtask.queued = true;
+			setTimeout(Microtask.execute, 0);
+		}
+	}
+
+	private static execute() {
+		while (Microtask.callbacks.length > 0) {
+			var callback = Microtask.callbacks.shift();
+			callback();
+		}
+		Microtask.queued = false;
+	}
+}
+
 if (!window['setImmediate']) {
 	window['setImmediate'] = function (callback: () => void) {
-		return setTimeout(callback, 0);
+		Microtask.queue(callback);
+		//return setTimeout(callback, 0);
+		return -1;
 	};
-	window['clearImmediate'] = function (timer:number) {
-		clearTimeout(timer);
+	window['clearImmediate'] = function (timer: number) {
+		throw(new Error("Not implemented!"));
+		//clearTimeout(timer);
 	};
 }
 
@@ -1080,23 +1108,28 @@ class PromiseUtils {
 	}
 
 	static delayAsync(ms: number) {
-		return new Promise((resolve, reject) => setTimeout(resolve, ms));
+		if (ms <= 0) return Promise.resolve<any>(null);
+		return new Promise<any>((resolve, reject) => setTimeout(resolve, ms));
+	}
+
+	static delaySecondsAsync(seconds: number) {
+		return PromiseUtils.delayAsync(seconds * 1000);
 	}
 }
 
 declare var vec4: {
-	create(): number[];
-	fromValues(x: number, y: number, z: number, w: number): number[];
-	transformMat4(out: number[], a: number[], m: number[]): number[]
+	create(): Float32Array;
+	fromValues(x: number, y: number, z: number, w: number): Float32Array;
+	transformMat4(out: Float32Array, a: Float32Array, m: Float32Array): Float32Array;
 };
 
 declare var mat4: {
-	create(): number[];
-	clone(a: number[]): number[];
-	copy(out: number[], a: number[]): number[];
-	identity(a: number[]): number[];
-	multiply(out: number[], a: number[], b: number[]): number[];
-	ortho(out: number[], left: number, right: number, bottom: number, top: number, near: number, far: number): number[];
+	create(): Float32Array;
+	clone(a: Float32Array): Float32Array;
+	copy(out: Float32Array, a: Float32Array): Float32Array;
+	identity(a: Float32Array): Float32Array;
+	multiply(out: Float32Array, a: Float32Array, b: Float32Array): Float32Array;
+	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
 };
 
 window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
