@@ -6,16 +6,18 @@ A PSP emulator made using javascript (actually typescript). It works with modern
 Lastest version have been tested on:
 * Google Chrome 33
 * Firefox 29
-* Internet Explorer 11
+* Internet Explorer 11 (no sound)
 * Opera 20
 
+Opera and Chrome performs the best because they use V8 that is lightning fast.
+
 You can view the lastest version here (updated from git every push):
-http://jspspemu.com/
+* http://jspspemu.com/
 
 You can reference some samples like this:
-http://jspspemu.com/#samples/reflection.pbp
-http://jspspemu.com/#samples/TrigWars.zip
-http://jspspemu.com/#samples/Doom.zip
+* http://jspspemu.com/#samples/reflection.pbp
+* http://jspspemu.com/#samples/TrigWars.zip
+* http://jspspemu.com/#samples/Doom.zip
 
 It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API and the Gamepad API.
 It will use FileSystem API / IndexedDB too.
@@ -79,4 +81,4 @@ Maybe in the future javascript implementations will be able to convert typed arr
 and store them when exiting functions, analyzing the origin ArrayBuffer of all the typed arrays used.
 
 You can test real psp performance with your favourite browser/platform with this demo:
-http://jspspemu.com/#samples/compilerPerf.elf
+* http://jspspemu.com/#samples/compilerPerf.elf
