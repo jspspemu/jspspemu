@@ -1,8 +1,4 @@
-﻿///<reference path="./memory.ts" />
-///<reference path="../util/utils.ts" />
-///<reference path="gpu/state.ts" />
-
-module core.gpu {
+﻿module core.gpu {
     export interface IPspGpu {
         startAsync();
         stopAsync();

@@ -1,111 +1,107 @@
-///<reference path="../util/utils.ts" />
+export class PspAudioBuffer {
+	offset: number = 0;
 
-module core {
-	export class PspAudioBuffer {
-		offset: number = 0;
-
-		constructor(private readedCallback: Function, public data: Float32Array) {
-		}
-
-		resolve() {
-			if (this.readedCallback) this.readedCallback();
-			this.readedCallback = null;
-		}
-
-		get hasMore() { return this.offset < this.length; }
-
-		read() { return this.data[this.offset++] }
-
-		get available() { return this.length - this.offset; }
-		get length() { return this.data.length; }
+	constructor(private readedCallback: Function, public data: Float32Array) {
 	}
 
-	export class PspAudioChannel {
-		private buffers: PspAudioBuffer[] = [];
-		node: ScriptProcessorNode;
+	resolve() {
+		if (this.readedCallback) this.readedCallback();
+		this.readedCallback = null;
+	}
 
-		currentBuffer: PspAudioBuffer;
+	get hasMore() { return this.offset < this.length; }
 
-		constructor(private audio: PspAudio, private context: AudioContext) {
-			if (this.context) {
-				this.node = this.context.createScriptProcessor(1024, 2, 2);
-				this.node.onaudioprocess = (e) => { this.process(e) };
-			}
-		}
+	read() { return this.data[this.offset++] }
 
-		start() {
-			if (this.node) this.node.connect(this.context.destination);
-			this.audio.playingChannels.add(this);
-		}
+	get available() { return this.length - this.offset; }
+	get length() { return this.data.length; }
+}
 
-		stop() {
-			if (this.node) this.node.disconnect();
-			this.audio.playingChannels.delete(this);
-		}
+export class PspAudioChannel {
+	private buffers: PspAudioBuffer[] = [];
+	node: ScriptProcessorNode;
 
-		process(e: AudioProcessingEvent) {
-			var left = e.outputBuffer.getChannelData(0);
-			var right = e.outputBuffer.getChannelData(1);
-			var sampleCount = left.length;
+	currentBuffer: PspAudioBuffer;
 
-			for (var n = 0; n < sampleCount; n++) {
-				if (!this.currentBuffer) {
-					if (this.buffers.length == 0) break;
-
-					this.currentBuffer = this.buffers.shift();
-					this.currentBuffer.resolve();
-				}
-
-				if (this.currentBuffer.available >= 2) {
-					left[n] = this.currentBuffer.read();
-					right[n] = this.currentBuffer.read();
-				} else {
-					this.currentBuffer = null;
-				}
-			}
-		}
-
-		playAsync(data: Float32Array) {
-			return new Promise<number>((resolved, rejected) => {
-				if (this.node) {
-					this.buffers.push(new PspAudioBuffer(resolved, data));
-				} else {
-					resolved();
-				}
-			});
+	constructor(private audio: PspAudio, private context: AudioContext) {
+		if (this.context) {
+			this.node = this.context.createScriptProcessor(1024, 2, 2);
+			this.node.onaudioprocess = (e) => { this.process(e) };
 		}
 	}
 
-	export class PspAudio {
-		private context: AudioContext;
-		playingChannels = new SortedSet<PspAudioChannel>();
+	start() {
+		if (this.node) this.node.connect(this.context.destination);
+		this.audio.playingChannels.add(this);
+	}
 
-		constructor() {
-			try {
-				this.context = new AudioContext();
-			} catch (e) {
+	stop() {
+		if (this.node) this.node.disconnect();
+		this.audio.playingChannels.delete(this);
+	}
+
+	process(e: AudioProcessingEvent) {
+		var left = e.outputBuffer.getChannelData(0);
+		var right = e.outputBuffer.getChannelData(1);
+		var sampleCount = left.length;
+
+		for (var n = 0; n < sampleCount; n++) {
+			if (!this.currentBuffer) {
+				if (this.buffers.length == 0) break;
+
+				this.currentBuffer = this.buffers.shift();
+				this.currentBuffer.resolve();
+			}
+
+			if (this.currentBuffer.available >= 2) {
+				left[n] = this.currentBuffer.read();
+				right[n] = this.currentBuffer.read();
+			} else {
+				this.currentBuffer = null;
 			}
 		}
+	}
 
-		createChannel() {
-			return new PspAudioChannel(this, this.context);
-		}
+	playAsync(data: Float32Array) {
+		return new Promise<number>((resolved, rejected) => {
+			if (this.node) {
+				this.buffers.push(new PspAudioBuffer(resolved, data));
+			} else {
+				resolved();
+			}
+		});
+	}
+}
 
-		static convertS16ToF32(input: Int16Array) {
-			var output = new Float32Array(input.length);
-			for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
-			return output;
-		}
+export class PspAudio {
+	private context: AudioContext;
+	playingChannels = new SortedSet<PspAudioChannel>();
 
-		startAsync() {
-			return Promise.resolve();
+	constructor() {
+		try {
+			this.context = new AudioContext();
+		} catch (e) {
 		}
+	}
 
-		stopAsync() {
-			this.playingChannels.forEach((channel) => {
-				channel.stop();
-			});
-			return Promise.resolve();
-		}
+	createChannel() {
+		return new PspAudioChannel(this, this.context);
+	}
+
+	static convertS16ToF32(input: Int16Array) {
+		var output = new Float32Array(input.length);
+		for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
+		return output;
+	}
+
+	startAsync() {
+		return Promise.resolve();
+	}
+
+	stopAsync() {
+		this.playingChannels.forEach((channel) => {
+			channel.stop();
+		});
+		return Promise.resolve();
 	}
 }

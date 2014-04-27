@@ -1,8 +1,4 @@
-﻿///<reference path="../util/utils.ts" />
-///<reference path="./cpu/state.ts" />
-///<reference path="../cpu.ts" />
-
-module core {
+﻿module core {
 	export interface ISyscallManager {
 		call(state: core.cpu.CpuState, id: number);
 	}

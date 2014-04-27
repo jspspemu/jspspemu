@@ -108,7 +108,7 @@
 		private isInVblank = false;
 
 		private rowsLeftForVblank = 0;
-		private secondsLeftForVblank = 0;
+		secondsLeftForVblank = 0;
 
 		private rowsLeftForVblankStart = 0;
 		private secondsLeftForVblankStart = 0;

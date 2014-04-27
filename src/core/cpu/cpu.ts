@@ -1,14 +1,15 @@
-﻿class CpuBreakException implements Error {
-    constructor(public name: string = 'CpuBreakException', public message: string = 'CpuBreakException') {
-    }
-}
+﻿import Memory = require('../memory');
 
-interface InstructionUsage {
+import state = require('state');
+import CpuBreakException = state.CpuBreakException;
+import CpuState = state.CpuState;
+
+export interface InstructionUsage {
 	name: string;
 	count: number;
 }
 
-class FunctionGenerator {
+export class FunctionGenerator {
 	private instructions: core.cpu.Instructions = core.cpu.Instructions.instance;
 	private instructionAst = new core.cpu.ast.InstructionAst();
 	private instructionUsageCount: StringDictionary<number> = {};
@@ -23,7 +24,7 @@ class FunctionGenerator {
 		return items;
 	}
 
-	constructor(public memory: core.Memory) {
+	constructor(public memory: Memory) {
     }
 
     private decodeInstruction(address: number) {
@@ -109,15 +110,15 @@ class FunctionGenerator {
     }
 }
 
-enum CpuSpecialAddresses {
+export enum CpuSpecialAddresses {
     EXIT_THREAD = 0x0FFFFFFF,
 }
 
-class InstructionCache {
+export class InstructionCache {
     functionGenerator: FunctionGenerator;
     private cache: any = {};
 
-	constructor(public memory: core.Memory) {
+	constructor(public memory: Memory) {
         this.functionGenerator = new FunctionGenerator(memory);
     }
 
@@ -135,7 +136,7 @@ class InstructionCache {
 
         switch (address) {
             case CpuSpecialAddresses.EXIT_THREAD:
-                return this.cache[address] = function (state: core.cpu.CpuState) {
+                return this.cache[address] = function (state: CpuState) {
 					console.log(state);
 					console.log(state.thread);
 					console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
@@ -148,10 +149,10 @@ class InstructionCache {
     }
 }
 
-class ProgramExecutor {
+export class ProgramExecutor {
 	private lastPC = 0;
 
-	constructor(public state: core.cpu.CpuState, public instructionCache:InstructionCache) {
+	constructor(public state: CpuState, public instructionCache:InstructionCache) {
     }
 
 	executeStep() {

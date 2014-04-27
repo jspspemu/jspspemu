@@ -1,14 +1,4 @@
-﻿///<reference path="core/display.ts" />
-///<reference path="core/controller.ts" />
-///<reference path="core/gpu.ts" />
-///<reference path="cpu.ts" />
-///<reference path="core/audio.ts" />
-///<reference path="core/memory.ts" />
-///<reference path="hle/memorymanager.ts" />
-///<reference path="hle/threadmanager.ts" />
-///<reference path="util/utils.ts" />
-
-interface ISymbol {
+﻿interface ISymbol {
 	address: number;
 	size: number;
 	name: string;

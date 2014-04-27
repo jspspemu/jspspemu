@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.png" />
+    <Content Include="lib\aes.js" />
     <Content Include="lib\chai.js" />
     <Content Include="lib\FileSaver.js" />
     <Content Include="lib\gl-matrix.js" />
@@ -24,6 +25,7 @@
     <Content Include="lib\jquery-2.1.0.js" />
     <Content Include="lib\mocha.css" />
     <Content Include="lib\mocha.js" />
+    <Content Include="lib\sha1.js" />
     <Content Include="lib\sprintf.js" />
     <Content Include="lib\zlib\rawinflate.min.js" />
     <Content Include="lib\zlib\zlib.js" />
@@ -38,9 +40,10 @@
   <ItemGroup>
     <TypeScriptCompile Include="src\context.ts" />
     <TypeScriptCompile Include="src\core\audio.ts" />
+    <TypeScriptCompile Include="src\core\cpu.ts" />
     <TypeScriptCompile Include="src\core\cpu\cpu_ast.ts" />
     <TypeScriptCompile Include="src\core\cpu\state.ts" />
-    <TypeScriptCompile Include="src\core\gpu\gpu_webgl.ts" />
+    <TypeScriptCompile Include="src\core\gpu\webgl\gpu_webgl.ts" />
     <TypeScriptCompile Include="src\core\gpu\state.ts" />
     <TypeScriptCompile Include="src\core\interruptmanager.ts" />
     <TypeScriptCompile Include="src\emulator.ts" />
@@ -104,7 +107,15 @@
     <TypeScriptCompile Include="src\hle\SceKernelErrors.ts" />
     <TypeScriptCompile Include="src\hle\structs.ts" />
     <TypeScriptCompile Include="src\hle\utils.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_iso.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_memory.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_mountable.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_uri.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_zip.ts" />
     <TypeScriptCompile Include="src\util\int64.ts" />
+    <TypeScriptCompile Include="src\util\math.ts" />
+    <TypeScriptCompile Include="src\util\stream.ts" />
+    <TypeScriptCompile Include="src\util\struct.ts" />
     <TypeScriptCompile Include="test\format\csoTest.ts" />
     <TypeScriptCompile Include="test\format\isoTest.ts" />
     <TypeScriptCompile Include="test\format\psfTest.ts" />
@@ -114,12 +125,12 @@
     <TypeScriptCompile Include="test\pspautotests.ts" />
     <TypeScriptCompile Include="src\app.ts" />
     <TypeScriptCompile Include="src\core\cpu\assembler.ts" />
-    <TypeScriptCompile Include="src\ast.ts" />
+    <TypeScriptCompile Include="src\core\ast.ts" />
     <TypeScriptCompile Include="src\core\controller.ts" />
-    <TypeScriptCompile Include="src\cpu.ts" />
+    <TypeScriptCompile Include="src\core\cpu\cpu.ts" />
     <TypeScriptCompile Include="src\core\display.ts" />
     <TypeScriptCompile Include="src\format\iso.ts" />
-    <TypeScriptCompile Include="src\core\gpu.ts" />
+    <TypeScriptCompile Include="src\core\gpu\gpu.ts" />
     <TypeScriptCompile Include="src\hle\elf_psp.ts" />
     <TypeScriptCompile Include="src\hle\memorymanager.ts" />
     <TypeScriptCompile Include="src\hle\threadmanager.ts" />
@@ -127,7 +138,7 @@
     <TypeScriptCompile Include="src\core\memory.ts" />
     <TypeScriptCompile Include="src\core\rtc.ts" />
     <TypeScriptCompile Include="src\util\utils.ts" />
-    <TypeScriptCompile Include="src\hle\vfs.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs.ts" />
     <TypeScriptCompile Include="test\gpuTest.ts" />
     <TypeScriptCompile Include="test\hle\elfTest.ts" />
     <TypeScriptCompile Include="test\hle\memorymanagerTest.ts" />
@@ -220,8 +231,8 @@
     <TypeScriptTarget>ES5</TypeScriptTarget>
     <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
     <TypeScriptSourceMap>True</TypeScriptSourceMap>
-    <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
-    <TypeScriptOutFile>pspemu.js</TypeScriptOutFile>
+    <TypeScriptModuleKind>amd</TypeScriptModuleKind>
+    <TypeScriptOutDir>js</TypeScriptOutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptTarget>ES5</TypeScriptTarget>
