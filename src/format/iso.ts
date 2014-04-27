@@ -190,7 +190,8 @@ module format.iso {
         childsByName: StringDictionary<IIsoNode>;
         path: string;
         name: string;
-        size: number;
+		size: number;
+		extent: number;
         isDirectory: boolean;
         date: Date;
     }
@@ -208,6 +209,7 @@ module format.iso {
         get name() { return this.directoryRecord.name;  }
         get isDirectory() { return this.directoryRecord.isDirectory; }
 		get date() { return this.directoryRecord.date.date; }
+		get extent() { return this.directoryRecord.extent; }
 
 		readChunkAsync(offset: number, count: number): Promise<ArrayBuffer> {
 			var fileBaseLow = this.directoryRecord.offset;

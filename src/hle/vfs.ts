@@ -35,6 +35,8 @@
 		timeCreation: Date;
 		timeLastAccess: Date;
 		timeLastModification: Date;
+		dependentData0?: number;
+		dependentData1?: number;
 	}
 
 	export class Vfs {
@@ -71,6 +73,7 @@
 				timeCreation: node.date,
 				timeLastAccess: node.date,
 				timeLastModification: node.date,
+				dependentData0: node.extent,
 			};
 		}
 

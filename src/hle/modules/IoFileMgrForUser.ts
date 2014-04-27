@@ -61,6 +61,7 @@
 
 		sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, (filename: string, flags: hle.vfs.FileOpenFlags, mode: hle.vfs.FileMode) => {
 			console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
+			//if (filename == '') return Promise.resolve(0);
 
 			return this._sceIoOpen(filename, flags, mode);
 		});
@@ -100,6 +101,9 @@
 			stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
 			stat2.timeLastAccess = ScePspDateTime.fromDate(stat.timeLastAccess);
 			stat2.timeLastModification = ScePspDateTime.fromDate(stat.timeLastModification);
+			stat2.deviceDependentData[0] = stat.dependentData0 || 0;
+			stat2.deviceDependentData[1] = stat.dependentData1 || 0;
+
 			stat2.attributes = 0;
 			stat2.attributes |= IOFileModes.CanExecute;
 			stat2.attributes |= IOFileModes.CanRead;

@@ -406,6 +406,7 @@ var core;
             _super.call(this);
             this.vblankCount = 0;
             this.hcountTotal = 0;
+            this.secondsLeftForVblank = 0;
         }
         DummyPspDisplay.prototype.updateTime = function () {
         };
@@ -872,14 +873,6 @@ var Stream = (function () {
         return new Stream(new DataView(base64_toArrayBuffer(data)));
     };
 
-    Stream.prototype.toUInt8Array = function () {
-        return new Uint8Array(this.toArrayBuffer());
-    };
-
-    Stream.prototype.toArrayBuffer = function () {
-        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
-    };
-
     Stream.fromUint8Array = function (array) {
         return Stream.fromArray(array);
     };
@@ -890,6 +883,14 @@ var Stream = (function () {
         for (var n = 0; n < array.length; n++)
             w8[n] = array[n];
         return new Stream(new DataView(buffer));
+    };
+
+    Stream.prototype.toUInt8Array = function () {
+        return new Uint8Array(this.toArrayBuffer());
+    };
+
+    Stream.prototype.toArrayBuffer = function () {
+        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
     };
 
     Stream.prototype.sliceWithLength = function (low, count) {
@@ -1084,6 +1085,7 @@ var Stream = (function () {
         }
         return str;
     };
+    Stream.INVALID = Stream.fromArray([]);
     return Stream;
 })();
 
@@ -1982,6 +1984,10 @@ var MathUtils = (function () {
         return Math.floor(value / alignment) * alignment;
     };
 
+    MathUtils.isAlignedTo = function (value, alignment) {
+        return (value % alignment) == 0;
+    };
+
     MathUtils.nextAligned = function (value, alignment) {
         if (alignment <= 1)
             return value;
@@ -2518,13 +2524,41 @@ var core;
             return new DataView(this.buffer, address & Memory.MASK, size);
         };
 
-        Memory.prototype.getPointerStream = function (address, size) {
+        Memory.prototype.isAddressInRange = function (address, min, max) {
             address &= Memory.MASK;
+            address >>>= 0;
+            min &= Memory.MASK;
+            min >>>= 0;
+            max &= Memory.MASK;
+            max >>>= 0;
+
+            return (address >= min) && (address < max);
+        };
+
+        Memory.prototype.isValidAddress = function (address) {
+            address &= Memory.MASK;
+            if ((address & 0x3E000000) == 0x08000000)
+                return true;
+            if ((address & 0x3F800000) == 0x04000000)
+                return true;
+            if ((address & 0xBFFF0000) == 0x00010000)
+                return true;
+            if (this.isAddressInRange(address, Memory.DEFAULT_FRAME_ADDRESS, Memory.DEFAULT_FRAME_ADDRESS + 0x200000))
+                return true;
+            if (this.isAddressInRange(address, 0x08000000, 0x08000000 + 0x04000000))
+                return true;
+            return false;
+        };
+
+        Memory.prototype.getPointerStream = function (address, size) {
+            //console.log(sprintf("getPointerStream: %08X", address));
             if (address == 0)
                 return null;
+            if (!this.isValidAddress(address))
+                return Stream.INVALID;
             if (!size)
-                size = this.availableAfterAddress(address);
-            return new Stream(this.getPointerDataView(address, size));
+                size = this.availableAfterAddress(address & Memory.MASK);
+            return new Stream(this.getPointerDataView(address & Memory.MASK, size));
         };
 
         Memory.prototype.writeInt8 = function (address, value) {
@@ -9112,6 +9146,13 @@ var format;
                 enumerable: true,
                 configurable: true
             });
+            Object.defineProperty(IsoNode.prototype, "extent", {
+                get: function () {
+                    return this.directoryRecord.extent;
+                },
+                enumerable: true,
+                configurable: true
+            });
 
             IsoNode.prototype.readChunkAsync = function (offset, count) {
                 var fileBaseLow = this.directoryRecord.offset;
@@ -10375,6 +10416,7 @@ var hle;
                 this.sceIoOpenAsync = modules.createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
                     console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(hle.vfs.FileOpenFlags, flags), mode));
 
+                    //if (filename == '') return Promise.resolve(0);
                     return _this._sceIoOpen(filename, flags, mode);
                 });
                 this.sceIoClose = modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
@@ -10478,6 +10520,9 @@ var hle;
                 stat2.timeCreation = hle.ScePspDateTime.fromDate(stat.timeCreation);
                 stat2.timeLastAccess = hle.ScePspDateTime.fromDate(stat.timeLastAccess);
                 stat2.timeLastModification = hle.ScePspDateTime.fromDate(stat.timeLastModification);
+                stat2.deviceDependentData[0] = stat.dependentData0 || 0;
+                stat2.deviceDependentData[1] = stat.dependentData1 || 0;
+
                 stat2.attributes = 0;
                 stat2.attributes |= 1 /* CanExecute */;
                 stat2.attributes |= 4 /* CanRead */;
@@ -10537,6 +10582,14 @@ var hle;
                 this.sceKernelCpuResumeIntr = modules.createNativeFunction(0x5F10D406, 150, 'uint', '', this, function (flags) {
                     _this.context.interruptManager.resume(flags);
                     return 0;
+                });
+                this.sceKernelMemset = modules.createNativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int', this, function (address, value, size) {
+                    _this.context.memory.memset(address, value, size);
+                    return address;
+                });
+                this.sceKernelMemcpy = modules.createNativeFunction(0x1839852A, 150, 'uint', 'uint/uint/int', this, function (dst, src, size) {
+                    _this.context.memory.copy(src, dst, size);
+                    return dst;
                 });
             }
             return Kernel_Library;
@@ -10829,6 +10882,8 @@ var hle;
 var hle;
 (function (hle) {
     (function (modules) {
+        var PspDisplay = core.PspDisplay;
+
         var sceDisplay = (function () {
             function sceDisplay(context) {
                 var _this = this;
@@ -10852,6 +10907,12 @@ var hle;
                 this.sceDisplayGetVcount = modules.createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
                     _this.context.display.updateTime();
                     return _this.context.display.vblankCount;
+                });
+                this.sceDisplayGetFramePerSec = modules.createNativeFunction(0xDBA6C4C4, 150, 'float', '', this, function () {
+                    return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
+                });
+                this.sceDisplayIsVblank = modules.createNativeFunction(0x4D4E10EC, 150, 'int', '', this, function () {
+                    return (_this.context.display.secondsLeftForVblank == 0);
                 });
                 this.sceDisplaySetFrameBuf = modules.createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
                     _this.context.display.address = address;
@@ -10900,9 +10961,7 @@ var hle;
                 if (source == 0)
                     return 2147483907 /* ERROR_INVALID_POINTER */;
                 this.context.memory.copy(source, destination, size);
-                return waitAsycn(10).then(function () {
-                    return 0;
-                });
+                return Promise.resolve(0);
             };
             return sceDmac;
         })();
@@ -10991,14 +11050,28 @@ var hle;
             function sceImpose(context) {
                 this.context = context;
                 this.sceImposeGetBatteryIconStatus = modules.createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, function (isChargingPointer, iconStatusPointer) {
-                    isChargingPointer.writeInt32(0);
-                    iconStatusPointer.writeInt32(0);
+                    isChargingPointer.writeInt32(0 /* NotCharging */);
+                    iconStatusPointer.writeInt32(3 /* FullyFilled */);
                     return 0;
                 });
             }
             return sceImpose;
         })();
         modules.sceImpose = sceImpose;
+
+        var ChargingEnum;
+        (function (ChargingEnum) {
+            ChargingEnum[ChargingEnum["NotCharging"] = 0] = "NotCharging";
+            ChargingEnum[ChargingEnum["Charging"] = 1] = "Charging";
+        })(ChargingEnum || (ChargingEnum = {}));
+
+        var BatteryStatusEnum;
+        (function (BatteryStatusEnum) {
+            BatteryStatusEnum[BatteryStatusEnum["VeryLow"] = 0] = "VeryLow";
+            BatteryStatusEnum[BatteryStatusEnum["Low"] = 1] = "Low";
+            BatteryStatusEnum[BatteryStatusEnum["PartiallyFilled"] = 2] = "PartiallyFilled";
+            BatteryStatusEnum[BatteryStatusEnum["FullyFilled"] = 3] = "FullyFilled";
+        })(BatteryStatusEnum || (BatteryStatusEnum = {}));
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -11294,10 +11367,67 @@ var hle;
         var sceSasCore = (function () {
             function sceSasCore(context) {
                 this.context = context;
+                this.__sceSasInit = modules.createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
+                    if (sampleRate != 44100) {
+                        return 2151809028 /* ERROR_SAS_INVALID_SAMPLE_RATE */;
+                    }
+
+                    //CheckGrains(GrainSamples);
+                    if (maxVoices < 1 || maxVoices > sceSasCore.PSP_SAS_VOICES_MAX) {
+                        return 2151809026 /* ERROR_SAS_INVALID_MAX_VOICES */;
+                    }
+
+                    if (outputMode != 0 /* PSP_SAS_OUTPUTMODE_STEREO */ && outputMode != 1 /* PSP_SAS_OUTPUTMODE_MULTICHANNEL */) {
+                        return 2151809027 /* ERROR_SAS_INVALID_OUTPUT_MODE */;
+                    }
+
+                    /*
+                    var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
+                    SasCore.Initialized = true;
+                    SasCore.GrainSamples = GrainSamples;
+                    SasCore.MaxVoices = MaxVoices;
+                    SasCore.OutputMode = OutputMode;
+                    SasCore.SampleRate = SampleRate;
+                    
+                    BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
+                    BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
+                    MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
+                    */
+                    return 0;
+                });
+                this.__sceSasCore = modules.createNativeFunction(0xA3589D81, 150, 'uint', 'int/void*', this, function (sasCorePointer, sasOut) {
+                    //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+                    return 0;
+                });
+                this.__sceSasGetEndFlag = modules.createNativeFunction(0x68A46B95, 150, 'uint', 'int', this, function (sasCorePointer) {
+                    //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+                    return 0;
+                });
             }
+            sceSasCore.PSP_SAS_VOICES_MAX = 32;
+            sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
+            sceSasCore.PSP_SAS_VOL_MAX = 0x1000;
+            sceSasCore.PSP_SAS_LOOP_MODE_OFF = 0;
+            sceSasCore.PSP_SAS_LOOP_MODE_ON = 1;
+            sceSasCore.PSP_SAS_PITCH_MIN = 0x1;
+            sceSasCore.PSP_SAS_PITCH_BASE = 0x1000;
+            sceSasCore.PSP_SAS_PITCH_MAX = 0x4000;
+            sceSasCore.PSP_SAS_NOISE_FREQ_MAX = 0x3F;
+            sceSasCore.PSP_SAS_ENVELOPE_HEIGHT_MAX = 0x40000000;
+            sceSasCore.PSP_SAS_ENVELOPE_FREQ_MAX = 0x7FFFFFFF;
+            sceSasCore.PSP_SAS_ADSR_ATTACK = 1;
+            sceSasCore.PSP_SAS_ADSR_DECAY = 2;
+            sceSasCore.PSP_SAS_ADSR_SUSTAIN = 4;
+            sceSasCore.PSP_SAS_ADSR_RELEASE = 8;
             return sceSasCore;
         })();
         modules.sceSasCore = sceSasCore;
+
+        var OutputMode;
+        (function (OutputMode) {
+            OutputMode[OutputMode["PSP_SAS_OUTPUTMODE_STEREO"] = 0] = "PSP_SAS_OUTPUTMODE_STEREO";
+            OutputMode[OutputMode["PSP_SAS_OUTPUTMODE_MULTICHANNEL"] = 1] = "PSP_SAS_OUTPUTMODE_MULTICHANNEL";
+        })(OutputMode || (OutputMode = {}));
     })(hle.modules || (hle.modules = {}));
     var modules = hle.modules;
 })(hle || (hle = {}));
@@ -12129,9 +12259,15 @@ var hle;
                 this.sceKernelLibcClock = modules.createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, function () {
                     return (performance.now() * 1000) | 0;
                 });
-                this.sceKernelLibcTime = modules.createNativeFunction(0x27CC57F0, 150, 'uint', '', this, function () {
+                this.sceKernelLibcTime = modules.createNativeFunction(0x27CC57F0, 150, 'uint', 'void*', this, function (pointer) {
                     //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
-                    return (Date.now() / 1000) | 0;
+                    if (pointer == Stream.INVALID)
+                        return 0;
+
+                    var result = (Date.now() / 1000) | 0;
+                    if (pointer)
+                        pointer.writeInt32(result);
+                    return result;
                 });
                 this.sceKernelUtilsMt19937Init = modules.createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
                     console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
@@ -12159,25 +12295,29 @@ var hle;
 
                     return 0;
                 });
-                this.sceKernelDcacheWritebackInvalidateRange = modules.createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, function (pointer, size) {
+                this.sceKernelDcacheWritebackInvalidateRange = modules.createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint', this, function (pointer, size) {
+                    if (size > 0x7FFFFFFF)
+                        return 2147483908 /* ERROR_INVALID_SIZE */;
+                    if (pointer >= 0x80000000)
+                        return 2147483907 /* ERROR_INVALID_POINTER */;
                     _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
                     return 0;
                 });
-                this.sceKernelDcacheWritebackInvalidateAll = modules.createNativeFunction(0x3EE30821, 150, 'uint', '', this, function () {
-                    _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
-                    return 0;
-                });
-                this.sceKernelDcacheInvalidateRange = modules.createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, function (pointer, size) {
-                    if (size < 0)
+                this.sceKernelDcacheInvalidateRange = modules.createNativeFunction(0xBFA98062, 150, 'uint', 'uint/uint', this, function (pointer, size) {
+                    if (!MathUtils.isAlignedTo(size, 4))
+                        return 2147615820 /* ERROR_KERNEL_NOT_CACHE_ALIGNED */;
+
+                    //if (!this.context.memory.isValidAddress(pointer + size)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
+                    if (size > 0x7FFFFFFF)
                         return 2147483908 /* ERROR_INVALID_SIZE */;
+                    if (pointer >= 0x80000000)
+                        return 2147614931 /* ERROR_KERNEL_ILLEGAL_ADDR */;
+                    if (!MathUtils.isAlignedTo(pointer, 4))
+                        return 2147615820 /* ERROR_KERNEL_NOT_CACHE_ALIGNED */;
                     _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
                     return 0;
                 });
-                this.sceKernelDcacheWritebackRange = modules.createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, function (pointer, size) {
-                    pointer >>>= 0;
-                    size >>>= 0;
-                    if (size < 0)
-                        return 2147483908 /* ERROR_INVALID_SIZE */;
+                this.sceKernelDcacheWritebackRange = modules.createNativeFunction(0x3EE30821, 150, 'uint', 'uint/uint', this, function (pointer, size) {
                     if (size > 0x7FFFFFFF)
                         return 2147483908 /* ERROR_INVALID_SIZE */;
                     if (pointer >= 0x80000000)
@@ -12186,6 +12326,10 @@ var hle;
                     return 0;
                 });
                 this.sceKernelDcacheWritebackAll = modules.createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
+                    _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+                    return 0;
+                });
+                this.sceKernelDcacheWritebackInvalidateAll = modules.createNativeFunction(0xB435DEC5, 150, 'uint', '', this, function () {
                     _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
                     return 0;
                 });
@@ -12806,14 +12950,22 @@ var hle;
             var args = [];
             var argindex = 4;
 
-            function readGpr32() {
+            function _readGpr32() {
                 return 'state.' + core.cpu.CpuState.getGprAccessName(argindex++);
+            }
+
+            function readGpr32_S() {
+                return '(' + _readGpr32() + ' | 0)';
+            }
+
+            function readGpr32_U() {
+                return '(' + _readGpr32() + ' >>> 0)';
             }
 
             function readGpr64() {
                 argindex = MathUtils.nextAligned(argindex, 2);
-                var gprLow = readGpr32();
-                var gprHigh = readGpr32();
+                var gprLow = readGpr32_S();
+                var gprHigh = readGpr32_S();
                 return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
             }
 
@@ -12832,18 +12984,20 @@ var hle;
                         args.push('state.memory');
                         break;
                     case 'string':
-                        args.push('state.memory.readStringz(' + readGpr32() + ')');
+                        args.push('state.memory.readStringz(' + readGpr32_S() + ')');
                         break;
                     case 'uint':
+                        args.push(readGpr32_U() + ' >>> 0');
+                        break;
                     case 'int':
-                        args.push(readGpr32());
+                        args.push(readGpr32_S() + ' | 0');
                         break;
                     case 'ulong':
                     case 'long':
                         args.push(readGpr64());
                         break;
                     case 'void*':
-                        args.push('state.getPointerStream(' + readGpr32() + ')');
+                        args.push('state.getPointerStream(' + readGpr32_S() + ')');
                         break;
                     case '':
                         break;
@@ -12863,6 +13017,9 @@ var hle;
                 case 'uint':
                 case 'int':
                     code += 'state.V0 = result | 0;';
+                    break;
+                case 'float':
+                    code += 'state.fpr[0] = result;';
                     break;
                 case 'long':
                     code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
@@ -13082,7 +13239,8 @@ var hle;
                     isDirectory: node.isDirectory,
                     timeCreation: node.date,
                     timeLastAccess: node.date,
-                    timeLastModification: node.date
+                    timeLastModification: node.date,
+                    dependentData0: node.extent
                 };
             };
 
@@ -13521,9 +13679,9 @@ var Integer64 = (function () {
     };
 
     Integer64.prototype.isLowEnoughForMul = function () {
-        if (this._high == 0 && this._low < Integer64._TWO_PWR_23_DBL)
+        if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL)
             return true;
-        if (this._high == -1 && -this._low < Integer64._TWO_PWR_23_DBL)
+        if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL)
             return true;
         return false;
     };
@@ -13914,7 +14072,7 @@ describe('pspautotests', function () {
         }
 
         if (distinctLines == 0)
-            console.log('great: output and expected ar equal!');
+            console.log('great: output and expected are equal!');
 
         console.groupEnd();
 

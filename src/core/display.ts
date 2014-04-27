@@ -12,6 +12,7 @@
 		updateTime(): void;
 		vblankCount: number;
 		hcountTotal: number;
+		secondsLeftForVblank: number;
 	}
 
 	export class PixelFormatUtils {
@@ -44,7 +45,8 @@
 
 	export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 		vblankCount: number = 0;
-		public hcountTotal: number = 0;
+		hcountTotal = 0;
+		secondsLeftForVblank = 0;
 
 		constructor() {
 			super();

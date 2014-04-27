@@ -140,8 +140,8 @@ class Integer64 {
 	}
 
 	isLowEnoughForMul() {
-		if (this._high == 0 && this._low < Integer64._TWO_PWR_23_DBL) return true;
-		if (this._high == -1 && -this._low < Integer64._TWO_PWR_23_DBL) return true;
+		if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL) return true;
+		if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL) return true;
 		return false;
 	}
 

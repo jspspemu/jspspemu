@@ -6,9 +6,13 @@
 			return (performance.now() * 1000) | 0;
 		});
 
-        sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', '', this, () => {
-            //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
-            return (Date.now() / 1000) | 0;
+        sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', 'void*', this, (pointer: Stream) => {
+			//console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
+			if (pointer == Stream.INVALID) return 0;
+
+			var result = (Date.now() / 1000) | 0;
+			if (pointer) pointer.writeInt32(result);
+			return result;
         });
 
 		sceKernelUtilsMt19937Init = createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, (memory: core.Memory, contextPtr: number, seed: number) => {
@@ -40,26 +44,24 @@
             return 0;
 		});
 
-		sceKernelDcacheWritebackInvalidateRange = createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
+		sceKernelDcacheWritebackInvalidateRange = createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint', this, (pointer: number, size: number) => {
+			if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
+			if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
 			this.context.memory.invalidateDataRange.dispatch({ start: pointer, end : pointer + size });
 			return 0;
 		});
 
-		sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0x3EE30821, 150, 'uint', '', this, () => {
-			this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
-			return 0;
-		});
-
-		sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
-			if (size < 0) return SceKernelErrors.ERROR_INVALID_SIZE;
+		sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/uint', this, (pointer: number, size: number) => {
+			if (!MathUtils.isAlignedTo(size, 4)) return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
+			//if (!this.context.memory.isValidAddress(pointer + size)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
+			if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
+			if (pointer >= 0x80000000) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
+			if (!MathUtils.isAlignedTo(pointer, 4)) return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
 			this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
 			return 0;
 		});
-
-		sceKernelDcacheWritebackRange = createNativeFunction(0xB435DEC5, 150, 'uint', 'uint/int', this, (pointer: number, size: number) => {
-			pointer >>>= 0;
-			size >>>= 0;
-			if (size < 0) return SceKernelErrors.ERROR_INVALID_SIZE;
+		
+		sceKernelDcacheWritebackRange = createNativeFunction(0x3EE30821, 150, 'uint', 'uint/uint', this, (pointer: number, size: number) => {
 			if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 			if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
 			this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
@@ -67,6 +69,11 @@
 		});
 
 		sceKernelDcacheWritebackAll = createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, () => {
+			this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+			return 0;
+		});
+
+		sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0xB435DEC5, 150, 'uint', '', this, () => {
 			this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
 			return 0;
 		});

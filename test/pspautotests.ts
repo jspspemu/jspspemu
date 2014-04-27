@@ -56,7 +56,7 @@
 			}
 		}
 
-		if (distinctLines == 0) console.log('great: output and expected ar equal!');
+		if (distinctLines == 0) console.log('great: output and expected are equal!');
 
 		console.groupEnd();
 

@@ -102,6 +102,8 @@ class FileAsyncStream implements AsyncStream {
 }
 
 class Stream {
+	static INVALID = Stream.fromArray([]);
+
     constructor(private data: DataView, private offset: number = 0) {
     }
 
@@ -117,14 +119,6 @@ class Stream {
         return new Stream(new DataView(base64_toArrayBuffer(data)));
 	}
 
-	toUInt8Array() {
-		return new Uint8Array(this.toArrayBuffer());
-	}
-
-	toArrayBuffer() {
-		return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
-	}
-
 	static fromUint8Array(array: Uint8Array) {
 		return Stream.fromArray(<any>array);
 	}
@@ -134,7 +128,16 @@ class Stream {
         var w8 = new Uint8Array(buffer);
         for (var n = 0; n < array.length; n++) w8[n] = array[n];
         return new Stream(new DataView(buffer));
-    }
+	}
+
+	toUInt8Array() {
+		return new Uint8Array(this.toArrayBuffer());
+	}
+
+	toArrayBuffer() {
+		return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+	}
+
 
     sliceWithLength(low: number, count?: number) {
         return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
@@ -998,6 +1001,10 @@ if (!window['setImmediate']) {
 class MathUtils {
 	static prevAligned(value: number, alignment: number) {
 		return Math.floor(value / alignment) * alignment;
+	}
+
+	static isAlignedTo(value: number, alignment: number) {
+		return (value % alignment) == 0;
 	}
 
 	static nextAligned(value: number, alignment: number) {

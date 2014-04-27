@@ -1,4 +1,6 @@
 ﻿module hle.modules {
+	import PspDisplay = core.PspDisplay;
+
     export class sceDisplay {
         constructor(private context: EmulatorContext) { }
 
@@ -36,7 +38,15 @@
 			return this.context.display.vblankCount;
 		});
 
-        sceDisplaySetFrameBuf = createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, (address: number, bufferWidth: number, pixelFormat: core.PixelFormat, sync: number) => {
+		sceDisplayGetFramePerSec = createNativeFunction(0xDBA6C4C4, 150, 'float', '', this, () => {
+			return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
+		});
+
+		sceDisplayIsVblank = createNativeFunction(0x4D4E10EC, 150, 'int', '', this, () => {
+			return (this.context.display.secondsLeftForVblank == 0);
+		});
+
+		sceDisplaySetFrameBuf = createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, (address: number, bufferWidth: number, pixelFormat: core.PixelFormat, sync: number) => {
             this.context.display.address = address;
             this.context.display.bufferWidth = bufferWidth;
             this.context.display.pixelFormat = pixelFormat;

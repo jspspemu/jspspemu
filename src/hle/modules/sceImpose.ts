@@ -3,9 +3,21 @@
 		constructor(private context: EmulatorContext) { }
 
 		sceImposeGetBatteryIconStatus = createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, (isChargingPointer: Stream, iconStatusPointer: Stream) => {
-			isChargingPointer.writeInt32(0);
-			iconStatusPointer.writeInt32(0);
+			isChargingPointer.writeInt32(ChargingEnum.NotCharging);
+			iconStatusPointer.writeInt32(BatteryStatusEnum.FullyFilled);
 			return 0;
 		});
+	}
+
+	enum ChargingEnum {
+		NotCharging = 0,
+		Charging = 1,
+	}
+
+	enum BatteryStatusEnum {
+		VeryLow = 0,
+		Low = 1,
+		PartiallyFilled = 2,
+		FullyFilled = 3,
 	}
 }

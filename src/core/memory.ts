@@ -50,11 +50,30 @@ module core {
 			return new DataView(this.buffer, address & Memory.MASK, size);
 		}
 
-		getPointerStream(address: number, size?: number) {
+		isAddressInRange(address: number, min: number, max: number) {
+			address &= Memory.MASK; address >>>= 0;
+			min &= Memory.MASK; min >>>= 0;
+			max &= Memory.MASK; max >>>= 0;
+
+			return (address >= min) && (address < max);
+		}
+
+		isValidAddress(address: number) {
 			address &= Memory.MASK;
+			if ((address & 0x3E000000) == 0x08000000) return true;
+			if ((address & 0x3F800000) == 0x04000000) return true;
+			if ((address & 0xBFFF0000) == 0x00010000) return true;
+			if (this.isAddressInRange(address, Memory.DEFAULT_FRAME_ADDRESS, Memory.DEFAULT_FRAME_ADDRESS + 0x200000)) return true;
+			if (this.isAddressInRange(address, 0x08000000, 0x08000000 + 0x04000000)) return true;
+			return false;
+		}
+
+		getPointerStream(address: number, size?: number) {
+			//console.log(sprintf("getPointerStream: %08X", address));
 			if (address == 0) return null;
-			if (!size) size = this.availableAfterAddress(address);
-			return new Stream(this.getPointerDataView(address, size));
+			if (!this.isValidAddress(address)) return Stream.INVALID;
+			if (!size) size = this.availableAfterAddress(address & Memory.MASK);
+			return new Stream(this.getPointerDataView(address & Memory.MASK, size));
 		}
 
 
