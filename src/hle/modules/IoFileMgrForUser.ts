@@ -68,7 +68,7 @@
 
 		sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
 			var file = this.fileUids.get(fileId);
-			file.close();
+			if (file) file.close();
 
 			this.fileUids.remove(fileId);
 

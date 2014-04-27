@@ -10429,7 +10429,8 @@ var hle;
                 });
                 this.sceIoClose = modules.createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
                     var file = _this.fileUids.get(fileId);
-                    file.close();
+                    if (file)
+                        file.close();
 
                     _this.fileUids.remove(fileId);
 
