@@ -39,8 +39,6 @@
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="index_amd.html" />
-    <TypeScriptCompile Include="src\app_test_amd.ts" />
     <TypeScriptCompile Include="src\context.ts" />
     <TypeScriptCompile Include="src\core\audio.ts" />
     <TypeScriptCompile Include="src\core\cpu.ts" />
@@ -165,6 +163,7 @@
     <TypeScriptCompile Include="test\instructionTest.ts" />
     <TypeScriptCompile Include="test\testasm.ts" />
     <Content Include="test.html" />
+    <TypeScriptCompile Include="test\_tests.ts" />
     <TypeScriptCompile Include="test\util\utilsTest.ts" />
     <TypeScriptCompile Include="test\_typings.d.ts" />
     <TypeScriptCompile Include="typings\chai\chai.d.ts" />
@@ -252,7 +251,7 @@
     <TypeScriptTarget>ES5</TypeScriptTarget>
     <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
     <TypeScriptSourceMap>True</TypeScriptSourceMap>
-    <TypeScriptModuleKind>amd</TypeScriptModuleKind>
+    <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
     <TypeScriptOutDir>js</TypeScriptOutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

@@ -53,7 +53,7 @@ export class MipsAssembler {
 					case '%s': case '%d': case '%t': return '([$r]\\d+)';
 					case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
 					case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-					default: throw ("MipsAssembler.Transform: Unknown type '" + type + "'");
+					default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
 				}
 			})
 			.replace(/\s+/g, '\\s*')

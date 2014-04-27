@@ -65,8 +65,8 @@ export class ANodeExprAssign extends ANodeExpr {
 }
 
 export class ANodeExprCall extends ANodeExpr {
-	constructor(public name: string, public arguments: ANodeExpr[]) { super(); }
-	toJs() { return this.name + '(' + this.arguments.map((argument) => argument.toJs()).join(',') + ')'; }
+	constructor(public name: string, public _arguments: ANodeExpr[]) { super(); }
+	toJs() { return this.name + '(' + this._arguments.map((argument) => argument.toJs()).join(',') + ')'; }
 }
 
 export class ANodeStmIf extends ANodeStm {

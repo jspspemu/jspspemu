@@ -50,14 +50,14 @@ export class ModuleManager {
         if (_moduleWrapper) return _moduleWrapper;
 
         var _class = this.names[name];
-        if (!_class) throw ("Can't find module '" + name + "'");
+        if (!_class) throw (new Error("Can't find module '" + name + "'"));
 
         var _module = new _class(this.context);
         return this.moduleWrappers[name] = new ModuleWrapper(name, _module);
     }
 
     private add(name: string, _class: any) {
-        if (!_class) throw("Can't find module '" + name + "'");
+        if (!_class) throw(new Error("Can't find module '" + name + "'"));
         this.names[name] = _class;
     }
 }

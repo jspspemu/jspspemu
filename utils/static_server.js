@@ -7,35 +7,41 @@ var watch = require("node-watch");
 var dir = require("node-dir");
 var wrench = require('wrench');
 var _ = require('underscore');
+var combine_common = require('./combine_common');
 
 var jsFilesContent = {};
 
+var jsBasePath = path.normalize(__dirname + '/../js');
+
 function updateSingleJsFile() {
-	var combinedContent = '';
-	_.keys(jsFilesContent).slice(0).sort().forEach(function(filename) {
-		var content = jsFilesContent[filename];
-		combinedContent += content;
-	});
-	fs.writeFileSync(__dirname + '/../pspemu.js', combinedContent);
-	console.log('Updated pspemu.js');
+	var combinedContent = combine_common.generateCombinedCommonJs(jsFilesContent);
+	fs.writeFileSync(__dirname + '/../jspspemu.js', combinedContent);
+	console.log('Updated jspspemu.js');
 }
 
-wrench.readdirSyncRecursive(__dirname + '/../src_js').forEach(function(filename) {
-	filename = path.normalize(__dirname + '/../src_js/' + filename);
-	if (filename.match(/\.js$/)) {
-		jsFilesContent[filename] = fs.readFileSync(filename);
-		//console.log(filename);
-	}
+function tryIncludeFile(filename) {
+	if (!filename.match(/\.js$/)) return false;
+	if (filename.substr(0, jsBasePath.length) != jsBasePath) return;
+	var moduleName = filename.substr(jsBasePath.length).replace(/\\/g, '/').replace(/^\/+/, '');
+	var newContent = fs.readFileSync(filename, 'utf-8');
+	var oldContent = jsFilesContent[moduleName];
+	if (newContent === oldContent) return false;
+	jsFilesContent[moduleName] = newContent;
+	return true;
+}
+
+wrench.readdirSyncRecursive(jsBasePath).forEach(function(filename) {
+	filename = path.normalize(jsBasePath + '/' + filename);
+	tryIncludeFile(filename);
 });
 updateSingleJsFile();
 //console.log(wrench);
 
 var port = process.argv[2] || 80;
 
-watch(__dirname + '/../src_js', { recursive: true, followSymLinks: true }, function(filename) {
+watch(jsBasePath, { recursive: true, followSymLinks: true }, function(filename) {
 	filename = path.normalize(filename);
-	if (filename.match(/\.js$/)) {
-		jsFilesContent[filename] = fs.readFileSync(filename);
+	if (tryIncludeFile(filename)) {
 		console.log(filename, ' changed.');
 		updateSingleJsFile();
 	}
@@ -46,7 +52,7 @@ http.createServer(function(request, response) {
   var uri = url.parse(request.url).pathname
     , filename = path.join(__dirname + '/..', uri);
   
-  path.exists(filename, function(exists) {
+  fs.exists(filename, function(exists) {
     if(!exists) {
       response.writeHead(404, {"Content-Type": "text/plain"});
       response.write("404 Not Found\n");

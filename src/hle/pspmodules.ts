@@ -56,7 +56,7 @@ function _registerSyscall(syscallManager: _cpu.SyscallManager, moduleManager: _m
 	syscallManager.registerWithId(id, moduleManager.getByName(moduleName).getByName(functionName));
 }
 
-export function registerModules(manager: _module.ModuleManager) {
+function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(ExceptionManagerForKernel);
 	manager.registerModule(InterruptManager);
 	manager.registerModule(IoFileMgrForUser);
@@ -106,7 +106,7 @@ export function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(UtilsForUser);
 }
 
-export function registerSyscalls(syscallManager: _cpu.SyscallManager, moduleManager: _module.ModuleManager) {
+function registerSyscalls(syscallManager: _cpu.SyscallManager, moduleManager: _module.ModuleManager) {
 	_registerSyscall(syscallManager, moduleManager, 0x206D, "ThreadManForUser", "sceKernelCreateThread");
 	_registerSyscall(syscallManager, moduleManager, 0x206F, "ThreadManForUser", "sceKernelStartThread");
 	_registerSyscall(syscallManager, moduleManager, 0x2071, "ThreadManForUser", "sceKernelExitDeleteThread");
@@ -121,4 +121,9 @@ export function registerSyscalls(syscallManager: _cpu.SyscallManager, moduleMana
 	_registerSyscall(syscallManager, moduleManager, 0x20EB, "LoadExecForUser", "sceKernelExitGame");
 	
 	_registerSyscall(syscallManager, moduleManager, 0x2150, "sceCtrl", "sceCtrlPeekBufferPositive");
+}
+
+export function registerModulesAndSyscalls(syscallManager: _cpu.SyscallManager, moduleManager: _module.ModuleManager) {
+	registerModules(moduleManager);
+	registerSyscalls(syscallManager, moduleManager);
 }

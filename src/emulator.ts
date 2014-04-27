@@ -105,8 +105,7 @@ export class Emulator {
 
 			this.ms0Vfs.mountVfs('/', new MemoryVfs());
 
-			_pspmodules.registerModules(this.moduleManager);
-			_pspmodules.registerSyscalls(this.syscallManager, this.moduleManager);
+			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
 			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager);
 

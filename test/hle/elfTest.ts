@@ -5,6 +5,7 @@ import _display = require('../../src/core/display');
 import _manager = require('../../src/hle/manager');
 import _elf_psp = require('../../src/hle/elf_psp');
 import _context = require('../../src/context');
+import pspmodules = require('../../src/hle/pspmodules');
 
 import PspElfLoader = _elf_psp.PspElfLoader;
 import MemoryManager = _manager.MemoryManager;
@@ -30,6 +31,7 @@ describe('elf', () => {
         var syscallManager = new SyscallManager(context);
         var context = new EmulatorContext();
 		var moduleManager = new ModuleManager(context);
+		pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
 		context.init(null, display, null, null, memoryManager, null, null, memory, null, null);
 

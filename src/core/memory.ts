@@ -110,9 +110,9 @@ export class Memory {
 		if (address == 0) return null;
 		var out = '';
 		while (true) {
-			var char = this.readUInt8(address++);
-			if (char == 0) break;
-			out += String.fromCharCode(char);
+			var _char = this.readUInt8(address++);
+			if (_char == 0) break;
+			out += String.fromCharCode(_char);
 		}
 		return out;
 	}

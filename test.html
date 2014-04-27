@@ -24,7 +24,14 @@
         var assert = chai.assert;
     </script>
 
-    <script src="pspemu.js"></script>
+    <script src="js/src/util/async.js"></script>
+    <script src="js/src/util/int64.js"></script>
+    <script src="js/src/util/math.js"></script>
+    <script src="js/src/util/stream.js"></script>
+    <script src="js/src/util/struct.js"></script>
+    <script src="js/src/util/utils.js"></script>
+
+    <script src="jspspemu.js"></script>
 </head>
 <body>
     <div style="display:none;">
@@ -34,6 +41,9 @@
 
     <div id="mocha"></div>
 
-    <script type="text/javascript">mocha.run();</script>
+    <script type="text/javascript">
+        require('test/_tests');
+        mocha.run();
+    </script>
 </body>
 </html>
