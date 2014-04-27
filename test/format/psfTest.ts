@@ -1,4 +1,8 @@
-﻿describe('psf', () => {
+﻿import _psf = require('../../src/format/psf');
+
+import Psf = _psf.Psf;
+
+describe('psf', () => {
 	var rtctestPsfArrayBuffer: ArrayBuffer;
 
 	before(() => {
@@ -9,7 +13,7 @@
 
 
 	it('should load fine', () => {
-		var psf = new format.psf.Psf();
+		var psf = new Psf();
 		psf.load(Stream.fromArrayBuffer(rtctestPsfArrayBuffer));
 		assert.equal(psf.entriesByName['BOOTABLE'], 1);
 		assert.equal(psf.entriesByName['CATEGORY'], 'MG');

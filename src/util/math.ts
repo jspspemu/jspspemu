@@ -1,10 +1,25 @@
-﻿
-interface Math {
+﻿interface Math {
 	clz32(value: number): number;
+	trunc(value: number): number;
 }
 
-if (!Math.clz32) {
-	Math.clz32 = (x: number) => {
+declare var vec4: {
+	create(): Float32Array;
+	fromValues(x: number, y: number, z: number, w: number): Float32Array;
+	transformMat4(out: Float32Array, a: Float32Array, m: Float32Array): Float32Array;
+};
+
+declare var mat4: {
+	create(): Float32Array;
+	clone(a: Float32Array): Float32Array;
+	copy(out: Float32Array, a: Float32Array): Float32Array;
+	identity(a: Float32Array): Float32Array;
+	multiply(out: Float32Array, a: Float32Array, b: Float32Array): Float32Array;
+	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
+};
+
+if (!Math['clz32']) {
+	Math['clz32'] = (x: number) => {
 		x >>>= 0;
 		if (x == 0) return 32;
 		var result = 0;
@@ -16,6 +31,12 @@ if (!Math.clz32) {
 		if ((x & 0x80000000) === 0) { x <<= 1; result += 1; };
 		return result;
 	};
+}
+
+if (!Math['trunc']) {
+	Math['trunc'] = function (x: number) {
+		return x < 0 ? Math.ceil(x) : Math.floor(x);
+	}
 }
 
 class BitUtils {
@@ -37,11 +58,11 @@ class BitUtils {
 	}
 
 	static clo(x: number) {
-		return Math.clz32(~x);
+		return Math['clz32'](~x);
 	}
 
 	static clz(x: number) {
-		return Math.clz32(x);
+		return Math['clz32'](x);
 	}
 
 	static seb(x: number) {
@@ -99,16 +120,6 @@ class BitUtils {
 	}
 }
 
-interface Math {
-	trunc(value: number): number;
-}
-
-if (!Math.trunc) {
-	Math.trunc = function (x: number) {
-		return x < 0 ? Math.ceil(x) : Math.floor(x);
-	}
-}
-
 class MathFloat {
 	private static floatArray = new Float32Array(1);
 	private static intArray = new Int32Array(MathFloat.floatArray.buffer);
@@ -125,7 +136,7 @@ class MathFloat {
 
 	static trunc(value: number) {
 		if (!isFinite(value)) return 2147483647;
-		return Math.trunc(value);
+		return Math['trunc'](value);
 	}
 
 	static round(value: number) {
@@ -156,17 +167,24 @@ function compare<T>(a: T, b: T): number {
 	return 0;
 }
 
-declare var vec4: {
-	create(): Float32Array;
-	fromValues(x: number, y: number, z: number, w: number): Float32Array;
-	transformMat4(out: Float32Array, a: Float32Array, m: Float32Array): Float32Array;
-};
+class MathUtils {
+	static prevAligned(value: number, alignment: number) {
+		return Math.floor(value / alignment) * alignment;
+	}
 
-declare var mat4: {
-	create(): Float32Array;
-	clone(a: Float32Array): Float32Array;
-	copy(out: Float32Array, a: Float32Array): Float32Array;
-	identity(a: Float32Array): Float32Array;
-	multiply(out: Float32Array, a: Float32Array, b: Float32Array): Float32Array;
-	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
-};
+	static isAlignedTo(value: number, alignment: number) {
+		return (value % alignment) == 0;
+	}
+
+	static nextAligned(value: number, alignment: number) {
+		if (alignment <= 1) return value;
+		if ((value % alignment) == 0) return value;
+		return value + (alignment - (value % alignment));
+	}
+
+	static clamp(v: number, min: number, max: number) {
+		if (v < min) return min;
+		if (v > max) return max;
+		return v;
+	}
+}

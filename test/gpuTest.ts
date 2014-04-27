@@ -1,21 +1,24 @@
-﻿describe('gpu', () => {
+﻿import _state = require('../src/core/gpu/state');
+import _gpu = require('../src/core/gpu/gpu');
+
+describe('gpu', () => {
     describe('vertex reading', () => {
 		it('should work', () => {
-			var vertexState = new core.gpu.VertexState();
+			var vertexState = new _state.VertexState();
 			vertexState.size = 10;
 		
-			vertexState.texture = core.gpu.NumericEnum.Void;
-			vertexState.color = core.gpu.ColorEnum.Void;
-			vertexState.normal = core.gpu.NumericEnum.Void;
-			vertexState.position = core.gpu.NumericEnum.Short;
-			vertexState.weight = core.gpu.NumericEnum.Void;
-			vertexState.index = core.gpu.IndexEnum.Void;
+			vertexState.texture = _state.NumericEnum.Void;
+			vertexState.color = _state.ColorEnum.Void;
+			vertexState.normal = _state.NumericEnum.Void;
+			vertexState.position = _state.NumericEnum.Short;
+			vertexState.weight = _state.NumericEnum.Void;
+			vertexState.index = _state.IndexEnum.Void;
 			vertexState.weightCount = 1;
 			vertexState.morphingVertexCount = 1;
 			vertexState.transform2D = true;
 			vertexState.textureComponentCount = 2;
 
-			var vertexReader = core.gpu.VertexReaderFactory.get(vertexState);
+			var vertexReader = _gpu.VertexReaderFactory.get(vertexState);
 
             var vertexInput = new DataView(new ArrayBuffer(128));
             vertexInput.setInt16(0, 100, true);
@@ -26,8 +29,8 @@
             vertexInput.setInt16(12, 300, true);
             vertexInput.setInt16(14, 400, true);
 
-			var vertex1 = new core.gpu.Vertex();
-			var vertex2 = new core.gpu.Vertex();
+			var vertex1 = new _state.Vertex();
+			var vertex2 = new _state.Vertex();
 
             //console.log(vertexReader.readCode);
 

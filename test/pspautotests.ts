@@ -1,4 +1,8 @@
-﻿describe('pspautotests', function() {
+﻿import _emulator = require('../src/emulator');
+
+import Emulator = _emulator.Emulator;
+
+describe('pspautotests', function () {
 	this.timeout(5000);
 
 	var tests = [

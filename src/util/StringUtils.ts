@@ -1,0 +1,4 @@
+﻿class StringUtils {
+}
+
+export = StringUtils;

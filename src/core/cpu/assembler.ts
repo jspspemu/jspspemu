@@ -1,6 +1,9 @@
-import Memory = require('../memory');
+///<reference path="../../typings.d.ts" />
 
+import memory = require('../memory');
 import instructions = require('./instructions');
+
+import Memory = memory.Memory;
 import Instructions = instructions.Instructions;
 import Instruction = instructions.Instruction;
 

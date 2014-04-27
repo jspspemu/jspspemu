@@ -17,44 +17,6 @@ enum Endian {
     BIG = 1,
 }
 
-class IndentStringGenerator {
-    indentation: number = 0;
-    output: string = '';
-    newLine: boolean = true;
-
-    indent(callback: () => void) {
-        this.indentation++;
-        try {
-            callback();
-        } finally {
-            this.indentation--;
-        }
-    }
-
-    write(text: string) {
-        var chunks = text.split('\n');
-        for (var n = 0; n < chunks.length; n++) {
-            if (n != 0) this.writeBreakLine();
-            this.writeInline(chunks[n]);
-        }
-    }
-
-    private writeInline(text: string) {
-        if (text == null || text.length == 0) return;
-
-        if (this.newLine) {
-            this.output += String_repeat('\t', this.indentation);
-            this.newLine = false;
-        }
-        this.output += text;
-    }
-
-    private writeBreakLine() {
-        this.output += '\n';
-        this.newLine = true;
-    }
-}
-
 class SortedSet<T> {
     public elements: T[] = [];
 
@@ -111,40 +73,11 @@ class UidCollection<T>
     }
 }
 
-interface SignalCallback<T> {
-	(value?: T): void;
-}
-
 interface NumericRange {
 	start: number;
 	end: number;
 }
 
-class Signal<T> {
-	callbacks = new SortedSet<SignalCallback<T>>();
-
-	add(callback: SignalCallback<T>) {
-        this.callbacks.add(callback);
-    }
-
-	remove(callback: SignalCallback<T>) {
-        this.callbacks.delete(callback);
-    }
-
-	once(callback: SignalCallback<T>) {
-        var once = () => {
-            this.remove(once);
-            callback();
-        };
-        this.add(once);
-    }
-
-    dispatch(value?: T) {
-        this.callbacks.forEach((callback) => {
-            callback(value);
-        });
-    }
-}
 
 function identity<T>(a: T) { return a; }
 
@@ -260,8 +193,6 @@ Object.defineProperty(Array.prototype, "remove", { enumerable: false });
 Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
 Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
 
-
-
 interface String {
 	rstrip(): string;
 	contains(value: string): boolean;
@@ -328,28 +259,6 @@ if (!window['setImmediate']) {
 	};
 }
 
-class MathUtils {
-	static prevAligned(value: number, alignment: number) {
-		return Math.floor(value / alignment) * alignment;
-	}
-
-	static isAlignedTo(value: number, alignment: number) {
-		return (value % alignment) == 0;
-	}
-
-	static nextAligned(value: number, alignment: number) {
-        if (alignment <= 1) return value;
-        if ((value % alignment) == 0) return value;
-        return value + (alignment - (value % alignment));
-	}
-
-	static clamp(v: number, min: number, max: number) {
-		if (v < min) return min;
-		if (v > max) return max;
-		return v;
-	}
-}
-
 declare function escape(input: string): string;
 declare function unescape(input: string): string;
 
@@ -377,9 +286,6 @@ if (!ArrayBuffer.prototype.slice) {
         return result;
     };
 }
-
-declare function sprintf(...args: any[]);
-declare function printf(...args: any[]);
 
 interface AudioNode {
 	context: AudioContext;
@@ -505,6 +411,11 @@ function setToString(Enum: any, value: number) {
 
 class WaitingThreadInfo<T> {
 	public constructor(public name: string, public object: any, public promise: Promise<T>) {
+	}
+}
+
+class CpuBreakException implements Error {
+	constructor(public name: string = 'CpuBreakException', public message: string = 'CpuBreakException') {
 	}
 }
 

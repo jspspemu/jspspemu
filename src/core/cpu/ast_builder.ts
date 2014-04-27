@@ -1,0 +1,134 @@
+﻿///<reference path="../../typings.d.ts" />
+
+import state = require('./state');
+
+import CpuState = state.CpuState;
+
+export class ANode {
+	toJs() { }
+	optimize() { return this; }
+}
+
+export class ANodeStm extends ANode {
+}
+
+export class ANodeStmList extends ANodeStm {
+	constructor(public childs: ANodeStm[]) { super(); }
+	toJs() { return this.childs.map((item) => item.toJs()).join("\n"); }
+}
+
+export class ANodeStmRaw extends ANodeStm {
+	constructor(public content: string) { super(); }
+	toJs() { return this.content; }
+}
+
+export class ANodeStmExpr extends ANodeStm {
+	constructor(public expr: ANodeExpr) { super(); }
+	toJs() { return this.expr.toJs() + ';'; }
+}
+
+export class ANodeExpr extends ANode {
+
+}
+
+export class ANodeExprLValue extends ANodeExpr {
+}
+
+export class ANodeExprLValueVar extends ANodeExprLValue {
+	constructor(public name: string) { super(); }
+	toJs() { return this.name; }
+}
+
+export class ANodeExprI32 extends ANodeExpr {
+	constructor(public value: number) { super(); }
+	toJs() { return String(this.value); }
+}
+
+export class ANodeExprU32 extends ANodeExpr {
+	constructor(public value: number) { super(); }
+	toJs() { return sprintf('0x%08X', this.value); }
+}
+
+export class ANodeExprBinop extends ANodeExpr {
+	constructor(public left: ANodeExpr, public op: string, public right: ANodeExpr) { super(); }
+	toJs() { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; }
+}
+
+export class ANodeExprUnop extends ANodeExpr {
+	constructor(public op: string, public right: ANodeExpr) { super(); }
+	toJs() { return '(' + this.op + '(' + this.right.toJs() + '))'; }
+}
+
+export class ANodeExprAssign extends ANodeExpr {
+	constructor(public left: ANodeExprLValue, public right: ANodeExpr) { super(); }
+	toJs() { return this.left.toJs() + ' = ' + this.right.toJs(); }
+}
+
+export class ANodeExprCall extends ANodeExpr {
+	constructor(public name: string, public arguments: ANodeExpr[]) { super(); }
+	toJs() { return this.name + '(' + this.arguments.map((argument) => argument.toJs()).join(',') + ')'; }
+}
+
+export class ANodeStmIf extends ANodeStm {
+	constructor(public cond: ANodeExpr, public codeTrue: ANodeStm, public codeFalse?: ANodeStm) { super(); }
+	toJs() {
+		var result = '';
+		result += 'if (' + this.cond.toJs() + ')';
+		result += ' { ' + this.codeTrue.toJs() + ' }';
+		if (this.codeFalse) result += ' else { ' + this.codeFalse.toJs() + ' }';
+		return result;
+	}
+}
+
+export class AstBuilder {
+	assign(ref: ANodeExprLValue, value: ANodeExpr) { return new ANodeExprAssign(ref, value); }
+	_if(cond: ANodeExpr, codeTrue: ANodeStm, codeFalse?: ANodeStm) { return new ANodeStmIf(cond, codeTrue, codeFalse); }
+	binop(left: ANodeExpr, op: string, right: ANodeExpr) { return new ANodeExprBinop(left, op, right); }
+	unop(op: string, right: ANodeExpr) { return new ANodeExprUnop(op, right); }
+	binop_i(left: ANodeExpr, op: string, right: number) { return this.binop(left, op, this.imm32(right)); }
+	imm32(value: number) { return new ANodeExprI32(value); }
+	u_imm32(value: number) { return new ANodeExprU32(value); }
+	stm(expr: ANodeExpr) { return new ANodeStmExpr(expr); }
+	stmEmpty() { return new ANodeStm(); }
+	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
+	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
+}
+
+export class MipsAstBuilder extends AstBuilder {
+	debugger(comment: string): ANodeStm {
+		return new ANodeStmRaw("debugger; // " + comment + "\n");
+	}
+
+	functionPrefix() { return this.stmEmpty(); }
+
+	gpr(index: number): ANodeExprLValueVar {
+		if (index === 0) return new ANodeExprLValueVar('0');
+		return new ANodeExprLValueVar('state.gpr[' + index + ']');
+	}
+
+	fpr(index: number): ANodeExprLValueVar {
+		return new ANodeExprLValueVar('state.fpr[' + index + ']');
+	}
+
+	fpr_i(index: number): ANodeExprLValueVar {
+		//return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
+		return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
+	}
+
+	fcr31_cc() { return new ANodeExprLValueVar('state.fcr31_cc'); }
+	lo() { return new ANodeExprLValueVar('state.LO'); }
+	hi() { return new ANodeExprLValueVar('state.HI'); }
+	ic() { return new ANodeExprLValueVar('state.IC'); }
+	pc() { return new ANodeExprLValueVar('state.PC'); }
+	branchflag() { return new ANodeExprLValueVar('state.BRANCHFLAG'); }
+	branchpc() { return new ANodeExprLValueVar('state.BRANCHPC'); }
+
+	assignGpr(index: number, expr: ANodeStm) {
+		if (index == 0) return this.stmEmpty();
+		return this.stm(this.assign(this.gpr(index), expr));
+	}
+
+	assignIC(expr: ANodeStm) { return this.stm(this.assign(this.ic(), expr)); }
+	assignFpr(index: number, expr: ANodeStm) { return this.stm(this.assign(this.fpr(index), expr)); }
+	assignFpr_I(index: number, expr: ANodeStm) { return this.stm(this.assign(this.fpr_i(index), expr)); }
+}

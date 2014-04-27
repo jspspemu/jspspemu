@@ -1,4 +1,11 @@
-﻿export interface ValueMask {
+﻿///<reference path="../../typings.d.ts" />
+
+import memory = require('../memory');
+import IndentStringGenerator = require('../../util/IndentStringGenerator');
+
+import Memory = memory.Memory;
+
+export interface ValueMask {
 	value: number;
 	mask: number;
 }

@@ -1,4 +1,6 @@
-﻿class Memory {
+﻿import Signal = require('../util/Signal');
+
+export class Memory {
 	buffer: ArrayBuffer;
 	s8: Uint8Array;
 	u8: Uint8Array;
@@ -179,5 +181,3 @@
 		_destination.set(_source);
 	}
 }
-
-export = Memory;

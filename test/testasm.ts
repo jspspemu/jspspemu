@@ -1,20 +1,20 @@
-﻿///<reference path="../typings/chai/chai.d.ts" />
-///<reference path="../typings/mocha/mocha.d.ts" />
-///<reference path="../typings/jquery/jquery.d.ts" />
+﻿import _cpu = require('../src/core/cpu');
+import _memory = require('../src/core/memory');
 
-interface Assert {
-	(result: boolean, message?:string): void;
-    equal<T>(a:T, b:T, message?:string);
-}
+import Memory = _memory.Memory;
+import MipsAssembler = _cpu.MipsAssembler;
+import MipsDisassembler = _cpu.MipsDisassembler;
+import CpuState = _cpu.CpuState;
+import ISyscallManager = _cpu.ISyscallManager;
+import InstructionCache = _cpu.InstructionCache;
+import ProgramExecutor = _cpu.ProgramExecutor;
 
-declare var assert: Assert;
+var assembler = new _cpu.MipsAssembler();
+var disassembler = new _cpu.MipsDisassembler();
+var memory = Memory.instance;
 
-var assembler = new core.cpu.MipsAssembler();
-var disassembler = new core.cpu.MipsDisassembler();
-var memory = core.Memory.instance;
-
-class TestSyscallManager implements core.ISyscallManager {
-	call(state: core.cpu.CpuState, id: number) {
+class TestSyscallManager implements ISyscallManager {
+	call(state: CpuState, id: number) {
     }
 }
 
@@ -22,7 +22,7 @@ function executeProgram(gprInitial: any, program: string[]) {
     program = program.slice(0);
     program.push('break');
     assembler.assembleToMemory(memory, 4, program);
-	var state = new core.cpu.CpuState(memory, new TestSyscallManager());
+	var state = new CpuState(memory, new TestSyscallManager());
     var instructionCache = new InstructionCache(memory);
     var programExecuter = new ProgramExecutor(state, instructionCache);
 

@@ -1,87 +1,96 @@
-﻿module hle.vfs {
-	export class MountableVfs extends Vfs {
-		private mounts: MountableEntry[] = [];
+﻿import _vfs = require('./vfs');
 
-		mountVfs(path: string, vfs: Vfs) {
-			this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null));
-		}
+import _vfs_memory = require('./vfs_memory');
+import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 
-		mountFileData(path: string, data: ArrayBuffer) {
-			this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
-		}
+import Vfs = _vfs.Vfs;
+import VfsEntry = _vfs.VfsEntry;
+import VfsStat = _vfs.VfsStat;
+import FileMode = _vfs.FileMode;
+import FileOpenFlags = _vfs.FileOpenFlags;
 
-		private normalizePath(path: string) {
-			return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
-		}
+export class MountableVfs extends Vfs {
+	private mounts: MountableEntry[] = [];
 
-		private transformPath(path: string) {
-			path = this.normalizePath(path);
+	mountVfs(path: string, vfs: Vfs) {
+		this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null));
+	}
 
-			for (var n = 0; n < this.mounts.length; n++) {
-				var mount = this.mounts[n];
-				//console.log(mount.path + ' -- ' + path);
-				if (path.startsWith(mount.path)) {
-					var part = path.substr(mount.path.length);
-					return { mount: mount, part: part };
-				}
-			}
-			console.info(this.mounts);
-			throw (new Error("MountableVfs: Can't find file '" + path + "'"));
-		}
+	mountFileData(path: string, data: ArrayBuffer) {
+		this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
+	}
 
-		openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
-			var info = this.transformPath(path);
+	private normalizePath(path: string) {
+		return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+	}
 
-			if (info.mount.file) {
-				return Promise.resolve(info.mount.file);
-			} else {
-				return info.mount.vfs.openAsync(info.part, flags, mode);
+	private transformPath(path: string) {
+		path = this.normalizePath(path);
+
+		for (var n = 0; n < this.mounts.length; n++) {
+			var mount = this.mounts[n];
+			//console.log(mount.path + ' -- ' + path);
+			if (path.startsWith(mount.path)) {
+				var part = path.substr(mount.path.length);
+				return { mount: mount, part: part };
 			}
 		}
+		console.info(this.mounts);
+		throw (new Error("MountableVfs: Can't find file '" + path + "'"));
+	}
 
-		openDirectoryAsync(path: string) {
-			var info = this.transformPath(path);
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+		var info = this.transformPath(path);
 
-			if (info.mount.file) {
-				return Promise.resolve(info.mount.file);
-			} else {
-				return info.mount.vfs.openDirectoryAsync(info.part);
-			}
-		}
-
-		getStatAsync(path: string): Promise<VfsStat> {
-			var info = this.transformPath(path);
-
-			if (info.mount.file) {
-				return Promise.resolve(info.mount.file.stat());
-			} else {
-				return info.mount.vfs.getStatAsync(info.part);
-			}
+		if (info.mount.file) {
+			return Promise.resolve(info.mount.file);
+		} else {
+			return info.mount.vfs.openAsync(info.part, flags, mode);
 		}
 	}
 
-	class MountableEntry {
-		constructor(public path: string, public vfs: Vfs, public file: VfsEntry) {
+	openDirectoryAsync(path: string) {
+		var info = this.transformPath(path);
+
+		if (info.mount.file) {
+			return Promise.resolve(info.mount.file);
+		} else {
+			return info.mount.vfs.openDirectoryAsync(info.part);
 		}
 	}
 
-	//window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-	//window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
-	//window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+	getStatAsync(path: string): Promise<VfsStat> {
+		var info = this.transformPath(path);
 
-	//export class IndexedDbVfs extends Vfs {
-	//	initAsync() {
-	//		var request = indexedDB.open("mydatabase");
-	//
-	//		request.onsuccess = (e) => {
-	//			var db = <IDBDatabase>request.result;
-	//			
-	//			var trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
-	//			trans.objectStore("objectstore1").put(myblob, "somekey");
-	//			trans.objectStore("objectstore2").put(myblob, "otherkey");
-	//		};
-	//		request.onerror = (e) => {
-	//		};
-	//	}
-	//}
+		if (info.mount.file) {
+			return Promise.resolve(info.mount.file.stat());
+		} else {
+			return info.mount.vfs.getStatAsync(info.part);
+		}
+	}
 }
+
+class MountableEntry {
+	constructor(public path: string, public vfs: Vfs, public file: VfsEntry) {
+	}
+}
+
+//window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+//window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
+//window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+
+//export class IndexedDbVfs extends Vfs {
+//	initAsync() {
+//		var request = indexedDB.open("mydatabase");
+//
+//		request.onsuccess = (e) => {
+//			var db = <IDBDatabase>request.result;
+//			
+//			var trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
+//			trans.objectStore("objectstore1").put(myblob, "somekey");
+//			trans.objectStore("objectstore2").put(myblob, "otherkey");
+//		};
+//		request.onerror = (e) => {
+//		};
+//	}
+//}

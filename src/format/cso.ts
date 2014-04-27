@@ -1,93 +1,91 @@
-﻿module format.cso {
-    var CSO_MAGIC = 'CISO';
+﻿var CSO_MAGIC = 'CISO';
 
-    class Header {
-        magic: string;
-        headerSize: number;
-        totalBytes: number;
-        blockSize: number;
-        version: number;
-        alignment: number;
-        reserved: number;
+class Header {
+    magic: string;
+    headerSize: number;
+    totalBytes: number;
+    blockSize: number;
+    version: number;
+    alignment: number;
+    reserved: number;
 
-        get numberOfBlocks() { return Math.floor(this.totalBytes / this.blockSize); }
+    get numberOfBlocks() { return Math.floor(this.totalBytes / this.blockSize); }
 
-        static struct = StructClass.create<Header>(Header, [
-			{ magic: Stringz(4) },
-			{ headerSize: UInt32 },
-			{ totalBytes: Int64 },
-			{ blockSize: UInt32 },
-			{ version: UInt8 },
-			{ alignment: UInt8 },
-			{ reserved: UInt16 },
-        ]);
+    static struct = StructClass.create<Header>(Header, [
+		{ magic: Stringz(4) },
+		{ headerSize: UInt32 },
+		{ totalBytes: Int64 },
+		{ blockSize: UInt32 },
+		{ version: UInt8 },
+		{ alignment: UInt8 },
+		{ reserved: UInt16 },
+    ]);
+}
+
+export class Cso implements AsyncStream {
+    private stream: AsyncStream;
+    private header: Header;
+	private offsets: Uint32Array;
+
+    static fromStreamAsync(stream: AsyncStream) {
+        return new Cso().loadAsync(stream);
     }
 
-    export class Cso implements AsyncStream {
-        private stream: AsyncStream;
-        private header: Header;
-		private offsets: Uint32Array;
+	get name() { return this.stream.name; }
+    get size() { return this.header.totalBytes; }
 
-        static fromStreamAsync(stream: AsyncStream) {
-            return new Cso().loadAsync(stream);
-        }
+	private cachedBlockIndex: number;
+	private cachedBlockData: ArrayBuffer;
+	private decodeBlockAsync(index: number) {
+		if (this.cachedBlockIndex == index) return Promise.resolve(this.cachedBlockData);
+		this.cachedBlockIndex = index;
+		var compressed = ((this.offsets[index + 0] & 0x80000000) == 0);
+		var low = this.offsets[index + 0] & 0x7FFFFFFF;
+		var high = this.offsets[index + 1] & 0x7FFFFFFF;
+		return this.stream.readChunkAsync(low, high - low).then((data) => {
+			return this.cachedBlockData = (compressed ? ArrayBufferUtils.fromUInt8Array(new Zlib.RawInflate(data).decompress()) : data);
+		}).catch(e => {
+			console.error(e);
+			throw(e);
+		});
+    }
 
-		get name() { return this.stream.name; }
-        get size() { return this.header.totalBytes; }
+	readChunkAsync(offset: number, count: number): Promise<ArrayBuffer> {
+		var blockIndex = Math.floor(offset / this.header.blockSize);
+		var blockLow = MathUtils.prevAligned(offset, this.header.blockSize);
+		var blockHigh = blockLow + this.header.blockSize;
+		var maxReadCount = blockHigh - offset;
+		var toReadInChunk = Math.min(count, maxReadCount);
+		var chunkPromise = this.decodeBlockAsync(blockIndex).then(data => {
+			//console.log(data.byteLength);
+			var low = offset - blockLow;
+			return data.slice(low, low + toReadInChunk);
+		});
 
-		private cachedBlockIndex: number;
-		private cachedBlockData: ArrayBuffer;
-		private decodeBlockAsync(index: number) {
-			if (this.cachedBlockIndex == index) return Promise.resolve(this.cachedBlockData);
-			this.cachedBlockIndex = index;
-			var compressed = ((this.offsets[index + 0] & 0x80000000) == 0);
-			var low = this.offsets[index + 0] & 0x7FFFFFFF;
-			var high = this.offsets[index + 1] & 0x7FFFFFFF;
-			return this.stream.readChunkAsync(low, high - low).then((data) => {
-				return this.cachedBlockData = (compressed ? ArrayBufferUtils.fromUInt8Array(new Zlib.RawInflate(data).decompress()) : data);
-			}).catch(e => {
-				console.error(e);
-				throw(e);
-			});
-        }
+		//console.log(sprintf("readChunkAsync: %08X, %d, (%d) : %d, %d", offset, count, blockIndex, toReadInChunk, offset - blockLow));
 
-		readChunkAsync(offset: number, count: number): Promise<ArrayBuffer> {
-			var blockIndex = Math.floor(offset / this.header.blockSize);
-			var blockLow = MathUtils.prevAligned(offset, this.header.blockSize);
-			var blockHigh = blockLow + this.header.blockSize;
-			var maxReadCount = blockHigh - offset;
-			var toReadInChunk = Math.min(count, maxReadCount);
-			var chunkPromise = this.decodeBlockAsync(blockIndex).then(data => {
-				//console.log(data.byteLength);
-				var low = offset - blockLow;
-				return data.slice(low, low + toReadInChunk);
-			});
-
-			//console.log(sprintf("readChunkAsync: %08X, %d, (%d) : %d, %d", offset, count, blockIndex, toReadInChunk, offset - blockLow));
-
-			if (count <= maxReadCount) {
-				return chunkPromise;
-			} else {
-				return chunkPromise.then(chunk1 => {
-					return this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(chunk2 => {
-						return ArrayBufferUtils.concat([chunk1, chunk2]);
-					});
+		if (count <= maxReadCount) {
+			return chunkPromise;
+		} else {
+			return chunkPromise.then(chunk1 => {
+				return this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(chunk2 => {
+					return ArrayBufferUtils.concat([chunk1, chunk2]);
 				});
-			}
-        }
+			});
+		}
+    }
 
-        private loadAsync(stream: AsyncStream) {
-            this.stream = stream;
+    private loadAsync(stream: AsyncStream) {
+        this.stream = stream;
 
-            return stream.readChunkAsync(0, Header.struct.length).then(buffer => {
-                var header = this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));
-                if (header.magic != CSO_MAGIC) throw ('Not a CSO file');
+        return stream.readChunkAsync(0, Header.struct.length).then(buffer => {
+            var header = this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));
+            if (header.magic != CSO_MAGIC) throw ('Not a CSO file');
 
-                return stream.readChunkAsync(Header.struct.length, (header.numberOfBlocks + 1) * 4).then(buffer => {
-                    this.offsets = new Uint32Array(buffer);
-                    return this;
-                });
+            return stream.readChunkAsync(Header.struct.length, (header.numberOfBlocks + 1) * 4).then(buffer => {
+                this.offsets = new Uint32Array(buffer);
+                return this;
             });
-        }
-	}
+        });
+    }
 }

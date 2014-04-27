@@ -1,4 +1,7 @@
-﻿describe('zip', () => {
+﻿import _zip = require('../../src/format/zip');
+import _vfs = require('../../src/hle/vfs');
+
+describe('zip', () => {
 	var arrayBuffer: ArrayBuffer;
 
 	before(() => {
@@ -9,7 +12,7 @@
 
 
 	it('should load fine', () => {
-		return format.zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
+		return _zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
 			assert.equal(27233, zip.get('/EBOOT.PBP').uncompressedSize);
 			assert.equal(63548, zip.get('/Data/Sounds/bullet.wav').uncompressedSize);
 
@@ -23,8 +26,8 @@
 	});
 
 	it('zip vfs should work', () => {
-		return format.zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
-			var vfs = new hle.vfs.ZipVfs(zip);
+		return _zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
+			var vfs = new _vfs.ZipVfs(zip);
 			return vfs.getStatAsync('/Data/Sounds/bullet.wav').then((info) => {
 				assert.equal(false, info.isDirectory);
 				assert.equal(63548, info.size);

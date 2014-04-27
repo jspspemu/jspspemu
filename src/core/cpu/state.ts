@@ -1,8 +1,13 @@
-﻿import Memory = require('../memory');
+﻿///<reference path="../../typings.d.ts" />
 
-export class CpuBreakException implements Error {
-	constructor(public name: string = 'CpuBreakException', public message: string = 'CpuBreakException') {
-	}
+import memory = require('../memory');
+import syscall = require('./syscall');
+
+import Memory = memory.Memory;
+import ISyscallManager = syscall.ISyscallManager;
+
+export enum CpuSpecialAddresses {
+	EXIT_THREAD = 0x0FFFFFFF,
 }
 
 export class CpuState {
@@ -22,9 +27,6 @@ export class CpuState {
 	IC: number = 0;
 
 	thread: any = null;
-
-	static getGprAccessName(index: number) { return 'gpr[' + index + ']'; }
-	static getFprAccessName(index: number) { return 'fpr[' + index + ']'; }
 
 	get V0():number { return this.gpr[2]; } set V0(value: number) { this.gpr[2] = value; }
 	get V1():number { return this.gpr[3]; } set V1(value: number) { this.gpr[3] = value; }
@@ -56,7 +58,7 @@ export class CpuState {
 		return sprintf('r1: %08X, r2: %08X, r3: %08X, r3: %08X', this.gpr[1], this.gpr[2], this.gpr[3], this.gpr[4]);
 	}
 
-	constructor(public memory: Memory, public syscallManager: core.ISyscallManager) {
+	constructor(public memory: Memory, public syscallManager: ISyscallManager) {
 		this.fcr0 = 0x00003351;
 		this.fcr31 = 0x00000e00;
 	}

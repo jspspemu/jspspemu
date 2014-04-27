@@ -1,50 +1,48 @@
-﻿module format.pbp {
-	enum PbpMagic {
-		expected = 0x50425000,
+﻿enum PbpMagic {
+	expected = 0x50425000,
+}
+
+class PbpHeader {
+	magic: PbpMagic;
+	version: number;
+	offsets: number[];
+
+	static struct = StructClass.create<PbpHeader>(PbpHeader, [
+		{ magic: Int32 },
+		{ version: Int32 },
+		{ offsets: StructArray(Int32, 8) },
+	]);
+}
+
+export class Pbp {
+	private header: PbpHeader;
+	private stream: Stream;
+
+	private static names = ["param.sfo", "icon0.png", "icon1.pmf", "pic0.png", "pic1.png", "snd0.at3", "psp.data", "psar.data"];
+
+	constructor() {
 	}
 
-	class PbpHeader {
-		magic: PbpMagic;
-		version: number;
-		offsets: number[];
-
-		static struct = StructClass.create<PbpHeader>(PbpHeader, [
-			{ magic: Int32 },
-			{ version: Int32 },
-			{ offsets: StructArray(Int32, 8) },
-		]);
+	static fromStream(stream: Stream) {
+		var pbp = new Pbp();
+		pbp.load(stream);
+		return pbp;
 	}
 
-	export class Pbp {
-		private header: PbpHeader;
-		private stream: Stream;
+	load(stream: Stream) {
+		this.stream = stream;
+		this.header = PbpHeader.struct.read(stream);
+		if (this.header.magic != PbpMagic.expected) throw("Not a PBP file");
+		this.header.offsets.push(stream.length);
+	}
 
-		private static names = ["param.sfo", "icon0.png", "icon1.pmf", "pic0.png", "pic1.png", "snd0.at3", "psp.data", "psar.data"];
+	get(name: string) {
+		var index = Pbp.names.indexOf(name);
+		return this.getByIndex(index);
+	}
 
-		constructor() {
-		}
-
-		static fromStream(stream: Stream) {
-			var pbp = new Pbp();
-			pbp.load(stream);
-			return pbp;
-		}
-
-		load(stream: Stream) {
-			this.stream = stream;
-			this.header = PbpHeader.struct.read(stream);
-			if (this.header.magic != PbpMagic.expected) throw("Not a PBP file");
-			this.header.offsets.push(stream.length);
-		}
-
-		get(name: string) {
-			var index = Pbp.names.indexOf(name);
-			return this.getByIndex(index);
-		}
-
-		getByIndex(index: number) {
-			var offsets = this.header.offsets;
-			return this.stream.sliceWithLowHigh(offsets[index + 0], offsets[index + 1]);
-		}
+	getByIndex(index: number) {
+		var offsets = this.header.offsets;
+		return this.stream.sliceWithLowHigh(offsets[index + 0], offsets[index + 1]);
 	}
 }

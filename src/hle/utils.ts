@@ -1,151 +1,75 @@
-﻿module hle.modules {
-    export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, arguments: string, _this: any, internalFunc: Function) {
-        var code = '';
+﻿import _cpu = require('../core/cpu');
+import _memory = require('../core/memory');
 
-        var args = [];
-        var argindex = 4;
+import Memory = _memory.Memory;
+export import NativeFunction = _cpu.NativeFunction;
 
-        function _readGpr32() {
-			return 'state.' + core.cpu.CpuState.getGprAccessName(argindex++);
-		}
+export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, arguments: string, _this: any, internalFunc: Function) {
+    var code = '';
 
-		function readGpr32_S() {
-			return '(' + _readGpr32() + ' | 0)';
-		}
+    var args = [];
+    var argindex = 4;
 
-		function readGpr32_U() {
-			return '(' + _readGpr32() + ' >>> 0)';
-		}
+    function _readGpr32() {
+		return 'state.gpr[' + (argindex++) + ']';
+	}
 
-		function readGpr64() {
-			argindex = MathUtils.nextAligned(argindex, 2);
-			var gprLow = readGpr32_S();
-			var gprHigh = readGpr32_S();
-			return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
-		}
+	function readGpr32_S() {
+		return '(' + _readGpr32() + ' | 0)';
+	}
 
-        arguments.split('/').forEach(item => {
-            switch (item) {
-                case 'EmulatorContext': args.push('context'); break;
-                case 'HleThread': args.push('state.thread'); break;
-                case 'CpuState': args.push('state'); break;
-                case 'Memory': args.push('state.memory'); break;
-				case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;
-				case 'uint': args.push(readGpr32_U() + ' >>> 0'); break;
-				case 'int': args.push(readGpr32_S() + ' | 0'); break;
-				case 'ulong': case 'long': args.push(readGpr64()); break;
-				case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
-                case '': break;
-                default: throw ('Invalid argument "' + item + '"');
-            }
-        });
+	function readGpr32_U() {
+		return '(' + _readGpr32() + ' >>> 0)';
+	}
 
-        code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+	function readGpr64() {
+		argindex = MathUtils.nextAligned(argindex, 2);
+		var gprLow = readGpr32_S();
+		var gprHigh = readGpr32_S();
+		return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
+	}
 
-		code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
-		code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
-
-        switch (retval) {
-            case 'void': break;
-			case 'uint': case 'int': code += 'state.V0 = result | 0;'; break;
-			case 'float': code += 'state.fpr[0] = result;'; break;
-			case 'long':
-				code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
-                code += 'state.V0 = result.low; state.V1 = result.high;'; break;
-                break;
-            default: throw ('Invalid return value "' + retval + '"');
+    arguments.split('/').forEach(item => {
+        switch (item) {
+            case 'EmulatorContext': args.push('context'); break;
+            case 'HleThread': args.push('state.thread'); break;
+            case 'CpuState': args.push('state'); break;
+            case 'Memory': args.push('state.memory'); break;
+			case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;
+			case 'uint': args.push(readGpr32_U() + ' >>> 0'); break;
+			case 'int': args.push(readGpr32_S() + ' | 0'); break;
+			case 'ulong': case 'long': args.push(readGpr64()); break;
+			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
+            case '': break;
+            default: throw ('Invalid argument "' + item + '"');
         }
+    });
 
-        var nativeFunction = new core.NativeFunction();
-        nativeFunction.name = 'unknown';
-        nativeFunction.nid = exportId;
-        nativeFunction.firmwareVersion = firmwareVersion;
-        //console.log(code);
-        var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
-		nativeFunction.call = (context: EmulatorContext, state: core.cpu.CpuState) => {
-            func(_this, internalFunc, context, state, nativeFunction);
-        };
-        //console.log(out);
-        return nativeFunction;
+    code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+
+	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
+	code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
+
+    switch (retval) {
+        case 'void': break;
+		case 'uint': case 'int': code += 'state.V0 = result | 0;'; break;
+		case 'float': code += 'state.fpr[0] = result;'; break;
+		case 'long':
+			code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
+            code += 'state.V0 = result.low; state.V1 = result.high;'; break;
+            break;
+        default: throw ('Invalid return value "' + retval + '"');
     }
-}
 
-function waitAsycn(timems: number) {
-	return new Promise((resolve, reject) => {
-		setTimeout(resolve, timems);
-	});
-}
-
-function downloadFileAsync(url: string) {
-	return new Promise<ArrayBuffer>((resolve, reject) => {
-		var request = new XMLHttpRequest();
-
-		request.open("GET", url, true);
-		request.overrideMimeType("text/plain; charset=x-user-defined");
-		request.responseType = "arraybuffer";
-		request.onload = function (e) {
-			console.log('request.onload -> ' + request.status);
-			if (request.status < 400) {
-				var arraybuffer: ArrayBuffer = request.response; // not responseText
-				//var data = new Uint8Array(arraybuffer);
-				resolve(arraybuffer);
-				//console.log(data);
-				//console.log(data.length);
-			} else {
-				reject(new Error("HTTP " + request.status));
-			}
-		};
-		request.onerror = function (e) {
-			console.error('request.onerror');
-			reject(e['error']);
-		};
-		request.send();
-	});
-}
-
-interface StatInfo {
-	size: number;
-	date: Date;
-}
-
-function statFileAsync(url: string) {
-	return new Promise<StatInfo>((resolve, reject) => {
-		var request = new XMLHttpRequest();
-
-		console.info('HEAD:', url);
-		console.info(request);
-		request.open("HEAD", url, true);
-		request.overrideMimeType("text/plain; charset=x-user-defined");
-		request.responseType = "arraybuffer";
-		request.onload = function (e) {
-			var headers = request.getAllResponseHeaders();
-			var date = new Date();
-			var size = 0;
-
-			console.info(headers);
-
-			var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
-			if (sizeMatch) size = parseInt(sizeMatch[1]);
-
-			var dateMatch = headers.match(/date:(.*)/i);
-			if (dateMatch) {
-				//console.log(dateMatch);
-				date = new Date(Date.parse(dateMatch[1].trim()));
-			}
-
-			console.log('date', date);
-			console.log('size', size);
-
-			resolve({
-				size: size,
-				date: date
-			});
-			//console.log(data);
-			//console.log(data.length);
-		};
-		request.onerror = function (e) {
-			reject(e['error']);
-		};
-		request.send();
-	});
+    var nativeFunction = new NativeFunction();
+    nativeFunction.name = 'unknown';
+    nativeFunction.nid = exportId;
+    nativeFunction.firmwareVersion = firmwareVersion;
+    //console.log(code);
+    var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
+	nativeFunction.call = (context, state) => {
+        func(_this, internalFunc, context, state, nativeFunction);
+    };
+    //console.log(out);
+    return nativeFunction;
 }

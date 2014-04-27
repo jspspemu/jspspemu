@@ -1,0 +1,20 @@
+﻿import _file = require('./manager/file'); _file.Device;
+import _memory = require('./manager/memory'); _memory.MemoryManager;
+import _module = require('./manager/module'); _module.ModuleManager;
+import _thread = require('./manager/thread'); _thread.Thread;
+
+export import Device = _file.Device;
+export import FileManager = _file.FileManager;
+export import HleDirectory = _file.HleDirectory;
+export import HleFile = _file.HleFile;
+export import Uri = _file.Uri;
+
+export import MemoryAnchor = _memory.MemoryAnchor;
+export import MemoryManager = _memory.MemoryManager;
+export import MemoryPartition = _memory.MemoryPartition;
+
+export import ModuleManager = _module.ModuleManager;
+export import ModuleWrapper = _module.ModuleWrapper;
+
+export import Thread = _thread.Thread;
+export import ThreadManager = _thread.ThreadManager;

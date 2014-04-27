@@ -38,7 +38,13 @@
         var expect = chai.expect;
         var assert = chai.assert;
     </script>
-    <script src="pspemu.js"></script>
+
+    <script src="js/src/util/async.js"></script>
+    <script src="js/src/util/int64.js"></script>
+    <script src="js/src/util/math.js"></script>
+    <script src="js/src/util/stream.js"></script>
+    <script src="js/src/util/struct.js"></script>
+    <script src="js/src/util/utils.js"></script>
 
     <link rel="stylesheet" href="pspemu.css" />
 </head>
@@ -171,9 +177,8 @@
 
         //$(window).on('select', function (e) { e.preventDefault() });
         //<a href="index.html?' + fileName + '" style="color:white;">
-
-        main();
-        controllerRegister();
     </script>
+
+    <script data-main="js/src/app.js" src="lib/require.js"></script>
 </body>
 </html>
