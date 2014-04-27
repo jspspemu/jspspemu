@@ -130,6 +130,7 @@
 
 		constructor(private gl: WebGLRenderingContext) {
 			this.texture = gl.createTexture();
+			console.warn('New texture allocated!', this.texture);
 		}
 
 		setInfo(state: GpuState) {
@@ -228,6 +229,7 @@
 
 		private texturesByHash2: StringDictionary<Texture> = {};
 		private texturesByHash1: StringDictionary<Texture> = {};
+		private texturesByAddress: NumberDictionary<Texture> = {};
 		private recheckTimestamp: number = 0;
 		private lastTexture: Texture;
 		//private updatedTextures = new SortedSet<Texture>();
@@ -290,6 +292,8 @@
 		bindTexture(prog: WrappedWebGLProgram, state: GpuState) {
 			var gl = this.gl;
 
+			var mipmap = state.texture.mipmaps[0];
+
 			var hash1 = Texture.hashFast(state);
 			var texture = this.texturesByHash1[hash1];
 			//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
@@ -301,7 +305,11 @@
 				texture = this.texturesByHash2[hash2];
 
 				if (!texture) {
-					texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
+					if (!this.texturesByAddress[mipmap.address]) {
+						this.texturesByAddress[mipmap.address] = new Texture(gl);
+					}
+
+					texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = this.texturesByAddress[mipmap.address];
 
 					texture.setInfo(state);
 					texture.hash1 = hash1;
@@ -357,7 +365,6 @@
 							);
 						texture.fromCanvas(canvas);
 					}
-
 				}
 			}
 

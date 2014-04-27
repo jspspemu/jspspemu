@@ -7238,6 +7238,7 @@ var core;
                     this.gl = gl;
                     this.valid = true;
                     this.texture = gl.createTexture();
+                    console.warn('New texture allocated!', this.texture);
                 }
                 Texture.prototype.setInfo = function (state) {
                     var texture = state.texture;
@@ -7336,6 +7337,7 @@ var core;
                     this.gl = gl;
                     this.texturesByHash2 = {};
                     this.texturesByHash1 = {};
+                    this.texturesByAddress = {};
                     this.recheckTimestamp = 0;
                     //private updatedTextures = new SortedSet<Texture>();
                     this.invalidatedMemoryFlag = true;
@@ -7394,6 +7396,8 @@ var core;
                 TextureHandler.prototype.bindTexture = function (prog, state) {
                     var gl = this.gl;
 
+                    var mipmap = state.texture.mipmaps[0];
+
                     var hash1 = Texture.hashFast(state);
                     var texture = this.texturesByHash1[hash1];
 
@@ -7405,7 +7409,11 @@ var core;
                         texture = this.texturesByHash2[hash2];
 
                         if (!texture) {
-                            texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = new Texture(gl);
+                            if (!this.texturesByAddress[mipmap.address]) {
+                                this.texturesByAddress[mipmap.address] = new Texture(gl);
+                            }
+
+                            texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = this.texturesByAddress[mipmap.address];
 
                             texture.setInfo(state);
                             texture.hash1 = hash1;
