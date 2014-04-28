@@ -56,7 +56,7 @@ export class ElfPspModuleImport {
 	nidAddress: number;
 	callAddress: number;
 
-	static struct = Struct.create<ElfPspModuleImport>([
+	static struct = StructClass.create<ElfPspModuleImport>(ElfPspModuleImport, [
 		{ nameOffset: UInt32 },
 		{ version: UInt16 },
 		{ flags: UInt16 },
@@ -77,7 +77,7 @@ export class ElfPspModuleExport {
 	functionCount: number;
 	exports: number;
 
-	static struct = Struct.create([
+	static struct = StructClass.create<ElfPspModuleExport>(ElfPspModuleExport, [
 		{ name: UInt32 },
 		{ version: UInt16 },
 		{ flags: UInt16 },

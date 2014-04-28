@@ -23,6 +23,7 @@
     <Content Include="lib\gl-matrix.js" />
     <Content Include="index.html" />
     <Content Include="lib\jquery-2.1.0.js" />
+    <Content Include="lib\lib-typedarrays-min.js" />
     <Content Include="lib\mocha.css" />
     <Content Include="lib\mocha.js" />
     <Content Include="lib\require.js" />
@@ -57,6 +58,8 @@
     <TypeScriptCompile Include="src\core\gpu\webgl\texture.ts" />
     <TypeScriptCompile Include="src\core\gpu\webgl\utils.ts" />
     <TypeScriptCompile Include="src\core\interrupt.ts" />
+    <TypeScriptCompile Include="src\core\kirk\kirk.ts" />
+    <TypeScriptCompile Include="src\core\kirk\crypto.ts" />
     <TypeScriptCompile Include="src\core\pixelformat.ts" />
     <TypeScriptCompile Include="src\emulator.ts" />
     <TypeScriptCompile Include="src\format\cso.ts" />
