@@ -13,6 +13,7 @@
 				return 'zip';
 			case '\u0000PBP': return 'pbp';
 			case '\u007FELF': return 'elf';
+			case '~PSP': return 'psp';
 			case 'CISO': return 'ciso';
 			case '\u0000\u0000\u0000\u0000':
 				return asyncStream.readChunkAsync(0x10 * 0x800, 6).then(data => {

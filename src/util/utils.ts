@@ -264,7 +264,12 @@ declare function unescape(input: string): string;
 
 class Utf8 {
 	static decode(input: string): string {
-		return decodeURIComponent(escape(input));
+		try {
+			return decodeURIComponent(escape(input));
+		} catch (e) {
+			console.error(e);
+			return input;
+		}
 	}
 
 	static encode(input: string): string {

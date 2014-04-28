@@ -10,9 +10,11 @@ import _format = require('./format/format');
 import _format_cso = require('./format/cso');
 import _format_iso = require('./format/iso');
 import _format_zip = require('./format/zip');
-import _format_pbp = require('./format/pbp');
+import _pbp = require('./format/pbp');
+import _psf = require('./format/psf');
 import _vfs = require('./hle/vfs');
 import _elf_psp = require('./hle/elf_psp');
+import _elf_crypted_prx = require('./hle/elf_crypted_prx');
 
 import _manager_memory = require('./hle/manager/memory');
 import _manager_file = require('./hle/manager/file');
@@ -119,6 +121,42 @@ export class Emulator {
 		});
 	}
 
+	private gameTitle: string = '';
+
+	private processParamsPsf(psf: _psf.Psf) {
+		this.gameTitle = psf.entriesByName['TITLE'];
+		console.log(psf.entriesByName);
+	}
+
+	private changeFavicon(src) {
+		var link = document.createElement('link'),
+			oldLink = document.getElementById('dynamic-favicon');
+		link.id = 'dynamic-favicon';
+		link.rel = 'shortcut icon';
+		link.href = src;
+		if (oldLink) {
+			document.head.removeChild(oldLink);
+		}
+		document.head.appendChild(link);
+	}
+
+	private loadIcon0(data: Stream) {
+		//console.log('loadIcon0---------');
+		//console.log(data);
+		this.changeFavicon(data.toImageUrl());
+		//var item = document.head.querySelector('link[rel="shortcut icon"]');
+		//item['href'] = ;
+	}
+
+	private loadPic1(data: Stream) {
+		//console.log('loadPic1---------');
+		//console.log(data);
+		document.body.style.backgroundRepeat = 'no-repeat';
+		document.body.style.backgroundSize = 'cover';
+		document.body.style.backgroundPosition = 'center center';
+		document.body.style.backgroundImage = 'url("' + data.toImageUrl() + '")';
+	}
+
 	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string) {
 		return _format.detectFormatAsync(asyncStream).then((fileFormat):any => {
 			console.info(sprintf('File:: size: %d, format: "%s", name: "%s"', asyncStream.size, fileFormat, asyncStream.name));
@@ -127,8 +165,18 @@ export class Emulator {
 					return _format_cso.Cso.fromStreamAsync(asyncStream).then(asyncStream2 => this._loadAndExecuteAsync(asyncStream2, pathToFile));
 				case 'pbp':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						var pbp = _format_pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
-						return this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get('psp.data').toArrayBuffer()), pathToFile);
+						var pbp = _pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
+						var psf = _psf.Psf.fromStream(pbp.get(_pbp.Names.ParamSfo));
+						this.processParamsPsf(psf);
+						this.loadIcon0(pbp.get(_pbp.Names.Icon0Png));
+						this.loadPic1(pbp.get(_pbp.Names.Pic1Png));
+
+						return this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get(_pbp.Names.PspData).toArrayBuffer()), pathToFile);
+					});
+				case 'psp':
+					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
+						_elf_crypted_prx.decrypt(new Uint8Array(executableArrayBuffer));
+						throw (new Error("Not supported encrypted elf files yet!"));
 					});
 				case 'zip':
 					return _format_zip.Zip.fromStreamAsync(asyncStream).then(zip => {
@@ -152,14 +200,30 @@ export class Emulator {
 						this.fileManager.mount('umd0', isoFs);
 						this.fileManager.mount('disc0', isoFs);
 
-						return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', FileOpenFlags.Read, parseInt('777', 8)).then(file => {
-							return file.readAllAsync().then((data) => {
-								return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+						return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(paramSfoData => {
+							var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
+							this.processParamsPsf(psf);
+
+							return isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(icon0DataPng => {
+								this.loadIcon0(Stream.fromArrayBuffer(icon0DataPng));
+								return isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(pic1DataPng => {
+									this.loadPic1(Stream.fromArrayBuffer(pic1DataPng));
+									return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(bootBinData => {
+										return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+									});
+								});
 							});
 						});
+
 					});
 				case 'elf':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
+						if (this.gameTitle) {
+							document.title = this.gameTitle + ' - jspspemu';
+						} else {
+							document.title = 'jspspemu';
+						}
+
 						var mountableVfs = (<MountableVfs>this.fileManager.getDevice('ms0').vfs);
 						mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
@@ -193,6 +257,7 @@ export class Emulator {
 	}
 
 	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string) {
+		this.gameTitle = '';
 		return this.loadAndExecuteAsync(asyncStream, url).then(() => {
 			//console.error('WAITING!');
 			return this.threadManager.waitExitGameAsync().then(() => {

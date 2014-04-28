@@ -5795,8 +5795,14 @@ var PspInterrupts = exports.PspInterrupts;
 "src/core/kirk": function(module, exports, require) {
 var _kirk = require('./kirk/kirk');
 _kirk.CMD7;
+var KIRK_AES128CBC_HEADER = _kirk.KIRK_AES128CBC_HEADER;
+exports.KIRK_AES128CBC_HEADER = KIRK_AES128CBC_HEADER;
+var KirkMode = _kirk.KirkMode;
+exports.KirkMode = KirkMode;
 var CMD7 = _kirk.CMD7;
 exports.CMD7 = CMD7;
+var decryptAes128CbcWithKey = _kirk.decryptAes128CbcWithKey;
+exports.decryptAes128CbcWithKey = decryptAes128CbcWithKey;
 //# sourceMappingURL=kirk.js.map
 },
 "src/core/kirk/crypto": function(module, exports, require) {
@@ -5923,17 +5929,22 @@ var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 
 
 // ------------------------- KEY VAULT END -------------------------
 // ------------------------- INTERNAL STUFF -------------------------
-var KirkMode;
 (function (KirkMode) {
     KirkMode[KirkMode["Cmd1"] = 1] = "Cmd1";
     KirkMode[KirkMode["Cmd2"] = 2] = "Cmd2";
     KirkMode[KirkMode["Cmd3"] = 3] = "Cmd3";
     KirkMode[KirkMode["EncryptCbc"] = 4] = "EncryptCbc";
     KirkMode[KirkMode["DecryptCbc"] = 5] = "DecryptCbc";
-})(KirkMode || (KirkMode = {}));
+})(exports.KirkMode || (exports.KirkMode = {}));
+var KirkMode = exports.KirkMode;
 
 var KIRK_AES128CBC_HEADER = (function () {
     function KIRK_AES128CBC_HEADER() {
+        this.mode = 0;
+        this.unk_4 = 0;
+        this.unk_8 = 0;
+        this.keyseed = 0;
+        this.data_size = 0;
     }
     KIRK_AES128CBC_HEADER.struct = StructClass.create(KIRK_AES128CBC_HEADER, [
         { mode: Int32 },
@@ -5944,6 +5955,7 @@ var KIRK_AES128CBC_HEADER = (function () {
     ]);
     return KIRK_AES128CBC_HEADER;
 })();
+exports.KIRK_AES128CBC_HEADER = KIRK_AES128CBC_HEADER;
 
 //interface KIRK_CMD1_HEADER
 //{
@@ -6098,6 +6110,11 @@ var KIRK_AES128CBC_HEADER = (function () {
 //	return KIRK_OPERATION_SUCCESS;
 //}
 //
+function decryptAes128CbcWithKey(data, keyIndex) {
+    return crypto.aes_decrypt(data, kirk_4_7_get_key(keyIndex));
+}
+exports.decryptAes128CbcWithKey = decryptAes128CbcWithKey;
+
 function CMD7(inbuff) {
     var inbuffStream = Stream.fromUint8Array(inbuff);
     var header = KIRK_AES128CBC_HEADER.struct.read(inbuffStream);
@@ -6107,9 +6124,7 @@ function CMD7(inbuff) {
     if (header.data_size == 0)
         throw (new Error("Kirk data size == 0"));
 
-    var key = kirk_4_7_get_key(header.keyseed);
-
-    return crypto.aes_decrypt(inbuff.subarray(KIRK_AES128CBC_HEADER.length), key);
+    return exports.decryptAes128CbcWithKey(inbuff.subarray(KIRK_AES128CBC_HEADER.length), header.keyseed);
 }
 exports.CMD7 = CMD7;
 
@@ -7017,9 +7032,11 @@ var _format = require('./format/format');
 var _format_cso = require('./format/cso');
 var _format_iso = require('./format/iso');
 var _format_zip = require('./format/zip');
-var _format_pbp = require('./format/pbp');
+var _pbp = require('./format/pbp');
+var _psf = require('./format/psf');
 var _vfs = require('./hle/vfs');
 var _elf_psp = require('./hle/elf_psp');
+var _elf_crypted_prx = require('./hle/elf_crypted_prx');
 
 var _manager_memory = require('./hle/manager/memory');
 var _manager_file = require('./hle/manager/file');
@@ -7053,6 +7070,7 @@ var ModuleManager = _manager_module.ModuleManager;
 
 var Emulator = (function () {
     function Emulator(memory) {
+        this.gameTitle = '';
         if (!memory)
             memory = Memory.instance;
         this.memory = memory;
@@ -7108,6 +7126,39 @@ var Emulator = (function () {
         });
     };
 
+    Emulator.prototype.processParamsPsf = function (psf) {
+        this.gameTitle = psf.entriesByName['TITLE'];
+        console.log(psf.entriesByName);
+    };
+
+    Emulator.prototype.changeFavicon = function (src) {
+        var link = document.createElement('link'), oldLink = document.getElementById('dynamic-favicon');
+        link.id = 'dynamic-favicon';
+        link.rel = 'shortcut icon';
+        link.href = src;
+        if (oldLink) {
+            document.head.removeChild(oldLink);
+        }
+        document.head.appendChild(link);
+    };
+
+    Emulator.prototype.loadIcon0 = function (data) {
+        //console.log('loadIcon0---------');
+        //console.log(data);
+        this.changeFavicon(data.toImageUrl());
+        //var item = document.head.querySelector('link[rel="shortcut icon"]');
+        //item['href'] = ;
+    };
+
+    Emulator.prototype.loadPic1 = function (data) {
+        //console.log('loadPic1---------');
+        //console.log(data);
+        document.body.style.backgroundRepeat = 'no-repeat';
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center center';
+        document.body.style.backgroundImage = 'url("' + data.toImageUrl() + '")';
+    };
+
     Emulator.prototype._loadAndExecuteAsync = function (asyncStream, pathToFile) {
         var _this = this;
         return _format.detectFormatAsync(asyncStream).then(function (fileFormat) {
@@ -7119,8 +7170,18 @@ var Emulator = (function () {
                     });
                 case 'pbp':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        var pbp = _format_pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
-                        return _this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get('psp.data').toArrayBuffer()), pathToFile);
+                        var pbp = _pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
+                        var psf = _psf.Psf.fromStream(pbp.get(_pbp.Names.ParamSfo));
+                        _this.processParamsPsf(psf);
+                        _this.loadIcon0(pbp.get(_pbp.Names.Icon0Png));
+                        _this.loadPic1(pbp.get(_pbp.Names.Pic1Png));
+
+                        return _this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get(_pbp.Names.PspData).toArrayBuffer()), pathToFile);
+                    });
+                case 'psp':
+                    return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
+                        _elf_crypted_prx.decrypt(new Uint8Array(executableArrayBuffer));
+                        throw (new Error("Not supported encrypted elf files yet!"));
                     });
                 case 'zip':
                     return _format_zip.Zip.fromStreamAsync(asyncStream).then(function (zip) {
@@ -7146,14 +7207,29 @@ var Emulator = (function () {
                         _this.fileManager.mount('umd0', isoFs);
                         _this.fileManager.mount('disc0', isoFs);
 
-                        return isoFs.openAsync('PSP_GAME/SYSDIR/BOOT.BIN', 1 /* Read */, parseInt('777', 8)).then(function (file) {
-                            return file.readAllAsync().then(function (data) {
-                                return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                        return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(function (paramSfoData) {
+                            var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
+                            _this.processParamsPsf(psf);
+
+                            return isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (icon0DataPng) {
+                                _this.loadIcon0(Stream.fromArrayBuffer(icon0DataPng));
+                                return isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (pic1DataPng) {
+                                    _this.loadPic1(Stream.fromArrayBuffer(pic1DataPng));
+                                    return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
+                                        return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                                    });
+                                });
                             });
                         });
                     });
                 case 'elf':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
+                        if (_this.gameTitle) {
+                            document.title = _this.gameTitle + ' - jspspemu';
+                        } else {
+                            document.title = 'jspspemu';
+                        }
+
                         var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
                         mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
@@ -7189,6 +7265,7 @@ var Emulator = (function () {
 
     Emulator.prototype.loadExecuteAndWaitAsync = function (asyncStream, url) {
         var _this = this;
+        this.gameTitle = '';
         return this.loadAndExecuteAsync(asyncStream, url).then(function () {
             //console.error('WAITING!');
             return _this.threadManager.waitExitGameAsync().then(function () {
@@ -7989,6 +8066,8 @@ function detectFormatAsync(asyncStream) {
                 return 'pbp';
             case '\u007FELF':
                 return 'elf';
+            case '~PSP':
+                return 'psp';
             case 'CISO':
                 return 'ciso';
             case '\u0000\u0000\u0000\u0000':
@@ -8442,6 +8521,21 @@ var PbpHeader = (function () {
     return PbpHeader;
 })();
 
+var Names = (function () {
+    function Names() {
+    }
+    Names.ParamSfo = "param.sfo";
+    Names.Icon0Png = "icon0.png";
+    Names.Icon1Pmf = "icon1.pmf";
+    Names.Pic0Png = "pic0.png";
+    Names.Pic1Png = "pic1.png";
+    Names.Snd0At3 = "snd0.at3";
+    Names.PspData = "psp.data";
+    Names.PsarData = "psar.data";
+    return Names;
+})();
+exports.Names = Names;
+
 var Pbp = (function () {
     function Pbp() {
     }
@@ -8468,7 +8562,7 @@ var Pbp = (function () {
         var offsets = this.header.offsets;
         return this.stream.sliceWithLowHigh(offsets[index + 0], offsets[index + 1]);
     };
-    Pbp.names = ["param.sfo", "icon0.png", "icon1.pmf", "pic0.png", "pic1.png", "snd0.at3", "psp.data", "psar.data"];
+    Pbp.names = [Names.ParamSfo, Names.Icon0Png, Names.Icon1Pmf, Names.Pic0Png, Names.Pic1Png, Names.Snd0At3, Names.PspData, Names.PsarData];
     return Pbp;
 })();
 exports.Pbp = Pbp;
@@ -9335,7 +9429,65 @@ module.exports = SceKernelErrors;
 //# sourceMappingURL=SceKernelErrors.js.map
 },
 "src/hle/elf_crypted_prx": function(module, exports, require) {
+var keys144 = require('./elf_crypted_prx_keys_144');
+var keys16 = require('./elf_crypted_prx_keys_16');
+
+var Header = (function () {
+    function Header() {
+    }
+    Header.struct = StructClass.create(Header, [
+        { magic: UInt32 },
+        { modAttr: UInt16 },
+        { compModAttr: UInt16 },
+        { modVerLo: UInt8 },
+        { modVerHi: UInt8 },
+        { moduleName: Stringz(28) },
+        { modVersion: UInt8 },
+        { nsegments: UInt8 },
+        { elfSize: UInt32 },
+        { pspSize: UInt32 },
+        { bootEntry: UInt32 },
+        { modInfoOffset: UInt32 },
+        { bssSize: UInt32 },
+        { segAlign: StructArray(UInt16, 4) },
+        { segAddress: StructArray(UInt32, 4) },
+        { segSize: StructArray(UInt32, 5) },
+        { reserved: StructArray(UInt32, 5) },
+        { devkitVersion: UInt32 },
+        { decMode: UInt8 },
+        { pad: UInt8 },
+        { overlapSize: UInt16 },
+        { aesKey: StructArray(UInt8, 16) },
+        { cmacKey: StructArray(UInt8, 16) },
+        { cmacHeaderHash: StructArray(UInt8, 16) },
+        { compressedSize: UInt32 },
+        { compressedOffset: UInt32 },
+        { unk1: UInt32 },
+        { unk2: UInt32 },
+        { cmacDataHash: StructArray(UInt8, 16) },
+        { tag: UInt32 },
+        { sigcheck: StructArray(UInt8, 88) },
+        { sha1Hash: StructArray(UInt8, 20) },
+        { keyData: StructArray(UInt8, 16) }
+    ]);
+    return Header;
+})();
+
+function getTagInfo(checkTag) {
+    return keys144.g_tagInfo.first(function (item) {
+        return item.tag == checkTag;
+    });
+}
+
+function getTagInfo2(checkTag) {
+    return keys16.g_tagInfo2.first(function (item) {
+        return item.tag == checkTag;
+    });
+}
+
 function decrypt1(input) {
+    var stream = Stream.fromUint8Array(input);
+    console.log(Header.struct.read(stream));
     //kirk.CMD7();
 }
 
@@ -13144,6 +13296,12 @@ var Vfs = (function () {
         return null;
     };
 
+    Vfs.prototype.readAllAsync = function (path) {
+        return this.openAsync(path, 1 /* Read */, parseInt('0777', 8)).then(function (entry) {
+            return entry.readAllAsync();
+        });
+    };
+
     Vfs.prototype.openDirectoryAsync = function (path) {
         return this.openAsync(path, 1 /* Read */, parseInt('0777', 8));
     };
@@ -14292,6 +14450,19 @@ var Stream = (function () {
         return new Stream(new DataView(buffer));
     };
 
+    Stream.prototype.toImageUrl = function () {
+        return 'data:image/png;base64,' + this.toBase64();
+    };
+
+    Stream.prototype.toBase64 = function () {
+        var out = '';
+        var array = this.toUInt8Array();
+        for (var n = 0; n < array.length; n++) {
+            out += String.fromCharCode(array[n]);
+        }
+        return btoa(out);
+    };
+
     Stream.prototype.toUInt8Array = function () {
         return new Uint8Array(this.toArrayBuffer());
     };
@@ -14469,7 +14640,7 @@ var Stream = (function () {
     Stream.prototype.readString = function (count) {
         var str = '';
         for (var n = 0; n < count; n++) {
-            str += String.fromCharCode(this.readInt8());
+            str += String.fromCharCode(this.readUInt8());
         }
         return str;
     };
@@ -14485,7 +14656,7 @@ var Stream = (function () {
         for (var n = 0; n < maxCount; n++) {
             if (this.available <= 0)
                 break;
-            var char = this.readInt8();
+            var char = this.readUInt8();
             if (char == 0)
                 break;
             str += String.fromCharCode(char);
@@ -15205,7 +15376,12 @@ var Utf8 = (function () {
     function Utf8() {
     }
     Utf8.decode = function (input) {
-        return decodeURIComponent(escape(input));
+        try  {
+            return decodeURIComponent(escape(input));
+        } catch (e) {
+            console.error(e);
+            return input;
+        }
     };
 
     Utf8.encode = function (input) {

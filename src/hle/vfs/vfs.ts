@@ -5,6 +5,10 @@
 		return null;
 	}
 
+	readAllAsync(path: string) {
+		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.readAllAsync());
+	}
+
 	openDirectoryAsync(path: string) {
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
 	}

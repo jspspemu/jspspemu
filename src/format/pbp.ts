@@ -14,11 +14,22 @@ class PbpHeader {
 	]);
 }
 
+export class Names {
+	static ParamSfo = "param.sfo";
+	static Icon0Png = "icon0.png";
+	static Icon1Pmf = "icon1.pmf";
+	static Pic0Png = "pic0.png";
+	static Pic1Png = "pic1.png";
+	static Snd0At3 = "snd0.at3";
+	static PspData = "psp.data";
+	static PsarData = "psar.data";
+}
+
 export class Pbp {
 	private header: PbpHeader;
 	private stream: Stream;
 
-	private static names = ["param.sfo", "icon0.png", "icon1.pmf", "pic0.png", "pic1.png", "snd0.at3", "psp.data", "psar.data"];
+	private static names = [Names.ParamSfo, Names.Icon0Png, Names.Icon1Pmf, Names.Pic0Png, Names.Pic1Png, Names.Snd0At3, Names.PspData, Names.PsarData];
 
 	constructor() {
 	}

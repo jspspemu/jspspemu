@@ -52,7 +52,7 @@ var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 
 
 // ------------------------- INTERNAL STUFF -------------------------
 
-enum KirkMode {
+export enum KirkMode {
 	Cmd1 = 1,
 	Cmd2 = 2,
 	Cmd3 = 3,
@@ -60,12 +60,12 @@ enum KirkMode {
 	DecryptCbc = 5,
 }
 
-class KIRK_AES128CBC_HEADER {
-	mode: KirkMode;    
-	unk_4: number;
-	unk_8: number;   
-    keyseed: number;
-	data_size: number;
+export class KIRK_AES128CBC_HEADER {
+	mode: KirkMode = 0;
+	unk_4: number = 0;
+	unk_8: number = 0;   
+    keyseed: number = 0;
+	data_size: number = 0;
 
 	static struct = StructClass.create<KIRK_AES128CBC_HEADER>(KIRK_AES128CBC_HEADER, <StructEntry[]>[ // 0x14
 		{ mode: Int32 },     //0
@@ -230,6 +230,10 @@ class KIRK_AES128CBC_HEADER {
 //}
 //
 
+export function decryptAes128CbcWithKey(data: Uint8Array, keyIndex: number) {
+	return crypto.aes_decrypt(data, kirk_4_7_get_key(keyIndex));
+}
+
 export function CMD7(inbuff: Uint8Array) {
 	var inbuffStream = Stream.fromUint8Array(inbuff);
 	var header = KIRK_AES128CBC_HEADER.struct.read(inbuffStream);
@@ -237,9 +241,7 @@ export function CMD7(inbuff: Uint8Array) {
 	if (header.mode != KirkMode.DecryptCbc) throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
 	if (header.data_size == 0) throw(new Error("Kirk data size == 0"));
 
-	var key = kirk_4_7_get_key(header.keyseed);
-
-	return crypto.aes_decrypt(inbuff.subarray(KIRK_AES128CBC_HEADER.length), key);
+	return decryptAes128CbcWithKey(inbuff.subarray(KIRK_AES128CBC_HEADER.length), header.keyseed);
 }
 
 //

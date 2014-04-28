@@ -48,7 +48,7 @@ class EntryStruct implements IEntryStruct {
 
 export class Psf {
 	public entries: IEntryStruct[] = [];
-	public entriesByName: StringDictionary<IEntryStruct> = {};
+	public entriesByName: StringDictionary<any> = {};
 	private header: HeaderStruct;
 
 	constructor() {

@@ -69,6 +69,19 @@ class Stream {
 		return new Stream(new DataView(buffer));
 	}
 
+	toImageUrl() {
+		return 'data:image/png;base64,' + this.toBase64();
+	}
+
+	toBase64() {
+		var out = '';
+		var array = this.toUInt8Array();
+		for (var n = 0; n < array.length; n++) {
+			out += String.fromCharCode(array[n]);
+		}
+		return btoa(out);
+	}
+
 	toUInt8Array() {
 		return new Uint8Array(this.toArrayBuffer());
 	}
@@ -76,7 +89,6 @@ class Stream {
 	toArrayBuffer() {
 		return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
 	}
-
 
 	sliceWithLength(low: number, count?: number) {
 		return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
@@ -188,7 +200,7 @@ class Stream {
 	readString(count: number) {
 		var str = '';
 		for (var n = 0; n < count; n++) {
-			str += String.fromCharCode(this.readInt8());
+			str += String.fromCharCode(this.readUInt8());
 		}
 		return str;
 	}
@@ -201,7 +213,7 @@ class Stream {
 		var str = '';
 		for (var n = 0; n < maxCount; n++) {
 			if (this.available <= 0) break;
-			var char = this.readInt8();
+			var char = this.readUInt8();
 			if (char == 0) break;
 			str += String.fromCharCode(char);
 		}
