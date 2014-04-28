@@ -69,3 +69,8 @@ function statFileAsync(url: string) {
 		request.send();
 	});
 }
+
+/*
+function storePersistentKeyAsync(name:string, value:any) {
+}
+*/

@@ -40,7 +40,7 @@ class SortedSet<T> {
     }
 
     forEach(callback: (element: T) => void) {
-        this.elements.slice(0).forEach(callback);
+        this.elements.forEach(callback);
     }
 }
 

@@ -79,12 +79,6 @@ export class ThreadManForUser {
 		return Promise.resolve(0);
 	});
 
-	sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, (threadId: number) => {
-		var newThread = this.threadUids.get(threadId);
-		this.threadUids.remove(threadId);
-		return 0;
-	});
-
 	sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'HleThread/int', this, (currentThread: Thread, exitStatus: number) => {
 		console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
@@ -93,13 +87,27 @@ export class ThreadManForUser {
 		throw (new CpuBreakException());
 	});
 
-	sceKernelTerminateThread = createNativeFunction(0x616403BA, 150, 'int', 'int', this, (threadId: number) => {
-		console.info(sprintf('sceKernelTerminateThread: %d', threadId));
-
+	_sceKernelTerminateThread(threadId: number) {
 		var newThread = this.threadUids.get(threadId);
 		newThread.stop();
 		newThread.exitStatus = 0x800201ac;
 		return 0;
+	}
+
+	_sceKernelDeleteThread(threadId: number) {
+		var newThread = this.threadUids.get(threadId);
+		this.threadUids.remove(threadId);
+		return 0;
+	}
+
+	sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, (threadId: number) => {
+		return this._sceKernelDeleteThread(threadId);
+	});
+
+	sceKernelTerminateThread = createNativeFunction(0x616403BA, 150, 'int', 'int', this, (threadId: number) => {
+		console.info(sprintf('sceKernelTerminateThread: %d', threadId));
+
+		return this._sceKernelTerminateThread(threadId);
 	});
 
 	sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'CpuState/int', this, (state: CpuState, exitStatus: number) => {
@@ -108,6 +116,13 @@ export class ThreadManForUser {
 		currentThread.stop();
 		throw (new CpuBreakException());
 	});
+
+	sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, (threadId: number) => {
+		this._sceKernelTerminateThread(threadId);
+		this._sceKernelDeleteThread(threadId);
+		return 0;
+	});
+
 
 	sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, (name: string, functionCallbackAddr: number, argument: number) => {
 		console.warn('Not implemented ThreadManForUser.sceKernelCreateCallback');

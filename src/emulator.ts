@@ -143,7 +143,11 @@ export class Emulator {
 	private loadIcon0(data: Stream) {
 		//console.log('loadIcon0---------');
 		//console.log(data);
-		this.changeFavicon(data.toImageUrl());
+		if (data.length == 0) {
+			this.changeFavicon('icon.png');
+		} else {
+			this.changeFavicon(data.toImageUrl());
+		}
 		//var item = document.head.querySelector('link[rel="shortcut icon"]');
 		//item['href'] = ;
 	}
@@ -269,16 +273,18 @@ export class Emulator {
 	
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
+		this.gameTitle = '';
+		this.loadIcon0(Stream.fromArray([]));
+		this.loadPic1(Stream.fromArray([]));
 		return this.startAsync().then(() => {
 			var parentUrl = url.replace(/\/[^//]+$/, '');
 			console.info('parentUrl: ' + parentUrl);
 			this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new UriVfs(parentUrl));
 			return this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
 		}).catch(e => {
-				console.error(e);
-				console.error(e['stack']);
-				throw (e);
-			});
+			console.error(e);
+			throw (e);
+		});
 	}
 
 	downloadAndExecuteAsync(url: string) {

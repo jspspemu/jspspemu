@@ -4,6 +4,7 @@ import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 import MemoryAnchor = _manager.MemoryAnchor;
+import Thread = _manager.Thread;
 import MemoryPartition = _manager.MemoryPartition;
 
 export class SysMemUserForUser {
@@ -54,7 +55,8 @@ export class SysMemUserForUser {
 		console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
 	});
 
-	sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'string', this, (format: string) => {
+	sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'HleThread/string', this, (thread: Thread, format: string) => {
 		console.info('sceKernelPrintf: ' + format);
+		//console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
 	});
 }

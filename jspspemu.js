@@ -235,6 +235,10 @@ function statFileAsync(url) {
         request.send();
     });
 }
+/*
+function storePersistentKeyAsync(name:string, value:any) {
+}
+*/
 //# sourceMappingURL=async.js.map
 
 ﻿// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
@@ -1467,7 +1471,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -1516,7 +1520,7 @@ var SortedSet = (function () {
     };
 
     SortedSet.prototype.forEach = function (callback) {
-        this.elements.slice(0).forEach(callback);
+        this.elements.forEach(callback);
     };
     return SortedSet;
 })();
@@ -7249,7 +7253,8 @@ var Texture = (function () {
         callbackTex2D();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.generateMipmap(gl.TEXTURE_2D);
+
+        //gl.generateMipmap(gl.TEXTURE_2D);
         gl.bindTexture(gl.TEXTURE_2D, null);
     };
 
@@ -7275,8 +7280,6 @@ var Texture = (function () {
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-        //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -9044,7 +9047,11 @@ var Emulator = (function () {
     Emulator.prototype.loadIcon0 = function (data) {
         //console.log('loadIcon0---------');
         //console.log(data);
-        this.changeFavicon(data.toImageUrl());
+        if (data.length == 0) {
+            this.changeFavicon('icon.png');
+        } else {
+            this.changeFavicon(data.toImageUrl());
+        }
         //var item = document.head.querySelector('link[rel="shortcut icon"]');
         //item['href'] = ;
     };
@@ -9182,6 +9189,9 @@ var Emulator = (function () {
 
     Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
         var _this = this;
+        this.gameTitle = '';
+        this.loadIcon0(Stream.fromArray([]));
+        this.loadPic1(Stream.fromArray([]));
         return this.startAsync().then(function () {
             var parentUrl = url.replace(/\/[^//]+$/, '');
             console.info('parentUrl: ' + parentUrl);
@@ -9189,7 +9199,6 @@ var Emulator = (function () {
             return _this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
         }).catch(function (e) {
             console.error(e);
-            console.error(e['stack']);
             throw (e);
         });
     };
@@ -13384,8 +13393,9 @@ var SysMemUserForUser = (function () {
         this.sceKernelSetCompilerVersion = createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, function (version) {
             console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
         });
-        this.sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'string', this, function (format) {
+        this.sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'HleThread/string', this, function (thread, format) {
             console.info('sceKernelPrintf: ' + format);
+            //console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
         });
     }
     return SysMemUserForUser;
@@ -15581,11 +15591,6 @@ var ThreadManForUser = (function () {
             thread.priority = priority;
             return Promise.resolve(0);
         });
-        this.sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
-            var newThread = _this.threadUids.get(threadId);
-            _this.threadUids.remove(threadId);
-            return 0;
-        });
         this.sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'HleThread/int', this, function (currentThread, exitStatus) {
             console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
@@ -15593,19 +15598,24 @@ var ThreadManForUser = (function () {
             currentThread.stop();
             throw (new CpuBreakException());
         });
+        this.sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
+            return _this._sceKernelDeleteThread(threadId);
+        });
         this.sceKernelTerminateThread = createNativeFunction(0x616403BA, 150, 'int', 'int', this, function (threadId) {
             console.info(sprintf('sceKernelTerminateThread: %d', threadId));
 
-            var newThread = _this.threadUids.get(threadId);
-            newThread.stop();
-            newThread.exitStatus = 0x800201ac;
-            return 0;
+            return _this._sceKernelTerminateThread(threadId);
         });
         this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'CpuState/int', this, function (state, exitStatus) {
             var currentThread = state.thread;
             currentThread.exitStatus = exitStatus;
             currentThread.stop();
             throw (new CpuBreakException());
+        });
+        this.sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, function (threadId) {
+            _this._sceKernelTerminateThread(threadId);
+            _this._sceKernelDeleteThread(threadId);
+            return 0;
         });
         this.sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
             console.warn('Not implemented ThreadManForUser.sceKernelCreateCallback');
@@ -15653,6 +15663,19 @@ var ThreadManForUser = (function () {
     }
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (delayInMicroseconds) {
         return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
+    };
+
+    ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
+        var newThread = this.threadUids.get(threadId);
+        newThread.stop();
+        newThread.exitStatus = 0x800201ac;
+        return 0;
+    };
+
+    ThreadManForUser.prototype._sceKernelDeleteThread = function (threadId) {
+        var newThread = this.threadUids.get(threadId);
+        this.threadUids.remove(threadId);
+        return 0;
     };
 
     ThreadManForUser.prototype._getCurrentMicroseconds = function () {

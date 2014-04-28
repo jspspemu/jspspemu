@@ -204,20 +204,20 @@ export class ThreadManager {
             var threadCount = 0;
             var priority = 2147483648;
 
-            this.threads.forEach((thread) => {
-                if (thread.running) {
-                    threadCount++;
-                    priority = Math.min(priority, thread.priority);
-                }
-            });
+			this.threads.forEach((thread) => {
+				if (thread.running) {
+					threadCount++;
+					priority = Math.min(priority, thread.priority);
+				}
+			});
 
             if (threadCount == 0) break;
 
-            this.threads.forEach((thread) => {
-                if (thread.running) {
-                    if (thread.priority == priority) thread.runStep();
-                }
-            });
+			this.threads.forEach((thread) => {
+				if (thread.running) {
+					if (thread.priority == priority) thread.runStep();
+				}
+			});
 
             var current = window.performance.now();
 			if (current - start >= 100) {
