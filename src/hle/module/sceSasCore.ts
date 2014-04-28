@@ -34,7 +34,7 @@ export class sceSasCore {
 			return SceKernelErrors.ERROR_SAS_INVALID_MAX_VOICES;
 		}
 
-		if (outputMode != OutputMode.PSP_SAS_OUTPUTMODE_STEREO && outputMode != OutputMode.PSP_SAS_OUTPUTMODE_MULTICHANNEL) {
+		if (outputMode != OutputMode.STEREO && outputMode != OutputMode.MULTICHANNEL) {
 			return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
 		}
 
@@ -63,10 +63,39 @@ export class sceSasCore {
 		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
 		return 0;
 	});
+
+	__sceSasRevType = createNativeFunction(0x33D4AB37, 150, 'uint', 'int/int', this, (sasCorePointer: number, waveformEffectType: WaveformEffectType) => {
+		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+		return 0;
+	});
+
+	__sceSasRevVON = createNativeFunction(0xF983B186, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, waveformEffectIsDry: boolean, waveformEffectIsWet: boolean) => {
+		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+		return 0;
+	});
+
+	__sceSasRevEVOL = createNativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, leftVolume: number, rightVolume: number) => {
+		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+		return 0;
+	});
 }
 
 enum OutputMode
 {
-	PSP_SAS_OUTPUTMODE_STEREO = 0,
-	PSP_SAS_OUTPUTMODE_MULTICHANNEL = 1,
+	STEREO = 0,
+	MULTICHANNEL = 1,
+}
+
+enum WaveformEffectType
+{
+	OFF = -1,
+	ROOM = 0,
+	UNK1 = 1,
+	UNK2 = 2,
+	UNK3 = 3,
+	HALL = 4,
+	SPACE = 5,
+	ECHO = 6,
+	DELAY = 7,
+	PIPE = 8,
 }

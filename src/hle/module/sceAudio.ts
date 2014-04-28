@@ -3,27 +3,21 @@ import _context = require('../../context');
 import _audio = require('../../core/audio');
 import createNativeFunction = _utils.createNativeFunction;
 
-enum AudioFormat {
-	Stereo = 0x00,
-	Mono = 0x10,
-}
-
-class Channel {
-	allocated: boolean = false;
-	sampleCount: number = 44100;
-	format: AudioFormat = AudioFormat.Stereo;
-	channel: _audio.PspAudioChannel;
-
-	constructor(public id: number) {
-	}
-}
-
 export class sceAudio {
 	private channels: Channel[] = [];
 
 	constructor(private context: _context.EmulatorContext) {
 		for (var n = 0; n < 8; n++) this.channels.push(new Channel(n));
 	}
+
+	sceAudioOutput2Reserve = createNativeFunction(0x01562BA3, 150, 'uint', 'int', this, (sampleCount: number) => {
+		console.warn('sceAudioOutput2Reserve not implemented!');
+		return 0;
+	});
+
+	sceAudioOutput2OutputBlocking = createNativeFunction(0x2D53F36E, 150, 'uint', 'int/void*', this, (volume: number, buffer: Stream) => {
+		return waitAsycn(10).then(() => 0);
+	});
 
 	sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, (channelId: number, sampleCount: number, format: AudioFormat) => {
 		if (channelId >= this.channels.length) return -1;
@@ -88,4 +82,19 @@ export class sceAudio {
 		console.warn("Not implemented sceAudioGetChannelRestLen");
 		return 0;
 	});
+}
+
+enum AudioFormat {
+	Stereo = 0x00,
+	Mono = 0x10,
+}
+
+class Channel {
+	allocated: boolean = false;
+	sampleCount: number = 44100;
+	format: AudioFormat = AudioFormat.Stereo;
+	channel: _audio.PspAudioChannel;
+
+	constructor(public id: number) {
+	}
 }

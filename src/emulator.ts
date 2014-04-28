@@ -282,10 +282,10 @@ export class Emulator {
 	}
 
 	downloadAndExecuteAsync(url: string) {
-		return downloadFileAsync(url).then((data) => {
+		return UrlAsyncStream.fromUrlAsync(url).then(stream => {
 			setImmediate(() => {
 				// escape try/catch!
-				this.loadAndExecuteAsync(new MemoryAsyncStream(data, url), url);
+				this.loadAndExecuteAsync(stream, url);
 			});
 		});
 	}

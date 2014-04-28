@@ -15,4 +15,9 @@ export class sceSuspendForUser {
 		if (lockType != 0) return SceKernelErrors.ERROR_INVALID_MODE;
 		return 0;
 	});
+
+	sceKernelPowerTick = createNativeFunction(0x090CCB3F, 150, 'uint', 'uint', this, (value: number) => {
+		// prevent screen from turning off!
+		return 0;
+	});
 }

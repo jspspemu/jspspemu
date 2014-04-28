@@ -233,6 +233,7 @@ export class Iso implements AsyncStream {
     private _children: IsoNode[];
     private _childrenByPath: StringDictionary<IsoNode>;
 
+	date: Date = new Date();
 	get name() { return this.asyncStream.name; }
     get root(): IIsoNode { return this._root; }
     get childrenByPath(): StringDictionary<IIsoNode> { return this._childrenByPath; }
@@ -246,7 +247,7 @@ export class Iso implements AsyncStream {
 		path = path.replace(/^\/+/, '');
 		var node = this._childrenByPath[path];
 		if (!node) {
-			console.info(this);
+			//console.info(this);
 			throw (new Error(sprintf("Can't find node '%s'", path)));
 		}
 		return node;
@@ -259,7 +260,8 @@ export class Iso implements AsyncStream {
 	}
 
     loadAsync(asyncStream: AsyncStream): Promise<Iso> {
-        this.asyncStream = asyncStream;
+		this.asyncStream = asyncStream;
+		this.date = asyncStream.date;
 
         if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE) throw (sprintf("Invalid PrimaryVolumeDescriptor.struct size %d != %d", PrimaryVolumeDescriptor.struct.length, SECTOR_SIZE));
 

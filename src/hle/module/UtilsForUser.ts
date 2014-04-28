@@ -19,7 +19,11 @@ export class UtilsForUser {
 		var result = (Date.now() / 1000) | 0;
 		if (pointer) pointer.writeInt32(result);
 		return result;
-    });
+	});
+
+	sceKernelGetGPI = createNativeFunction(0x37FB5C42, 150, 'uint', '', this, () => {
+		return 0;
+	});
 
 	sceKernelUtilsMt19937Init = createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, (memory: Memory, contextPtr: number, seed: number) => {
         console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');

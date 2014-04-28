@@ -23,11 +23,12 @@ class Header {
 }
 
 export class Cso implements AsyncStream {
+	date: Date = new Date();
     private stream: AsyncStream;
     private header: Header;
 	private offsets: Uint32Array;
 
-    static fromStreamAsync(stream: AsyncStream) {
+	static fromStreamAsync(stream: AsyncStream) {
         return new Cso().loadAsync(stream);
     }
 
@@ -76,7 +77,8 @@ export class Cso implements AsyncStream {
     }
 
     private loadAsync(stream: AsyncStream) {
-        this.stream = stream;
+		this.stream = stream;
+		this.date = stream.date;
 
         return stream.readChunkAsync(0, Header.struct.length).then(buffer => {
             var header = this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));

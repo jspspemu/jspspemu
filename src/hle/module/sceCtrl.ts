@@ -33,4 +33,8 @@ export class sceCtrl {
 		console.warn('Not implemented sceCtrl.sceCtrlReadLatch');
 		return 0;
 	});
+
+	sceCtrlSetIdleCancelThreshold = createNativeFunction(0xA7144800, 150, 'uint', 'int/int', this, (idlereset: number, idleback: number) => {
+		return 0;
+	});
 }

@@ -75,4 +75,9 @@ export class sceAtrac3plus {
 	sceAtracGetInternalErrorInfo = createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, (id: number, errorResultPtr: Stream) => {
 		return 0;
 	});
+
+	sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, (id: number, outputChannelPtr: Stream) => {
+		if (outputChannelPtr) outputChannelPtr.writeInt32(0);
+		return 0;
+	});
 }

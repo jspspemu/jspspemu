@@ -108,12 +108,12 @@ export class PspController {
 	private gamepadsButtons = [];
 
 	private frame(timestamp: number) {
-		if (this.analogUp) { this.analogAddY -= 0.1; }
-		else if (this.analogDown) { this.analogAddY += 0.1; }
+		if (this.analogUp) { this.analogAddY -= 0.25; }
+		else if (this.analogDown) { this.analogAddY += 0.25; }
 		else { this.analogAddY *= 0.3; }
 
-		if (this.analogLeft) { this.analogAddX -= 0.1; }
-		else if (this.analogRight) { this.analogAddX += 0.1; }
+		if (this.analogLeft) { this.analogAddX -= 0.25; }
+		else if (this.analogRight) { this.analogAddX += 0.25; }
 		else { this.analogAddX *= 0.3; }
 
 		this.analogAddX = MathUtils.clamp(this.analogAddX, -1, +1);

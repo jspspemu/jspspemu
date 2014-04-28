@@ -32,4 +32,12 @@ export class scePower {
 		this.cpuFreq = cpuFrequency;
 		return 0;
 	});
+
+	scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, () => {
+		return 100;
+	});
+
+	scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, () => {
+		return 1;
+	});
 }

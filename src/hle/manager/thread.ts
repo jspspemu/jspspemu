@@ -29,11 +29,45 @@ export class Thread {
 	waitingName: string = null;
 	waitingObject: any = null;
 	waitingPromise: Promise<any> = null;
+	runningPromise: Promise<number> = null;
+	runningStop: () => void;
 
     constructor(public manager: ThreadManager, public state: CpuState, private instructionCache: InstructionCache) {
         this.state.thread = this;
-        this.programExecutor = new ProgramExecutor(state, instructionCache);
-    }
+		this.programExecutor = new ProgramExecutor(state, instructionCache);
+		this.runningPromise = new Promise((resolve, reject) => { this.runningStop = resolve; });
+	}
+
+	waitEndAsync() {
+		return this.runningPromise;
+	}
+
+	private wakeupCount: number = 0;
+	private wakeupPromise: Promise<number> = null;
+	private wakeupFunc: () => void = null;
+
+	private getWakeupPromise() {
+		if (this.wakeupPromise) return this.wakeupPromise;
+		this.wakeupPromise = new Promise<number>((resolve, reject) => {
+			this.wakeupFunc = resolve;
+		});
+	}
+
+	wakeupSleepAsync() {
+		this.wakeupCount--;
+		this.suspend();
+		return this.getWakeupPromise();
+	}
+
+	wakeupWakeupAsync() {
+		this.wakeupCount++;
+		if (this.wakeupCount >= 0) {
+			this.wakeupFunc();
+			this.wakeupPromise = null;
+			this.wakeupFunc = null;
+		}
+		return Promise.resolve(0);
+	}
 
 	suspend() {
 		//console.log('suspended ' + this.name);
@@ -84,7 +118,8 @@ export class Thread {
     }
 
     stop() {
-        this.running = false;
+		this.running = false;
+		this.runningStop();
 		this.manager.threads.delete(this);
 		this.manager.eventOcurred();
     }

@@ -18,8 +18,8 @@ export class ModuleMgrForUser {
 	});
 
 	sceKernelLoadModule = createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, (path: string, flags: number, sceKernelLMOption: Stream) => {
-		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule(%s, %d)', path, flags));
-		return 0;
+		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
+		return 0x08000000;
 	});
 
 	sceKernelStartModule = createNativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*', this, (moduleId: number, argumentSize: number, argumentPointer: number, status:Stream, sceKernelSMOption:Stream) => {
@@ -30,5 +30,10 @@ export class ModuleMgrForUser {
 	sceKernelGetModuleIdByAddress = createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, (address: number) => {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
 		return -1;
+	});
+
+	sceKernelLoadModuleByID = createNativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*', this, (fileId: number, flags: number, sceKernelLMOption: Stream) => {
+		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
+		return 0;
 	});
 }

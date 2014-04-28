@@ -59,9 +59,41 @@ http.createServer(function(request, response) {
       response.end();
       return;
     }
- 
-	if (fs.statSync(filename).isDirectory()) filename += '/index.html';
- 
+	
+	var stat = fs.statSync(filename);
+	if (stat.isDirectory()) filename += '/index.html';
+	
+	var stat = fs.statSync(filename);
+
+	//console.log(stat);
+
+	var total = stat.size;
+
+	var responseCode = 200;
+	var responseHeaders = {
+		"Content-Type": mime.lookup(filename),
+		"Accept-Ranges": "bytes",
+		"Content-Length": total,
+	};
+	var streamInfo = {bufferSize: 64 * 1024};
+	if (request.headers.range) {
+		var parts = request.headers.range.match(/^bytes=(\d+)-(\d+)$/);
+		if (parts) {
+			responseCode = 206;
+			var start = parseInt(parts[1]);
+			var end = parseInt(parts[2]);
+			streamInfo.start = start;
+			streamInfo.end = end;
+			responseHeaders['Content-Range'] = 'bytes ' + start + '-' + end + '/' + total;
+			responseHeaders['Content-Length'] = ((end - start) + 1);
+		}
+	}
+	//console.log(request.range);
+	
+	var stream = fs.createReadStream(filename, streamInfo)
+	response.writeHead(responseCode, responseHeaders);
+	stream.pipe(response);
+	/*
     fs.readFile(filename, "binary", function(err, file) {
       if(err) {        
         response.writeHead(500, {"Content-Type": "text/plain"});
@@ -71,9 +103,12 @@ http.createServer(function(request, response) {
       }
  
       response.writeHead(200, {"Content-Type": mime.lookup(filename)});
+	  
+	  response.pipe();
       response.write(file, "binary");
       response.end();
     });
+	*/
   });
 }).listen(parseInt(port, 10));
  

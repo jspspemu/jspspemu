@@ -8,11 +8,25 @@ import PixelFormat = _pixelformat.PixelFormat;
 import PspDisplay = _display.PspDisplay;
 
 export class sceDisplay {
-    constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: _context.EmulatorContext) { }
+
+	private mode = 0;
+	private width = 512;
+	private height = 272;
 
     sceDisplaySetMode = createNativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint', this, (mode: number, width: number, height: number) => {
-        console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
+		console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
+		this.mode = mode;
+		this.width = width;
+		this.height = height;
         return 0;
+	});
+
+	sceDisplayGetMode = createNativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*', this, (modePtr: Stream, widthPtr: Stream, heightPtr: Stream) => {
+		if (modePtr) modePtr.writeInt32(this.mode);
+		if (widthPtr) widthPtr.writeInt32(this.width);
+		if (heightPtr) heightPtr.writeInt32(this.height);
+		return 0;
 	});
 
 	_waitVblankAsync() {
@@ -59,6 +73,15 @@ export class sceDisplay {
         this.context.display.sync = sync;
         return 0;
 	});
+
+	sceDisplayGetFrameBuf = createNativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*', this, (topaddrPtr: Stream, bufferWidthPtr: Stream, pixelFormatPtr: Stream, syncPtr: Stream) => {
+		if (topaddrPtr) topaddrPtr.writeInt32(this.context.display.address);
+		if (bufferWidthPtr) bufferWidthPtr.writeInt32(this.context.display.bufferWidth);
+		if (pixelFormatPtr) pixelFormatPtr.writeInt32(this.context.display.pixelFormat);
+		if (syncPtr) syncPtr.writeInt32(this.context.display.sync);
+		return 0;
+	});
+
 
 	sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, () => {
 		this.context.display.updateTime();

@@ -22,6 +22,8 @@ export class Device {
 export class HleFile {
 	cursor = 0;
 
+	asyncOperation: Promise<number> = null;
+
 	constructor(public entry: _vfs.VfsEntry) {
 	}
 

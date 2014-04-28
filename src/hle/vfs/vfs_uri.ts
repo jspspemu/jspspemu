@@ -5,6 +5,7 @@ import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 
 import Vfs = _vfs.Vfs;
 import VfsEntry = _vfs.VfsEntry;
+import VfsEntryStream = _vfs.VfsEntryStream;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
@@ -14,12 +15,18 @@ export class UriVfs extends Vfs {
 		super();
 	}
 
+	private getAbsoluteUrl(path: string) {
+		return this.baseUri + '/' + path;
+	}
+
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 		if (flags & FileOpenFlags.Write) {
 			return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
 		}
 
-		return downloadFileAsync(this.baseUri + '/' + path).then((data) => new MemoryVfsEntry(data));
+		var url = this.getAbsoluteUrl(path);
+
+		return UrlAsyncStream.fromUrlAsync(url).then(stream => new VfsEntryStream(stream));
 	}
 
 	openDirectoryAsync(path: string) {
@@ -27,14 +34,44 @@ export class UriVfs extends Vfs {
 	}
 
 	getStatAsync(path: string): Promise<VfsStat> {
-		return statFileAsync(this.baseUri + '/' + path).then(() => {
-			return {
-				size: 0,
-				isDirectory: false,
-				timeCreation: new Date(),
-				timeLastAccess: new Date(),
-				timeLastModification: new Date(),
-			};
+		var url = this.getAbsoluteUrl(path);
+		return statUrlAsync(url);
+	}
+}
+
+/*
+class UriVfsEntry extends VfsEntry {
+	constructor(private url: string, private _stat: StatInfo) {
+		super();
+		console.log('opened', url, _stat);
+	}
+
+	get isDirectory(): boolean { return false; }
+	get size(): number { return this._stat.size; }
+	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
+		var totalSize = this._stat.size;
+		length = Math.min(length, totalSize - offset);
+		console.info('download chunk ', this.url, offset, length);
+		return downloadFileChunkAsync(this.url, offset, length).then(data => {
+			return data;
 		});
 	}
+	close() { }
+	stat(): VfsStat { return urlStatToVfsStat(this._stat); }
+}
+*/
+
+function urlStatToVfsStat(url: string, info: StatInfo) {
+	return {
+		name: url,
+		size: info.size,
+		isDirectory: false,
+		timeCreation: info.date,
+		timeLastAccess: info.date,
+		timeLastModification: info.date,
+	};
+}
+
+function statUrlAsync(url: string) {
+	return statFileAsync(url).then((info) => urlStatToVfsStat(url, info));
 }

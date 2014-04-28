@@ -169,12 +169,17 @@ Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false 
     });
 }
 
-function downloadFileAsync(url) {
+function downloadFileAsync(url, headers) {
     return new Promise(function (resolve, reject) {
         var request = new XMLHttpRequest();
 
         request.open("GET", url, true);
         request.overrideMimeType("text/plain; charset=x-user-defined");
+        if (headers) {
+            for (var headerKey in headers) {
+                request.setRequestHeader(headerKey, headers[headerKey]);
+            }
+        }
         request.responseType = "arraybuffer";
         request.onerror = function (e) {
             reject(e['error']);
@@ -191,6 +196,13 @@ function downloadFileAsync(url) {
     });
 }
 
+function downloadFileChunkAsync(url, from, count) {
+    var to = (from + count) - 1;
+    return downloadFileAsync(url, {
+        'Range': 'bytes=' + from + '-' + to
+    });
+}
+
 function statFileAsync(url) {
     return new Promise(function (resolve, reject) {
         var request = new XMLHttpRequest();
@@ -202,19 +214,23 @@ function statFileAsync(url) {
             reject(e['error']);
         };
         request.onload = function (e) {
-            var headers = request.getAllResponseHeaders();
-            var date = new Date();
-            var size = 0;
+            if (request.status < 400) {
+                var headers = request.getAllResponseHeaders();
+                var date = new Date();
+                var size = 0;
 
-            var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
-            if (sizeMatch)
-                size = parseInt(sizeMatch[1]);
+                var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
+                if (sizeMatch)
+                    size = parseInt(sizeMatch[1]);
 
-            var dateMatch = headers.match(/date:(.*)/i);
-            if (dateMatch)
-                date = new Date(Date.parse(dateMatch[1].trim()));
+                var dateMatch = headers.match(/date:(.*)/i);
+                if (dateMatch)
+                    date = new Date(Date.parse(dateMatch[1].trim()));
 
-            resolve({ size: size, date: date });
+                resolve({ size: size, date: date });
+            } else {
+                reject(new Error("HTTP " + request.status));
+            }
         };
         request.send();
     });
@@ -655,10 +671,12 @@ var MathUtils = (function () {
 //# sourceMappingURL=math.js.map
 
 ﻿var MemoryAsyncStream = (function () {
-    function MemoryAsyncStream(data, name) {
+    function MemoryAsyncStream(data, name, date) {
         if (typeof name === "undefined") { name = 'memory'; }
+        if (typeof date === "undefined") { date = new Date(); }
         this.data = data;
         this.name = name;
+        this.date = date;
     }
     MemoryAsyncStream.fromArrayBuffer = function (data) {
         return new MemoryAsyncStream(data);
@@ -678,9 +696,46 @@ var MathUtils = (function () {
     return MemoryAsyncStream;
 })();
 
+var UrlAsyncStream = (function () {
+    function UrlAsyncStream(url, stat) {
+        this.url = url;
+        this.stat = stat;
+        this.name = url;
+        this.date = stat.date;
+    }
+    UrlAsyncStream.fromUrlAsync = function (url) {
+        console.info('open ', url);
+        return statFileAsync(url).then(function (stat) {
+            // If file is less  than 5MB, then download it completely
+            if (stat.size < 5 * 1024 * 1024) {
+                return downloadFileAsync(url).then(function (data) {
+                    return MemoryAsyncStream.fromArrayBuffer(data);
+                });
+            } else {
+                return Promise.resolve(new UrlAsyncStream(url, stat));
+            }
+        });
+    };
+
+    Object.defineProperty(UrlAsyncStream.prototype, "size", {
+        get: function () {
+            return this.stat.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        console.info('download chunk', this.url, offset, count);
+        return downloadFileChunkAsync(this.url, offset, count);
+    };
+    return UrlAsyncStream;
+})();
+
 var FileAsyncStream = (function () {
     function FileAsyncStream(file) {
         this.file = file;
+        this.date = file.lastModifiedDate;
     }
     Object.defineProperty(FileAsyncStream.prototype, "name", {
         get: function () {
@@ -939,6 +994,10 @@ var Stream = (function () {
             console.error(e);
             throw (e);
         }
+    };
+
+    Stream.prototype.writeStringz = function (str) {
+        return this.writeString(str + String.fromCharCode(0));
     };
 
     Stream.prototype.readString = function (count) {
@@ -2088,17 +2147,17 @@ var PspController = (function () {
     PspController.prototype.frame = function (timestamp) {
         var _this = this;
         if (this.analogUp) {
-            this.analogAddY -= 0.1;
+            this.analogAddY -= 0.25;
         } else if (this.analogDown) {
-            this.analogAddY += 0.1;
+            this.analogAddY += 0.25;
         } else {
             this.analogAddY *= 0.3;
         }
 
         if (this.analogLeft) {
-            this.analogAddX -= 0.1;
+            this.analogAddX -= 0.25;
         } else if (this.analogRight) {
-            this.analogAddX += 0.1;
+            this.analogAddX += 0.25;
         } else {
             this.analogAddX *= 0.3;
         }
@@ -3611,9 +3670,8 @@ var FunctionGenerator = (function () {
 
                 if (isSimpleLoop) {
                     stms.add(ast.jump(pcToLabel[jumpAddress]));
-
-                    console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
-                    mustDumpFunction = true;
+                    //console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
+                    //mustDumpFunction = true;
                 }
 
                 break;
@@ -9138,10 +9196,10 @@ var Emulator = (function () {
 
     Emulator.prototype.downloadAndExecuteAsync = function (url) {
         var _this = this;
-        return downloadFileAsync(url).then(function (data) {
+        return UrlAsyncStream.fromUrlAsync(url).then(function (stream) {
             setImmediate(function () {
                 // escape try/catch!
-                _this.loadAndExecuteAsync(new MemoryAsyncStream(data, url), url);
+                _this.loadAndExecuteAsync(stream, url);
             });
         });
     };
@@ -9186,6 +9244,7 @@ var Header = (function () {
 
 var Cso = (function () {
     function Cso() {
+        this.date = new Date();
     }
     Cso.fromStreamAsync = function (stream) {
         return new Cso().loadAsync(stream);
@@ -9250,6 +9309,7 @@ var Cso = (function () {
     Cso.prototype.loadAsync = function (stream) {
         var _this = this;
         this.stream = stream;
+        this.date = stream.date;
 
         return stream.readChunkAsync(0, Header.struct.length).then(function (buffer) {
             var header = _this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));
@@ -10210,6 +10270,7 @@ var IsoNode = (function () {
 
 var Iso = (function () {
     function Iso() {
+        this.date = new Date();
     }
     Object.defineProperty(Iso.prototype, "name", {
         get: function () {
@@ -10248,7 +10309,6 @@ var Iso = (function () {
         path = path.replace(/^\/+/, '');
         var node = this._childrenByPath[path];
         if (!node) {
-            console.info(this);
             throw (new Error(sprintf("Can't find node '%s'", path)));
         }
         return node;
@@ -10269,6 +10329,7 @@ var Iso = (function () {
     Iso.prototype.loadAsync = function (asyncStream) {
         var _this = this;
         this.asyncStream = asyncStream;
+        this.date = asyncStream.date;
 
         if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE)
             throw (sprintf("Invalid PrimaryVolumeDescriptor.struct size %d != %d", PrimaryVolumeDescriptor.struct.length, SECTOR_SIZE));
@@ -12067,6 +12128,7 @@ var HleFile = (function () {
     function HleFile(entry) {
         this.entry = entry;
         this.cursor = 0;
+        this.asyncOperation = null;
     }
     HleFile.prototype.close = function () {
         this.entry.close();
@@ -12527,6 +12589,7 @@ var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
 var Thread = (function () {
     function Thread(manager, state, instructionCache) {
+        var _this = this;
         this.manager = manager;
         this.state = state;
         this.instructionCache = instructionCache;
@@ -12540,9 +12603,45 @@ var Thread = (function () {
         this.waitingName = null;
         this.waitingObject = null;
         this.waitingPromise = null;
+        this.runningPromise = null;
+        this.wakeupCount = 0;
+        this.wakeupPromise = null;
+        this.wakeupFunc = null;
         this.state.thread = this;
         this.programExecutor = new ProgramExecutor(state, instructionCache);
+        this.runningPromise = new Promise(function (resolve, reject) {
+            _this.runningStop = resolve;
+        });
     }
+    Thread.prototype.waitEndAsync = function () {
+        return this.runningPromise;
+    };
+
+    Thread.prototype.getWakeupPromise = function () {
+        var _this = this;
+        if (this.wakeupPromise)
+            return this.wakeupPromise;
+        this.wakeupPromise = new Promise(function (resolve, reject) {
+            _this.wakeupFunc = resolve;
+        });
+    };
+
+    Thread.prototype.wakeupSleepAsync = function () {
+        this.wakeupCount--;
+        this.suspend();
+        return this.getWakeupPromise();
+    };
+
+    Thread.prototype.wakeupWakeupAsync = function () {
+        this.wakeupCount++;
+        if (this.wakeupCount >= 0) {
+            this.wakeupFunc();
+            this.wakeupPromise = null;
+            this.wakeupFunc = null;
+        }
+        return Promise.resolve(0);
+    };
+
     Thread.prototype.suspend = function () {
         //console.log('suspended ' + this.name);
         this.running = false;
@@ -12594,6 +12693,7 @@ var Thread = (function () {
 
     Thread.prototype.stop = function () {
         this.running = false;
+        this.runningStop();
         this.manager.threads.delete(this);
         this.manager.eventOcurred();
     };
@@ -12854,15 +12954,26 @@ var IoFileMgrForUser = (function () {
         this.fileUids = new UidCollection(1);
         this.directoryUids = new UidCollection(1);
         this.sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            console.info(sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
-
-            return _this._sceIoOpen(filename, flags, mode);
+            return _this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
+                var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
+                if (result == 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */) {
+                    console.error(str);
+                } else {
+                    console.info(str);
+                }
+                return result;
+            });
         });
         this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
             console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 
             //if (filename == '') return Promise.resolve(0);
-            return _this._sceIoOpen(filename, flags, mode);
+            return _this._sceIoOpenAsync(filename, flags, mode);
+        });
+        this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
+            // IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
+            console.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
+            return 0;
         });
         this.sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
             var file = _this.fileUids.get(fileId);
@@ -12893,21 +13004,57 @@ var IoFileMgrForUser = (function () {
                 return readedData.byteLength;
             });
         });
-        this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
-            _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
-            return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
-                var stat2 = _this._vfsStatToSceIoStat(stat);
-                console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-                _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
-                return 0;
-            }).catch(function (error) {
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+        this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
+            var file = _this.fileUids.get(fileId);
+
+            file.asyncOperation = file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+                file.cursor += readedData.byteLength;
+                _this.context.memory.writeBytes(outputPointer, readedData);
+                return readedData.byteLength;
             });
+
+            return 0;
+        });
+        this.sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'HleThread/int/void*', this, function (thread, fileId, resultPointer) {
+            var file = _this.fileUids.get(fileId);
+            thread.state.LO = fileId;
+
+            if (!file.asyncOperation)
+                file.asyncOperation = Promise.resolve(0);
+
+            return file.asyncOperation.then(function (result) {
+                resultPointer.writeInt64(Integer64.fromNumber(result));
+                return 0;
+            });
+        });
+        this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
+            if (sceIoStatPointer)
+                _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+
+            try  {
+                return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
+                    var stat2 = _this._vfsStatToSceIoStat(stat);
+                    console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
+                    if (sceIoStatPointer)
+                        _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+                    return 0;
+                }).catch(function (error) {
+                    return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                });
+            } catch (e) {
+                console.error(e);
+                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+            }
         });
         this.sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
             console.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
-            _this.context.fileManager.chdir(path);
-            return 0;
+            try  {
+                _this.context.fileManager.chdir(path);
+                return 0;
+            } catch (e) {
+                console.error(e);
+                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+            }
         });
         this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
             var result = _this._seek(fileId, offset.getNumber(), whence);
@@ -12921,6 +13068,10 @@ var IoFileMgrForUser = (function () {
             //console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
             return result;
         });
+        this.sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, function (path, accessMode) {
+            console.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
+            return 0;
+        });
         this.sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (path) {
             console.log('sceIoDopen("' + path + '")');
             return _this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
@@ -12928,7 +13079,7 @@ var IoFileMgrForUser = (function () {
                 return _this.directoryUids.allocate(directory);
             }).catch(function (error) {
                 console.error(error);
-                return -1;
+                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
             });
         });
         this.sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
@@ -12937,6 +13088,8 @@ var IoFileMgrForUser = (function () {
             return 0;
         });
         this.sceIoDread = createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, function (fileId, hleIoDirentPtr) {
+            if (!_this.directoryUids.has(fileId))
+                return -1;
             var directory = _this.directoryUids.get(fileId);
             if (directory.left > 0) {
                 var stat = directory.read();
@@ -12949,16 +13102,27 @@ var IoFileMgrForUser = (function () {
             return directory.left;
         });
     }
-    IoFileMgrForUser.prototype._sceIoOpen = function (filename, flags, mode) {
+    IoFileMgrForUser.prototype._sceIoOpenAsync = function (filename, flags, mode) {
         var _this = this;
         return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
             return _this.fileUids.allocate(file);
-        }).catch(function (e) {
-            console.log('SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND: ' + 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
+        }, function (e) {
             return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
         });
     };
 
+    /*
+    [HlePspFunction(NID = 0xA0B5A7C2, FirmwareVersion = 150)]
+    public int sceIoReadAsync(SceUID FileId, byte * OutputPointer, int OutputSize)
+    {
+    var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+    File.AsyncLastResult = sceIoRead(FileId, OutputPointer, OutputSize);
+    
+    _DelayIo(IoDelayType.Read, OutputSize);
+    
+    return 0;
+    }
+    */
     IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
         var stat2 = new _structs.SceIoStat();
         stat2.mode = parseInt('777', 8);
@@ -13002,9 +13166,16 @@ exports.IoFileMgrForUser = IoFileMgrForUser;
 //# sourceMappingURL=IoFileMgrForUser.js.map
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var KDebugForKernel = (function () {
     function KDebugForKernel(context) {
         this.context = context;
+        this.Kprintf = createNativeFunction(0x84F370BC, 150, 'void', 'string', this, function (format) {
+            console.info('Kprintf: ' + format);
+        });
     }
     return KDebugForKernel;
 })();
@@ -13051,6 +13222,10 @@ var LoadCoreForKernel = (function () {
         this.context = context;
         this.sceKernelIcacheClearAll = createNativeFunction(0xD8779AC6, 150, 'void', '', this, function () {
             _this.context.instructionCache.invalidateAll();
+        });
+        this.sceKernelFindModuleByUID = createNativeFunction(0xCCE4A157, 150, 'int', 'int', this, function (moduleID) {
+            console.warn('Not implemented sceKernelFindModuleByUID(' + moduleID + ')');
+            return 0;
         });
     }
     return LoadCoreForKernel;
@@ -13116,8 +13291,8 @@ var ModuleMgrForUser = (function () {
             return 0;
         });
         this.sceKernelLoadModule = createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, function (path, flags, sceKernelLMOption) {
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule(%s, %d)', path, flags));
-            return 0;
+            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
+            return 0x08000000;
         });
         this.sceKernelStartModule = createNativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*', this, function (moduleId, argumentSize, argumentPointer, status, sceKernelSMOption) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
@@ -13126,6 +13301,10 @@ var ModuleMgrForUser = (function () {
         this.sceKernelGetModuleIdByAddress = createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, function (address) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
             return -1;
+        });
+        this.sceKernelLoadModuleByID = createNativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*', this, function (fileId, flags, sceKernelLMOption) {
+            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
+            return 0;
         });
     }
     return ModuleMgrForUser;
@@ -14034,6 +14213,9 @@ var UtilsForUser = (function () {
                 pointer.writeInt32(result);
             return result;
         });
+        this.sceKernelGetGPI = createNativeFunction(0x37FB5C42, 150, 'uint', '', this, function () {
+            return 0;
+        });
         this.sceKernelUtilsMt19937Init = createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
             console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
             return 0;
@@ -14167,6 +14349,11 @@ var sceAtrac3plus = (function () {
         this.sceAtracGetInternalErrorInfo = createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, function (id, errorResultPtr) {
             return 0;
         });
+        this.sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, function (id, outputChannelPtr) {
+            if (outputChannelPtr)
+                outputChannelPtr.writeInt32(0);
+            return 0;
+        });
     }
     sceAtrac3plus.prototype._waitAsync = function (name, time) {
         return new WaitingThreadInfo(name, this, waitAsycn(time).then(function () {
@@ -14184,27 +14371,20 @@ var _utils = require('../utils');
 var _audio = require('../../core/audio');
 var createNativeFunction = _utils.createNativeFunction;
 
-var AudioFormat;
-(function (AudioFormat) {
-    AudioFormat[AudioFormat["Stereo"] = 0x00] = "Stereo";
-    AudioFormat[AudioFormat["Mono"] = 0x10] = "Mono";
-})(AudioFormat || (AudioFormat = {}));
-
-var Channel = (function () {
-    function Channel(id) {
-        this.id = id;
-        this.allocated = false;
-        this.sampleCount = 44100;
-        this.format = 0 /* Stereo */;
-    }
-    return Channel;
-})();
-
 var sceAudio = (function () {
     function sceAudio(context) {
         var _this = this;
         this.context = context;
         this.channels = [];
+        this.sceAudioOutput2Reserve = createNativeFunction(0x01562BA3, 150, 'uint', 'int', this, function (sampleCount) {
+            console.warn('sceAudioOutput2Reserve not implemented!');
+            return 0;
+        });
+        this.sceAudioOutput2OutputBlocking = createNativeFunction(0x2D53F36E, 150, 'uint', 'int/void*', this, function (volume, buffer) {
+            return waitAsycn(10).then(function () {
+                return 0;
+            });
+        });
         this.sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
             if (channelId >= _this.channels.length)
                 return -1;
@@ -14270,6 +14450,22 @@ var sceAudio = (function () {
     return sceAudio;
 })();
 exports.sceAudio = sceAudio;
+
+var AudioFormat;
+(function (AudioFormat) {
+    AudioFormat[AudioFormat["Stereo"] = 0x00] = "Stereo";
+    AudioFormat[AudioFormat["Mono"] = 0x10] = "Mono";
+})(AudioFormat || (AudioFormat = {}));
+
+var Channel = (function () {
+    function Channel(id) {
+        this.id = id;
+        this.allocated = false;
+        this.sampleCount = 44100;
+        this.format = 0 /* Stereo */;
+    }
+    return Channel;
+})();
 //# sourceMappingURL=sceAudio.js.map
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
@@ -14305,6 +14501,9 @@ var sceCtrl = (function () {
             console.warn('Not implemented sceCtrl.sceCtrlReadLatch');
             return 0;
         });
+        this.sceCtrlSetIdleCancelThreshold = createNativeFunction(0xA7144800, 150, 'uint', 'int/int', this, function (idlereset, idleback) {
+            return 0;
+        });
     }
     return sceCtrl;
 })();
@@ -14324,8 +14523,23 @@ var sceDisplay = (function () {
     function sceDisplay(context) {
         var _this = this;
         this.context = context;
+        this.mode = 0;
+        this.width = 512;
+        this.height = 272;
         this.sceDisplaySetMode = createNativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint', this, function (mode, width, height) {
             console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
+            _this.mode = mode;
+            _this.width = width;
+            _this.height = height;
+            return 0;
+        });
+        this.sceDisplayGetMode = createNativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*', this, function (modePtr, widthPtr, heightPtr) {
+            if (modePtr)
+                modePtr.writeInt32(_this.mode);
+            if (widthPtr)
+                widthPtr.writeInt32(_this.width);
+            if (heightPtr)
+                heightPtr.writeInt32(_this.height);
             return 0;
         });
         this.sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, function (cycleNum) {
@@ -14355,6 +14569,17 @@ var sceDisplay = (function () {
             _this.context.display.bufferWidth = bufferWidth;
             _this.context.display.pixelFormat = pixelFormat;
             _this.context.display.sync = sync;
+            return 0;
+        });
+        this.sceDisplayGetFrameBuf = createNativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*', this, function (topaddrPtr, bufferWidthPtr, pixelFormatPtr, syncPtr) {
+            if (topaddrPtr)
+                topaddrPtr.writeInt32(_this.context.display.address);
+            if (bufferWidthPtr)
+                bufferWidthPtr.writeInt32(_this.context.display.bufferWidth);
+            if (pixelFormatPtr)
+                pixelFormatPtr.writeInt32(_this.context.display.pixelFormat);
+            if (syncPtr)
+                syncPtr.writeInt32(_this.context.display.sync);
             return 0;
         });
         this.sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, function () {
@@ -14513,13 +14738,29 @@ var BatteryStatusEnum;
 //# sourceMappingURL=sceImpose.js.map
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceLibFont = (function () {
     function sceLibFont(context) {
+        var _this = this;
         this.context = context;
+        this.fontLibUid = new UidCollection(1);
+        this.sceFontNewLib = createNativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*', this, function (paramsPtr, errorCodePtr) {
+            var fontLib = new FontLib();
+            return _this.fontLibUid.allocate(fontLib);
+        });
     }
     return sceLibFont;
 })();
 exports.sceLibFont = sceLibFont;
+
+var FontLib = (function () {
+    function FontLib() {
+    }
+    return FontLib;
+})();
 //# sourceMappingURL=sceLibFont.js.map
 },
 "src/hle/module/sceMp3": function(module, exports, require) {
@@ -14685,6 +14926,12 @@ var scePower = (function () {
             _this.cpuFreq = cpuFrequency;
             return 0;
         });
+        this.scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, function () {
+            return 100;
+        });
+        this.scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, function () {
+            return 1;
+        });
     }
     return scePower;
 })();
@@ -14702,13 +14949,64 @@ exports.scePspNpDrm_user = scePspNpDrm_user;
 //# sourceMappingURL=scePspNpDrm_user.js.map
 },
 "src/hle/module/sceReg": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceReg = (function () {
     function sceReg(context) {
         this.context = context;
+        this.sceRegOpenRegistry = createNativeFunction(0x92E41280, 150, 'int', 'void*/int/void*', this, function (regParamPtr, mode, regHandlePtr) {
+            var regParam = RegParam.struct.read(regParamPtr);
+            console.warn('sceRegOpenRegistry: ' + regParam.name);
+            regHandlePtr.writeInt32(0);
+            return 0;
+        });
+        this.sceRegOpenCategory = createNativeFunction(0x1D8A762E, 150, 'int', 'int/string/int/void*', this, function (regHandle, name, mode, regCategoryHandlePtr) {
+            console.warn('sceRegOpenCategory: ' + name);
+            return 0;
+        });
+        this.sceRegGetKeyInfo = createNativeFunction(0xD4475AA8, 150, 'int', 'int/string/void*/void*/void*', this, function (categoryHandle, name, regKeyHandlePtr, regKeyTypesPtr, sizePtr) {
+            console.warn('sceRegGetKeyInfo: ' + name);
+            return 0;
+        });
+        this.sceRegGetKeyValue = createNativeFunction(0x28A8E98A, 150, 'int', 'int/int/void*/int', this, function (categoryHandle, regKeyHandle, bufferPtr, size) {
+            console.warn('sceRegGetKeyValue');
+            return 0;
+        });
+        this.sceRegFlushCategory = createNativeFunction(0x0D69BF40, 150, 'int', 'int', this, function (categoryHandle) {
+            console.warn('sceRegFlushCategory');
+            return 0;
+        });
+        this.sceRegCloseCategory = createNativeFunction(0x0CAE832B, 150, 'int', 'int', this, function (categoryHandle) {
+            console.warn('sceRegCloseCategory');
+            return 0;
+        });
+        this.sceRegFlushRegistry = createNativeFunction(0x39461B4D, 150, 'int', 'int', this, function (regHandle) {
+            console.warn('sceRegFlushRegistry');
+            return 0;
+        });
+        this.sceRegCloseRegistry = createNativeFunction(0xFA8A5739, 150, 'int', 'int', this, function (regHandle) {
+            console.warn('sceRegCloseRegistry');
+            return 0;
+        });
     }
     return sceReg;
 })();
 exports.sceReg = sceReg;
+
+var RegParam = (function () {
+    function RegParam() {
+    }
+    RegParam.struct = StructClass.create(RegParam, [
+        { regType: UInt32 },
+        { name: Stringz(256) },
+        { nameLength: Int32 },
+        { unknown2: Int32 },
+        { unknown3: Int32 }
+    ]);
+    return RegParam;
+})();
 //# sourceMappingURL=sceReg.js.map
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
@@ -14773,7 +15071,7 @@ var sceSasCore = (function () {
                 return 2151809026 /* ERROR_SAS_INVALID_MAX_VOICES */;
             }
 
-            if (outputMode != 0 /* PSP_SAS_OUTPUTMODE_STEREO */ && outputMode != 1 /* PSP_SAS_OUTPUTMODE_MULTICHANNEL */) {
+            if (outputMode != 0 /* STEREO */ && outputMode != 1 /* MULTICHANNEL */) {
                 return 2151809027 /* ERROR_SAS_INVALID_OUTPUT_MODE */;
             }
 
@@ -14799,6 +15097,18 @@ var sceSasCore = (function () {
             //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
             return 0;
         });
+        this.__sceSasRevType = createNativeFunction(0x33D4AB37, 150, 'uint', 'int/int', this, function (sasCorePointer, waveformEffectType) {
+            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+            return 0;
+        });
+        this.__sceSasRevVON = createNativeFunction(0xF983B186, 150, 'uint', 'int/int/int', this, function (sasCorePointer, waveformEffectIsDry, waveformEffectIsWet) {
+            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+            return 0;
+        });
+        this.__sceSasRevEVOL = createNativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int', this, function (sasCorePointer, leftVolume, rightVolume) {
+            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+            return 0;
+        });
     }
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
     sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
@@ -14821,9 +15131,23 @@ exports.sceSasCore = sceSasCore;
 
 var OutputMode;
 (function (OutputMode) {
-    OutputMode[OutputMode["PSP_SAS_OUTPUTMODE_STEREO"] = 0] = "PSP_SAS_OUTPUTMODE_STEREO";
-    OutputMode[OutputMode["PSP_SAS_OUTPUTMODE_MULTICHANNEL"] = 1] = "PSP_SAS_OUTPUTMODE_MULTICHANNEL";
+    OutputMode[OutputMode["STEREO"] = 0] = "STEREO";
+    OutputMode[OutputMode["MULTICHANNEL"] = 1] = "MULTICHANNEL";
 })(OutputMode || (OutputMode = {}));
+
+var WaveformEffectType;
+(function (WaveformEffectType) {
+    WaveformEffectType[WaveformEffectType["OFF"] = -1] = "OFF";
+    WaveformEffectType[WaveformEffectType["ROOM"] = 0] = "ROOM";
+    WaveformEffectType[WaveformEffectType["UNK1"] = 1] = "UNK1";
+    WaveformEffectType[WaveformEffectType["UNK2"] = 2] = "UNK2";
+    WaveformEffectType[WaveformEffectType["UNK3"] = 3] = "UNK3";
+    WaveformEffectType[WaveformEffectType["HALL"] = 4] = "HALL";
+    WaveformEffectType[WaveformEffectType["SPACE"] = 5] = "SPACE";
+    WaveformEffectType[WaveformEffectType["ECHO"] = 6] = "ECHO";
+    WaveformEffectType[WaveformEffectType["DELAY"] = 7] = "DELAY";
+    WaveformEffectType[WaveformEffectType["PIPE"] = 8] = "PIPE";
+})(WaveformEffectType || (WaveformEffectType = {}));
 //# sourceMappingURL=sceSasCore.js.map
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
@@ -14853,6 +15177,10 @@ var sceSuspendForUser = (function () {
         this.sceKernelPowerUnlock = createNativeFunction(0x3AEE7261, 150, 'uint', 'uint', this, function (lockType) {
             if (lockType != 0)
                 return 2147483911 /* ERROR_INVALID_MODE */;
+            return 0;
+        });
+        this.sceKernelPowerTick = createNativeFunction(0x090CCB3F, 150, 'uint', 'uint', this, function (value) {
+            // prevent screen from turning off!
             return 0;
         });
     }
@@ -14927,6 +15255,10 @@ var sceUtility = (function () {
         var _this = this;
         this.context = context;
         this.currentStep = 0 /* NONE */;
+        this.sceUtilityLoadModule = createNativeFunction(0x2A2B3DE0, 150, 'uint', 'int', this, function (pspModule) {
+            console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
+            return Promise.resolve(0);
+        });
         this.sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
             _this.currentStep = 3 /* SUCCESS */;
             return 0;
@@ -14942,11 +15274,6 @@ var sceUtility = (function () {
                 if (_this.currentStep == 4 /* SHUTDOWN */)
                     _this.currentStep = 0 /* NONE */;
             }
-        });
-        this.sceUtilityGetSystemParamInt = createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, function (id, valuePtr) {
-            console.warn("Not implemented sceUtilityGetSystemParamInt");
-            valuePtr.writeInt32(0);
-            return 0;
         });
         this.sceUtilityMsgDialogInitStart = createNativeFunction(0x2AD8E239, 150, 'uint', 'void*', this, function (paramsPtr) {
             console.warn("Not implemented sceUtilityMsgDialogInitStart");
@@ -14964,7 +15291,41 @@ var sceUtility = (function () {
         });
         this.sceUtilityMsgDialogUpdate = createNativeFunction(0x9A1C91D7, 150, 'uint', 'int', this, function (value) {
         });
+        this.sceUtilityGetSystemParamInt = createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, function (id, valuePtr) {
+            console.warn("Not implemented sceUtilityGetSystemParamInt");
+            valuePtr.writeInt32(0);
+            return 0;
+        });
+        this.sceUtilityGetSystemParamString = createNativeFunction(0x34B78343, 150, 'uint', 'int/void*/int', this, function (id, strPtr, len) {
+            var value = String(_this._getKey(id));
+            value = value.substr(0, Math.min(value.length, len - 1));
+            strPtr.writeStringz(value);
+            return 0;
+        });
     }
+    sceUtility.prototype._getKey = function (id) {
+        switch (id) {
+            case 2 /* INT_ADHOC_CHANNEL */:
+                return 0 /* AUTOMATIC */;
+            case 3 /* INT_WLAN_POWERSAVE */:
+                return 1 /* ON */;
+            case 4 /* INT_DATE_FORMAT */:
+                return 0 /* YYYYMMDD */;
+            case 5 /* INT_TIME_FORMAT */:
+                return 0 /* _24HR */;
+            case 6 /* INT_TIMEZONE */:
+                return -5 * 60;
+            case 7 /* INT_DAYLIGHTSAVINGS */:
+                return 0 /* STD */;
+            case 8 /* INT_LANGUAGE */:
+                return 1 /* ENGLISH */;
+            case 9 /* INT_BUTTON_PREFERENCE */:
+                return 1 /* NA */;
+            case 1 /* STRING_NICKNAME */:
+                return "USERNAME";
+        }
+        throw (new Error("Invalid key " + id));
+    };
     return sceUtility;
 })();
 exports.sceUtility = sceUtility;
@@ -14990,6 +15351,139 @@ var DialogStepEnum;
     DialogStepEnum[DialogStepEnum["SUCCESS"] = 3] = "SUCCESS";
     DialogStepEnum[DialogStepEnum["SHUTDOWN"] = 4] = "SHUTDOWN";
 })(DialogStepEnum || (DialogStepEnum = {}));
+
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_ADHOC_CHANNEL
+/// </summary>
+var PSP_SYSTEMPARAM_ADHOC_CHANNEL;
+(function (PSP_SYSTEMPARAM_ADHOC_CHANNEL) {
+    PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["AUTOMATIC"] = 0] = "AUTOMATIC";
+    PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C1"] = 1] = "C1";
+    PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C6"] = 6] = "C6";
+    PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C11"] = 11] = "C11";
+})(PSP_SYSTEMPARAM_ADHOC_CHANNEL || (PSP_SYSTEMPARAM_ADHOC_CHANNEL = {}));
+
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_WLAN_POWERSAVE
+/// </summary>
+var PSP_SYSTEMPARAM_WLAN_POWERSAVE;
+(function (PSP_SYSTEMPARAM_WLAN_POWERSAVE) {
+    PSP_SYSTEMPARAM_WLAN_POWERSAVE[PSP_SYSTEMPARAM_WLAN_POWERSAVE["OFF"] = 0] = "OFF";
+    PSP_SYSTEMPARAM_WLAN_POWERSAVE[PSP_SYSTEMPARAM_WLAN_POWERSAVE["ON"] = 1] = "ON";
+})(PSP_SYSTEMPARAM_WLAN_POWERSAVE || (PSP_SYSTEMPARAM_WLAN_POWERSAVE = {}));
+
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT
+/// </summary>
+var PSP_SYSTEMPARAM_DATE_FORMAT;
+(function (PSP_SYSTEMPARAM_DATE_FORMAT) {
+    PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["YYYYMMDD"] = 0] = "YYYYMMDD";
+    PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["MMDDYYYY"] = 1] = "MMDDYYYY";
+    PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["DDMMYYYY"] = 2] = "DDMMYYYY";
+})(PSP_SYSTEMPARAM_DATE_FORMAT || (PSP_SYSTEMPARAM_DATE_FORMAT = {}));
+
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT
+/// </summary>
+var PSP_SYSTEMPARAM_TIME_FORMAT;
+(function (PSP_SYSTEMPARAM_TIME_FORMAT) {
+    PSP_SYSTEMPARAM_TIME_FORMAT[PSP_SYSTEMPARAM_TIME_FORMAT["_24HR"] = 0] = "_24HR";
+    PSP_SYSTEMPARAM_TIME_FORMAT[PSP_SYSTEMPARAM_TIME_FORMAT["_12HR"] = 1] = "_12HR";
+})(PSP_SYSTEMPARAM_TIME_FORMAT || (PSP_SYSTEMPARAM_TIME_FORMAT = {}));
+
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_DAYLIGHTSAVINGS
+/// </summary>
+var PSP_SYSTEMPARAM_DAYLIGHTSAVINGS;
+(function (PSP_SYSTEMPARAM_DAYLIGHTSAVINGS) {
+    PSP_SYSTEMPARAM_DAYLIGHTSAVINGS[PSP_SYSTEMPARAM_DAYLIGHTSAVINGS["STD"] = 0] = "STD";
+    PSP_SYSTEMPARAM_DAYLIGHTSAVINGS[PSP_SYSTEMPARAM_DAYLIGHTSAVINGS["SAVING"] = 1] = "SAVING";
+})(PSP_SYSTEMPARAM_DAYLIGHTSAVINGS || (PSP_SYSTEMPARAM_DAYLIGHTSAVINGS = {}));
+
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_LANGUAGE
+/// </summary>
+var PSP_SYSTEMPARAM_LANGUAGE;
+(function (PSP_SYSTEMPARAM_LANGUAGE) {
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["JAPANESE"] = 0] = "JAPANESE";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["ENGLISH"] = 1] = "ENGLISH";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["FRENCH"] = 2] = "FRENCH";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["SPANISH"] = 3] = "SPANISH";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["GERMAN"] = 4] = "GERMAN";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["ITALIAN"] = 5] = "ITALIAN";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["DUTCH"] = 6] = "DUTCH";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["PORTUGUESE"] = 7] = "PORTUGUESE";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["RUSSIAN"] = 8] = "RUSSIAN";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["KOREAN"] = 9] = "KOREAN";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["CHINESE_TRADITIONAL"] = 10] = "CHINESE_TRADITIONAL";
+    PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["CHINESE_SIMPLIFIED"] = 11] = "CHINESE_SIMPLIFIED";
+})(PSP_SYSTEMPARAM_LANGUAGE || (PSP_SYSTEMPARAM_LANGUAGE = {}));
+
+/// <summary>
+/// #9 seems to be Region or maybe X/O button swap.
+/// It doesn't exist on JAP v1.0
+/// is 1 on NA v1.5s
+/// is 0 on JAP v1.5s
+/// is read-only
+/// </summary>
+var PSP_SYSTEMPARAM_BUTTON_PREFERENCE;
+(function (PSP_SYSTEMPARAM_BUTTON_PREFERENCE) {
+    PSP_SYSTEMPARAM_BUTTON_PREFERENCE[PSP_SYSTEMPARAM_BUTTON_PREFERENCE["JAP"] = 0] = "JAP";
+    PSP_SYSTEMPARAM_BUTTON_PREFERENCE[PSP_SYSTEMPARAM_BUTTON_PREFERENCE["NA"] = 1] = "NA";
+})(PSP_SYSTEMPARAM_BUTTON_PREFERENCE || (PSP_SYSTEMPARAM_BUTTON_PREFERENCE = {}));
+
+var PspLanguages;
+(function (PspLanguages) {
+    PspLanguages[PspLanguages["JAPANESE"] = 0] = "JAPANESE";
+    PspLanguages[PspLanguages["ENGLISH"] = 1] = "ENGLISH";
+    PspLanguages[PspLanguages["FRENCH"] = 2] = "FRENCH";
+    PspLanguages[PspLanguages["SPANISH"] = 3] = "SPANISH";
+    PspLanguages[PspLanguages["GERMAN"] = 4] = "GERMAN";
+    PspLanguages[PspLanguages["ITALIAN"] = 5] = "ITALIAN";
+    PspLanguages[PspLanguages["DUTCH"] = 6] = "DUTCH";
+    PspLanguages[PspLanguages["PORTUGUESE"] = 7] = "PORTUGUESE";
+    PspLanguages[PspLanguages["RUSSIAN"] = 8] = "RUSSIAN";
+    PspLanguages[PspLanguages["KOREAN"] = 9] = "KOREAN";
+    PspLanguages[PspLanguages["TRADITIONAL_CHINESE"] = 10] = "TRADITIONAL_CHINESE";
+    PspLanguages[PspLanguages["SIMPLIFIED_CHINESE"] = 11] = "SIMPLIFIED_CHINESE";
+})(PspLanguages || (PspLanguages = {}));
+
+var PspModule;
+(function (PspModule) {
+    PspModule[PspModule["PSP_MODULE_NET_COMMON"] = 0x0100] = "PSP_MODULE_NET_COMMON";
+    PspModule[PspModule["PSP_MODULE_NET_ADHOC"] = 0x0101] = "PSP_MODULE_NET_ADHOC";
+    PspModule[PspModule["PSP_MODULE_NET_INET"] = 0x0102] = "PSP_MODULE_NET_INET";
+    PspModule[PspModule["PSP_MODULE_NET_PARSEURI"] = 0x0103] = "PSP_MODULE_NET_PARSEURI";
+    PspModule[PspModule["PSP_MODULE_NET_PARSEHTTP"] = 0x0104] = "PSP_MODULE_NET_PARSEHTTP";
+    PspModule[PspModule["PSP_MODULE_NET_HTTP"] = 0x0105] = "PSP_MODULE_NET_HTTP";
+    PspModule[PspModule["PSP_MODULE_NET_SSL"] = 0x0106] = "PSP_MODULE_NET_SSL";
+
+    // USB Modules
+    PspModule[PspModule["PSP_MODULE_USB_PSPCM"] = 0x0200] = "PSP_MODULE_USB_PSPCM";
+    PspModule[PspModule["PSP_MODULE_USB_MIC"] = 0x0201] = "PSP_MODULE_USB_MIC";
+    PspModule[PspModule["PSP_MODULE_USB_CAM"] = 0x0202] = "PSP_MODULE_USB_CAM";
+    PspModule[PspModule["PSP_MODULE_USB_GPS"] = 0x0203] = "PSP_MODULE_USB_GPS";
+
+    // Audio/video Modules
+    PspModule[PspModule["PSP_MODULE_AV_AVCODEC"] = 0x0300] = "PSP_MODULE_AV_AVCODEC";
+    PspModule[PspModule["PSP_MODULE_AV_SASCORE"] = 0x0301] = "PSP_MODULE_AV_SASCORE";
+    PspModule[PspModule["PSP_MODULE_AV_ATRAC3PLUS"] = 0x0302] = "PSP_MODULE_AV_ATRAC3PLUS";
+    PspModule[PspModule["PSP_MODULE_AV_MPEGBASE"] = 0x0303] = "PSP_MODULE_AV_MPEGBASE";
+    PspModule[PspModule["PSP_MODULE_AV_MP3"] = 0x0304] = "PSP_MODULE_AV_MP3";
+    PspModule[PspModule["PSP_MODULE_AV_VAUDIO"] = 0x0305] = "PSP_MODULE_AV_VAUDIO";
+    PspModule[PspModule["PSP_MODULE_AV_AAC"] = 0x0306] = "PSP_MODULE_AV_AAC";
+    PspModule[PspModule["PSP_MODULE_AV_G729"] = 0x0307] = "PSP_MODULE_AV_G729";
+
+    // NP
+    PspModule[PspModule["PSP_MODULE_NP_COMMON"] = 0x0400] = "PSP_MODULE_NP_COMMON";
+    PspModule[PspModule["PSP_MODULE_NP_SERVICE"] = 0x0401] = "PSP_MODULE_NP_SERVICE";
+    PspModule[PspModule["PSP_MODULE_NP_MATCHING2"] = 0x0402] = "PSP_MODULE_NP_MATCHING2";
+
+    PspModule[PspModule["PSP_MODULE_NP_DRM"] = 0x0500] = "PSP_MODULE_NP_DRM";
+
+    // IrDA
+    PspModule[PspModule["PSP_MODULE_IRDA"] = 0x0600] = "PSP_MODULE_IRDA";
+})(PspModule || (PspModule = {}));
 //# sourceMappingURL=sceUtility.js.map
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
@@ -15017,6 +15511,7 @@ var _utils = require('../../utils');
 
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../../SceKernelErrors');
 
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
@@ -15039,6 +15534,20 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
             return _this._sceKernelDelayThreadCB(delayInMicroseconds);
+        });
+        this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
+            var newThread = _this.threadUids.get(threadId);
+
+            return newThread.waitEndAsync().then(function () {
+                return 0;
+            });
+        });
+        this.sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
+            var newThread = _this.threadUids.get(threadId);
+
+            return newThread.waitEndAsync().then(function () {
+                return 0;
+            });
         });
         this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, function (currentThread) {
             return currentThread.priority;
@@ -15066,6 +15575,8 @@ var ThreadManForUser = (function () {
             return Promise.resolve(0);
         });
         this.sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'HleThread/int/int', this, function (currentThread, threadId, priority) {
+            if (!_this.threadUids.has(threadId))
+                return 2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */;
             var thread = _this.threadUids.get(threadId);
             thread.priority = priority;
             return Promise.resolve(0);
@@ -15100,15 +15611,15 @@ var ThreadManForUser = (function () {
             console.warn('Not implemented ThreadManForUser.sceKernelCreateCallback');
             return 0;
         });
-        this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, function (currentThread, state) {
-            currentThread.suspend();
-            return new WaitingThreadInfo('sceKernelSleepThreadCB', null, new Promise(function (resolve, reject) {
-            }));
+        this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'HleThread', this, function (currentThread) {
+            return currentThread.wakeupSleepAsync();
         });
-        this.sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, function (state) {
-            var currentThread = state.thread;
-            return new WaitingThreadInfo('sceKernelSleepThread', null, new Promise(function (resolve, reject) {
-            }));
+        this.sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'HleThread', this, function (currentThread) {
+            return currentThread.wakeupSleepAsync();
+        });
+        this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
+            var thread = _this.threadUids.get(threadId);
+            return thread.wakeupWakeupAsync();
         });
         this.sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
@@ -15122,6 +15633,8 @@ var ThreadManForUser = (function () {
             return currentThread.id;
         });
         this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
+            if (!_this.threadUids.has(threadId))
+                return 2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */;
             var thread = _this.threadUids.get(threadId);
             var sceKernelThreadInfo = new SceKernelThreadInfo();
             sceKernelThreadInfo.size = SceKernelThreadInfo.struct.length;
@@ -15133,6 +15646,9 @@ var ThreadManForUser = (function () {
             sceKernelThreadInfo.priority = thread.priority;
             SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, sceKernelThreadInfo);
             return 0;
+        });
+        this.sceKernelUSec2SysClockWide = createNativeFunction(0xC8CD158C, 150, 'int', 'uint', this, function (microseconds) {
+            return microseconds;
         });
     }
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (delayInMicroseconds) {
@@ -15979,6 +16495,12 @@ exports.MountableVfs = MountableVfs;
 //# sourceMappingURL=vfs.js.map
 },
 "src/hle/vfs/vfs": function(module, exports, require) {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
 var Vfs = (function () {
     function Vfs() {
     }
@@ -16012,7 +16534,7 @@ var VfsEntry = (function () {
     }
     Object.defineProperty(VfsEntry.prototype, "isDirectory", {
         get: function () {
-            throw (new Error("Must override isDirectory : " + this));
+            return this.stat().isDirectory;
         },
         enumerable: true,
         configurable: true
@@ -16041,6 +16563,38 @@ var VfsEntry = (function () {
     return VfsEntry;
 })();
 exports.VfsEntry = VfsEntry;
+
+var VfsEntryStream = (function (_super) {
+    __extends(VfsEntryStream, _super);
+    function VfsEntryStream(asyncStream) {
+        _super.call(this);
+        this.asyncStream = asyncStream;
+    }
+    Object.defineProperty(VfsEntryStream.prototype, "size", {
+        get: function () {
+            return this.asyncStream.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    VfsEntryStream.prototype.readChunkAsync = function (offset, length) {
+        return this.asyncStream.readChunkAsync(offset, length);
+    };
+    VfsEntryStream.prototype.close = function () {
+    };
+    VfsEntryStream.prototype.stat = function () {
+        return {
+            name: this.asyncStream.name,
+            size: this.asyncStream.size,
+            isDirectory: false,
+            timeCreation: this.asyncStream.date,
+            timeLastAccess: this.asyncStream.date,
+            timeLastModification: this.asyncStream.date
+        };
+    };
+    return VfsEntryStream;
+})(VfsEntry);
+exports.VfsEntryStream = VfsEntryStream;
 
 (function (FileOpenFlags) {
     FileOpenFlags[FileOpenFlags["Read"] = 0x0001] = "Read";
@@ -16342,6 +16896,8 @@ var MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 
 var Vfs = _vfs.Vfs;
 
+var VfsEntryStream = _vfs.VfsEntryStream;
+
 var FileOpenFlags = _vfs.FileOpenFlags;
 
 var UriVfs = (function (_super) {
@@ -16350,13 +16906,19 @@ var UriVfs = (function (_super) {
         _super.call(this);
         this.baseUri = baseUri;
     }
+    UriVfs.prototype.getAbsoluteUrl = function (path) {
+        return this.baseUri + '/' + path;
+    };
+
     UriVfs.prototype.openAsync = function (path, flags, mode) {
         if (flags & 2 /* Write */) {
             return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
         }
 
-        return downloadFileAsync(this.baseUri + '/' + path).then(function (data) {
-            return new MemoryVfsEntry(data);
+        var url = this.getAbsoluteUrl(path);
+
+        return UrlAsyncStream.fromUrlAsync(url).then(function (stream) {
+            return new VfsEntryStream(stream);
         });
     };
 
@@ -16365,19 +16927,49 @@ var UriVfs = (function (_super) {
     };
 
     UriVfs.prototype.getStatAsync = function (path) {
-        return statFileAsync(this.baseUri + '/' + path).then(function () {
-            return {
-                size: 0,
-                isDirectory: false,
-                timeCreation: new Date(),
-                timeLastAccess: new Date(),
-                timeLastModification: new Date()
-            };
-        });
+        var url = this.getAbsoluteUrl(path);
+        return statUrlAsync(url);
     };
     return UriVfs;
 })(Vfs);
 exports.UriVfs = UriVfs;
+
+/*
+class UriVfsEntry extends VfsEntry {
+constructor(private url: string, private _stat: StatInfo) {
+super();
+console.log('opened', url, _stat);
+}
+get isDirectory(): boolean { return false; }
+get size(): number { return this._stat.size; }
+readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
+var totalSize = this._stat.size;
+length = Math.min(length, totalSize - offset);
+console.info('download chunk ', this.url, offset, length);
+return downloadFileChunkAsync(this.url, offset, length).then(data => {
+return data;
+});
+}
+close() { }
+stat(): VfsStat { return urlStatToVfsStat(this._stat); }
+}
+*/
+function urlStatToVfsStat(url, info) {
+    return {
+        name: url,
+        size: info.size,
+        isDirectory: false,
+        timeCreation: info.date,
+        timeLastAccess: info.date,
+        timeLastModification: info.date
+    };
+}
+
+function statUrlAsync(url) {
+    return statFileAsync(url).then(function (info) {
+        return urlStatToVfsStat(url, info);
+    });
+}
 //# sourceMappingURL=vfs_uri.js.map
 },
 "src/hle/vfs/vfs_zip": function(module, exports, require) {

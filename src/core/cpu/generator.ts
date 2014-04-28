@@ -123,8 +123,8 @@ export class FunctionGenerator {
 				if (isSimpleLoop) {
 					stms.add(ast.jump(pcToLabel[jumpAddress]));
 
-					console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
-					mustDumpFunction = true;
+					//console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
+					//mustDumpFunction = true;
 				}
 
 				break;

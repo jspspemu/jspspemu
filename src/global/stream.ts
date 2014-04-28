@@ -1,11 +1,12 @@
 ﻿interface AsyncStream {
 	name: string;
+	date: Date;
 	size: number;
 	readChunkAsync(offset: number, count: number): Promise<ArrayBuffer>;
 }
 
 class MemoryAsyncStream implements AsyncStream {
-	constructor(private data: ArrayBuffer, public name = 'memory') {
+	constructor(private data: ArrayBuffer, public name = 'memory', public date = new Date()) {
 	}
 
 	static fromArrayBuffer(data: ArrayBuffer) {
@@ -19,8 +20,40 @@ class MemoryAsyncStream implements AsyncStream {
     }
 }
 
+class UrlAsyncStream implements AsyncStream {
+	name: string;
+	date: Date;
+
+	constructor(private url: string, public stat: StatInfo) {
+		this.name = url;
+		this.date = stat.date;
+	}
+
+	static fromUrlAsync(url: string) {
+		console.info('open ', url);
+		return statFileAsync(url).then((stat): Promise<AsyncStream> => {
+			// If file is less  than 5MB, then download it completely
+			if (stat.size < 5 * 1024 * 1024) {
+				return downloadFileAsync(url).then(data => MemoryAsyncStream.fromArrayBuffer(data));
+			} else {
+				return Promise.resolve(new UrlAsyncStream(url, stat));
+			}
+		});
+	}
+
+	get size() { return this.stat.size; }
+
+	readChunkAsync(offset: number, count: number) {
+		console.info('download chunkup', this.url, offset, count);
+		return downloadFileChunkAsync(this.url, offset, count);
+    }
+}
+
 class FileAsyncStream implements AsyncStream {
+	date: Date;
+
 	constructor(private file: File) {
+		this.date = file.lastModifiedDate;
 	}
 
 	get name() { return this.file.name; }
@@ -197,6 +230,10 @@ class Stream {
 			console.error(e);
 			throw (e);
 		}
+	}
+
+	writeStringz(str: string) {
+		return this.writeString(str + String.fromCharCode(0));
 	}
 
 	readString(count: number) {

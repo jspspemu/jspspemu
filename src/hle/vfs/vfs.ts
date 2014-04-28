@@ -19,13 +19,36 @@
 }
 
 export class VfsEntry {
-	get isDirectory(): boolean { throw (new Error("Must override isDirectory : " + this)); }
+	get isDirectory(): boolean {
+		return this.stat().isDirectory;
+	}
 	enumerateAsync(): Promise<VfsStat[]> { throw (new Error("Must override enumerateAsync : " + this)); }
 	get size(): number { throw (new Error("Must override size : " + this)); }
 	readAllAsync() { return this.readChunkAsync(0, this.size); }
 	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync : " + this)); }
 	close() { }
 	stat(): VfsStat { throw(new Error("Must override stat")); }
+}
+
+export class VfsEntryStream extends VfsEntry {
+	constructor(private asyncStream: AsyncStream) {
+		super();
+	}
+	get size(): number { return this.asyncStream.size; }
+	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
+		return this.asyncStream.readChunkAsync(offset, length);
+	}
+	close() { }
+	stat(): VfsStat {
+		return {
+			name: this.asyncStream.name,
+			size: this.asyncStream.size,
+			isDirectory: false,
+			timeCreation: this.asyncStream.date,
+			timeLastAccess: this.asyncStream.date,
+			timeLastModification: this.asyncStream.date,
+		};
+	}
 }
 
 export enum FileOpenFlags {
