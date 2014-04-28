@@ -120,8 +120,11 @@
     <TypeScriptCompile Include="src\hle\module\sceWlanDrv.ts" />
     <TypeScriptCompile Include="src\hle\module\StdioForUser.ts" />
     <TypeScriptCompile Include="src\hle\module\SysMemUserForUser.ts" />
-    <TypeScriptCompile Include="src\hle\module\ThreadManForUser.ts" />
+    <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser.ts" />
     <TypeScriptCompile Include="src\core\cpu\syscall.ts" />
+    <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_eventflag.ts" />
+    <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_sema.ts" />
+    <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_vpl.ts" />
     <TypeScriptCompile Include="src\hle\module\UtilsForKernel.ts" />
     <TypeScriptCompile Include="src\hle\module\UtilsForUser.ts" />
     <TypeScriptCompile Include="src\hle\pspmodules.ts" />

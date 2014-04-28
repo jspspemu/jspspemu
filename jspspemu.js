@@ -704,6 +704,11 @@ var Stream = (function () {
         return this._writeUInt64(value, endian);
     };
 
+    Stream.prototype.writeFloat32 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.setFloat32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+
     Stream.prototype.writeUInt8 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(1, this.data.setUint8(this.offset, value));
@@ -1238,7 +1243,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -11294,6 +11299,11 @@ var Stream = (function () {
         return this._writeUInt64(value, endian);
     };
 
+    Stream.prototype.writeFloat32 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.setFloat32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+
     Stream.prototype.writeUInt8 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(1, this.data.setUint8(this.offset, value));
@@ -13906,23 +13916,26 @@ var _cpu = require('../../core/cpu');
 var NativeFunction = _cpu.NativeFunction;
 
 var ModuleWrapper = (function () {
-    function ModuleWrapper(moduleName, _module) {
+    function ModuleWrapper(moduleName, _modules) {
+        var _this = this;
         this.moduleName = moduleName;
-        this._module = _module;
+        this._modules = _modules;
         this.names = {};
         this.nids = {};
-        for (var key in _module) {
-            var item = _module[key];
-            if (item && item instanceof NativeFunction) {
-                var nativeFunction = item;
-                nativeFunction.name = key;
-                this.nids[nativeFunction.nid] = nativeFunction;
-                this.names[nativeFunction.name] = nativeFunction;
+        _modules.forEach(function (_module) {
+            for (var key in _module) {
+                var item = _module[key];
+                if (item && item instanceof NativeFunction) {
+                    var nativeFunction = item;
+                    nativeFunction.name = key;
+                    _this.nids[nativeFunction.nid] = nativeFunction;
+                    _this.names[nativeFunction.name] = nativeFunction;
+                }
             }
-        }
+        });
     }
     ModuleWrapper.prototype.getByName = function (name) {
-        return this._module[name];
+        return this.names[name];
     };
 
     ModuleWrapper.prototype.getByNid = function (nid) {
@@ -13945,27 +13958,34 @@ var ModuleManager = (function () {
         for (var key in _module) {
             if (key == 'createNativeFunction')
                 continue;
-            this.add(key, _module[key]);
+            var _class = _module[key];
+            this.add(key, _class);
         }
     };
 
     ModuleManager.prototype.getByName = function (name) {
+        var _this = this;
         var _moduleWrapper = this.moduleWrappers[name];
         if (_moduleWrapper)
             return _moduleWrapper;
 
-        var _class = this.names[name];
-        if (!_class)
+        var _classes = this.names[name];
+        if (!_classes)
             throw (new Error("Can't find module '" + name + "'"));
 
-        var _module = new _class(this.context);
-        return this.moduleWrappers[name] = new ModuleWrapper(name, _module);
+        var _modules = _classes.map(function (_class) {
+            return new _class(_this.context);
+        });
+
+        return this.moduleWrappers[name] = new ModuleWrapper(name, _modules);
     };
 
     ModuleManager.prototype.add = function (name, _class) {
         if (!_class)
             throw (new Error("Can't find module '" + name + "'"));
-        this.names[name] = _class;
+        if (!this.names[name])
+            this.names[name] = [];
+        this.names[name].push(_class);
     };
     return ModuleManager;
 })();
@@ -14877,69 +14897,6 @@ var ThreadManForUser = (function () {
             SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, sceKernelThreadInfo);
             return 0;
         });
-        this.semaporesUid = new UidCollection(1);
-        this.sceKernelCreateSema = createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
-            var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
-            var id = _this.semaporesUid.allocate(semaphore);
-            semaphore.id = id;
-            console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
-            return id;
-        });
-        this.sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
-            if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-            var semaphore = _this.semaporesUid.get(id);
-            semaphore.delete();
-            _this.semaporesUid.remove(id);
-            return 0;
-        });
-        this.sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
-            if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-            var semaphore = _this.semaporesUid.get(id);
-            if (numWaitingThreadsPtr)
-                numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
-            semaphore.cancel();
-            return 0;
-        });
-        this.sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
-            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
-        });
-        this.sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
-            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
-        });
-        this.sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
-            if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-            var semaphore = _this.semaporesUid.get(id);
-            var semaphoreInfo = new SceKernelSemaInfo();
-            semaphoreInfo.size = SceKernelSemaInfo.struct.length;
-            semaphoreInfo.attributes = semaphore.attributes;
-            semaphoreInfo.currentCount = semaphore.currentCount;
-            semaphoreInfo.initialCount = semaphore.initialCount;
-            semaphoreInfo.maximumCount = semaphore.maximumCount;
-            semaphoreInfo.name = semaphore.name;
-            semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
-            SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
-            return 0;
-        });
-        this.sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'HleThread/int/int', this, function (currentThread, id, signal) {
-            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
-            if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-            var semaphore = _this.semaporesUid.get(id);
-            var previousCount = semaphore.currentCount;
-            if (semaphore.currentCount + signal > semaphore.maximumCount)
-                return 2147615150 /* ERROR_KERNEL_SEMA_OVERFLOW */;
-            var awakeCount = semaphore.incrementCount(signal);
-
-            //console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
-            if (awakeCount > 0) {
-                return Promise.resolve(0);
-            } else {
-                return 0;
-            }
-        });
     }
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (delayInMicroseconds) {
         return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
@@ -14967,102 +14924,9 @@ var ThreadManForUser = (function () {
         return new Date().getTime() * 1000;
         //return window.performance.now() * 1000;
     };
-
-    ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout) {
-        //console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
-        if (!this.semaporesUid.has(id))
-            return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
-        var semaphore = this.semaporesUid.get(id);
-        var promise = semaphore.waitAsync(currentThread, signal);
-        if (promise) {
-            return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise);
-        } else {
-            return 0;
-        }
-    };
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
-
-var WaitingSemaphoreThread = (function () {
-    function WaitingSemaphoreThread(expectedCount, wakeUp) {
-        this.expectedCount = expectedCount;
-        this.wakeUp = wakeUp;
-    }
-    return WaitingSemaphoreThread;
-})();
-
-var Semaphore = (function () {
-    function Semaphore(name, attributes, initialCount, maximumCount) {
-        this.name = name;
-        this.attributes = attributes;
-        this.initialCount = initialCount;
-        this.maximumCount = maximumCount;
-        this.waitingSemaphoreThreadList = new SortedSet();
-        this.currentCount = initialCount;
-    }
-    Object.defineProperty(Semaphore.prototype, "numberOfWaitingThreads", {
-        get: function () {
-            return this.waitingSemaphoreThreadList.length;
-        },
-        enumerable: true,
-        configurable: true
-    });
-
-    Semaphore.prototype.incrementCount = function (count) {
-        this.currentCount = Math.min(this.currentCount + count, this.maximumCount);
-        return this.updatedCount();
-    };
-
-    Semaphore.prototype.cancel = function () {
-        this.waitingSemaphoreThreadList.forEach(function (item) {
-            item.wakeUp();
-        });
-    };
-
-    Semaphore.prototype.updatedCount = function () {
-        var _this = this;
-        var awakeCount = 0;
-        this.waitingSemaphoreThreadList.forEach(function (item) {
-            if (_this.currentCount >= item.expectedCount) {
-                //console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
-                _this.currentCount -= item.expectedCount;
-                item.wakeUp();
-                awakeCount++;
-            }
-        });
-        return awakeCount;
-    };
-
-    Semaphore.prototype.waitAsync = function (thread, expectedCount) {
-        var _this = this;
-        if (this.currentCount >= expectedCount) {
-            this.currentCount -= expectedCount;
-            return null;
-        } else {
-            var promise = new Promise(function (resolve, reject) {
-                var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
-                    //console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
-                    _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
-                    resolve();
-                });
-                _this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
-            });
-            this.updatedCount();
-            return promise;
-        }
-    };
-
-    Semaphore.prototype.delete = function () {
-    };
-    return Semaphore;
-})();
-
-var SemaphoreAttribute;
-(function (SemaphoreAttribute) {
-    SemaphoreAttribute[SemaphoreAttribute["FirstInFirstOut"] = 0x000] = "FirstInFirstOut";
-    SemaphoreAttribute[SemaphoreAttribute["Priority"] = 0x100] = "Priority";
-})(SemaphoreAttribute || (SemaphoreAttribute = {}));
 
 var EventFlagWaitingThread = (function () {
     function EventFlagWaitingThread(bitsToMatch, waitType, outBits, eventFlag, wakeUp) {
@@ -15143,21 +15007,6 @@ var EventFlag = (function () {
     return EventFlag;
 })();
 
-var SceKernelSemaInfo = (function () {
-    function SceKernelSemaInfo() {
-    }
-    SceKernelSemaInfo.struct = StructClass.create(SceKernelSemaInfo, [
-        { size: Int32 },
-        { name: Stringz(32) },
-        { attributes: Int32 },
-        { initialCount: Int32 },
-        { currentCount: Int32 },
-        { maximumCount: Int32 },
-        { numberOfWaitingThreads: Int32 }
-    ]);
-    return SceKernelSemaInfo;
-})();
-
 var SceKernelThreadInfo = (function () {
     function SceKernelThreadInfo() {
     }
@@ -15208,6 +15057,419 @@ var EventFlagWaitTypeSet;
     EventFlagWaitTypeSet[EventFlagWaitTypeSet["MaskValidBits"] = EventFlagWaitTypeSet.Or | EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll] = "MaskValidBits";
 })(EventFlagWaitTypeSet || (EventFlagWaitTypeSet = {}));
 //# sourceMappingURL=ThreadManForUser.js.map
+},
+"src/hle/module/ThreadManForUser_eventflag": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../SceKernelErrors');
+
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.eventFlagUids = new UidCollection(1);
+        this.sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
+            if (name === null)
+                return 2147614721 /* ERROR_ERROR */;
+            if ((attributes & 0x100) != 0 || attributes >= 0x300)
+                return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
+
+            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
+            var eventFlag = new EventFlag();
+            eventFlag.name = name;
+            eventFlag.attributes = attributes;
+            eventFlag.initialPattern = bitPattern;
+            eventFlag.currentPattern = bitPattern;
+            return _this.eventFlagUids.allocate(eventFlag);
+        });
+        this.sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.get(id).setBits(bitPattern);
+            return 0;
+        });
+        this.sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, false);
+        });
+        this.sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, true);
+        });
+        this.sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, function (id, bits, waitType, outBits) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0)
+                return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+            if ((waitType & (32 /* Clear */ | 16 /* ClearAll */)) == (32 /* Clear */ | 16 /* ClearAll */)) {
+                return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+            }
+            if (bits == 0)
+                return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
+            if (EventFlag == null)
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+
+            var matched = _this.eventFlagUids.get(id).poll(bits, waitType, outBits);
+
+            return matched ? 0 : 2147615151 /* ERROR_KERNEL_EVENT_FLAG_POLL_FAILED */;
+        });
+        this.sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, function (id) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.remove(id);
+            return 0;
+        });
+        this.sceKernelClearEventFlag = createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, function (id, bitsToClear) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.get(id).clearBits(bitsToClear);
+            return 0;
+        });
+        this.sceKernelCancelEventFlag = createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, function (id, newPattern, numWaitThreadPtr) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.get(id).cancel(newPattern);
+            return 0;
+        });
+        this.sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (id, infoPtr) {
+            var size = infoPtr.readUInt32();
+            if (size == 0)
+                return 0;
+
+            infoPtr.position = 0;
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            var eventFlag = _this.eventFlagUids.get(id);
+            var info = new EventFlagInfo();
+            info.size = EventFlagInfo.struct.length;
+            info.name = eventFlag.name;
+            info.currentPattern = eventFlag.currentPattern;
+            info.initialPattern = eventFlag.initialPattern;
+            info.attributes = eventFlag.attributes;
+            info.numberOfWaitingThreads = eventFlag.waitingThreads.length;
+            EventFlagInfo.struct.write(infoPtr, info);
+            console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
+            return 0;
+        });
+    }
+    ThreadManForUser.prototype._sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout, callbacks) {
+        if (!this.eventFlagUids.has(id))
+            return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+        var eventFlag = this.eventFlagUids.get(id);
+
+        if ((waitType & ~(EventFlagWaitTypeSet.MaskValidBits)) != 0)
+            return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+        if (bits == 0)
+            return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
+        var timedOut = false;
+        var previousPattern = eventFlag.currentPattern;
+        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(function () {
+            if (outBits != null)
+                outBits.writeUInt32(previousPattern);
+            return 0;
+        }));
+    };
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+
+var EventFlagWaitingThread = (function () {
+    function EventFlagWaitingThread(bitsToMatch, waitType, outBits, eventFlag, wakeUp) {
+        this.bitsToMatch = bitsToMatch;
+        this.waitType = waitType;
+        this.outBits = outBits;
+        this.eventFlag = eventFlag;
+        this.wakeUp = wakeUp;
+    }
+    return EventFlagWaitingThread;
+})();
+
+var EventFlag = (function () {
+    function EventFlag() {
+        this.waitingThreads = new SortedSet();
+    }
+    EventFlag.prototype.waitAsync = function (bits, waitType, outBits, timeout, callbacks) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, _this, function () {
+                _this.waitingThreads.delete(waitingSemaphoreThread);
+                resolve();
+                throw (new CpuBreakException());
+            });
+            _this.waitingThreads.add(waitingSemaphoreThread);
+        }).then(function () {
+            return 0;
+        });
+    };
+
+    EventFlag.prototype.poll = function (bitsToMatch, waitType, outBits) {
+        if (outBits != null)
+            outBits.writeInt32(this.currentPattern);
+
+        if ((waitType & 1 /* Or */) ? ((this.currentPattern & bitsToMatch) != 0) : ((this.currentPattern & bitsToMatch) == bitsToMatch)) {
+            this._doClear(bitsToMatch, waitType);
+            return true;
+        }
+
+        return false;
+    };
+
+    EventFlag.prototype._doClear = function (bitsToMatch, waitType) {
+        if (waitType & (16 /* ClearAll */))
+            this.clearBits(~0xFFFFFFFF, false);
+        if (waitType & (32 /* Clear */))
+            this.clearBits(~bitsToMatch, false);
+    };
+
+    EventFlag.prototype.cancel = function (newPattern) {
+        this.waitingThreads.forEach(function (item) {
+            item.wakeUp();
+        });
+    };
+
+    EventFlag.prototype.clearBits = function (bitsToClear, doUpdateWaitingThreads) {
+        if (typeof doUpdateWaitingThreads === "undefined") { doUpdateWaitingThreads = true; }
+        this.currentPattern &= bitsToClear;
+        if (doUpdateWaitingThreads)
+            this.updateWaitingThreads();
+    };
+
+    EventFlag.prototype.setBits = function (bits, doUpdateWaitingThreads) {
+        if (typeof doUpdateWaitingThreads === "undefined") { doUpdateWaitingThreads = true; }
+        this.currentPattern |= bits;
+        if (doUpdateWaitingThreads)
+            this.updateWaitingThreads();
+    };
+
+    EventFlag.prototype.updateWaitingThreads = function () {
+        var _this = this;
+        this.waitingThreads.forEach(function (waitingThread) {
+            if (_this.poll(waitingThread.bitsToMatch, waitingThread.waitType, waitingThread.outBits)) {
+                waitingThread.wakeUp();
+            }
+        });
+    };
+    return EventFlag;
+})();
+
+var EventFlagInfo = (function () {
+    function EventFlagInfo() {
+    }
+    EventFlagInfo.struct = StructClass.create(EventFlagInfo, [
+        { size: Int32 },
+        { name: Stringz(32) },
+        { attributes: Int32 },
+        { initialPattern: UInt32 },
+        { currentPattern: UInt32 },
+        { numberOfWaitingThreads: Int32 }
+    ]);
+    return EventFlagInfo;
+})();
+
+var EventFlagWaitTypeSet;
+(function (EventFlagWaitTypeSet) {
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["And"] = 0x00] = "And";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Or"] = 0x01] = "Or";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["ClearAll"] = 0x10] = "ClearAll";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Clear"] = 0x20] = "Clear";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["MaskValidBits"] = EventFlagWaitTypeSet.Or | EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll] = "MaskValidBits";
+})(EventFlagWaitTypeSet || (EventFlagWaitTypeSet = {}));
+//# sourceMappingURL=ThreadManForUser_eventflag.js.map
+},
+"src/hle/module/ThreadManForUser_sema": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../SceKernelErrors');
+
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.semaporesUid = new UidCollection(1);
+        this.sceKernelCreateSema = createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
+            var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
+            var id = _this.semaporesUid.allocate(semaphore);
+            semaphore.id = id;
+            console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
+            return id;
+        });
+        this.sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            semaphore.delete();
+            _this.semaporesUid.remove(id);
+            return 0;
+        });
+        this.sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            if (numWaitingThreadsPtr)
+                numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
+            semaphore.cancel();
+            return 0;
+        });
+        this.sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
+            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
+        });
+        this.sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
+            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
+        });
+        this.sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            var semaphoreInfo = new SceKernelSemaInfo();
+            semaphoreInfo.size = SceKernelSemaInfo.struct.length;
+            semaphoreInfo.attributes = semaphore.attributes;
+            semaphoreInfo.currentCount = semaphore.currentCount;
+            semaphoreInfo.initialCount = semaphore.initialCount;
+            semaphoreInfo.maximumCount = semaphore.maximumCount;
+            semaphoreInfo.name = semaphore.name;
+            semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
+            SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
+            return 0;
+        });
+        this.sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'HleThread/int/int', this, function (currentThread, id, signal) {
+            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            var previousCount = semaphore.currentCount;
+            if (semaphore.currentCount + signal > semaphore.maximumCount)
+                return 2147615150 /* ERROR_KERNEL_SEMA_OVERFLOW */;
+            var awakeCount = semaphore.incrementCount(signal);
+
+            //console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
+            if (awakeCount > 0) {
+                return Promise.resolve(0);
+            } else {
+                return 0;
+            }
+        });
+    }
+    ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout) {
+        //console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
+        if (!this.semaporesUid.has(id))
+            return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+        var semaphore = this.semaporesUid.get(id);
+        var promise = semaphore.waitAsync(currentThread, signal);
+        if (promise) {
+            return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise);
+        } else {
+            return 0;
+        }
+    };
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+
+var SceKernelSemaInfo = (function () {
+    function SceKernelSemaInfo() {
+    }
+    SceKernelSemaInfo.struct = StructClass.create(SceKernelSemaInfo, [
+        { size: Int32 },
+        { name: Stringz(32) },
+        { attributes: Int32 },
+        { initialCount: Int32 },
+        { currentCount: Int32 },
+        { maximumCount: Int32 },
+        { numberOfWaitingThreads: Int32 }
+    ]);
+    return SceKernelSemaInfo;
+})();
+
+var WaitingSemaphoreThread = (function () {
+    function WaitingSemaphoreThread(expectedCount, wakeUp) {
+        this.expectedCount = expectedCount;
+        this.wakeUp = wakeUp;
+    }
+    return WaitingSemaphoreThread;
+})();
+
+var Semaphore = (function () {
+    function Semaphore(name, attributes, initialCount, maximumCount) {
+        this.name = name;
+        this.attributes = attributes;
+        this.initialCount = initialCount;
+        this.maximumCount = maximumCount;
+        this.waitingSemaphoreThreadList = new SortedSet();
+        this.currentCount = initialCount;
+    }
+    Object.defineProperty(Semaphore.prototype, "numberOfWaitingThreads", {
+        get: function () {
+            return this.waitingSemaphoreThreadList.length;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Semaphore.prototype.incrementCount = function (count) {
+        this.currentCount = Math.min(this.currentCount + count, this.maximumCount);
+        return this.updatedCount();
+    };
+
+    Semaphore.prototype.cancel = function () {
+        this.waitingSemaphoreThreadList.forEach(function (item) {
+            item.wakeUp();
+        });
+    };
+
+    Semaphore.prototype.updatedCount = function () {
+        var _this = this;
+        var awakeCount = 0;
+        this.waitingSemaphoreThreadList.forEach(function (item) {
+            if (_this.currentCount >= item.expectedCount) {
+                //console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
+                _this.currentCount -= item.expectedCount;
+                item.wakeUp();
+                awakeCount++;
+            }
+        });
+        return awakeCount;
+    };
+
+    Semaphore.prototype.waitAsync = function (thread, expectedCount) {
+        var _this = this;
+        if (this.currentCount >= expectedCount) {
+            this.currentCount -= expectedCount;
+            return null;
+        } else {
+            var promise = new Promise(function (resolve, reject) {
+                var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
+                    //console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
+                    _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
+                    resolve();
+                });
+                _this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
+            });
+            this.updatedCount();
+            return promise;
+        }
+    };
+
+    Semaphore.prototype.delete = function () {
+    };
+    return Semaphore;
+})();
+
+var SemaphoreAttribute;
+(function (SemaphoreAttribute) {
+    SemaphoreAttribute[SemaphoreAttribute["FirstInFirstOut"] = 0x000] = "FirstInFirstOut";
+    SemaphoreAttribute[SemaphoreAttribute["Priority"] = 0x100] = "Priority";
+})(SemaphoreAttribute || (SemaphoreAttribute = {}));
+//# sourceMappingURL=ThreadManForUser_sema.js.map
+},
+"src/hle/module/ThreadManForUser_vpl": function(module, exports, require) {
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        this.context = context;
+    }
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+//# sourceMappingURL=ThreadManForUser_vpl.js.map
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -15344,6 +15606,16 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
+            if (samplesOutPtr) {
+                for (var n = 0; n < 1024; n++)
+                    samplesOutPtr.writeInt16(0);
+            }
+            if (decodedSamplesCountPtr) {
+                decodedSamplesCountPtr.writeInt32(0);
+            }
+            if (reachedEndPtr) {
+                reachedEndPtr.writeInt32(-1);
+            }
             return _this._waitAsync('sceAtracDecodeData', 10);
         });
         this.sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
@@ -16218,55 +16490,583 @@ var sceWlanDrv = (function () {
 exports.sceWlanDrv = sceWlanDrv;
 //# sourceMappingURL=sceWlanDrv.js.map
 },
-"src/hle/pspmodules": function(module, exports, require) {
-var ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel');
-var InterruptManager = require('./module/InterruptManager');
-var IoFileMgrForUser = require('./module/IoFileMgrForUser');
-var KDebugForKernel = require('./module/KDebugForKernel');
-var Kernel_Library = require('./module/Kernel_Library');
-var LoadCoreForKernel = require('./module/LoadCoreForKernel');
-var LoadExecForUser = require('./module/LoadExecForUser');
-var ModuleMgrForUser = require('./module/ModuleMgrForUser');
-var sceAtrac3plus = require('./module/sceAtrac3plus');
-var sceAudio = require('./module/sceAudio');
-var sceCtrl = require('./module/sceCtrl');
-var sceDisplay = require('./module/sceDisplay');
-var sceDmac = require('./module/sceDmac');
-var sceGe_user = require('./module/sceGe_user');
-var sceHprm = require('./module/sceHprm');
-var sceHttp = require('./module/sceHttp');
-var sceImpose = require('./module/sceImpose');
-var sceLibFont = require('./module/sceLibFont');
-var sceMp3 = require('./module/sceMp3');
-var sceMpeg = require('./module/sceMpeg');
-var sceNet = require('./module/sceNet');
-var sceNetAdhoc = require('./module/sceNetAdhoc');
-var sceNetAdhocctl = require('./module/sceNetAdhocctl');
-var sceNetAdhocMatching = require('./module/sceNetAdhocMatching');
-var sceNetApctl = require('./module/sceNetApctl');
-var sceNetInet = require('./module/sceNetInet');
-var sceNetResolver = require('./module/sceNetResolver');
-var sceNp = require('./module/sceNp');
-var sceNpAuth = require('./module/sceNpAuth');
-var sceNpService = require('./module/sceNpService');
-var sceOpenPSID = require('./module/sceOpenPSID');
-var scePower = require('./module/scePower');
-var scePspNpDrm_user = require('./module/scePspNpDrm_user');
-var sceReg = require('./module/sceReg');
-var sceRtc = require('./module/sceRtc');
-var sceSasCore = require('./module/sceSasCore');
-var sceSsl = require('./module/sceSsl');
-var sceSuspendForUser = require('./module/sceSuspendForUser');
-var sceUmdUser = require('./module/sceUmdUser');
-var sceUtility = require('./module/sceUtility');
-var sceVaudio = require('./module/sceVaudio');
-var sceWlanDrv = require('./module/sceWlanDrv');
-var StdioForUser = require('./module/StdioForUser');
-var SysMemUserForUser = require('./module/SysMemUserForUser');
-var ThreadManForUser = require('./module/ThreadManForUser');
-var UtilsForKernel = require('./module/UtilsForKernel');
-var UtilsForUser = require('./module/UtilsForUser');
+"src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
+var _utils = require('../../utils');
 
+var _cpu = require('../../../core/cpu');
+var createNativeFunction = _utils.createNativeFunction;
+
+var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
+
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.threadUids = new UidCollection(1);
+        this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attribute, optionPtr) {
+            //var stackPartition = this.context.memoryManager.stackPartition;
+            var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
+            newThread.id = _this.threadUids.allocate(newThread);
+
+            console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d', newThread.id, newThread.name, newThread.priority, currentThread.priority));
+
+            return newThread.id;
+        });
+        this.sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
+            return _this._sceKernelDelayThreadCB(delayInMicroseconds);
+        });
+        this.sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
+            return _this._sceKernelDelayThreadCB(delayInMicroseconds);
+        });
+        this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, function (currentThread) {
+            return currentThread.priority;
+        });
+        this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
+            var newThread = _this.threadUids.get(threadId);
+
+            var newState = newThread.state;
+            newState.GP = currentThread.state.GP;
+            newState.RA = 268435455 /* EXIT_THREAD */;
+
+            var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
+
+            if (userDataPointer != null) {
+                newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
+                newState.gpr[4] = userDataLength;
+                newState.gpr[5] = copiedDataAddress;
+            }
+
+            newState.SP = copiedDataAddress - 0x40;
+
+            console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
+
+            newThread.start();
+            return Promise.resolve(0);
+        });
+        this.sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'HleThread/int/int', this, function (currentThread, threadId, priority) {
+            var thread = _this.threadUids.get(threadId);
+            thread.priority = priority;
+            return Promise.resolve(0);
+        });
+        this.sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
+            var newThread = _this.threadUids.get(threadId);
+            _this.threadUids.remove(threadId);
+            return 0;
+        });
+        this.sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'HleThread/int', this, function (currentThread, exitStatus) {
+            console.info(sprintf('sceKernelExitThread: %d', exitStatus));
+
+            currentThread.exitStatus = exitStatus;
+            currentThread.stop();
+            throw (new CpuBreakException());
+        });
+        this.sceKernelTerminateThread = createNativeFunction(0x616403BA, 150, 'int', 'int', this, function (threadId) {
+            console.info(sprintf('sceKernelTerminateThread: %d', threadId));
+
+            var newThread = _this.threadUids.get(threadId);
+            newThread.stop();
+            newThread.exitStatus = 0x800201ac;
+            return 0;
+        });
+        this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'CpuState/int', this, function (state, exitStatus) {
+            var currentThread = state.thread;
+            currentThread.exitStatus = exitStatus;
+            currentThread.stop();
+            throw (new CpuBreakException());
+        });
+        this.sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
+            console.warn('Not implemented ThreadManForUser.sceKernelCreateCallback');
+            return 0;
+        });
+        this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'HleThread/CpuState', this, function (currentThread, state) {
+            currentThread.suspend();
+            return new WaitingThreadInfo('sceKernelSleepThreadCB', null, new Promise(function (resolve, reject) {
+            }));
+        });
+        this.sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'CpuState', this, function (state) {
+            var currentThread = state.thread;
+            return new WaitingThreadInfo('sceKernelSleepThread', null, new Promise(function (resolve, reject) {
+            }));
+        });
+        this.sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
+            //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
+            return _this._getCurrentMicroseconds();
+        });
+        this.sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
+            //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
+            return Integer64.fromNumber(_this._getCurrentMicroseconds());
+        });
+        this.sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'HleThread', this, function (currentThread) {
+            return currentThread.id;
+        });
+        this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
+            var thread = _this.threadUids.get(threadId);
+            var sceKernelThreadInfo = new SceKernelThreadInfo();
+            sceKernelThreadInfo.size = SceKernelThreadInfo.struct.length;
+            sceKernelThreadInfo.name = thread.name;
+
+            //console.log(thread.state.GP);
+            sceKernelThreadInfo.GP = thread.state.GP;
+            sceKernelThreadInfo.priorityInit = thread.initialPriority;
+            sceKernelThreadInfo.priority = thread.priority;
+            SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, sceKernelThreadInfo);
+            return 0;
+        });
+    }
+    ThreadManForUser.prototype._sceKernelDelayThreadCB = function (delayInMicroseconds) {
+        return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
+    };
+
+    ThreadManForUser.prototype._getCurrentMicroseconds = function () {
+        return new Date().getTime() * 1000;
+        //return window.performance.now() * 1000;
+    };
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+
+var SceKernelThreadInfo = (function () {
+    function SceKernelThreadInfo() {
+    }
+    SceKernelThreadInfo.struct = StructClass.create(SceKernelThreadInfo, [
+        { size: Int32 },
+        { name: Stringz(32) },
+        { attributes: UInt32 },
+        { status: UInt32 },
+        { entryPoint: UInt32 },
+        { stackPointer: UInt32 },
+        { stackSize: Int32 },
+        { GP: UInt32 },
+        { priorityInit: Int32 },
+        { priority: Int32 },
+        { waitType: UInt32 },
+        { waitId: Int32 },
+        { wakeupCount: Int32 },
+        { exitStatus: Int32 },
+        { runClocksLow: Int32 },
+        { runClocksHigh: Int32 },
+        { interruptPreemptionCount: Int32 },
+        { threadPreemptionCount: Int32 },
+        { releaseCount: Int32 }
+    ]);
+    return SceKernelThreadInfo;
+})();
+//# sourceMappingURL=ThreadManForUser.js.map
+},
+"src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
+var _utils = require('../../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../../SceKernelErrors');
+
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.eventFlagUids = new UidCollection(1);
+        this.sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
+            if (name === null)
+                return 2147614721 /* ERROR_ERROR */;
+            if ((attributes & 0x100) != 0 || attributes >= 0x300)
+                return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
+
+            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
+            var eventFlag = new EventFlag();
+            eventFlag.name = name;
+            eventFlag.attributes = attributes;
+            eventFlag.initialPattern = bitPattern;
+            eventFlag.currentPattern = bitPattern;
+            return _this.eventFlagUids.allocate(eventFlag);
+        });
+        this.sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.get(id).setBits(bitPattern);
+            return 0;
+        });
+        this.sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, false);
+        });
+        this.sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
+            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, true);
+        });
+        this.sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, function (id, bits, waitType, outBits) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0)
+                return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+            if ((waitType & (32 /* Clear */ | 16 /* ClearAll */)) == (32 /* Clear */ | 16 /* ClearAll */)) {
+                return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+            }
+            if (bits == 0)
+                return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
+            if (EventFlag == null)
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+
+            var matched = _this.eventFlagUids.get(id).poll(bits, waitType, outBits);
+
+            return matched ? 0 : 2147615151 /* ERROR_KERNEL_EVENT_FLAG_POLL_FAILED */;
+        });
+        this.sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, function (id) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.remove(id);
+            return 0;
+        });
+        this.sceKernelClearEventFlag = createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, function (id, bitsToClear) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.get(id).clearBits(bitsToClear);
+            return 0;
+        });
+        this.sceKernelCancelEventFlag = createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, function (id, newPattern, numWaitThreadPtr) {
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            _this.eventFlagUids.get(id).cancel(newPattern);
+            return 0;
+        });
+        this.sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (id, infoPtr) {
+            var size = infoPtr.readUInt32();
+            if (size == 0)
+                return 0;
+
+            infoPtr.position = 0;
+            if (!_this.eventFlagUids.has(id))
+                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            var eventFlag = _this.eventFlagUids.get(id);
+            var info = new EventFlagInfo();
+            info.size = EventFlagInfo.struct.length;
+            info.name = eventFlag.name;
+            info.currentPattern = eventFlag.currentPattern;
+            info.initialPattern = eventFlag.initialPattern;
+            info.attributes = eventFlag.attributes;
+            info.numberOfWaitingThreads = eventFlag.waitingThreads.length;
+            EventFlagInfo.struct.write(infoPtr, info);
+            console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
+            return 0;
+        });
+    }
+    ThreadManForUser.prototype._sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout, callbacks) {
+        if (!this.eventFlagUids.has(id))
+            return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+        var eventFlag = this.eventFlagUids.get(id);
+
+        if ((waitType & ~(EventFlagWaitTypeSet.MaskValidBits)) != 0)
+            return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+        if (bits == 0)
+            return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
+        var timedOut = false;
+        var previousPattern = eventFlag.currentPattern;
+        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(function () {
+            if (outBits != null)
+                outBits.writeUInt32(previousPattern);
+            return 0;
+        }));
+    };
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+
+var EventFlagWaitingThread = (function () {
+    function EventFlagWaitingThread(bitsToMatch, waitType, outBits, eventFlag, wakeUp) {
+        this.bitsToMatch = bitsToMatch;
+        this.waitType = waitType;
+        this.outBits = outBits;
+        this.eventFlag = eventFlag;
+        this.wakeUp = wakeUp;
+    }
+    return EventFlagWaitingThread;
+})();
+
+var EventFlag = (function () {
+    function EventFlag() {
+        this.waitingThreads = new SortedSet();
+    }
+    EventFlag.prototype.waitAsync = function (bits, waitType, outBits, timeout, callbacks) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, _this, function () {
+                _this.waitingThreads.delete(waitingSemaphoreThread);
+                resolve();
+                throw (new CpuBreakException());
+            });
+            _this.waitingThreads.add(waitingSemaphoreThread);
+        }).then(function () {
+            return 0;
+        });
+    };
+
+    EventFlag.prototype.poll = function (bitsToMatch, waitType, outBits) {
+        if (outBits != null)
+            outBits.writeInt32(this.currentPattern);
+
+        if ((waitType & 1 /* Or */) ? ((this.currentPattern & bitsToMatch) != 0) : ((this.currentPattern & bitsToMatch) == bitsToMatch)) {
+            this._doClear(bitsToMatch, waitType);
+            return true;
+        }
+
+        return false;
+    };
+
+    EventFlag.prototype._doClear = function (bitsToMatch, waitType) {
+        if (waitType & (16 /* ClearAll */))
+            this.clearBits(~0xFFFFFFFF, false);
+        if (waitType & (32 /* Clear */))
+            this.clearBits(~bitsToMatch, false);
+    };
+
+    EventFlag.prototype.cancel = function (newPattern) {
+        this.waitingThreads.forEach(function (item) {
+            item.wakeUp();
+        });
+    };
+
+    EventFlag.prototype.clearBits = function (bitsToClear, doUpdateWaitingThreads) {
+        if (typeof doUpdateWaitingThreads === "undefined") { doUpdateWaitingThreads = true; }
+        this.currentPattern &= bitsToClear;
+        if (doUpdateWaitingThreads)
+            this.updateWaitingThreads();
+    };
+
+    EventFlag.prototype.setBits = function (bits, doUpdateWaitingThreads) {
+        if (typeof doUpdateWaitingThreads === "undefined") { doUpdateWaitingThreads = true; }
+        this.currentPattern |= bits;
+        if (doUpdateWaitingThreads)
+            this.updateWaitingThreads();
+    };
+
+    EventFlag.prototype.updateWaitingThreads = function () {
+        var _this = this;
+        this.waitingThreads.forEach(function (waitingThread) {
+            if (_this.poll(waitingThread.bitsToMatch, waitingThread.waitType, waitingThread.outBits)) {
+                waitingThread.wakeUp();
+            }
+        });
+    };
+    return EventFlag;
+})();
+
+var EventFlagInfo = (function () {
+    function EventFlagInfo() {
+    }
+    EventFlagInfo.struct = StructClass.create(EventFlagInfo, [
+        { size: Int32 },
+        { name: Stringz(32) },
+        { attributes: Int32 },
+        { initialPattern: UInt32 },
+        { currentPattern: UInt32 },
+        { numberOfWaitingThreads: Int32 }
+    ]);
+    return EventFlagInfo;
+})();
+
+var EventFlagWaitTypeSet;
+(function (EventFlagWaitTypeSet) {
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["And"] = 0x00] = "And";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Or"] = 0x01] = "Or";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["ClearAll"] = 0x10] = "ClearAll";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Clear"] = 0x20] = "Clear";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["MaskValidBits"] = EventFlagWaitTypeSet.Or | EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll] = "MaskValidBits";
+})(EventFlagWaitTypeSet || (EventFlagWaitTypeSet = {}));
+//# sourceMappingURL=ThreadManForUser_eventflag.js.map
+},
+"src/hle/module/threadman/ThreadManForUser_sema": function(module, exports, require) {
+var _utils = require('../../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../../SceKernelErrors');
+
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.semaporesUid = new UidCollection(1);
+        this.sceKernelCreateSema = createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
+            var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
+            var id = _this.semaporesUid.allocate(semaphore);
+            semaphore.id = id;
+            console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
+            return id;
+        });
+        this.sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            semaphore.delete();
+            _this.semaporesUid.remove(id);
+            return 0;
+        });
+        this.sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            if (numWaitingThreadsPtr)
+                numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
+            semaphore.cancel();
+            return 0;
+        });
+        this.sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
+            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
+        });
+        this.sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'HleThread/int/int/void*', this, function (currentThread, id, signal, timeout) {
+            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
+        });
+        this.sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            var semaphoreInfo = new SceKernelSemaInfo();
+            semaphoreInfo.size = SceKernelSemaInfo.struct.length;
+            semaphoreInfo.attributes = semaphore.attributes;
+            semaphoreInfo.currentCount = semaphore.currentCount;
+            semaphoreInfo.initialCount = semaphore.initialCount;
+            semaphoreInfo.maximumCount = semaphore.maximumCount;
+            semaphoreInfo.name = semaphore.name;
+            semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
+            SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
+            return 0;
+        });
+        this.sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'HleThread/int/int', this, function (currentThread, id, signal) {
+            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
+            if (!_this.semaporesUid.has(id))
+                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            var semaphore = _this.semaporesUid.get(id);
+            var previousCount = semaphore.currentCount;
+            if (semaphore.currentCount + signal > semaphore.maximumCount)
+                return 2147615150 /* ERROR_KERNEL_SEMA_OVERFLOW */;
+            var awakeCount = semaphore.incrementCount(signal);
+
+            //console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
+            if (awakeCount > 0) {
+                return Promise.resolve(0);
+            } else {
+                return 0;
+            }
+        });
+    }
+    ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout) {
+        //console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
+        if (!this.semaporesUid.has(id))
+            return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+        var semaphore = this.semaporesUid.get(id);
+        var promise = semaphore.waitAsync(currentThread, signal);
+        if (promise) {
+            return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise);
+        } else {
+            return 0;
+        }
+    };
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+
+var SceKernelSemaInfo = (function () {
+    function SceKernelSemaInfo() {
+    }
+    SceKernelSemaInfo.struct = StructClass.create(SceKernelSemaInfo, [
+        { size: Int32 },
+        { name: Stringz(32) },
+        { attributes: Int32 },
+        { initialCount: Int32 },
+        { currentCount: Int32 },
+        { maximumCount: Int32 },
+        { numberOfWaitingThreads: Int32 }
+    ]);
+    return SceKernelSemaInfo;
+})();
+
+var WaitingSemaphoreThread = (function () {
+    function WaitingSemaphoreThread(expectedCount, wakeUp) {
+        this.expectedCount = expectedCount;
+        this.wakeUp = wakeUp;
+    }
+    return WaitingSemaphoreThread;
+})();
+
+var Semaphore = (function () {
+    function Semaphore(name, attributes, initialCount, maximumCount) {
+        this.name = name;
+        this.attributes = attributes;
+        this.initialCount = initialCount;
+        this.maximumCount = maximumCount;
+        this.waitingSemaphoreThreadList = new SortedSet();
+        this.currentCount = initialCount;
+    }
+    Object.defineProperty(Semaphore.prototype, "numberOfWaitingThreads", {
+        get: function () {
+            return this.waitingSemaphoreThreadList.length;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Semaphore.prototype.incrementCount = function (count) {
+        this.currentCount = Math.min(this.currentCount + count, this.maximumCount);
+        return this.updatedCount();
+    };
+
+    Semaphore.prototype.cancel = function () {
+        this.waitingSemaphoreThreadList.forEach(function (item) {
+            item.wakeUp();
+        });
+    };
+
+    Semaphore.prototype.updatedCount = function () {
+        var _this = this;
+        var awakeCount = 0;
+        this.waitingSemaphoreThreadList.forEach(function (item) {
+            if (_this.currentCount >= item.expectedCount) {
+                //console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
+                _this.currentCount -= item.expectedCount;
+                item.wakeUp();
+                awakeCount++;
+            }
+        });
+        return awakeCount;
+    };
+
+    Semaphore.prototype.waitAsync = function (thread, expectedCount) {
+        var _this = this;
+        if (this.currentCount >= expectedCount) {
+            this.currentCount -= expectedCount;
+            return null;
+        } else {
+            var promise = new Promise(function (resolve, reject) {
+                var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
+                    //console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
+                    _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
+                    resolve();
+                });
+                _this.waitingSemaphoreThreadList.add(waitingSemaphoreThread);
+            });
+            this.updatedCount();
+            return promise;
+        }
+    };
+
+    Semaphore.prototype.delete = function () {
+    };
+    return Semaphore;
+})();
+
+var SemaphoreAttribute;
+(function (SemaphoreAttribute) {
+    SemaphoreAttribute[SemaphoreAttribute["FirstInFirstOut"] = 0x000] = "FirstInFirstOut";
+    SemaphoreAttribute[SemaphoreAttribute["Priority"] = 0x100] = "Priority";
+})(SemaphoreAttribute || (SemaphoreAttribute = {}));
+//# sourceMappingURL=ThreadManForUser_sema.js.map
+},
+"src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        this.context = context;
+    }
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+//# sourceMappingURL=ThreadManForUser_vpl.js.map
+},
+"src/hle/pspmodules": function(module, exports, require) {
 function _registerModules(manager) {
 }
 
@@ -16275,53 +17075,56 @@ function _registerSyscall(syscallManager, moduleManager, id, moduleName, functio
 }
 
 function registerModules(manager) {
-    manager.registerModule(ExceptionManagerForKernel);
-    manager.registerModule(InterruptManager);
-    manager.registerModule(IoFileMgrForUser);
-    manager.registerModule(KDebugForKernel);
-    manager.registerModule(Kernel_Library);
-    manager.registerModule(LoadCoreForKernel);
-    manager.registerModule(LoadExecForUser);
-    manager.registerModule(ModuleMgrForUser);
-    manager.registerModule(sceAtrac3plus);
-    manager.registerModule(sceAudio);
-    manager.registerModule(sceCtrl);
-    manager.registerModule(sceDisplay);
-    manager.registerModule(sceDmac);
-    manager.registerModule(sceGe_user);
-    manager.registerModule(sceHprm);
-    manager.registerModule(sceHttp);
-    manager.registerModule(sceImpose);
-    manager.registerModule(sceLibFont);
-    manager.registerModule(sceMp3);
-    manager.registerModule(sceMpeg);
-    manager.registerModule(sceNet);
-    manager.registerModule(sceNetAdhoc);
-    manager.registerModule(sceNetAdhocctl);
-    manager.registerModule(sceNetAdhocMatching);
-    manager.registerModule(sceNetApctl);
-    manager.registerModule(sceNetInet);
-    manager.registerModule(sceNetResolver);
-    manager.registerModule(sceNp);
-    manager.registerModule(sceNpAuth);
-    manager.registerModule(sceNpService);
-    manager.registerModule(sceOpenPSID);
-    manager.registerModule(scePower);
-    manager.registerModule(scePspNpDrm_user);
-    manager.registerModule(sceReg);
-    manager.registerModule(sceRtc);
-    manager.registerModule(sceSasCore);
-    manager.registerModule(sceSsl);
-    manager.registerModule(sceSuspendForUser);
-    manager.registerModule(sceUmdUser);
-    manager.registerModule(sceUtility);
-    manager.registerModule(sceVaudio);
-    manager.registerModule(sceWlanDrv);
-    manager.registerModule(StdioForUser);
-    manager.registerModule(SysMemUserForUser);
-    manager.registerModule(ThreadManForUser);
-    manager.registerModule(UtilsForKernel);
-    manager.registerModule(UtilsForUser);
+    manager.registerModule(require('./module/ExceptionManagerForKernel'));
+    manager.registerModule(require('./module/InterruptManager'));
+    manager.registerModule(require('./module/IoFileMgrForUser'));
+    manager.registerModule(require('./module/KDebugForKernel'));
+    manager.registerModule(require('./module/Kernel_Library'));
+    manager.registerModule(require('./module/LoadCoreForKernel'));
+    manager.registerModule(require('./module/LoadExecForUser'));
+    manager.registerModule(require('./module/ModuleMgrForUser'));
+    manager.registerModule(require('./module/sceAtrac3plus'));
+    manager.registerModule(require('./module/sceAudio'));
+    manager.registerModule(require('./module/sceCtrl'));
+    manager.registerModule(require('./module/sceDisplay'));
+    manager.registerModule(require('./module/sceDmac'));
+    manager.registerModule(require('./module/sceGe_user'));
+    manager.registerModule(require('./module/sceHprm'));
+    manager.registerModule(require('./module/sceHttp'));
+    manager.registerModule(require('./module/sceImpose'));
+    manager.registerModule(require('./module/sceLibFont'));
+    manager.registerModule(require('./module/sceMp3'));
+    manager.registerModule(require('./module/sceMpeg'));
+    manager.registerModule(require('./module/sceNet'));
+    manager.registerModule(require('./module/sceNetAdhoc'));
+    manager.registerModule(require('./module/sceNetAdhocctl'));
+    manager.registerModule(require('./module/sceNetAdhocMatching'));
+    manager.registerModule(require('./module/sceNetApctl'));
+    manager.registerModule(require('./module/sceNetInet'));
+    manager.registerModule(require('./module/sceNetResolver'));
+    manager.registerModule(require('./module/sceNp'));
+    manager.registerModule(require('./module/sceNpAuth'));
+    manager.registerModule(require('./module/sceNpService'));
+    manager.registerModule(require('./module/sceOpenPSID'));
+    manager.registerModule(require('./module/scePower'));
+    manager.registerModule(require('./module/scePspNpDrm_user'));
+    manager.registerModule(require('./module/sceReg'));
+    manager.registerModule(require('./module/sceRtc'));
+    manager.registerModule(require('./module/sceSasCore'));
+    manager.registerModule(require('./module/sceSsl'));
+    manager.registerModule(require('./module/sceSuspendForUser'));
+    manager.registerModule(require('./module/sceUmdUser'));
+    manager.registerModule(require('./module/sceUtility'));
+    manager.registerModule(require('./module/sceVaudio'));
+    manager.registerModule(require('./module/sceWlanDrv'));
+    manager.registerModule(require('./module/StdioForUser'));
+    manager.registerModule(require('./module/SysMemUserForUser'));
+    manager.registerModule(require('./module/threadman/ThreadManForUser'));
+    manager.registerModule(require('./module/threadman/ThreadManForUser_sema'));
+    manager.registerModule(require('./module/threadman/ThreadManForUser_eventflag'));
+    manager.registerModule(require('./module/threadman/ThreadManForUser_vpl'));
+    manager.registerModule(require('./module/UtilsForKernel'));
+    manager.registerModule(require('./module/UtilsForUser'));
 }
 
 function registerSyscalls(syscallManager, moduleManager) {

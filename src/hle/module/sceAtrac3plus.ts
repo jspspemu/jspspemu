@@ -28,6 +28,15 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, (id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) => {
+		if (samplesOutPtr) {
+			for (var n = 0; n < 1024; n++) samplesOutPtr.writeInt16(0);
+		}
+		if (decodedSamplesCountPtr) {
+			decodedSamplesCountPtr.writeInt32(0);
+		}
+		if (reachedEndPtr) {
+			reachedEndPtr.writeInt32(-1);
+		}
 		return this._waitAsync('sceAtracDecodeData', 10);
 	});
 
