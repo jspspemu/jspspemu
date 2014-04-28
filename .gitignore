@@ -178,3 +178,4 @@ node_modules
 /samples/__abuse
 /samples/*.iso
 /js
+/samples/*.cso

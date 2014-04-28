@@ -2768,6 +2768,10 @@ var InstructionAst = (function () {
         return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)]));
     };
 
+    InstructionAst.prototype.cache = function (i) {
+        return stm(call('state.cache', []));
+    };
+
     InstructionAst.prototype.syscall = function (i) {
         return stm(call('state.syscall', [imm32(i.syscall)]));
     };
@@ -4652,6 +4656,10 @@ var CpuState = (function () {
         throw ("RM has an invalid value!!");
     };
 
+    CpuState.prototype.cache = function () {
+        if (DebugOnce('state.cache', 200))
+            console.warn('cache opcode!');
+    };
     CpuState.prototype.syscall = function (id) {
         this.syscallManager.call(this, id);
     };
@@ -13455,7 +13463,8 @@ var PspElfLoader = (function () {
                 nfunc.nid = nid;
                 nfunc.firmwareVersion = 150;
                 nfunc.call = function (context, state) {
-                    throw ("Not implemented '" + nfunc.name + "'");
+                    console.info(_module);
+                    throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
                 };
             }
             var syscallId = _this.syscallManager.register(nfunc);
@@ -16943,6 +16952,15 @@ var ThreadManForUser = (function () {
                 return 0;
             }
         });
+        this.sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'HleThread/int/int', this, function (currentThread, id, signal) {
+            var semaphore = _this.semaporesUid.get(id);
+            if (signal <= 0)
+                return 2147615165 /* ERROR_KERNEL_ILLEGAL_COUNT */;
+            if (signal > semaphore.currentCount)
+                return 2147615149 /* ERROR_KERNEL_SEMA_ZERO */;
+            semaphore.incrementCount(-signal);
+            return 0;
+        });
     }
     ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout) {
         //console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
@@ -17057,13 +17075,58 @@ var SemaphoreAttribute;
 //# sourceMappingURL=ThreadManForUser_sema.js.map
 },
 "src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
+var _utils = require('../../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../../SceKernelErrors');
+var _manager = require('../../manager');
+
+var MemoryAnchor = _manager.MemoryAnchor;
+
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
+        var _this = this;
         this.context = context;
+        this.vplUid = new UidCollection(1);
+        this.sceKernelCreateVpl = createNativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*', this, function (name, partitionId, attribute, size, optionsPtr) {
+            var partition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
+            var allocatedPartition = partition.allocate(size, (attribute & 16384 /* PSP_VPL_ATTR_ADDR_HIGH */) ? 1 /* High */ : 0 /* Low */);
+
+            var vpl = new Vpl(name, allocatedPartition);
+            return _this.vplUid.allocate(vpl);
+        });
+        this.sceKernelTryAllocateVpl = createNativeFunction(0xAF36D708, 150, 'int', 'int/int/void*', this, function (vplId, size, addressPtr) {
+            var vpl = _this.vplUid.get(vplId);
+
+            try  {
+                var item = vpl.partition.allocateLow(size);
+                if (addressPtr)
+                    addressPtr.writeInt32(item.low);
+                return 0;
+            } catch (e) {
+                console.error(e);
+                return 2147615120 /* ERROR_KERNEL_NO_MEMORY */;
+            }
+        });
     }
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
+
+var Vpl = (function () {
+    function Vpl(name, partition) {
+        this.name = name;
+        this.partition = partition;
+    }
+    return Vpl;
+})();
+
+var VplAttributeFlags;
+(function (VplAttributeFlags) {
+    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_MASK"] = 0x41FF] = "PSP_VPL_ATTR_MASK";
+    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_ADDR_HIGH"] = 0x4000] = "PSP_VPL_ATTR_ADDR_HIGH";
+    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_EXT"] = 0x8000] = "PSP_VPL_ATTR_EXT";
+})(VplAttributeFlags || (VplAttributeFlags = {}));
 //# sourceMappingURL=ThreadManForUser_vpl.js.map
 },
 "src/hle/pspmodules": function(module, exports, require) {

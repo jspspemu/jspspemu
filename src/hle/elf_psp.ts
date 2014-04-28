@@ -332,7 +332,8 @@ export class PspElfLoader {
                 nfunc.nid = nid;
                 nfunc.firmwareVersion = 150;
 				nfunc.call = (context, state) => {
-                    throw ("Not implemented '" + nfunc.name + "'");
+					console.info(_module);
+					throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
                 };
             }
             var syscallId = this.syscallManager.register(nfunc);

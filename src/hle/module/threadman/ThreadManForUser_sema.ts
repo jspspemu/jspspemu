@@ -86,6 +86,14 @@ export class ThreadManForUser {
 			return 0;
 		}
 	});
+
+	sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'HleThread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
+		var semaphore = this.semaporesUid.get(id);
+		if (signal <= 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
+		if (signal > semaphore.currentCount) return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;
+		semaphore.incrementCount(-signal);
+		return 0;
+	});
 }
 
 class SceKernelSemaInfo {

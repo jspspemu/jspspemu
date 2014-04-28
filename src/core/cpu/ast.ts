@@ -124,6 +124,10 @@ export class InstructionAst {
 	msub(i: Instruction) { return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)])); }
 	msubu(i: Instruction) { return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)])); }
 
+	cache(i: Instruction) {
+		return stm(call('state.cache', []));
+	}
+
 	syscall(i: Instruction) { return stm(call('state.syscall', [imm32(i.syscall)])); }
 	"break"(i: Instruction) { return stm(call('state.break', [])); }
 	dbreak(i: Instruction) { return ast.debugger("dbreak"); }

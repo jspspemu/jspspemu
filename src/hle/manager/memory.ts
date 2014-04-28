@@ -169,7 +169,7 @@ export class MemoryManager {
         this.memoryPartitionsUid[MemoryPartitions.User] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
         this.memoryPartitionsUid[MemoryPartitions.UserStacks] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
         this.memoryPartitionsUid[MemoryPartitions.VolatilePartition] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
-    }
+	}
 
 	get kernelPartition() {
 		return this.memoryPartitionsUid[MemoryPartitions.Kernel0];
