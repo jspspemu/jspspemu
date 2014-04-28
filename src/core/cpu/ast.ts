@@ -84,7 +84,7 @@ export class InstructionAst {
 	slt(i: Instruction) { return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)])); }
 	sltu(i: Instruction) { return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)])); }
 	slti(i: Instruction) { return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)])); }
-	sltiu(i: Instruction) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)])); }
+	sltiu(i: Instruction) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), <any>u_imm32(i.imm16)])); }
 
 	movz(i: Instruction) { return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs))); }
 	movn(i: Instruction) { return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs))); }
@@ -140,8 +140,8 @@ export class InstructionAst {
 		return _if(
 			branchflag(),
 			stm(assign(pc(), branchpc())),
-			stm(assign(pc(), u_imm32(nextPc)))
-			);
+			stms([stm(assign(pc(), u_imm32(nextPc))), ast._return()])
+		);
 	}
 
 	_storePC(_pc: number) {

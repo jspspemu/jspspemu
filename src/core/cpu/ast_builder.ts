@@ -5,16 +5,56 @@ import state = require('./state');
 import CpuState = state.CpuState;
 
 export class ANode {
-	toJs() { }
+	toJs() { return ''; }
 	optimize() { return this; }
 }
 
 export class ANodeStm extends ANode {
 }
 
+export class ANodeStmJump extends ANodeStm {
+	constructor(public label: number) { super(); }
+}
+
+export class ANodeStmReturn extends ANodeStm {
+	toJs() { return 'return;'; }
+}
+
 export class ANodeStmList extends ANodeStm {
+	labels: NumberDictionary<number> = {};
+
 	constructor(public childs: ANodeStm[]) { super(); }
-	toJs() { return this.childs.map((item) => item.toJs()).join("\n"); }
+
+	createLabel(label: number) {
+		this.labels[label] = this.childs.length;
+		return this.childs.length;
+	}
+
+	add(node: ANodeStm) {
+		this.childs.push(node);
+	}
+
+	toJs() {
+		var jumpCount = this.childs.count(item => item instanceof ANodeStmJump);
+		var usedLabels = this.childs.filter(item => item instanceof ANodeStmJump).cast<ANodeStmJump>().map(item => item.label).toLookupMap();
+		if (jumpCount > 1) throw (new Error("Not supported more than one jump at this point!"));
+		var lines = [];
+		for (var n = 0; n < this.childs.length; n++) {
+			var child = this.childs[n];
+
+			if (usedLabels[n] !== undefined) {
+				lines.push('while(true) {');
+			}
+			//console.log(usedLabels);
+
+			lines.push(child.toJs());
+
+			if (child instanceof ANodeStmJump) {
+				lines.push('}');
+			}
+		}
+		return lines.join("\n");
+	}
 }
 
 export class ANodeStmRaw extends ANodeStm {
@@ -92,6 +132,8 @@ export class AstBuilder {
 	stmEmpty() { return new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
+	jump(label: number) { return new ANodeStmJump(label); }
+	_return() { return new ANodeStmReturn(); }
 }
 
 export class MipsAstBuilder extends AstBuilder {

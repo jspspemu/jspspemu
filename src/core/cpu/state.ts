@@ -215,7 +215,25 @@ export class CpuState {
 		this.HI = (rs % rt) | 0;
 	}
 
+	_mult(rs: number, rt: number) {
+		var ah = rs >>> 16;
+		var bh = rt >>> 16;
+		var al = rs & 0xFFFF;
+		var bl = rt & 0xFFFF;
+
+		var mid = ah * bl + al * bh;
+		var albl = al * bl;
+
+		var imm = mid + (albl >>> 16);
+
+		var carry = (imm > 0xffffffff) ? 0x10000 : 0;
+
+		this.LO = ((mid << 16) + albl) >>> 0;
+		this.HI = (ah * bh + (imm >>> 16) + carry) >>> 0;
+	}
+
 	mult(rs: number, rt: number) {
+		//this._mult(rs, rt);
 		var a64 = Integer64.fromInt(rs);
 		var b64 = Integer64.fromInt(rt);
 		var result = a64.multiply(b64);
@@ -239,12 +257,17 @@ export class CpuState {
 		this.LO = result.low;
 	}
 
+	private _mul_32_unsigned(a, b) {
+
+	}
+
 	multu(rs: number, rt: number) {
-		var a64 = Integer64.fromUnsignedInt(rs);
-		var b64 = Integer64.fromUnsignedInt(rt);
-		var result = a64.multiply(b64);
-		this.HI = result.high;
-		this.LO = result.low;
+		this._mult(rs, rt);
+		//var a64 = Integer64.fromUnsignedInt(rs);
+		//var b64 = Integer64.fromUnsignedInt(rt);
+		//var result = a64.multiply(b64);
+		//this.HI = result.high;
+		//this.LO = result.low;
 	}
 
 	maddu(rs: number, rt: number) {

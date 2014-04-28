@@ -62,18 +62,23 @@ export class FunctionGenerator {
 
 		var ast = new MipsAstBuilder();
 
+		var startPC = address;
 		var PC = address;
-		var stms: ast_builder.ANodeStm[] = [ast.functionPrefix()];
+		var stms: ast_builder.ANodeStmList = new ast_builder.ANodeStmList([ast.functionPrefix()]);
+		var mustDumpFunction = false;
+		var pcToLabel: NumberDictionary<number> = {};
 
 		var emitInstruction = () => {
 			var result = this.generateInstructionAstNode(this.decodeInstruction(PC))
-            PC += 4;
+			PC += 4;
 			return result;
 		};
 
 		for (var n = 0; n < 100000; n++) {
 			var di = this.decodeInstruction(PC + 0);
 			//console.log(di);
+
+			pcToLabel[PC] = stms.createLabel(PC);
 
 			if (this.instructionUsageCount[di.type.name] === undefined) {
 				this.instructionUsageCount[di.type.name] = 0;
@@ -83,39 +88,65 @@ export class FunctionGenerator {
 
 			//if ([0x089162F8, 0x08916318].contains(PC)) stms.push(ast.debugger(sprintf('PC: %08X', PC)));
 
-			if (di.type.hasDelayedBranch) {
+			if (di.type.isJumpOrBranch) {
 				var di2 = this.decodeInstruction(PC + 4);
+				var isBranch = di.type.isBranch;
+				var jumpAddress = 0;
+				var jumpBack = false;
+				var jumpAhead = false;
 
-				stms.push(emitInstruction());
+				if (isBranch) {
+					jumpAddress = PC + di.instruction.imm16 * 4 + 4;
+				} else {
+					jumpAddress = di.instruction.u_imm26 * 4;
+				}
+
+				jumpAhead = jumpAddress > PC;
+				jumpBack = !jumpAhead;
+
+				// SIMPLE LOOP
+				var isSimpleLoop = isBranch && jumpBack && (jumpAddress >= startPC);
+
+				stms.add(emitInstruction());
 
 				var delayedSlotInstruction = emitInstruction();
+
 				if (di2.type.isSyscall) {
-					stms.push(this.instructionAst._postBranch(PC));
-					stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+					stms.add(this.instructionAst._postBranch(PC));
+					stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
 				}
 				else {
-					stms.push(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-					stms.push(this.instructionAst._postBranch(PC));
+					stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+					stms.add(this.instructionAst._postBranch(PC));
+				}
+				
+				if (isSimpleLoop) {
+					stms.add(ast.jump(pcToLabel[jumpAddress]));
+
+					console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
+					mustDumpFunction = true;
 				}
 
 				break;
 			} else {
 				if (di.type.isSyscall) {
-					stms.push(this.instructionAst._storePC(PC + 4));
+					stms.add(this.instructionAst._storePC(PC + 4));
 				}
-				stms.push(emitInstruction());
+				stms.add(emitInstruction());
 				if (di.type.isBreak) {
-					stms.push(this.instructionAst._storePC(PC));
+					stms.add(this.instructionAst._storePC(PC));
 
 					break;
 				}
 			}
 		}
 
-		//console.debug(sprintf("// function_%08X:\n%s", address, ast.stms(stms).toJs()));
+		if (mustDumpFunction) {
+			console.debug(sprintf("// function_%08X:\n%s", address, stms.toJs()));
+		}
 
 		if (n >= 100000) throw (new Error(sprintf("Too large function PC=%08X", address)));
 
-		return new Function('state', ast.stms(stms).toJs());
+		return new Function('state', stms.toJs());
 	}
 }

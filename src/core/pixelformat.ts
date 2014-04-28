@@ -129,7 +129,8 @@ export class PixelConverter {
 	}
 
 	private static decode8888(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		for (var n = 0; n < count * 4; n += 4) {
+		var count4 = count * 4;
+		for (var n = 0; n < count4; n += 4) {
 			to[toIndex + n + 0] = from[fromIndex + n + 0];
 			to[toIndex + n + 1] = from[fromIndex + n + 1];
 			to[toIndex + n + 2] = from[fromIndex + n + 2];

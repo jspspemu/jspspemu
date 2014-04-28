@@ -92,8 +92,16 @@ export class InstructionType {
 		return this.isInstructionType(INSTR_TYPE_BREAK);
 	}
 
-	get hasDelayedBranch() {
-		return this.isInstructionType(INSTR_TYPE_B) || this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
+	get isBranch() {
+		return this.isInstructionType(INSTR_TYPE_B);
+	}
+
+	get isJump() {
+		return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
+	}
+
+	get isJumpOrBranch() {
+		return this.isBranch || this.isJump;
 	}
 
 	get isLikely() {
