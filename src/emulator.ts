@@ -204,14 +204,11 @@ export class Emulator {
 							var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
 							this.processParamsPsf(psf);
 
-							return isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(icon0DataPng => {
-								this.loadIcon0(Stream.fromArrayBuffer(icon0DataPng));
-								return isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(pic1DataPng => {
-									this.loadPic1(Stream.fromArrayBuffer(pic1DataPng));
-									return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(bootBinData => {
-										return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
-									});
-								});
+							var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(data => { this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(() => { });
+							var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(data => { this.loadPic1(Stream.fromArrayBuffer(data)); }).catch(() => { });
+
+							return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(bootBinData => {
+								return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
 							});
 						});
 

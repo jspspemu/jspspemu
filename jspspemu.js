@@ -7211,14 +7211,17 @@ var Emulator = (function () {
                             var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
                             _this.processParamsPsf(psf);
 
-                            return isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (icon0DataPng) {
-                                _this.loadIcon0(Stream.fromArrayBuffer(icon0DataPng));
-                                return isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (pic1DataPng) {
-                                    _this.loadPic1(Stream.fromArrayBuffer(pic1DataPng));
-                                    return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
-                                        return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
-                                    });
-                                });
+                            var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (data) {
+                                _this.loadIcon0(Stream.fromArrayBuffer(data));
+                            }).catch(function () {
+                            });
+                            var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (data) {
+                                _this.loadPic1(Stream.fromArrayBuffer(data));
+                            }).catch(function () {
+                            });
+
+                            return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
+                                return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
                             });
                         });
                     });
