@@ -60,10 +60,10 @@ export class Texture {
 
 	}
 
-	bind() {
+	bind(textureUnit: number) {
 		var gl = this.gl;
 
-		gl.activeTexture(gl.TEXTURE0);
+		gl.activeTexture(gl.TEXTURE0 + textureUnit);
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -257,9 +257,11 @@ export class TextureHandler {
 		}
 
 		this.lastTexture = texture;
-		gl.activeTexture(gl.TEXTURE0);
-		texture.bind();
+
+		texture.bind(0);
 		prog.getUniform('uSampler').set1i(0);
+
+		prog.getUniform('samplerClut').set1i(1);
 	}
 
 	unbindTexture(program: WrappedWebGLProgram, state: _state.GpuState) {

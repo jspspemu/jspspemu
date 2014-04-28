@@ -176,7 +176,19 @@ class PspGpuList {
 			case GpuOpCodes.REGION2:
 				this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
 				this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
-				break;			
+				break;
+			case GpuOpCodes.CPE:
+				this.state.clipPlane.enabled = (params24 != 0);
+				break;
+			case GpuOpCodes.SCISSOR1:
+				this.state.clipPlane.scissor.left = BitUtils.extract(params24, 0, 10);
+				this.state.clipPlane.scissor.top = BitUtils.extract(params24, 10, 10);
+				break;
+			case GpuOpCodes.SCISSOR2:
+				this.state.clipPlane.scissor.right = BitUtils.extract(params24, 0, 10);
+				this.state.clipPlane.scissor.bottom = BitUtils.extract(params24, 10, 10);
+				break;
+
             case GpuOpCodes.FBW:
                 this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
                 this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);

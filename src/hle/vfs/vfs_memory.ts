@@ -26,20 +26,6 @@ export class MemoryVfs extends Vfs {
 			return Promise.resolve(new MemoryVfsEntry(file));
 		}
 	}
-
-	/*
-	getStatAsync(path: string): Promise<VfsStat> {
-		var file = this.files[path];
-		if (!file) throw (new Error(sprintf("MemoryVfs: Can't find '%s'", path)));
-		return Promise.resolve({
-			size: file.byteLength,
-			isDirectory: false,
-			timeCreation: new Date(),
-			timeLastAccess: new Date(),
-			timeLastModification: new Date(),
-		});
-	}
-	*/
 }
 
 export class MemoryVfsEntry extends VfsEntry {

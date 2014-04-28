@@ -33,7 +33,7 @@ describe('elf', () => {
 		var moduleManager = new ModuleManager(context);
 		pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
-		context.init(null, display, null, null, memoryManager, null, null, memory, null, null);
+		context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);

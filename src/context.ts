@@ -2,6 +2,7 @@
 import _display = require('./core/display');
 import _controller = require('./core/controller');
 import _gpu = require('./core/gpu');
+import _rtc = require('./core/rtc');
 import _cpu = require('./core/cpu');
 import _audio = require('./core/audio');
 import _memory = require('./core/memory');
@@ -20,6 +21,7 @@ export interface ISymbolLookup {
 export class EmulatorContext {
 	display: _display.IPspDisplay;
 	controller: _controller.IPspController;
+	rtc: _rtc.PspRtc;
 	gpu: _gpu.PspGpu;
 	memoryManager: _manager.MemoryManager;
 	threadManager: _manager.ThreadManager;
@@ -34,7 +36,7 @@ export class EmulatorContext {
 	constructor() {
 	}
 
-	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager) {
+	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc) {
 		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;
@@ -45,6 +47,7 @@ export class EmulatorContext {
 		this.memory = memory;
 		this.instructionCache = instructionCache;
 		this.fileManager = fileManager;
+		this.rtc = rtc;
 		this.output = '';
 	}
 }

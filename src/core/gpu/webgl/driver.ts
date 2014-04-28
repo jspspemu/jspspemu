@@ -91,6 +91,12 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 		}
 
+		if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
+			var rect = state.clipPlane.scissor;
+			var ratio = this.getScaleRatio();
+			gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
+		}
+
 		var blending = state.blending;
 		if (this.enableDisable(gl.BLEND, state.blending.enabled)) {
 

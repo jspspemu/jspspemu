@@ -13,9 +13,9 @@ export class ThreadManForUser {
 
 	private threadUids = new UidCollection<Thread>(1);
 
-	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'HleThread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attribute: number, optionPtr: number) => {
+	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: number, optionPtr: number) => {
 		//var stackPartition = this.context.memoryManager.stackPartition;
-		var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize);
+		var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
 		newThread.id = this.threadUids.allocate(newThread);
 
 		console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d', newThread.id, newThread.name, newThread.priority, currentThread.priority));
@@ -24,6 +24,7 @@ export class ThreadManForUser {
 	});
 
 	_sceKernelDelayThreadCB(delayInMicroseconds: number) {
+		this.context.controller
 		return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
 	}
 
@@ -47,9 +48,9 @@ export class ThreadManForUser {
 		return newThread.waitEndAsync().then(() => 0);
 	});
 
-	sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'HleThread', this, (currentThread: Thread) => currentThread.priority);
+	sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, (currentThread: Thread) => currentThread.priority);
 
-	sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'HleThread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number) => {
+	sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number) => {
 		var newThread = this.threadUids.get(threadId);
 
 		var newState = newThread.state;
@@ -72,14 +73,14 @@ export class ThreadManForUser {
 		return Promise.resolve(0);
 	});
 
-	sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'HleThread/int/int', this, (currentThread: Thread, threadId: number, priority: number): any => {
+	sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, (currentThread: Thread, threadId: number, priority: number): any => {
 		if (!this.threadUids.has(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.threadUids.get(threadId);
 		thread.priority = priority;
 		return Promise.resolve(0);
 	});
 
-	sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'HleThread/int', this, (currentThread: Thread, exitStatus: number) => {
+	sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
 		console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
 		currentThread.exitStatus = exitStatus;
@@ -129,11 +130,16 @@ export class ThreadManForUser {
 		return 0;
 	});
 
-	sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'HleThread', this, (currentThread: Thread) => {
+	sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, (thread: Thread) => {
+		console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
+		return 0;
+	});
+
+	sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, (currentThread: Thread) => {
 		return currentThread.wakeupSleepAsync();
 	});
 
-	sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'HleThread', this, (currentThread: Thread) => {
+	sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'Thread', this, (currentThread: Thread) => {
 		return currentThread.wakeupSleepAsync();
 	});
 
@@ -143,8 +149,7 @@ export class ThreadManForUser {
 	});
 
 	_getCurrentMicroseconds() {
-		return new Date().getTime() * 1000;
-		//return window.performance.now() * 1000;
+		return this.context.rtc.getCurrentMicroseconds();
 	}
 
 	sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, () => {
@@ -157,7 +162,7 @@ export class ThreadManForUser {
 		return Integer64.fromNumber(this._getCurrentMicroseconds());
 	});
 
-	sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'HleThread', this, (currentThread: Thread) => currentThread.id);
+	sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, (currentThread: Thread) => currentThread.id);
 
 	sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, (threadId: number, sceKernelThreadInfoPtr: Stream) => {
 		if (!this.threadUids.has(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
@@ -165,11 +170,19 @@ export class ThreadManForUser {
 		var sceKernelThreadInfo = new SceKernelThreadInfo();
 		sceKernelThreadInfo.size = SceKernelThreadInfo.struct.length;
 		sceKernelThreadInfo.name = thread.name;
+		sceKernelThreadInfo.attributes = thread.attributes;
+		sceKernelThreadInfo.threadPreemptionCount = thread.preemptionCount;
 		//console.log(thread.state.GP);
 		sceKernelThreadInfo.GP = thread.state.GP;
 		sceKernelThreadInfo.priorityInit = thread.initialPriority;
 		sceKernelThreadInfo.priority = thread.priority;
 		SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, sceKernelThreadInfo);
+		return 0;
+	});
+
+	sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint', this, (currentThread: Thread, removeAttributes: number, addAttributes: number) => {
+		currentThread.attributes &= ~removeAttributes;
+		currentThread.attributes |= addAttributes;
 		return 0;
 	});
 

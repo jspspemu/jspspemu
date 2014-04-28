@@ -100,7 +100,6 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 
 	private getCurrentMs() {
 		return performance.now();
-		//return Date.now();
 	}
 
 	updateTime() {

@@ -32,7 +32,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     arguments.split('/').forEach(item => {
         switch (item) {
             case 'EmulatorContext': args.push('context'); break;
-            case 'HleThread': args.push('state.thread'); break;
+            case 'Thread': args.push('state.thread'); break;
             case 'CpuState': args.push('state'); break;
             case 'Memory': args.push('state.memory'); break;
 			case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;

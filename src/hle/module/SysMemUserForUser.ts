@@ -55,8 +55,23 @@ export class SysMemUserForUser {
 		console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
 	});
 
-	sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'HleThread/string', this, (thread: Thread, format: string) => {
-		console.info('sceKernelPrintf: ' + format);
+	sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string', this, (thread: Thread, format: string) => {
+		var gprIndex = 5;
+		var memory = this.context.memory;
+		var gpr = thread.state.gpr;
+
+		var readParam = (type) => {
+			switch (type) {
+				case '%s':
+					return memory.readStringz(gpr[gprIndex++]);
+				case '%d':
+					return String(gpr[gprIndex++]);
+			}
+			return '??[' + type + ']??';
+		};
+		console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, (data) => {
+			return readParam(data);
+		}));
 		//console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
 	});
 }

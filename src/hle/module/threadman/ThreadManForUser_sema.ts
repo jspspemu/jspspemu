@@ -49,11 +49,11 @@ export class ThreadManForUser {
 		}
 	}
 
-	sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'HleThread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
+	sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
 		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
 	});
 
-	sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'HleThread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
+	sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
 		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
 	});
 
@@ -72,7 +72,7 @@ export class ThreadManForUser {
 		return 0;
 	});
 
-	sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'HleThread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
+	sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
 		//console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
@@ -87,7 +87,7 @@ export class ThreadManForUser {
 		}
 	});
 
-	sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'HleThread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
+	sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
 		var semaphore = this.semaporesUid.get(id);
 		if (signal <= 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
 		if (signal > semaphore.currentCount) return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;

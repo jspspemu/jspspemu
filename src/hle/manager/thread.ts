@@ -20,7 +20,8 @@ export class Thread {
     name: string;
 	programExecutor: ProgramExecutor;
 	initialPriority: number = 10;
-    priority: number = 10;
+	priority: number = 10;
+	attributes: number = 0;
     exitStatus: number = 0;
     running: boolean = false;
 	stackPartition: MemoryPartition;
@@ -152,7 +153,7 @@ export class ThreadManager {
 		});
     }
 
-    create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000) {
+	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: number = 0) {
 		var thread = new Thread(this, new CpuState(this.memory, this.syscallManager), this.instructionCache);
 		thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize);
         thread.name = name;
@@ -160,7 +161,8 @@ export class ThreadManager {
         thread.state.RA = CpuSpecialAddresses.EXIT_THREAD;
 		thread.state.SP = thread.stackPartition.high;
 		thread.initialPriority = initialPriority;
-        thread.priority = initialPriority;
+		thread.priority = initialPriority;
+		thread.attributes = attributes;
         return thread;
     }
 
@@ -187,20 +189,7 @@ export class ThreadManager {
         this.enqueued = false;
         var start = window.performance.now();
 
-        //this.debugThreads();
-
-        //console.log('eventOcurredCallback');
-
         while (true) {
-            /*
-            var runningThreads = this.runningThreads;
-            if (runningThreads.length == 0) break;
-
-            //var priority = HleThreadManager.getHighestPriority(runningThreads);
-            //runningThreads.filter(thread => thread.priority == priority).forEach((thread) => thread.runStep());
-            runningThreads.forEach((thread) => thread.runStep());
-            */
-
             var threadCount = 0;
             var priority = 2147483648;
 

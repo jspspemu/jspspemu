@@ -32,7 +32,7 @@ export class sceUtility {
 	});
 
 	sceUtilityMsgDialogInitStart = createNativeFunction(0x2AD8E239, 150, 'uint', 'void*', this, (paramsPtr: Stream) => {
-		console.warn("Not implemented sceUtilityMsgDialogInitStart");
+		console.warn("Not implemented sceUtilityMsgDialogInitStart()");
 		this.currentStep = DialogStepEnum.PROCESSING;
 
 		return 0;
@@ -47,6 +47,11 @@ export class sceUtility {
 	});
 
 	sceUtilityMsgDialogUpdate = createNativeFunction(0x9A1C91D7, 150, 'uint', 'int', this, (value: number) => {
+	});
+
+	sceUtilityLoadNetModule = createNativeFunction(0x1579A159, 150, 'uint', '', this, () => {
+		console.warn('Not implemented sceUtilityLoadNetModule');
+		return 0;
 	});
 
 	private _getKey(id: PSP_SYSTEMPARAM_ID): any {
@@ -65,15 +70,16 @@ export class sceUtility {
 	}
 
 	sceUtilityGetSystemParamInt = createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, (id: PSP_SYSTEMPARAM_ID, valuePtr: Stream) => {
-		console.warn("Not implemented sceUtilityGetSystemParamInt");
-		valuePtr.writeInt32(0);
+		//console.warn("Not implemented sceUtilityGetSystemParamInt", id, PSP_SYSTEMPARAM_ID[id]);
+		var value = parseInt(this._getKey(id));
+		if (valuePtr) valuePtr.writeInt32(value);
 		return 0;
 	});
 
 	sceUtilityGetSystemParamString = createNativeFunction(0x34B78343, 150, 'uint', 'int/void*/int', this, (id: PSP_SYSTEMPARAM_ID, strPtr: Stream, len: number) => {
 		var value = String(this._getKey(id));
 		value = value.substr(0, Math.min(value.length, len - 1));
-		strPtr.writeStringz(value);
+		if (strPtr) strPtr.writeStringz(value);
 		return 0;
 	});
 }

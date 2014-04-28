@@ -1,11 +1,11 @@
 ﻿import _utils = require('../utils');
-import _manager = require('../manager');
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import _vfs = require('../vfs');
 import _structs = require('../structs');
 import SceKernelErrors = require('../SceKernelErrors');
 
+import _manager = require('../manager'); _manager.Thread;
 import Thread = _manager.Thread;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
@@ -127,9 +127,14 @@ export class IoFileMgrForUser {
 		return 0;
 	});
 
-	sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'HleThread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
-		var file = this.fileUids.get(fileId);
+	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream) {
 		thread.state.LO = fileId;
+
+		if (this.fileUids.has(fileId)) {
+			return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+		}
+
+		var file = this.fileUids.get(fileId);
 
 		if (!file.asyncOperation) file.asyncOperation = Promise.resolve(0);
 
@@ -137,6 +142,15 @@ export class IoFileMgrForUser {
 			resultPointer.writeInt64(Integer64.fromNumber(result));
 			return 0;
 		});
+	}
+
+
+	sceIoWaitAsync = createNativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+	});
+
+	sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
 	});
 
 	/*

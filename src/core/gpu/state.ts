@@ -360,6 +360,19 @@ export class AlphaTest {
 	func = TestFunctionEnum.Always;
 }
 
+export class Rectangle {
+	constructor(public top, public left, public right, public bottom) {
+	}
+
+	get width() { return this.right - this.left; }
+	get height() { return this.bottom - this.top; }
+}
+
+export class ClipPlane {
+	enabled = true;
+	scissor = new Rectangle(0, 0, 512, 272);
+}
+
 export class GpuState {
 	clearing = false;
 	clearFlags = 0;
@@ -373,6 +386,7 @@ export class GpuState {
 	viewMatrix = new Matrix4x3();
 	worldMatrix = new Matrix4x3();
 	viewPort = new ViewPort();
+	clipPlane = new ClipPlane();
 	lightning = new Lightning();
 	alphaTest = new AlphaTest();
 	blending = new Blending();

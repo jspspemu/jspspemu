@@ -1,6 +1,7 @@
 ﻿import _context = require('./context');
 import _cpu = require('./core/cpu');
 import _gpu = require('./core/gpu');
+import _rtc = require('./core/rtc');
 import _controller = require('./core/controller');
 import _display = require('./core/display');
 import _audio = require('./core/audio');
@@ -22,6 +23,7 @@ import _manager_thread = require('./hle/manager/thread');
 import _manager_module = require('./hle/manager/module');
 import _pspmodules = require('./hle/pspmodules');
 
+import PspRtc = _rtc.PspRtc;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 import Vfs = _vfs.Vfs;
@@ -53,6 +55,7 @@ export class Emulator {
 	public context: EmulatorContext;
 	private memory: Memory;
 	private memoryManager: MemoryManager;
+	private rtc: PspRtc;
 	private interruptManager: InterruptManager;
 	private fileManager: FileManager;
 	private audio: PspAudio;
@@ -101,15 +104,17 @@ export class Emulator {
 			this.threadManager = new ThreadManager(this.memory, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new ModuleManager(this.context);
 			this.interruptManager = new InterruptManager();
+			this.rtc = new PspRtc();
 
 			this.fileManager.mount('ms0', this.ms0Vfs = new MountableVfs());
 			this.fileManager.mount('host0', new MemoryVfs());
+			this.fileManager.mount('flash0', new UriVfs('flash0'));
 
 			this.ms0Vfs.mountVfs('/', new MemoryVfs());
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc);
 
 			return Promise.all([
 				this.display.startAsync(),
@@ -267,6 +272,7 @@ export class Emulator {
 			});
 		}).catch(e => {
 			console.error(e);
+			console.error(e['stack']);
 			throw(e);
 		});
 	}
@@ -283,6 +289,7 @@ export class Emulator {
 			return this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
 		}).catch(e => {
 			console.error(e);
+			console.error(e['stack']);
 			throw (e);
 		});
 	}

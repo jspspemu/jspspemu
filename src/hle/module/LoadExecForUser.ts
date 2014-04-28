@@ -8,7 +8,7 @@ import Thread = _manager.Thread;
 export class LoadExecForUser {
     constructor(private context: _context.EmulatorContext) { }
 
-    sceKernelExitGame = createNativeFunction(0xBD2F1094, 150, 'uint', 'HleThread', this, (thread: Thread) => {
+    sceKernelExitGame = createNativeFunction(0xBD2F1094, 150, 'uint', 'Thread', this, (thread: Thread) => {
         console.info('sceKernelExitGame');
 		thread.stop();
 		this.context.threadManager.exitGame();
@@ -16,7 +16,7 @@ export class LoadExecForUser {
         return 0;
 	});
 
-	sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'HleThread', this, (thread: Thread) => {
+	sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'Thread', this, (thread: Thread) => {
 		console.info("Call stack:");
 		thread.state.getCallstack().forEach((PC) => {
 			console.info(sprintf("%08X : %s", PC, this.context.symbolLookup.getSymbolAt(PC)));

@@ -17,6 +17,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+    <link rel="stylesheet" href="pspemu.css" />
+
     <script src="lib/aes.js"></script>
     <script src="lib/sha1.js"></script>
     <script src="lib/lib-typedarrays-min.js"></script>
@@ -41,8 +43,6 @@
     </script>
 
     <script src="jspspemu.js"></script>
-
-    <link rel="stylesheet" href="pspemu.css" />
 </head>
 <body>
     <div id="body">
@@ -99,25 +99,51 @@
     </div>
     <script>
         var demos = [
+            "-CPU",
+            "samples/compilerPerf.elf",
             "samples/counter.elf",
             "samples/fputest.elf",
+            "samples/mytest.elf",
+
+            "-OS",
+            "samples/rtctest.elf",
+            "samples/rtctest.pbp",
+            "samples/threadstatus.elf",
+            "samples/cwd.elf",
+            "samples/taskScheduler.prx",
+            "samples/mstick.pbp",
+            "samples/power.pbp",
+
+            "-DISPLAY",
+            "samples/displayWait.prx",
             "samples/minifire.elf",
+            "samples/HelloWorldPSP.elf",
+
+            "-GPU",
+            "samples/2dstudio.prx",
+            "samples/3dstudio.pbp",
             "samples/ortho.elf",
             "samples/polyphonic.elf",
             "samples/controller.elf",
             "samples/cube.elf",
             "samples/cube.iso",
+            "samples/lights.pbp",
             "samples/lines.pbp",
-            "samples/HelloWorldPSP.elf",
-            "samples/rtctest.elf",
-            "samples/rtctest.pbp",
-            "samples/compilerPerf.elf",
-            "samples/threadstatus.elf",
-            "samples/mytest.elf",
-            "samples/text.elf",
-            "samples/blend.pbp",
             "samples/clut.pbp",
             "samples/reflection.pbp",
+            "samples/text.elf",
+            "samples/blend.pbp",
+            "samples/nehetutorial02.pbp",
+            "samples/nehetutorial03.pbp",
+            "samples/nehetutorial04.pbp",
+            "samples/nehetutorial05.pbp",
+            "samples/nehetutorial06.pbp",
+            "samples/nehetutorial07.pbp",
+            "samples/nehetutorial08.pbp",
+            "samples/nehetutorial09.pbp",
+            "samples/nehetutorial10.pbp",
+
+            "-GAMES",
             "samples/cavestory.zip",
             "samples/TrigWars.zip",
             "samples/goldminer.zip",
@@ -145,10 +171,14 @@
         $('#files').html('');
         var selectedItem = document.location.hash.substr(1);
         $('#files').append('<option value="">-- SELECT DEMO --</option>');
-        demos.forEach(function(fileName) {
-            var item = $('<option value="' + fileName + '">' + fileName + '</option>');
-            if (selectedItem == fileName) item.attr('selected', 'selected')
-            $('#files').append(item);
+        demos.forEach(function (fileName) {
+            if (fileName.substr(0, 1) == '-') {
+                $('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
+            } else {
+                var item = $('<option value="' + fileName + '">' + fileName + '</option>');
+                if (selectedItem == fileName) item.attr('selected', 'selected')
+                $('#files').append(item);
+            }
         });
         $('#files').change(function () {
             console.clear();
