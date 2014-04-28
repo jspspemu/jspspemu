@@ -61,12 +61,20 @@ function requireModules(moduleFiles) {
 
 function generateCombinedCommonJs(mapFiles) {
 	var commonjsFile = '';
-	commonjsFile += 'var require = (function() {\n';
-	commonjsFile += String(requireModules);
-	commonjsFile += 'return requireModules({\n';
+
 	var moduleNames = [];
 	for (var moduleName in mapFiles) moduleNames.push(moduleName);
 	moduleNames.sort();
+	
+	moduleNames.forEach(function(moduleName) {
+		if (moduleName.match(/^src\/global/)) {
+			commonjsFile += mapFiles[moduleName] + "\n";
+		}
+	});
+
+	commonjsFile += 'var require = (function() {\n';
+	commonjsFile += String(requireModules);
+	commonjsFile += 'return requireModules({\n';
 	
 	var items = [];
 	moduleNames.forEach(function(moduleName) {

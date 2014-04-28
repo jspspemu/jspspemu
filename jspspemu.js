@@ -1,3 +1,1655 @@
+﻿function waitAsycn(timems) {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timems);
+    });
+}
+
+function downloadFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        request.open("GET", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onerror = function (e) {
+            reject(e['error']);
+        };
+        request.onload = function (e) {
+            if (request.status < 400) {
+                var arraybuffer = request.response;
+                resolve(arraybuffer);
+            } else {
+                reject(new Error("HTTP " + request.status));
+            }
+        };
+        request.send();
+    });
+}
+
+function statFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        request.open("HEAD", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onerror = function (e) {
+            reject(e['error']);
+        };
+        request.onload = function (e) {
+            var headers = request.getAllResponseHeaders();
+            var date = new Date();
+            var size = 0;
+
+            var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
+            if (sizeMatch)
+                size = parseInt(sizeMatch[1]);
+
+            var dateMatch = headers.match(/date:(.*)/i);
+            if (dateMatch)
+                date = new Date(Date.parse(dateMatch[1].trim()));
+
+            resolve({ size: size, date: date });
+        };
+        request.send();
+    });
+}
+//# sourceMappingURL=async.js.map
+
+﻿// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
+var Integer64 = (function () {
+    function Integer64(low, high) {
+        this._low = low | 0;
+        this._high = high | 0;
+    }
+    Integer64.fromInt = function (value) {
+        return new Integer64(value | 0, value < 0 ? -1 : 0);
+    };
+
+    Integer64.fromUnsignedInt = function (value) {
+        return new Integer64(value | 0, 0);
+    };
+
+    Integer64.fromBits = function (low, high) {
+        return new Integer64(low, high);
+    };
+
+    Integer64.fromNumber = function (value) {
+        if (isNaN(value) || !isFinite(value)) {
+            return Integer64.ZERO;
+        } else if (value <= -Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MIN_VALUE;
+        } else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MAX_VALUE;
+        } else if (value < 0) {
+            return Integer64.fromNumber(-value).negate();
+        } else {
+            return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
+        }
+    };
+
+    Object.defineProperty(Integer64.prototype, "low", {
+        get: function () {
+            return this._low;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "lowUnsigned", {
+        get: function () {
+            return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "high", {
+        get: function () {
+            return this._high;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Integer64.prototype, "number", {
+        get: function () {
+            return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Integer64.prototype.getNumber = function () {
+        return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+    };
+
+    Integer64.prototype.equals = function (other) {
+        return (this._high == other._high) && (this._low == other._low);
+    };
+
+    Integer64.prototype.negate = function () {
+        if (this.equals(Integer64.MIN_VALUE))
+            return Integer64.MIN_VALUE;
+        return this.not().add(Integer64.ONE);
+    };
+
+    Integer64.prototype.not = function () {
+        return Integer64.fromBits(~this._low, ~this._high);
+    };
+
+    Integer64.prototype.isZero = function () {
+        return this._high == 0 && this._low == 0;
+    };
+
+    Integer64.prototype.isNegative = function () {
+        return this._high < 0;
+    };
+
+    Integer64.prototype.isOdd = function () {
+        return (this._low & 1) == 1;
+    };
+
+    Integer64.prototype.sub = function (other) {
+        return this.add(other.negate());
+    };
+
+    Integer64.prototype.add = function (other) {
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 + b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 + b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 + b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 + b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+
+    Integer64.prototype.lessThan = function (other) {
+        return this.compare(other) < 0;
+    };
+
+    Integer64.prototype.compare = function (other) {
+        if (this.equals(other)) {
+            return 0;
+        }
+
+        var thisNeg = this.isNegative();
+        var otherNeg = other.isNegative();
+        if (thisNeg && !otherNeg) {
+            return -1;
+        }
+        if (!thisNeg && otherNeg) {
+            return 1;
+        }
+
+        // at this point, the signs are the same, so subtraction will not overflow
+        if (this.sub(other).isNegative()) {
+            return -1;
+        } else {
+            return 1;
+        }
+    };
+
+    Integer64.prototype.isLowEnoughForMul = function () {
+        if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        return false;
+    };
+
+    Integer64.prototype.multiply = function (other) {
+        if (this.isZero())
+            return Integer64.ZERO;
+        if (other.isZero())
+            return Integer64.ZERO;
+
+        if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
+            return Integer64.fromNumber(this.getNumber() * other.getNumber());
+        }
+
+        if (this.equals(Integer64.MIN_VALUE))
+            return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (other.equals(Integer64.MIN_VALUE))
+            return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+
+        if (this.isNegative()) {
+            if (other.isNegative())
+                return this.negate().multiply(other.negate());
+            return this.negate().multiply(other).negate();
+        }
+        if (other.isNegative())
+            return this.multiply(other.negate()).negate();
+
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 * b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 * b00;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c16 += a00 * b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 * b00;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a16 * b16;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a00 * b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    Integer64.ZERO = Integer64.fromInt(0);
+    Integer64.ONE = Integer64.fromInt(1);
+    Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+    Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+    Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
+    Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
+    Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
+    Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
+    Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
+
+    Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
+    return Integer64;
+})();
+//# sourceMappingURL=int64.js.map
+
+﻿if (!Math['clz32']) {
+    Math['clz32'] = function (x) {
+        x >>>= 0;
+        if (x == 0)
+            return 32;
+        var result = 0;
+
+        // Binary search.
+        if ((x & 0xFFFF0000) === 0) {
+            x <<= 16;
+            result += 16;
+        }
+        ;
+        if ((x & 0xFF000000) === 0) {
+            x <<= 8;
+            result += 8;
+        }
+        ;
+        if ((x & 0xF0000000) === 0) {
+            x <<= 4;
+            result += 4;
+        }
+        ;
+        if ((x & 0xC0000000) === 0) {
+            x <<= 2;
+            result += 2;
+        }
+        ;
+        if ((x & 0x80000000) === 0) {
+            x <<= 1;
+            result += 1;
+        }
+        ;
+        return result;
+    };
+}
+
+if (!Math['trunc']) {
+    Math['trunc'] = function (x) {
+        return x < 0 ? Math.ceil(x) : Math.floor(x);
+    };
+}
+
+var BitUtils = (function () {
+    function BitUtils() {
+    }
+    BitUtils.mask = function (value) {
+        return (1 << value) - 1;
+    };
+
+    BitUtils.bitrev32 = function (v) {
+        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1); // swap odd and even bits
+        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2); // swap consecutive pairs
+        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4); // swap nibbles ...
+        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8); // swap bytes
+        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16); // swap 2-byte long pairs
+        return v;
+    };
+
+    BitUtils.rotr = function (value, offset) {
+        return (value >>> offset) | (value << (32 - offset));
+    };
+
+    BitUtils.clo = function (x) {
+        return Math['clz32'](~x);
+    };
+
+    BitUtils.clz = function (x) {
+        return Math['clz32'](x);
+    };
+
+    BitUtils.seb = function (x) {
+        x = x & 0xFF;
+        if (x & 0x80)
+            x = 0xFFFFFF00 | x;
+        return x;
+    };
+
+    BitUtils.seh = function (x) {
+        x = x & 0xFFFF;
+        if (x & 0x8000)
+            x = 0xFFFF0000 | x;
+        return x;
+    };
+
+    BitUtils.wsbh = function (v) {
+        return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
+    };
+
+    BitUtils.wsbw = function (v) {
+        return (((v & 0xFF000000) >>> 24) | ((v & 0x00FF0000) >>> 8) | ((v & 0x0000FF00) << 8) | ((v & 0x000000FF) << 24));
+    };
+
+    BitUtils.extract = function (data, offset, length) {
+        return (data >>> offset) & BitUtils.mask(length);
+    };
+
+    BitUtils.extractScalef = function (data, offset, length, scale) {
+        var mask = BitUtils.mask(length);
+        return (((data >>> offset) & mask) * scale / mask);
+    };
+
+    BitUtils.extractScalei = function (data, offset, length, scale) {
+        return this.extractScalef(data, offset, length, scale) | 0;
+    };
+
+    BitUtils.extractEnum = function (data, offset, length) {
+        return this.extract(data, offset, length);
+    };
+
+    BitUtils.clear = function (data, offset, length) {
+        data &= ~(BitUtils.mask(length) << offset);
+        return data;
+    };
+
+    BitUtils.insert = function (data, offset, length, value) {
+        value &= BitUtils.mask(length);
+        data = BitUtils.clear(data, offset, length);
+        data |= value << offset;
+        return data;
+    };
+    return BitUtils;
+})();
+
+var MathFloat = (function () {
+    function MathFloat() {
+    }
+    MathFloat.reinterpretFloatAsInt = function (floatValue) {
+        MathFloat.floatArray[0] = floatValue;
+        return MathFloat.intArray[0];
+    };
+
+    MathFloat.reinterpretIntAsFloat = function (integerValue) {
+        MathFloat.intArray[0] = integerValue;
+        return MathFloat.floatArray[0];
+    };
+
+    MathFloat.trunc = function (value) {
+        if (!isFinite(value))
+            return 2147483647;
+        return Math['trunc'](value);
+    };
+
+    MathFloat.round = function (value) {
+        return Math.round(value);
+    };
+
+    MathFloat.rint = function (value) {
+        //return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
+        return Math.round(value);
+    };
+
+    MathFloat.cast = function (value) {
+        return (value < 0) ? Math.ceil(value) : Math.floor(value);
+    };
+
+    MathFloat.floor = function (value) {
+        return Math.floor(value);
+    };
+
+    MathFloat.ceil = function (value) {
+        return Math.ceil(value);
+    };
+    MathFloat.floatArray = new Float32Array(1);
+    MathFloat.intArray = new Int32Array(MathFloat.floatArray.buffer);
+    return MathFloat;
+})();
+
+function compare(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+
+var MathUtils = (function () {
+    function MathUtils() {
+    }
+    MathUtils.prevAligned = function (value, alignment) {
+        return Math.floor(value / alignment) * alignment;
+    };
+
+    MathUtils.isAlignedTo = function (value, alignment) {
+        return (value % alignment) == 0;
+    };
+
+    MathUtils.nextAligned = function (value, alignment) {
+        if (alignment <= 1)
+            return value;
+        if ((value % alignment) == 0)
+            return value;
+        return value + (alignment - (value % alignment));
+    };
+
+    MathUtils.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
+    return MathUtils;
+})();
+//# sourceMappingURL=math.js.map
+
+﻿var MemoryAsyncStream = (function () {
+    function MemoryAsyncStream(data, name) {
+        if (typeof name === "undefined") { name = 'memory'; }
+        this.data = data;
+        this.name = name;
+    }
+    MemoryAsyncStream.fromArrayBuffer = function (data) {
+        return new MemoryAsyncStream(data);
+    };
+
+    Object.defineProperty(MemoryAsyncStream.prototype, "size", {
+        get: function () {
+            return this.data.byteLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    MemoryAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        return Promise.resolve(this.data.slice(offset, offset + count));
+    };
+    return MemoryAsyncStream;
+})();
+
+var FileAsyncStream = (function () {
+    function FileAsyncStream(file) {
+        this.file = file;
+    }
+    Object.defineProperty(FileAsyncStream.prototype, "name", {
+        get: function () {
+            return this.file.name;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(FileAsyncStream.prototype, "size", {
+        get: function () {
+            return this.file.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    FileAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var fileReader = new FileReader();
+            fileReader.onload = function (e) {
+                resolve(fileReader.result);
+            };
+            fileReader.onerror = function (e) {
+                reject(e['error']);
+            };
+            fileReader.readAsArrayBuffer(_this.file.slice(offset, offset + count));
+        });
+    };
+    return FileAsyncStream;
+})();
+
+var Stream = (function () {
+    function Stream(data, offset) {
+        if (typeof offset === "undefined") { offset = 0; }
+        this.data = data;
+        this.offset = offset;
+    }
+    Stream.fromArrayBuffer = function (data) {
+        return new Stream(new DataView(data));
+    };
+
+    Stream.fromDataView = function (data, offset) {
+        if (typeof offset === "undefined") { offset = 0; }
+        return new Stream(data);
+    };
+
+    Stream.fromBase64 = function (data) {
+        var outstr = atob(data);
+        var out = new ArrayBuffer(outstr.length);
+        var ia = new Uint8Array(out);
+        for (var n = 0; n < outstr.length; n++)
+            ia[n] = outstr.charCodeAt(n);
+        return new Stream(new DataView(out));
+    };
+
+    Stream.fromUint8Array = function (array) {
+        return Stream.fromArray(array);
+    };
+
+    Stream.fromArray = function (array) {
+        var buffer = new ArrayBuffer(array.length);
+        var w8 = new Uint8Array(buffer);
+        for (var n = 0; n < array.length; n++)
+            w8[n] = array[n];
+        return new Stream(new DataView(buffer));
+    };
+
+    Stream.prototype.toImageUrl = function () {
+        return 'data:image/png;base64,' + this.toBase64();
+    };
+
+    Stream.prototype.toBase64 = function () {
+        var out = '';
+        var array = this.toUInt8Array();
+        for (var n = 0; n < array.length; n++) {
+            out += String.fromCharCode(array[n]);
+        }
+        return btoa(out);
+    };
+
+    Stream.prototype.toUInt8Array = function () {
+        return new Uint8Array(this.toArrayBuffer());
+    };
+
+    Stream.prototype.toArrayBuffer = function () {
+        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+    };
+
+    Stream.prototype.sliceWithLength = function (low, count) {
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
+    };
+
+    Stream.prototype.sliceWithLowHigh = function (low, high) {
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, high - low));
+    };
+
+    Object.defineProperty(Stream.prototype, "available", {
+        get: function () {
+            return this.length - this.offset;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Stream.prototype, "length", {
+        get: function () {
+            return this.data.byteLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+
+    Object.defineProperty(Stream.prototype, "position", {
+        get: function () {
+            return this.offset;
+        },
+        set: function (value) {
+            this.offset = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Stream.prototype.skip = function (count, pass) {
+        this.offset += count;
+        return pass;
+    };
+
+    Stream.prototype.readInt8 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.getInt8(this.offset));
+    };
+    Stream.prototype.readInt16 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.getInt16(this.offset, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.readInt32 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.getInt32(this.offset, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.readInt64 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        var items = [this.readUInt32(endian), this.readUInt32(endian)];
+        var low = items[(endian == 0 /* LITTLE */) ? 0 : 1];
+        var high = items[(endian == 0 /* LITTLE */) ? 1 : 0];
+        return Integer64.fromBits(low, high);
+    };
+    Stream.prototype.readFloat32 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.getFloat32(this.offset, (endian == 0 /* LITTLE */)));
+    };
+
+    Stream.prototype.readUInt8 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.getUint8(this.offset));
+    };
+    Stream.prototype.readUInt16 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.getUint16(this.offset, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.readUInt32 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.getUint32(this.offset, (endian == 0 /* LITTLE */)));
+    };
+
+    Stream.prototype.readStruct = function (struct) {
+        return struct.read(this);
+    };
+
+    Stream.prototype.writeInt8 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.setInt8(this.offset, value));
+    };
+    Stream.prototype.writeInt16 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.setInt16(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeInt32 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.setInt32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this._writeUInt64(value, endian);
+    };
+
+    Stream.prototype.writeUInt8 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.setUint8(this.offset, value));
+    };
+    Stream.prototype.writeUInt16 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.setUint16(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeUInt32 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeUInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this._writeUInt64(value, endian);
+    };
+
+    Stream.prototype._writeUInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        this.writeUInt32((endian == 0 /* LITTLE */) ? value.low : value.high, endian);
+        this.writeUInt32((endian == 0 /* LITTLE */) ? value.high : value.low, endian);
+    };
+
+    Stream.prototype.writeStruct = function (struct, value) {
+        struct.write(this, value);
+    };
+
+    Stream.prototype.readBytes = function (count) {
+        return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+
+    Stream.prototype.readInt16Array = function (count) {
+        return this.skip(count, new Int16Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+
+    Stream.prototype.readFloat32Array = function (count) {
+        return new Float32Array(this.readBytes(count));
+    };
+
+    Stream.prototype.readStream = function (count) {
+        return Stream.fromUint8Array(this.readBytes(count));
+    };
+
+    Stream.prototype.readUtf8String = function (count) {
+        return Utf8.decode(this.readString(count));
+    };
+
+    /*
+    writeStream(from: Stream) {
+    new Uint8Array(this.data.buffer, this.data.byteOffset).set();
+    }
+    */
+    Stream.prototype.writeString = function (str) {
+        var _this = this;
+        try  {
+            str.split('').forEach(function (char) {
+                _this.writeUInt8(char.charCodeAt(0));
+            });
+        } catch (e) {
+            console.log("Can't write string '" + str + "'");
+            debugger;
+            console.warn(this.data);
+            console.error(e);
+            throw (e);
+        }
+    };
+
+    Stream.prototype.readString = function (count) {
+        var str = '';
+        for (var n = 0; n < count; n++) {
+            str += String.fromCharCode(this.readUInt8());
+        }
+        return str;
+    };
+
+    Stream.prototype.readUtf8Stringz = function (maxCount) {
+        if (typeof maxCount === "undefined") { maxCount = 2147483648; }
+        return Utf8.decode(this.readStringz(maxCount));
+    };
+
+    Stream.prototype.readStringz = function (maxCount) {
+        if (typeof maxCount === "undefined") { maxCount = 2147483648; }
+        var str = '';
+        for (var n = 0; n < maxCount; n++) {
+            if (this.available <= 0)
+                break;
+            var char = this.readUInt8();
+            if (char == 0)
+                break;
+            str += String.fromCharCode(char);
+        }
+        return str;
+    };
+    Stream.INVALID = Stream.fromArray([]);
+    return Stream;
+})();
+//# sourceMappingURL=stream.js.map
+
+﻿var Int64Type = (function () {
+    function Int64Type(endian) {
+        this.endian = endian;
+    }
+    Int64Type.prototype.read = function (stream) {
+        if (this.endian == 0 /* LITTLE */) {
+            var low = stream.readUInt32(this.endian);
+            var high = stream.readUInt32(this.endian);
+        } else {
+            var high = stream.readUInt32(this.endian);
+            var low = stream.readUInt32(this.endian);
+        }
+        return high * Math.pow(2, 32) + low;
+    };
+    Int64Type.prototype.write = function (stream, value) {
+        var low = Math.floor(value % Math.pow(2, 32));
+        var high = Math.floor(value / Math.pow(2, 32));
+        if (this.endian == 0 /* LITTLE */) {
+            stream.writeInt32(low, this.endian);
+            stream.writeInt32(high, this.endian);
+        } else {
+            stream.writeInt32(high, this.endian);
+            stream.writeInt32(low, this.endian);
+        }
+    };
+    Object.defineProperty(Int64Type.prototype, "length", {
+        get: function () {
+            return 8;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int64Type;
+})();
+
+var Int32Type = (function () {
+    function Int32Type(endian) {
+        this.endian = endian;
+    }
+    Int32Type.prototype.read = function (stream) {
+        return stream.readInt32(this.endian);
+    };
+    Int32Type.prototype.write = function (stream, value) {
+        stream.writeInt32(value, this.endian);
+    };
+    Object.defineProperty(Int32Type.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int32Type;
+})();
+
+var Int16Type = (function () {
+    function Int16Type(endian) {
+        this.endian = endian;
+    }
+    Int16Type.prototype.read = function (stream) {
+        return stream.readInt16(this.endian);
+    };
+    Int16Type.prototype.write = function (stream, value) {
+        stream.writeInt16(value, this.endian);
+    };
+    Object.defineProperty(Int16Type.prototype, "length", {
+        get: function () {
+            return 2;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int16Type;
+})();
+
+var Int8Type = (function () {
+    function Int8Type(endian) {
+        this.endian = endian;
+    }
+    Int8Type.prototype.read = function (stream) {
+        return stream.readInt8(this.endian);
+    };
+    Int8Type.prototype.write = function (stream, value) {
+        stream.writeInt8(value, this.endian);
+    };
+    Object.defineProperty(Int8Type.prototype, "length", {
+        get: function () {
+            return 1;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int8Type;
+})();
+
+var UInt32Type = (function () {
+    function UInt32Type(endian) {
+        this.endian = endian;
+    }
+    UInt32Type.prototype.read = function (stream) {
+        return stream.readUInt32(this.endian);
+    };
+    UInt32Type.prototype.write = function (stream, value) {
+        stream.writeUInt32(value, this.endian);
+    };
+    Object.defineProperty(UInt32Type.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32Type;
+})();
+
+var UInt16Type = (function () {
+    function UInt16Type(endian) {
+        this.endian = endian;
+    }
+    UInt16Type.prototype.read = function (stream) {
+        return stream.readUInt16(this.endian);
+    };
+    UInt16Type.prototype.write = function (stream, value) {
+        stream.writeUInt16(value, this.endian);
+    };
+    Object.defineProperty(UInt16Type.prototype, "length", {
+        get: function () {
+            return 2;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16Type;
+})();
+
+var UInt8Type = (function () {
+    function UInt8Type(endian) {
+        this.endian = endian;
+    }
+    UInt8Type.prototype.read = function (stream) {
+        return stream.readUInt8(this.endian);
+    };
+    UInt8Type.prototype.write = function (stream, value) {
+        stream.writeUInt8(value, this.endian);
+    };
+    Object.defineProperty(UInt8Type.prototype, "length", {
+        get: function () {
+            return 1;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt8Type;
+})();
+
+var Struct = (function () {
+    function Struct(items) {
+        this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
+    }
+    Struct.create = function (items) {
+        return new Struct(items);
+    };
+
+    Struct.prototype.read = function (stream) {
+        var out = {};
+        this.processedItems.forEach(function (item) {
+            out[item.name] = item.type.read(stream, out);
+        });
+        return out;
+    };
+    Struct.prototype.write = function (stream, value) {
+        this.processedItems.forEach(function (item) {
+            item.type.write(stream, value[item.name], value);
+        });
+    };
+    Object.defineProperty(Struct.prototype, "length", {
+        get: function () {
+            return this.processedItems.sum(function (item) {
+                if (!item)
+                    throw ("Invalid item!!");
+                if (!item.type)
+                    throw ("Invalid item type!!");
+                return item.type.length;
+            });
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Struct;
+})();
+
+var StructClass = (function () {
+    function StructClass(_class, items) {
+        this._class = _class;
+        this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
+    }
+    StructClass.create = function (_class, items) {
+        return new StructClass(_class, items);
+    };
+
+    StructClass.prototype.read = function (stream) {
+        var _class = this._class;
+        var out = new _class();
+        this.processedItems.forEach(function (item) {
+            out[item.name] = item.type.read(stream, out);
+        });
+        return out;
+    };
+    StructClass.prototype.write = function (stream, value) {
+        this.processedItems.forEach(function (item) {
+            item.type.write(stream, value[item.name], value);
+        });
+    };
+    Object.defineProperty(StructClass.prototype, "length", {
+        get: function () {
+            return this.processedItems.sum(function (item) {
+                if (!item)
+                    throw ("Invalid item!!");
+                if (!item.type) {
+                    console.log(item);
+                    throw ("Invalid item type!!");
+                }
+                return item.type.length;
+            });
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructClass;
+})();
+
+var StructArrayClass = (function () {
+    function StructArrayClass(elementType, count) {
+        this.elementType = elementType;
+        this.count = count;
+    }
+    StructArrayClass.prototype.read = function (stream) {
+        var out = [];
+        for (var n = 0; n < this.count; n++) {
+            out.push(this.elementType.read(stream, out));
+        }
+        return out;
+    };
+    StructArrayClass.prototype.write = function (stream, value) {
+        for (var n = 0; n < this.count; n++)
+            this.elementType.write(stream, value[n], value);
+    };
+    Object.defineProperty(StructArrayClass.prototype, "length", {
+        get: function () {
+            return this.elementType.length * this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructArrayClass;
+})();
+
+function StructArray(elementType, count) {
+    return new StructArrayClass(elementType, count);
+}
+
+var StructStringn = (function () {
+    function StructStringn(count) {
+        this.count = count;
+    }
+    StructStringn.prototype.read = function (stream) {
+        var out = '';
+        for (var n = 0; n < this.count; n++) {
+            out += String.fromCharCode(stream.readUInt8());
+        }
+        return out;
+    };
+    StructStringn.prototype.write = function (stream, value) {
+        throw ("Not implemented StructStringn.write");
+    };
+    Object.defineProperty(StructStringn.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringn;
+})();
+
+var StructStringz = (function () {
+    function StructStringz(count) {
+        this.count = count;
+        this.stringn = new StructStringn(count);
+    }
+    StructStringz.prototype.read = function (stream) {
+        return this.stringn.read(stream).split(String.fromCharCode(0))[0];
+    };
+    StructStringz.prototype.write = function (stream, value) {
+        var items = value.split('').map(function (char) {
+            return char.charCodeAt(0);
+        });
+        while (items.length < this.count)
+            items.push(0);
+        for (var n = 0; n < items.length; n++)
+            stream.writeUInt8(items[n]);
+    };
+    Object.defineProperty(StructStringz.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringz;
+})();
+
+var StructStringzVariable = (function () {
+    function StructStringzVariable() {
+    }
+    StructStringzVariable.prototype.read = function (stream) {
+        return stream.readStringz();
+    };
+    StructStringzVariable.prototype.write = function (stream, value) {
+        stream.writeString(value);
+        stream.writeUInt8(0);
+    };
+    Object.defineProperty(StructStringzVariable.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringzVariable;
+})();
+
+var UInt32_2lbStruct = (function () {
+    function UInt32_2lbStruct() {
+    }
+    UInt32_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt32(0 /* LITTLE */);
+        var b = stream.readUInt32(1 /* BIG */);
+        return l;
+    };
+    UInt32_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt32(value, 0 /* LITTLE */);
+        stream.writeUInt32(value, 1 /* BIG */);
+    };
+    Object.defineProperty(UInt32_2lbStruct.prototype, "length", {
+        get: function () {
+            return 8;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32_2lbStruct;
+})();
+
+var UInt16_2lbStruct = (function () {
+    function UInt16_2lbStruct() {
+    }
+    UInt16_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt16(0 /* LITTLE */);
+        var b = stream.readUInt16(1 /* BIG */);
+        return l;
+    };
+    UInt16_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt16(value, 0 /* LITTLE */);
+        stream.writeUInt16(value, 1 /* BIG */);
+    };
+    Object.defineProperty(UInt16_2lbStruct.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16_2lbStruct;
+})();
+
+var StructStringWithSize = (function () {
+    function StructStringWithSize(getStringSize) {
+        this.getStringSize = getStringSize;
+    }
+    StructStringWithSize.prototype.read = function (stream, context) {
+        return stream.readString(this.getStringSize(context));
+    };
+    StructStringWithSize.prototype.write = function (stream, value, context) {
+        stream.writeString(value);
+    };
+    Object.defineProperty(StructStringWithSize.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringWithSize;
+})();
+
+var Int16 = new Int16Type(0 /* LITTLE */);
+var Int32 = new Int32Type(0 /* LITTLE */);
+var Int64 = new Int64Type(0 /* LITTLE */);
+var Int8 = new Int8Type(0 /* LITTLE */);
+
+var UInt16 = new UInt16Type(0 /* LITTLE */);
+var UInt32 = new UInt32Type(0 /* LITTLE */);
+var UInt8 = new UInt8Type(0 /* LITTLE */);
+
+var UInt16_b = new UInt16Type(1 /* BIG */);
+var UInt32_b = new UInt32Type(1 /* BIG */);
+
+var UInt32_2lb = new UInt32_2lbStruct();
+var UInt16_2lb = new UInt16_2lbStruct();
+
+var StringzVariable = new StructStringzVariable();
+
+function Stringn(count) {
+    return new StructStringn(count);
+}
+function Stringz(count) {
+    return new StructStringz(count);
+}
+function StringWithSize(callback) {
+    return new StructStringWithSize(callback);
+}
+//# sourceMappingURL=struct.js.map
+
+﻿///<reference path="../../typings/promise/promise.d.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+
+function String_repeat(str, num) {
+    return new Array(num + 1).join(str);
+}
+
+var Endian;
+(function (Endian) {
+    Endian[Endian["LITTLE"] = 0] = "LITTLE";
+    Endian[Endian["BIG"] = 1] = "BIG";
+})(Endian || (Endian = {}));
+
+var SortedSet = (function () {
+    function SortedSet() {
+        this.elements = [];
+    }
+    SortedSet.prototype.has = function (element) {
+        return this.elements.indexOf(element) >= 0;
+    };
+
+    SortedSet.prototype.add = function (element) {
+        if (!this.has(element))
+            this.elements.push(element);
+        return element;
+    };
+
+    Object.defineProperty(SortedSet.prototype, "length", {
+        get: function () {
+            return this.elements.length;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    SortedSet.prototype.delete = function (element) {
+        this.elements.remove(element);
+    };
+
+    SortedSet.prototype.filter = function (callback) {
+        return this.elements.filter(callback);
+    };
+
+    SortedSet.prototype.forEach = function (callback) {
+        this.elements.slice(0).forEach(callback);
+    };
+    return SortedSet;
+})();
+
+var DSet = (function (_super) {
+    __extends(DSet, _super);
+    function DSet() {
+        _super.apply(this, arguments);
+    }
+    return DSet;
+})(SortedSet);
+
+var UidCollection = (function () {
+    function UidCollection(lastId) {
+        if (typeof lastId === "undefined") { lastId = 1; }
+        this.lastId = lastId;
+        this.items = {};
+    }
+    UidCollection.prototype.allocate = function (item) {
+        var id = this.lastId++;
+        this.items[id] = item;
+        return id;
+    };
+
+    UidCollection.prototype.has = function (id) {
+        return (this.items[id] !== undefined);
+    };
+
+    UidCollection.prototype.get = function (id) {
+        return this.items[id];
+    };
+
+    UidCollection.prototype.remove = function (id) {
+        delete this.items[id];
+    };
+    return UidCollection;
+})();
+
+function identity(a) {
+    return a;
+}
+
+function compareNumbers(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+
+Array.prototype.contains = function (item) {
+    return this.indexOf(item) >= 0;
+};
+
+Array.prototype.binarySearchValue = function (selector) {
+    var array = this;
+
+    var index = array.binarySearchIndex(selector);
+    if (index < 0)
+        return null;
+    return array[index];
+};
+
+Array.prototype.binarySearchIndex = function (selector) {
+    var array = this;
+    var min = 0;
+    var max = array.length - 1;
+    var step = 0;
+
+    if (array.length == 0)
+        return -1;
+
+    while (true) {
+        var current = Math.floor((min + max) / 2);
+
+        var item = array[current];
+        var result = selector(item);
+
+        if (result == 0) {
+            //console.log('->', current);
+            return current;
+        }
+
+        //console.log(min, current, max);
+        if (((current == min) || (current == max))) {
+            if (min != max) {
+                //console.log('*');
+                min = max = current = (current != min) ? min : max;
+                //console.log(min, current, max);
+            } else {
+                break;
+            }
+        } else {
+            if (result < 0) {
+                max = current;
+            } else if (result > 0) {
+                min = current;
+            }
+        }
+        step++;
+        if (step >= 64)
+            throw (new Error("Too much steps"));
+    }
+
+    return -1;
+};
+
+Array.prototype.max = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) {
+            return a;
+        };
+    return array.reduce(function (previous, current) {
+        return Math.max(previous, selector(current));
+    }, selector(array[0]));
+});
+
+Array.prototype.sortBy = function (selector) {
+    return this.slice(0).sort(function (a, b) {
+        return compare(selector(a), selector(b));
+    });
+};
+
+Array.prototype.first = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = identity;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            return array[n];
+    return undefined;
+});
+
+Array.prototype.sum = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) {
+            return a;
+        };
+    return array.reduce(function (previous, current) {
+        return previous + selector(current);
+    }, 0);
+});
+
+Array.prototype.remove = function (item) {
+    var array = this;
+    var index = array.indexOf(item);
+    if (index >= 0)
+        array.splice(index, 1);
+};
+
+Object.defineProperty(Array.prototype, "max", { enumerable: false });
+Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
+Object.defineProperty(Array.prototype, "first", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "remove", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
+
+String.prototype.startsWith = function (value) {
+    var string = this;
+    return string.substr(0, value.length) == value;
+};
+
+String.prototype.endsWith = function (value) {
+    var string = this;
+    return string.substr(-value.length) == value;
+};
+
+String.prototype.rstrip = function () {
+    var string = this;
+    return string.replace(/\s+$/, '');
+};
+
+String.prototype.contains = function (value) {
+    var string = this;
+    return string.indexOf(value) >= 0;
+};
+
+var Microtask = (function () {
+    function Microtask() {
+    }
+    Microtask.queue = function (callback) {
+        Microtask.callbacks.push(callback);
+        if (!Microtask.queued) {
+            Microtask.queued = true;
+            setTimeout(Microtask.execute, 0);
+        }
+    };
+
+    Microtask.execute = function () {
+        while (Microtask.callbacks.length > 0) {
+            var callback = Microtask.callbacks.shift();
+            callback();
+        }
+        Microtask.queued = false;
+    };
+    Microtask.queued = false;
+    Microtask.callbacks = [];
+    return Microtask;
+})();
+
+if (!window['setImmediate']) {
+    window['setImmediate'] = function (callback) {
+        Microtask.queue(callback);
+
+        //return setTimeout(callback, 0);
+        return -1;
+    };
+    window['clearImmediate'] = function (timer) {
+        throw (new Error("Not implemented!"));
+        //clearTimeout(timer);
+    };
+}
+
+var Utf8 = (function () {
+    function Utf8() {
+    }
+    Utf8.decode = function (input) {
+        try  {
+            return decodeURIComponent(escape(input));
+        } catch (e) {
+            console.error(e);
+            return input;
+        }
+    };
+
+    Utf8.encode = function (input) {
+        return unescape(encodeURIComponent(input));
+    };
+    return Utf8;
+})();
+
+if (!ArrayBuffer.prototype.slice) {
+    ArrayBuffer.prototype.slice = function (begin, end) {
+        var that = new Uint8Array(this);
+        if (end == undefined)
+            end = that.length;
+        var result = new ArrayBuffer(end - begin);
+        var resultArray = new Uint8Array(result);
+        for (var i = 0; i < resultArray.length; i++)
+            resultArray[i] = that[i + begin];
+        return result;
+    };
+}
+
+window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
+
+navigator['getGamepads'] = navigator['getGamepads'] || navigator['webkitGetGamepads'];
+
+if (!window.requestAnimationFrame) {
+    window.requestAnimationFrame = function (callback) {
+        var start = Date.now();
+        return setTimeout(function () {
+            callback(Date.now());
+        }, 20);
+    };
+    window.cancelAnimationFrame = function (id) {
+        clearTimeout(id);
+    };
+}
+
+var ArrayBufferUtils = (function () {
+    function ArrayBufferUtils() {
+    }
+    ArrayBufferUtils.fromUInt8Array = function (input) {
+        return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    };
+
+    ArrayBufferUtils.concat = function (chunks) {
+        var tmp = new Uint8Array(chunks.sum(function (chunk) {
+            return chunk.byteLength;
+        }));
+        var offset = 0;
+        chunks.forEach(function (chunk) {
+            tmp.set(new Uint8Array(chunk), offset);
+            offset += chunk.byteLength;
+        });
+        return tmp.buffer;
+    };
+    return ArrayBufferUtils;
+})();
+
+var PromiseUtils = (function () {
+    function PromiseUtils() {
+    }
+    PromiseUtils.sequence = function (generators) {
+        return new Promise(function (resolve, reject) {
+            generators = generators.slice(0);
+            function step() {
+                if (generators.length > 0) {
+                    var generator = generators.shift();
+                    var promise = generator();
+                    promise.then(step);
+                } else {
+                    resolve();
+                }
+            }
+            step();
+        });
+    };
+
+    PromiseUtils.delayAsync = function (ms) {
+        if (ms <= 0)
+            return Promise.resolve(null);
+        return new Promise(function (resolve, reject) {
+            return setTimeout(resolve, ms);
+        });
+    };
+
+    PromiseUtils.delaySecondsAsync = function (seconds) {
+        return PromiseUtils.delayAsync(seconds * 1000);
+    };
+    return PromiseUtils;
+})();
+
+window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
+
+function setToString(Enum, value) {
+    var items = [];
+    for (var key in Enum) {
+        if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
+            items.push(key);
+        }
+    }
+    return items.join(' | ');
+}
+
+var WaitingThreadInfo = (function () {
+    function WaitingThreadInfo(name, object, promise) {
+        this.name = name;
+        this.object = object;
+        this.promise = promise;
+    }
+    return WaitingThreadInfo;
+})();
+
+var CpuBreakException = (function () {
+    function CpuBreakException(name, message) {
+        if (typeof name === "undefined") { name = 'CpuBreakException'; }
+        if (typeof message === "undefined") { message = 'CpuBreakException'; }
+        this.name = name;
+        this.message = message;
+    }
+    return CpuBreakException;
+})();
+
+var DebugOnceArray = {};
+function DebugOnce(name, times) {
+    if (typeof times === "undefined") { times = 1; }
+    if (DebugOnceArray[name] >= times)
+        return false;
+    if (DebugOnceArray[name]) {
+        DebugOnceArray[name]++;
+    } else {
+        DebugOnceArray[name] = 1;
+    }
+    return true;
+}
+//# sourceMappingURL=utils.js.map
+
 var require = (function() {
 function requireModules(moduleFiles) {
 	var modules = {};
@@ -8931,6 +10583,1664 @@ var ZipDirEntry = (function () {
 })();
 exports.ZipDirEntry = ZipDirEntry;
 //# sourceMappingURL=zip.js.map
+},
+"src/global/async": function(module, exports, require) {
+function waitAsycn(timems) {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timems);
+    });
+}
+
+function downloadFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        request.open("GET", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onerror = function (e) {
+            reject(e['error']);
+        };
+        request.onload = function (e) {
+            if (request.status < 400) {
+                var arraybuffer = request.response;
+                resolve(arraybuffer);
+            } else {
+                reject(new Error("HTTP " + request.status));
+            }
+        };
+        request.send();
+    });
+}
+
+function statFileAsync(url) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+
+        request.open("HEAD", url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        request.responseType = "arraybuffer";
+        request.onerror = function (e) {
+            reject(e['error']);
+        };
+        request.onload = function (e) {
+            var headers = request.getAllResponseHeaders();
+            var date = new Date();
+            var size = 0;
+
+            var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
+            if (sizeMatch)
+                size = parseInt(sizeMatch[1]);
+
+            var dateMatch = headers.match(/date:(.*)/i);
+            if (dateMatch)
+                date = new Date(Date.parse(dateMatch[1].trim()));
+
+            resolve({ size: size, date: date });
+        };
+        request.send();
+    });
+}
+//# sourceMappingURL=async.js.map
+},
+"src/global/int64": function(module, exports, require) {
+// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
+var Integer64 = (function () {
+    function Integer64(low, high) {
+        this._low = low | 0;
+        this._high = high | 0;
+    }
+    Integer64.fromInt = function (value) {
+        return new Integer64(value | 0, value < 0 ? -1 : 0);
+    };
+
+    Integer64.fromUnsignedInt = function (value) {
+        return new Integer64(value | 0, 0);
+    };
+
+    Integer64.fromBits = function (low, high) {
+        return new Integer64(low, high);
+    };
+
+    Integer64.fromNumber = function (value) {
+        if (isNaN(value) || !isFinite(value)) {
+            return Integer64.ZERO;
+        } else if (value <= -Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MIN_VALUE;
+        } else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MAX_VALUE;
+        } else if (value < 0) {
+            return Integer64.fromNumber(-value).negate();
+        } else {
+            return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
+        }
+    };
+
+    Object.defineProperty(Integer64.prototype, "low", {
+        get: function () {
+            return this._low;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "lowUnsigned", {
+        get: function () {
+            return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "high", {
+        get: function () {
+            return this._high;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Integer64.prototype, "number", {
+        get: function () {
+            return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Integer64.prototype.getNumber = function () {
+        return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+    };
+
+    Integer64.prototype.equals = function (other) {
+        return (this._high == other._high) && (this._low == other._low);
+    };
+
+    Integer64.prototype.negate = function () {
+        if (this.equals(Integer64.MIN_VALUE))
+            return Integer64.MIN_VALUE;
+        return this.not().add(Integer64.ONE);
+    };
+
+    Integer64.prototype.not = function () {
+        return Integer64.fromBits(~this._low, ~this._high);
+    };
+
+    Integer64.prototype.isZero = function () {
+        return this._high == 0 && this._low == 0;
+    };
+
+    Integer64.prototype.isNegative = function () {
+        return this._high < 0;
+    };
+
+    Integer64.prototype.isOdd = function () {
+        return (this._low & 1) == 1;
+    };
+
+    Integer64.prototype.sub = function (other) {
+        return this.add(other.negate());
+    };
+
+    Integer64.prototype.add = function (other) {
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 + b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 + b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 + b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 + b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+
+    Integer64.prototype.lessThan = function (other) {
+        return this.compare(other) < 0;
+    };
+
+    Integer64.prototype.compare = function (other) {
+        if (this.equals(other)) {
+            return 0;
+        }
+
+        var thisNeg = this.isNegative();
+        var otherNeg = other.isNegative();
+        if (thisNeg && !otherNeg) {
+            return -1;
+        }
+        if (!thisNeg && otherNeg) {
+            return 1;
+        }
+
+        // at this point, the signs are the same, so subtraction will not overflow
+        if (this.sub(other).isNegative()) {
+            return -1;
+        } else {
+            return 1;
+        }
+    };
+
+    Integer64.prototype.isLowEnoughForMul = function () {
+        if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        return false;
+    };
+
+    Integer64.prototype.multiply = function (other) {
+        if (this.isZero())
+            return Integer64.ZERO;
+        if (other.isZero())
+            return Integer64.ZERO;
+
+        if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
+            return Integer64.fromNumber(this.getNumber() * other.getNumber());
+        }
+
+        if (this.equals(Integer64.MIN_VALUE))
+            return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (other.equals(Integer64.MIN_VALUE))
+            return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+
+        if (this.isNegative()) {
+            if (other.isNegative())
+                return this.negate().multiply(other.negate());
+            return this.negate().multiply(other).negate();
+        }
+        if (other.isNegative())
+            return this.multiply(other.negate()).negate();
+
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 * b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 * b00;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c16 += a00 * b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 * b00;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a16 * b16;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a00 * b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    Integer64.ZERO = Integer64.fromInt(0);
+    Integer64.ONE = Integer64.fromInt(1);
+    Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+    Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+    Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
+    Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
+    Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
+    Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
+    Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
+
+    Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
+    return Integer64;
+})();
+//# sourceMappingURL=int64.js.map
+},
+"src/global/math": function(module, exports, require) {
+if (!Math['clz32']) {
+    Math['clz32'] = function (x) {
+        x >>>= 0;
+        if (x == 0)
+            return 32;
+        var result = 0;
+
+        // Binary search.
+        if ((x & 0xFFFF0000) === 0) {
+            x <<= 16;
+            result += 16;
+        }
+        ;
+        if ((x & 0xFF000000) === 0) {
+            x <<= 8;
+            result += 8;
+        }
+        ;
+        if ((x & 0xF0000000) === 0) {
+            x <<= 4;
+            result += 4;
+        }
+        ;
+        if ((x & 0xC0000000) === 0) {
+            x <<= 2;
+            result += 2;
+        }
+        ;
+        if ((x & 0x80000000) === 0) {
+            x <<= 1;
+            result += 1;
+        }
+        ;
+        return result;
+    };
+}
+
+if (!Math['trunc']) {
+    Math['trunc'] = function (x) {
+        return x < 0 ? Math.ceil(x) : Math.floor(x);
+    };
+}
+
+var BitUtils = (function () {
+    function BitUtils() {
+    }
+    BitUtils.mask = function (value) {
+        return (1 << value) - 1;
+    };
+
+    BitUtils.bitrev32 = function (v) {
+        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1); // swap odd and even bits
+        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2); // swap consecutive pairs
+        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4); // swap nibbles ...
+        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8); // swap bytes
+        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16); // swap 2-byte long pairs
+        return v;
+    };
+
+    BitUtils.rotr = function (value, offset) {
+        return (value >>> offset) | (value << (32 - offset));
+    };
+
+    BitUtils.clo = function (x) {
+        return Math['clz32'](~x);
+    };
+
+    BitUtils.clz = function (x) {
+        return Math['clz32'](x);
+    };
+
+    BitUtils.seb = function (x) {
+        x = x & 0xFF;
+        if (x & 0x80)
+            x = 0xFFFFFF00 | x;
+        return x;
+    };
+
+    BitUtils.seh = function (x) {
+        x = x & 0xFFFF;
+        if (x & 0x8000)
+            x = 0xFFFF0000 | x;
+        return x;
+    };
+
+    BitUtils.wsbh = function (v) {
+        return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
+    };
+
+    BitUtils.wsbw = function (v) {
+        return (((v & 0xFF000000) >>> 24) | ((v & 0x00FF0000) >>> 8) | ((v & 0x0000FF00) << 8) | ((v & 0x000000FF) << 24));
+    };
+
+    BitUtils.extract = function (data, offset, length) {
+        return (data >>> offset) & BitUtils.mask(length);
+    };
+
+    BitUtils.extractScalef = function (data, offset, length, scale) {
+        var mask = BitUtils.mask(length);
+        return (((data >>> offset) & mask) * scale / mask);
+    };
+
+    BitUtils.extractScalei = function (data, offset, length, scale) {
+        return this.extractScalef(data, offset, length, scale) | 0;
+    };
+
+    BitUtils.extractEnum = function (data, offset, length) {
+        return this.extract(data, offset, length);
+    };
+
+    BitUtils.clear = function (data, offset, length) {
+        data &= ~(BitUtils.mask(length) << offset);
+        return data;
+    };
+
+    BitUtils.insert = function (data, offset, length, value) {
+        value &= BitUtils.mask(length);
+        data = BitUtils.clear(data, offset, length);
+        data |= value << offset;
+        return data;
+    };
+    return BitUtils;
+})();
+
+var MathFloat = (function () {
+    function MathFloat() {
+    }
+    MathFloat.reinterpretFloatAsInt = function (floatValue) {
+        MathFloat.floatArray[0] = floatValue;
+        return MathFloat.intArray[0];
+    };
+
+    MathFloat.reinterpretIntAsFloat = function (integerValue) {
+        MathFloat.intArray[0] = integerValue;
+        return MathFloat.floatArray[0];
+    };
+
+    MathFloat.trunc = function (value) {
+        if (!isFinite(value))
+            return 2147483647;
+        return Math['trunc'](value);
+    };
+
+    MathFloat.round = function (value) {
+        return Math.round(value);
+    };
+
+    MathFloat.rint = function (value) {
+        //return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
+        return Math.round(value);
+    };
+
+    MathFloat.cast = function (value) {
+        return (value < 0) ? Math.ceil(value) : Math.floor(value);
+    };
+
+    MathFloat.floor = function (value) {
+        return Math.floor(value);
+    };
+
+    MathFloat.ceil = function (value) {
+        return Math.ceil(value);
+    };
+    MathFloat.floatArray = new Float32Array(1);
+    MathFloat.intArray = new Int32Array(MathFloat.floatArray.buffer);
+    return MathFloat;
+})();
+
+function compare(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+
+var MathUtils = (function () {
+    function MathUtils() {
+    }
+    MathUtils.prevAligned = function (value, alignment) {
+        return Math.floor(value / alignment) * alignment;
+    };
+
+    MathUtils.isAlignedTo = function (value, alignment) {
+        return (value % alignment) == 0;
+    };
+
+    MathUtils.nextAligned = function (value, alignment) {
+        if (alignment <= 1)
+            return value;
+        if ((value % alignment) == 0)
+            return value;
+        return value + (alignment - (value % alignment));
+    };
+
+    MathUtils.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
+    return MathUtils;
+})();
+//# sourceMappingURL=math.js.map
+},
+"src/global/stream": function(module, exports, require) {
+var MemoryAsyncStream = (function () {
+    function MemoryAsyncStream(data, name) {
+        if (typeof name === "undefined") { name = 'memory'; }
+        this.data = data;
+        this.name = name;
+    }
+    MemoryAsyncStream.fromArrayBuffer = function (data) {
+        return new MemoryAsyncStream(data);
+    };
+
+    Object.defineProperty(MemoryAsyncStream.prototype, "size", {
+        get: function () {
+            return this.data.byteLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    MemoryAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        return Promise.resolve(this.data.slice(offset, offset + count));
+    };
+    return MemoryAsyncStream;
+})();
+
+var FileAsyncStream = (function () {
+    function FileAsyncStream(file) {
+        this.file = file;
+    }
+    Object.defineProperty(FileAsyncStream.prototype, "name", {
+        get: function () {
+            return this.file.name;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(FileAsyncStream.prototype, "size", {
+        get: function () {
+            return this.file.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    FileAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var fileReader = new FileReader();
+            fileReader.onload = function (e) {
+                resolve(fileReader.result);
+            };
+            fileReader.onerror = function (e) {
+                reject(e['error']);
+            };
+            fileReader.readAsArrayBuffer(_this.file.slice(offset, offset + count));
+        });
+    };
+    return FileAsyncStream;
+})();
+
+var Stream = (function () {
+    function Stream(data, offset) {
+        if (typeof offset === "undefined") { offset = 0; }
+        this.data = data;
+        this.offset = offset;
+    }
+    Stream.fromArrayBuffer = function (data) {
+        return new Stream(new DataView(data));
+    };
+
+    Stream.fromDataView = function (data, offset) {
+        if (typeof offset === "undefined") { offset = 0; }
+        return new Stream(data);
+    };
+
+    Stream.fromBase64 = function (data) {
+        var outstr = atob(data);
+        var out = new ArrayBuffer(outstr.length);
+        var ia = new Uint8Array(out);
+        for (var n = 0; n < outstr.length; n++)
+            ia[n] = outstr.charCodeAt(n);
+        return new Stream(new DataView(out));
+    };
+
+    Stream.fromUint8Array = function (array) {
+        return Stream.fromArray(array);
+    };
+
+    Stream.fromArray = function (array) {
+        var buffer = new ArrayBuffer(array.length);
+        var w8 = new Uint8Array(buffer);
+        for (var n = 0; n < array.length; n++)
+            w8[n] = array[n];
+        return new Stream(new DataView(buffer));
+    };
+
+    Stream.prototype.toImageUrl = function () {
+        return 'data:image/png;base64,' + this.toBase64();
+    };
+
+    Stream.prototype.toBase64 = function () {
+        var out = '';
+        var array = this.toUInt8Array();
+        for (var n = 0; n < array.length; n++) {
+            out += String.fromCharCode(array[n]);
+        }
+        return btoa(out);
+    };
+
+    Stream.prototype.toUInt8Array = function () {
+        return new Uint8Array(this.toArrayBuffer());
+    };
+
+    Stream.prototype.toArrayBuffer = function () {
+        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+    };
+
+    Stream.prototype.sliceWithLength = function (low, count) {
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
+    };
+
+    Stream.prototype.sliceWithLowHigh = function (low, high) {
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, high - low));
+    };
+
+    Object.defineProperty(Stream.prototype, "available", {
+        get: function () {
+            return this.length - this.offset;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Stream.prototype, "length", {
+        get: function () {
+            return this.data.byteLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+
+    Object.defineProperty(Stream.prototype, "position", {
+        get: function () {
+            return this.offset;
+        },
+        set: function (value) {
+            this.offset = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Stream.prototype.skip = function (count, pass) {
+        this.offset += count;
+        return pass;
+    };
+
+    Stream.prototype.readInt8 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.getInt8(this.offset));
+    };
+    Stream.prototype.readInt16 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.getInt16(this.offset, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.readInt32 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.getInt32(this.offset, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.readInt64 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        var items = [this.readUInt32(endian), this.readUInt32(endian)];
+        var low = items[(endian == 0 /* LITTLE */) ? 0 : 1];
+        var high = items[(endian == 0 /* LITTLE */) ? 1 : 0];
+        return Integer64.fromBits(low, high);
+    };
+    Stream.prototype.readFloat32 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.getFloat32(this.offset, (endian == 0 /* LITTLE */)));
+    };
+
+    Stream.prototype.readUInt8 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.getUint8(this.offset));
+    };
+    Stream.prototype.readUInt16 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.getUint16(this.offset, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.readUInt32 = function (endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.getUint32(this.offset, (endian == 0 /* LITTLE */)));
+    };
+
+    Stream.prototype.readStruct = function (struct) {
+        return struct.read(this);
+    };
+
+    Stream.prototype.writeInt8 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.setInt8(this.offset, value));
+    };
+    Stream.prototype.writeInt16 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.setInt16(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeInt32 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.setInt32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this._writeUInt64(value, endian);
+    };
+
+    Stream.prototype.writeUInt8 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(1, this.data.setUint8(this.offset, value));
+    };
+    Stream.prototype.writeUInt16 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(2, this.data.setUint16(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeUInt32 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this.skip(4, this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */)));
+    };
+    Stream.prototype.writeUInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        return this._writeUInt64(value, endian);
+    };
+
+    Stream.prototype._writeUInt64 = function (value, endian) {
+        if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
+        this.writeUInt32((endian == 0 /* LITTLE */) ? value.low : value.high, endian);
+        this.writeUInt32((endian == 0 /* LITTLE */) ? value.high : value.low, endian);
+    };
+
+    Stream.prototype.writeStruct = function (struct, value) {
+        struct.write(this, value);
+    };
+
+    Stream.prototype.readBytes = function (count) {
+        return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+
+    Stream.prototype.readInt16Array = function (count) {
+        return this.skip(count, new Int16Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+
+    Stream.prototype.readFloat32Array = function (count) {
+        return new Float32Array(this.readBytes(count));
+    };
+
+    Stream.prototype.readStream = function (count) {
+        return Stream.fromUint8Array(this.readBytes(count));
+    };
+
+    Stream.prototype.readUtf8String = function (count) {
+        return Utf8.decode(this.readString(count));
+    };
+
+    /*
+    writeStream(from: Stream) {
+    new Uint8Array(this.data.buffer, this.data.byteOffset).set();
+    }
+    */
+    Stream.prototype.writeString = function (str) {
+        var _this = this;
+        try  {
+            str.split('').forEach(function (char) {
+                _this.writeUInt8(char.charCodeAt(0));
+            });
+        } catch (e) {
+            console.log("Can't write string '" + str + "'");
+            debugger;
+            console.warn(this.data);
+            console.error(e);
+            throw (e);
+        }
+    };
+
+    Stream.prototype.readString = function (count) {
+        var str = '';
+        for (var n = 0; n < count; n++) {
+            str += String.fromCharCode(this.readUInt8());
+        }
+        return str;
+    };
+
+    Stream.prototype.readUtf8Stringz = function (maxCount) {
+        if (typeof maxCount === "undefined") { maxCount = 2147483648; }
+        return Utf8.decode(this.readStringz(maxCount));
+    };
+
+    Stream.prototype.readStringz = function (maxCount) {
+        if (typeof maxCount === "undefined") { maxCount = 2147483648; }
+        var str = '';
+        for (var n = 0; n < maxCount; n++) {
+            if (this.available <= 0)
+                break;
+            var char = this.readUInt8();
+            if (char == 0)
+                break;
+            str += String.fromCharCode(char);
+        }
+        return str;
+    };
+    Stream.INVALID = Stream.fromArray([]);
+    return Stream;
+})();
+//# sourceMappingURL=stream.js.map
+},
+"src/global/struct": function(module, exports, require) {
+var Int64Type = (function () {
+    function Int64Type(endian) {
+        this.endian = endian;
+    }
+    Int64Type.prototype.read = function (stream) {
+        if (this.endian == 0 /* LITTLE */) {
+            var low = stream.readUInt32(this.endian);
+            var high = stream.readUInt32(this.endian);
+        } else {
+            var high = stream.readUInt32(this.endian);
+            var low = stream.readUInt32(this.endian);
+        }
+        return high * Math.pow(2, 32) + low;
+    };
+    Int64Type.prototype.write = function (stream, value) {
+        var low = Math.floor(value % Math.pow(2, 32));
+        var high = Math.floor(value / Math.pow(2, 32));
+        if (this.endian == 0 /* LITTLE */) {
+            stream.writeInt32(low, this.endian);
+            stream.writeInt32(high, this.endian);
+        } else {
+            stream.writeInt32(high, this.endian);
+            stream.writeInt32(low, this.endian);
+        }
+    };
+    Object.defineProperty(Int64Type.prototype, "length", {
+        get: function () {
+            return 8;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int64Type;
+})();
+
+var Int32Type = (function () {
+    function Int32Type(endian) {
+        this.endian = endian;
+    }
+    Int32Type.prototype.read = function (stream) {
+        return stream.readInt32(this.endian);
+    };
+    Int32Type.prototype.write = function (stream, value) {
+        stream.writeInt32(value, this.endian);
+    };
+    Object.defineProperty(Int32Type.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int32Type;
+})();
+
+var Int16Type = (function () {
+    function Int16Type(endian) {
+        this.endian = endian;
+    }
+    Int16Type.prototype.read = function (stream) {
+        return stream.readInt16(this.endian);
+    };
+    Int16Type.prototype.write = function (stream, value) {
+        stream.writeInt16(value, this.endian);
+    };
+    Object.defineProperty(Int16Type.prototype, "length", {
+        get: function () {
+            return 2;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int16Type;
+})();
+
+var Int8Type = (function () {
+    function Int8Type(endian) {
+        this.endian = endian;
+    }
+    Int8Type.prototype.read = function (stream) {
+        return stream.readInt8(this.endian);
+    };
+    Int8Type.prototype.write = function (stream, value) {
+        stream.writeInt8(value, this.endian);
+    };
+    Object.defineProperty(Int8Type.prototype, "length", {
+        get: function () {
+            return 1;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Int8Type;
+})();
+
+var UInt32Type = (function () {
+    function UInt32Type(endian) {
+        this.endian = endian;
+    }
+    UInt32Type.prototype.read = function (stream) {
+        return stream.readUInt32(this.endian);
+    };
+    UInt32Type.prototype.write = function (stream, value) {
+        stream.writeUInt32(value, this.endian);
+    };
+    Object.defineProperty(UInt32Type.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32Type;
+})();
+
+var UInt16Type = (function () {
+    function UInt16Type(endian) {
+        this.endian = endian;
+    }
+    UInt16Type.prototype.read = function (stream) {
+        return stream.readUInt16(this.endian);
+    };
+    UInt16Type.prototype.write = function (stream, value) {
+        stream.writeUInt16(value, this.endian);
+    };
+    Object.defineProperty(UInt16Type.prototype, "length", {
+        get: function () {
+            return 2;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16Type;
+})();
+
+var UInt8Type = (function () {
+    function UInt8Type(endian) {
+        this.endian = endian;
+    }
+    UInt8Type.prototype.read = function (stream) {
+        return stream.readUInt8(this.endian);
+    };
+    UInt8Type.prototype.write = function (stream, value) {
+        stream.writeUInt8(value, this.endian);
+    };
+    Object.defineProperty(UInt8Type.prototype, "length", {
+        get: function () {
+            return 1;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt8Type;
+})();
+
+var Struct = (function () {
+    function Struct(items) {
+        this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
+    }
+    Struct.create = function (items) {
+        return new Struct(items);
+    };
+
+    Struct.prototype.read = function (stream) {
+        var out = {};
+        this.processedItems.forEach(function (item) {
+            out[item.name] = item.type.read(stream, out);
+        });
+        return out;
+    };
+    Struct.prototype.write = function (stream, value) {
+        this.processedItems.forEach(function (item) {
+            item.type.write(stream, value[item.name], value);
+        });
+    };
+    Object.defineProperty(Struct.prototype, "length", {
+        get: function () {
+            return this.processedItems.sum(function (item) {
+                if (!item)
+                    throw ("Invalid item!!");
+                if (!item.type)
+                    throw ("Invalid item type!!");
+                return item.type.length;
+            });
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Struct;
+})();
+
+var StructClass = (function () {
+    function StructClass(_class, items) {
+        this._class = _class;
+        this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
+    }
+    StructClass.create = function (_class, items) {
+        return new StructClass(_class, items);
+    };
+
+    StructClass.prototype.read = function (stream) {
+        var _class = this._class;
+        var out = new _class();
+        this.processedItems.forEach(function (item) {
+            out[item.name] = item.type.read(stream, out);
+        });
+        return out;
+    };
+    StructClass.prototype.write = function (stream, value) {
+        this.processedItems.forEach(function (item) {
+            item.type.write(stream, value[item.name], value);
+        });
+    };
+    Object.defineProperty(StructClass.prototype, "length", {
+        get: function () {
+            return this.processedItems.sum(function (item) {
+                if (!item)
+                    throw ("Invalid item!!");
+                if (!item.type) {
+                    console.log(item);
+                    throw ("Invalid item type!!");
+                }
+                return item.type.length;
+            });
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructClass;
+})();
+
+var StructArrayClass = (function () {
+    function StructArrayClass(elementType, count) {
+        this.elementType = elementType;
+        this.count = count;
+    }
+    StructArrayClass.prototype.read = function (stream) {
+        var out = [];
+        for (var n = 0; n < this.count; n++) {
+            out.push(this.elementType.read(stream, out));
+        }
+        return out;
+    };
+    StructArrayClass.prototype.write = function (stream, value) {
+        for (var n = 0; n < this.count; n++)
+            this.elementType.write(stream, value[n], value);
+    };
+    Object.defineProperty(StructArrayClass.prototype, "length", {
+        get: function () {
+            return this.elementType.length * this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructArrayClass;
+})();
+
+function StructArray(elementType, count) {
+    return new StructArrayClass(elementType, count);
+}
+
+var StructStringn = (function () {
+    function StructStringn(count) {
+        this.count = count;
+    }
+    StructStringn.prototype.read = function (stream) {
+        var out = '';
+        for (var n = 0; n < this.count; n++) {
+            out += String.fromCharCode(stream.readUInt8());
+        }
+        return out;
+    };
+    StructStringn.prototype.write = function (stream, value) {
+        throw ("Not implemented StructStringn.write");
+    };
+    Object.defineProperty(StructStringn.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringn;
+})();
+
+var StructStringz = (function () {
+    function StructStringz(count) {
+        this.count = count;
+        this.stringn = new StructStringn(count);
+    }
+    StructStringz.prototype.read = function (stream) {
+        return this.stringn.read(stream).split(String.fromCharCode(0))[0];
+    };
+    StructStringz.prototype.write = function (stream, value) {
+        var items = value.split('').map(function (char) {
+            return char.charCodeAt(0);
+        });
+        while (items.length < this.count)
+            items.push(0);
+        for (var n = 0; n < items.length; n++)
+            stream.writeUInt8(items[n]);
+    };
+    Object.defineProperty(StructStringz.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringz;
+})();
+
+var StructStringzVariable = (function () {
+    function StructStringzVariable() {
+    }
+    StructStringzVariable.prototype.read = function (stream) {
+        return stream.readStringz();
+    };
+    StructStringzVariable.prototype.write = function (stream, value) {
+        stream.writeString(value);
+        stream.writeUInt8(0);
+    };
+    Object.defineProperty(StructStringzVariable.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringzVariable;
+})();
+
+var UInt32_2lbStruct = (function () {
+    function UInt32_2lbStruct() {
+    }
+    UInt32_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt32(0 /* LITTLE */);
+        var b = stream.readUInt32(1 /* BIG */);
+        return l;
+    };
+    UInt32_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt32(value, 0 /* LITTLE */);
+        stream.writeUInt32(value, 1 /* BIG */);
+    };
+    Object.defineProperty(UInt32_2lbStruct.prototype, "length", {
+        get: function () {
+            return 8;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32_2lbStruct;
+})();
+
+var UInt16_2lbStruct = (function () {
+    function UInt16_2lbStruct() {
+    }
+    UInt16_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt16(0 /* LITTLE */);
+        var b = stream.readUInt16(1 /* BIG */);
+        return l;
+    };
+    UInt16_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt16(value, 0 /* LITTLE */);
+        stream.writeUInt16(value, 1 /* BIG */);
+    };
+    Object.defineProperty(UInt16_2lbStruct.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16_2lbStruct;
+})();
+
+var StructStringWithSize = (function () {
+    function StructStringWithSize(getStringSize) {
+        this.getStringSize = getStringSize;
+    }
+    StructStringWithSize.prototype.read = function (stream, context) {
+        return stream.readString(this.getStringSize(context));
+    };
+    StructStringWithSize.prototype.write = function (stream, value, context) {
+        stream.writeString(value);
+    };
+    Object.defineProperty(StructStringWithSize.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringWithSize;
+})();
+
+var Int16 = new Int16Type(0 /* LITTLE */);
+var Int32 = new Int32Type(0 /* LITTLE */);
+var Int64 = new Int64Type(0 /* LITTLE */);
+var Int8 = new Int8Type(0 /* LITTLE */);
+
+var UInt16 = new UInt16Type(0 /* LITTLE */);
+var UInt32 = new UInt32Type(0 /* LITTLE */);
+var UInt8 = new UInt8Type(0 /* LITTLE */);
+
+var UInt16_b = new UInt16Type(1 /* BIG */);
+var UInt32_b = new UInt32Type(1 /* BIG */);
+
+var UInt32_2lb = new UInt32_2lbStruct();
+var UInt16_2lb = new UInt16_2lbStruct();
+
+var StringzVariable = new StructStringzVariable();
+
+function Stringn(count) {
+    return new StructStringn(count);
+}
+function Stringz(count) {
+    return new StructStringz(count);
+}
+function StringWithSize(callback) {
+    return new StructStringWithSize(callback);
+}
+//# sourceMappingURL=struct.js.map
+},
+"src/global/utils": function(module, exports, require) {
+///<reference path="../../typings/promise/promise.d.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+
+function String_repeat(str, num) {
+    return new Array(num + 1).join(str);
+}
+
+var Endian;
+(function (Endian) {
+    Endian[Endian["LITTLE"] = 0] = "LITTLE";
+    Endian[Endian["BIG"] = 1] = "BIG";
+})(Endian || (Endian = {}));
+
+var SortedSet = (function () {
+    function SortedSet() {
+        this.elements = [];
+    }
+    SortedSet.prototype.has = function (element) {
+        return this.elements.indexOf(element) >= 0;
+    };
+
+    SortedSet.prototype.add = function (element) {
+        if (!this.has(element))
+            this.elements.push(element);
+        return element;
+    };
+
+    Object.defineProperty(SortedSet.prototype, "length", {
+        get: function () {
+            return this.elements.length;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    SortedSet.prototype.delete = function (element) {
+        this.elements.remove(element);
+    };
+
+    SortedSet.prototype.filter = function (callback) {
+        return this.elements.filter(callback);
+    };
+
+    SortedSet.prototype.forEach = function (callback) {
+        this.elements.slice(0).forEach(callback);
+    };
+    return SortedSet;
+})();
+
+var DSet = (function (_super) {
+    __extends(DSet, _super);
+    function DSet() {
+        _super.apply(this, arguments);
+    }
+    return DSet;
+})(SortedSet);
+
+var UidCollection = (function () {
+    function UidCollection(lastId) {
+        if (typeof lastId === "undefined") { lastId = 1; }
+        this.lastId = lastId;
+        this.items = {};
+    }
+    UidCollection.prototype.allocate = function (item) {
+        var id = this.lastId++;
+        this.items[id] = item;
+        return id;
+    };
+
+    UidCollection.prototype.has = function (id) {
+        return (this.items[id] !== undefined);
+    };
+
+    UidCollection.prototype.get = function (id) {
+        return this.items[id];
+    };
+
+    UidCollection.prototype.remove = function (id) {
+        delete this.items[id];
+    };
+    return UidCollection;
+})();
+
+function identity(a) {
+    return a;
+}
+
+function compareNumbers(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+
+Array.prototype.contains = function (item) {
+    return this.indexOf(item) >= 0;
+};
+
+Array.prototype.binarySearchValue = function (selector) {
+    var array = this;
+
+    var index = array.binarySearchIndex(selector);
+    if (index < 0)
+        return null;
+    return array[index];
+};
+
+Array.prototype.binarySearchIndex = function (selector) {
+    var array = this;
+    var min = 0;
+    var max = array.length - 1;
+    var step = 0;
+
+    if (array.length == 0)
+        return -1;
+
+    while (true) {
+        var current = Math.floor((min + max) / 2);
+
+        var item = array[current];
+        var result = selector(item);
+
+        if (result == 0) {
+            //console.log('->', current);
+            return current;
+        }
+
+        //console.log(min, current, max);
+        if (((current == min) || (current == max))) {
+            if (min != max) {
+                //console.log('*');
+                min = max = current = (current != min) ? min : max;
+                //console.log(min, current, max);
+            } else {
+                break;
+            }
+        } else {
+            if (result < 0) {
+                max = current;
+            } else if (result > 0) {
+                min = current;
+            }
+        }
+        step++;
+        if (step >= 64)
+            throw (new Error("Too much steps"));
+    }
+
+    return -1;
+};
+
+Array.prototype.max = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) {
+            return a;
+        };
+    return array.reduce(function (previous, current) {
+        return Math.max(previous, selector(current));
+    }, selector(array[0]));
+});
+
+Array.prototype.sortBy = function (selector) {
+    return this.slice(0).sort(function (a, b) {
+        return compare(selector(a), selector(b));
+    });
+};
+
+Array.prototype.first = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = identity;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            return array[n];
+    return undefined;
+});
+
+Array.prototype.sum = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) {
+            return a;
+        };
+    return array.reduce(function (previous, current) {
+        return previous + selector(current);
+    }, 0);
+});
+
+Array.prototype.remove = function (item) {
+    var array = this;
+    var index = array.indexOf(item);
+    if (index >= 0)
+        array.splice(index, 1);
+};
+
+Object.defineProperty(Array.prototype, "max", { enumerable: false });
+Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
+Object.defineProperty(Array.prototype, "first", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "remove", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
+
+String.prototype.startsWith = function (value) {
+    var string = this;
+    return string.substr(0, value.length) == value;
+};
+
+String.prototype.endsWith = function (value) {
+    var string = this;
+    return string.substr(-value.length) == value;
+};
+
+String.prototype.rstrip = function () {
+    var string = this;
+    return string.replace(/\s+$/, '');
+};
+
+String.prototype.contains = function (value) {
+    var string = this;
+    return string.indexOf(value) >= 0;
+};
+
+var Microtask = (function () {
+    function Microtask() {
+    }
+    Microtask.queue = function (callback) {
+        Microtask.callbacks.push(callback);
+        if (!Microtask.queued) {
+            Microtask.queued = true;
+            setTimeout(Microtask.execute, 0);
+        }
+    };
+
+    Microtask.execute = function () {
+        while (Microtask.callbacks.length > 0) {
+            var callback = Microtask.callbacks.shift();
+            callback();
+        }
+        Microtask.queued = false;
+    };
+    Microtask.queued = false;
+    Microtask.callbacks = [];
+    return Microtask;
+})();
+
+if (!window['setImmediate']) {
+    window['setImmediate'] = function (callback) {
+        Microtask.queue(callback);
+
+        //return setTimeout(callback, 0);
+        return -1;
+    };
+    window['clearImmediate'] = function (timer) {
+        throw (new Error("Not implemented!"));
+        //clearTimeout(timer);
+    };
+}
+
+var Utf8 = (function () {
+    function Utf8() {
+    }
+    Utf8.decode = function (input) {
+        try  {
+            return decodeURIComponent(escape(input));
+        } catch (e) {
+            console.error(e);
+            return input;
+        }
+    };
+
+    Utf8.encode = function (input) {
+        return unescape(encodeURIComponent(input));
+    };
+    return Utf8;
+})();
+
+if (!ArrayBuffer.prototype.slice) {
+    ArrayBuffer.prototype.slice = function (begin, end) {
+        var that = new Uint8Array(this);
+        if (end == undefined)
+            end = that.length;
+        var result = new ArrayBuffer(end - begin);
+        var resultArray = new Uint8Array(result);
+        for (var i = 0; i < resultArray.length; i++)
+            resultArray[i] = that[i + begin];
+        return result;
+    };
+}
+
+window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
+
+navigator['getGamepads'] = navigator['getGamepads'] || navigator['webkitGetGamepads'];
+
+if (!window.requestAnimationFrame) {
+    window.requestAnimationFrame = function (callback) {
+        var start = Date.now();
+        return setTimeout(function () {
+            callback(Date.now());
+        }, 20);
+    };
+    window.cancelAnimationFrame = function (id) {
+        clearTimeout(id);
+    };
+}
+
+var ArrayBufferUtils = (function () {
+    function ArrayBufferUtils() {
+    }
+    ArrayBufferUtils.fromUInt8Array = function (input) {
+        return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    };
+
+    ArrayBufferUtils.concat = function (chunks) {
+        var tmp = new Uint8Array(chunks.sum(function (chunk) {
+            return chunk.byteLength;
+        }));
+        var offset = 0;
+        chunks.forEach(function (chunk) {
+            tmp.set(new Uint8Array(chunk), offset);
+            offset += chunk.byteLength;
+        });
+        return tmp.buffer;
+    };
+    return ArrayBufferUtils;
+})();
+
+var PromiseUtils = (function () {
+    function PromiseUtils() {
+    }
+    PromiseUtils.sequence = function (generators) {
+        return new Promise(function (resolve, reject) {
+            generators = generators.slice(0);
+            function step() {
+                if (generators.length > 0) {
+                    var generator = generators.shift();
+                    var promise = generator();
+                    promise.then(step);
+                } else {
+                    resolve();
+                }
+            }
+            step();
+        });
+    };
+
+    PromiseUtils.delayAsync = function (ms) {
+        if (ms <= 0)
+            return Promise.resolve(null);
+        return new Promise(function (resolve, reject) {
+            return setTimeout(resolve, ms);
+        });
+    };
+
+    PromiseUtils.delaySecondsAsync = function (seconds) {
+        return PromiseUtils.delayAsync(seconds * 1000);
+    };
+    return PromiseUtils;
+})();
+
+window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
+
+function setToString(Enum, value) {
+    var items = [];
+    for (var key in Enum) {
+        if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
+            items.push(key);
+        }
+    }
+    return items.join(' | ');
+}
+
+var WaitingThreadInfo = (function () {
+    function WaitingThreadInfo(name, object, promise) {
+        this.name = name;
+        this.object = object;
+        this.promise = promise;
+    }
+    return WaitingThreadInfo;
+})();
+
+var CpuBreakException = (function () {
+    function CpuBreakException(name, message) {
+        if (typeof name === "undefined") { name = 'CpuBreakException'; }
+        if (typeof message === "undefined") { message = 'CpuBreakException'; }
+        this.name = name;
+        this.message = message;
+    }
+    return CpuBreakException;
+})();
+
+var DebugOnceArray = {};
+function DebugOnce(name, times) {
+    if (typeof times === "undefined") { times = 1; }
+    if (DebugOnceArray[name] >= times)
+        return false;
+    if (DebugOnceArray[name]) {
+        DebugOnceArray[name]++;
+    } else {
+        DebugOnceArray[name] = 1;
+    }
+    return true;
+}
+//# sourceMappingURL=utils.js.map
 },
 "src/hle/SceKernelErrors": function(module, exports, require) {
 var SceKernelErrors;
