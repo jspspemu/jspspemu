@@ -3653,10 +3653,9 @@ var FunctionGenerator = (function () {
             return result;
         };
 
-        stms.add(ast.raw('var expectedRA = state.RA;'));
-
+        //stms.add(ast.raw('var expectedRA = state.RA;'));
         function returnWithCheck() {
-            stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
+            //stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
             stms.add(ast.raw('return;'));
         }
 
@@ -3715,10 +3714,6 @@ var FunctionGenerator = (function () {
                 if (isSimpleLoop) {
                     stms.add(ast.jump(pcToLabel[jumpAddress]));
                     break;
-                    //console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
-                    //mustDumpFunction = true;
-                } else if (isFunctionCall) {
-                    stms.add(ast.call('state.callPC', [ast.pc()]));
                 } else {
                     break;
                 }
@@ -5090,7 +5085,15 @@ var CpuState = (function () {
     CpuState.prototype.callPC = function (pc) {
         if (this.executor) {
             this.PC = pc;
-            //this.executor.execute(-1);
+            var ra = this.RA;
+            this.executor.execute(-1);
+            if (this.PC == ra) {
+                //console.log('great jump!');
+                return;
+            } else {
+                throw (new CpuBreakException());
+            }
+            //console.log(pc, this.PC);
             //return;
         }
 
@@ -15824,6 +15827,7 @@ var ThreadManForUser = (function () {
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
             var newThread = _this.threadUids.get(threadId);
 
+            //if (!newThread) debugger;
             var newState = newThread.state;
             newState.GP = currentThread.state.GP;
             newState.RA = 268435455 /* EXIT_THREAD */;

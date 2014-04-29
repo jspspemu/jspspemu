@@ -74,10 +74,10 @@ export class FunctionGenerator {
 			return result;
 		};
 
-		stms.add(ast.raw('var expectedRA = state.RA;'));
+		//stms.add(ast.raw('var expectedRA = state.RA;'));
 
 		function returnWithCheck() {
-			stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
+			//stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
 			stms.add(ast.raw('return;'));
 		}
 
@@ -138,11 +138,14 @@ export class FunctionGenerator {
 				if (isSimpleLoop) {
 					stms.add(ast.jump(pcToLabel[jumpAddress]));
 					break;
-					//console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
-					//mustDumpFunction = true;
-				} else if (isFunctionCall) {
+				}
+				/*
+				else if (isFunctionCall) {
 					stms.add(ast.call('state.callPC', [ast.pc()]));
-				} else {
+					// no break
+				}
+				*/
+				else {
 					break;
 				}
 			} else {

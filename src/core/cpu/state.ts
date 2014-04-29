@@ -295,7 +295,15 @@ export class CpuState {
 	callPC(pc: number) {
 		if (this.executor) {
 			this.PC = pc;
-			//this.executor.execute(-1);
+			var ra = this.RA;
+			this.executor.execute(-1);
+			if (this.PC == ra) {
+				//console.log('great jump!');
+				return;
+			} else {
+				throw (new CpuBreakException());
+			}
+			//console.log(pc, this.PC);
 			//return;
 		}
 

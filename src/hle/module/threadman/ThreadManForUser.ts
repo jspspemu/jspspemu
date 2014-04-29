@@ -54,6 +54,8 @@ export class ThreadManForUser {
 	sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number) => {
 		var newThread = this.threadUids.get(threadId);
 
+		//if (!newThread) debugger;
+
 		var newState = newThread.state;
 		newState.GP = currentThread.state.GP;
 		newState.RA = CpuSpecialAddresses.EXIT_THREAD;
