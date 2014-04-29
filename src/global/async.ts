@@ -56,8 +56,6 @@ function statFileAsync(url: string) {
 		var size = parseInt(request.getResponseHeader('content-length'));
 		var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
 
-		debugger;
-
 		return { size: size, date: date };
 	});
 }
