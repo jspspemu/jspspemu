@@ -169,11 +169,11 @@ Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false 
     });
 }
 
-function downloadFileAsync(url, headers) {
+function _downloadFileAsync(method, url, headers) {
     return new Promise(function (resolve, reject) {
         var request = new XMLHttpRequest();
 
-        request.open("GET", url, true);
+        request.open(method, url, true);
         request.overrideMimeType("text/plain; charset=x-user-defined");
         if (headers) {
             for (var headerKey in headers) {
@@ -186,13 +186,19 @@ function downloadFileAsync(url, headers) {
         };
         request.onload = function (e) {
             if (request.status < 400) {
-                var arraybuffer = request.response;
-                resolve(arraybuffer);
+                resolve(request);
             } else {
                 reject(new Error("HTTP " + request.status));
             }
         };
         request.send();
+    });
+}
+
+function downloadFileAsync(url, headers) {
+    return _downloadFileAsync('GET', url, headers).then(function (request) {
+        var arraybuffer = request.response;
+        return arraybuffer;
     });
 }
 
@@ -204,35 +210,16 @@ function downloadFileChunkAsync(url, from, count) {
 }
 
 function statFileAsync(url) {
-    return new Promise(function (resolve, reject) {
-        var request = new XMLHttpRequest();
+    return _downloadFileAsync('HEAD', url).then(function (request) {
+        //console.error('content-type', request.getResponseHeader('content-type'));
+        console.log(request.getAllResponseHeaders());
 
-        request.open("HEAD", url, true);
-        request.overrideMimeType("text/plain; charset=x-user-defined");
-        request.responseType = "arraybuffer";
-        request.onerror = function (e) {
-            reject(e['error']);
-        };
-        request.onload = function (e) {
-            if (request.status < 400) {
-                var headers = request.getAllResponseHeaders();
-                var date = new Date();
-                var size = 0;
+        var size = parseInt(request.getResponseHeader('content-length'));
+        var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
 
-                var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
-                if (sizeMatch)
-                    size = parseInt(sizeMatch[1]);
+        debugger;
 
-                var dateMatch = headers.match(/date:(.*)/i);
-                if (dateMatch)
-                    date = new Date(Date.parse(dateMatch[1].trim()));
-
-                resolve({ size: size, date: date });
-            } else {
-                reject(new Error("HTTP " + request.status));
-            }
-        };
-        request.send();
+        return { size: size, date: date };
     });
 }
 /*
@@ -730,6 +717,13 @@ var UrlAsyncStream = (function () {
     UrlAsyncStream.fromUrlAsync = function (url) {
         console.info('open ', url);
         return statFileAsync(url).then(function (stat) {
+            console.info('fromUrlAsync', stat);
+
+            if (stat.size == 0) {
+                console.error("Invalid file with size '" + stat.size + "'", stat);
+                throw (new Error("Invalid file with size '" + stat.size + "'"));
+            }
+
             // If file is less  than 5MB, then download it completely
             if (stat.size < 5 * 1024 * 1024) {
                 return downloadFileAsync(url).then(function (data) {
@@ -750,7 +744,8 @@ var UrlAsyncStream = (function () {
     });
 
     UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        console.info('download chunkup', this.url, offset, count);
+        //console.error((new Error("download chunk"))['stack']);
+        console.info('download chunk', this.url, offset, count);
         return downloadFileChunkAsync(this.url, offset, count);
     };
     return UrlAsyncStream;
@@ -10892,10 +10887,12 @@ var Zip = (function () {
     };
 
     Zip.fromStreamAsync = function (zipStream) {
+        console.info('zipStream', zipStream);
+
         return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then(function (data) {
             var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
 
-            console.log(zipEndLocator);
+            console.log('zipEndLocator', zipEndLocator);
 
             return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then(function (data) {
                 var dirEntries = StructArray(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));

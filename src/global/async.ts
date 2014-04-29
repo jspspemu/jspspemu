@@ -9,11 +9,11 @@ function waitAsycn(timems: number) {
 	});
 }
 
-function downloadFileAsync(url: string, headers?: any) {
-	return new Promise<ArrayBuffer>((resolve, reject) => {
+function _downloadFileAsync(method: string, url: string, headers?: any) {
+	return new Promise<XMLHttpRequest>((resolve, reject) => {
 		var request = new XMLHttpRequest();
 
-		request.open("GET", url, true);
+		request.open(method, url, true);
 		request.overrideMimeType("text/plain; charset=x-user-defined");
 		if (headers) {
 			for (var headerKey in headers) {
@@ -24,13 +24,20 @@ function downloadFileAsync(url: string, headers?: any) {
 		request.onerror = function (e) { reject(e['error']); };
 		request.onload = function (e) {
 			if (request.status < 400) {
-				var arraybuffer: ArrayBuffer = request.response; // not responseText
-				resolve(arraybuffer);
+				resolve(request);
 			} else {
 				reject(new Error("HTTP " + request.status));
 			}
 		};
 		request.send();
+	});
+}
+
+
+function downloadFileAsync(url: string, headers?: any) {
+	return _downloadFileAsync('GET', url, headers).then(request => {
+		var arraybuffer: ArrayBuffer = request.response; // not responseText
+		return arraybuffer;
 	});
 }
 
@@ -42,31 +49,16 @@ function downloadFileChunkAsync(url: string, from: number, count: number) {
 }
 
 function statFileAsync(url: string) {
-	return new Promise<StatInfo>((resolve, reject) => {
-		var request = new XMLHttpRequest();
+	return _downloadFileAsync('HEAD', url).then(request => {
+		//console.error('content-type', request.getResponseHeader('content-type'));
+		console.log(request.getAllResponseHeaders());
 
-		request.open("HEAD", url, true);
-		request.overrideMimeType("text/plain; charset=x-user-defined");
-		request.responseType = "arraybuffer";
-		request.onerror = function (e) { reject(e['error']); };
-		request.onload = function (e) {
-			if (request.status < 400) {
-				var headers = request.getAllResponseHeaders();
-				var date = new Date();
-				var size = 0;
+		var size = parseInt(request.getResponseHeader('content-length'));
+		var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
 
-				var sizeMatch = headers.match(/content-length:\s*(\d+)/i);
-				if (sizeMatch) size = parseInt(sizeMatch[1]);
+		debugger;
 
-				var dateMatch = headers.match(/date:(.*)/i);
-				if (dateMatch) date = new Date(Date.parse(dateMatch[1].trim()));
-
-				resolve({ size: size, date: date });
-			} else {
-				reject(new Error("HTTP " + request.status));
-			}
-		};
-		request.send();
+		return { size: size, date: date };
 	});
 }
 

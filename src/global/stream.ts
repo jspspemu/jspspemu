@@ -32,6 +32,13 @@ class UrlAsyncStream implements AsyncStream {
 	static fromUrlAsync(url: string) {
 		console.info('open ', url);
 		return statFileAsync(url).then((stat): Promise<AsyncStream> => {
+			console.info('fromUrlAsync', stat);
+
+			if (stat.size == 0) {
+				console.error("Invalid file with size '" + stat.size + "'", stat);
+				throw (new Error("Invalid file with size '" + stat.size + "'"));
+			}
+
 			// If file is less  than 5MB, then download it completely
 			if (stat.size < 5 * 1024 * 1024) {
 				return downloadFileAsync(url).then(data => MemoryAsyncStream.fromArrayBuffer(data));
@@ -44,7 +51,8 @@ class UrlAsyncStream implements AsyncStream {
 	get size() { return this.stat.size; }
 
 	readChunkAsync(offset: number, count: number) {
-		console.info('download chunkup', this.url, offset, count);
+		//console.error((new Error("download chunk"))['stack']);
+		console.info('download chunk', this.url, offset, count);
 		return downloadFileChunkAsync(this.url, offset, count);
     }
 }
