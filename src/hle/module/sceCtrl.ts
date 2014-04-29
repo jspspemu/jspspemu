@@ -1,8 +1,10 @@
 ﻿import _utils = require('../utils');
+import _manager = require('../manager'); _manager.Thread;
 import _context = require('../../context');
 import _controller = require('../../core/controller');
 import _cpu = require('../../core/cpu');
 import createNativeFunction = _utils.createNativeFunction;
+import Thread = _manager.Thread;
 
 export class sceCtrl {
 	constructor(private context: _context.EmulatorContext) { }
@@ -12,10 +14,10 @@ export class sceCtrl {
         return 0;
     });
 
-	sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, (state: _cpu.CpuState, sceCtrlDataPtr: Stream, count: number) => {
+	sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, (thread: Thread, sceCtrlDataPtr: Stream, count: number) => {
 		_controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
-
-		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync());
+		//return Promise.resolve(0);
+		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread));
 		//return 0;
     });
 

@@ -9,14 +9,14 @@ export class UtilsForUser {
 	constructor(private context: _context.EmulatorContext) { }
 
 	sceKernelLibcClock = createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, () => {
-		return (performance.now() * 1000) | 0;
+		return this.context.rtc.getClockMicroseconds();
 	});
 
     sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', 'void*', this, (pointer: Stream) => {
 		//console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
 		if (pointer == Stream.INVALID) return 0;
 
-		var result = (Date.now() / 1000) | 0;
+		var result = (this.context.rtc.getCurrentUnixSeconds()) | 0;
 		if (pointer) pointer.writeInt32(result);
 		return result;
 	});

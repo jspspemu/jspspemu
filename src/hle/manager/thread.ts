@@ -70,6 +70,32 @@ export class Thread {
 		return Promise.resolve(0);
 	}
 
+	accumulatedMicroseconds = 0;
+	delayMicrosecondsAsync(delayMicroseconds: number) {
+		//console.error(delayMicroseconds, this.accumulatedMicroseconds);
+
+		var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
+		delayMicroseconds -= subtractAccumulatedMicroseconds;
+		this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
+
+		//console.error(delayMicroseconds, this.accumulatedMicroseconds, subtractAccumulatedMicroseconds);
+
+		if (delayMicroseconds <= 0.00001) {
+			//console.error('none!');
+			return Promise.resolve(0);
+		}
+
+		var start = performance.now();
+		return waitAsycn(delayMicroseconds / 1000).then(() => {
+			var end = performance.now();
+			var elapsedmicroseconds = (end - start) * 1000;
+
+			this.accumulatedMicroseconds += ((elapsedmicroseconds - delayMicroseconds) | 0);
+
+			return 0;
+		});
+	}
+
 	suspend() {
 		//console.log('suspended ' + this.name);
         this.running = false;

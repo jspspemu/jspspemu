@@ -3,9 +3,11 @@ import _context = require('../../../context');
 import _cpu = require('../../../core/cpu');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
-import _manager = require('../../manager');
+import _manager = require('../../manager'); _manager.Thread;
+
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 import CpuState = _cpu.CpuState;
+
 import Thread = _manager.Thread;
 
 export class ThreadManForUser {
@@ -23,17 +25,16 @@ export class ThreadManForUser {
 		return newThread.id;
 	});
 
-	_sceKernelDelayThreadCB(delayInMicroseconds: number) {
-		this.context.controller
-		return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
+	_sceKernelDelayThreadCB(thread: Thread, delayInMicroseconds: number) {
+		return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds));
 	}
 
-	sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, (delayInMicroseconds: number) => {
-		return this._sceKernelDelayThreadCB(delayInMicroseconds);
+	sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint', this, (thread:Thread, delayInMicroseconds: number) => {
+		return this._sceKernelDelayThreadCB(thread, delayInMicroseconds);
 	});
 
-	sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, (delayInMicroseconds: number) => {
-		return this._sceKernelDelayThreadCB(delayInMicroseconds);
+	sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint', this, (thread: Thread, delayInMicroseconds: number) => {
+		return this._sceKernelDelayThreadCB(thread, delayInMicroseconds);
 	});
 
 	sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, (threadId: number, timeoutPtr: Stream) => {
@@ -149,7 +150,7 @@ export class ThreadManForUser {
 	});
 
 	_getCurrentMicroseconds() {
-		return this.context.rtc.getCurrentMicroseconds();
+		return this.context.rtc.getCurrentUnixMicroseconds();
 	}
 
 	sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, () => {

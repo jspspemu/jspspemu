@@ -1,4 +1,5 @@
 ﻿import _utils = require('../utils');
+import _manager = require('../manager'); _manager.Thread;
 import _context = require('../../context');
 import _display = require('../../core/display');
 import _pixelformat = require('../../core/pixelformat');
@@ -6,6 +7,8 @@ import createNativeFunction = _utils.createNativeFunction;
 
 import PixelFormat = _pixelformat.PixelFormat;
 import PspDisplay = _display.PspDisplay;
+
+import Thread = _manager.Thread;
 
 export class sceDisplay {
 	constructor(private context: _context.EmulatorContext) { }
@@ -29,28 +32,30 @@ export class sceDisplay {
 		return 0;
 	});
 
-	_waitVblankAsync() {
-		return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync());
+	_waitVblankAsync(thread: Thread) {
+		this.context.display.updateTime();
+		return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync(thread));
 	}
 
-	_waitVblankStartAsync() {
-		return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync());
+	_waitVblankStartAsync(thread: Thread) {
+		this.context.display.updateTime();
+		return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread));
 	}
 
-    sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, (cycleNum: number) => {
-		return this._waitVblankAsync();
+    sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, (thread:Thread, cycleNum: number) => {
+		return this._waitVblankAsync(thread);
 	});
 
-	sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'int', this, (cycleNum: number) => {
-		return this._waitVblankAsync();
+	sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, (thread: Thread, cycleNum: number) => {
+		return this._waitVblankAsync(thread);
 	});
 
-    sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', '', this, () => {
-		return this._waitVblankStartAsync();
+	sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, (thread: Thread) => {
+		return this._waitVblankStartAsync(thread);
 	});
 
-	sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', '', this, () => {
-		return this._waitVblankStartAsync()
+	sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, (thread: Thread) => {
+		return this._waitVblankStartAsync(thread)
 	});
 
 	sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, () => {

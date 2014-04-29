@@ -5121,21 +5121,18 @@ var DummyPspDisplay = (function (_super) {
         _super.call(this);
         this.vblankCount = 0;
         this.hcountTotal = 0;
-        this.secondsLeftForVblank = 0;
+        this.secondsLeftForVblank = 0.1;
+        this.secondsLeftForVblankStart = 0.1;
     }
     DummyPspDisplay.prototype.updateTime = function () {
     };
 
-    DummyPspDisplay.prototype.waitVblankAsync = function () {
-        return new Promise(function (resolve) {
-            setTimeout(resolve, 20);
-        });
+    DummyPspDisplay.prototype.waitVblankAsync = function (waiter) {
+        return waiter.delayMicrosecondsAsync(20000);
     };
 
-    DummyPspDisplay.prototype.waitVblankStartAsync = function () {
-        return new Promise(function (resolve) {
-            setTimeout(resolve, 20);
-        });
+    DummyPspDisplay.prototype.waitVblankStartAsync = function (waiter) {
+        return waiter.delayMicrosecondsAsync(20000);
     };
 
     DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
@@ -5171,8 +5168,8 @@ var PspDisplay = (function (_super) {
         this.secondsLeftForVblank = 0;
         this.rowsLeftForVblankStart = 0;
         this.secondsLeftForVblankStart = 0;
-        //mustWaitVBlank = true;
-        this.mustWaitVBlank = false;
+        this.mustWaitVBlank = true;
+        this.lastTimeVblank = 0;
         this.context = this.canvas.getContext('2d');
         this.imageData = this.context.createImageData(512, 272);
         this.setEnabledDisplay(true);
@@ -5242,22 +5239,32 @@ var PspDisplay = (function (_super) {
         return Promise.resolve();
     };
 
-    PspDisplay.prototype.waitVblankAsync = function () {
-        this.updateTime();
-        if (!this.mustWaitVBlank)
-            return Promise.resolve(0);
-        return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblank).then(function () {
-            return 0;
-        });
+    //mustWaitVBlank = false;
+    PspDisplay.prototype.checkVblankThrottle = function () {
+        var currentTime = performance.now();
+        if ((currentTime - this.lastTimeVblank) >= (PspDisplay.VERTICAL_SECONDS * 1000)) {
+            this.lastTimeVblank = currentTime;
+            return true;
+        }
+        return false;
     };
 
-    PspDisplay.prototype.waitVblankStartAsync = function () {
+    PspDisplay.prototype.waitVblankAsync = function (waiter) {
         this.updateTime();
         if (!this.mustWaitVBlank)
             return Promise.resolve(0);
-        return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblankStart).then(function () {
-            return 0;
-        });
+        if (this.checkVblankThrottle())
+            return Promise.resolve(0);
+        return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000);
+    };
+
+    PspDisplay.prototype.waitVblankStartAsync = function (waiter) {
+        this.updateTime();
+        if (!this.mustWaitVBlank)
+            return Promise.resolve(0);
+        if (this.checkVblankThrottle())
+            return Promise.resolve(0);
+        return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000);
     };
     PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000;
     PspDisplay.CYCLES_PER_PIXEL = 1;
@@ -8966,7 +8973,11 @@ exports.PixelConverter = PixelConverter;
 var PspRtc = (function () {
     function PspRtc() {
     }
-    PspRtc.prototype.getCurrentMicroseconds = function () {
+    PspRtc.prototype.getCurrentUnixSeconds = function () {
+        return new Date().getTime() / 1000;
+    };
+
+    PspRtc.prototype.getCurrentUnixMicroseconds = function () {
         return new Date().getTime() * 1000;
     };
 
@@ -12689,6 +12700,7 @@ var Thread = (function () {
         this.wakeupCount = 0;
         this.wakeupPromise = null;
         this.wakeupFunc = null;
+        this.accumulatedMicroseconds = 0;
         this.state.thread = this;
         this.programExecutor = new ProgramExecutor(state, instructionCache);
         this.runningPromise = new Promise(function (resolve, reject) {
@@ -12722,6 +12734,30 @@ var Thread = (function () {
             this.wakeupFunc = null;
         }
         return Promise.resolve(0);
+    };
+
+    Thread.prototype.delayMicrosecondsAsync = function (delayMicroseconds) {
+        //console.error(delayMicroseconds, this.accumulatedMicroseconds);
+        var _this = this;
+        var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
+        delayMicroseconds -= subtractAccumulatedMicroseconds;
+        this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
+
+        //console.error(delayMicroseconds, this.accumulatedMicroseconds, subtractAccumulatedMicroseconds);
+        if (delayMicroseconds <= 0.00001) {
+            //console.error('none!');
+            return Promise.resolve(0);
+        }
+
+        var start = performance.now();
+        return waitAsycn(delayMicroseconds / 1000).then(function () {
+            var end = performance.now();
+            var elapsedmicroseconds = (end - start) * 1000;
+
+            _this.accumulatedMicroseconds += ((elapsedmicroseconds - delayMicroseconds) | 0);
+
+            return 0;
+        });
     };
 
     Thread.prototype.suspend = function () {
@@ -14309,14 +14345,14 @@ var UtilsForUser = (function () {
         var _this = this;
         this.context = context;
         this.sceKernelLibcClock = createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, function () {
-            return (performance.now() * 1000) | 0;
+            return _this.context.rtc.getClockMicroseconds();
         });
         this.sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', 'void*', this, function (pointer) {
             //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
             if (pointer == Stream.INVALID)
                 return 0;
 
-            var result = (Date.now() / 1000) | 0;
+            var result = (_this.context.rtc.getCurrentUnixSeconds()) | 0;
             if (pointer)
                 pointer.writeInt32(result);
             return result;
@@ -14578,6 +14614,8 @@ var Channel = (function () {
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
 var _utils = require('../utils');
+var _manager = require('../manager');
+_manager.Thread;
 
 var _controller = require('../../core/controller');
 
@@ -14591,10 +14629,11 @@ var sceCtrl = (function () {
             _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
             return 0;
         });
-        this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'CpuState/void*/int', this, function (state, sceCtrlDataPtr, count) {
+        this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, function (thread, sceCtrlDataPtr, count) {
             _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
 
-            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync());
+            //return Promise.resolve(0);
+            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread));
             //return 0;
         });
         this.sceCtrlSetSamplingCycle = createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
@@ -14620,12 +14659,16 @@ exports.sceCtrl = sceCtrl;
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
 var _utils = require('../utils');
+var _manager = require('../manager');
+_manager.Thread;
 
 var _display = require('../../core/display');
 
 var createNativeFunction = _utils.createNativeFunction;
 
 var PspDisplay = _display.PspDisplay;
+
+var Thread = _manager.Thread;
 
 var sceDisplay = (function () {
     function sceDisplay(context) {
@@ -14650,17 +14693,17 @@ var sceDisplay = (function () {
                 heightPtr.writeInt32(_this.height);
             return 0;
         });
-        this.sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'int', this, function (cycleNum) {
-            return _this._waitVblankAsync();
+        this.sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
+            return _this._waitVblankAsync(thread);
         });
-        this.sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'int', this, function (cycleNum) {
-            return _this._waitVblankAsync();
+        this.sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
+            return _this._waitVblankAsync(thread);
         });
-        this.sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', '', this, function () {
-            return _this._waitVblankStartAsync();
+        this.sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, function (thread) {
+            return _this._waitVblankStartAsync(thread);
         });
-        this.sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', '', this, function () {
-            return _this._waitVblankStartAsync();
+        this.sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, function (thread) {
+            return _this._waitVblankStartAsync(thread);
         });
         this.sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
             _this.context.display.updateTime();
@@ -14695,12 +14738,14 @@ var sceDisplay = (function () {
             return _this.context.display.hcountTotal;
         });
     }
-    sceDisplay.prototype._waitVblankAsync = function () {
-        return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync());
+    sceDisplay.prototype._waitVblankAsync = function (thread) {
+        this.context.display.updateTime();
+        return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync(thread));
     };
 
-    sceDisplay.prototype._waitVblankStartAsync = function () {
-        return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync());
+    sceDisplay.prototype._waitVblankStartAsync = function (thread) {
+        this.context.display.updateTime();
+        return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread));
     };
     return sceDisplay;
 })();
@@ -15662,8 +15707,12 @@ var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
+var _manager = require('../../manager');
+_manager.Thread;
 
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
+
+var Thread = _manager.Thread;
 
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
@@ -15679,11 +15728,11 @@ var ThreadManForUser = (function () {
 
             return newThread.id;
         });
-        this.sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
-            return _this._sceKernelDelayThreadCB(delayInMicroseconds);
+        this.sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
+            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds);
         });
-        this.sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'uint', this, function (delayInMicroseconds) {
-            return _this._sceKernelDelayThreadCB(delayInMicroseconds);
+        this.sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
+            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds);
         });
         this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
             var newThread = _this.threadUids.get(threadId);
@@ -15812,9 +15861,8 @@ var ThreadManForUser = (function () {
             return microseconds;
         });
     }
-    ThreadManForUser.prototype._sceKernelDelayThreadCB = function (delayInMicroseconds) {
-        this.context.controller;
-        return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, PromiseUtils.delayAsync(delayInMicroseconds / 1000));
+    ThreadManForUser.prototype._sceKernelDelayThreadCB = function (thread, delayInMicroseconds) {
+        return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds));
     };
 
     ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
@@ -15831,7 +15879,7 @@ var ThreadManForUser = (function () {
     };
 
     ThreadManForUser.prototype._getCurrentMicroseconds = function () {
-        return this.context.rtc.getCurrentMicroseconds();
+        return this.context.rtc.getCurrentUnixMicroseconds();
     };
     return ThreadManForUser;
 })();

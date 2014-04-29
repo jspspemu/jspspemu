@@ -1,5 +1,9 @@
 ﻿export class PspRtc {
-	getCurrentMicroseconds() {
+	getCurrentUnixSeconds() {
+		return new Date().getTime() / 1000;
+	}
+
+	getCurrentUnixMicroseconds() {
 		return new Date().getTime() * 1000;
 	}
 

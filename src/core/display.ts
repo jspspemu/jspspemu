@@ -5,6 +5,10 @@ import Memory = memory.Memory;
 import PixelFormat = pixelformat.PixelFormat;
 import PixelConverter = pixelformat.PixelConverter;
 
+export interface ThreadWaiter {
+	delayMicrosecondsAsync(delayMicroseconds: number): Promise<number>;
+}
+
 export interface IPspDisplay {
 	address: number;
 	bufferWidth: number;
@@ -12,13 +16,14 @@ export interface IPspDisplay {
 	sync: number;
 	startAsync(): Promise<void>;
 	stopAsync(): Promise<void>;
-	waitVblankAsync(): Promise<number>;
-	waitVblankStartAsync(): Promise<number>;
+	waitVblankAsync(waiter: ThreadWaiter): Promise<number>;
+	waitVblankStartAsync(waiter: ThreadWaiter): Promise<number>;
 	setEnabledDisplay(enable: boolean): void;
 	updateTime(): void;
 	vblankCount: number;
 	hcountTotal: number;
 	secondsLeftForVblank: number;
+	secondsLeftForVblankStart: number;
 }
 
 export class BasePspDisplay {
@@ -31,7 +36,8 @@ export class BasePspDisplay {
 export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	vblankCount: number = 0;
 	hcountTotal = 0;
-	secondsLeftForVblank = 0;
+	secondsLeftForVblank = 0.1;
+	secondsLeftForVblankStart = 0.1;
 
 	constructor() {
 		super();
@@ -40,12 +46,12 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	updateTime() {
 	}
 
-	waitVblankAsync() {
-		return new Promise((resolve) => { setTimeout(resolve, 20); });
+	waitVblankAsync(waiter: ThreadWaiter) {
+		return waiter.delayMicrosecondsAsync(20000);
 	}
 
-	waitVblankStartAsync() {
-		return new Promise((resolve) => { setTimeout(resolve, 20); });
+	waitVblankStartAsync(waiter: ThreadWaiter) {
+		return waiter.delayMicrosecondsAsync(20000);
 	}
 
 	setEnabledDisplay(enable: boolean) {
@@ -96,7 +102,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	secondsLeftForVblank = 0;
 
 	private rowsLeftForVblankStart = 0;
-	private secondsLeftForVblankStart = 0;
+	secondsLeftForVblankStart = 0;
 
 	private getCurrentMs() {
 		return performance.now();
@@ -167,18 +173,30 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		return Promise.resolve();
 	}
 
-	//mustWaitVBlank = true;
-	mustWaitVBlank = false;
+	mustWaitVBlank = true;
+	lastTimeVblank = 0;
+	//mustWaitVBlank = false;
 
-	waitVblankAsync() {
-		this.updateTime();
-		if (!this.mustWaitVBlank) return Promise.resolve(0);
-		return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblank).then(() => 0);
+	private checkVblankThrottle() {
+		var currentTime = performance.now();
+		if ((currentTime - this.lastTimeVblank) >= (PspDisplay.VERTICAL_SECONDS * 1000)) {
+			this.lastTimeVblank = currentTime;
+			return true;
+		}
+		return false;
 	}
 
-	waitVblankStartAsync() {
+	waitVblankAsync(waiter: ThreadWaiter) {
 		this.updateTime();
 		if (!this.mustWaitVBlank) return Promise.resolve(0);
-		return PromiseUtils.delaySecondsAsync(this.secondsLeftForVblankStart).then(() => 0);
+		if (this.checkVblankThrottle()) return Promise.resolve(0);
+		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000);
+	}
+
+	waitVblankStartAsync(waiter: ThreadWaiter) {
+		this.updateTime();
+		if (!this.mustWaitVBlank) return Promise.resolve(0);
+		if (this.checkVblankThrottle()) return Promise.resolve(0);
+		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000);
 	}
 }

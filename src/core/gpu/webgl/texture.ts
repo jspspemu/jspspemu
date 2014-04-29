@@ -153,13 +153,13 @@ export class TextureHandler {
 	private _invalidatedMemory() {
 		// should invalidate just  the right textures
 		for (var hash1 in this.texturesByHash1) {
-			var texture = this.texturesByHash1[hash1];
-			texture.valid = false;
+			var texture1 = this.texturesByHash1[hash1];
+			texture1.valid = false;
 		}
 
 		for (var hash2 in this.texturesByHash2) {
-			var texture = this.texturesByHash2[hash2];
-			texture.valid = false;
+			var texture2 = this.texturesByHash2[hash2];
+			texture2.valid = false;
 		}
 	}
 
