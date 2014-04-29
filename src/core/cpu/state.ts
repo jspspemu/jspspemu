@@ -10,8 +10,14 @@ export enum CpuSpecialAddresses {
 	EXIT_THREAD = 0x0FFFFFFF,
 }
 
+export interface IExecutor {
+	execute(maxIterations: number): void;
+}
+
 export class CpuState {
 	gpr: Int32Array = new Int32Array(32);
+
+	executor: IExecutor;
 
 	fpr_Buffer = new ArrayBuffer(32 * 4);
 	fpr: Float32Array = new Float32Array(this.fpr_Buffer);
@@ -284,6 +290,16 @@ export class CpuState {
 		var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
 		this.HI = result.high;
 		this.LO = result.low;
+	}
+
+	callPC(pc: number) {
+		if (this.executor) {
+			this.PC = pc;
+			//this.executor.execute(-1);
+			//return;
+		}
+
+		throw(new CpuBreakException());
 	}
 
 	break() { throw (new CpuBreakException()); }

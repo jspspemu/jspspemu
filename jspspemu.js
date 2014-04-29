@@ -524,6 +524,13 @@ if (!Math['imul']) {
     };
 }
 
+if (!Math['fround']) {
+    Math['fround'] = function (x) {
+        var f32 = new Float32Array(1);
+        return f32[0] = x, f32[0];
+    };
+}
+
 var BitUtils = (function () {
     function BitUtils() {
     }
@@ -2907,7 +2914,7 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype._postBranch = function (nextPc) {
-        return _if(branchflag(), stm(assign(pc(), branchpc())), stms([stm(assign(pc(), u_imm32(nextPc))), ast._return()]));
+        return _if(branchflag(), stm(assign(pc(), branchpc())), stms([stm(assign(pc(), u_imm32(nextPc)))]));
     };
 
     InstructionAst.prototype._storePC = function (_pc) {
@@ -3460,6 +3467,9 @@ var AstBuilder = (function () {
     AstBuilder.prototype._return = function () {
         return new ANodeStmReturn();
     };
+    AstBuilder.prototype.raw = function (content) {
+        return new ANodeStmRaw(content);
+    };
     return AstBuilder;
 })();
 exports.AstBuilder = AstBuilder;
@@ -3540,8 +3550,9 @@ var ProgramExecutor = (function () {
         this.state = state;
         this.instructionCache = instructionCache;
         this.lastPC = 0;
+        this.state.executor = this;
     }
-    ProgramExecutor.prototype.executeStep = function () {
+    ProgramExecutor.prototype._executeStep = function () {
         if (this.state.PC == 0)
             console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
         this.lastPC = this.state.PC;
@@ -3554,7 +3565,7 @@ var ProgramExecutor = (function () {
         if (typeof maxIterations === "undefined") { maxIterations = -1; }
         try  {
             while (maxIterations != 0) {
-                this.executeStep();
+                this._executeStep();
                 if (maxIterations > 0)
                     maxIterations--;
             }
@@ -3642,6 +3653,13 @@ var FunctionGenerator = (function () {
             return result;
         };
 
+        stms.add(ast.raw('var expectedRA = state.RA;'));
+
+        function returnWithCheck() {
+            stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
+            stms.add(ast.raw('return;'));
+        }
+
         for (var n = 0; n < 100000; n++) {
             var di = this.decodeInstruction(PC + 0);
 
@@ -3658,6 +3676,7 @@ var FunctionGenerator = (function () {
             if (di.type.isJumpOrBranch) {
                 var di2 = this.decodeInstruction(PC + 4);
                 var isBranch = di.type.isBranch;
+                var isCall = di.type.isCall;
                 var jumpAddress = 0;
                 var jumpBack = false;
                 var jumpAhead = false;
@@ -3673,6 +3692,7 @@ var FunctionGenerator = (function () {
 
                 // SIMPLE LOOP
                 var isSimpleLoop = isBranch && jumpBack && (jumpAddress >= startPC);
+                var isFunctionCall = isCall;
 
                 stms.add(emitInstruction());
 
@@ -3680,19 +3700,28 @@ var FunctionGenerator = (function () {
 
                 if (di2.type.isSyscall) {
                     stms.add(this.instructionAst._postBranch(PC));
+                    stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+                    returnWithCheck();
+                    stms.add(ast.raw('}'));
                     stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
                 } else {
                     stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
                     stms.add(this.instructionAst._postBranch(PC));
+                    stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+                    returnWithCheck();
+                    stms.add(ast.raw('}'));
                 }
 
                 if (isSimpleLoop) {
                     stms.add(ast.jump(pcToLabel[jumpAddress]));
+                    break;
                     //console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
                     //mustDumpFunction = true;
+                } else if (isFunctionCall) {
+                    stms.add(ast.call('state.callPC', [ast.pc()]));
+                } else {
+                    break;
                 }
-
-                break;
             } else {
                 if (di.type.isSyscall) {
                     stms.add(this.instructionAst._storePC(PC + 4));
@@ -3705,6 +3734,8 @@ var FunctionGenerator = (function () {
                 }
             }
         }
+
+        returnWithCheck();
 
         if (mustDumpFunction) {
             console.debug(sprintf("// function_%08X:\n%s", address, stms.toJs()));
@@ -3875,6 +3906,14 @@ var InstructionType = (function () {
     Object.defineProperty(InstructionType.prototype, "isBranch", {
         get: function () {
             return this.isInstructionType(INSTR_TYPE_B);
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(InstructionType.prototype, "isCall", {
+        get: function () {
+            return this.isInstructionType(INSTR_TYPE_JAL);
         },
         enumerable: true,
         configurable: true
@@ -5046,6 +5085,16 @@ var CpuState = (function () {
         var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
         this.HI = result.high;
         this.LO = result.low;
+    };
+
+    CpuState.prototype.callPC = function (pc) {
+        if (this.executor) {
+            this.PC = pc;
+            //this.executor.execute(-1);
+            //return;
+        }
+
+        throw (new CpuBreakException());
     };
 
     CpuState.prototype.break = function () {
@@ -12843,6 +12892,8 @@ var Thread = (function () {
             //this.programExecutor.execute(200000);
             //this.programExecutor.execute(2000000);
         } catch (e) {
+            console.error(e);
+            console.error(e['stack']);
             this.stop();
             throw (e);
         }

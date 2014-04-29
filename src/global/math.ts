@@ -1,7 +1,8 @@
 ﻿interface Math {
 	clz32(value: number): number;
 	trunc(value: number): number;
-	imul(a: number, b:number): number;
+	imul(a: number, b: number): number;
+	fround(x: number): number;
 }
 
 declare var vec4: {
@@ -49,6 +50,13 @@ if (!Math['imul']) {
 		// the shift by 0 fixes the sign on the high part
 		// the final |0 converts the unsigned value into a signed value
 		return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+	}
+}
+
+if (!Math['fround']) {
+	Math['fround'] = function (x: number) {
+		var f32 = new Float32Array(1);
+		return f32[0] = x, f32[0];
 	}
 }
 

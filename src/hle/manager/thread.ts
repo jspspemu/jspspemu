@@ -159,6 +159,8 @@ export class Thread {
 			//this.programExecutor.execute(200000);
 			//this.programExecutor.execute(2000000);
 		} catch (e) {
+			console.error(e);
+			console.error(e['stack']);
 			this.stop();
 			throw (e);
 		}

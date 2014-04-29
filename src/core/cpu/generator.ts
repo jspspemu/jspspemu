@@ -74,6 +74,13 @@ export class FunctionGenerator {
 			return result;
 		};
 
+		stms.add(ast.raw('var expectedRA = state.RA;'));
+
+		function returnWithCheck() {
+			stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
+			stms.add(ast.raw('return;'));
+		}
+
 		for (var n = 0; n < 100000; n++) {
 			var di = this.decodeInstruction(PC + 0);
 			//console.log(di);
@@ -91,6 +98,7 @@ export class FunctionGenerator {
 			if (di.type.isJumpOrBranch) {
 				var di2 = this.decodeInstruction(PC + 4);
 				var isBranch = di.type.isBranch;
+				var isCall = di.type.isCall;
 				var jumpAddress = 0;
 				var jumpBack = false;
 				var jumpAhead = false;
@@ -106,6 +114,7 @@ export class FunctionGenerator {
 
 				// SIMPLE LOOP
 				var isSimpleLoop = isBranch && jumpBack && (jumpAddress >= startPC);
+				var isFunctionCall = isCall;
 
 				stms.add(emitInstruction());
 
@@ -113,21 +122,29 @@ export class FunctionGenerator {
 
 				if (di2.type.isSyscall) {
 					stms.add(this.instructionAst._postBranch(PC));
+					stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+					returnWithCheck();
+					stms.add(ast.raw('}'));
 					stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
 				}
 				else {
 					stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
 					stms.add(this.instructionAst._postBranch(PC));
+					stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+					returnWithCheck();
+					stms.add(ast.raw('}'));
 				}
-				
+
 				if (isSimpleLoop) {
 					stms.add(ast.jump(pcToLabel[jumpAddress]));
-
+					break;
 					//console.log(sprintf('jumpAhead: %s, %08X -> %08X', jumpAhead, PC, jumpAddress));
 					//mustDumpFunction = true;
+				} else if (isFunctionCall) {
+					stms.add(ast.call('state.callPC', [ast.pc()]));
+				} else {
+					break;
 				}
-
-				break;
 			} else {
 				if (di.type.isSyscall) {
 					stms.add(this.instructionAst._storePC(PC + 4));
@@ -140,6 +157,8 @@ export class FunctionGenerator {
 				}
 			}
 		}
+
+		returnWithCheck();
 
 		if (mustDumpFunction) {
 			console.debug(sprintf("// function_%08X:\n%s", address, stms.toJs()));

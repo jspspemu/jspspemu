@@ -96,6 +96,10 @@ export class InstructionType {
 		return this.isInstructionType(INSTR_TYPE_B);
 	}
 
+	get isCall() {
+		return this.isInstructionType(INSTR_TYPE_JAL);
+	}
+
 	get isJump() {
 		return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
 	}

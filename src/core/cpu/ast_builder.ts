@@ -134,6 +134,7 @@ export class AstBuilder {
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
 	jump(label: number) { return new ANodeStmJump(label); }
 	_return() { return new ANodeStmReturn(); }
+	raw(content: string) { return new ANodeStmRaw(content); }
 }
 
 export class MipsAstBuilder extends AstBuilder {

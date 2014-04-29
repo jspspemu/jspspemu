@@ -140,7 +140,7 @@ export class InstructionAst {
 		return _if(
 			branchflag(),
 			stm(assign(pc(), branchpc())),
-			stms([stm(assign(pc(), u_imm32(nextPc))), ast._return()])
+			stms([stm(assign(pc(), u_imm32(nextPc)))])
 		);
 	}
 

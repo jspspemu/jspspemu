@@ -8,9 +8,10 @@ export class ProgramExecutor {
 	private lastPC = 0;
 
 	constructor(public state: CpuState, public instructionCache: InstructionCache) {
+		this.state.executor = this;
 	}
 
-	executeStep() {
+	private _executeStep() {
 		if (this.state.PC == 0) console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
 		this.lastPC = this.state.PC;
 		var func = this.instructionCache.getFunction(this.state.PC);
@@ -21,7 +22,7 @@ export class ProgramExecutor {
 	execute(maxIterations: number = -1) {
 		try {
 			while (maxIterations != 0) {
-				this.executeStep();
+				this._executeStep();
 				if (maxIterations > 0) maxIterations--;
 			}
 		} catch (e) {
