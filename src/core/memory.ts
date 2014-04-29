@@ -167,12 +167,15 @@ export class Memory {
 	*/
 
 	hash(address: number, count: number) {
-		var result = 0;
+		var result1 = 0;
+		var result2 = 0;
 		var u8 = this.u8;
 		for (var n = 0; n < count; n++) {
-			result = ((result + u8[address++]) ^ (n << 16)) | 0;
+			var byte = u8[address++];
+			result1 = (result1 + Math.imul(byte, n + 1)) | 0;
+			result2 = ((result2 + byte + n) ^ (n << 17)) | 0;
 		}
-		return result;
+		return result1 + result2 * Math.pow(2, 24);
 	}
 
 	static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {

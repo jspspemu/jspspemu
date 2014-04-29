@@ -72,11 +72,11 @@ export class Texture {
 	}
 
 	static hashFast(state: _state.GpuState) {
+		var result = state.texture.mipmaps[0].address;
 		if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-			return state.texture.clut.adress + (state.texture.mipmaps[0].address * Math.pow(2, 24));
-		} else {
-			return state.texture.mipmaps[0].address;
+			result = result + state.texture.clut.adress * Math.pow(2, 23);
 		}
+		return result;
 	}
 
 	static hashSlow(memory: Memory, state: _state.GpuState) {
@@ -86,16 +86,16 @@ export class Texture {
 
 		var hash_number = 0;
 
-		hash_number += (texture.swizzled ? 1 : 0) << 0;
-		hash_number += (texture.pixelFormat) << 1;
-		hash_number += (mipmap.bufferWidth) << 3;
-		hash_number += (mipmap.textureWidth) << 6;
-		hash_number += (mipmap.textureHeight) << 8;
-		hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 16);
+		hash_number += (texture.swizzled ? 1 : 0) * Math.pow(2, 0);
+		hash_number += (texture.pixelFormat) * Math.pow(2, 1);
+		hash_number += (mipmap.bufferWidth) * Math.pow(2, 3);
+		hash_number += (mipmap.textureWidth) * Math.pow(2, 6);
+		hash_number += (mipmap.textureHeight) * Math.pow(2, 8);
+		hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 12);
 
 		if (PixelFormatUtils.hasClut(texture.pixelFormat)) {
-			hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
-			hash_number += clut.info << 17;
+			hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 30);
+			hash_number += clut.info * Math.pow(2, 26);
 		}
 		return hash_number;
 	}
@@ -165,6 +165,8 @@ export class TextureHandler {
 
 	private invalidatedMemory(range: NumericRange) {
 		this.invalidatedMemoryFlag = true;
+		//this._invalidatedMemory();
+
 
 		//this._invalidatedMemory();
 
@@ -192,7 +194,8 @@ export class TextureHandler {
 
 			texture = this.texturesByHash2[hash2];
 
-			if (!texture) {
+			if (!texture || !texture.valid) {
+			//if (!texture) {
 				if (!this.texturesByAddress[mipmap.address]) {
 					this.texturesByAddress[mipmap.address] = new Texture(gl);
 				}
@@ -202,6 +205,7 @@ export class TextureHandler {
 				texture.setInfo(state);
 				texture.hash1 = hash1;
 				texture.hash2 = hash2;
+				texture.valid = true;
 
 				//this.updatedTextures.add(texture);
 

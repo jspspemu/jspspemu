@@ -511,6 +511,19 @@ if (!Math['trunc']) {
     };
 }
 
+if (!Math['imul']) {
+    Math['imul'] = function (a, b) {
+        var ah = (a >>> 16) & 0xffff;
+        var al = a & 0xffff;
+        var bh = (b >>> 16) & 0xffff;
+        var bl = b & 0xffff;
+
+        // the shift by 0 fixes the sign on the high part
+        // the final |0 converts the unsigned value into a signed value
+        return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+    };
+}
+
 var BitUtils = (function () {
     function BitUtils() {
     }
@@ -7344,11 +7357,11 @@ var Texture = (function () {
     };
 
     Texture.hashFast = function (state) {
+        var result = state.texture.mipmaps[0].address;
         if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-            return state.texture.clut.adress + (state.texture.mipmaps[0].address * Math.pow(2, 24));
-        } else {
-            return state.texture.mipmaps[0].address;
+            result = result + state.texture.clut.adress * Math.pow(2, 23);
         }
+        return result;
     };
 
     Texture.hashSlow = function (memory, state) {
@@ -7358,16 +7371,16 @@ var Texture = (function () {
 
         var hash_number = 0;
 
-        hash_number += (texture.swizzled ? 1 : 0) << 0;
-        hash_number += (texture.pixelFormat) << 1;
-        hash_number += (mipmap.bufferWidth) << 3;
-        hash_number += (mipmap.textureWidth) << 6;
-        hash_number += (mipmap.textureHeight) << 8;
-        hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 16);
+        hash_number += (texture.swizzled ? 1 : 0) * Math.pow(2, 0);
+        hash_number += (texture.pixelFormat) * Math.pow(2, 1);
+        hash_number += (mipmap.bufferWidth) * Math.pow(2, 3);
+        hash_number += (mipmap.textureWidth) * Math.pow(2, 6);
+        hash_number += (mipmap.textureHeight) * Math.pow(2, 8);
+        hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 12);
 
         if (PixelFormatUtils.hasClut(texture.pixelFormat)) {
-            hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 28);
-            hash_number += clut.info << 17;
+            hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 30);
+            hash_number += clut.info * Math.pow(2, 26);
         }
         return hash_number;
     };
@@ -7426,18 +7439,19 @@ var TextureHandler = (function () {
 
     TextureHandler.prototype._invalidatedMemory = function () {
         for (var hash1 in this.texturesByHash1) {
-            var texture = this.texturesByHash1[hash1];
-            texture.valid = false;
+            var texture1 = this.texturesByHash1[hash1];
+            texture1.valid = false;
         }
 
         for (var hash2 in this.texturesByHash2) {
-            var texture = this.texturesByHash2[hash2];
-            texture.valid = false;
+            var texture2 = this.texturesByHash2[hash2];
+            texture2.valid = false;
         }
     };
 
     TextureHandler.prototype.invalidatedMemory = function (range) {
         this.invalidatedMemoryFlag = true;
+        //this._invalidatedMemory();
         //this._invalidatedMemory();
         //this.recheckTimestamp = performance.now();
         //console.warn('invalidatedMemory: ' + JSON.stringify(range));
@@ -7463,7 +7477,8 @@ var TextureHandler = (function () {
             //console.log(hash);
             texture = this.texturesByHash2[hash2];
 
-            if (!texture) {
+            if (!texture || !texture.valid) {
+                //if (!texture) {
                 if (!this.texturesByAddress[mipmap.address]) {
                     this.texturesByAddress[mipmap.address] = new Texture(gl);
                 }
@@ -7473,6 +7488,7 @@ var TextureHandler = (function () {
                 texture.setInfo(state);
                 texture.hash1 = hash1;
                 texture.hash2 = hash2;
+                texture.valid = true;
 
                 //this.updatedTextures.add(texture);
                 texture.recheckTimestamp = this.recheckTimestamp;
@@ -8746,12 +8762,15 @@ var Memory = (function () {
     }
     */
     Memory.prototype.hash = function (address, count) {
-        var result = 0;
+        var result1 = 0;
+        var result2 = 0;
         var u8 = this.u8;
         for (var n = 0; n < count; n++) {
-            result = ((result + u8[address++]) ^ (n << 16)) | 0;
+            var byte = u8[address++];
+            result1 = (result1 + Math.imul(byte, n + 1)) | 0;
+            result2 = ((result2 + byte + n) ^ (n << 17)) | 0;
         }
-        return result;
+        return result1 + result2 * Math.pow(2, 24);
     };
 
     Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {

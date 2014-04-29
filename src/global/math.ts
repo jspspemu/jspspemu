@@ -1,6 +1,7 @@
 ﻿interface Math {
 	clz32(value: number): number;
 	trunc(value: number): number;
+	imul(a: number, b:number): number;
 }
 
 declare var vec4: {
@@ -36,6 +37,18 @@ if (!Math['clz32']) {
 if (!Math['trunc']) {
 	Math['trunc'] = function (x: number) {
 		return x < 0 ? Math.ceil(x) : Math.floor(x);
+	}
+}
+
+if (!Math['imul']) {
+	Math['imul'] = function (a: number, b : number) {
+		var ah = (a >>> 16) & 0xffff;
+		var al = a & 0xffff;
+		var bh = (b >>> 16) & 0xffff;
+		var bl = b & 0xffff;
+		// the shift by 0 fixes the sign on the high part
+		// the final |0 converts the unsigned value into a signed value
+		return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
 	}
 }
 
