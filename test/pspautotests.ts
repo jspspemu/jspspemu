@@ -91,7 +91,7 @@ describe('pspautotests', function () {
 								return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(() => {
 									groupCollapsed = true;
 									console.groupEnd();
-									compareOutput(testName, emulator.context.output, string_expected);
+									compareOutput(testName, emulator.emulatorVfs.output, string_expected);
 								});
 							});
 						});

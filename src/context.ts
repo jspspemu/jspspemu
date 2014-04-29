@@ -29,7 +29,6 @@ export class EmulatorContext {
 	memory: _memory.Memory;
 	instructionCache: _cpu.InstructionCache;
 	fileManager: _manager.FileManager;
-	output: string = '';
 	interruptManager: _interrupt.InterruptManager;
 	symbolLookup: ISymbolLookup;
 
@@ -48,6 +47,5 @@ export class EmulatorContext {
 		this.instructionCache = instructionCache;
 		this.fileManager = fileManager;
 		this.rtc = rtc;
-		this.output = '';
 	}
 }

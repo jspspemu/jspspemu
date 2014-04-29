@@ -33,6 +33,7 @@ import MountableVfs = _vfs.MountableVfs;
 import UriVfs = _vfs.UriVfs;
 import IsoVfs = _vfs.IsoVfs;
 import ZipVfs = _vfs.ZipVfs;
+import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
 
 import PspElfLoader = _elf_psp.PspElfLoader;
@@ -69,6 +70,7 @@ export class Emulator {
 	private threadManager: ThreadManager;
 	private moduleManager: ModuleManager;
 	private ms0Vfs: MountableVfs;
+	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
 		if (!memory) memory = Memory.instance;
@@ -106,9 +108,13 @@ export class Emulator {
 			this.interruptManager = new InterruptManager();
 			this.rtc = new PspRtc();
 
+			this.emulatorVfs = new EmulatorVfs();
+
 			this.fileManager.mount('ms0', this.ms0Vfs = new MountableVfs());
 			this.fileManager.mount('host0', new MemoryVfs());
 			this.fileManager.mount('flash0', new UriVfs('flash0'));
+			this.fileManager.mount('emulator', this.emulatorVfs);
+			this.fileManager.mount('kemulator', this.emulatorVfs);
 
 			this.ms0Vfs.mountVfs('/', new MemoryVfs());
 

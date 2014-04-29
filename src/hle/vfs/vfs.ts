@@ -1,7 +1,13 @@
 ﻿export class Vfs {
+	devctlAsync(command: number, input: Stream, output: Stream) {
+		console.error('VfsMustOverride devctlAsync', this);
+		throw (new Error("Must override devctlAsync : " + this));
+		return null;
+	}
+
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 		console.error('VfsMustOverride openAsync', this);
-		throw (new Error("Must override open : " + this));
+		throw (new Error("Must override openAsync : " + this));
 		return null;
 	}
 

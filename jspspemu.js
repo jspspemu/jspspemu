@@ -1883,7 +1883,6 @@ controllerRegister();
 "src/context": function(module, exports, require) {
 var EmulatorContext = (function () {
     function EmulatorContext() {
-        this.output = '';
     }
     EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc) {
         this.interruptManager = interruptManager;
@@ -1897,7 +1896,6 @@ var EmulatorContext = (function () {
         this.instructionCache = instructionCache;
         this.fileManager = fileManager;
         this.rtc = rtc;
-        this.output = '';
     };
     return EmulatorContext;
 })();
@@ -9102,6 +9100,8 @@ var MountableVfs = _vfs.MountableVfs;
 var UriVfs = _vfs.UriVfs;
 var IsoVfs = _vfs.IsoVfs;
 var ZipVfs = _vfs.ZipVfs;
+var EmulatorVfs = _vfs.EmulatorVfs;
+_vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
 
 var PspElfLoader = _elf_psp.PspElfLoader;
@@ -9160,9 +9160,13 @@ var Emulator = (function () {
             _this.interruptManager = new InterruptManager();
             _this.rtc = new PspRtc();
 
+            _this.emulatorVfs = new EmulatorVfs();
+
             _this.fileManager.mount('ms0', _this.ms0Vfs = new MountableVfs());
             _this.fileManager.mount('host0', new MemoryVfs());
             _this.fileManager.mount('flash0', new UriVfs('flash0'));
+            _this.fileManager.mount('emulator', _this.emulatorVfs);
+            _this.fileManager.mount('kemulator', _this.emulatorVfs);
 
             _this.ms0Vfs.mountVfs('/', new MemoryVfs());
 
@@ -12272,6 +12276,10 @@ var Device = (function () {
         this.vfs = vfs;
         this.cwd = '';
     }
+    Device.prototype.devctlAsync = function (command, input, output) {
+        return this.vfs.devctlAsync(command, input, output);
+    };
+
     Device.prototype.openAsync = function (uri, flags, mode) {
         return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
     };
@@ -12370,6 +12378,7 @@ var FileManager = (function () {
     };
 
     FileManager.prototype.getDevice = function (name) {
+        name = name.replace(/:$/, '');
         var device = this.devices[name];
         if (!device)
             throw (new Error(sprintf("Can't find device '%s'", name)));
@@ -12381,6 +12390,10 @@ var FileManager = (function () {
         return this.getDevice(uri.device).openAsync(uri, flags, mode).then(function (entry) {
             return new HleFile(entry);
         });
+    };
+
+    FileManager.prototype.devctlAsync = function (deviceName, command, input, output) {
+        return this.getDevice(deviceName).devctlAsync(command, input, output);
     };
 
     FileManager.prototype.openDirectoryAsync = function (name) {
@@ -13115,30 +13128,7 @@ var IoFileMgrForUser = (function () {
             var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
             var output = _this.context.memory.getPointerStream(outputPointer, outputLength);
 
-            switch (deviceName) {
-                case 'emulator:':
-                case 'kemulator:':
-                    switch (command) {
-                        case 1:
-                            output.writeInt32(0);
-
-                            //output.writeInt32(1);
-                            return 0;
-                            break;
-                        case 2:
-                            var str = input.readString(input.length);
-                            _this.context.output += str;
-                            $('#output').append(str);
-
-                            //console.info();
-                            return 0;
-                            break;
-                    }
-                    break;
-            }
-
-            console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoDevctl("%s", %d, %08X, %d, %08X, %d)', deviceName, command, inputPointer, inputLength, outputPointer, outputLength));
-            return 0;
+            return _this.context.fileManager.devctlAsync(deviceName, command, input, output);
         });
         this.fileUids = new UidCollection(1);
         this.directoryUids = new UidCollection(1);
@@ -16770,6 +16760,8 @@ var _vfs_mountable = require('./vfs/vfs_mountable');
 _vfs_mountable.MountableVfs;
 var _vfs_storage = require('./vfs/vfs_storage');
 _vfs_storage.StorageVfs;
+var _vfs_emulator = require('./vfs/vfs_emulator');
+_vfs_emulator.EmulatorVfs;
 
 var FileMode = _vfs.FileMode;
 exports.FileMode = FileMode;
@@ -16792,6 +16784,8 @@ var MountableVfs = _vfs_mountable.MountableVfs;
 exports.MountableVfs = MountableVfs;
 var StorageVfs = _vfs_storage.StorageVfs;
 exports.StorageVfs = StorageVfs;
+var EmulatorVfs = _vfs_emulator.EmulatorVfs;
+exports.EmulatorVfs = EmulatorVfs;
 //# sourceMappingURL=vfs.js.map
 },
 "src/hle/vfs/vfs": function(module, exports, require) {
@@ -16804,9 +16798,15 @@ var __extends = this.__extends || function (d, b) {
 var Vfs = (function () {
     function Vfs() {
     }
+    Vfs.prototype.devctlAsync = function (command, input, output) {
+        console.error('VfsMustOverride devctlAsync', this);
+        throw (new Error("Must override devctlAsync : " + this));
+        return null;
+    };
+
     Vfs.prototype.openAsync = function (path, flags, mode) {
         console.error('VfsMustOverride openAsync', this);
-        throw (new Error("Must override open : " + this));
+        throw (new Error("Must override openAsync : " + this));
         return null;
     };
 
@@ -16917,6 +16917,56 @@ var FileOpenFlags = exports.FileOpenFlags;
 })(exports.FileMode || (exports.FileMode = {}));
 var FileMode = exports.FileMode;
 //# sourceMappingURL=vfs.js.map
+},
+"src/hle/vfs/vfs_emulator": function(module, exports, require) {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var _vfs = require('./vfs');
+_vfs.Vfs;
+
+var EmulatorVfs = (function (_super) {
+    __extends(EmulatorVfs, _super);
+    function EmulatorVfs() {
+        _super.apply(this, arguments);
+        this.output = '';
+    }
+    EmulatorVfs.prototype.devctlAsync = function (command, input, output) {
+        switch (command) {
+            case 1 /* GetHasDisplay */:
+                output.writeInt32(0);
+
+                break;
+            case 2 /* SendOutput */:
+                var str = input.readString(input.length);
+                this.output += str;
+                $('#output').append(str);
+
+                break;
+            case 3 /* IsEmulator */:
+                break;
+            default:
+                throw (new Error("Can't handle EmulatorVfs devctlAsync. Command '" + command + "'"));
+        }
+
+        return 0;
+    };
+    return EmulatorVfs;
+})(_vfs.Vfs);
+exports.EmulatorVfs = EmulatorVfs;
+
+(function (EmulatorDevclEnum) {
+    EmulatorDevclEnum[EmulatorDevclEnum["GetHasDisplay"] = 0x00000001] = "GetHasDisplay";
+    EmulatorDevclEnum[EmulatorDevclEnum["SendOutput"] = 0x00000002] = "SendOutput";
+    EmulatorDevclEnum[EmulatorDevclEnum["IsEmulator"] = 0x00000003] = "IsEmulator";
+    EmulatorDevclEnum[EmulatorDevclEnum["SendCtrlData"] = 0x00000010] = "SendCtrlData";
+    EmulatorDevclEnum[EmulatorDevclEnum["EmitScreenshot"] = 0x00000020] = "EmitScreenshot";
+})(exports.EmulatorDevclEnum || (exports.EmulatorDevclEnum = {}));
+var EmulatorDevclEnum = exports.EmulatorDevclEnum;
+//# sourceMappingURL=vfs_emulator.js.map
 },
 "src/hle/vfs/vfs_iso": function(module, exports, require) {
 var __extends = this.__extends || function (d, b) {
@@ -19589,7 +19639,7 @@ describe('pspautotests', function () {
                                 return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(function () {
                                     groupCollapsed = true;
                                     console.groupEnd();
-                                    compareOutput(testName, emulator.context.output, string_expected);
+                                    compareOutput(testName, emulator.emulatorVfs.output, string_expected);
                                 });
                             });
                         });

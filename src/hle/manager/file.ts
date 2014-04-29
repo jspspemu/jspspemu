@@ -6,6 +6,10 @@ export class Device {
 	constructor(public name: string, public vfs: _vfs.Vfs) {
 	}
 
+	devctlAsync(command: number, input: Stream, output: Stream) {
+		return this.vfs.devctlAsync(command, input, output);
+	}
+
 	openAsync(uri: Uri, flags: _vfs.FileOpenFlags, mode: _vfs.FileMode) {
 		return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
 	}
@@ -81,6 +85,7 @@ export class FileManager {
 	}
 
 	getDevice(name: string) {
+		name = name.replace(/:$/, '');
 		var device = this.devices[name];
 		if (!device) throw(new Error(sprintf("Can't find device '%s'", name)));
 		return device;
@@ -89,6 +94,10 @@ export class FileManager {
 	openAsync(name: string, flags: _vfs.FileOpenFlags, mode: _vfs.FileMode) {
 		var uri = this.cwd.append(new Uri(name));
 		return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
+	}
+
+	devctlAsync(deviceName: string, command: number, input: Stream, output: Stream) {
+		return this.getDevice(deviceName).devctlAsync(command, input, output);
 	}
 
 	openDirectoryAsync(name: string) {

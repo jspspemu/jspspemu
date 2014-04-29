@@ -11,45 +11,14 @@ import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 import VfsStat = _vfs.VfsStat;
 
-
 export class IoFileMgrForUser {
 	constructor(private context: _context.EmulatorContext) { }
 
 	sceIoDevctl = createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, (deviceName: string, command: number, inputPointer: number, inputLength: number, outputPointer: number, outputLength: number) => {
 		var input = this.context.memory.getPointerStream(inputPointer, inputLength);
 		var output = this.context.memory.getPointerStream(outputPointer, outputLength);
-		/*
-		public enum EmulatorDevclEnum : int
-		{
-			GetHasDisplay = 0x00000001,
-			SendOutput = 0x00000002,
-			IsEmulator = 0x00000003,
-			SendCtrlData = 0x00000010,
-			EmitScreenshot = 0x00000020,
-		}
-		*/
 
-		switch (deviceName) {
-			case 'emulator:': case 'kemulator:':
-				switch (command) {
-					case 1:
-						output.writeInt32(0);
-						//output.writeInt32(1);
-						return 0;
-						break;
-					case 2:
-						var str = input.readString(input.length);
-						this.context.output += str;
-						$('#output').append(str);
-						//console.info();
-						return 0;
-						break;
-				}
-				break;
-		}
-
-		console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoDevctl("%s", %d, %08X, %d, %08X, %d)', deviceName, command, inputPointer, inputLength, outputPointer, outputLength));
-		return 0;
+		return this.context.fileManager.devctlAsync(deviceName, command, input, output);
 	});
 
 
