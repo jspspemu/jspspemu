@@ -53,6 +53,7 @@ export class MipsAssembler {
 					case '%s': case '%d': case '%t': return '([$r]\\d+)';
 					case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
 					case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+					case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
 					default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
 				}
 			})
@@ -107,6 +108,7 @@ export class MipsAssembler {
 			case '%t': instruction.rt = this.decodeRegister(value); break;
 			case '%i': instruction.imm16 = this.decodeInteger(value); break;
 			case '%C': instruction.syscall = this.decodeInteger(value); break;
+			case '%c': instruction.syscall = this.decodeInteger(value); break;
 			default: throw ("MipsAssembler.Update: Unknown type '" + type + "'");
 		}
 	}

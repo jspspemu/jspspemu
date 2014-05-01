@@ -3,6 +3,8 @@
 	trunc(value: number): number;
 	imul(a: number, b: number): number;
 	fround(x: number): number;
+	sign(x: number): number;
+	rint(x: number): number;
 }
 
 declare var vec4: {
@@ -19,6 +21,24 @@ declare var mat4: {
 	multiply(out: Float32Array, a: Float32Array, b: Float32Array): Float32Array;
 	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
 };
+
+if (!Math['sign']) {
+	Math['sign'] = (x: number) => {
+		if (x < 0) return -1;
+		if (x > 0) return +1;
+		return 0;
+	};
+}
+
+if (!Math['rint']) {
+	Math['rint'] = (value: number) => {
+		var twoToThe52 = Math.pow(2, 52); // 2^52
+		var sign = Math.sign(value); // preserve sign info
+		value = Math.abs(value);
+		if (value < twoToThe52) value = ((twoToThe52 + value) - twoToThe52);
+		return sign * value; // restore original sign
+	};
+}
 
 if (!Math['clz32']) {
 	Math['clz32'] = (x: number) => {
@@ -155,31 +175,39 @@ class MathFloat {
 		return MathFloat.floatArray[0];
 	}
 
-	static trunc(value: number) {
-		if (!isFinite(value)) return 2147483647;
-		return Math['trunc'](value);
-	}
-
-	static round(value: number) {
-		return Math.round(value);
-	}
-
 	static rint(value: number) {
-		//return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
-		return Math.round(value);
+		if (!isFinite(value)) return handleCastInfinite(value);
+		return Math.rint(value);
 	}
 
 	static cast(value: number) {
+		if (!isFinite(value)) return handleCastInfinite(value);
 		return (value < 0) ? Math.ceil(value) : Math.floor(value);
 	}
 
+	static trunc(value: number) {
+		if (!isFinite(value)) return handleCastInfinite(value);
+		return Math.trunc(value);
+	}
+
+	static round(value: number) {
+		if (!isFinite(value)) return handleCastInfinite(value);
+		return Math.round(value);
+	}
+
 	static floor(value: number) {
+		if (!isFinite(value)) return handleCastInfinite(value);
 		return Math.floor(value);
 	}
 
 	static ceil(value: number) {
+		if (!isFinite(value)) return handleCastInfinite(value);
 		return Math.ceil(value);
 	}
+}
+
+function handleCastInfinite(value: number) {
+	return (value < 0) ? -2147483648 : 2147483647;
 }
 
 function compare<T>(a: T, b: T): number {

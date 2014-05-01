@@ -453,7 +453,28 @@ var Integer64 = (function () {
 })();
 //# sourceMappingURL=int64.js.map
 
-﻿if (!Math['clz32']) {
+﻿if (!Math['sign']) {
+    Math['sign'] = function (x) {
+        if (x < 0)
+            return -1;
+        if (x > 0)
+            return +1;
+        return 0;
+    };
+}
+
+if (!Math['rint']) {
+    Math['rint'] = function (value) {
+        var twoToThe52 = Math.pow(2, 52);
+        var sign = Math.sign(value);
+        value = Math.abs(value);
+        if (value < twoToThe52)
+            value = ((twoToThe52 + value) - twoToThe52);
+        return sign * value;
+    };
+}
+
+if (!Math['clz32']) {
     Math['clz32'] = function (x) {
         x >>>= 0;
         if (x == 0)
@@ -610,36 +631,49 @@ var MathFloat = (function () {
         return MathFloat.floatArray[0];
     };
 
-    MathFloat.trunc = function (value) {
-        if (!isFinite(value))
-            return 2147483647;
-        return Math['trunc'](value);
-    };
-
-    MathFloat.round = function (value) {
-        return Math.round(value);
-    };
-
     MathFloat.rint = function (value) {
-        //return ((value % 1) <= 0.4999999999999999) ? Math.floor(value) : Math.ceil(value);
-        return Math.round(value);
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.rint(value);
     };
 
     MathFloat.cast = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
         return (value < 0) ? Math.ceil(value) : Math.floor(value);
     };
 
+    MathFloat.trunc = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.trunc(value);
+    };
+
+    MathFloat.round = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.round(value);
+    };
+
     MathFloat.floor = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
         return Math.floor(value);
     };
 
     MathFloat.ceil = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
         return Math.ceil(value);
     };
     MathFloat.floatArray = new Float32Array(1);
     MathFloat.intArray = new Int32Array(MathFloat.floatArray.buffer);
     return MathFloat;
 })();
+
+function handleCastInfinite(value) {
+    return (value < 0) ? -2147483648 : 2147483647;
+}
 
 function compare(a, b) {
     if (a < b)
@@ -2473,6 +2507,8 @@ var MipsAssembler = (function () {
                     return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
                 case '%C':
                     return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%c':
+                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
                 default:
                     throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
@@ -2538,6 +2574,9 @@ var MipsAssembler = (function () {
                 instruction.imm16 = this.decodeInteger(value);
                 break;
             case '%C':
+                instruction.syscall = this.decodeInteger(value);
+                break;
+            case '%c':
                 instruction.syscall = this.decodeInteger(value);
                 break;
             default:
@@ -19694,7 +19733,7 @@ var TestSyscallManager = (function () {
 
 function executeProgram(gprInitial, program) {
     program = program.slice(0);
-    program.push('break');
+    program.push('break 0');
     assembler.assembleToMemory(memory, 4, program);
     var state = new CpuState(memory, new TestSyscallManager());
     var instructionCache = new InstructionCache(memory);
@@ -19825,16 +19864,26 @@ describe('cpu running', function () {
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix_subu));
     });
 
-    it('opcode sll', function () {
+    it('opcode slvl', function () {
         var combineValues = [0x00000000, 0x00000001, 0x00000002, 0x0000000A, 0x0000001F, 0x00000020, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
-        var expectedMatrix = [];
-        var matrix = generateGpr3Matrix('sll', combineValues);
+        var expectedMatrix = [
+            ["00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000"],
+            ["00000001", "00000002", "00000004", "00000400", "80000000", "00000001", "00000001", "80000000", "80000000"],
+            ["00000002", "00000004", "00000008", "00000800", "00000000", "00000002", "00000002", "00000000", "00000000"],
+            ["0000000A", "00000014", "00000028", "00002800", "00000000", "0000000A", "0000000A", "00000000", "00000000"],
+            ["0000001F", "0000003E", "0000007C", "00007C00", "80000000", "0000001F", "0000001F", "80000000", "80000000"],
+            ["00000020", "00000040", "00000080", "00008000", "00000000", "00000020", "00000020", "00000000", "00000000"],
+            ["80000000", "00000000", "00000000", "00000000", "00000000", "80000000", "80000000", "00000000", "00000000"],
+            ["7FFFFFFF", "FFFFFFFE", "FFFFFFFC", "FFFFFC00", "80000000", "7FFFFFFF", "7FFFFFFF", "80000000", "80000000"],
+            ["FFFFFFFF", "FFFFFFFE", "FFFFFFFC", "FFFFFC00", "80000000", "FFFFFFFF", "FFFFFFFF", "80000000", "80000000"]
+        ];
+        var matrix = generateGpr3Matrix('sllv', combineValues);
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix));
     });
 
     it('opcode mult', function () {
         assertProgram("mult", { "$1": 7, "$2": 9 }, ["mult $1, $2"], { "LO": 7 * 9, "HI": 0 });
-        assertProgram("mult", { "$1": -1, "$2": 9 }, ["mult $1, $2"], { "LO": -1 * 9, "HI": 0 });
+        assertProgram("mult", { "$1": -1, "$2": 9 }, ["mult $1, $2"], { "LO": -1 * 9, "HI": -1 });
     });
 });
 //# sourceMappingURL=testasm.js.map

@@ -138,10 +138,10 @@ export class CpuState {
 	_cvt_w_s_impl(FS: number) {
 		//Console.WriteLine("_cvt_w_s_impl: {0}", CpuThreadState.FPR[FS]);
 		switch (this.fcr31_rm) {
-			case 0: return MathFloat.rint(FS);
-			case 1: return MathFloat.cast(FS);
-			case 2: return MathFloat.ceil(FS);
-			case 3: return MathFloat.floor(FS);
+			case 0: return MathFloat.rint(FS); // rint: round nearest
+			case 1: return MathFloat.cast(FS); // round to zero
+			case 2: return MathFloat.ceil(FS); // round up (ceil)
+			case 3: return MathFloat.floor(FS); // round down (floor)
 		}
 
 		throw ("RM has an invalid value!!");

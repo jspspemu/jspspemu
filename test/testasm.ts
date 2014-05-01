@@ -20,7 +20,7 @@ class TestSyscallManager implements ISyscallManager {
 
 function executeProgram(gprInitial: any, program: string[]) {
     program = program.slice(0);
-    program.push('break');
+    program.push('break 0');
     assembler.assembleToMemory(memory, 4, program);
 	var state = new CpuState(memory, new TestSyscallManager());
     var instructionCache = new InstructionCache(memory);
@@ -164,16 +164,25 @@ describe('cpu running', function () {
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix_subu));
     });
 
-    it('opcode sll', function () {
+    it('opcode slvl', function () {
         var combineValues = [0x00000000, 0x00000001, 0x00000002, 0x0000000A, 0x0000001F, 0x00000020, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
-        var expectedMatrix = [
-        ];
-        var matrix = generateGpr3Matrix('sll', combineValues);
+		var expectedMatrix = [
+			["00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000"],
+			["00000001", "00000002", "00000004", "00000400", "80000000", "00000001", "00000001", "80000000", "80000000"],
+			["00000002", "00000004", "00000008", "00000800", "00000000", "00000002", "00000002", "00000000", "00000000"],
+			["0000000A", "00000014", "00000028", "00002800", "00000000", "0000000A", "0000000A", "00000000", "00000000"],
+			["0000001F", "0000003E", "0000007C", "00007C00", "80000000", "0000001F", "0000001F", "80000000", "80000000"],
+			["00000020", "00000040", "00000080", "00008000", "00000000", "00000020", "00000020", "00000000", "00000000"],
+			["80000000", "00000000", "00000000", "00000000", "00000000", "80000000", "80000000", "00000000", "00000000"],
+			["7FFFFFFF", "FFFFFFFE", "FFFFFFFC", "FFFFFC00", "80000000", "7FFFFFFF", "7FFFFFFF", "80000000", "80000000"],
+			["FFFFFFFF", "FFFFFFFE", "FFFFFFFC", "FFFFFC00", "80000000", "FFFFFFFF", "FFFFFFFF", "80000000", "80000000"]
+		];
+        var matrix = generateGpr3Matrix('sllv', combineValues);
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix));
     });
 
     it('opcode mult', function () {
         assertProgram("mult", { "$1": 7, "$2": 9 }, ["mult $1, $2", ], { "LO": 7 * 9, "HI": 0 });
-        assertProgram("mult", { "$1": -1, "$2": 9 }, ["mult $1, $2", ], { "LO": -1 * 9, "HI": 0 });
+        assertProgram("mult", { "$1": -1, "$2": 9 }, ["mult $1, $2", ], { "LO": -1 * 9, "HI": -1 });
     });
 });
