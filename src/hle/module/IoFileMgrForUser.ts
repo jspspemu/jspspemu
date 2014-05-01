@@ -216,7 +216,8 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, (fileId: number) => {
-		console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
+		if (!this.directoryUids.has(fileId)) return -1;
+		this.directoryUids.get(fileId).close();
 		this.directoryUids.remove(fileId);
 		return 0;
 	});

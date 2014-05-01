@@ -60,10 +60,17 @@ http.createServer(function(request, response) {
       return;
     }
 	
-	var stat = fs.statSync(filename);
-	if (stat.isDirectory()) filename += '/index.html';
-	
-	var stat = fs.statSync(filename);
+	try {
+		var stat = fs.statSync(filename);
+		if (stat.isDirectory()) {
+			filename += '/index.html';
+			stat = fs.statSync(filename);
+		}
+	} catch (e) {
+		response.writeHead(404, { 'Content-Type': 'text/html' });
+		response.end('Not found!');
+		return;
+	}
 
 	//console.log(stat);
 

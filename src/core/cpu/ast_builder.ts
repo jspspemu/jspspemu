@@ -35,9 +35,17 @@ export class ANodeStmList extends ANodeStm {
 	}
 
 	toJs() {
-		var jumpCount = this.childs.count(item => item instanceof ANodeStmJump);
-		var usedLabels = this.childs.filter(item => item instanceof ANodeStmJump).cast<ANodeStmJump>().map(item => item.label).toLookupMap();
+		var jumpCount = 0;
+		var usedLabels = {};
+		for (var n = 0; n < this.childs.length; n++) {
+			var item = this.childs[n];
+			if (item instanceof ANodeStmJump) {
+				jumpCount++;
+				usedLabels[(<ANodeStmJump>item).label] = true;
+			}
+		}
 		if (jumpCount > 1) throw (new Error("Not supported more than one jump at this point!"));
+
 		var lines = [];
 		for (var n = 0; n < this.childs.length; n++) {
 			var child = this.childs[n];

@@ -23,21 +23,22 @@ export class InstructionCache {
 		for (var n = from; n < to; n += 4) delete this.cache[n];
 	}
 
+	
+
 	getFunction(address: number) {
 		var item = this.cache[address];
 		if (item) return item;
 
-		switch (address) {
-			case CpuSpecialAddresses.EXIT_THREAD:
-				return this.cache[address] = function (state: CpuState) {
-					console.log(state);
-					console.log(state.thread);
-					console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
-					state.thread.stop();
-					throw (new CpuBreakException());
-				};
-				break;
-			default: return this.cache[address] = this.functionGenerator.create(address);
+		if (address == CpuSpecialAddresses.EXIT_THREAD) {
+			return this.cache[address] = function (state: CpuState) {
+				console.log(state);
+				console.log(state.thread);
+				console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+				state.thread.stop();
+				throw (new CpuBreakException());
+			};
+		} else {
+			return this.cache[address] = this.functionGenerator.create(address);
 		}
 	}
 }

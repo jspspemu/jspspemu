@@ -711,6 +711,14 @@ var MathUtils = (function () {
     };
     return MathUtils;
 })();
+
+function ToUint32(x) {
+    return x >>> 0;
+}
+
+function ToInt32(x) {
+    return x | 0;
+}
 //# sourceMappingURL=math.js.map
 
 ﻿var MemoryAsyncStream = (function () {
@@ -1908,6 +1916,8 @@ controllerRegister();
 //# sourceMappingURL=app.js.map
 },
 "src/context": function(module, exports, require) {
+var _manager = require('./hle/manager');
+
 var EmulatorContext = (function () {
     function EmulatorContext() {
     }
@@ -1923,6 +1933,7 @@ var EmulatorContext = (function () {
         this.instructionCache = instructionCache;
         this.fileManager = fileManager;
         this.rtc = rtc;
+        this.callbackManager = new _manager.CallbackManager();
     };
     return EmulatorContext;
 })();
@@ -3262,16 +3273,18 @@ var ANodeStmList = (function (_super) {
     };
 
     ANodeStmList.prototype.toJs = function () {
-        var jumpCount = this.childs.count(function (item) {
-            return item instanceof ANodeStmJump;
-        });
-        var usedLabels = this.childs.filter(function (item) {
-            return item instanceof ANodeStmJump;
-        }).cast().map(function (item) {
-            return item.label;
-        }).toLookupMap();
+        var jumpCount = 0;
+        var usedLabels = {};
+        for (var n = 0; n < this.childs.length; n++) {
+            var item = this.childs[n];
+            if (item instanceof ANodeStmJump) {
+                jumpCount++;
+                usedLabels[item.label] = true;
+            }
+        }
         if (jumpCount > 1)
             throw (new Error("Not supported more than one jump at this point!"));
+
         var lines = [];
         for (var n = 0; n < this.childs.length; n++) {
             var child = this.childs[n];
@@ -3691,9 +3704,8 @@ var FunctionGenerator = (function () {
         //var enableOptimizations = false;
         var enableOptimizations = true;
 
-        if (address == 0x00000000) {
+        if (address == 0x00000000)
             throw (new Error("Trying to execute 0x00000000"));
-        }
 
         var ast = new MipsAstBuilder();
 
@@ -3837,18 +3849,16 @@ var InstructionCache = (function () {
         if (item)
             return item;
 
-        switch (address) {
-            case 268435455 /* EXIT_THREAD */:
-                return this.cache[address] = function (state) {
-                    console.log(state);
-                    console.log(state.thread);
-                    console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
-                    state.thread.stop();
-                    throw (new CpuBreakException());
-                };
-                break;
-            default:
-                return this.cache[address] = this.functionGenerator.create(address);
+        if (address == 268435455 /* EXIT_THREAD */) {
+            return this.cache[address] = function (state) {
+                console.log(state);
+                console.log(state.thread);
+                console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+                state.thread.stop();
+                throw (new CpuBreakException());
+            };
+        } else {
+            return this.cache[address] = this.functionGenerator.create(address);
         }
     };
     return InstructionCache;
@@ -4464,14 +4474,16 @@ var Instructions = (function () {
             var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
             this.decoder = (new Function('instructionsByName', 'value', 'pc', switchCode));
         }
-        try  {
-            return this.decoder(this.instructionTypeListByName, i32, pc);
+        return this.decoder(this.instructionTypeListByName, i32, pc);
+        /*
+        try {
         } catch (e) {
-            console.log(this.decoder);
-            console.log(this.instructionTypeListByName);
-            console.log(this.instructionTypeList);
-            throw (e);
+        console.log(this.decoder);
+        console.log(this.instructionTypeListByName);
+        console.log(this.instructionTypeList);
+        throw (e);
         }
+        */
     };
 
     Instructions.prototype.slowFindByData = function (i32, pc) {
@@ -4780,9 +4792,9 @@ var CpuState = (function () {
         this.BRANCHFLAG = false;
         this.BRANCHPC = 0;
         this.PC = 0;
+        this.IC = 0;
         this.LO = 0;
         this.HI = 0;
-        this.IC = 0;
         this.thread = null;
         this.callstack = [];
         this.fcr31_rm = 0;
@@ -4794,6 +4806,27 @@ var CpuState = (function () {
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
     }
+    CpuState.prototype.preserveRegisters = function (callback) {
+        var temp = new CpuState(this.memory, this.syscallManager);
+        temp.copyRegistersFrom(this);
+        try  {
+            callback();
+        } finally {
+            this.copyRegistersFrom(temp);
+        }
+    };
+
+    CpuState.prototype.copyRegistersFrom = function (other) {
+        var _this = this;
+        ['PC', 'IC', 'LO', 'HI'].forEach(function (item) {
+            _this[item] = other[item];
+        });
+        for (var n = 0; n < 32; n++) {
+            this.gpr[n] = other.gpr[n];
+            this.fpr[n] = other.fpr[n];
+        }
+    };
+
     Object.defineProperty(CpuState.prototype, "V0", {
         get: function () {
             return this.gpr[2];
@@ -5076,11 +5109,12 @@ var CpuState = (function () {
         this.HI = (rs % rt) | 0;
     };
 
-    CpuState.prototype._mult = function (rs, rt) {
-        var ah = rs >>> 16;
-        var bh = rt >>> 16;
-        var al = rs & 0xFFFF;
-        var bl = rt & 0xFFFF;
+    CpuState.prototype._multu = function (a, b, result) {
+        if (typeof result === "undefined") { result = null; }
+        if (result === null)
+            result = [0, 0];
+        var ah = a >>> 16, bh = b >>> 16;
+        var al = a & 0xFFFF, bl = b & 0xFFFF;
 
         var mid = ah * bl + al * bh;
         var albl = al * bl;
@@ -5089,10 +5123,20 @@ var CpuState = (function () {
 
         var carry = (imm > 0xffffffff) ? 0x10000 : 0;
 
-        this.LO = ((mid << 16) + albl) >>> 0;
-        this.HI = (ah * bh + (imm >>> 16) + carry) >>> 0;
+        result[0] = ((mid << 16) + albl) >>> 0;
+        result[1] = (ah * bh + (imm >>> 16) + carry) >>> 0;
+        return result;
     };
 
+    //_mults(rs: number, rt: number) {
+    //	var MIN_VALUE = -2147483648;
+    //	rs = ToInt32(rs);
+    //	rt = ToInt32(rt);
+    //
+    //	// Edge cases: -2147483648
+    //	this._multu(Math.abs(rs), Math.abs(rt));
+    //	// negate if one is negative and the other possitive
+    //}
     CpuState.prototype.mult = function (rs, rt) {
         //this._mult(rs, rt);
         var a64 = Integer64.fromInt(rs);
@@ -5122,7 +5166,9 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.multu = function (rs, rt) {
-        this._mult(rs, rt);
+        var info = this._multu(rs, rt, CpuState._LOHI);
+        this.LO = info[0];
+        this.HI = info[1];
         //var a64 = Integer64.fromUnsignedInt(rs);
         //var b64 = Integer64.fromUnsignedInt(rt);
         //var result = a64.multiply(b64);
@@ -5152,6 +5198,20 @@ var CpuState = (function () {
         this.executor.executeUntilPCReachesWithoutCall(ra);
     };
 
+    CpuState.prototype.callPCSafe = function (pc) {
+        this.PC = pc;
+        var ra = this.RA;
+        while (this.PC != ra) {
+            try  {
+                this.executor.executeUntilPCReachesWithoutCall(ra);
+            } catch (e) {
+                if (!(e instanceof CpuBreakException)) {
+                    throw (e);
+                }
+            }
+        }
+    };
+
     CpuState.prototype.break = function () {
         throw (new CpuBreakException());
     };
@@ -5166,6 +5226,8 @@ var CpuState = (function () {
 
     CpuState.SwrMask = [0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF];
     CpuState.SwrShift = [0, 8, 16, 24];
+
+    CpuState._LOHI = [0, 0];
     return CpuState;
 })();
 exports.CpuState = CpuState;
@@ -5927,6 +5989,7 @@ var PspGpuList = (function () {
                 }
             } catch (e) {
                 console.log(e);
+                console.log(e['stack']);
             }
         }
     };
@@ -12295,6 +12358,9 @@ var _module = require('./manager/module');
 _module.ModuleManager;
 var _thread = require('./manager/thread');
 _thread.Thread;
+var _callback = require('./manager/callback');
+_callback.Callback;
+;
 
 var Device = _file.Device;
 exports.Device = Device;
@@ -12323,7 +12389,78 @@ var Thread = _thread.Thread;
 exports.Thread = Thread;
 var ThreadManager = _thread.ThreadManager;
 exports.ThreadManager = ThreadManager;
+
+var Callback = _callback.Callback;
+exports.Callback = Callback;
+var CallbackManager = _callback.CallbackManager;
+exports.CallbackManager = CallbackManager;
 //# sourceMappingURL=manager.js.map
+},
+"src/hle/manager/callback": function(module, exports, require) {
+var CallbackManager = (function () {
+    function CallbackManager() {
+        this.uids = new UidCollection(1);
+        this.notifications = [];
+    }
+    CallbackManager.prototype.register = function (callback) {
+        return this.uids.allocate(callback);
+    };
+
+    CallbackManager.prototype.get = function (id) {
+        return this.uids.get(id);
+    };
+
+    CallbackManager.prototype.notify = function (id, arg2) {
+        var callback = this.get(id);
+
+        //if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
+        this.notifications.push(new CallbackNotification(callback, arg2));
+    };
+
+    CallbackManager.prototype.executePendingWithinThread = function (thread) {
+        var state = thread.state;
+        var count = 0;
+
+        while (this.notifications.length > 0) {
+            var notification = this.notifications.shift();
+
+            state.preserveRegisters(function () {
+                state.RA = 0x1234;
+                state.gpr[4] = 1;
+                state.gpr[5] = notification.arg2;
+                state.gpr[6] = notification.callback.argument;
+                state.callPCSafe(notification.callback.funcptr);
+            });
+
+            count++;
+        }
+
+        return (count > 0);
+    };
+    return CallbackManager;
+})();
+exports.CallbackManager = CallbackManager;
+
+var CallbackNotification = (function () {
+    function CallbackNotification(callback, arg2) {
+        this.callback = callback;
+        this.arg2 = arg2;
+    }
+    return CallbackNotification;
+})();
+exports.CallbackNotification = CallbackNotification;
+
+var Callback = (function () {
+    function Callback(name, funcptr, argument) {
+        this.name = name;
+        this.funcptr = funcptr;
+        this.argument = argument;
+        this.count = 0;
+    }
+    return Callback;
+})();
+exports.Callback = Callback;
+//# sourceMappingURL=callback.js.map
 },
 "src/hle/manager/file": function(module, exports, require) {
 var Device = (function () {
@@ -13312,7 +13449,9 @@ var IoFileMgrForUser = (function () {
             });
         });
         this.sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
-            console.warn('Not implemented IoFileMgrForUser.sceIoDclose');
+            if (!_this.directoryUids.has(fileId))
+                return -1;
+            _this.directoryUids.get(fileId).close();
             _this.directoryUids.remove(fileId);
             return 0;
         });
@@ -15169,39 +15308,69 @@ exports.sceOpenPSID = sceOpenPSID;
 var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../SceKernelErrors');
 
 var scePower = (function () {
     function scePower(context) {
         var _this = this;
         this.context = context;
-        this.cpuFreq = 222;
+        // 222/111
+        // 333/166
+        this.cpuMult = 511;
         this.pllFreq = 222;
         this.busFreq = 111;
-        this.scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () {
-            return _this.cpuFreq;
-        });
-        this.scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', '', this, function (slotIndex, callbackId) {
-            console.warn("Not implemented scePowerRegisterCallback");
+        this.scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', 'int/int', this, function (slotIndex, callbackId) {
+            _this.context.callbackManager.notify(callbackId, 128 /* BATTERY_EXIST */);
             return 0;
         });
-        this.scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, function (pllFrequency, cpuFrequency, busFrequency) {
-            _this.pllFreq = pllFrequency;
-            _this.cpuFreq = cpuFrequency;
-            _this.busFreq = busFrequency;
+        this.scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
+            if (!_this._isValidCpuFreq(cpuFreq))
+                return 2147484158 /* ERROR_INVALID_VALUE */;
+            if (!_this._isValidBusFreq(busFreq))
+                return 2147484158 /* ERROR_INVALID_VALUE */;
+            if (!_this._isValidPllFreq(pllFreq))
+                return 2147484158 /* ERROR_INVALID_VALUE */;
+            _this.pllFreq = pllFreq;
+            _this._setCpuFreq(cpuFreq);
+            _this.busFreq = busFreq;
             return 0;
         });
         this.scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, function () {
-            return _this.cpuFreq;
+            return _this._getCpuFreq();
+        });
+        this.scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () {
+            return _this._getCpuFreq();
+        });
+        this.scePowerGetCpuClockFrequencyFloat = createNativeFunction(0xB1A52C83, 150, 'float', '', this, function () {
+            return _this._getCpuFreq();
         });
         this.scePowerGetBusClockFrequency = createNativeFunction(0x478FE6F5, 150, 'int', '', this, function () {
             return _this.busFreq;
         });
-        this.scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, function (busFrequency) {
-            _this.busFreq = busFrequency;
+        this.scePowerGetBusClockFrequencyInt = createNativeFunction(0xBD681969, 150, 'int', '', this, function () {
+            return _this.busFreq;
+        });
+        this.scePowerGetBusClockFrequencyFloat = createNativeFunction(0x9BADB3EB, 150, 'float', '', this, function () {
+            return _this.busFreq;
+        });
+        this.scePowerGetPllClockFrequencyInt = createNativeFunction(0x34F9C463, 150, 'int', '', this, function () {
+            return _this.pllFreq;
+        });
+        this.scePowerGetPllClockFrequencyFloat = createNativeFunction(0xEA382A27, 150, 'float', '', this, function () {
+            return _this.pllFreq;
+        });
+        this.scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, function (busFreq) {
+            if (!_this._isValidBusFreq(busFreq))
+                return 2147484158 /* ERROR_INVALID_VALUE */;
+
+            //this.busFreq = busFreq;
+            _this.busFreq = 111;
             return 0;
         });
-        this.scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, function (cpuFrequency) {
-            _this.cpuFreq = cpuFrequency;
+        this.scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, function (cpuFreq) {
+            if (!_this._isValidCpuFreq(cpuFreq))
+                return 2147484158 /* ERROR_INVALID_VALUE */;
+            _this._setCpuFreq(cpuFreq);
             return 0;
         });
         this.scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, function () {
@@ -15235,13 +15404,48 @@ var scePower = (function () {
             return 0;
         });
         this.scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, function (type) {
-            // all = 0, suspend = 1, display = 6
             return 0;
         });
     }
+    scePower.prototype._getCpuMult = function () {
+        return 0.43444227005871 * (this.busFreq / 111);
+    };
+
+    scePower.prototype._getCpuFreq = function () {
+        return this.cpuMult * this._getCpuMult();
+    };
+
+    scePower.prototype._setCpuFreq = function (cpuFreq) {
+        if (cpuFreq > 222) {
+            // do nothing
+        } else if (cpuFreq == 222) {
+            this.cpuMult = 511;
+        } else {
+            this.cpuMult = Math.floor(cpuFreq / this._getCpuMult());
+        }
+    };
+
+    scePower.prototype._isValidCpuFreq = function (freq) {
+        return (freq >= 1 && freq <= 222);
+    };
+
+    scePower.prototype._isValidBusFreq = function (freq) {
+        return (freq >= 1 && freq <= 111);
+    };
+
+    scePower.prototype._isValidPllFreq = function (freq) {
+        return (freq >= 19 && freq <= 111);
+    };
     return scePower;
 })();
 exports.scePower = scePower;
+
+var CallbackStatus;
+(function (CallbackStatus) {
+    CallbackStatus[CallbackStatus["AC_POWER"] = 0x00001000] = "AC_POWER";
+    CallbackStatus[CallbackStatus["BATTERY_EXIST"] = 0x00000080] = "BATTERY_EXIST";
+    CallbackStatus[CallbackStatus["BATTERY_FULL"] = 0x00000064] = "BATTERY_FULL";
+})(CallbackStatus || (CallbackStatus = {}));
 //# sourceMappingURL=scePower.js.map
 },
 "src/hle/module/scePspNpDrm_user": function(module, exports, require) {
@@ -15829,6 +16033,7 @@ var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
 _manager.Thread;
 
+var Callback = _manager.Callback;
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
 var Thread = _manager.Thread;
@@ -15927,12 +16132,16 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
-            console.warn('Not implemented ThreadManForUser.sceKernelCreateCallback');
-            return 0;
+            return _this.context.callbackManager.register(new Callback(name, functionCallbackAddr, argument));
         });
+        /**
+        * Run all peding callbacks and return if executed any.
+        * Callbacks cannot be executed inside a interrupt.
+        * @return 0 no reported callbacks; 1 reported callbacks which were executed successfully.
+        */
         this.sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, function (thread) {
-            console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
-            return 0;
+            //console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
+            return _this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
         });
         this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, function (currentThread) {
             return currentThread.wakeupSleepAsync();

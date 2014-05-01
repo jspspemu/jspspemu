@@ -6,83 +6,97 @@ import SceKernelErrors = require('../SceKernelErrors');
 export class scePower {
     constructor(private context: _context.EmulatorContext) { }
 
-	private cpuFreq = 222;
+	// 222/111
+	// 333/166
+
+	private cpuMult = 511; // 222mhz
 	private pllFreq = 222;
-	private busFreq = 111;
+	private busFreq = 111; // MAX BUS: 166
 
-	scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, () => this.cpuFreq);
-	scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', '', this, (slotIndex: number, callbackId: number) => {
-		console.warn("Not implemented scePowerRegisterCallback");
+	_getCpuMult() {
+		return 0.43444227005871 * (this.busFreq / 111);
+	}
+
+	_getCpuFreq() {
+		return this.cpuMult * this._getCpuMult();
+	}
+
+	_setCpuFreq(cpuFreq: number) {
+		if (cpuFreq > 222) { // TODO: necessary until integer arithmetic to avoid it failing
+			// do nothing
+		} else if (cpuFreq == 222) {
+			this.cpuMult = 511;
+		} else {
+			this.cpuMult = Math.floor(cpuFreq / this._getCpuMult());
+		}
+	}
+
+	scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', 'int/int', this, (slotIndex: number, callbackId: number) => {
+		this.context.callbackManager.notify(callbackId, CallbackStatus.BATTERY_EXIST);
 		return 0;
 	});
 
-	scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, (pllFrequency: number, cpuFrequency: number, busFrequency: number) => {
-		this.pllFreq = pllFrequency;
-		this.cpuFreq = cpuFrequency;
-		this.busFreq = busFrequency;
+	_isValidCpuFreq(freq: number) {
+		return (freq >= 1 && freq <= 222);
+	}
+
+	_isValidBusFreq(freq: number) {
+		return (freq >= 1 && freq <= 111);
+	}
+
+	_isValidPllFreq(freq: number) {
+		return (freq >= 19 && freq <= 111);
+	}
+
+	scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, (pllFreq: number, cpuFreq: number, busFreq: number) => {
+		if (!this._isValidCpuFreq(cpuFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
+		if (!this._isValidBusFreq(busFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
+		if (!this._isValidPllFreq(pllFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
+		this.pllFreq = pllFreq;
+		this._setCpuFreq(cpuFreq);
+		this.busFreq = busFreq;
 		return 0;
 	});
 
-	scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, () => {
-		return this.cpuFreq;
-	});
+	scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, () => this._getCpuFreq());
+	scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, () => this._getCpuFreq());
+	scePowerGetCpuClockFrequencyFloat = createNativeFunction(0xB1A52C83, 150, 'float', '', this, () => this._getCpuFreq());
 
-	scePowerGetBusClockFrequency = createNativeFunction(0x478FE6F5, 150, 'int', '', this, () => {
-		return this.busFreq;
-	});
+	scePowerGetBusClockFrequency = createNativeFunction(0x478FE6F5, 150, 'int', '', this, () => { return this.busFreq; });
+	scePowerGetBusClockFrequencyInt = createNativeFunction(0xBD681969, 150, 'int', '', this, () => { return this.busFreq; });
+	scePowerGetBusClockFrequencyFloat = createNativeFunction(0x9BADB3EB, 150, 'float', '', this, () => { return this.busFreq; });
 
-	scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, (busFrequency: number) => {
-		this.busFreq = busFrequency;
+	scePowerGetPllClockFrequencyInt = createNativeFunction(0x34F9C463, 150, 'int', '', this, () => { return this.pllFreq; });
+	scePowerGetPllClockFrequencyFloat = createNativeFunction(0xEA382A27, 150, 'float', '', this, () => { return this.pllFreq; });
+
+	scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, (busFreq: number) => {
+		if (!this._isValidBusFreq(busFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
+		//this.busFreq = busFreq;
+		this.busFreq = 111;
 		return 0;
 	});
 
-	scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, (cpuFrequency: number) => {
-		this.cpuFreq = cpuFrequency;
+	scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, (cpuFreq: number) => {
+		if (!this._isValidCpuFreq(cpuFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
+		this._setCpuFreq(cpuFreq);
 		return 0;
 	});
 
-	scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, () => {
-		return 100;
-	});
+	scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, () => { return 100; });
+	scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, () => { return 1; });
+	scePowerIsBatteryExist = createNativeFunction(0x0AFD0D8B, 150, 'int', '', this, () => { return 1; });
+	scePowerIsLowBattery = createNativeFunction(0xD3075926, 150, 'int', '', this, () => { return 0; });
+	scePowerIsBatteryCharging = createNativeFunction(0x1E490401, 150, 'int', '', this, () => { return 1; });
+	scePowerGetBatteryLifeTime = createNativeFunction(0x8EFB3FA2, 150, 'int', '', this, () => { return 3 * 60; });
+	scePowerGetBatteryVolt = createNativeFunction(0x483CE86B, 150, 'int', '', this, () => 4135);
+	scePowerGetBatteryTemp = createNativeFunction(0x28E12023, 150, 'int', '', this, () => 28);
+	scePowerLock = createNativeFunction(0xD6D016EF, 150, 'int', 'int', this, (unknown: number) => 0);
+	scePowerUnlock = createNativeFunction(0xCA3D34C1, 150, 'int', 'int', this, (unknown: number) => 0);
+	scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, (type: number) => 0); // all = 0, suspend = 1, display = 6
+}
 
-	scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, () => {
-		return 1;
-	});
-
-	scePowerIsBatteryExist = createNativeFunction(0x0AFD0D8B, 150, 'int', '', this, () => {
-		return 1;
-	});
-
-	scePowerIsLowBattery = createNativeFunction(0xD3075926, 150, 'int', '', this, () => {
-		return 0;
-	});
-
-	scePowerIsBatteryCharging = createNativeFunction(0x1E490401, 150, 'int', '', this, () => {
-		return 1;
-	});
-
-	scePowerGetBatteryLifeTime = createNativeFunction(0x8EFB3FA2, 150, 'int', '', this, () => {
-		return 3 * 60;
-	});
-
-	scePowerGetBatteryVolt = createNativeFunction(0x483CE86B, 150, 'int', '', this, () => {
-		return 4135;
-	});
-
-	scePowerGetBatteryTemp = createNativeFunction(0x28E12023, 150, 'int', '', this, () => {
-		return 28;
-	});
-
-	scePowerLock = createNativeFunction(0xD6D016EF, 150, 'int', 'int', this, (unknown: number) => {
-		return 0;
-	});
-
-	scePowerUnlock = createNativeFunction(0xCA3D34C1, 150, 'int', 'int', this, (unknown: number) => {
-		return 0;
-	});
-
-	scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, (type: number) => {
-		// all = 0, suspend = 1, display = 6
-		return 0;
-	});
+enum CallbackStatus {
+	AC_POWER = 0x00001000,
+	BATTERY_EXIST = 0x00000080,
+	BATTERY_FULL = 0x00000064,
 }

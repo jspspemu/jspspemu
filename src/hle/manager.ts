@@ -2,6 +2,7 @@
 import _memory = require('./manager/memory'); _memory.MemoryManager;
 import _module = require('./manager/module'); _module.ModuleManager;
 import _thread = require('./manager/thread'); _thread.Thread;
+import _callback = require('./manager/callback'); _callback.Callback;;
 
 export import Device = _file.Device;
 export import FileManager = _file.FileManager;
@@ -18,3 +19,6 @@ export import ModuleWrapper = _module.ModuleWrapper;
 
 export import Thread = _thread.Thread;
 export import ThreadManager = _thread.ThreadManager;
+
+export import Callback = _callback.Callback;
+export import CallbackManager = _callback.CallbackManager;

@@ -25,6 +25,7 @@ export class EmulatorContext {
 	gpu: _gpu.PspGpu;
 	memoryManager: _manager.MemoryManager;
 	threadManager: _manager.ThreadManager;
+	callbackManager: _manager.CallbackManager;
 	audio: _audio.PspAudio;
 	memory: _memory.Memory;
 	instructionCache: _cpu.InstructionCache;
@@ -47,5 +48,6 @@ export class EmulatorContext {
 		this.instructionCache = instructionCache;
 		this.fileManager = fileManager;
 		this.rtc = rtc;
+		this.callbackManager = new _manager.CallbackManager();
 	}
 }

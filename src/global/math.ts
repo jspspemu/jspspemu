@@ -237,3 +237,11 @@ class MathUtils {
 		return v;
 	}
 }
+
+function ToUint32(x) {
+	return x >>> 0;
+}
+
+function ToInt32(x) {
+	return x | 0;
+}

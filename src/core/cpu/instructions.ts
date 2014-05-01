@@ -563,14 +563,16 @@ export class Instructions {
 			var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
 			this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', switchCode));
 		}
+		return this.decoder(this.instructionTypeListByName, i32, pc);
+		/*
 		try {
-			return this.decoder(this.instructionTypeListByName, i32, pc);
 		} catch (e) {
 			console.log(this.decoder);
 			console.log(this.instructionTypeListByName);
 			console.log(this.instructionTypeList);
 			throw (e);
 		}
+		*/
 	}
 
 	private slowFindByData(i32: number, pc: number = 0) {
