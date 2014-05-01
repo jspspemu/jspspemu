@@ -3508,6 +3508,9 @@ var MipsAstBuilder = (function (_super) {
     MipsAstBuilder.prototype.pc = function () {
         return new ANodeExprLValueVar('state.PC');
     };
+    MipsAstBuilder.prototype.ra = function () {
+        return new ANodeExprLValueVar('state.gpr[31]');
+    };
     MipsAstBuilder.prototype.branchflag = function () {
         return new ANodeExprLValueVar('state.BRANCHFLAG');
     };
@@ -3541,6 +3544,8 @@ var ProgramExecutor = (function () {
         this.state = state;
         this.instructionCache = instructionCache;
         this.lastPC = 0;
+        this.lastTime = 0;
+        this.times = 0;
         this.state.executor = this;
     }
     ProgramExecutor.prototype._executeStep = function () {
@@ -3552,14 +3557,32 @@ var ProgramExecutor = (function () {
         //this.instructionCache.getFunction(this.state.PC)(this.state);
     };
 
+    ProgramExecutor.prototype.executeUntilPCReachesWithoutCall = function (expectedPC) {
+        while (this.state.PC != expectedPC) {
+            this._executeStep();
+            this.times++;
+            if (this.times >= 1000) {
+                this.times = 0;
+                if ((performance.now() - this.lastTime) >= 100)
+                    throw (new CpuBreakException());
+                this.lastTime = performance.now();
+            }
+        }
+    };
+
+    ProgramExecutor.prototype.executeWithoutCatch = function (maxIterations) {
+        if (typeof maxIterations === "undefined") { maxIterations = -1; }
+        while (maxIterations != 0) {
+            this._executeStep();
+            if (maxIterations > 0)
+                maxIterations--;
+        }
+    };
+
     ProgramExecutor.prototype.execute = function (maxIterations) {
         if (typeof maxIterations === "undefined") { maxIterations = -1; }
         try  {
-            while (maxIterations != 0) {
-                this._executeStep();
-                if (maxIterations > 0)
-                    maxIterations--;
-            }
+            this.executeWithoutCatch(maxIterations);
         } catch (e) {
             if (!(e instanceof CpuBreakException)) {
                 console.log(this.state);
@@ -3626,6 +3649,9 @@ var FunctionGenerator = (function () {
 
     FunctionGenerator.prototype.create = function (address) {
         var _this = this;
+        //var enableOptimizations = false;
+        var enableOptimizations = true;
+
         if (address == 0x00000000) {
             throw (new Error("Trying to execute 0x00000000"));
         }
@@ -3644,9 +3670,9 @@ var FunctionGenerator = (function () {
             return result;
         };
 
-        //stms.add(ast.raw('var expectedRA = state.RA;'));
+        stms.add(ast.raw('var expectedRA = state.RA;'));
+
         function returnWithCheck() {
-            //stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
             stms.add(ast.raw('return;'));
         }
 
@@ -3702,9 +3728,17 @@ var FunctionGenerator = (function () {
                     stms.add(ast.raw('}'));
                 }
 
-                if (isSimpleLoop) {
-                    stms.add(ast.jump(pcToLabel[jumpAddress]));
-                    break;
+                if (enableOptimizations) {
+                    if (isSimpleLoop) {
+                        stms.add(ast.jump(pcToLabel[jumpAddress]));
+                        break;
+                    } else if (isFunctionCall) {
+                        stms.add(ast.call('state.callPC', [ast.pc()]));
+                        //stms.add(ast.call('state.callUntilPCReaches', [ast.ra()]));
+                        // no break
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -5074,21 +5108,9 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.callPC = function (pc) {
-        if (this.executor) {
-            this.PC = pc;
-            var ra = this.RA;
-            this.executor.execute(-1);
-            if (this.PC == ra) {
-                //console.log('great jump!');
-                return;
-            } else {
-                throw (new CpuBreakException());
-            }
-            //console.log(pc, this.PC);
-            //return;
-        }
-
-        throw (new CpuBreakException());
+        this.PC = pc;
+        var ra = this.RA;
+        this.executor.executeUntilPCReachesWithoutCall(ra);
     };
 
     CpuState.prototype.break = function () {

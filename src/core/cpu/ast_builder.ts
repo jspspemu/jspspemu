@@ -163,6 +163,7 @@ export class MipsAstBuilder extends AstBuilder {
 	hi() { return new ANodeExprLValueVar('state.HI'); }
 	ic() { return new ANodeExprLValueVar('state.IC'); }
 	pc() { return new ANodeExprLValueVar('state.PC'); }
+	ra() { return new ANodeExprLValueVar('state.gpr[31]'); }
 	branchflag() { return new ANodeExprLValueVar('state.BRANCHFLAG'); }
 	branchpc() { return new ANodeExprLValueVar('state.BRANCHPC'); }
 

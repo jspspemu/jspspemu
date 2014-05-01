@@ -6,6 +6,8 @@ import CpuState = state.CpuState;
 
 export class ProgramExecutor {
 	private lastPC = 0;
+	private lastTime = 0;
+	private times = 0;
 
 	constructor(public state: CpuState, public instructionCache: InstructionCache) {
 		this.state.executor = this;
@@ -19,12 +21,28 @@ export class ProgramExecutor {
 		//this.instructionCache.getFunction(this.state.PC)(this.state);
 	}
 
+	executeUntilPCReachesWithoutCall(expectedPC: number): void {
+		while (this.state.PC != expectedPC) {
+			this._executeStep();
+			this.times++;
+			if (this.times >= 1000) {
+				this.times = 0;
+				if ((performance.now() - this.lastTime) >= 100) throw (new CpuBreakException());
+				this.lastTime = performance.now();
+			}
+		}
+	}
+
+	executeWithoutCatch(maxIterations: number = -1) {
+		while (maxIterations != 0) {
+			this._executeStep();
+			if (maxIterations > 0) maxIterations--;
+		}
+	}
+
 	execute(maxIterations: number = -1) {
 		try {
-			while (maxIterations != 0) {
-				this._executeStep();
-				if (maxIterations > 0) maxIterations--;
-			}
+			this.executeWithoutCatch(maxIterations);
 		} catch (e) {
 			if (!(e instanceof CpuBreakException)) {
 				console.log(this.state);

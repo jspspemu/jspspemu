@@ -56,6 +56,9 @@ export class FunctionGenerator {
 	}
 
 	create(address: number) {
+		//var enableOptimizations = false;
+		var enableOptimizations = true;
+
 		if (address == 0x00000000) {
 			throw (new Error("Trying to execute 0x00000000"));
 		}
@@ -74,10 +77,9 @@ export class FunctionGenerator {
 			return result;
 		};
 
-		//stms.add(ast.raw('var expectedRA = state.RA;'));
+		stms.add(ast.raw('var expectedRA = state.RA;'));
 
 		function returnWithCheck() {
-			//stms.add(ast.raw('if (state.PC != expectedRA) throw(new CpuBreakException());'));
 			stms.add(ast.raw('return;'));
 		}
 
@@ -135,17 +137,18 @@ export class FunctionGenerator {
 					stms.add(ast.raw('}'));
 				}
 
-				if (isSimpleLoop) {
-					stms.add(ast.jump(pcToLabel[jumpAddress]));
-					break;
-				}
-				/*
-				else if (isFunctionCall) {
-					stms.add(ast.call('state.callPC', [ast.pc()]));
-					// no break
-				}
-				*/
-				else {
+				if (enableOptimizations) {
+					if (isSimpleLoop) {
+						stms.add(ast.jump(pcToLabel[jumpAddress]));
+						break;
+					} else if (isFunctionCall) {
+						stms.add(ast.call('state.callPC', [ast.pc()]));
+						//stms.add(ast.call('state.callUntilPCReaches', [ast.ra()]));
+						// no break
+					} else {
+						break;
+					}
+				} else {
 					break;
 				}
 			} else {

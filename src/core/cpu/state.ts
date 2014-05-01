@@ -12,6 +12,8 @@ export enum CpuSpecialAddresses {
 
 export interface IExecutor {
 	execute(maxIterations: number): void;
+	executeWithoutCatch(maxIterations: number): void;
+	executeUntilPCReachesWithoutCall(pc: number): void;
 }
 
 export class CpuState {
@@ -293,21 +295,9 @@ export class CpuState {
 	}
 
 	callPC(pc: number) {
-		if (this.executor) {
-			this.PC = pc;
-			var ra = this.RA;
-			this.executor.execute(-1);
-			if (this.PC == ra) {
-				//console.log('great jump!');
-				return;
-			} else {
-				throw (new CpuBreakException());
-			}
-			//console.log(pc, this.PC);
-			//return;
-		}
-
-		throw(new CpuBreakException());
+		this.PC = pc;
+		var ra = this.RA;
+		this.executor.executeUntilPCReachesWithoutCall(ra);
 	}
 
 	break() { throw (new CpuBreakException()); }
