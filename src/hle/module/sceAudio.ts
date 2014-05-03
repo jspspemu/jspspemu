@@ -16,7 +16,7 @@ export class sceAudio {
 	});
 
 	sceAudioOutput2OutputBlocking = createNativeFunction(0x2D53F36E, 150, 'uint', 'int/void*', this, (volume: number, buffer: Stream) => {
-		return waitAsycn(10).then(() => 0);
+		return waitAsync(10).then(() => 0);
 	});
 
 	sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, (channelId: number, sampleCount: number, format: AudioFormat) => {
@@ -58,7 +58,8 @@ export class sceAudio {
 		return 0;
 	});
 
-	sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream) => {
+	sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any => {
+		if (!buffer) return waitAsync(10).then(() => 0);
 		var channel = this.channels[channelId];
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
 	});

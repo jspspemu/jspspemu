@@ -124,6 +124,7 @@
     <TypeScriptCompile Include="src\hle\module\SysMemUserForUser.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser.ts" />
     <TypeScriptCompile Include="src\core\cpu\syscall.ts" />
+    <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_callbacks.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_eventflag.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_sema.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_vpl.ts" />
@@ -138,6 +139,7 @@
     <TypeScriptCompile Include="src\hle\vfs\vfs_iso.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_memory.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_mountable.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_ms.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_storage.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_uri.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_zip.ts" />

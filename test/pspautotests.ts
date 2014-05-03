@@ -6,22 +6,27 @@ describe('pspautotests', function () {
 	this.timeout(5000);
 
 	var tests = [
-		{ cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2', 'lsu'] },
-		{ vfpu: ['colors', 'convert', 'gum', 'matrix', 'prefixes', 'vector'] },
-		{ intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
-		{ display: ['display', 'hcount', 'vblankmulti'] },
-		{ gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
-		{ dmac: ['dmactest'] },
-		{ loader: ['bss'] },
-		{ misc: ['dcache', 'deadbeef', 'libc', 'sdkver', 'testgp', 'timeconv', 'string', 'icache', 'malloc'] },
-		{ mstick: ['mstick'] },
-		{ power: ['cpu', 'freq', 'power', 'lock', 'trylock', 'unlock'] },
-		{ rtc: ['arithmetic', 'convert', 'lookup', 'rtc'] },
-		{ sysmem: ['freesize', 'memblock', 'partition', 'sysmem'] },
-		{ thread: ['change', 'create', 'exitstatus', 'extend', 'refer', 'release', 'rotate', 'stackfree', 'start', 'suspend', 'terminate', 'threadend', 'threads', 'k0'] },
-		{ thread_callbacks: ['callbacks', 'cancel', 'check', 'count', 'create', 'delete', 'exit', 'notify', 'refer'] },
-		{ thread_events: ['cancel', 'clear', 'create', 'delete', 'events', 'poll', 'refer', 'set', 'wait'] },
-		{ thread_semaphore: ['cancel', 'create', 'delete', 'fifo', 'poll', 'priority', 'refer', 'semaphores', 'signal', 'wait'] },
+		//{ 'audio/atrac': ['atractest', 'decode', 'ids', 'resetting', 'setdata'] },
+		{ 'audio/mp3': ['mp3test'] },
+		//{ 'audio/sceaudio': ['datalen', 'output', 'reserve'] },
+		//{ 'audio/sascore': ['datalen', 'output', 'reserve'] },
+
+		//{ cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2', 'lsu'] },
+		//{ vfpu: ['colors', 'convert', 'gum', 'matrix', 'prefixes', 'vector'] },
+		//{ intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
+		//{ display: ['display', 'hcount', 'vblankmulti'] },
+		//{ gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
+		//{ dmac: ['dmactest'] },
+		//{ loader: ['bss'] },
+		//{ misc: ['dcache', 'deadbeef', 'libc', 'sdkver', 'testgp', 'timeconv', 'string', 'icache', 'malloc'] },
+		//{ mstick: ['mstick'] },
+		//{ power: ['cpu', 'freq', 'power', 'lock', 'trylock', 'unlock'] },
+		//{ rtc: ['arithmetic', 'convert', 'lookup', 'rtc'] },
+		//{ sysmem: ['freesize', 'memblock', 'partition', 'sysmem'] },
+		//{ thread: ['change', 'create', 'exitstatus', 'extend', 'refer', 'release', 'rotate', 'stackfree', 'start', 'suspend', 'terminate', 'threadend', 'threads', 'k0'] },
+		//{ thread_callbacks: ['callbacks', 'cancel', 'check', 'count', 'create', 'delete', 'exit', 'notify', 'refer'] },
+		//{ thread_events: ['cancel', 'clear', 'create', 'delete', 'events', 'poll', 'refer', 'set', 'wait'] },
+		//{ thread_semaphore: ['cancel', 'create', 'delete', 'fifo', 'poll', 'priority', 'refer', 'semaphores', 'signal', 'wait'] },
 	];
 
 	function normalizeString(string: string) {
@@ -77,7 +82,7 @@ describe('pspautotests', function () {
 				testNameList.forEach(testName => {
 					it(testName, () => {
 						var emulator = new Emulator();
-						var file_base = 'samples/tests/' + testGroupName + '/' + testName;
+						var file_base = '../pspautotests/tests/' + testGroupName + '/' + testName;
 						var file_prx = file_base + '.prx';
 						var file_expected = file_base + '.expected';
 

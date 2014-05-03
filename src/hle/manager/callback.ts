@@ -12,6 +12,10 @@ export class CallbackManager {
 		return this.uids.allocate(callback);
 	}
 
+	remove(id: number) {
+		return this.uids.remove(id);
+	}
+
 	get(id: number) {
 		return this.uids.get(id);
 	}

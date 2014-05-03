@@ -245,6 +245,21 @@ class ArrayBufferUtils {
 		return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
 	}
 
+	static uint8ToUint32(input: Uint8Array, offset: number = 0, length?: number) {
+		if (length === undefined) length = ((input.length >>> 2) - (offset >>> 2));
+		return new Uint32Array(input.buffer, input.byteOffset + offset, length);
+	}
+
+	static uint8ToUint8(input: Uint8Array, offset: number = 0, length?: number) {
+		if (length === undefined) length = (input.length - offset);
+		return new Uint8Array(input.buffer, input.byteOffset + offset, length);
+	}
+
+	static copy(input: Uint8Array, inputPosition: number, output: Uint8Array, outputPosition: number, length: number) {
+		output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+		//for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+	}
+
 	static concat(chunks: ArrayBuffer[]) {
 		var tmp = new Uint8Array(chunks.sum(chunk => chunk.byteLength));
 		var offset = 0;

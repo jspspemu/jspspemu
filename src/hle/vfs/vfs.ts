@@ -24,6 +24,12 @@
 	}
 }
 
+export class ProxyVfs extends Vfs {
+	constructor(public parentVfs: Vfs) { super(); }
+	devctlAsync(command: number, input: Stream, output: Stream) { return this.parentVfs.devctlAsync(command, input, output); }
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> { return this.parentVfs.openAsync(path, flags, mode); }
+}
+
 export class VfsEntry {
 	get isDirectory(): boolean {
 		return this.stat().isDirectory;

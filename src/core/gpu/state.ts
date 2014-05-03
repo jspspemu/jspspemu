@@ -351,6 +351,8 @@ export class Blending {
 	functionSource = GuBlendingFactor.GU_SRC_ALPHA;
 	functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
 	equation = GuBlendingEquation.Add;
+	fixColorSourceRGB: number = 0;
+	fixColorDestinationRGB: number = 0;
 }
 
 export class AlphaTest {

@@ -54,6 +54,7 @@ function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(require('./module/StdioForUser'));
 	manager.registerModule(require('./module/SysMemUserForUser'));
 	manager.registerModule(require('./module/threadman/ThreadManForUser'));
+	manager.registerModule(require('./module/threadman/ThreadManForUser_callbacks'));
 	manager.registerModule(require('./module/threadman/ThreadManForUser_sema'));
 	manager.registerModule(require('./module/threadman/ThreadManForUser_eventflag'));
 	manager.registerModule(require('./module/threadman/ThreadManForUser_vpl'));

@@ -5,8 +5,6 @@ import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager'); _manager.Thread;
 
-import CallbackManager = _manager.CallbackManager;
-import Callback = _manager.Callback;
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 import CpuState = _cpu.CpuState;
 
@@ -127,20 +125,6 @@ export class ThreadManForUser {
 		this._sceKernelTerminateThread(threadId);
 		this._sceKernelDeleteThread(threadId);
 		return 0;
-	});
-
-	sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, (name: string, functionCallbackAddr: number, argument: number) => {
-		return this.context.callbackManager.register(new Callback(name, functionCallbackAddr, argument));
-	});
-
-	/**
-	 * Run all peding callbacks and return if executed any.
-	 * Callbacks cannot be executed inside a interrupt.
-	 * @return 0 no reported callbacks; 1 reported callbacks which were executed successfully.
-	 */
-	sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, (thread: Thread) => {
-		//console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
-		return this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
 	});
 
 	sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, (currentThread: Thread) => {

@@ -132,7 +132,7 @@ class BitUtils {
 	}
 
 	static extract(data: number, offset: number, length: number) {
-		return (data >>> offset) & BitUtils.mask(length);
+		return (data >> offset) & ((1 << length) - 1);
 	}
 
 	static extractScalef(data: number, offset: number, length: number, scale: number) {

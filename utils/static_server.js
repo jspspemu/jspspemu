@@ -97,9 +97,17 @@ http.createServer(function(request, response) {
 	}
 	//console.log(request.range);
 	
-	var stream = fs.createReadStream(filename, streamInfo)
-	response.writeHead(responseCode, responseHeaders);
-	stream.pipe(response);
+	try {
+		var stream = fs.createReadStream(filename, streamInfo)
+		response.writeHead(responseCode, responseHeaders);
+		stream.pipe(response);
+	} catch (e) {
+		console.error(e);
+		console.log(start + ' | ' + end + ' | ' + total);
+		response.writeHead(400, { 'Content-Type': 'text/html' });
+		response.end('Error: ' + e + ' | ' + start + ' | ' + end + ' | ' + total);
+		return;
+	}
 	/*
     fs.readFile(filename, "binary", function(err, file) {
       if(err) {        

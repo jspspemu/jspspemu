@@ -17,10 +17,7 @@ import _vfs = require('./hle/vfs');
 import _elf_psp = require('./hle/elf_psp');
 import _elf_crypted_prx = require('./hle/elf_crypted_prx');
 
-import _manager_memory = require('./hle/manager/memory');
-import _manager_file = require('./hle/manager/file');
-import _manager_thread = require('./hle/manager/thread');
-import _manager_module = require('./hle/manager/module');
+import _manager = require('./hle/manager');
 import _pspmodules = require('./hle/pspmodules');
 
 import PspRtc = _rtc.PspRtc;
@@ -33,24 +30,28 @@ import MountableVfs = _vfs.MountableVfs;
 import UriVfs = _vfs.UriVfs;
 import IsoVfs = _vfs.IsoVfs;
 import ZipVfs = _vfs.ZipVfs;
+import MemoryStickVfs = _vfs.MemoryStickVfs;
 import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
 
 import PspElfLoader = _elf_psp.PspElfLoader;
 
-import MemoryManager = _manager_memory.MemoryManager;
 import Memory = _memory.Memory;
 import EmulatorContext = _context.EmulatorContext;
 import InterruptManager = _interrupt.InterruptManager;
-import FileManager = _manager_file.FileManager;
 import PspAudio = _audio.PspAudio;
 import PspDisplay = _display.PspDisplay;
 import PspGpu = _gpu.PspGpu;
 import PspController = _controller.PspController;
 import InstructionCache = _cpu.InstructionCache;
 import SyscallManager = _cpu.SyscallManager;
-import ThreadManager = _manager_thread.ThreadManager;
-import ModuleManager = _manager_module.ModuleManager;
+
+import ThreadManager = _manager.ThreadManager;
+import ModuleManager = _manager.ModuleManager;
+import MemoryManager = _manager.MemoryManager;
+import FileManager = _manager.FileManager;
+import CallbackManager = _manager.CallbackManager;
+
 
 export class Emulator {
 	public context: EmulatorContext;
@@ -70,6 +71,7 @@ export class Emulator {
 	private threadManager: ThreadManager;
 	private moduleManager: ModuleManager;
 	private ms0Vfs: MountableVfs;
+	private callbackManager: CallbackManager;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
@@ -106,11 +108,14 @@ export class Emulator {
 			this.threadManager = new ThreadManager(this.memory, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new ModuleManager(this.context);
 			this.interruptManager = new InterruptManager();
+			this.callbackManager = new CallbackManager();
 			this.rtc = new PspRtc();
 
 			this.emulatorVfs = new EmulatorVfs();
+			this.ms0Vfs = new MountableVfs();
 
-			this.fileManager.mount('ms0', this.ms0Vfs = new MountableVfs());
+			this.fileManager.mount('fatms0', new MemoryStickVfs(this.ms0Vfs, this.callbackManager, this.memory));
+			this.fileManager.mount('ms0', new MemoryStickVfs(this.ms0Vfs, this.callbackManager, this.memory));
 			this.fileManager.mount('host0', new MemoryVfs());
 			this.fileManager.mount('flash0', new UriVfs('flash0'));
 			this.fileManager.mount('emulator', this.emulatorVfs);
@@ -120,7 +125,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager);
 
 			return Promise.all([
 				this.display.startAsync(),
@@ -196,7 +201,7 @@ export class Emulator {
 				case 'zip':
 					return _format_zip.Zip.fromStreamAsync(asyncStream).then(zip => {
 						var zipFs = new ZipVfs(zip);
-						var mountableVfs = (<MountableVfs>this.fileManager.getDevice('ms0').vfs);
+						var mountableVfs = this.ms0Vfs;
 						mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
 
 						var availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item));
@@ -236,11 +241,13 @@ export class Emulator {
 							document.title = 'jspspemu';
 						}
 
-						var mountableVfs = (<MountableVfs>this.fileManager.getDevice('ms0').vfs);
+						var mountableVfs = this.ms0Vfs;
 						mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
 						var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
+						//this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
+						console.info('pathToFile:', pathToFile);
 						var arguments = [pathToFile];
 						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
 						var argument = arguments.map(argument => argument + String.fromCharCode(0)).join('');

@@ -3,7 +3,7 @@
 	date: Date;
 }
 
-function waitAsycn(timems: number) {
+function waitAsync(timems: number) {
 	return new Promise((resolve, reject) => {
 		setTimeout(resolve, timems);
 	});

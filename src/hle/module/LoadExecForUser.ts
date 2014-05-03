@@ -30,7 +30,7 @@ export class LoadExecForUser {
     });
 
     sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, (callbackId: number) => {
-        console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
+        //console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
         return 0;
     });
 }

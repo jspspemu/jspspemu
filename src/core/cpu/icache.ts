@@ -31,9 +31,10 @@ export class InstructionCache {
 
 		if (address == CpuSpecialAddresses.EXIT_THREAD) {
 			return this.cache[address] = function (state: CpuState) {
-				console.log(state);
-				console.log(state.thread);
-				console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+				//console.log(state);
+				//console.log(state.thread);
+				//console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+
 				state.thread.stop();
 				throw (new CpuBreakException());
 			};

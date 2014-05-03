@@ -6,7 +6,7 @@ export class sceAtrac3plus {
 	constructor(private context: _context.EmulatorContext) { }
 
 	_waitAsync(name: string, time: number) {
-		return new WaitingThreadInfo(name, this, waitAsycn(time).then(() => 0));
+		return new WaitingThreadInfo(name, this, waitAsync(time).then(() => 0));
 	}
 
 	sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, (dataPointer: Stream, dataLength: number) => {

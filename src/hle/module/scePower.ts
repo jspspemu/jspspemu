@@ -36,6 +36,14 @@ export class scePower {
 		return 0;
 	});
 
+	scePowerUnregitserCallback = createNativeFunction(0xDB9D28DD, 150, 'int', 'int', this, (slotIndex: number) => {
+		return 0;
+	});
+
+	scePowerUnregisterCallback = createNativeFunction(0xDFA8BAF8, 150, 'int', 'int', this, (slotIndex: number) => {
+		return 0;
+	});
+
 	_isValidCpuFreq(freq: number) {
 		return (freq >= 1 && freq <= 222);
 	}
@@ -93,10 +101,27 @@ export class scePower {
 	scePowerLock = createNativeFunction(0xD6D016EF, 150, 'int', 'int', this, (unknown: number) => 0);
 	scePowerUnlock = createNativeFunction(0xCA3D34C1, 150, 'int', 'int', this, (unknown: number) => 0);
 	scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, (type: number) => 0); // all = 0, suspend = 1, display = 6
+
+	scePowerGetBatteryChargingStatus = createNativeFunction(0xB4432BC8, 150, 'int', '', this, () => {
+		return PowerFlagsSet.BatteryExists | PowerFlagsSet.AcPower | PowerFlagsSet.BatteryPower;
+	});
 }
 
 enum CallbackStatus {
 	AC_POWER = 0x00001000,
 	BATTERY_EXIST = 0x00000080,
 	BATTERY_FULL = 0x00000064,
+}
+
+enum PowerFlagsSet {
+	PowerSwitch = 0x80000000, // PSP_POWER_CB_POWER_SWITCH - Indicates the power switch it pushed, putting the unit into suspend mode
+	HoldSwitch = 0x40000000, // PSP_POWER_CB_HOLD_SWITCH - Indicates the hold switch is on
+	StandBy = 0x00080000, // PSP_POWER_CB_STANDBY - What is standby mode?
+	ResumeComplete = 0x00040000, // PSP_POWER_CB_RESUME_COMPLETE - Indicates the resume process has been completed (only seems to be triggered when another event happens)
+	Resuming = 0x00020000, // PSP_POWER_CB_RESUMING - Indicates the unit is resuming from suspend mode
+	Suspending = 0x00010000, // PSP_POWER_CB_SUSPENDING - Indicates the unit is suspending, seems to occur due to inactivity
+	AcPower = 0x00001000, // PSP_POWER_CB_AC_POWER - Indicates the unit is plugged into an AC outlet
+	BatteryLow = 0x00000100, // PSP_POWER_CB_BATTERY_LOW - Indicates the battery charge level is low
+	BatteryExists = 0x00000080, // PSP_POWER_CB_BATTERY_EXIST - Indicates there is a battery present in the unit
+	BatteryPower = 0x0000007F, // PSP_POWER_CB_BATTPOWER - Unknown
 }

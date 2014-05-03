@@ -163,7 +163,7 @@ Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false 
 Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
 //# sourceMappingURL=array.js.map
 
-﻿function waitAsycn(timems) {
+﻿function waitAsync(timems) {
     return new Promise(function (resolve, reject) {
         setTimeout(resolve, timems);
     });
@@ -588,7 +588,7 @@ var BitUtils = (function () {
     };
 
     BitUtils.extract = function (data, offset, length) {
-        return (data >>> offset) & BitUtils.mask(length);
+        return (data >> offset) & ((1 << length) - 1);
     };
 
     BitUtils.extractScalef = function (data, offset, length, scale) {
@@ -864,7 +864,13 @@ var Stream = (function () {
     };
 
     Stream.prototype.toImageUrl = function () {
-        return 'data:image/png;base64,' + this.toBase64();
+        var urlCreator = window['URL'] || window['webkitURL'];
+        if (urlCreator) {
+            var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
+            return urlCreator.createObjectURL(blob);
+        } else {
+            return 'data:image/png;base64,' + this.toBase64();
+        }
     };
 
     Stream.prototype.toBase64 = function () {
@@ -882,6 +888,10 @@ var Stream = (function () {
 
     Stream.prototype.toArrayBuffer = function () {
         return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+    };
+
+    Stream.prototype.clone = function () {
+        return this.sliceWithLowHigh(this.position, this.length);
     };
 
     Stream.prototype.sliceWithLength = function (low, count) {
@@ -1526,7 +1536,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -1724,6 +1734,25 @@ var ArrayBufferUtils = (function () {
         return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
     };
 
+    ArrayBufferUtils.uint8ToUint32 = function (input, offset, length) {
+        if (typeof offset === "undefined") { offset = 0; }
+        if (length === undefined)
+            length = ((input.length >>> 2) - (offset >>> 2));
+        return new Uint32Array(input.buffer, input.byteOffset + offset, length);
+    };
+
+    ArrayBufferUtils.uint8ToUint8 = function (input, offset, length) {
+        if (typeof offset === "undefined") { offset = 0; }
+        if (length === undefined)
+            length = (input.length - offset);
+        return new Uint8Array(input.buffer, input.byteOffset + offset, length);
+    };
+
+    ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
+        output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+        //for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+    };
+
     ArrayBufferUtils.concat = function (chunks) {
         var tmp = new Uint8Array(chunks.sum(function (chunk) {
             return chunk.byteLength;
@@ -1916,12 +1945,10 @@ controllerRegister();
 //# sourceMappingURL=app.js.map
 },
 "src/context": function(module, exports, require) {
-var _manager = require('./hle/manager');
-
 var EmulatorContext = (function () {
     function EmulatorContext() {
     }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -1933,7 +1960,7 @@ var EmulatorContext = (function () {
         this.instructionCache = instructionCache;
         this.fileManager = fileManager;
         this.rtc = rtc;
-        this.callbackManager = new _manager.CallbackManager();
+        this.callbackManager = callbackManager;
     };
     return EmulatorContext;
 })();
@@ -3851,9 +3878,9 @@ var InstructionCache = (function () {
 
         if (address == 268435455 /* EXIT_THREAD */) {
             return this.cache[address] = function (state) {
-                console.log(state);
-                console.log(state.thread);
-                console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
+                //console.log(state);
+                //console.log(state.thread);
+                //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
                 state.thread.stop();
                 throw (new CpuBreakException());
             };
@@ -5918,6 +5945,13 @@ var PspGpuList = (function () {
                 this.state.culling.direction = params24; // FrontFaceDirectionEnum
                 break;
 
+            case 224 /* SFIX */:
+                this.state.blending.fixColorSourceRGB = params24;
+                break;
+            case 225 /* DFIX */:
+                this.state.blending.fixColorDestinationRGB = params24;
+                break;
+
             case 4 /* PRIM */:
                 //if (this.current < this.stall) {
                 //	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
@@ -6983,6 +7017,8 @@ var Blending = (function () {
         this.functionSource = 2 /* GU_SRC_ALPHA */;
         this.functionDestination = 5 /* GU_ONE_MINUS_DST_ALPHA */;
         this.equation = 0 /* Add */;
+        this.fixColorSourceRGB = 0;
+        this.fixColorDestinationRGB = 0;
     }
     return Blending;
 })();
@@ -9006,20 +9042,19 @@ var PixelConverter = (function () {
     };
 
     PixelConverter.unswizzleInline = function (format, from, fromIndex, width, height) {
-        return PixelConverter.unswizzleInline2(from, fromIndex, PixelConverter.getSizeInBytes(format, width), height);
-    };
-
-    PixelConverter.unswizzleInline2 = function (from, fromIndex, rowWidth, textureHeight) {
+        var rowWidth = PixelConverter.getSizeInBytes(format, width);
+        var textureHeight = height;
         var size = rowWidth * textureHeight;
         var temp = new Uint8Array(size);
-        PixelConverter.unswizzle(new DataView(from, fromIndex), new DataView(temp.buffer), rowWidth, textureHeight);
+        PixelConverter.unswizzle(new Uint8Array(from, fromIndex), new Uint8Array(temp.buffer), rowWidth, textureHeight);
         new Uint8Array(from, fromIndex, size).set(temp);
     };
 
     PixelConverter.unswizzle = function (input, output, rowWidth, textureHeight) {
-        var pitch = (rowWidth - 16) / 4;
-        var bxc = rowWidth / 16;
-        var byc = textureHeight / 8;
+        var pitch = ToInt32((rowWidth - 16) / 4);
+        var bxc = ToInt32(rowWidth / 16);
+        var byc = ToInt32(textureHeight / 8);
+        var pitch4 = ToInt32(pitch * 4);
 
         var src = 0;
         var ydest = 0;
@@ -9027,12 +9062,9 @@ var PixelConverter = (function () {
             var xdest = ydest;
             for (var bx = 0; bx < bxc; bx++) {
                 var dest = xdest;
-                for (var n = 0; n < 8; n++, dest += pitch * 4) {
-                    for (var m = 0; m < 4; m++) {
-                        output.setInt32(dest, input.getInt32(src));
-                        dest += 4;
-                        src += 4;
-                    }
+                for (var n = 0; n < 8; n++, dest += pitch4) {
+                    for (var m = 0; m < 16; m++)
+                        output[dest++] = input[src++];
                 }
                 xdest += 16;
             }
@@ -9076,18 +9108,12 @@ var PixelConverter = (function () {
         if (typeof clutStart === "undefined") { clutStart = 0; }
         if (typeof clutShift === "undefined") { clutShift = 0; }
         if (typeof clutMask === "undefined") { clutMask = 0; }
-        for (var n = 0, m = 0; n < count * 8; n += 8, m++) {
-            var color1 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 0, 4) & clutMask) << clutShift)];
-            var color2 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 4, 4) & clutMask) << clutShift)];
-            to[toIndex + n + 0] = BitUtils.extract(color1, 0, 8);
-            to[toIndex + n + 1] = BitUtils.extract(color1, 8, 8);
-            to[toIndex + n + 2] = BitUtils.extract(color1, 16, 8);
-            to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color1, 24, 8) : 0xFF;
-
-            to[toIndex + n + 4] = BitUtils.extract(color2, 0, 8);
-            to[toIndex + n + 5] = BitUtils.extract(color2, 8, 8);
-            to[toIndex + n + 6] = BitUtils.extract(color2, 16, 8);
-            to[toIndex + n + 7] = useAlpha ? BitUtils.extract(color2, 24, 8) : 0xFF;
+        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+        var orValue = useAlpha ? 0 : 0xFF000000;
+        for (var n = 0, m = 0; n < count; n++) {
+            var char = from[fromIndex + n];
+            to32[m++] = palette[clutStart + ((((char >> 0) & 0xF) & clutMask) << clutShift)] | orValue;
+            to32[m++] = palette[clutStart + ((((char >> 4) & 0xF) & clutMask) << clutShift)] | orValue;
         }
     };
 
@@ -9097,25 +9123,19 @@ var PixelConverter = (function () {
         if (typeof clutStart === "undefined") { clutStart = 0; }
         if (typeof clutShift === "undefined") { clutShift = 0; }
         if (typeof clutMask === "undefined") { clutMask = 0; }
-        for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
-            var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
-            var color = palette[colorIndex];
-            to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
-            to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
-            to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
-            to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
-        }
+        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+        var orValue = useAlpha ? 0 : 0xFF000000;
+        for (var m = 0; m < count; m++)
+            to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
     };
 
     PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
         if (typeof useAlpha === "undefined") { useAlpha = true; }
-        var count4 = count * 4;
-        for (var n = 0; n < count4; n += 4) {
-            to[toIndex + n + 0] = from[fromIndex + n + 0];
-            to[toIndex + n + 1] = from[fromIndex + n + 1];
-            to[toIndex + n + 2] = from[fromIndex + n + 2];
-            to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
-        }
+        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+        var from32 = ArrayBufferUtils.uint8ToUint32(from, fromIndex);
+        var orValue = useAlpha ? 0 : 0xFF000000;
+        for (var n = 0; n < count; n++)
+            to32[n] = from32[n] | orValue;
     };
 
     PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
@@ -9203,10 +9223,7 @@ var _vfs = require('./hle/vfs');
 var _elf_psp = require('./hle/elf_psp');
 var _elf_crypted_prx = require('./hle/elf_crypted_prx');
 
-var _manager_memory = require('./hle/manager/memory');
-var _manager_file = require('./hle/manager/file');
-var _manager_thread = require('./hle/manager/thread');
-var _manager_module = require('./hle/manager/module');
+var _manager = require('./hle/manager');
 var _pspmodules = require('./hle/pspmodules');
 
 var PspRtc = _rtc.PspRtc;
@@ -9217,25 +9234,28 @@ var MountableVfs = _vfs.MountableVfs;
 var UriVfs = _vfs.UriVfs;
 var IsoVfs = _vfs.IsoVfs;
 var ZipVfs = _vfs.ZipVfs;
+var MemoryStickVfs = _vfs.MemoryStickVfs;
 var EmulatorVfs = _vfs.EmulatorVfs;
 _vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
 
 var PspElfLoader = _elf_psp.PspElfLoader;
 
-var MemoryManager = _manager_memory.MemoryManager;
 var Memory = _memory.Memory;
 var EmulatorContext = _context.EmulatorContext;
 var InterruptManager = _interrupt.InterruptManager;
-var FileManager = _manager_file.FileManager;
 var PspAudio = _audio.PspAudio;
 var PspDisplay = _display.PspDisplay;
 var PspGpu = _gpu.PspGpu;
 var PspController = _controller.PspController;
 var InstructionCache = _cpu.InstructionCache;
 var SyscallManager = _cpu.SyscallManager;
-var ThreadManager = _manager_thread.ThreadManager;
-var ModuleManager = _manager_module.ModuleManager;
+
+var ThreadManager = _manager.ThreadManager;
+var ModuleManager = _manager.ModuleManager;
+var MemoryManager = _manager.MemoryManager;
+var FileManager = _manager.FileManager;
+var CallbackManager = _manager.CallbackManager;
 
 var Emulator = (function () {
     function Emulator(memory) {
@@ -9275,11 +9295,14 @@ var Emulator = (function () {
             _this.threadManager = new ThreadManager(_this.memory, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new ModuleManager(_this.context);
             _this.interruptManager = new InterruptManager();
+            _this.callbackManager = new CallbackManager();
             _this.rtc = new PspRtc();
 
             _this.emulatorVfs = new EmulatorVfs();
+            _this.ms0Vfs = new MountableVfs();
 
-            _this.fileManager.mount('ms0', _this.ms0Vfs = new MountableVfs());
+            _this.fileManager.mount('fatms0', new MemoryStickVfs(_this.ms0Vfs, _this.callbackManager, _this.memory));
+            _this.fileManager.mount('ms0', new MemoryStickVfs(_this.ms0Vfs, _this.callbackManager, _this.memory));
             _this.fileManager.mount('host0', new MemoryVfs());
             _this.fileManager.mount('flash0', new UriVfs('flash0'));
             _this.fileManager.mount('emulator', _this.emulatorVfs);
@@ -9289,7 +9312,7 @@ var Emulator = (function () {
 
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
 
-            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager);
 
             return Promise.all([
                 _this.display.startAsync(),
@@ -9365,7 +9388,7 @@ var Emulator = (function () {
                 case 'zip':
                     return _format_zip.Zip.fromStreamAsync(asyncStream).then(function (zip) {
                         var zipFs = new ZipVfs(zip);
-                        var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
+                        var mountableVfs = _this.ms0Vfs;
                         mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
 
                         var availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(function (item) {
@@ -9412,11 +9435,13 @@ var Emulator = (function () {
                             document.title = 'jspspemu';
                         }
 
-                        var mountableVfs = _this.fileManager.getDevice('ms0').vfs;
+                        var mountableVfs = _this.ms0Vfs;
                         mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
+                        //this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
+                        console.info('pathToFile:', pathToFile);
                         var arguments = [pathToFile];
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
                         var argument = arguments.map(function (argument) {
@@ -12406,6 +12431,10 @@ var CallbackManager = (function () {
         return this.uids.allocate(callback);
     };
 
+    CallbackManager.prototype.remove = function (id) {
+        return this.uids.remove(id);
+    };
+
     CallbackManager.prototype.get = function (id) {
         return this.uids.get(id);
     };
@@ -12564,7 +12593,7 @@ exports.Uri = Uri;
 var FileManager = (function () {
     function FileManager() {
         this.devices = {};
-        this.cwd = new Uri('');
+        this.cwd = new Uri('ms0:/');
     }
     FileManager.prototype.chdir = function (cwd) {
         this.cwd = new Uri(cwd);
@@ -13027,7 +13056,7 @@ var Thread = (function () {
         }
 
         var start = performance.now();
-        return waitAsycn(delayMicroseconds / 1000).then(function () {
+        return waitAsync(delayMicroseconds / 1000).then(function () {
             var end = performance.now();
             var elapsedmicroseconds = (end - start) * 1000;
 
@@ -13648,7 +13677,7 @@ var LoadExecForUser = (function () {
             throw (new CpuBreakException());
         });
         this.sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
-            console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
+            //console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
             return 0;
         });
     }
@@ -14758,7 +14787,7 @@ var sceAtrac3plus = (function () {
         });
     }
     sceAtrac3plus.prototype._waitAsync = function (name, time) {
-        return new WaitingThreadInfo(name, this, waitAsycn(time).then(function () {
+        return new WaitingThreadInfo(name, this, waitAsync(time).then(function () {
             return 0;
         }));
     };
@@ -14783,7 +14812,7 @@ var sceAudio = (function () {
             return 0;
         });
         this.sceAudioOutput2OutputBlocking = createNativeFunction(0x2D53F36E, 150, 'uint', 'int/void*', this, function (volume, buffer) {
-            return waitAsycn(10).then(function () {
+            return waitAsync(10).then(function () {
                 return 0;
             });
         });
@@ -14827,6 +14856,10 @@ var sceAudio = (function () {
             return 0;
         });
         this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+            if (!buffer)
+                return waitAsync(10).then(function () {
+                    return 0;
+                });
             var channel = _this.channels[channelId];
             return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
         });
@@ -15323,6 +15356,12 @@ var scePower = (function () {
             _this.context.callbackManager.notify(callbackId, 128 /* BATTERY_EXIST */);
             return 0;
         });
+        this.scePowerUnregitserCallback = createNativeFunction(0xDB9D28DD, 150, 'int', 'int', this, function (slotIndex) {
+            return 0;
+        });
+        this.scePowerUnregisterCallback = createNativeFunction(0xDFA8BAF8, 150, 'int', 'int', this, function (slotIndex) {
+            return 0;
+        });
         this.scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
             if (!_this._isValidCpuFreq(cpuFreq))
                 return 2147484158 /* ERROR_INVALID_VALUE */;
@@ -15406,6 +15445,9 @@ var scePower = (function () {
         this.scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, function (type) {
             return 0;
         });
+        this.scePowerGetBatteryChargingStatus = createNativeFunction(0xB4432BC8, 150, 'int', '', this, function () {
+            return 128 /* BatteryExists */ | 4096 /* AcPower */ | 127 /* BatteryPower */;
+        });
     }
     scePower.prototype._getCpuMult = function () {
         return 0.43444227005871 * (this.busFreq / 111);
@@ -15446,6 +15488,20 @@ var CallbackStatus;
     CallbackStatus[CallbackStatus["BATTERY_EXIST"] = 0x00000080] = "BATTERY_EXIST";
     CallbackStatus[CallbackStatus["BATTERY_FULL"] = 0x00000064] = "BATTERY_FULL";
 })(CallbackStatus || (CallbackStatus = {}));
+
+var PowerFlagsSet;
+(function (PowerFlagsSet) {
+    PowerFlagsSet[PowerFlagsSet["PowerSwitch"] = 0x80000000] = "PowerSwitch";
+    PowerFlagsSet[PowerFlagsSet["HoldSwitch"] = 0x40000000] = "HoldSwitch";
+    PowerFlagsSet[PowerFlagsSet["StandBy"] = 0x00080000] = "StandBy";
+    PowerFlagsSet[PowerFlagsSet["ResumeComplete"] = 0x00040000] = "ResumeComplete";
+    PowerFlagsSet[PowerFlagsSet["Resuming"] = 0x00020000] = "Resuming";
+    PowerFlagsSet[PowerFlagsSet["Suspending"] = 0x00010000] = "Suspending";
+    PowerFlagsSet[PowerFlagsSet["AcPower"] = 0x00001000] = "AcPower";
+    PowerFlagsSet[PowerFlagsSet["BatteryLow"] = 0x00000100] = "BatteryLow";
+    PowerFlagsSet[PowerFlagsSet["BatteryExists"] = 0x00000080] = "BatteryExists";
+    PowerFlagsSet[PowerFlagsSet["BatteryPower"] = 0x0000007F] = "BatteryPower";
+})(PowerFlagsSet || (PowerFlagsSet = {}));
 //# sourceMappingURL=scePower.js.map
 },
 "src/hle/module/scePspNpDrm_user": function(module, exports, require) {
@@ -16033,7 +16089,6 @@ var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
 _manager.Thread;
 
-var Callback = _manager.Callback;
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
 var Thread = _manager.Thread;
@@ -16130,18 +16185,6 @@ var ThreadManForUser = (function () {
             _this._sceKernelTerminateThread(threadId);
             _this._sceKernelDeleteThread(threadId);
             return 0;
-        });
-        this.sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
-            return _this.context.callbackManager.register(new Callback(name, functionCallbackAddr, argument));
-        });
-        /**
-        * Run all peding callbacks and return if executed any.
-        * Callbacks cannot be executed inside a interrupt.
-        * @return 0 no reported callbacks; 1 reported callbacks which were executed successfully.
-        */
-        this.sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, function (thread) {
-            //console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
-            return _this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
         });
         this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, function (currentThread) {
             return currentThread.wakeupSleepAsync();
@@ -16241,6 +16284,41 @@ var SceKernelThreadInfo = (function () {
     return SceKernelThreadInfo;
 })();
 //# sourceMappingURL=ThreadManForUser.js.map
+},
+"src/hle/module/threadman/ThreadManForUser_callbacks": function(module, exports, require) {
+var _utils = require('../../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
+var _manager = require('../../manager');
+_manager.Thread;
+
+var Callback = _manager.Callback;
+
+var ThreadManForUser = (function () {
+    function ThreadManForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
+            return _this.context.callbackManager.register(new Callback(name, functionCallbackAddr, argument));
+        });
+        this.sceKernelDeleteCallback = createNativeFunction(0xEDBA5844, 150, 'uint', 'int', this, function (callbackId) {
+            _this.context.callbackManager.remove(callbackId);
+        });
+        /**
+        * Run all peding callbacks and return if executed any.
+        * Callbacks cannot be executed inside a interrupt.
+        * @return 0 no reported callbacks; 1 reported callbacks which were executed successfully.
+        */
+        this.sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, function (thread) {
+            //console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
+            return _this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
+        });
+    }
+    return ThreadManForUser;
+})();
+exports.ThreadManForUser = ThreadManForUser;
+//# sourceMappingURL=ThreadManForUser_callbacks.js.map
 },
 "src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
 var _utils = require('../../utils');
@@ -16763,6 +16841,7 @@ function registerModules(manager) {
     manager.registerModule(require('./module/StdioForUser'));
     manager.registerModule(require('./module/SysMemUserForUser'));
     manager.registerModule(require('./module/threadman/ThreadManForUser'));
+    manager.registerModule(require('./module/threadman/ThreadManForUser_callbacks'));
     manager.registerModule(require('./module/threadman/ThreadManForUser_sema'));
     manager.registerModule(require('./module/threadman/ThreadManForUser_eventflag'));
     manager.registerModule(require('./module/threadman/ThreadManForUser_vpl'));
@@ -17019,6 +17098,8 @@ var _vfs_iso = require('./vfs/vfs_iso');
 _vfs_iso.IsoVfs;
 var _vfs_uri = require('./vfs/vfs_uri');
 _vfs_uri.UriVfs;
+var _vfs_ms = require('./vfs/vfs_ms');
+_vfs_ms.MemoryStickVfs;
 var _vfs_memory = require('./vfs/vfs_memory');
 _vfs_memory.MemoryVfs;
 var _vfs_mountable = require('./vfs/vfs_mountable');
@@ -17051,6 +17132,8 @@ var StorageVfs = _vfs_storage.StorageVfs;
 exports.StorageVfs = StorageVfs;
 var EmulatorVfs = _vfs_emulator.EmulatorVfs;
 exports.EmulatorVfs = EmulatorVfs;
+var MemoryStickVfs = _vfs_ms.MemoryStickVfs;
+exports.MemoryStickVfs = MemoryStickVfs;
 //# sourceMappingURL=vfs.js.map
 },
 "src/hle/vfs/vfs": function(module, exports, require) {
@@ -17093,6 +17176,22 @@ var Vfs = (function () {
     return Vfs;
 })();
 exports.Vfs = Vfs;
+
+var ProxyVfs = (function (_super) {
+    __extends(ProxyVfs, _super);
+    function ProxyVfs(parentVfs) {
+        _super.call(this);
+        this.parentVfs = parentVfs;
+    }
+    ProxyVfs.prototype.devctlAsync = function (command, input, output) {
+        return this.parentVfs.devctlAsync(command, input, output);
+    };
+    ProxyVfs.prototype.openAsync = function (path, flags, mode) {
+        return this.parentVfs.openAsync(path, flags, mode);
+    };
+    return ProxyVfs;
+})(Vfs);
+exports.ProxyVfs = ProxyVfs;
 
 var VfsEntry = (function () {
     function VfsEntry() {
@@ -17497,6 +17596,116 @@ var MountableEntry = (function () {
 //}
 //# sourceMappingURL=vfs_mountable.js.map
 },
+"src/hle/vfs/vfs_ms": function(module, exports, require) {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var _vfs = require('./vfs');
+var _manager = require('../manager');
+_manager.CallbackManager;
+
+var SceKernelErrors = require('../SceKernelErrors');
+
+var ProxyVfs = _vfs.ProxyVfs;
+
+var CallbackManager = _manager.CallbackManager;
+
+var MemoryStickVfs = (function (_super) {
+    __extends(MemoryStickVfs, _super);
+    function MemoryStickVfs(parentVfs, callbackManager, memory) {
+        _super.call(this, parentVfs);
+        this.callbackManager = callbackManager;
+        this.memory = memory;
+    }
+    MemoryStickVfs.prototype.devctlAsync = function (command, input, output) {
+        switch (command) {
+            case 37902371 /* CheckInserted */:
+                if (output == null || output.length < 4)
+                    return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+
+                // 0 - Device is not assigned (callback not registered).
+                // 1 - Device is assigned (callback registered).
+                output.writeInt32(1);
+                return 0;
+            case 37836833 /* MScmRegisterMSInsertEjectCallback */:
+                if (input == null || input.length < 4)
+                    return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+                var callbackId = input.readInt32();
+
+                this.callbackManager.notify(callbackId, 1);
+
+                return 0;
+            case 37836834 /* MScmUnregisterMSInsertEjectCallback */:
+                // Ignore.
+                return 0;
+            case 37902360 /* GetMemoryStickCapacity */:
+                if (input == null || input.length < 4)
+                    return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+
+                var structAddress = input.readInt32();
+                var structStream = this.memory.getPointerStream(structAddress, SizeInfoStruct.struct.length);
+
+                var sizeInfo = new SizeInfoStruct();
+                var memoryStickSectorSize = (32 * 1024);
+
+                //var TotalSpaceInBytes = 2L * 1024 * 1024 * 1024;
+                var freeSpaceInBytes = 1 * 1024 * 1024 * 1024;
+
+                sizeInfo.sectorSize = 0x200;
+                sizeInfo.sectorCount = (memoryStickSectorSize / sizeInfo.sectorSize);
+                sizeInfo.maxClusters = (freeSpaceInBytes * 95 / 100) / (sizeInfo.sectorSize * sizeInfo.sectorCount);
+                sizeInfo.freeClusters = sizeInfo.maxClusters;
+                sizeInfo.maxSectors = sizeInfo.maxClusters;
+
+                SizeInfoStruct.struct.write(structStream, sizeInfo);
+
+                return 0;
+            case 33708038 /* CheckMemoryStickIsInserted */:
+                output.writeInt32(1);
+                return 0;
+            case 33708033 /* CheckMemoryStickStatus */:
+                // 0 <- Busy
+                // 1 <- Ready
+                output.writeInt32(4);
+                return 0;
+            default:
+                throw (new Error("Invalid MemoryStick command '" + command + "'"));
+                break;
+        }
+
+        return 0;
+    };
+    return MemoryStickVfs;
+})(ProxyVfs);
+exports.MemoryStickVfs = MemoryStickVfs;
+
+(function (CommandType) {
+    CommandType[CommandType["CheckInserted"] = 0x02425823] = "CheckInserted";
+    CommandType[CommandType["MScmRegisterMSInsertEjectCallback"] = 0x02415821] = "MScmRegisterMSInsertEjectCallback";
+    CommandType[CommandType["MScmUnregisterMSInsertEjectCallback"] = 0x02415822] = "MScmUnregisterMSInsertEjectCallback";
+    CommandType[CommandType["GetMemoryStickCapacity"] = 0x02425818] = "GetMemoryStickCapacity";
+    CommandType[CommandType["CheckMemoryStickIsInserted"] = 0x02025806] = "CheckMemoryStickIsInserted";
+    CommandType[CommandType["CheckMemoryStickStatus"] = 0x02025801] = "CheckMemoryStickStatus";
+})(exports.CommandType || (exports.CommandType = {}));
+var CommandType = exports.CommandType;
+
+var SizeInfoStruct = (function () {
+    function SizeInfoStruct() {
+    }
+    SizeInfoStruct.struct = StructClass.create(SizeInfoStruct, [
+        { maxClusters: UInt32 },
+        { freeClusters: UInt32 },
+        { maxSectors: UInt32 },
+        { sectorSize: UInt32 },
+        { sectorCount: UInt32 }
+    ]);
+    return SizeInfoStruct;
+})();
+//# sourceMappingURL=vfs_ms.js.map
+},
 "src/hle/vfs/vfs_storage": function(module, exports, require) {
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -17588,26 +17797,6 @@ var UriVfs = (function (_super) {
 })(Vfs);
 exports.UriVfs = UriVfs;
 
-/*
-class UriVfsEntry extends VfsEntry {
-constructor(private url: string, private _stat: StatInfo) {
-super();
-console.log('opened', url, _stat);
-}
-get isDirectory(): boolean { return false; }
-get size(): number { return this._stat.size; }
-readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
-var totalSize = this._stat.size;
-length = Math.min(length, totalSize - offset);
-console.info('download chunk ', this.url, offset, length);
-return downloadFileChunkAsync(this.url, offset, length).then(data => {
-return data;
-});
-}
-close() { }
-stat(): VfsStat { return urlStatToVfsStat(this._stat); }
-}
-*/
 function urlStatToVfsStat(url, info) {
     return {
         name: url,
@@ -19710,7 +19899,7 @@ describe('elf', function () {
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
@@ -19816,22 +20005,8 @@ describe('pspautotests', function () {
     this.timeout(5000);
 
     var tests = [
-        { cpu: ['cpu_alu', 'cpu_branch', 'fcr', 'fpu', 'fpu2', 'lsu'] },
-        { vfpu: ['colors', 'convert', 'gum', 'matrix', 'prefixes', 'vector'] },
-        { intr: ['intr', 'suspended', 'waits', 'vblank/vblank'] },
-        { display: ['display', 'hcount', 'vblankmulti'] },
-        { gpu: ['ge_callbacks', 'signals/jumps', 'signals/simple'] },
-        { dmac: ['dmactest'] },
-        { loader: ['bss'] },
-        { misc: ['dcache', 'deadbeef', 'libc', 'sdkver', 'testgp', 'timeconv', 'string', 'icache', 'malloc'] },
-        { mstick: ['mstick'] },
-        { power: ['cpu', 'freq', 'power', 'lock', 'trylock', 'unlock'] },
-        { rtc: ['arithmetic', 'convert', 'lookup', 'rtc'] },
-        { sysmem: ['freesize', 'memblock', 'partition', 'sysmem'] },
-        { thread: ['change', 'create', 'exitstatus', 'extend', 'refer', 'release', 'rotate', 'stackfree', 'start', 'suspend', 'terminate', 'threadend', 'threads', 'k0'] },
-        { thread_callbacks: ['callbacks', 'cancel', 'check', 'count', 'create', 'delete', 'exit', 'notify', 'refer'] },
-        { thread_events: ['cancel', 'clear', 'create', 'delete', 'events', 'poll', 'refer', 'set', 'wait'] },
-        { thread_semaphore: ['cancel', 'create', 'delete', 'fifo', 'poll', 'priority', 'refer', 'semaphores', 'signal', 'wait'] }
+        //{ 'audio/atrac': ['atractest', 'decode', 'ids', 'resetting', 'setdata'] },
+        { 'audio/mp3': ['mp3test'] }
     ];
 
     function normalizeString(string) {
@@ -19889,7 +20064,7 @@ describe('pspautotests', function () {
                 testNameList.forEach(function (testName) {
                     it(testName, function () {
                         var emulator = new Emulator();
-                        var file_base = 'samples/tests/' + testGroupName + '/' + testName;
+                        var file_base = '../pspautotests/tests/' + testGroupName + '/' + testName;
                         var file_prx = file_base + '.prx';
                         var file_expected = file_base + '.expected';
 

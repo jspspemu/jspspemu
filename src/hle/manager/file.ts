@@ -78,7 +78,7 @@ export class Uri {
 
 export class FileManager {
 	private devices: StringDictionary<Device> = {};
-	cwd: Uri = new Uri('');
+	cwd: Uri = new Uri('ms0:/');
 
 	chdir(cwd:string) {
 		this.cwd = new Uri(cwd);

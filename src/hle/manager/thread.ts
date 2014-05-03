@@ -86,7 +86,7 @@ export class Thread {
 		}
 
 		var start = performance.now();
-		return waitAsycn(delayMicroseconds / 1000).then(() => {
+		return waitAsync(delayMicroseconds / 1000).then(() => {
 			var end = performance.now();
 			var elapsedmicroseconds = (end - start) * 1000;
 

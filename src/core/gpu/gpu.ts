@@ -407,6 +407,9 @@ class PspGpuList {
 				this.state.culling.direction = <_state.CullingDirection>params24; // FrontFaceDirectionEnum
 				break;
 
+			case GpuOpCodes.SFIX: this.state.blending.fixColorSourceRGB = params24; break;
+			case GpuOpCodes.DFIX: this.state.blending.fixColorDestinationRGB = params24; break;
+
 			case GpuOpCodes.PRIM:
 				//if (this.current < this.stall) {
 				//	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);

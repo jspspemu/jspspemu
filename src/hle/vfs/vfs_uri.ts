@@ -39,28 +39,6 @@ export class UriVfs extends Vfs {
 	}
 }
 
-/*
-class UriVfsEntry extends VfsEntry {
-	constructor(private url: string, private _stat: StatInfo) {
-		super();
-		console.log('opened', url, _stat);
-	}
-
-	get isDirectory(): boolean { return false; }
-	get size(): number { return this._stat.size; }
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
-		var totalSize = this._stat.size;
-		length = Math.min(length, totalSize - offset);
-		console.info('download chunk ', this.url, offset, length);
-		return downloadFileChunkAsync(this.url, offset, length).then(data => {
-			return data;
-		});
-	}
-	close() { }
-	stat(): VfsStat { return urlStatToVfsStat(this._stat); }
-}
-*/
-
 function urlStatToVfsStat(url: string, info: StatInfo) {
 	return {
 		name: url,

@@ -42,20 +42,19 @@ export class PixelConverter {
 	}
 
 	static unswizzleInline(format: PixelFormat, from: ArrayBuffer, fromIndex: number, width: number, height: number) {
-		return PixelConverter.unswizzleInline2(from, fromIndex, PixelConverter.getSizeInBytes(format, width), height);
-	}
-
-	private static unswizzleInline2(from: ArrayBuffer, fromIndex: number, rowWidth: number, textureHeight: number) {
+		var rowWidth = PixelConverter.getSizeInBytes(format, width);
+		var textureHeight = height;
 		var size = rowWidth * textureHeight;
 		var temp = new Uint8Array(size);
-		PixelConverter.unswizzle(new DataView(from, fromIndex), new DataView(temp.buffer), rowWidth, textureHeight);
+		PixelConverter.unswizzle(new Uint8Array(from, fromIndex), new Uint8Array(temp.buffer), rowWidth, textureHeight);
 		new Uint8Array(from, fromIndex, size).set(temp);
 	}
 
-	private static unswizzle(input: DataView, output: DataView, rowWidth: number, textureHeight: number) {
-		var pitch = (rowWidth - 16) / 4;
-		var bxc = rowWidth / 16;
-		var byc = textureHeight / 8;
+	private static unswizzle(input: Uint8Array, output: Uint8Array, rowWidth: number, textureHeight: number) {
+		var pitch = ToInt32((rowWidth - 16) / 4);
+		var bxc = ToInt32(rowWidth / 16);
+		var byc = ToInt32(textureHeight / 8);
+		var pitch4 = ToInt32(pitch * 4);
 
 		var src = 0;
 		var ydest = 0;
@@ -63,12 +62,9 @@ export class PixelConverter {
 			var xdest = ydest;
 			for (var bx = 0; bx < bxc; bx++) {
 				var dest = xdest;
-				for (var n = 0; n < 8; n++, dest += pitch * 4) {
-					for (var m = 0; m < 4; m++) {
-						output.setInt32(dest, input.getInt32(src));
-						dest += 4;
-						src += 4;
-					}
+				for (var n = 0; n < 8; n++, dest += pitch4) {
+					//ArrayBufferUtils.copy(input, src, output, dest, 16);
+					for (var m = 0; m < 16; m++) output[dest++] = input[src++];
 				}
 				xdest += 16;
 			}
@@ -102,40 +98,26 @@ export class PixelConverter {
 	}
 
 	private static updateT4(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		for (var n = 0, m = 0; n < count * 8; n += 8, m++) {
-			var color1 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 0, 4) & clutMask) << clutShift)];
-			var color2 = palette[clutStart + ((BitUtils.extract(from[fromIndex + m], 4, 4) & clutMask) << clutShift)];
-			to[toIndex + n + 0] = BitUtils.extract(color1, 0, 8);
-			to[toIndex + n + 1] = BitUtils.extract(color1, 8, 8);
-			to[toIndex + n + 2] = BitUtils.extract(color1, 16, 8);
-			to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color1, 24, 8) : 0xFF;
-
-			to[toIndex + n + 4] = BitUtils.extract(color2, 0, 8);
-			to[toIndex + n + 5] = BitUtils.extract(color2, 8, 8);
-			to[toIndex + n + 6] = BitUtils.extract(color2, 16, 8);
-			to[toIndex + n + 7] = useAlpha ? BitUtils.extract(color2, 24, 8) : 0xFF;
+		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		var orValue = useAlpha ? 0 : 0xFF000000;
+		for (var n = 0, m = 0; n < count; n++) {
+			var char = from[fromIndex + n];
+			to32[m++] = palette[clutStart + ((((char >> 0) & 0xF) & clutMask) << clutShift)] | orValue;
+			to32[m++] = palette[clutStart + ((((char >> 4) & 0xF) & clutMask) << clutShift)] | orValue;
 		}
 	}
 
 	private static updateT8(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		for (var n = 0, m = 0; n < count * 4; n += 4, m++) {
-			var colorIndex = clutStart + ((from[fromIndex + m] & clutMask) << clutShift);
-			var color = palette[colorIndex];
-			to[toIndex + n + 0] = BitUtils.extract(color, 0, 8);
-			to[toIndex + n + 1] = BitUtils.extract(color, 8, 8);
-			to[toIndex + n + 2] = BitUtils.extract(color, 16, 8);
-			to[toIndex + n + 3] = useAlpha ? BitUtils.extract(color, 24, 8) : 0xFF;
-		}
+		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		var orValue = useAlpha ? 0 : 0xFF000000;
+		for (var m = 0; m < count; m++) to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
 	}
 
 	private static decode8888(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		var count4 = count * 4;
-		for (var n = 0; n < count4; n += 4) {
-			to[toIndex + n + 0] = from[fromIndex + n + 0];
-			to[toIndex + n + 1] = from[fromIndex + n + 1];
-			to[toIndex + n + 2] = from[fromIndex + n + 2];
-			to[toIndex + n + 3] = useAlpha ? from[fromIndex + n + 3] : 0xFF;
-		}
+		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		var from32 = ArrayBufferUtils.uint8ToUint32(from, fromIndex);
+		var orValue = useAlpha ? 0 : 0xFF000000;
+		for (var n = 0; n < count; n++) to32[n] = from32[n] | orValue;
 	}
 
 	private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {

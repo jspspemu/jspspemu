@@ -111,7 +111,13 @@ class Stream {
 	}
 
 	toImageUrl() {
-		return 'data:image/png;base64,' + this.toBase64();
+		var urlCreator = window['URL'] || window['webkitURL'];
+		if (urlCreator) {
+			var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
+			return urlCreator.createObjectURL(blob);
+		} else {
+			return 'data:image/png;base64,' + this.toBase64();
+		}
 	}
 
 	toBase64() {
@@ -129,6 +135,10 @@ class Stream {
 
 	toArrayBuffer() {
 		return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+	}
+
+	clone() {
+		return this.sliceWithLowHigh(this.position, this.length);
 	}
 
 	sliceWithLength(low: number, count?: number) {
