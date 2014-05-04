@@ -125,6 +125,6 @@ http.createServer(function(request, response) {
     });
 	*/
   });
-}).listen(parseInt(port, 10));
+}).listen(parseInt(port, 10), '0.0.0.0');
  
-console.log("Static file server running at\n  => http://localhost:" + port + "/\nCTRL + C to shutdown");
+console.log("Static file server running at\n  => http://0.0.0.0:" + port + "/\nCTRL + C to shutdown");

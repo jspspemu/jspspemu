@@ -19,6 +19,8 @@ export import ModuleWrapper = _module.ModuleWrapper;
 
 export import Thread = _thread.Thread;
 export import ThreadManager = _thread.ThreadManager;
+export import ThreadStatus = _thread.ThreadStatus;
+export import PspThreadAttributes = _thread.PspThreadAttributes;
 
 export import Callback = _callback.Callback;
 export import CallbackManager = _callback.CallbackManager;

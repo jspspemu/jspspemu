@@ -331,7 +331,24 @@ export class Instructions {
 		// Syscall
 		ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
 
-		ID("cache", VM("101111--------------------------"), "%k, %o", ADDR_TYPE_NONE, 0);
+		ID("cache", VM("101111:rs:-----:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+
+		//ID("icache_index_invalidate", VM("101111:rs:00100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("icache_index_unlock", VM("101111:rs:00110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("icache_hit_invalidate", VM("101111:rs:01000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("icache_fill", VM("101111:rs:01010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("icache_fill_with_lock", VM("101111:rs:01011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//
+		//ID("dcache_index_writeback_invalidate", VM("101111:rs:10100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_index_unlock", VM("101111:rs:10110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_create_dirty_exclusive", VM("101111:rs:11000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_hit_invalidate", VM("101111:rs:11001:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_hit_writeback", VM("101111:rs:11010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_hit_writeback_invalidate", VM("101111:rs:11011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_create_dirty_exclusive_with_lock", VM("101111:rs:11100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_fill", VM("101111:rs:11110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		//ID("dcache_fill_with_lock", VM("101111:rs:11111:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+		
 		ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
 
 		ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);

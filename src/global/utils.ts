@@ -334,3 +334,8 @@ function DebugOnce(name: string, times: number = 1) {
 	}
 	return true;
 }
+
+function isTouchDevice() {
+	return 'ontouchstart' in window // works on most browsers 
+		|| 'onmsgesturechange' in window; // works on ie10
+}

@@ -40,6 +40,11 @@ export class ModuleMgrForUser {
 		return -1;
 	});
 
+	sceKernelGetModuleId = createNativeFunction(0xF0A26395, 150, 'uint', '', this, () => {
+		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
+		return 4; // TODO!
+	});
+
 	sceKernelLoadModuleByID = createNativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*', this, (fileId: number, flags: number, sceKernelLMOption: Stream) => {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
 		return 0;

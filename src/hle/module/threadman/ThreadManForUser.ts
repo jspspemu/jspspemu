@@ -9,16 +9,22 @@ import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 import CpuState = _cpu.CpuState;
 
 import Thread = _manager.Thread;
+import ThreadStatus = _manager.ThreadStatus;
+import PspThreadAttributes = _manager.PspThreadAttributes;
 
 export class ThreadManForUser {
 	constructor(private context: _context.EmulatorContext) { }
 
 	private threadUids = new UidCollection<Thread>(1);
 
-	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: number, optionPtr: number) => {
+	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number) => {
+		stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
+		stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
+
 		//var stackPartition = this.context.memoryManager.stackPartition;
 		var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
 		newThread.id = this.threadUids.allocate(newThread);
+		newThread.status = ThreadStatus.DORMANT;
 
 		console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d', newThread.id, newThread.name, newThread.priority, currentThread.priority));
 
@@ -159,16 +165,34 @@ export class ThreadManForUser {
 	sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, (threadId: number, sceKernelThreadInfoPtr: Stream) => {
 		if (!this.threadUids.has(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.threadUids.get(threadId);
-		var sceKernelThreadInfo = new SceKernelThreadInfo();
-		sceKernelThreadInfo.size = SceKernelThreadInfo.struct.length;
-		sceKernelThreadInfo.name = thread.name;
-		sceKernelThreadInfo.attributes = thread.attributes;
-		sceKernelThreadInfo.threadPreemptionCount = thread.preemptionCount;
-		//console.log(thread.state.GP);
-		sceKernelThreadInfo.GP = thread.state.GP;
-		sceKernelThreadInfo.priorityInit = thread.initialPriority;
-		sceKernelThreadInfo.priority = thread.priority;
-		SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, sceKernelThreadInfo);
+
+		var info = new SceKernelThreadInfo();
+
+		info.size = SceKernelThreadInfo.struct.length;
+
+		info.name = thread.name;
+		info.attributes = thread.attributes;
+		info.status = thread.status;
+		info.threadPreemptionCount = thread.preemptionCount;
+		info.entryPoint = thread.entryPoint
+		info.stackPointer = thread.stackPartition.high;
+		info.stackSize = thread.stackPartition.size;
+		info.GP = thread.state.GP;
+
+		info.priorityInit = thread.initialPriority;
+		info.priority = thread.priority;
+		info.waitType = 0;
+		info.waitId = 0;
+		info.wakeupCount = 0;
+		info.exitStatus = thread.exitStatus;
+		info.runClocksLow = 0;
+		info.runClocksHigh = 0;
+		info.interruptPreemptionCount = 0;
+		info.threadPreemptionCount = 0;
+		info.releaseCount = 0;
+
+		SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, info);
+
 		return 0;
 	});
 
@@ -187,7 +211,7 @@ class SceKernelThreadInfo {
     size: number;
     name: string;
     attributes: number;
-    status: number;
+	status: ThreadStatus;
     entryPoint: number;
     stackPointer: number;
     stackSize: number;

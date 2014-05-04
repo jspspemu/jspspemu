@@ -14,12 +14,35 @@ import ProgramExecutor = _cpu.ProgramExecutor;
 import NativeFunction = _cpu.NativeFunction;
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
+export enum ThreadStatus {
+	RUNNING = 1,
+	READY   = 2,
+	WAIT    = 4,
+	SUSPEND = 8,
+	DORMANT = 16,
+	DEAD    = 32,
+
+	WAITSUSPEND = WAIT | SUSPEND,
+}
+
+export enum PspThreadAttributes {
+	None = 0,
+	Vfpu = 0x00004000, // Enable VFPU access for the thread.
+	User = 0x80000000, // Start the thread in user mode (done automatically if the thread creating it is in user mode).
+	UsbWlan = 0xa0000000, // Thread is part of the USB/WLAN API.
+	Vsh = 0xc0000000, // Thread is part of the VSH API.
+	ScratchRamEnable = 0x00008000, // Allow using scratchpad memory for a thread, NOT USABLE ON V1.0
+	NoFillStack = 0x00100000, // Disables filling the stack with 0xFF on creation
+	ClearStack = 0x00200000, // Clear the stack when the thread is deleted
+}
 
 export class Thread {
     id: number = 0;
-    name: string;
+	name: string;
+	status: ThreadStatus = ThreadStatus.DORMANT;
 	programExecutor: ProgramExecutor;
 	initialPriority: number = 10;
+	entryPoint: number = 0;
 	priority: number = 10;
 	attributes: number = 0;
     exitStatus: number = 0;
@@ -181,16 +204,27 @@ export class ThreadManager {
 		});
     }
 
-	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: number = 0) {
+	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
 		var thread = new Thread(this, new CpuState(this.memory, this.syscallManager), this.instructionCache);
-		thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize);
-        thread.name = name;
+		thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
+
+		thread.name = name;
+		thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
         thread.state.RA = CpuSpecialAddresses.EXIT_THREAD;
 		thread.state.SP = thread.stackPartition.high;
 		thread.initialPriority = initialPriority;
 		thread.priority = initialPriority;
 		thread.attributes = attributes;
+
+		if ((thread.stackPartition.high & 0xFF) != 0) throw(new Error("Stack not aligned"));
+
+		if (!(thread.attributes & PspThreadAttributes.NoFillStack)) {
+			//this.memory.memset(thread.stackPartition.low, 0xFF, thread.stackPartition.size);
+		} else if ((thread.attributes & PspThreadAttributes.ClearStack)) {
+			//this.memory.memset(thread.stackPartition.low, 0x00, thread.stackPartition.size);
+		}
+
         return thread;
     }
 

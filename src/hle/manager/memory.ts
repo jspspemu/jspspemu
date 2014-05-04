@@ -81,7 +81,7 @@ export class MemoryPartition {
         return this.allocateLowHigh(size, true, name);
     }
 
-	allocateHigh(size: number, name: string = '') {
+	allocateHigh(size: number, name: string = '', alignment: number = 1) {
         return this.allocateLowHigh(size, false, name);
     }
 

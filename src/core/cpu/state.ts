@@ -167,8 +167,8 @@ export class CpuState {
 		throw ("RM has an invalid value!!");
 	}
 
-	cache() {
-		if (DebugOnce('state.cache', 200)) console.warn('cache opcode!');
+	cache(rs: number, type: number, offset: number) {
+		if (DebugOnce('state.cache', 200)) console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
 	}
 	syscall(id: number) { this.syscallManager.call(this, id); }
 	sb(value: number, address: number) { this.memory.writeInt8(address, value); }

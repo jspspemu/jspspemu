@@ -54,7 +54,12 @@ body {
 
     width: 480px;
     height: 272px;
-    background: #333;
+    background: transparent;
+    opacity: 0.4;
+
+    text-shadow: 0 0 0.2em #000;
+    -webkit-text-shadow: 0 0 0.2em #000;
+    -moz-text-shadow: 0 0 0.2em #000;
 }
 
 #touch_buttons .psp_button {
@@ -117,4 +122,12 @@ body {
   -moz-user-select: none;    
   -ms-user-select: none;      
   user-select: none;
+}
+
+canvas {
+	image-rendering: optimizeSpeed;
+	image-rendering: -moz-crisp-edges;
+	image-rendering: -webkit-optimize-contrast;
+	image-rendering: optimize-contrast;
+	-ms-interpolation-mode: nearest-neighbor;
 }

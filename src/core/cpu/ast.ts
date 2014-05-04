@@ -124,9 +124,7 @@ export class InstructionAst {
 	msub(i: Instruction) { return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)])); }
 	msubu(i: Instruction) { return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)])); }
 
-	cache(i: Instruction) {
-		return stm(call('state.cache', []));
-	}
+	cache(i: Instruction) { return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)])); }
 
 	syscall(i: Instruction) { return stm(call('state.syscall', [imm32(i.syscall)])); }
 	"break"(i: Instruction) { return stm(call('state.break', [])); }

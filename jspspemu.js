@@ -2044,6 +2044,10 @@ function DebugOnce(name, times) {
     }
     return true;
 }
+
+function isTouchDevice() {
+    return 'ontouchstart' in window || 'onmsgesturechange' in window;
+}
 //# sourceMappingURL=utils.js.map
 
 var require = (function() {
@@ -3171,7 +3175,7 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype.cache = function (i) {
-        return stm(call('state.cache', []));
+        return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)]));
     };
 
     InstructionAst.prototype.syscall = function (i) {
@@ -4459,7 +4463,23 @@ var Instructions = (function () {
         // Syscall
         ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
 
-        ID("cache", VM("101111--------------------------"), "%k, %o", ADDR_TYPE_NONE, 0);
+        ID("cache", VM("101111:rs:-----:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+
+        //ID("icache_index_invalidate", VM("101111:rs:00100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_index_unlock", VM("101111:rs:00110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_hit_invalidate", VM("101111:rs:01000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_fill", VM("101111:rs:01010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_fill_with_lock", VM("101111:rs:01011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //
+        //ID("dcache_index_writeback_invalidate", VM("101111:rs:10100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_index_unlock", VM("101111:rs:10110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_create_dirty_exclusive", VM("101111:rs:11000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_hit_invalidate", VM("101111:rs:11001:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_hit_writeback", VM("101111:rs:11010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_hit_writeback_invalidate", VM("101111:rs:11011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_create_dirty_exclusive_with_lock", VM("101111:rs:11100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_fill", VM("101111:rs:11110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_fill_with_lock", VM("101111:rs:11111:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
         ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
 
         ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);
@@ -5250,9 +5270,9 @@ var CpuState = (function () {
         throw ("RM has an invalid value!!");
     };
 
-    CpuState.prototype.cache = function () {
+    CpuState.prototype.cache = function (rs, type, offset) {
         if (DebugOnce('state.cache', 200))
-            console.warn('cache opcode!');
+            console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
     };
     CpuState.prototype.syscall = function (id) {
         this.syscallManager.call(this, id);
@@ -9418,10 +9438,11 @@ var PixelConverter = (function () {
         if (typeof clutMask === "undefined") { clutMask = 0; }
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
+        clutMask &= 0xF;
         for (var n = 0, m = 0; n < count; n++) {
             var char = from[fromIndex + n];
-            to32[m++] = palette[clutStart + ((((char >> 0) & 0xF) & clutMask) << clutShift)] | orValue;
-            to32[m++] = palette[clutStart + ((((char >> 4) & 0xF) & clutMask) << clutShift)] | orValue;
+            to32[m++] = palette[clutStart + (((char >> 0) & clutMask) << clutShift)] | orValue;
+            to32[m++] = palette[clutStart + (((char >> 4) & clutMask) << clutShift)] | orValue;
         }
     };
 
@@ -9433,6 +9454,7 @@ var PixelConverter = (function () {
         if (typeof clutMask === "undefined") { clutMask = 0; }
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
+        clutMask &= 0xFF;
         for (var m = 0; m < count; m++)
             to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
     };
@@ -12802,6 +12824,10 @@ var Thread = _thread.Thread;
 exports.Thread = Thread;
 var ThreadManager = _thread.ThreadManager;
 exports.ThreadManager = ThreadManager;
+var ThreadStatus = _thread.ThreadStatus;
+exports.ThreadStatus = ThreadStatus;
+var PspThreadAttributes = _thread.PspThreadAttributes;
+exports.PspThreadAttributes = PspThreadAttributes;
 
 var Callback = _callback.Callback;
 exports.Callback = Callback;
@@ -13373,6 +13399,30 @@ var ProgramExecutor = _cpu.ProgramExecutor;
 var NativeFunction = _cpu.NativeFunction;
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
+(function (ThreadStatus) {
+    ThreadStatus[ThreadStatus["RUNNING"] = 1] = "RUNNING";
+    ThreadStatus[ThreadStatus["READY"] = 2] = "READY";
+    ThreadStatus[ThreadStatus["WAIT"] = 4] = "WAIT";
+    ThreadStatus[ThreadStatus["SUSPEND"] = 8] = "SUSPEND";
+    ThreadStatus[ThreadStatus["DORMANT"] = 16] = "DORMANT";
+    ThreadStatus[ThreadStatus["DEAD"] = 32] = "DEAD";
+
+    ThreadStatus[ThreadStatus["WAITSUSPEND"] = ThreadStatus.WAIT | ThreadStatus.SUSPEND] = "WAITSUSPEND";
+})(exports.ThreadStatus || (exports.ThreadStatus = {}));
+var ThreadStatus = exports.ThreadStatus;
+
+(function (PspThreadAttributes) {
+    PspThreadAttributes[PspThreadAttributes["None"] = 0] = "None";
+    PspThreadAttributes[PspThreadAttributes["Vfpu"] = 0x00004000] = "Vfpu";
+    PspThreadAttributes[PspThreadAttributes["User"] = 0x80000000] = "User";
+    PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 0xa0000000] = "UsbWlan";
+    PspThreadAttributes[PspThreadAttributes["Vsh"] = 0xc0000000] = "Vsh";
+    PspThreadAttributes[PspThreadAttributes["ScratchRamEnable"] = 0x00008000] = "ScratchRamEnable";
+    PspThreadAttributes[PspThreadAttributes["NoFillStack"] = 0x00100000] = "NoFillStack";
+    PspThreadAttributes[PspThreadAttributes["ClearStack"] = 0x00200000] = "ClearStack";
+})(exports.PspThreadAttributes || (exports.PspThreadAttributes = {}));
+var PspThreadAttributes = exports.PspThreadAttributes;
+
 var Thread = (function () {
     function Thread(manager, state, instructionCache) {
         var _this = this;
@@ -13380,7 +13430,9 @@ var Thread = (function () {
         this.state = state;
         this.instructionCache = instructionCache;
         this.id = 0;
+        this.status = 16 /* DORMANT */;
         this.initialPriority = 10;
+        this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
         this.exitStatus = 0;
@@ -13548,14 +13600,26 @@ var ThreadManager = (function () {
         if (typeof stackSize === "undefined") { stackSize = 0x1000; }
         if (typeof attributes === "undefined") { attributes = 0; }
         var thread = new Thread(this, new CpuState(this.memory, this.syscallManager), this.instructionCache);
-        thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize);
+        thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
+
         thread.name = name;
+        thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
         thread.state.RA = 268435455 /* EXIT_THREAD */;
         thread.state.SP = thread.stackPartition.high;
         thread.initialPriority = initialPriority;
         thread.priority = initialPriority;
         thread.attributes = attributes;
+
+        if ((thread.stackPartition.high & 0xFF) != 0)
+            throw (new Error("Stack not aligned"));
+
+        if (!(thread.attributes & 1048576 /* NoFillStack */)) {
+            //this.memory.memset(thread.stackPartition.low, 0xFF, thread.stackPartition.size);
+        } else if ((thread.attributes & 2097152 /* ClearStack */)) {
+            //this.memory.memset(thread.stackPartition.low, 0x00, thread.stackPartition.size);
+        }
+
         return thread;
     };
 
@@ -14129,6 +14193,10 @@ var ModuleMgrForUser = (function () {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
             return -1;
         });
+        this.sceKernelGetModuleId = createNativeFunction(0xF0A26395, 150, 'uint', '', this, function () {
+            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
+            return 4;
+        });
         this.sceKernelLoadModuleByID = createNativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*', this, function (fileId, flags, sceKernelLMOption) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
             return 0;
@@ -14172,29 +14240,71 @@ var SysMemUserForUser = (function () {
     function SysMemUserForUser(context) {
         var _this = this;
         this.context = context;
+        this.partitionUids = new UidCollection(1);
         this.blockUids = new UidCollection(1);
         this.sceKernelAllocPartitionMemory = createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
+            if (name == null)
+                return 2147614721 /* ERROR_ERROR */;
+
             try  {
                 var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
                 var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
                 console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
-                return _this.blockUids.allocate(allocatedPartition);
+                return _this.partitionUids.allocate(allocatedPartition);
             } catch (e) {
                 console.error(e);
                 return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
             }
         });
-        this.sceKernelFreePartitionMemory = createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (blockId) {
-            var partition = _this.blockUids.get(blockId);
-            partition.deallocate();
+        this.AllocMemoryBlock = createNativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*', this, function (name, type, size, paramsAddrPtr) {
+            if (name == null)
+                return 2147614721 /* ERROR_ERROR */;
+            if (type < 0 || type > 1)
+                return 2147614936 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE */;
+            if (size == 0)
+                return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
+            if (paramsAddrPtr) {
+                var size = paramsAddrPtr.readInt32();
+                var unk = paramsAddrPtr.readInt32();
+                if (size != 4)
+                    return 2147614930 /* ERROR_KERNEL_ILLEGAL_ARGUMENT */;
+            }
+            var parentPartition = _this.context.memoryManager.userPartition;
+            try  {
+                var block = parentPartition.allocate(size, type, 0, name);
+                return _this.blockUids.allocate(block);
+            } catch (e) {
+                console.error(e);
+                return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
+            }
+        });
+        this.GetMemoryBlockAddr = createNativeFunction(0xDB83A952, 150, 'int', 'int', this, function (blockId) {
+            if (!_this.blockUids.has(blockId))
+                return 0;
+            var block = _this.blockUids.get(blockId);
+            return block.low;
+        });
+        this.FreeMemoryBlock = createNativeFunction(0x50F61D8A, 150, 'int', 'int', this, function (blockId) {
+            if (!_this.blockUids.has(blockId))
+                return 2147614923 /* ERROR_KERNEL_UNKNOWN_UID */;
             _this.blockUids.remove(blockId);
+            return 0;
+        });
+        this.sceKernelFreePartitionMemory = createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (partitionId) {
+            if (!_this.partitionUids.has(partitionId))
+                return 2147615158 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK */;
+            var partition = _this.partitionUids.get(partitionId);
+            partition.deallocate();
+            _this.partitionUids.remove(partitionId);
             return 0;
         });
         this.sceKernelTotalFreeMemSize = createNativeFunction(0xF919F628, 150, 'int', '', this, function () {
             return _this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
         });
-        this.sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, function (blockId) {
-            var block = _this.blockUids.get(blockId);
+        this.sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, function (partitionId) {
+            if (!_this.partitionUids.has(partitionId))
+                return 2147615158 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK */;
+            var block = _this.partitionUids.get(partitionId);
             return block.low;
         });
         /**
@@ -15435,7 +15545,7 @@ var sceAudio = (function () {
                 return 0;
             });
         });
-        this.çsceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
+        this.sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
             if (channelId >= _this.channels.length)
                 return -1;
             if (channelId < 0) {
@@ -15458,6 +15568,8 @@ var sceAudio = (function () {
             return channelId;
         });
         this.sceAudioChRelease = createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, function (channelId) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
             var channel = _this.channels[channelId];
             channel.allocated = false;
             channel.channel.stop();
@@ -15465,26 +15577,44 @@ var sceAudio = (function () {
             return 0;
         });
         this.sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
             var channel = _this.channels[channelId];
             channel.format = format;
             return 0;
         });
         this.sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
             var channel = _this.channels[channelId];
             channel.sampleCount = sampleCount;
             return 0;
         });
         this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
             var channel = _this.channels[channelId];
             return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
         });
         this.sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
             var channel = _this.channels[channelId];
             return new WaitingThreadInfo('sceAudioOutputBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
         });
-        this.sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+        this.sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
             var channel = _this.channels[channelId];
-            return new WaitingThreadInfo('sceAudioOutputPanned', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
+            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+            return 0;
+        });
+        this.sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+            if (!_this.isValidChannel(channelId))
+                return -1;
+            var channel = _this.channels[channelId];
+            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+            return 0;
         });
         this.sceAudioChangeChannelVolume = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
             console.warn("Not implemented sceAudioChangeChannelVolume");
@@ -15497,6 +15627,9 @@ var sceAudio = (function () {
         for (var n = 0; n < 8; n++)
             this.channels.push(new Channel(n));
     }
+    sceAudio.prototype.isValidChannel = function (channelId) {
+        return (channelId >= 0 && channelId < this.channels.length);
+    };
     return sceAudio;
 })();
 exports.sceAudio = sceAudio;
@@ -16844,6 +16977,7 @@ _manager.Thread;
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
 var Thread = _manager.Thread;
+var ThreadStatus = _manager.ThreadStatus;
 
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
@@ -16851,9 +16985,13 @@ var ThreadManForUser = (function () {
         this.context = context;
         this.threadUids = new UidCollection(1);
         this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attributes, optionPtr) {
+            stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
+            stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
+
             //var stackPartition = this.context.memoryManager.stackPartition;
             var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
             newThread.id = _this.threadUids.allocate(newThread);
+            newThread.status = 16 /* DORMANT */;
 
             console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d', newThread.id, newThread.name, newThread.priority, currentThread.priority));
 
@@ -16963,17 +17101,34 @@ var ThreadManForUser = (function () {
             if (!_this.threadUids.has(threadId))
                 return 2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */;
             var thread = _this.threadUids.get(threadId);
-            var sceKernelThreadInfo = new SceKernelThreadInfo();
-            sceKernelThreadInfo.size = SceKernelThreadInfo.struct.length;
-            sceKernelThreadInfo.name = thread.name;
-            sceKernelThreadInfo.attributes = thread.attributes;
-            sceKernelThreadInfo.threadPreemptionCount = thread.preemptionCount;
 
-            //console.log(thread.state.GP);
-            sceKernelThreadInfo.GP = thread.state.GP;
-            sceKernelThreadInfo.priorityInit = thread.initialPriority;
-            sceKernelThreadInfo.priority = thread.priority;
-            SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, sceKernelThreadInfo);
+            var info = new SceKernelThreadInfo();
+
+            info.size = SceKernelThreadInfo.struct.length;
+
+            info.name = thread.name;
+            info.attributes = thread.attributes;
+            info.status = thread.status;
+            info.threadPreemptionCount = thread.preemptionCount;
+            info.entryPoint = thread.entryPoint;
+            info.stackPointer = thread.stackPartition.high;
+            info.stackSize = thread.stackPartition.size;
+            info.GP = thread.state.GP;
+
+            info.priorityInit = thread.initialPriority;
+            info.priority = thread.priority;
+            info.waitType = 0;
+            info.waitId = 0;
+            info.wakeupCount = 0;
+            info.exitStatus = thread.exitStatus;
+            info.runClocksLow = 0;
+            info.runClocksHigh = 0;
+            info.interruptPreemptionCount = 0;
+            info.threadPreemptionCount = 0;
+            info.releaseCount = 0;
+
+            SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, info);
+
             return 0;
         });
         this.sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint', this, function (currentThread, removeAttributes, addAttributes) {
@@ -20761,8 +20916,102 @@ describe('pspautotests', function () {
     this.timeout(5000);
 
     var tests = [
-        //{ 'audio/atrac': ['atractest', 'decode', 'ids', 'resetting', 'setdata'] },
-        { 'audio/mp3': ['mp3test'] }
+        { "audio/atrac": ["atractest", "decode", "ids", "resetting", "setdata"] },
+        { "audio/mp3": ["mp3test"] },
+        { "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
+        { "audio/sceaudio": ["datalen", "output", "reserve"] },
+        { "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
+        { "cpu/fpu": ["fcr", "fpu"] },
+        { "cpu/icache": ["icache"] },
+        { "cpu/lsu": ["lsu"] },
+        { "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector"] },
+        { "ctrl": ["ctrl", "vblank"] },
+        { "ctrl/idle": ["idle"] },
+        { "ctrl/sampling": ["sampling"] },
+        { "ctrl/sampling2": ["sampling2"] },
+        { "display": ["display", "hcount", "vblankmulti"] },
+        { "dmac": ["dmactest"] },
+        { "font": ["altcharcode", "charglyphimage", "charglyphimageclip", "charimagerect", "charinfo", "find", "fontinfo", "fontinfobyindex", "fontlist", "fonttest", "newlib", "open", "openfile", "openmem", "optimum", "resolution", "shadowglyphimage", "shadowglyphimageclip", "shadowimagerect", "shadowinfo"] },
+        { "gpu/callbacks": ["ge_callbacks"] },
+        { "gpu/commands": ["basic", "blocktransfer", "material"] },
+        { "gpu/complex": ["complex"] },
+        { "gpu/displaylist": ["state"] },
+        { "gpu/ge": ["break", "context", "edram", "get", "queue"] },
+        { "gpu/reflection": ["reflection"] },
+        { "gpu/rendertarget": ["rendertarget"] },
+        { "gpu/signals": ["continue", "jumps", "pause", "simple", "suspend", "sync"] },
+        { "gpu/simple": ["simple"] },
+        { "gpu/triangle": ["triangle"] },
+        { "hash": ["hash"] },
+        { "hle": ["check_not_used_uids"] },
+        { "intr": ["intr", "suspended", "waits"] },
+        { "intr/vblank": ["vblank"] },
+        { "io/cwd": ["cwd"] },
+        { "io/directory": ["directory"] },
+        { "io/file": ["file", "rename"] },
+        { "io/io": ["io"] },
+        { "io/iodrv": ["iodrv"] },
+        { "kirk": ["kirk"] },
+        { "loader/bss": ["bss"] },
+        { "malloc": ["malloc"] },
+        { "misc": ["dcache", "deadbeef", "libc", "sdkver", "testgp", "timeconv"] },
+        { "modules/loadexec": ["loader"] },
+        { "mstick": ["mstick"] },
+        { "net/http": ["http"] },
+        { "net/primary": ["ether"] },
+        { "power": ["cpu", "freq", "power"] },
+        { "power/volatile": ["lock", "trylock", "unlock"] },
+        { "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
+        { "string": ["string"] },
+        { "sysmem": ["freesize", "memblock", "partition", "sysmem"] },
+        { "threads/alarm": ["alarm"] },
+        { "threads/alarm/cancel": ["cancel"] },
+        { "threads/alarm/refer": ["refer"] },
+        { "threads/alarm/set": ["set"] },
+        { "threads/callbacks": ["callbacks", "cancel", "check", "count", "create", "delete", "exit", "notify", "refer"] },
+        { "threads/events/cancel": ["cancel"] },
+        { "threads/events/clear": ["clear"] },
+        { "threads/events/create": ["create"] },
+        { "threads/events/delete": ["delete"] },
+        { "threads/events": ["events"] },
+        { "threads/events/poll": ["poll"] },
+        { "threads/events/refer": ["refer"] },
+        { "threads/events/set": ["set"] },
+        { "threads/events/wait": ["wait"] },
+        { "threads/fpl": ["allocate", "cancel", "create", "delete", "fpl", "free", "priority", "refer", "tryallocate"] },
+        { "threads/k0": ["k0"] },
+        { "threads/lwmutex": ["create", "delete", "lock", "priority", "refer", "try", "try600", "unlock"] },
+        { "threads/mbx/cancel": ["cancel"] },
+        { "threads/mbx/create": ["create"] },
+        { "threads/mbx/delete": ["delete"] },
+        { "threads/mbx": ["mbx"] },
+        { "threads/mbx/poll": ["poll"] },
+        { "threads/mbx/priority": ["priority"] },
+        { "threads/mbx/receive": ["receive"] },
+        { "threads/mbx/refer": ["refer"] },
+        { "threads/mbx/send": ["send"] },
+        { "threads/msgpipe": ["cancel", "create", "data", "delete", "msgpipe", "receive", "refer", "send", "tryreceive", "trysend"] },
+        { "threads/mutex": ["cancel", "create", "delete", "lock", "mutex", "priority", "refer", "try", "unlock"] },
+        { "threads/scheduling": ["dispatch", "scheduling"] },
+        { "threads/semaphores": ["cancel", "create", "delete", "fifo", "poll", "priority", "refer", "semaphores", "signal", "wait"] },
+        { "threads/semaphores/semaphore_greater_than_zero": ["semaphore_greater_than_zero"] },
+        { "threads/threads": ["change", "create", "exitstatus", "extend", "refer", "release", "rotate", "stackfree", "start", "suspend", "terminate", "threadend", "threads"] },
+        { "threads/vpl": ["allocate", "cancel", "create", "delete", "fifo", "free", "order", "priority", "refer", "try", "vpl"] },
+        { "threads/vtimers": ["cancelhandler", "create", "delete", "getbase", "gettime", "interrupt", "refer", "sethandler", "settime", "start", "stop", "vtimer"] },
+        { "threads/wakeup": ["wakeup"] },
+        { "umd/callbacks": ["umd"] },
+        { "umd/io": ["umd_io"] },
+        { "umd/raw_access": ["raw_access", "raw_acess"] },
+        { "umd": ["register"] },
+        { "umd/wait": ["wait"] },
+        { "utility/msgdialog": ["abort", "dialog"] },
+        { "utility/savedata": ["autosave", "filelist", "getsize", "idlist", "makedata", "sizes"] },
+        { "utility/systemparam": ["systemparam"] },
+        { "video/mpeg": ["basic"] },
+        { "video/mpeg/ringbuffer": ["avail", "construct", "destruct", "memsize", "packnum"] },
+        { "video/pmf": ["pmf"] },
+        { "video/pmf_simple": ["pmf_simple"] },
+        { "video/psmfplayer": ["basic", "create", "getpsmfinfo", "setpsmf", "setpsmfoffset", "settempbuf"] }
     ];
 
     function normalizeString(string) {

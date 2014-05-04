@@ -100,16 +100,18 @@ export class PixelConverter {
 	private static updateT4(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 		var orValue = useAlpha ? 0 : 0xFF000000;
+		clutMask &= 0xF;
 		for (var n = 0, m = 0; n < count; n++) {
 			var char = from[fromIndex + n];
-			to32[m++] = palette[clutStart + ((((char >> 0) & 0xF) & clutMask) << clutShift)] | orValue;
-			to32[m++] = palette[clutStart + ((((char >> 4) & 0xF) & clutMask) << clutShift)] | orValue;
+			to32[m++] = palette[clutStart + (((char >> 0) & clutMask) << clutShift)] | orValue;
+			to32[m++] = palette[clutStart + (((char >> 4) & clutMask) << clutShift)] | orValue;
 		}
 	}
 
 	private static updateT8(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 		var orValue = useAlpha ? 0 : 0xFF000000;
+		clutMask &= 0xFF;
 		for (var m = 0; m < count; m++) to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
 	}
 
