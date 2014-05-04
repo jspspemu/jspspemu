@@ -49,6 +49,16 @@ export class Memory {
 		return new DataView(this.buffer, address & Memory.MASK, size);
 	}
 
+	getPointerU8Array(address: number, size?: number) {
+		if (!size) size = this.availableAfterAddress(address);
+		return new Uint8Array(this.buffer, address & Memory.MASK, size);
+	}
+
+	getPointerU16Array(address: number, size?: number) {
+		if (!size) size = this.availableAfterAddress(address);
+		return new Uint16Array(this.buffer, address & Memory.MASK, size >> 1);
+	}
+
 	isAddressInRange(address: number, min: number, max: number) {
 		address &= Memory.MASK; address >>>= 0;
 		min &= Memory.MASK; min >>>= 0;
@@ -73,6 +83,20 @@ export class Memory {
 		if (!this.isValidAddress(address)) return Stream.INVALID;
 		if (!size) size = this.availableAfterAddress(address & Memory.MASK);
 		return new Stream(this.getPointerDataView(address & Memory.MASK, size));
+	}
+
+	getU8Array(address: number, size?: number) {
+		if (address == 0) return null;
+		if (!this.isValidAddress(address)) return null;
+		if (!size) size = this.availableAfterAddress(address & Memory.MASK);
+		return this.getPointerU8Array(address & Memory.MASK, size);
+	}
+
+	getU16Array(address: number, size?: number) {
+		if (address == 0) return null;
+		if (!this.isValidAddress(address)) return null;
+		if (!size) size = this.availableAfterAddress(address & Memory.MASK);
+		return this.getPointerU16Array(address & Memory.MASK, size);
 	}
 
 

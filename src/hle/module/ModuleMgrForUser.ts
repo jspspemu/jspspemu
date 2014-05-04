@@ -7,6 +7,14 @@ import Thread = _manager.Thread;
 export class ModuleMgrForUser {
 	constructor(private context: _context.EmulatorContext) { }
 
+	sceKernelStopModule = createNativeFunction(0xD1FF982A, 150, 'uint', '', this, () => {
+		return 0;
+	});
+
+	sceKernelUnloadModule = createNativeFunction(0x2E0911AA, 150, 'uint', 'int', this, (id: number) => {
+		return 0;
+	});
+
 	sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'Thread/int/int/int', this, (thread: Thread, unknown: number, argsize: number, argp: number) => {
 		console.info("Call stack:");
 		thread.state.getCallstack().forEach((PC) => {

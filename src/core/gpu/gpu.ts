@@ -44,34 +44,28 @@ export class VertexReaderFactory {
 }
 
 export class VertexReader {
-	private readOneFunc: (output: _state.Vertex, input: DataView, inputOffset: number) => void;
+	private readOneFunc: (output: _state.Vertex, inputOffset: number, input: DataView, f32: Float32Array, u8:Uint8Array) => void;
     private readOffset: number = 0;
     public readCode: string;
 
 	constructor(private vertexState: _state.VertexState) {
         this.readCode = this.createJs();
-        this.readOneFunc = <any>(new Function('output', 'input', 'inputOffset', this.readCode));
+		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'input', 'f32', 'u8', this.readCode));
 	}
 
-	readIndex(indices: Stream) {
-		switch (this.vertexState.index) {
-			case _state.IndexEnum.Byte: return indices.readUInt8();
-			case _state.IndexEnum.Short: return indices.readUInt16();
-			default: return 0;
-		}
-	}
-
-	readCount(output: _state.Vertex[], input: DataView, indices:Stream, count: number) {
+	readCount(output: _state.Vertex[], input: DataView, indices: number[], count: number) {
+		var u8 = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+		
 		if (this.vertexState.hasIndex) {
-			//debugger;
 			for (var n = 0; n < count; n++) {
-				var index = this.readIndex(indices);
-				this.readOneFunc(output[n], input, index * this.vertexState.size);
+				var index = indices[n];
+				this.readOneFunc(output[n], index * this.vertexState.size, input, f32, u8);
 			}
 		} else {
 			var inputOffset = 0;
 			for (var n = 0; n < count; n++) {
-				this.readOneFunc(output[n], input, inputOffset);
+				this.readOneFunc(output[n], inputOffset, input, f32, u8);
 				inputOffset += this.vertexState.size;
 			}
 		}
@@ -89,7 +83,21 @@ export class VertexReader {
 		this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
 
         return indentStringGenerator.output;
-    }
+	}
+
+	private readInt8() { return 'input.getInt8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')'; }
+	private readInt16() { return 'input.getInt16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)'; }
+	private readInt32() { return 'input.getInt32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)'; }
+	private readFloat32() {
+		return 'f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2]';
+	}
+
+	private readUInt8() {
+		return 'u8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ']';
+		//return 'input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')';
+	}
+	private readUInt16() { return 'input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)'; }
+	private readUInt32() { return 'input.getUint32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)'; }
 
     private createColorJs(indentStringGenerator:_IndentStringGenerator, type: ColorEnum) {
         if (type == ColorEnum.Void) return;
@@ -97,14 +105,14 @@ export class VertexReader {
         switch (type) {
             case ColorEnum.Color8888:
                 this.align(4);
-                indentStringGenerator.write('output.r = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-				indentStringGenerator.write('output.g = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-				indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-				indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+				indentStringGenerator.write('output.r = ((' + this.readUInt8() + ') / 255.0);\n');
+				indentStringGenerator.write('output.g = ((' + this.readUInt8() + ') / 255.0);\n');
+				indentStringGenerator.write('output.b = ((' + this.readUInt8() + ') / 255.0);\n');
+				indentStringGenerator.write('output.a = ((' + this.readUInt8() + ') / 255.0);\n');
                 break;
 			case ColorEnum.Color5551:
 				this.align(2);
-				indentStringGenerator.write('var temp = (input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + '));\n');
+				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
 				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
 				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
 				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
@@ -124,7 +132,7 @@ export class VertexReader {
         var offset = this.readOffset;
         this.readOffset += size;
         return offset;
-    }
+	}
 
 	private createNumberJs(indentStringGenerator: _IndentStringGenerator, components: string[], type: _state.NumericEnum, normalize: boolean) {
 		if (type == _state.NumericEnum.Void) return;
@@ -132,18 +140,18 @@ export class VertexReader {
         components.forEach((component) => {
             switch (type) {
 				case _state.NumericEnum.Byte:
-                    indentStringGenerator.write('output.' + component + ' = (input.getInt8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')');
+					indentStringGenerator.write('output.' + component + ' = ' + this.readInt8());
                     if (normalize) indentStringGenerator.write(' / 127.0');
                     break;
 				case _state.NumericEnum.Short:
-                    indentStringGenerator.write('output.' + component + ' = (input.getInt16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)');
+					indentStringGenerator.write('output.' + component + ' = ' + this.readInt16());
                     if (normalize) indentStringGenerator.write(' / 32767.0');
                     break;
 				case _state.NumericEnum.Float:
-                    indentStringGenerator.write('output.' + component + ' = (input.getFloat32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)');
+					indentStringGenerator.write('output.' + component + ' = ' + this.readFloat32());
                     break;
             }
-            indentStringGenerator.write(');\n');
+            indentStringGenerator.write(';\n');
         });
     }
 }
@@ -466,11 +474,16 @@ class PspGpuList {
 
 				var vertexReader = VertexReaderFactory.get(vertexState);
 
-				var indices = this.memory.getPointerStream(indicesAddress);
+				var indices: any = null;
+				switch (vertexState.index) {
+					case _state.IndexEnum.Byte: indices = this.memory.getU8Array(indicesAddress); break;
+					case _state.IndexEnum.Short: indices = this.memory.getU16Array(indicesAddress); break;
+				}
+				
 				var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
 				var vertices = vertexBuffer.vertices;
-				vertexReader.readCount(vertices, vertexInput, indices, vertexCount);
+				vertexReader.readCount(vertices, vertexInput, <number[]><any>indices, vertexCount);
 
                 this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
 				this.drawDriver.setState(this.state);

@@ -5617,29 +5617,21 @@ var VertexReader = (function () {
         this.vertexState = vertexState;
         this.readOffset = 0;
         this.readCode = this.createJs();
-        this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
+        this.readOneFunc = (new Function('output', 'inputOffset', 'input', 'f32', 'u8', this.readCode));
     }
-    VertexReader.prototype.readIndex = function (indices) {
-        switch (this.vertexState.index) {
-            case 1 /* Byte */:
-                return indices.readUInt8();
-            case 2 /* Short */:
-                return indices.readUInt16();
-            default:
-                return 0;
-        }
-    };
-
     VertexReader.prototype.readCount = function (output, input, indices, count) {
+        var u8 = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+        var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+
         if (this.vertexState.hasIndex) {
             for (var n = 0; n < count; n++) {
-                var index = this.readIndex(indices);
-                this.readOneFunc(output[n], input, index * this.vertexState.size);
+                var index = indices[n];
+                this.readOneFunc(output[n], index * this.vertexState.size, input, f32, u8);
             }
         } else {
             var inputOffset = 0;
             for (var n = 0; n < count; n++) {
-                this.readOneFunc(output[n], input, inputOffset);
+                this.readOneFunc(output[n], inputOffset, input, f32, u8);
                 inputOffset += this.vertexState.size;
             }
         }
@@ -5659,6 +5651,30 @@ var VertexReader = (function () {
         return indentStringGenerator.output;
     };
 
+    VertexReader.prototype.readInt8 = function () {
+        return 'input.getInt8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')';
+    };
+    VertexReader.prototype.readInt16 = function () {
+        return 'input.getInt16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)';
+    };
+    VertexReader.prototype.readInt32 = function () {
+        return 'input.getInt32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)';
+    };
+    VertexReader.prototype.readFloat32 = function () {
+        return 'f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2]';
+    };
+
+    VertexReader.prototype.readUInt8 = function () {
+        return 'u8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ']';
+        //return 'input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')';
+    };
+    VertexReader.prototype.readUInt16 = function () {
+        return 'input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)';
+    };
+    VertexReader.prototype.readUInt32 = function () {
+        return 'input.getUint32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)';
+    };
+
     VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
         if (type == 0 /* Void */)
             return;
@@ -5666,14 +5682,14 @@ var VertexReader = (function () {
         switch (type) {
             case 7 /* Color8888 */:
                 this.align(4);
-                indentStringGenerator.write('output.r = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                indentStringGenerator.write('output.g = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
-                indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
+                indentStringGenerator.write('output.r = ((' + this.readUInt8() + ') / 255.0);\n');
+                indentStringGenerator.write('output.g = ((' + this.readUInt8() + ') / 255.0);\n');
+                indentStringGenerator.write('output.b = ((' + this.readUInt8() + ') / 255.0);\n');
+                indentStringGenerator.write('output.a = ((' + this.readUInt8() + ') / 255.0);\n');
                 break;
             case 5 /* Color5551 */:
                 this.align(2);
-                indentStringGenerator.write('var temp = (input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + '));\n');
+                indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
                 indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
                 indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
                 indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
@@ -5703,20 +5719,20 @@ var VertexReader = (function () {
         components.forEach(function (component) {
             switch (type) {
                 case 1 /* Byte */:
-                    indentStringGenerator.write('output.' + component + ' = (input.getInt8(inputOffset + ' + _this.getOffsetAlignAndIncrement(1) + ')');
+                    indentStringGenerator.write('output.' + component + ' = ' + _this.readInt8());
                     if (normalize)
                         indentStringGenerator.write(' / 127.0');
                     break;
                 case 2 /* Short */:
-                    indentStringGenerator.write('output.' + component + ' = (input.getInt16(inputOffset + ' + _this.getOffsetAlignAndIncrement(2) + ', true)');
+                    indentStringGenerator.write('output.' + component + ' = ' + _this.readInt16());
                     if (normalize)
                         indentStringGenerator.write(' / 32767.0');
                     break;
                 case 3 /* Float */:
-                    indentStringGenerator.write('output.' + component + ' = (input.getFloat32(inputOffset + ' + _this.getOffsetAlignAndIncrement(4) + ', true)');
+                    indentStringGenerator.write('output.' + component + ' = ' + _this.readFloat32());
                     break;
             }
-            indentStringGenerator.write(');\n');
+            indentStringGenerator.write(';\n');
         });
     };
     return VertexReader;
@@ -6086,7 +6102,16 @@ var PspGpuList = (function () {
 
                 var vertexReader = VertexReaderFactory.get(vertexState);
 
-                var indices = this.memory.getPointerStream(indicesAddress);
+                var indices = null;
+                switch (vertexState.index) {
+                    case 1 /* Byte */:
+                        indices = this.memory.getU8Array(indicesAddress);
+                        break;
+                    case 2 /* Short */:
+                        indices = this.memory.getU16Array(indicesAddress);
+                        break;
+                }
+
                 var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
                 var vertices = vertexBuffer.vertices;
@@ -6629,6 +6654,7 @@ var Vertex = (function () {
         this.w5 = that.w5;
         this.w6 = that.w6;
         this.w7 = that.w7;
+        return this;
     };
 
     Vertex.prototype.clone = function () {
@@ -7316,6 +7342,7 @@ var WebGlPspDrawDriver = (function () {
         this.baseShaderVertString = '';
         this.transformMatrix = mat4.create();
         this.transformMatrix2d = mat4.create();
+        this.vertexPool = [];
         this.testCount = 20;
         this.positionData = new FastFloat32Buffer();
         this.colorData = new FastFloat32Buffer();
@@ -7431,7 +7458,7 @@ var WebGlPspDrawDriver = (function () {
         if (primitiveType == 6 /* Sprites */) {
             return this.drawSprites(vertices, count, vertexState);
         } else {
-            return this.drawElementsInternal(primitiveType, vertices, count, vertexState);
+            return this.drawElementsInternal(primitiveType, primitiveType, vertices, count, vertexState);
         }
     };
 
@@ -7444,20 +7471,30 @@ var WebGlPspDrawDriver = (function () {
     };
 
     WebGlPspDrawDriver.prototype.drawSprites = function (vertices, count, vertexState) {
+        var vertexPool = this.vertexPool;
+
+        while (vertexPool.length < count * 2)
+            vertexPool.push(new _state.Vertex());
+
+        var vertexCount = 0;
         var vertices2 = [];
 
         for (var n = 0; n < count; n += 2) {
-            var tl = vertices[n + 0].clone();
-            var br = vertices[n + 1].clone();
+            var tl = vertexPool[vertexCount++].copyFrom(vertices[n + 0]);
+            var br = vertexPool[vertexCount++].copyFrom(vertices[n + 1]);
 
+            //var tl = vertices[n + 0].clone();
+            //var br = vertices[n + 1].clone();
             tl.r = br.r;
             tl.g = br.g;
             tl.b = br.b;
             tl.a = br.a;
 
-            var vtr = tl.clone();
-            var vbl = br.clone();
+            var vtr = vertexPool[vertexCount++].copyFrom(tl);
+            var vbl = vertexPool[vertexCount++].copyFrom(br);
 
+            //var vtr = tl.clone();
+            //var vbl = br.clone();
             vtr.px = br.px;
             vtr.py = tl.py;
             vtr.tx = br.tx;
@@ -7471,7 +7508,7 @@ var WebGlPspDrawDriver = (function () {
             vertices2.push(tl, vtr, vbl);
             vertices2.push(vtr, br, vbl);
         }
-        this.drawElementsInternal(3 /* Triangles */, vertices2, vertices2.length, vertexState);
+        this.drawElementsInternal(6 /* Sprites */, 3 /* Triangles */, vertices2, vertices2.length, vertexState);
     };
 
     WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType) {
@@ -7565,7 +7602,7 @@ var WebGlPspDrawDriver = (function () {
         }
     };
 
-    WebGlPspDrawDriver.prototype.drawElementsInternal = function (primitiveType, vertices, count, vertexState) {
+    WebGlPspDrawDriver.prototype.drawElementsInternal = function (originalPrimitiveType, primitiveType, vertices, count, vertexState) {
         var gl = this.gl;
 
         //console.log(primitiveType);
@@ -7578,7 +7615,7 @@ var WebGlPspDrawDriver = (function () {
 
         var program = this.cache.getProgram(vertexState, this.state);
         program.use();
-        this.updateState(program, vertexState, primitiveType);
+        this.updateState(program, vertexState, originalPrimitiveType);
 
         this.demuxVertices(vertices, count, vertexState, primitiveType);
         this.setProgramParameters(gl, program, vertexState);
@@ -8964,6 +9001,18 @@ var Memory = (function () {
         return new DataView(this.buffer, address & Memory.MASK, size);
     };
 
+    Memory.prototype.getPointerU8Array = function (address, size) {
+        if (!size)
+            size = this.availableAfterAddress(address);
+        return new Uint8Array(this.buffer, address & Memory.MASK, size);
+    };
+
+    Memory.prototype.getPointerU16Array = function (address, size) {
+        if (!size)
+            size = this.availableAfterAddress(address);
+        return new Uint16Array(this.buffer, address & Memory.MASK, size >> 1);
+    };
+
     Memory.prototype.isAddressInRange = function (address, min, max) {
         address &= Memory.MASK;
         address >>>= 0;
@@ -8999,6 +9048,26 @@ var Memory = (function () {
         if (!size)
             size = this.availableAfterAddress(address & Memory.MASK);
         return new Stream(this.getPointerDataView(address & Memory.MASK, size));
+    };
+
+    Memory.prototype.getU8Array = function (address, size) {
+        if (address == 0)
+            return null;
+        if (!this.isValidAddress(address))
+            return null;
+        if (!size)
+            size = this.availableAfterAddress(address & Memory.MASK);
+        return this.getPointerU8Array(address & Memory.MASK, size);
+    };
+
+    Memory.prototype.getU16Array = function (address, size) {
+        if (address == 0)
+            return null;
+        if (!this.isValidAddress(address))
+            return null;
+        if (!size)
+            size = this.availableAfterAddress(address & Memory.MASK);
+        return this.getPointerU16Array(address & Memory.MASK, size);
     };
 
     Memory.prototype.writeInt8 = function (address, value) {
@@ -13911,6 +13980,12 @@ var ModuleMgrForUser = (function () {
     function ModuleMgrForUser(context) {
         var _this = this;
         this.context = context;
+        this.sceKernelStopModule = createNativeFunction(0xD1FF982A, 150, 'uint', '', this, function () {
+            return 0;
+        });
+        this.sceKernelUnloadModule = createNativeFunction(0x2E0911AA, 150, 'uint', 'int', this, function (id) {
+            return 0;
+        });
         this.sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'Thread/int/int/int', this, function (thread, unknown, argsize, argp) {
             console.info("Call stack:");
             thread.state.getCallstack().forEach(function (PC) {

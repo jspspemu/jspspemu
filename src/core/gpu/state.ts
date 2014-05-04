@@ -62,6 +62,7 @@ export class Vertex {
 		this.r = that.r; this.g = that.g; this.b = that.b; this.a = that.a;
 		this.w0 = that.w0; this.w1 = that.w1; this.w2 = that.w2; this.w3 = that.w3;
 		this.w4 = that.w4; this.w5 = that.w5; this.w6 = that.w6; this.w7 = that.w7;
+		return this;
 	}
 
 	clone() {

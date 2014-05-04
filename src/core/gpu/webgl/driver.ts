@@ -137,7 +137,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		if (primitiveType == _state.PrimitiveType.Sprites) {
 			return this.drawSprites(vertices, count, vertexState);
 		} else {
-			return this.drawElementsInternal(primitiveType, vertices, count, vertexState);
+			return this.drawElementsInternal(primitiveType, primitiveType, vertices, count, vertexState);
 		}
 	}
 
@@ -149,20 +149,33 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.textureHandler.sync();
 	}
 
+	private vertexPool = <_state.Vertex[]>[];
+
 	private drawSprites(vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
+		var vertexPool = this.vertexPool;
+
+		while (vertexPool.length < count * 2) vertexPool.push(new _state.Vertex());
+
+		var vertexCount = 0;
 		var vertices2 = [];
 
 		for (var n = 0; n < count; n += 2) {
-			var tl = vertices[n + 0].clone();
-			var br = vertices[n + 1].clone();
+			var tl = vertexPool[vertexCount++].copyFrom(vertices[n + 0]);
+			var br = vertexPool[vertexCount++].copyFrom(vertices[n + 1]);
+
+			//var tl = vertices[n + 0].clone();
+			//var br = vertices[n + 1].clone();
 
 			tl.r = br.r;
 			tl.g = br.g;
 			tl.b = br.b;
 			tl.a = br.a;
 
-			var vtr = tl.clone();
-			var vbl = br.clone();
+			var vtr = vertexPool[vertexCount++].copyFrom(tl);
+			var vbl = vertexPool[vertexCount++].copyFrom(br);
+
+			//var vtr = tl.clone();
+			//var vbl = br.clone();
 
 			vtr.px = br.px; vtr.py = tl.py;
 			vtr.tx = br.tx; vtr.ty = tl.ty;
@@ -173,7 +186,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			vertices2.push(tl, vtr, vbl);
 			vertices2.push(vtr, br, vbl);
 		}
-		this.drawElementsInternal(_state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState);
+		this.drawElementsInternal(_state.PrimitiveType.Sprites, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState);
 	}
 
 	private testCount = 20;
@@ -265,7 +278,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		}
 	}
 
-	drawElementsInternal(primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
+	drawElementsInternal(originalPrimitiveType: _state.PrimitiveType, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
 		var gl = this.gl;
 
 		//console.log(primitiveType);
@@ -278,7 +291,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 		var program = this.cache.getProgram(vertexState, this.state);
 		program.use();
-		this.updateState(program, vertexState, primitiveType);
+		this.updateState(program, vertexState, originalPrimitiveType);
 
 		this.demuxVertices(vertices, count, vertexState, primitiveType);
 		this.setProgramParameters(gl, program, vertexState);
