@@ -9,8 +9,6 @@ export class sceGe_user {
     constructor(private context: _context.EmulatorContext) {
     }
 
-    sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, () => 0x04000000);
-
     sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, (callbackDataPtr: number) => {
         //console.warn('Not implemented sceGe_user.sceGeSetCallback');
         return 0;
@@ -40,8 +38,13 @@ export class sceGe_user {
         return this.context.gpu.drawSync(syncType);
 	});
 
+	sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, () => {
+		console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);
+		return 0x04000000;
+	});
+
 	sceGeEdramGetSize = createNativeFunction(0x1F6752AD, 150, 'uint', '', this, () => {
-		//console.warn('Not implemented sceGe_user.sceGeEdramGetSize');
+		console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
 		return 0x00200000; // 2MB
 	});
 }

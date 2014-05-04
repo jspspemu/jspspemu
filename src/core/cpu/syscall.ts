@@ -13,6 +13,7 @@ export class NativeFunction {
 	nid: number;
 	firmwareVersion: number;
 	call: (context: IEmulatorContext, state: CpuState) => void;
+	nativeCall: Function;
 }
 	
 export class SyscallManager implements ISyscallManager {

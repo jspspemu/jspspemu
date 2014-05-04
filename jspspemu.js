@@ -212,8 +212,7 @@ function downloadFileChunkAsync(url, from, count) {
 function statFileAsync(url) {
     return _downloadFileAsync('HEAD', url).then(function (request) {
         //console.error('content-type', request.getResponseHeader('content-type'));
-        console.log(request.getAllResponseHeaders());
-
+        //console.log(request.getAllResponseHeaders());
         var size = parseInt(request.getResponseHeader('content-length'));
         var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
 
@@ -591,9 +590,13 @@ var BitUtils = (function () {
         return (data >> offset) & ((1 << length) - 1);
     };
 
-    BitUtils.extractScalef = function (data, offset, length, scale) {
+    BitUtils.extractScale1f = function (data, offset, length) {
         var mask = BitUtils.mask(length);
-        return (((data >>> offset) & mask) * scale / mask);
+        return (((data >>> offset) & mask) / mask);
+    };
+
+    BitUtils.extractScalef = function (data, offset, length, scale) {
+        return BitUtils.extractScale1f(data, offset, length) * scale;
     };
 
     BitUtils.extractScalei = function (data, offset, length, scale) {
@@ -784,8 +787,8 @@ var UrlAsyncStream = (function () {
     });
 
     UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        //console.error((new Error("download chunk"))['stack']);
-        console.info('download chunk', this.url, offset, count);
+        //console.error();
+        console.info('download chunk', this.url, offset, count, (new Error("download chunk"))['stack']);
         return downloadFileChunkAsync(this.url, offset, count);
     };
     return UrlAsyncStream;
@@ -1536,7 +1539,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -1948,7 +1951,7 @@ controllerRegister();
 var EmulatorContext = (function () {
     function EmulatorContext() {
     }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -1961,6 +1964,7 @@ var EmulatorContext = (function () {
         this.fileManager = fileManager;
         this.rtc = rtc;
         this.callbackManager = callbackManager;
+        this.moduleManager = moduleManager;
     };
     return EmulatorContext;
 })();
@@ -5165,7 +5169,6 @@ var CpuState = (function () {
     //	// negate if one is negative and the other possitive
     //}
     CpuState.prototype.mult = function (rs, rt) {
-        //this._mult(rs, rt);
         var a64 = Integer64.fromInt(rs);
         var b64 = Integer64.fromInt(rt);
         var result = a64.multiply(b64);
@@ -5519,7 +5522,7 @@ var WebGlPspDrawDriver = require('./webgl/driver');
 var VertexBuffer = (function () {
     function VertexBuffer() {
         this.vertices = [];
-        for (var n = 0; n < 1024; n++)
+        for (var n = 0; n < 32768; n++)
             this.vertices[n] = new _state.Vertex();
     }
     return VertexBuffer;
@@ -5531,9 +5534,9 @@ var VertexReaderFactory = (function () {
     VertexReaderFactory.get = function (vertexState) {
         var cacheId = vertexState.hash;
         var vertexReader = this.cache[cacheId];
-        if (vertexReader !== undefined)
-            return vertexReader;
-        return this.cache[cacheId] = new VertexReader(vertexState);
+        if (vertexReader === undefined)
+            vertexReader = this.cache[cacheId] = new VertexReader(vertexState);
+        return vertexReader;
     };
     VertexReaderFactory.cache = {};
     return VertexReaderFactory;
@@ -5547,16 +5550,30 @@ var VertexReader = (function () {
         this.readCode = this.createJs();
         this.readOneFunc = (new Function('output', 'input', 'inputOffset', this.readCode));
     }
-    VertexReader.prototype.readCount = function (output, input, count) {
-        var inputOffset = 0;
-        for (var n = 0; n < count; n++) {
-            this.readOneFunc(output[n], input, inputOffset);
-            inputOffset += this.vertexState.size;
+    VertexReader.prototype.readIndex = function (indices) {
+        switch (this.vertexState.index) {
+            case 1 /* Byte */:
+                return indices.readUInt8();
+            case 2 /* Short */:
+                return indices.readUInt16();
+            default:
+                return 0;
         }
     };
 
-    VertexReader.prototype.read = function (output, input, inputOffset) {
-        this.readOneFunc(output, input, inputOffset);
+    VertexReader.prototype.readCount = function (output, input, indices, count) {
+        if (this.vertexState.hasIndex) {
+            for (var n = 0; n < count; n++) {
+                var index = this.readIndex(indices);
+                this.readOneFunc(output[n], input, index * this.vertexState.size);
+            }
+        } else {
+            var inputOffset = 0;
+            for (var n = 0; n < count; n++) {
+                this.readOneFunc(output[n], input, inputOffset);
+                inputOffset += this.vertexState.size;
+            }
+        }
     };
 
     VertexReader.prototype.createJs = function () {
@@ -5585,8 +5602,16 @@ var VertexReader = (function () {
                 indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
                 indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
                 break;
+            case 5 /* Color5551 */:
+                this.align(2);
+                indentStringGenerator.write('var temp = (input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + '));\n');
+                indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
+                indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
+                indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
+                indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
+                break;
             default:
-                throw ("Not implemented color format");
+                throw (new Error("Not implemented color format '" + type + "'"));
         }
     };
 
@@ -5655,6 +5680,10 @@ var PspGpuList = (function () {
     PspGpuList.prototype.runInstruction = function (current, instruction) {
         var op = instruction >>> 24;
         var params24 = instruction & 0xFFFFFF;
+
+        function float1() {
+            return MathFloat.reinterpretIntAsFloat(params24 << 8);
+        }
 
         switch (op) {
             case 2 /* IADDR */:
@@ -5773,17 +5802,17 @@ var PspGpuList = (function () {
                 this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
                 break;
             case 74 /* UOFFSET */:
-                this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                this.state.texture.offsetU = float1();
                 break;
             case 75 /* VOFFSET */:
-                this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                this.state.texture.offsetV = float1();
                 break;
 
             case 72 /* USCALE */:
-                this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                this.state.texture.scaleU = float1();
                 break;
             case 73 /* VSCALE */:
-                this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8);
+                this.state.texture.scaleV = float1();
                 break;
 
             case 203 /* TFLUSH */:
@@ -5916,21 +5945,39 @@ var PspGpuList = (function () {
                 this.state.projectionMatrix.reset(params24);
                 break;
             case 63 /* PROJ_PUT */:
-                this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                this.state.projectionMatrix.put(float1());
                 break;
 
             case 60 /* VIEW_START */:
                 this.state.viewMatrix.reset(params24);
                 break;
             case 61 /* VIEW_PUT */:
-                this.state.viewMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                this.state.viewMatrix.put(float1());
                 break;
 
             case 58 /* WORLD_START */:
                 this.state.worldMatrix.reset(params24);
                 break;
             case 59 /* WORLD_PUT */:
-                this.state.worldMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8));
+                this.state.worldMatrix.put(float1());
+                break;
+
+            case 42 /* BONE_START */:
+                this.state.skinning.currentBoneIndex = params24;
+                break;
+            case 43 /* BONE_PUT */:
+                this.state.skinning.write(float1());
+                break;
+
+            case 44 /* MW0 */:
+            case 45 /* MW1 */:
+            case 46 /* MW2 */:
+            case 47 /* MW3 */:
+            case 48 /* MW4 */:
+            case 49 /* MW5 */:
+            case 50 /* MW6 */:
+            case 51 /* MW7 */:
+                this.state.morphWeights[op - 44 /* MW0 */] = MathFloat.reinterpretIntAsFloat(params24 << 8);
                 break;
 
             case 211 /* CLEAR */:
@@ -5965,11 +6012,16 @@ var PspGpuList = (function () {
                 var vertexCount = BitUtils.extract(params24, 0, 16);
                 var vertexState = this.state.vertex;
                 var vertexSize = this.state.vertex.size;
-                var vertexAddress = this.state.baseAddress + this.state.vertex.address;
+                var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+                var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
+
                 var vertexReader = VertexReaderFactory.get(vertexState);
+
+                var indices = this.memory.getPointerStream(indicesAddress);
                 var vertexInput = this.memory.getPointerDataView(vertexAddress);
+
                 var vertices = vertexBuffer.vertices;
-                vertexReader.readCount(vertices, vertexInput, vertexCount);
+                vertexReader.readCount(vertices, vertexInput, indices, vertexCount);
 
                 this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
                 this.drawDriver.setState(this.state);
@@ -6818,7 +6870,11 @@ var Matrix4x4 = (function () {
         this.values = mat4.create();
     }
     Matrix4x4.prototype.put = function (value) {
-        this.values[this.index++] = value;
+        this.putAt(this.index++, value);
+    };
+
+    Matrix4x4.prototype.putAt = function (index, value) {
+        this.values[index] = value;
     };
 
     Matrix4x4.prototype.reset = function (startIndex) {
@@ -6834,7 +6890,11 @@ var Matrix4x3 = (function () {
         this.values = mat4.create();
     }
     Matrix4x3.prototype.put = function (value) {
-        this.values[Matrix4x3.indices[this.index++]] = value;
+        this.putAt(this.index++, value);
+    };
+
+    Matrix4x3.prototype.putAt = function (index, value) {
+        this.values[Matrix4x3.indices[index]] = value;
     };
 
     Matrix4x3.prototype.reset = function (startIndex) {
@@ -7069,6 +7129,19 @@ var ClipPlane = (function () {
 })();
 exports.ClipPlane = ClipPlane;
 
+var SkinningState = (function () {
+    function SkinningState() {
+        this.currentBoneIndex = 0;
+        this.boneMatrices = [new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3()];
+    }
+    SkinningState.prototype.write = function (value) {
+        this.boneMatrices[ToInt32(this.currentBoneIndex / 12)].putAt(this.currentBoneIndex % 12, value);
+        this.currentBoneIndex++;
+    };
+    return SkinningState;
+})();
+exports.SkinningState = SkinningState;
+
 var GpuState = (function () {
     function GpuState() {
         this.clearing = false;
@@ -7079,6 +7152,8 @@ var GpuState = (function () {
         this.shadeModel = 0 /* Flat */;
         this.frameBuffer = new GpuFrameBufferState();
         this.vertex = new VertexState();
+        this.skinning = new SkinningState();
+        this.morphWeights = [1, 0, 0, 0, 0, 0, 0, 0];
         this.projectionMatrix = new Matrix4x4();
         this.viewMatrix = new Matrix4x3();
         this.worldMatrix = new Matrix4x3();
@@ -7096,6 +7171,12 @@ var GpuState = (function () {
         this.depthTest = new DepthTestState();
         this.drawPixelFormat = 3 /* RGBA_8888 */;
     }
+    GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) {
+        return (this.baseAddress | relativeAddress);
+    };
+    GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) {
+        return ((this.baseAddress | relativeAddress) + this.baseOffset);
+    };
     return GpuState;
 })();
 exports.GpuState = GpuState;
@@ -7222,11 +7303,11 @@ var WebGlPspDrawDriver = (function () {
         this.state = state;
     };
 
-    WebGlPspDrawDriver.prototype.updateState = function (program) {
+    WebGlPspDrawDriver.prototype.updateState = function (program, vertexState, primitiveType) {
         var state = this.state;
         var gl = this.gl;
 
-        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled)) {
+        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != 6 /* Sprites */))) {
             gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
         }
 
@@ -7428,7 +7509,7 @@ var WebGlPspDrawDriver = (function () {
 
         var program = this.cache.getProgram(vertexState, this.state);
         program.use();
-        this.updateState(program);
+        this.updateState(program, vertexState, primitiveType);
 
         this.demuxVertices(vertices, count, vertexState, primitiveType);
         this.setProgramParameters(gl, program, vertexState);
@@ -7849,7 +7930,7 @@ exports.WrappedWebGLProgram = WrappedWebGLProgram;
 
 var FastFloat32Buffer = (function () {
     function FastFloat32Buffer() {
-        this.arrayBuffer = new ArrayBuffer(4 * 64 * 1024);
+        this.arrayBuffer = new ArrayBuffer(32768 * 4 * 4 * 4);
         this.float32Array = new Float32Array(this.arrayBuffer);
         this.index = 0;
     }
@@ -7880,7 +7961,7 @@ var FastFloat32Buffer = (function () {
     };
 
     FastFloat32Buffer.prototype.slice = function () {
-        return new Float32Array(this.arrayBuffer, 0, this.index * 4);
+        return new Float32Array(this.arrayBuffer, 0, this.index);
     };
     return FastFloat32Buffer;
 })();
@@ -9301,8 +9382,11 @@ var Emulator = (function () {
             _this.emulatorVfs = new EmulatorVfs();
             _this.ms0Vfs = new MountableVfs();
 
-            _this.fileManager.mount('fatms0', new MemoryStickVfs(_this.ms0Vfs, _this.callbackManager, _this.memory));
-            _this.fileManager.mount('ms0', new MemoryStickVfs(_this.ms0Vfs, _this.callbackManager, _this.memory));
+            var msvfs = new MemoryStickVfs(_this.ms0Vfs, _this.callbackManager, _this.memory);
+            _this.fileManager.mount('fatms0', msvfs);
+            _this.fileManager.mount('ms0', msvfs);
+            _this.fileManager.mount('mscmhc0', msvfs);
+
             _this.fileManager.mount('host0', new MemoryVfs());
             _this.fileManager.mount('flash0', new UriVfs('flash0'));
             _this.fileManager.mount('emulator', _this.emulatorVfs);
@@ -9312,7 +9396,7 @@ var Emulator = (function () {
 
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
 
-            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager);
 
             return Promise.all([
                 _this.display.startAsync(),
@@ -9440,7 +9524,7 @@ var Emulator = (function () {
 
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
-                        //this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
+                        _this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
                         console.info('pathToFile:', pathToFile);
                         var arguments = [pathToFile];
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
@@ -10867,6 +10951,54 @@ var Psf = (function () {
 })();
 exports.Psf = Psf;
 //# sourceMappingURL=psf.js.map
+},
+"src/format/riff": function(module, exports, require) {
+var Riff = (function () {
+    function Riff() {
+        this.handlers = {};
+    }
+    Riff.prototype.addHandler = function (name, handler) {
+        this.handlers[name] = handler;
+    };
+
+    Riff.prototype.load = function (stream) {
+        if (stream.readString(4) != 'RIFF')
+            throw (new Error("Not a riff file"));
+        var chunkSize = stream.readInt32();
+        var chunkStream = stream.readStream(chunkSize);
+        var chunkType = chunkStream.readString(4);
+        switch (chunkType) {
+            case 'WAVE':
+                this.loadWave(chunkStream);
+                break;
+            default:
+                throw (new Error("Don't know how to handle chunk '" + chunkType + "'"));
+        }
+    };
+
+    Riff.prototype.loadWave = function (stream) {
+        while (stream.available > 0) {
+            var type = stream.readString(4);
+            var length = stream.readInt32();
+            var data = stream.readStream(length);
+            console.info('subchunk', type, length, data);
+            if (this.handlers[type] === undefined)
+                throw (new Error("Don't know how to handle subchunk '" + type + "'"));
+            (this.handlers[type])(data);
+        }
+    };
+
+    Riff.fromStreamWithHandlers = function (stream, handlers) {
+        var riff = new Riff();
+        for (var handlerName in handlers)
+            riff.addHandler(handlerName, handlers[handlerName]);
+        riff.load(stream);
+        return riff;
+    };
+    return Riff;
+})();
+exports.Riff = Riff;
+//# sourceMappingURL=riff.js.map
 },
 "src/format/zip": function(module, exports, require) {
 var ZipEntry = (function () {
@@ -12325,8 +12457,11 @@ var PspElfLoader = (function () {
         var imports = StructArray(ElfPspModuleImport.struct, importsCount).read(importsStream);
         imports.forEach(function (_import) {
             _import.name = _this.memory.readStringz(_import.nameOffset);
-            _this.updateModuleFunctions(_import);
+            var imported = _this.updateModuleFunctions(_import);
             _this.updateModuleVars(_import);
+            console.info('Imported: ', imported.name, imported.registeredNativeFunctions.map(function (i) {
+                return i.name;
+            }));
         });
         //console.log(imports);
     };
@@ -12336,6 +12471,7 @@ var PspElfLoader = (function () {
         var _module = this.moduleManager.getByName(moduleImport.name);
         var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
         var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
+        var registeredNativeFunctions = [];
 
         var registerN = function (nid, n) {
             var nfunc;
@@ -12347,11 +12483,17 @@ var PspElfLoader = (function () {
                 nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
                 nfunc.nid = nid;
                 nfunc.firmwareVersion = 150;
-                nfunc.call = function (context, state) {
+                nfunc.nativeCall = function () {
                     console.info(_module);
                     throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
                 };
+                nfunc.call = function (context, state) {
+                    nfunc.nativeCall();
+                };
             }
+
+            registeredNativeFunctions.push(nfunc);
+
             var syscallId = _this.syscallManager.register(nfunc);
 
             //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
@@ -12365,6 +12507,11 @@ var PspElfLoader = (function () {
             callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
             callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
         }
+
+        return {
+            name: moduleImport.name,
+            registeredNativeFunctions: registeredNativeFunctions
+        };
     };
 
     PspElfLoader.prototype.updateModuleVars = function (moduleImport) {
@@ -14719,70 +14866,137 @@ exports.UtilsForUser = UtilsForUser;
 },
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
 var _utils = require('../utils');
+var SceKernelErrors = require('../SceKernelErrors');
 
+var _riff = require('../../format/riff');
+_riff.Riff;
+var Riff = _riff.Riff;
 var createNativeFunction = _utils.createNativeFunction;
 
 var sceAtrac3plus = (function () {
     function sceAtrac3plus(context) {
         var _this = this;
         this.context = context;
-        this.sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'void*/int', this, function (dataPointer, dataLength) {
-            return _this._waitAsync('sceAtracSetDataAndGetID', 10);
+        this.atrac3Ids = new UidCollection();
+        this.sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]', this, function (data) {
+            return _this.atrac3Ids.allocate(Atrac3.fromStream(data));
         });
         this.sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
+            var atrac3 = _this.atrac3Ids.get(id);
             puiPosition.writeInt32(0);
             puiDataByte.writeInt32(0);
-            return _this._waitAsync('sceAtracGetSecondBufferInfo', 10);
+            return 2153971746 /* ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED */;
         });
         this.sceAtracSetSecondBuffer = createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
-            return _this._waitAsync('sceAtracSetSecondBuffer', 10);
+            //throw (new Error("Not implemented sceAtracSetSecondBuffer"));
+            return 0;
         });
         this.sceAtracReleaseAtracID = createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
+            _this.atrac3Ids.remove(id);
             return 0;
         });
         this.sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
-            if (samplesOutPtr) {
-                for (var n = 0; n < 1024; n++)
-                    samplesOutPtr.writeInt16(0);
+            var atrac3 = _this.atrac3Ids.get(id);
+
+            var decodedSamples = atrac3.decode(samplesOutPtr);
+            var reachedEnd = 0;
+            var remainingFramesToDecode = atrac3.remainingFrames;
+
+            function outputPointers() {
+                if (reachedEndPtr)
+                    reachedEndPtr.writeInt32(reachedEnd);
+                if (decodedSamplesCountPtr)
+                    decodedSamplesCountPtr.writeInt32(decodedSamples);
+                if (remainingFramesToDecodePtr)
+                    remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
             }
-            if (decodedSamplesCountPtr) {
-                decodedSamplesCountPtr.writeInt32(0);
+
+            //Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
+            if (atrac3.decodingReachedEnd) {
+                //if (atrac3.numberOfLoops == 0) {
+                if (true) {
+                    decodedSamples = 0;
+                    reachedEnd = 1;
+                    remainingFramesToDecode = 0;
+                    outputPointers();
+                    return 2153971748 /* ERROR_ATRAC_ALL_DATA_DECODED */;
+                }
+                if (atrac3.numberOfLoops > 0)
+                    atrac3.numberOfLoops--;
+                //atrac3.decodingOffset = (atrac3.LoopInfoList.Length > 0) ? atrac3.LoopInfoList[0].StartSample : 0;
             }
-            if (reachedEndPtr) {
-                reachedEndPtr.writeInt32(-1);
-            }
-            return _this._waitAsync('sceAtracDecodeData', 10);
+
+            //return Atrac.GetUidIndex(InjectContext);
+            outputPointers();
+            return 0;
         });
+        /**
+        * Gets the remaining (not decoded) number of frames
+        * Pointer to a integer that receives either -1 if all at3 data is already on memory,
+        * or the remaining (not decoded yet) frames at memory if not all at3 data is on memory
+        * @return Less than 0 on error, otherwise 0
+        */
         this.sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
+            var atrac3 = _this.atrac3Ids.get(id);
+            if (remainFramePtr)
+                remainFramePtr.writeInt32(atrac3.remainingFrames);
             return 0;
         });
         this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
+            throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
             return 0;
         });
         this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
+            throw (new Error("Not implemented sceAtracAddStreamData"));
             return 0;
         });
         this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
+            var atrac3 = _this.atrac3Ids.get(id);
+            if (atrac3.decodingReachedEnd)
+                return 2153971748 /* ERROR_ATRAC_ALL_DATA_DECODED */;
+            if (samplePositionPtr)
+                samplePositionPtr.writeInt32(atrac3.decodingOffset);
             return 0;
         });
         this.sceAtracGetSoundSample = createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
+            var atrac3 = _this.atrac3Ids.get(id);
+
+            //var hasLoops = (Atrac.LoopInfoList != null) && (Atrac.LoopInfoList.Length > 0);
+            var hasLoops = false;
+            if (endSamplePtr)
+                endSamplePtr.writeInt32(atrac3.fact.endSample);
+
+            //if (loopStartSamplePtr) loopStartSamplePtr.writeInt32(hasLoops ? atrac3.LoopInfoList[0].StartSample : -1);
+            if (loopStartSamplePtr)
+                loopStartSamplePtr.writeInt32(-1);
+
+            //if (loopEndSamplePtr) *LoopEndSamplePointer = hasLoops ? atrac3.LoopInfoList[0].EndSample : -1;
+            if (loopEndSamplePtr)
+                loopEndSamplePtr.writeInt32(-1);
             return 0;
         });
         this.sceAtracSetLoopNum = createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
+            var atrac3 = _this.atrac3Ids.get(id);
+            atrac3.numberOfLoops = numberOfLoops;
             return 0;
         });
         this.sceAtracGetBufferInfoForReseting = createNativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*', this, function (id, uiSample, bufferInfoPtr) {
+            throw (new Error("Not implemented sceAtracGetBufferInfoForReseting"));
             return 0;
         });
         this.sceAtracResetPlayPosition = createNativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint', this, function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
+            throw (new Error("Not implemented sceAtracResetPlayPosition"));
             return 0;
         });
         this.sceAtracGetInternalErrorInfo = createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, function (id, errorResultPtr) {
+            throw (new Error("Not implemented sceAtracGetInternalErrorInfo"));
             return 0;
         });
         this.sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, function (id, outputChannelPtr) {
-            if (outputChannelPtr)
-                outputChannelPtr.writeInt32(0);
+            var atrac3 = _this.atrac3Ids.get(id);
+            var sceAudioChReserve = _this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
+            var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
+            outputChannelPtr.writeInt32(channel);
             return 0;
         });
     }
@@ -14794,6 +15008,142 @@ var sceAtrac3plus = (function () {
     return sceAtrac3plus;
 })();
 exports.sceAtrac3plus = sceAtrac3plus;
+
+var Atrac3 = (function () {
+    function Atrac3() {
+        this.fmt = new At3FormatStruct();
+        this.fact = new FactStruct();
+        //smpl = new SmplStruct();
+        this.dataStream = Stream.fromArray([]);
+        this.numberOfLoops = 0;
+        this.decodingOffset = 0;
+        this.codecType = 4096 /* PSP_MODE_AT_3_PLUS */;
+    }
+    Atrac3.prototype.loadStream = function (data) {
+        //debugger;
+        var _this = this;
+        Riff.fromStreamWithHandlers(data, {
+            'fmt ': function (stream) {
+                _this.fmt = At3FormatStruct.struct.read(stream);
+            },
+            'fact': function (stream) {
+                _this.fact = FactStruct.struct.read(stream);
+            },
+            'smpl': function (stream) {
+            },
+            'data': function (stream) {
+                _this.dataStream = stream;
+            }
+        });
+
+        //console.log(this.fmt);
+        //console.log(this.fact);
+        return this;
+    };
+
+    Object.defineProperty(Atrac3.prototype, "maximumSamples", {
+        get: function () {
+            this.fmt.compressionCode;
+            switch (this.codecType) {
+                case 4096 /* PSP_MODE_AT_3_PLUS */:
+                    return 0x800;
+                case 4097 /* PSP_MODE_AT_3 */:
+                    return 0x400;
+                default:
+                    throw (new Error("Unknown codec type"));
+            }
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Atrac3.prototype, "remainingFrames", {
+        get: function () {
+            if (this.fmt.blockSize == 0)
+                return -1;
+            return (this.dataStream.available / this.fmt.blockSize);
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Atrac3.prototype, "decodingReachedEnd", {
+        get: function () {
+            return this.remainingFrames <= 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Atrac3.prototype.decode = function (samplesOutPtr) {
+        if (this.dataStream.available < this.fmt.blockSize)
+            return 0;
+        var blockData = this.dataStream.readBytes(this.fmt.blockSize);
+        this.decodingOffset++;
+
+        // decode
+        return 0x800 * this.fmt.atracChannels * 2;
+    };
+
+    Atrac3.fromStream = function (data) {
+        return new Atrac3().loadStream(data);
+    };
+    return Atrac3;
+})();
+
+var FactStruct = (function () {
+    function FactStruct() {
+        this.endSample = 0;
+        this.sampleOffset = 0;
+    }
+    FactStruct.struct = StructClass.create(FactStruct, [
+        { endSample: Int32 },
+        { sampleOffset: Int32 }
+    ]);
+    return FactStruct;
+})();
+
+var At3FormatStruct = (function () {
+    function At3FormatStruct() {
+        this.compressionCode = 0;
+        this.atracChannels = 0;
+        this.bitrate = 0;
+        this.averageBytesPerSecond = 0;
+        this.blockAlignment = 0;
+        this.bytesPerFrame = 0;
+        this.unknown = [0, 0, 0, 0];
+        this.omaInfo = 0;
+        this._unk2 = 0;
+        this._blockSize = 0;
+    }
+    Object.defineProperty(At3FormatStruct.prototype, "blockSize", {
+        get: function () {
+            return (this._blockSize & 0x3FF) * 8 + 8;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    At3FormatStruct.struct = StructClass.create(At3FormatStruct, [
+        { compressionCode: UInt16 },
+        { atracChannels: UInt16 },
+        { bitrate: UInt32 },
+        { averageBytesPerSecond: UInt16 },
+        { blockAlignment: UInt16 },
+        { bytesPerFrame: UInt16 },
+        { unknown: StructArray(UInt32, 4) },
+        { omaInfo: UInt32 },
+        { _unk2: UInt16_b },
+        { _blockSize: UInt16_b }
+    ]);
+    return At3FormatStruct;
+})();
+
+var CodecType;
+(function (CodecType) {
+    CodecType[CodecType["PSP_MODE_AT_3_PLUS"] = 0x00001000] = "PSP_MODE_AT_3_PLUS";
+    CodecType[CodecType["PSP_MODE_AT_3"] = 0x00001001] = "PSP_MODE_AT_3";
+})(CodecType || (CodecType = {}));
 //# sourceMappingURL=sceAtrac3plus.js.map
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
@@ -14816,7 +15166,7 @@ var sceAudio = (function () {
                 return 0;
             });
         });
-        this.sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
+        this.çsceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
             if (channelId >= _this.channels.length)
                 return -1;
             if (channelId < 0) {
@@ -14860,6 +15210,8 @@ var sceAudio = (function () {
                 return waitAsync(10).then(function () {
                     return 0;
                 });
+
+            //return waitAsync(100).then(() => 0);
             var channel = _this.channels[channelId];
             return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
         });
@@ -15084,9 +15436,6 @@ var sceGe_user = (function () {
     function sceGe_user(context) {
         var _this = this;
         this.context = context;
-        this.sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
-            return 0x04000000;
-        });
         this.sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, function (callbackDataPtr) {
             //console.warn('Not implemented sceGe_user.sceGeSetCallback');
             return 0;
@@ -15110,8 +15459,12 @@ var sceGe_user = (function () {
             //console.warn('Not implemented sceGe_user.sceGeDrawSync');
             return _this.context.gpu.drawSync(syncType);
         });
+        this.sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
+            console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);
+            return 0x04000000;
+        });
         this.sceGeEdramGetSize = createNativeFunction(0x1F6752AD, 150, 'uint', '', this, function () {
-            //console.warn('Not implemented sceGe_user.sceGeEdramGetSize');
+            console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
             return 0x00200000;
         });
     }
@@ -17041,6 +17394,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, arguments, _thi
             case 'void*':
                 args.push('state.getPointerStream(' + readGpr32_S() + ')');
                 break;
+            case 'byte[]':
+                args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
+                break;
             case '':
                 break;
             default:
@@ -17082,6 +17438,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, arguments, _thi
     nativeFunction.call = function (context, state) {
         func(_this, internalFunc, context, state, nativeFunction);
     };
+    nativeFunction.nativeCall = internalFunc;
 
     //console.log(out);
     return nativeFunction;
@@ -19899,7 +20256,7 @@ describe('elf', function () {
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);

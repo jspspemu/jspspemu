@@ -69,6 +69,7 @@
     <TypeScriptCompile Include="src\format\format.ts" />
     <TypeScriptCompile Include="src\format\pbp.ts" />
     <TypeScriptCompile Include="src\format\psf.ts" />
+    <TypeScriptCompile Include="src\format\riff.ts" />
     <TypeScriptCompile Include="src\format\zip.ts" />
     <TypeScriptCompile Include="src\global\array.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx.ts" />

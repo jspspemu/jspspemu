@@ -179,3 +179,5 @@ node_modules
 /samples/*.iso
 /js
 /samples/*.cso
+/samples/jazz
+/samples/TYRIAN

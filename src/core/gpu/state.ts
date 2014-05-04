@@ -210,7 +210,11 @@ export class Matrix4x4 {
 	values = mat4.create();
 
 	put(value: number) {
-		this.values[this.index++] = value;
+		this.putAt(this.index++, value);
+	}
+
+	putAt(index:number, value: number) {
+		this.values[index] = value;
 	}
 
 	reset(startIndex: number) {
@@ -224,7 +228,11 @@ export class Matrix4x3 {
 	static indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
 
 	put(value: number) {
-		this.values[Matrix4x3.indices[this.index++]] = value;
+		this.putAt(this.index++, value);
+	}
+
+	putAt(index: number, value: number) {
+		this.values[Matrix4x3.indices[index]] = value;
 	}
 
 	reset(startIndex: number) {
@@ -375,7 +383,20 @@ export class ClipPlane {
 	scissor = new Rectangle(0, 0, 512, 272);
 }
 
+export class SkinningState {
+	currentBoneIndex = 0;
+	boneMatrices = [ new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3() ];
+
+	write(value: number) {
+		this.boneMatrices[ToInt32(this.currentBoneIndex / 12)].putAt(this.currentBoneIndex % 12, value);
+		this.currentBoneIndex++;
+	}
+}
+
 export class GpuState {
+	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
+	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
+
 	clearing = false;
 	clearFlags = 0;
 	baseAddress = 0;
@@ -384,6 +405,8 @@ export class GpuState {
 	shadeModel = ShadingModelEnum.Flat;
 	frameBuffer = new GpuFrameBufferState();
 	vertex = new VertexState();
+	skinning = new SkinningState();
+	morphWeights = [1, 0, 0, 0, 0, 0, 0, 0];
 	projectionMatrix = new Matrix4x4();
 	viewMatrix = new Matrix4x3();
 	worldMatrix = new Matrix4x3();

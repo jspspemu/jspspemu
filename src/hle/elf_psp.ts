@@ -310,8 +310,9 @@ export class PspElfLoader {
         var imports = StructArray<ElfPspModuleImport>(ElfPspModuleImport.struct, importsCount).read(importsStream);
         imports.forEach(_import => {
             _import.name = this.memory.readStringz(_import.nameOffset)
-            this.updateModuleFunctions(_import);
-            this.updateModuleVars(_import);
+            var imported = this.updateModuleFunctions(_import);
+			this.updateModuleVars(_import);
+			console.info('Imported: ', imported.name, imported.registeredNativeFunctions.map(i => i.name));
         });
         //console.log(imports);
     }
@@ -319,7 +320,8 @@ export class PspElfLoader {
     private updateModuleFunctions(moduleImport: ElfPspModuleImport) {
         var _module = this.moduleManager.getByName(moduleImport.name);
         var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
-        var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
+		var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
+		var registeredNativeFunctions = <NativeFunction[]>[];
 
         var registerN = (nid: number, n: number) => {
             var nfunc: NativeFunction;
@@ -330,12 +332,18 @@ export class PspElfLoader {
 				nfunc = new NativeFunction();
                 nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
                 nfunc.nid = nid;
-                nfunc.firmwareVersion = 150;
-				nfunc.call = (context, state) => {
+				nfunc.firmwareVersion = 150;
+				nfunc.nativeCall = () => {
 					console.info(_module);
 					throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
-                };
+				};
+				nfunc.call = (context, state) => {
+					nfunc.nativeCall();
+				};
             }
+
+			registeredNativeFunctions.push(nfunc);
+
             var syscallId = this.syscallManager.register(nfunc);
             //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
             return syscallId;
@@ -347,7 +355,12 @@ export class PspElfLoader {
 
             callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
             callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
-        }
+		}
+
+		return {
+			name : moduleImport.name,
+			registeredNativeFunctions : registeredNativeFunctions,
+		};
     }
 
     private updateModuleVars(moduleImport: ElfPspModuleImport) {

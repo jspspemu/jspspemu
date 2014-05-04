@@ -28,8 +28,8 @@ class VertexBuffer {
 	vertices: _state.Vertex[] = [];
 
     constructor() {
-		for (var n = 0; n < 1024; n++) this.vertices[n] = new _state.Vertex();
-    }
+		for (var n = 0; n < 32768; n++) this.vertices[n] = new _state.Vertex();
+	}
 }
 
 export class VertexReaderFactory {
@@ -38,8 +38,8 @@ export class VertexReaderFactory {
 	static get(vertexState: _state.VertexState): VertexReader {
 		var cacheId = vertexState.hash;
         var vertexReader = this.cache[cacheId];
-        if (vertexReader !== undefined) return vertexReader;
-		return this.cache[cacheId] = new VertexReader(vertexState);
+		if (vertexReader === undefined) vertexReader = this.cache[cacheId] = new VertexReader(vertexState);
+		return vertexReader;
     }
 }
 
@@ -51,18 +51,30 @@ export class VertexReader {
 	constructor(private vertexState: _state.VertexState) {
         this.readCode = this.createJs();
         this.readOneFunc = <any>(new Function('output', 'input', 'inputOffset', this.readCode));
-    }
+	}
 
-	readCount(output: _state.Vertex[], input: DataView, count: number) {
-        var inputOffset = 0;
-        for (var n = 0; n < count; n++) {
-            this.readOneFunc(output[n], input, inputOffset);
-            inputOffset += this.vertexState.size;
-        }
-    }
+	readIndex(indices: Stream) {
+		switch (this.vertexState.index) {
+			case _state.IndexEnum.Byte: return indices.readUInt8();
+			case _state.IndexEnum.Short: return indices.readUInt16();
+			default: return 0;
+		}
+	}
 
-	read(output: _state.Vertex, input: DataView, inputOffset: number) {
-        this.readOneFunc(output, input, inputOffset);
+	readCount(output: _state.Vertex[], input: DataView, indices:Stream, count: number) {
+		if (this.vertexState.hasIndex) {
+			//debugger;
+			for (var n = 0; n < count; n++) {
+				var index = this.readIndex(indices);
+				this.readOneFunc(output[n], input, index * this.vertexState.size);
+			}
+		} else {
+			var inputOffset = 0;
+			for (var n = 0; n < count; n++) {
+				this.readOneFunc(output[n], input, inputOffset);
+				inputOffset += this.vertexState.size;
+			}
+		}
     }
 
     private createJs() {
@@ -90,8 +102,16 @@ export class VertexReader {
 				indentStringGenerator.write('output.b = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
 				indentStringGenerator.write('output.a = (input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') / 255.0);\n');
                 break;
+			case ColorEnum.Color5551:
+				this.align(2);
+				indentStringGenerator.write('var temp = (input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + '));\n');
+				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
+				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
+				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
+				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
+				break;
             default:
-                throw("Not implemented color format");
+				throw (new Error("Not implemented color format '" + type + "'"));
         }
     }
 
@@ -157,7 +177,9 @@ class PspGpuList {
 
     private runInstruction(current: number, instruction: number) {
         var op: GpuOpCodes = instruction >>> 24;
-        var params24: number = instruction & 0xFFFFFF;
+		var params24: number = instruction & 0xFFFFFF;
+
+		function float1() { return MathFloat.reinterpretIntAsFloat(params24 << 8); }
 
 		switch (op) {
 			case GpuOpCodes.IADDR:
@@ -260,11 +282,11 @@ class PspGpuList {
 				this.state.texture.colorComponent = <_state.TextureColorComponent>BitUtils.extract(params24, 8, 8);
 				this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
 				break;
-			case GpuOpCodes.UOFFSET: this.state.texture.offsetU = MathFloat.reinterpretIntAsFloat(params24 << 8); break;
-			case GpuOpCodes.VOFFSET: this.state.texture.offsetV = MathFloat.reinterpretIntAsFloat(params24 << 8); break;
+			case GpuOpCodes.UOFFSET: this.state.texture.offsetU = float1(); break;
+			case GpuOpCodes.VOFFSET: this.state.texture.offsetV = float1(); break;
 
-			case GpuOpCodes.USCALE: this.state.texture.scaleU = MathFloat.reinterpretIntAsFloat(params24 << 8); break;
-			case GpuOpCodes.VSCALE: this.state.texture.scaleV = MathFloat.reinterpretIntAsFloat(params24 << 8); break;
+			case GpuOpCodes.USCALE: this.state.texture.scaleU = float1(); break;
+			case GpuOpCodes.VSCALE: this.state.texture.scaleV = float1(); break;
 
 			case GpuOpCodes.TFLUSH: this.drawDriver.textureFlush(this.state); break;
 			case GpuOpCodes.TSYNC: this.drawDriver.textureSync(this.state); break;
@@ -388,13 +410,27 @@ class PspGpuList {
 				break;
 
             case GpuOpCodes.PROJ_START: this.state.projectionMatrix.reset(params24); break;
-            case GpuOpCodes.PROJ_PUT: this.state.projectionMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8)); break;
+			case GpuOpCodes.PROJ_PUT: this.state.projectionMatrix.put(float1()); break;
 
             case GpuOpCodes.VIEW_START: this.state.viewMatrix.reset(params24); break;
-            case GpuOpCodes.VIEW_PUT: this.state.viewMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8)); break;
+			case GpuOpCodes.VIEW_PUT: this.state.viewMatrix.put(float1()); break;
 
             case GpuOpCodes.WORLD_START: this.state.worldMatrix.reset(params24); break;
-            case GpuOpCodes.WORLD_PUT: this.state.worldMatrix.put(MathFloat.reinterpretIntAsFloat(params24 << 8)); break;
+			case GpuOpCodes.WORLD_PUT: this.state.worldMatrix.put(float1()); break;
+
+			case GpuOpCodes.BONE_START: this.state.skinning.currentBoneIndex = params24; break;
+			case GpuOpCodes.BONE_PUT: this.state.skinning.write(float1()); break;
+
+			case GpuOpCodes.MW0:
+			case GpuOpCodes.MW1:
+			case GpuOpCodes.MW2:
+			case GpuOpCodes.MW3:
+			case GpuOpCodes.MW4:
+			case GpuOpCodes.MW5:
+			case GpuOpCodes.MW6:
+			case GpuOpCodes.MW7:
+				this.state.morphWeights[op - GpuOpCodes.MW0] = MathFloat.reinterpretIntAsFloat(params24 << 8);
+				break;
 
             case GpuOpCodes.CLEAR:
                 this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
@@ -424,12 +460,17 @@ class PspGpuList {
                 var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(params24, 16, 3);
                 var vertexCount = BitUtils.extract(params24, 0, 16);
                 var vertexState = this.state.vertex;
-                var vertexSize = this.state.vertex.size;
-				var vertexAddress = this.state.baseAddress + this.state.vertex.address;
+				var vertexSize = this.state.vertex.size;
+				var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+				var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
+
 				var vertexReader = VertexReaderFactory.get(vertexState);
-                var vertexInput = this.memory.getPointerDataView(vertexAddress);
-                var vertices = vertexBuffer.vertices;
-				vertexReader.readCount(vertices, vertexInput, vertexCount);
+
+				var indices = this.memory.getPointerStream(indicesAddress);
+				var vertexInput = this.memory.getPointerDataView(vertexAddress);
+
+				var vertices = vertexBuffer.vertices;
+				vertexReader.readCount(vertices, vertexInput, indices, vertexCount);
 
                 this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
 				this.drawDriver.setState(this.state);

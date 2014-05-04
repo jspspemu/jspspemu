@@ -51,7 +51,7 @@ function downloadFileChunkAsync(url: string, from: number, count: number) {
 function statFileAsync(url: string) {
 	return _downloadFileAsync('HEAD', url).then(request => {
 		//console.error('content-type', request.getResponseHeader('content-type'));
-		console.log(request.getAllResponseHeaders());
+		//console.log(request.getAllResponseHeaders());
 
 		var size = parseInt(request.getResponseHeader('content-length'));
 		var date = new Date(Date.parse(request.getResponseHeader('last-modified')));

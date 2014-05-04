@@ -51,8 +51,8 @@ class UrlAsyncStream implements AsyncStream {
 	get size() { return this.stat.size; }
 
 	readChunkAsync(offset: number, count: number) {
-		//console.error((new Error("download chunk"))['stack']);
-		console.info('download chunk', this.url, offset, count);
+		//console.error();
+		console.info('download chunk', this.url, offset, count, (new Error("download chunk"))['stack']);
 		return downloadFileChunkAsync(this.url, offset, count);
     }
 }

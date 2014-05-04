@@ -26,6 +26,7 @@ export class EmulatorContext {
 	memoryManager: _manager.MemoryManager;
 	threadManager: _manager.ThreadManager;
 	callbackManager: _manager.CallbackManager;
+	moduleManager: _manager.ModuleManager;
 	audio: _audio.PspAudio;
 	memory: _memory.Memory;
 	instructionCache: _cpu.InstructionCache;
@@ -36,7 +37,7 @@ export class EmulatorContext {
 	constructor() {
 	}
 
-	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager) {
+	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager:_manager.ModuleManager) {
 		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;
@@ -49,5 +50,6 @@ export class EmulatorContext {
 		this.fileManager = fileManager;
 		this.rtc = rtc;
 		this.callbackManager = callbackManager;
+		this.moduleManager = moduleManager;
 	}
 }

@@ -40,6 +40,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'int': args.push(readGpr32_S() + ' | 0'); break;
 			case 'ulong': case 'long': args.push(readGpr64()); break;
 			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
+			case 'byte[]': args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
             case '': break;
             default: throw ('Invalid argument "' + item + '"');
         }
@@ -69,7 +70,8 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
 	nativeFunction.call = (context, state) => {
         func(_this, internalFunc, context, state, nativeFunction);
-    };
+	};
+	nativeFunction.nativeCall = internalFunc;
     //console.log(out);
     return nativeFunction;
 }

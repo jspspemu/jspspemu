@@ -135,9 +135,13 @@ class BitUtils {
 		return (data >> offset) & ((1 << length) - 1);
 	}
 
-	static extractScalef(data: number, offset: number, length: number, scale: number) {
+	static extractScale1f(data: number, offset: number, length) {
 		var mask = BitUtils.mask(length);
-		return (((data >>> offset) & mask) * scale / mask);
+		return (((data >>> offset) & mask) / mask)
+	}
+
+	static extractScalef(data: number, offset: number, length: number, scale: number) {
+		return BitUtils.extractScale1f(data, offset, length) * scale;
 	}
 
 	static extractScalei(data: number, offset: number, length: number, scale: number) {

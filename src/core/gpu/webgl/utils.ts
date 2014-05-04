@@ -73,7 +73,7 @@ export class WrappedWebGLProgram {
 }
 
 export class FastFloat32Buffer {
-	private arrayBuffer = new ArrayBuffer(4 * 64 * 1024);
+	private arrayBuffer = new ArrayBuffer(32768 * 4 * 4 * 4);
 	private float32Array = new Float32Array(this.arrayBuffer);
 	private index = 0;
 
@@ -104,6 +104,6 @@ export class FastFloat32Buffer {
 	}
 
 	slice() {
-		return new Float32Array(this.arrayBuffer, 0, this.index * 4);
+		return new Float32Array(this.arrayBuffer, 0, this.index);
 	}
 }

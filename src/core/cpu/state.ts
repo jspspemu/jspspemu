@@ -269,9 +269,8 @@ export class CpuState {
 	//	this._multu(Math.abs(rs), Math.abs(rt));
 	//	// negate if one is negative and the other possitive
 	//}
-	
+
 	mult(rs: number, rt: number) {
-		//this._mult(rs, rt);
 		var a64 = Integer64.fromInt(rs);
 		var b64 = Integer64.fromInt(rt);
 		var result = a64.multiply(b64);

@@ -114,8 +114,11 @@ export class Emulator {
 			this.emulatorVfs = new EmulatorVfs();
 			this.ms0Vfs = new MountableVfs();
 
-			this.fileManager.mount('fatms0', new MemoryStickVfs(this.ms0Vfs, this.callbackManager, this.memory));
-			this.fileManager.mount('ms0', new MemoryStickVfs(this.ms0Vfs, this.callbackManager, this.memory));
+			var msvfs = new MemoryStickVfs(this.ms0Vfs, this.callbackManager, this.memory);
+			this.fileManager.mount('fatms0', msvfs);
+			this.fileManager.mount('ms0', msvfs);
+			this.fileManager.mount('mscmhc0', msvfs);
+
 			this.fileManager.mount('host0', new MemoryVfs());
 			this.fileManager.mount('flash0', new UriVfs('flash0'));
 			this.fileManager.mount('emulator', this.emulatorVfs);
@@ -125,7 +128,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager);
 
 			return Promise.all([
 				this.display.startAsync(),
@@ -246,7 +249,7 @@ export class Emulator {
 
 						var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
-						//this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
+						this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
 						console.info('pathToFile:', pathToFile);
 						var arguments = [pathToFile];
 						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);

@@ -131,6 +131,8 @@
             "samples/cube.elf",
             "samples/cube.iso",
             "samples/lights.pbp",
+            "samples/skinning.pbp",
+            "samples/sprite.pbp",
             "samples/lines.pbp",
             "samples/clut.pbp",
             "samples/reflection.pbp",
@@ -188,6 +190,7 @@
         $('#files').change(function () {
             console.clear();
             document.location.hash = $('#files').val();
+            document.location.reload();
             //emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
             //downloadAnd
             //document.location = 'index.html?' + $('#files').val();

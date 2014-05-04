@@ -83,11 +83,11 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.state = state;
 	}
 
-	private updateState(program: WrappedWebGLProgram) {
+	private updateState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
 
-		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled)) {
+		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
 			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 		}
 
@@ -278,7 +278,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 		var program = this.cache.getProgram(vertexState, this.state);
 		program.use();
-		this.updateState(program);
+		this.updateState(program, vertexState, primitiveType);
 
 		this.demuxVertices(vertices, count, vertexState, primitiveType);
 		this.setProgramParameters(gl, program, vertexState);
