@@ -49,12 +49,12 @@
 </head>
 <body>
     <div id="body">
-        <div>
+        <div id="header_info">
             <center>
                 <select id="files" style="width:160px;"></select>
                 <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
                 <input type="file" id="load_file" name="load_file" style="width:132px;" />
-                <a href="javascript:document.body.webkitRequestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">Fullscreen</a>
+                <a href="javascript:requestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">Fullscreen</a>
                 <a href="javascript:saveAs(new Blob([emulator.memory.getPointerDataView(0x08000000, 0x2000000)]), 'memory.bin');" style="font:16px Arial;color:white;">[M]</a>
             </center>
         </div>
@@ -238,7 +238,9 @@
 
             updateScaleWith(scale);
 
-            //console.log('resize', $(window).width(), $(window).height(), availableSpace);
+            var isFullScreen = (screen.availHeight || screen.height - 30) <= window.innerHeight;
+
+            $(document.body).toggleClass('fullscreen', isFullScreen);
         }
 
         $(window).on('resize', function (e) {
@@ -246,6 +248,14 @@
         });
 
         onResize();
+
+        function requestFullScreen() {
+            //var fullscreenWithoutKeys = document.body['requestFullScreen'] || document.body['webkitRequestFullScreen'] || document.body['mozRequestFullScreen'];
+            //var fullscreenWithKeys = document.body['requestFullScreenWithKeys'] || document.body['webkitRequestFullScreenWithKeys'] || document.body['mozRequestFullScreenWithKeys'];
+            //var fullscreen = fullscreenWithKeys || fullscreenWithoutKeys;
+            document.body.webkitRequestFullScreen();
+            //fullscreen();
+        }
     </script>
 
     <!--

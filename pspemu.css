@@ -131,3 +131,7 @@ canvas {
 	image-rendering: optimize-contrast;
 	-ms-interpolation-mode: nearest-neighbor;
 }
+
+body.fullscreen #header_info {
+     visibility:hidden;
+}
