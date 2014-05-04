@@ -233,7 +233,7 @@ class BitUtils {
 	}
 
 	static extractScale1f(data: number, offset: number, length) {
-		var mask = BitUtils.mask(length);
+		var mask = (1 << length) - 1;
 		return (((data >>> offset) & mask) / mask)
 	}
 

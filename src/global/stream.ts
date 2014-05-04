@@ -5,6 +5,68 @@
 	readChunkAsync(offset: number, count: number): Promise<ArrayBuffer>;
 }
 
+class ProxyAsyncStream {
+	constructor(public stream: AsyncStream) {
+	}
+
+	get name() { return this.stream.name; }
+	get date() { return this.stream.date; }
+	get size() { return this.stream.size; }
+	readChunkAsync(offset: number, count: number) { return this.stream.readChunkAsync(offset, count); }
+}
+
+class BufferedAsyncStream extends ProxyAsyncStream {
+	constructor(stream: AsyncStream, public bufferSize = 131072) {
+		super(stream);
+	}
+
+	get name() { return this.stream.name + '+buffered'; }
+
+	private cache = {
+		start: 0,
+		end: 0,
+		data: new ArrayBuffer(0),
+	};
+
+	getCachedEntry(start: number, end: number) {
+		if (start >= this.cache.start && end <= this.cache.end) {
+			return this.cache;
+		} else {
+			return null;
+		}
+	}
+
+	putCacheEntry(start: number, data: ArrayBuffer) {
+		this.cache.start = start;
+		this.cache.end = start + data.byteLength;
+		this.cache.data = data;
+	}
+
+	readChunkAsync(offset: number, count: number) {
+		var availableFromOffset = this.size - offset;
+		var start = offset;
+		var end = offset + count;
+
+		var cache = this.getCachedEntry(start, end);
+
+		//return this.stream.readChunkAsync(start, count);
+
+		if (cache) {
+			return Promise.resolve(cache.data.slice(start - cache.start, end - cache.start));
+		} else {
+			var bigCount = Math.max(count, this.bufferSize);
+			bigCount = Math.min(bigCount, availableFromOffset);
+
+			end = start + bigCount;
+
+			return this.stream.readChunkAsync(offset, bigCount).then(data => {
+				this.putCacheEntry(start, data);
+				return this.readChunkAsync(offset, count);
+			});
+		}
+    }
+}
+
 class MemoryAsyncStream implements AsyncStream {
 	constructor(private data: ArrayBuffer, public name = 'memory', public date = new Date()) {
 	}
@@ -43,7 +105,7 @@ class UrlAsyncStream implements AsyncStream {
 			if (stat.size < 5 * 1024 * 1024) {
 				return downloadFileAsync(url).then(data => MemoryAsyncStream.fromArrayBuffer(data));
 			} else {
-				return Promise.resolve(new UrlAsyncStream(url, stat));
+				return Promise.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
 			}
 		});
 	}
@@ -52,7 +114,7 @@ class UrlAsyncStream implements AsyncStream {
 
 	readChunkAsync(offset: number, count: number) {
 		//console.error();
-		console.info('download chunk', this.url, offset, count, (new Error("download chunk"))['stack']);
+		console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
 		return downloadFileChunkAsync(this.url, offset, count);
     }
 }

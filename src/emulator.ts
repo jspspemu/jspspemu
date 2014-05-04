@@ -262,15 +262,16 @@ export class Emulator {
 						this.context.symbolLookup = pspElf;
 						var moduleInfo = pspElf.moduleInfo;
 
+						//return;
 						//window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');
 
 						// "ms0:/PSP/GAME/virtual/EBOOT.PBP"
 						var thread = this.threadManager.create('main', moduleInfo.pc, 10);
-						thread.state.GP = moduleInfo.gp;
-						thread.state.gpr[4] = argument.length;
-						thread.state.gpr[5] = argumentsPartition.low;
-						thread.start();
-					});
+							thread.state.GP = moduleInfo.gp;
+							thread.state.gpr[4] = argument.length;
+							thread.state.gpr[5] = argumentsPartition.low;
+							thread.start();
+						});
 
 				default:
 					throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));

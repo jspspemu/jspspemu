@@ -201,6 +201,7 @@ export class PspElfLoader {
 					var relocs = StructArray<ElfReloc>(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
 					this.relocateRelocs(relocs);
 					break;
+
 				case ElfSectionHeaderType.PrxRelocation_FW5:
 					throw ("Not implemented ElfSectionHeader.Type.PrxRelocation_FW5");
 			}
@@ -232,8 +233,7 @@ export class PspElfLoader {
 
 			switch (reloc.type) {
 				case ElfRelocType.None: break;
-				case ElfRelocType.Mips16: break;
-				//case ElfRelocType.Mips16: instruction.u_imm16 += S; break;
+				case ElfRelocType.Mips16: instruction.u_imm16 += S; break;
 				case ElfRelocType.Mips32: instruction.data += S; break;
 				case ElfRelocType.MipsRel32: throw ("Not implemented MipsRel32"); 
 				case ElfRelocType.Mips26: instruction.jump_real = instruction.jump_real + S; break;

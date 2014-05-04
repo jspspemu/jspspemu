@@ -121,32 +121,44 @@ export class PixelConverter {
 	}
 
 	private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		for (var n = 0; n < count * 4; n += 4) {
+		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+
+		for (var n = 0; n < count; n++) {
 			var it = from[fromIndex++];
-			to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
-			to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 5, 0xFF);
-			to[toIndex + n + 2] = BitUtils.extractScalei(it, 10, 5, 0xFF);
-			to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF;
+			var value = 0;
+			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
+			value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
+			value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
+			value |= (useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF) << 24;
+			to32[n] = value;
 		}
 	}
 
 	private static update5650(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		for (var n = 0; n < count * 4; n += 4) {
+		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+
+		for (var n = 0; n < count; n++) {
 			var it = from[fromIndex++];
-			to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
-			to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 6, 0xFF);
-			to[toIndex + n + 2] = BitUtils.extractScalei(it, 11, 5, 0xFF);
-			to[toIndex + n + 3] = 0xFF;
+			var value = 0;
+			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
+			value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
+			value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
+			value |= 0xFF << 24;
+			to32[n] = value;
 		}
 	}
 
 	private static update4444(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		for (var n = 0; n < count * 4; n += 4) {
+		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+
+		for (var n = 0; n < count; n++) {
 			var it = from[fromIndex++];
-			to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 4, 0xFF);
-			to[toIndex + n + 1] = BitUtils.extractScalei(it, 4, 4, 0xFF);
-			to[toIndex + n + 2] = BitUtils.extractScalei(it, 8, 4, 0xFF);
-			to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF;
+			var value = 0;
+			value |= BitUtils.extractScalei(it, 0, 4, 0xFF) << 0;
+			value |= BitUtils.extractScalei(it, 4, 4, 0xFF) << 8;
+			value |= BitUtils.extractScalei(it, 8, 4, 0xFF) << 16;
+			value |= (useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF) << 24;
+			to32[n] = value;
 		}
 	}
 }

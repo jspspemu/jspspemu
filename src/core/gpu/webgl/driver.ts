@@ -163,9 +163,6 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			var tl = vertexPool[vertexCount++].copyFrom(vertices[n + 0]);
 			var br = vertexPool[vertexCount++].copyFrom(vertices[n + 1]);
 
-			//var tl = vertices[n + 0].clone();
-			//var br = vertices[n + 1].clone();
-
 			tl.r = br.r;
 			tl.g = br.g;
 			tl.b = br.b;
@@ -173,9 +170,6 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 			var vtr = vertexPool[vertexCount++].copyFrom(tl);
 			var vbl = vertexPool[vertexCount++].copyFrom(br);
-
-			//var vtr = tl.clone();
-			//var vbl = br.clone();
 
 			vtr.px = br.px; vtr.py = tl.py;
 			vtr.tx = br.tx; vtr.ty = tl.ty;

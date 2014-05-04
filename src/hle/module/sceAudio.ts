@@ -19,7 +19,7 @@ export class sceAudio {
 		return waitAsync(10).then(() => 0);
 	});
 
-	çsceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, (channelId: number, sampleCount: number, format: AudioFormat) => {
+	sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, (channelId: number, sampleCount: number, format: AudioFormat) => {
 		if (channelId >= this.channels.length) return -1;
 		if (channelId < 0) {
 			channelId = this.channels.first(channel => !channel.allocated).id;

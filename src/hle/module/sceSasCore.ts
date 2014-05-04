@@ -20,8 +20,11 @@ export class sceSasCore {
 	private static PSP_SAS_ADSR_SUSTAIN = 4;
 	private static PSP_SAS_ADSR_RELEASE = 8;
 
+	private voices: Voice[] = [];
 
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: _context.EmulatorContext) {
+		while (this.voices.length < 16) this.voices.push(new Voice());
+	}
 
 	__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, (sasCorePointer: number, grainSamples: number, maxVoices: number, outputMode: number, sampleRate: number) => {
 		if (sampleRate != 44100) {
@@ -78,6 +81,32 @@ export class sceSasCore {
 		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
 		return 0;
 	});
+
+	private getSasCoreVoice(sasCorePointer: number, voice: number) {
+		return this.voices[voice];
+	}
+
+	__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackRate: number, decayRate: number, sustainRate: number, releaseRate: number) => {
+		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+
+		if (flags & AdsrFlags.HasAttack) voice.envelope.attackRate = attackRate;
+		if (flags & AdsrFlags.HasDecay) voice.envelope.decayRate = decayRate;
+		if (flags & AdsrFlags.HasSustain) voice.envelope.sustainRate = sustainRate;
+		if (flags & AdsrFlags.HasRelease) voice.envelope.releaseRate = releaseRate;
+
+		return 0;
+	});
+}
+
+class Envelope {
+	attackRate = 0;
+	decayRate = 0;
+	sustainRate = 0;
+	releaseRate = 0;
+}
+
+class Voice {
+	envelope = new Envelope();
 }
 
 enum OutputMode
@@ -98,4 +127,12 @@ enum WaveformEffectType
 	ECHO = 6,
 	DELAY = 7,
 	PIPE = 8,
+}
+
+
+enum AdsrFlags {
+	HasAttack = (1 << 0),
+	HasDecay = (1 << 1),
+	HasSustain = (1 << 2),
+	HasRelease = (1 << 3),
 }

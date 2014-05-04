@@ -27,6 +27,7 @@ export class HleFile {
 	cursor = 0;
 
 	asyncOperation: Promise<number> = null;
+	asyncOperationResolved = false;
 
 	constructor(public entry: _vfs.VfsEntry) {
 	}

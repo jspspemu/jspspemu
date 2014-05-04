@@ -87,7 +87,9 @@ export class IoFileMgrForUser {
 	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
 		var file = this.fileUids.get(fileId);
 
+		file.asyncOperationResolved = false;
 		file.asyncOperation = file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
+			file.asyncOperationResolved = true;
 			file.cursor += readedData.byteLength;
 			this.context.memory.writeBytes(outputPointer, readedData);
 			return readedData.byteLength;
@@ -99,9 +101,7 @@ export class IoFileMgrForUser {
 	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream) {
 		thread.state.LO = fileId;
 
-		if (this.fileUids.has(fileId)) {
-			return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
-		}
+		if (this.fileUids.has(fileId)) return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
 
 		var file = this.fileUids.get(fileId);
 
@@ -122,6 +122,18 @@ export class IoFileMgrForUser {
 		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
 	});
 
+	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'int', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+		if (this.fileUids.has(fileId)) return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+		var file = this.fileUids.get(fileId);
+
+		if (file.asyncOperationResolved) {
+			return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+		} else {
+			resultPointer.writeInt32(0);
+			return Promise.resolve(1);
+		}
+	});
+
 	/*
 	[HlePspFunction(NID = 0xA0B5A7C2, FirmwareVersion = 150)]
 	public int sceIoReadAsync(SceUID FileId, byte * OutputPointer, int OutputSize)
@@ -138,7 +150,7 @@ export class IoFileMgrForUser {
 	_vfsStatToSceIoStat(stat: VfsStat) {
 		var stat2 = new _structs.SceIoStat();
 		stat2.mode = <_structs.SceMode>parseInt('777', 8)
-				stat2.size = stat.size;
+		stat2.size = stat.size;
 		stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
 		stat2.timeLastAccess = _structs.ScePspDateTime.fromDate(stat.timeLastAccess);
 		stat2.timeLastModification = _structs.ScePspDateTime.fromDate(stat.timeLastModification);
@@ -146,13 +158,15 @@ export class IoFileMgrForUser {
 		stat2.deviceDependentData[1] = stat.dependentData1 || 0;
 
 		stat2.attributes = 0;
-		stat2.attributes |= _structs.IOFileModes.CanExecute;
-		stat2.attributes |= _structs.IOFileModes.CanRead;
-		stat2.attributes |= _structs.IOFileModes.CanWrite;
 		if (stat.isDirectory) {
+			stat2.mode |= 0x1000; // Directory
 			stat2.attributes |= _structs.IOFileModes.Directory;
 		} else {
+			stat2.mode |= 0x2000; // File
 			stat2.attributes |= _structs.IOFileModes.File;
+			stat2.attributes |= _structs.IOFileModes.CanExecute;
+			stat2.attributes |= _structs.IOFileModes.CanRead;
+			stat2.attributes |= _structs.IOFileModes.CanWrite;
 		}
 		return stat2;
 	}

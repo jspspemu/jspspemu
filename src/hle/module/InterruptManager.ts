@@ -7,13 +7,17 @@ import PspInterrupts = _interrupt.PspInterrupts;
 import createNativeFunction = _utils.createNativeFunction;
 
 export class InterruptManager {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: _context.EmulatorContext) {
+		this.context.display.vblank.add(() => {
+			//this.context.callbackManager.notify(
+		});
+	}
 
 	sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, (interrupt: PspInterrupts, handlerIndex: number, callbackAddress: number, callbackArgument: number) => {
 		var interruptManager = this.context.interruptManager;
-		var itnerruptHandler: InterruptHandler = interruptManager.get(interrupt).get(handlerIndex);
-		itnerruptHandler.address = callbackAddress;
-		itnerruptHandler.argument = callbackArgument;
+		var interruptHandler: InterruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+		interruptHandler.address = callbackAddress;
+		interruptHandler.argument = callbackArgument;
 		return 0;
 	});
 

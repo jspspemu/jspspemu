@@ -32,6 +32,11 @@
     <Content Include="lib\zlib\rawinflate.min.js" />
     <Content Include="lib\zlib\zlib.js" />
     <Content Include="lib\zlib_and_gzip.min.js" />
+    <Content Include="MediaEngine.js" />
+    <Content Include="me\MediaEngine.cpp" />
+    <Content Include="me\MedianEngine.post.js" />
+    <Content Include="me\MedianEngine.pre.js" />
+    <Content Include="me\testMediaEngine.js" />
     <Content Include="polyfills\promise-0.1.1.js" />
     <Content Include="polyfills\setImmediate.js" />
     <Content Include="pspemu.css" />
@@ -72,6 +77,7 @@
     <TypeScriptCompile Include="src\format\riff.ts" />
     <TypeScriptCompile Include="src\format\zip.ts" />
     <TypeScriptCompile Include="src\global\array.ts" />
+    <TypeScriptCompile Include="src\global\me.d.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx_keys_144.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx_keys_16.ts" />
@@ -227,6 +233,8 @@
     <Content Include="shader.vert" />
     <Content Include="shader.frag" />
     <Content Include="README.md" />
+    <Content Include="package.json" />
+    <Content Include="me\build_at3.bat" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

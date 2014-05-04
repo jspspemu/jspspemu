@@ -44,28 +44,31 @@ export class VertexReaderFactory {
 }
 
 export class VertexReader {
-	private readOneFunc: (output: _state.Vertex, inputOffset: number, input: DataView, f32: Float32Array, u8:Uint8Array) => void;
+	private readOneFunc: (output: _state.Vertex, inputOffset: number, input: DataView, f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array) => void;
     private readOffset: number = 0;
     public readCode: string;
 
 	constructor(private vertexState: _state.VertexState) {
         this.readCode = this.createJs();
-		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'input', 'f32', 'u8', this.readCode));
+		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
 	}
 
 	readCount(output: _state.Vertex[], input: DataView, indices: number[], count: number) {
-		var u8 = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+		var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
+		var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
+		var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
 		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-		
+
+		//debugger;		
 		if (this.vertexState.hasIndex) {
 			for (var n = 0; n < count; n++) {
 				var index = indices[n];
-				this.readOneFunc(output[n], index * this.vertexState.size, input, f32, u8);
+				this.readOneFunc(output[n], index * this.vertexState.size, input, f32, s8, s16, s32);
 			}
 		} else {
 			var inputOffset = 0;
 			for (var n = 0; n < count; n++) {
-				this.readOneFunc(output[n], inputOffset, input, f32, u8);
+				this.readOneFunc(output[n], inputOffset, input, f32, s8, s16, s32);
 				inputOffset += this.vertexState.size;
 			}
 		}
@@ -85,19 +88,14 @@ export class VertexReader {
         return indentStringGenerator.output;
 	}
 
-	private readInt8() { return 'input.getInt8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')'; }
-	private readInt16() { return 'input.getInt16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)'; }
-	private readInt32() { return 'input.getInt32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)'; }
-	private readFloat32() {
-		return 'f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2]';
-	}
+	private readInt8() { return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])'; }
+	private readInt16() { return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])'; }
+	private readInt32() { return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; }
+	private readFloat32() { return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; }
 
-	private readUInt8() {
-		return 'u8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ']';
-		//return 'input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')';
-	}
-	private readUInt16() { return 'input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)'; }
-	private readUInt32() { return 'input.getUint32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)'; }
+	private readUInt8() { return '((' + this.readInt8() + ' & 0xFF) >>> 0)'; }
+	private readUInt16() { return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)'; }
+	private readUInt32() { return '((' + this.readInt16() + ' & 0xFFFFFFFF) >>> 0)'; }
 
     private createColorJs(indentStringGenerator:_IndentStringGenerator, type: ColorEnum) {
         if (type == ColorEnum.Void) return;
@@ -250,14 +248,12 @@ class PspGpuList {
 				this.state.blending.equation = BitUtils.extractEnum<_state.GuBlendingEquation>(params24, 8, 4);
 				break;
 
-			//case GpuOpCodes.SFIX:
-			//	this.state.blending;
-			//	break;
-
-			case GpuOpCodes.LTE0: this.state.lightning.lights[0].enabled = params24 != 0; break;
-			case GpuOpCodes.LTE1: this.state.lightning.lights[1].enabled = params24 != 0; break;
-			case GpuOpCodes.LTE2: this.state.lightning.lights[2].enabled = params24 != 0; break;
-			case GpuOpCodes.LTE3: this.state.lightning.lights[3].enabled = params24 != 0; break;
+			case GpuOpCodes.LTE0: 
+			case GpuOpCodes.LTE1: 
+			case GpuOpCodes.LTE2: 
+			case GpuOpCodes.LTE3:
+				this.state.lightning.lights[op - GpuOpCodes.LTE0].enabled = params24 != 0;
+				break;
             case GpuOpCodes.BASE: this.state.baseAddress = ((params24 << 8) & 0xff000000); break;
             case GpuOpCodes.JUMP: this.jumpRelativeOffset(params24 & ~3); break;
             case GpuOpCodes.NOP: break;

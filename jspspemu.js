@@ -414,7 +414,6 @@ var Integer64 = (function () {
         var b16 = other._low >>> 16;
         var b00 = other._low & 0xFFFF;
 
-        //console.log(this.low, this.high, '|', other.low, other.high);
         var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
         c00 += a00 * b00;
         c16 += c00 >>> 16;
@@ -693,7 +692,7 @@ var BitUtils = (function () {
     };
 
     BitUtils.extractScale1f = function (data, offset, length) {
-        var mask = BitUtils.mask(length);
+        var mask = (1 << length) - 1;
         return (((data >>> offset) & mask) / mask);
     };
 
@@ -826,7 +825,104 @@ function ToInt32(x) {
 }
 //# sourceMappingURL=math.js.map
 
-﻿var MemoryAsyncStream = (function () {
+﻿var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var ProxyAsyncStream = (function () {
+    function ProxyAsyncStream(stream) {
+        this.stream = stream;
+    }
+    Object.defineProperty(ProxyAsyncStream.prototype, "name", {
+        get: function () {
+            return this.stream.name;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ProxyAsyncStream.prototype, "date", {
+        get: function () {
+            return this.stream.date;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ProxyAsyncStream.prototype, "size", {
+        get: function () {
+            return this.stream.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    ProxyAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        return this.stream.readChunkAsync(offset, count);
+    };
+    return ProxyAsyncStream;
+})();
+
+var BufferedAsyncStream = (function (_super) {
+    __extends(BufferedAsyncStream, _super);
+    function BufferedAsyncStream(stream, bufferSize) {
+        if (typeof bufferSize === "undefined") { bufferSize = 131072; }
+        _super.call(this, stream);
+        this.bufferSize = bufferSize;
+        this.cache = {
+            start: 0,
+            end: 0,
+            data: new ArrayBuffer(0)
+        };
+    }
+    Object.defineProperty(BufferedAsyncStream.prototype, "name", {
+        get: function () {
+            return this.stream.name + '+buffered';
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    BufferedAsyncStream.prototype.getCachedEntry = function (start, end) {
+        if (start >= this.cache.start && end <= this.cache.end) {
+            return this.cache;
+        } else {
+            return null;
+        }
+    };
+
+    BufferedAsyncStream.prototype.putCacheEntry = function (start, data) {
+        this.cache.start = start;
+        this.cache.end = start + data.byteLength;
+        this.cache.data = data;
+    };
+
+    BufferedAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        var availableFromOffset = this.size - offset;
+        var start = offset;
+        var end = offset + count;
+
+        var cache = this.getCachedEntry(start, end);
+
+        //return this.stream.readChunkAsync(start, count);
+        if (cache) {
+            return Promise.resolve(cache.data.slice(start - cache.start, end - cache.start));
+        } else {
+            var bigCount = Math.max(count, this.bufferSize);
+            bigCount = Math.min(bigCount, availableFromOffset);
+
+            end = start + bigCount;
+
+            return this.stream.readChunkAsync(offset, bigCount).then(function (data) {
+                _this.putCacheEntry(start, data);
+                return _this.readChunkAsync(offset, count);
+            });
+        }
+    };
+    return BufferedAsyncStream;
+})(ProxyAsyncStream);
+
+var MemoryAsyncStream = (function () {
     function MemoryAsyncStream(data, name, date) {
         if (typeof name === "undefined") { name = 'memory'; }
         if (typeof date === "undefined") { date = new Date(); }
@@ -875,7 +971,7 @@ var UrlAsyncStream = (function () {
                     return MemoryAsyncStream.fromArrayBuffer(data);
                 });
             } else {
-                return Promise.resolve(new UrlAsyncStream(url, stat));
+                return Promise.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
             }
         });
     };
@@ -890,7 +986,7 @@ var UrlAsyncStream = (function () {
 
     UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
         //console.error();
-        console.info('download chunk', this.url, offset, count, (new Error("download chunk"))['stack']);
+        console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
         return downloadFileChunkAsync(this.url, offset, count);
     };
     return UrlAsyncStream;
@@ -1641,7 +1737,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -5401,6 +5497,7 @@ var DummyPspDisplay = (function (_super) {
         this.hcountTotal = 0;
         this.secondsLeftForVblank = 0.1;
         this.secondsLeftForVblankStart = 0.1;
+        this.vblank = new Signal();
     }
     DummyPspDisplay.prototype.updateTime = function () {
     };
@@ -5506,7 +5603,7 @@ var PspDisplay = (function (_super) {
             _this.updateTime();
             _this.vblankCount++;
             _this.update();
-            _this.vblank.dispatch();
+            _this.vblank.dispatch(_this.vblankCount);
         }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
         return Promise.resolve();
     };
@@ -5617,21 +5714,24 @@ var VertexReader = (function () {
         this.vertexState = vertexState;
         this.readOffset = 0;
         this.readCode = this.createJs();
-        this.readOneFunc = (new Function('output', 'inputOffset', 'input', 'f32', 'u8', this.readCode));
+        this.readOneFunc = (new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
     }
     VertexReader.prototype.readCount = function (output, input, indices, count) {
-        var u8 = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+        var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
+        var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
+        var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
         var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
 
+        //debugger;
         if (this.vertexState.hasIndex) {
             for (var n = 0; n < count; n++) {
                 var index = indices[n];
-                this.readOneFunc(output[n], index * this.vertexState.size, input, f32, u8);
+                this.readOneFunc(output[n], index * this.vertexState.size, input, f32, s8, s16, s32);
             }
         } else {
             var inputOffset = 0;
             for (var n = 0; n < count; n++) {
-                this.readOneFunc(output[n], inputOffset, input, f32, u8);
+                this.readOneFunc(output[n], inputOffset, input, f32, s8, s16, s32);
                 inputOffset += this.vertexState.size;
             }
         }
@@ -5652,27 +5752,26 @@ var VertexReader = (function () {
     };
 
     VertexReader.prototype.readInt8 = function () {
-        return 'input.getInt8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')';
+        return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])';
     };
     VertexReader.prototype.readInt16 = function () {
-        return 'input.getInt16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)';
+        return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])';
     };
     VertexReader.prototype.readInt32 = function () {
-        return 'input.getInt32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)';
+        return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])';
     };
     VertexReader.prototype.readFloat32 = function () {
-        return 'f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2]';
+        return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])';
     };
 
     VertexReader.prototype.readUInt8 = function () {
-        return 'u8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ']';
-        //return 'input.getUint8(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ')';
+        return '((' + this.readInt8() + ' & 0xFF) >>> 0)';
     };
     VertexReader.prototype.readUInt16 = function () {
-        return 'input.getUint16(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ', true)';
+        return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)';
     };
     VertexReader.prototype.readUInt32 = function () {
-        return 'input.getUint32(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ', true)';
+        return '((' + this.readInt16() + ' & 0xFFFFFFFF) >>> 0)';
     };
 
     VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
@@ -5832,16 +5931,10 @@ var PspGpuList = (function () {
                 break;
 
             case 24 /* LTE0 */:
-                this.state.lightning.lights[0].enabled = params24 != 0;
-                break;
             case 25 /* LTE1 */:
-                this.state.lightning.lights[1].enabled = params24 != 0;
-                break;
             case 26 /* LTE2 */:
-                this.state.lightning.lights[2].enabled = params24 != 0;
-                break;
             case 27 /* LTE3 */:
-                this.state.lightning.lights[3].enabled = params24 != 0;
+                this.state.lightning.lights[op - 24 /* LTE0 */].enabled = params24 != 0;
                 break;
             case 16 /* BASE */:
                 this.state.baseAddress = ((params24 << 8) & 0xff000000);
@@ -7483,8 +7576,6 @@ var WebGlPspDrawDriver = (function () {
             var tl = vertexPool[vertexCount++].copyFrom(vertices[n + 0]);
             var br = vertexPool[vertexCount++].copyFrom(vertices[n + 1]);
 
-            //var tl = vertices[n + 0].clone();
-            //var br = vertices[n + 1].clone();
             tl.r = br.r;
             tl.g = br.g;
             tl.b = br.b;
@@ -7493,8 +7584,6 @@ var WebGlPspDrawDriver = (function () {
             var vtr = vertexPool[vertexCount++].copyFrom(tl);
             var vbl = vertexPool[vertexCount++].copyFrom(br);
 
-            //var vtr = tl.clone();
-            //var vbl = br.clone();
             vtr.px = br.px;
             vtr.py = tl.py;
             vtr.tx = br.tx;
@@ -9359,34 +9448,46 @@ var PixelConverter = (function () {
 
     PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
         if (typeof useAlpha === "undefined") { useAlpha = true; }
-        for (var n = 0; n < count * 4; n += 4) {
+        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+
+        for (var n = 0; n < count; n++) {
             var it = from[fromIndex++];
-            to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
-            to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 5, 0xFF);
-            to[toIndex + n + 2] = BitUtils.extractScalei(it, 10, 5, 0xFF);
-            to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF;
+            var value = 0;
+            value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
+            value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
+            value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
+            value |= (useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF) << 24;
+            to32[n] = value;
         }
     };
 
     PixelConverter.update5650 = function (from, fromIndex, to, toIndex, count, useAlpha) {
         if (typeof useAlpha === "undefined") { useAlpha = true; }
-        for (var n = 0; n < count * 4; n += 4) {
+        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+
+        for (var n = 0; n < count; n++) {
             var it = from[fromIndex++];
-            to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 5, 0xFF);
-            to[toIndex + n + 1] = BitUtils.extractScalei(it, 5, 6, 0xFF);
-            to[toIndex + n + 2] = BitUtils.extractScalei(it, 11, 5, 0xFF);
-            to[toIndex + n + 3] = 0xFF;
+            var value = 0;
+            value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
+            value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
+            value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
+            value |= 0xFF << 24;
+            to32[n] = value;
         }
     };
 
     PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
         if (typeof useAlpha === "undefined") { useAlpha = true; }
-        for (var n = 0; n < count * 4; n += 4) {
+        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+
+        for (var n = 0; n < count; n++) {
             var it = from[fromIndex++];
-            to[toIndex + n + 0] = BitUtils.extractScalei(it, 0, 4, 0xFF);
-            to[toIndex + n + 1] = BitUtils.extractScalei(it, 4, 4, 0xFF);
-            to[toIndex + n + 2] = BitUtils.extractScalei(it, 8, 4, 0xFF);
-            to[toIndex + n + 3] = useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF;
+            var value = 0;
+            value |= BitUtils.extractScalei(it, 0, 4, 0xFF) << 0;
+            value |= BitUtils.extractScalei(it, 4, 4, 0xFF) << 8;
+            value |= BitUtils.extractScalei(it, 8, 4, 0xFF) << 16;
+            value |= (useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF) << 24;
+            to32[n] = value;
         }
     };
     return PixelConverter;
@@ -9677,6 +9778,7 @@ var Emulator = (function () {
                         _this.context.symbolLookup = pspElf;
                         var moduleInfo = pspElf.moduleInfo;
 
+                        //return;
                         //window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');
                         // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
@@ -12472,6 +12574,7 @@ var PspElfLoader = (function () {
                     var relocs = StructArray(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
                     _this.relocateRelocs(relocs);
                     break;
+
                 case ElfSectionHeaderType.PrxRelocation_FW5:
                     throw ("Not implemented ElfSectionHeader.Type.PrxRelocation_FW5");
             }
@@ -12506,8 +12609,8 @@ var PspElfLoader = (function () {
                 case 0 /* None */:
                     break;
                 case 1 /* Mips16 */:
+                    instruction.u_imm16 += S;
                     break;
-
                 case 2 /* Mips32 */:
                     instruction.data += S;
                     break;
@@ -13580,9 +13683,9 @@ var InterruptManager = (function () {
         this.context = context;
         this.sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, function (interrupt, handlerIndex, callbackAddress, callbackArgument) {
             var interruptManager = _this.context.interruptManager;
-            var itnerruptHandler = interruptManager.get(interrupt).get(handlerIndex);
-            itnerruptHandler.address = callbackAddress;
-            itnerruptHandler.argument = callbackArgument;
+            var interruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+            interruptHandler.address = callbackAddress;
+            interruptHandler.argument = callbackArgument;
             return 0;
         });
         this.sceKernelEnableSubIntr = createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (interrupt, handlerIndex) {
@@ -13606,6 +13709,9 @@ var InterruptManager = (function () {
 
             interruptManager.get(pspInterrupt).get(handlerIndex).enabled = false;
             return 0;
+        });
+        this.context.display.vblank.add(function () {
+            //this.context.callbackManager.notify(
         });
     }
     return InterruptManager;
@@ -13693,7 +13799,9 @@ var IoFileMgrForUser = (function () {
         this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
             var file = _this.fileUids.get(fileId);
 
+            file.asyncOperationResolved = false;
             file.asyncOperation = file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+                file.asyncOperationResolved = true;
                 file.cursor += readedData.byteLength;
                 _this.context.memory.writeBytes(outputPointer, readedData);
                 return readedData.byteLength;
@@ -13706,6 +13814,18 @@ var IoFileMgrForUser = (function () {
         });
         this.sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
             return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+        });
+        this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            if (_this.fileUids.has(fileId))
+                return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
+            var file = _this.fileUids.get(fileId);
+
+            if (file.asyncOperationResolved) {
+                return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+            } else {
+                resultPointer.writeInt32(0);
+                return Promise.resolve(1);
+            }
         });
         this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
             if (sceIoStatPointer)
@@ -13796,9 +13916,8 @@ var IoFileMgrForUser = (function () {
     IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
         thread.state.LO = fileId;
 
-        if (this.fileUids.has(fileId)) {
+        if (this.fileUids.has(fileId))
             return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
-        }
 
         var file = this.fileUids.get(fileId);
 
@@ -13834,13 +13953,15 @@ var IoFileMgrForUser = (function () {
         stat2.deviceDependentData[1] = stat.dependentData1 || 0;
 
         stat2.attributes = 0;
-        stat2.attributes |= 1 /* CanExecute */;
-        stat2.attributes |= 4 /* CanRead */;
-        stat2.attributes |= 2 /* CanWrite */;
         if (stat.isDirectory) {
+            stat2.mode |= 0x1000; // Directory
             stat2.attributes |= 16 /* Directory */;
         } else {
+            stat2.mode |= 0x2000; // File
             stat2.attributes |= 32 /* File */;
+            stat2.attributes |= 1 /* CanExecute */;
+            stat2.attributes |= 4 /* CanRead */;
+            stat2.attributes |= 2 /* CanWrite */;
         }
         return stat2;
     };
@@ -15354,12 +15475,6 @@ var sceAudio = (function () {
             return 0;
         });
         this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
-            if (!buffer)
-                return waitAsync(10).then(function () {
-                    return 0;
-                });
-
-            //return waitAsync(100).then(() => 0);
             var channel = _this.channels[channelId];
             return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))));
         });
@@ -15692,9 +15807,22 @@ var sceLibFont = (function () {
         var _this = this;
         this.context = context;
         this.fontLibUid = new UidCollection(1);
+        this.fontUid = new UidCollection(1);
         this.sceFontNewLib = createNativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*', this, function (paramsPtr, errorCodePtr) {
             var fontLib = new FontLib();
             return _this.fontLibUid.allocate(fontLib);
+        });
+        this.sceFontFindOptimumFont = createNativeFunction(0x099EF33C, 150, 'uint', 'int/void*/void*', this, function (fontLibId, fontStylePointer, errorCodePointer) {
+            var fontLib = _this.fontLibUid.get(fontLibId);
+            return 0;
+        });
+        this.sceFontOpen = createNativeFunction(0xA834319D, 150, 'uint', 'int/int/int/void*', this, function (fontLibId, index, mode, errorCodePointer) {
+            var fontLib = _this.fontLibUid.get(fontLibId);
+            return _this.fontUid.allocate(new Font());
+        });
+        this.sceFontGetFontInfo = createNativeFunction(0x0DA7535E, 150, 'uint', 'int/void*', this, function (fontId, fontInfoPointer) {
+            var font = _this.fontUid.get(fontId);
+            return 0;
         });
     }
     return sceLibFont;
@@ -15706,6 +15834,76 @@ var FontLib = (function () {
     }
     return FontLib;
 })();
+
+var Font = (function () {
+    function Font() {
+    }
+    return Font;
+})();
+/*
+class FontInfo {
+private Fixed26_6 MaxGlyphWidthI;
+private Fixed26_6 MaxGlyphHeightI;
+private Fixed26_6 MaxGlyphAscenderI;
+private Fixed26_6 MaxGlyphDescenderI;
+private Fixed26_6 MaxGlyphLeftXI;
+private Fixed26_6 MaxGlyphBaseYI;
+private Fixed26_6 MinGlyphCenterXI;
+private Fixed26_6 MaxGlyphTopYI;
+private Fixed26_6 MaxGlyphAdvanceXI;
+private Fixed26_6 MaxGlyphAdvanceYI;
+private float MaxGlyphWidthF;
+private float MaxGlyphHeightF;
+private float MaxGlyphAscenderF;
+private float MaxGlyphDescenderF;
+private float MaxGlyphLeftXF;
+private float MaxGlyphBaseYF;
+private float MinGlyphCenterXF;
+private float MaxGlyphTopYF;
+private float MaxGlyphAdvanceXF;
+private float MaxGlyphAdvanceYF;
+public float MaxGlyphAscender { set { MaxGlyphAscenderI = MaxGlyphAscenderF = value; } get { return MaxGlyphAscenderF; } }
+public float MaxGlyphDescender { set { MaxGlyphDescenderI = MaxGlyphDescenderF = value; } get { return MaxGlyphDescenderF; } }
+public float MaxGlyphLeftX { set { MaxGlyphLeftXI = MaxGlyphLeftXF = value; } get { return MaxGlyphLeftXF; } }
+public float MaxGlyphBaseY { set { MaxGlyphBaseYI = MaxGlyphBaseYF = value; } get { return MaxGlyphBaseYF; } }
+public float MinGlyphCenterX { set { MinGlyphCenterXI = MinGlyphCenterXF = value; } get { return MinGlyphCenterXF; } }
+public float MaxGlyphTopY { set { MaxGlyphTopYI = MaxGlyphTopYF = value; } get { return MaxGlyphTopYF; } }
+public float MaxGlyphAdvanceX { set { MaxGlyphAdvanceXI = MaxGlyphAdvanceXF = value; } get { return MaxGlyphAdvanceXF; } }
+public float MaxGlyphAdvanceY { set { MaxGlyphAdvanceYI = MaxGlyphAdvanceYF = value; } get { return MaxGlyphAdvanceYF; } }
+public ushort MaxGlyphWidth { set { MaxGlyphWidthI = MaxGlyphWidthF = _MaxGlyphWidth = value; } get { return _MaxGlyphWidth; } }
+public ushort MaxGlyphHeight { set { MaxGlyphHeightI = MaxGlyphHeightF = _MaxGlyphHeight = value; } get { return _MaxGlyphHeight; } }
+#region Bitmap dimensions.
+/// <summary>
+///
+/// </summary>
+private ushort _MaxGlyphWidth;
+/// <summary>
+///
+/// </summary>
+private ushort _MaxGlyphHeight;
+/// <summary>
+/// Number of elements in the font's charmap.
+/// </summary>
+public uint CharMapLength;
+/// <summary>
+/// Number of elements in the font's shadow charmap.
+/// </summary>
+public uint ShadowMapLength;
+/// <summary>
+/// Font style (used by font comparison functions).
+/// </summary>
+public FontStyle FontStyle;
+#endregion
+/// <summary>
+/// Font's BPP. = 4
+/// </summary>
+public byte BPP;
+/// <summary>
+/// Padding.
+/// </summary>
+public fixed byte Pad[3];
+}
+*/
 //# sourceMappingURL=sceLibFont.js.map
 },
 "src/hle/module/sceMp3": function(module, exports, require) {
@@ -15719,9 +15917,16 @@ exports.sceMp3 = sceMp3;
 //# sourceMappingURL=sceMp3.js.map
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceMpeg = (function () {
     function sceMpeg(context) {
         this.context = context;
+        this.sceMpegInit = createNativeFunction(0x682A619B, 150, 'uint', '', this, function () {
+            return 0;
+        });
     }
     return sceMpeg;
 })();
@@ -16128,7 +16333,9 @@ var SceKernelErrors = require('../SceKernelErrors');
 
 var sceSasCore = (function () {
     function sceSasCore(context) {
+        var _this = this;
         this.context = context;
+        this.voices = [];
         this.__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
             if (sampleRate != 44100) {
                 return 2151809028 /* ERROR_SAS_INVALID_SAMPLE_RATE */;
@@ -16177,7 +16384,26 @@ var sceSasCore = (function () {
             //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
             return 0;
         });
+        this.__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+
+            if (flags & AdsrFlags.HasAttack)
+                voice.envelope.attackRate = attackRate;
+            if (flags & AdsrFlags.HasDecay)
+                voice.envelope.decayRate = decayRate;
+            if (flags & AdsrFlags.HasSustain)
+                voice.envelope.sustainRate = sustainRate;
+            if (flags & AdsrFlags.HasRelease)
+                voice.envelope.releaseRate = releaseRate;
+
+            return 0;
+        });
+        while (this.voices.length < 16)
+            this.voices.push(new Voice());
     }
+    sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voice) {
+        return this.voices[voice];
+    };
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
     sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
     sceSasCore.PSP_SAS_VOL_MAX = 0x1000;
@@ -16196,6 +16422,23 @@ var sceSasCore = (function () {
     return sceSasCore;
 })();
 exports.sceSasCore = sceSasCore;
+
+var Envelope = (function () {
+    function Envelope() {
+        this.attackRate = 0;
+        this.decayRate = 0;
+        this.sustainRate = 0;
+        this.releaseRate = 0;
+    }
+    return Envelope;
+})();
+
+var Voice = (function () {
+    function Voice() {
+        this.envelope = new Envelope();
+    }
+    return Voice;
+})();
 
 var OutputMode;
 (function (OutputMode) {
@@ -16216,6 +16459,14 @@ var WaveformEffectType;
     WaveformEffectType[WaveformEffectType["DELAY"] = 7] = "DELAY";
     WaveformEffectType[WaveformEffectType["PIPE"] = 8] = "PIPE";
 })(WaveformEffectType || (WaveformEffectType = {}));
+
+var AdsrFlags;
+(function (AdsrFlags) {
+    AdsrFlags[AdsrFlags["HasAttack"] = (1 << 0)] = "HasAttack";
+    AdsrFlags[AdsrFlags["HasDecay"] = (1 << 1)] = "HasDecay";
+    AdsrFlags[AdsrFlags["HasSustain"] = (1 << 2)] = "HasSustain";
+    AdsrFlags[AdsrFlags["HasRelease"] = (1 << 3)] = "HasRelease";
+})(AdsrFlags || (AdsrFlags = {}));
 //# sourceMappingURL=sceSasCore.js.map
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
@@ -20355,7 +20606,7 @@ describe('gpu', function () {
             var vertex2 = new _state.Vertex();
 
             //console.log(vertexReader.readCode);
-            vertexReader.readCount([vertex1, vertex2], vertexInput, 2);
+            vertexReader.readCount([vertex1, vertex2], vertexInput, null, 2);
 
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
