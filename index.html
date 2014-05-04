@@ -238,7 +238,7 @@
 
             updateScaleWith(scale);
 
-            var isFullScreen = (screen.availHeight || screen.height - 30) <= window.innerHeight;
+            var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
 
             $(document.body).toggleClass('fullscreen', isFullScreen);
         }

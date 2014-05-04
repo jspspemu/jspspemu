@@ -132,6 +132,8 @@ canvas {
 	-ms-interpolation-mode: nearest-neighbor;
 }
 
-body.fullscreen #header_info {
-     visibility:hidden;
-}
+:-webkit-full-screen #header_info { visibility:hidden; }
+:-moz-full-screen #header_info { visibility:hidden; }
+:-ms-fullscreen #header_info { visibility:hidden; }
+:fullscreen #header_info { visibility:hidden; }
+body.fullscreen #header_info { visibility:hidden; }
