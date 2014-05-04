@@ -63,6 +63,8 @@ export class PspAudioChannel {
 	}
 
 	playAsync(data: Float32Array) {
+		if (!this.node) return waitAsync(16).then(() => 0);
+
 		return new Promise<number>((resolved, rejected) => {
 			if (this.node) {
 				this.buffers.push(new PspAudioBuffer(resolved, data));

@@ -414,6 +414,7 @@ var Integer64 = (function () {
         var b16 = other._low >>> 16;
         var b00 = other._low & 0xFFFF;
 
+        //console.log(this.low, this.high, '|', other.low, other.high);
         var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
         c00 += a00 * b00;
         c16 += c00 >>> 16;
@@ -526,6 +527,107 @@ if (!Math['imul']) {
         // the shift by 0 fixes the sign on the high part
         // the final |0 converts the unsigned value into a signed value
         return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+    };
+}
+
+function testMultiply64_Base(a, b) {
+    var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+    var result2 = Math.imul32_64(a, b, [1, 1]);
+    return {
+        int64: result,
+        fast: result2,
+        compare: (result.low == result2[0]) && (result.high == result2[1])
+    };
+}
+
+function testMultiply64_Base_u(a, b) {
+    var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+    var result2 = Math.umul32_64(a, b, [1, 1]);
+    return {
+        int64: result,
+        fast: result2,
+        compare: (result.low == result2[0]) && (result.high == result2[1])
+    };
+}
+
+function testMultiply64() {
+    var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+    values.forEach(function (v1) {
+        values.forEach(function (v2) {
+            var result = testMultiply64_Base(v1, v2);
+            if (!result.compare)
+                console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
+
+            var result = testMultiply64_Base_u(v1, v2);
+            if (!result.compare)
+                console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
+        });
+    });
+}
+
+if (!Math.umul32_64) {
+    Math.umul32_64 = function (a, b, result) {
+        if (result === undefined)
+            result = [0, 0];
+
+        a >>>= 0;
+        b >>>= 0;
+
+        if (a < 32767 && b < 65536) {
+            result[0] = a * b;
+            result[1] = (result[0] < 0) ? -1 : 0;
+            return result;
+        }
+
+        var a00 = a & 0xFFFF, a16 = a >>> 16;
+        var b00 = b & 0xFFFF, b16 = b >>> 16;
+
+        var c00 = a00 * b00;
+        var c16 = (c00 >>> 16) + (a16 * b00);
+        var c32 = c16 >>> 16;
+        c16 = (c16 & 0xFFFF) + (a00 * b16);
+        c32 += c16 >>> 16;
+        var c48 = c32 >>> 16;
+        c32 = (c32 & 0xFFFF) + (a16 * b16);
+        c48 += c32 >>> 16;
+
+        result[0] = ((c16 & 0xFFFF) << 16) | (c00 & 0xFFFF);
+        result[1] = ((c48 & 0xFFFF) << 16) | (c32 & 0xFFFF);
+        return result;
+    };
+}
+
+if (!Math.imul32_64) {
+    Math.imul32_64 = function (a, b, result) {
+        if (result === undefined)
+            result = [0, 0];
+
+        if (a == 0)
+            return result[0] = result[1] = 0, result;
+        if (b == 0)
+            return result[0] = result[1] = 0, result;
+
+        a |= 0, b |= 0;
+
+        if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
+            result[0] = a * b;
+            result[1] = (result[0] < 0) ? -1 : 0;
+            return result;
+        }
+
+        var doNegate = (a < 0) ^ (b < 0);
+
+        Math.umul32_64(Math.abs(a), Math.abs(b), result);
+
+        if (doNegate) {
+            result[0] = ~result[0];
+            result[1] = ~result[1];
+            result[0] = (result[0] + 1) | 0;
+            if (result[0] == 0)
+                result[1] = (result[1] + 1) | 0;
+        }
+
+        return result;
     };
 }
 
@@ -2064,6 +2166,11 @@ var PspAudioChannel = (function () {
 
     PspAudioChannel.prototype.playAsync = function (data) {
         var _this = this;
+        if (!this.node)
+            return waitAsync(16).then(function () {
+                return 0;
+            });
+
         return new Promise(function (resolved, rejected) {
             if (_this.node) {
                 _this.buffers.push(new PspAudioBuffer(resolved, data));
@@ -3644,7 +3751,7 @@ var ProgramExecutor = (function () {
         while (this.state.PC != expectedPC) {
             this._executeStep();
             this.times++;
-            if (this.times >= 1000) {
+            if (this.times >= 100000) {
                 this.times = 0;
                 if ((performance.now() - this.lastTime) >= 100)
                     throw (new CpuBreakException());
@@ -5140,40 +5247,10 @@ var CpuState = (function () {
         this.HI = (rs % rt) | 0;
     };
 
-    CpuState.prototype._multu = function (a, b, result) {
-        if (typeof result === "undefined") { result = null; }
-        if (result === null)
-            result = [0, 0];
-        var ah = a >>> 16, bh = b >>> 16;
-        var al = a & 0xFFFF, bl = b & 0xFFFF;
-
-        var mid = ah * bl + al * bh;
-        var albl = al * bl;
-
-        var imm = mid + (albl >>> 16);
-
-        var carry = (imm > 0xffffffff) ? 0x10000 : 0;
-
-        result[0] = ((mid << 16) + albl) >>> 0;
-        result[1] = (ah * bh + (imm >>> 16) + carry) >>> 0;
-        return result;
-    };
-
-    //_mults(rs: number, rt: number) {
-    //	var MIN_VALUE = -2147483648;
-    //	rs = ToInt32(rs);
-    //	rt = ToInt32(rt);
-    //
-    //	// Edge cases: -2147483648
-    //	this._multu(Math.abs(rs), Math.abs(rt));
-    //	// negate if one is negative and the other possitive
-    //}
     CpuState.prototype.mult = function (rs, rt) {
-        var a64 = Integer64.fromInt(rs);
-        var b64 = Integer64.fromInt(rt);
-        var result = a64.multiply(b64);
-        this.HI = result.high;
-        this.LO = result.low;
+        var result = Math.imul32_64(rs, rt, CpuState._mult_temp);
+        this.LO = result[0];
+        this.HI = result[1];
     };
 
     CpuState.prototype.madd = function (rs, rt) {
@@ -5192,18 +5269,10 @@ var CpuState = (function () {
         this.LO = result.low;
     };
 
-    CpuState.prototype._mul_32_unsigned = function (a, b) {
-    };
-
     CpuState.prototype.multu = function (rs, rt) {
-        var info = this._multu(rs, rt, CpuState._LOHI);
+        var info = Math.umul32_64(rs, rt, CpuState._mult_temp);
         this.LO = info[0];
         this.HI = info[1];
-        //var a64 = Integer64.fromUnsignedInt(rs);
-        //var b64 = Integer64.fromUnsignedInt(rt);
-        //var result = a64.multiply(b64);
-        //this.HI = result.high;
-        //this.LO = result.low;
     };
 
     CpuState.prototype.maddu = function (rs, rt) {
@@ -5257,7 +5326,7 @@ var CpuState = (function () {
     CpuState.SwrMask = [0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF];
     CpuState.SwrShift = [0, 8, 16, 24];
 
-    CpuState._LOHI = [0, 0];
+    CpuState._mult_temp = [0, 0];
     return CpuState;
 })();
 exports.CpuState = CpuState;
@@ -6239,8 +6308,8 @@ exports.PspGpu = PspGpu;
     GpuOpCodes[GpuOpCodes["CTE"] = 0x27] = "CTE";
     GpuOpCodes[GpuOpCodes["LOE"] = 0x28] = "LOE";
     GpuOpCodes[GpuOpCodes["Unknown0x29"] = 0x29] = "Unknown0x29";
-    GpuOpCodes[GpuOpCodes["BOFS"] = 0x2A] = "BOFS";
-    GpuOpCodes[GpuOpCodes["BONE"] = 0x2B] = "BONE";
+    GpuOpCodes[GpuOpCodes["BONE_START"] = 0x2A] = "BONE_START";
+    GpuOpCodes[GpuOpCodes["BONE_PUT"] = 0x2B] = "BONE_PUT";
     GpuOpCodes[GpuOpCodes["MW0"] = 0x2C] = "MW0";
     GpuOpCodes[GpuOpCodes["MW1"] = 0x2D] = "MW1";
     GpuOpCodes[GpuOpCodes["MW2"] = 0x2E] = "MW2";
@@ -15000,11 +15069,6 @@ var sceAtrac3plus = (function () {
             return 0;
         });
     }
-    sceAtrac3plus.prototype._waitAsync = function (name, time) {
-        return new WaitingThreadInfo(name, this, waitAsync(time).then(function () {
-            return 0;
-        }));
-    };
     return sceAtrac3plus;
 })();
 exports.sceAtrac3plus = sceAtrac3plus;
@@ -15020,8 +15084,10 @@ var Atrac3 = (function () {
         this.codecType = 4096 /* PSP_MODE_AT_3_PLUS */;
     }
     Atrac3.prototype.loadStream = function (data) {
-        //debugger;
         var _this = this;
+        this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
+
+        //debugger;
         Riff.fromStreamWithHandlers(data, {
             'fmt ': function (stream) {
                 _this.fmt = At3FormatStruct.struct.read(stream);
@@ -15035,6 +15101,10 @@ var Atrac3 = (function () {
                 _this.dataStream = stream;
             }
         });
+
+        var firstDataChunk = this.dataStream.readBytes(this.fmt.blockSize);
+
+        this.atrac3Decoder.initWithHeader(firstDataChunk);
 
         //console.log(this.fmt);
         //console.log(this.fact);
@@ -15081,8 +15151,11 @@ var Atrac3 = (function () {
         var blockData = this.dataStream.readBytes(this.fmt.blockSize);
         this.decodingOffset++;
 
-        // decode
-        return 0x800 * this.fmt.atracChannels * 2;
+        var out = this.atrac3Decoder.decode(blockData);
+        for (var n = 0; n < out.length; n++)
+            samplesOutPtr.writeInt16(out[n]);
+
+        return out.length;
     };
 
     Atrac3.fromStream = function (data) {
@@ -15131,8 +15204,8 @@ var At3FormatStruct = (function () {
         { averageBytesPerSecond: UInt16 },
         { blockAlignment: UInt16 },
         { bytesPerFrame: UInt16 },
-        { unknown: StructArray(UInt32, 4) },
-        { omaInfo: UInt32 },
+        { _unk: UInt16 },
+        { unknown: StructArray(UInt32, 6) },
         { _unk2: UInt16_b },
         { _blockSize: UInt16_b }
     ]);

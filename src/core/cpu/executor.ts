@@ -25,7 +25,7 @@ export class ProgramExecutor {
 		while (this.state.PC != expectedPC) {
 			this._executeStep();
 			this.times++;
-			if (this.times >= 1000) {
+			if (this.times >= 100000) {
 				this.times = 0;
 				if ((performance.now() - this.lastTime) >= 100) throw (new CpuBreakException());
 				this.lastTime = performance.now();

@@ -8,10 +8,6 @@ import createNativeFunction = _utils.createNativeFunction;
 export class sceAtrac3plus {
 	constructor(private context: _context.EmulatorContext) { }
 
-	_waitAsync(name: string, time: number) {
-		return new WaitingThreadInfo(name, this, waitAsync(time).then(() => 0));
-	}
-
 	private atrac3Ids = new UidCollection<Atrac3>();
 
 	sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]', this, (data: Stream) => {
@@ -148,8 +144,10 @@ class Atrac3 {
 	numberOfLoops = 0;
 	decodingOffset = 0;
 	codecType = CodecType.PSP_MODE_AT_3_PLUS;
+	atrac3Decoder: MediaEngine.Atrac3Decoder;
 
 	loadStream(data: Stream) {
+		this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
 		//debugger;
 
 		Riff.fromStreamWithHandlers(data, {
@@ -159,6 +157,9 @@ class Atrac3 {
 			'data': (stream: Stream) => { this.dataStream = stream; },
 		});
 
+		var firstDataChunk = this.dataStream.readBytes(this.fmt.blockSize);
+
+		this.atrac3Decoder.initWithHeader(firstDataChunk);
 		//console.log(this.fmt);
 		//console.log(this.fact);
 
@@ -187,8 +188,11 @@ class Atrac3 {
 		if (this.dataStream.available < this.fmt.blockSize) return 0;
 		var blockData = this.dataStream.readBytes(this.fmt.blockSize);
 		this.decodingOffset++;
-		// decode
-		return 0x800 * this.fmt.atracChannels * 2;
+
+		var out = this.atrac3Decoder.decode(blockData);
+		for (var n = 0; n < out.length; n++) samplesOutPtr.writeInt16(out[n]);
+
+		return out.length;
 	}
 
 	static fromStream(data: Stream) {
@@ -221,16 +225,16 @@ class At3FormatStruct {
 	get blockSize() { return (this._blockSize & 0x3FF) * 8 + 8; }
 
 	static struct = StructClass.create<At3FormatStruct>(At3FormatStruct, <StructEntry[]>[
-		{ compressionCode: UInt16 },
-		{ atracChannels: UInt16 },
-		{ bitrate: UInt32 },
-		{ averageBytesPerSecond: UInt16 },
-		{ blockAlignment: UInt16 },
-		{ bytesPerFrame: UInt16 },
-		{ unknown: StructArray(UInt32, 4) },
-		{ omaInfo: UInt32 },
-		{ _unk2: UInt16_b },
-		{ _blockSize: UInt16_b },
+		{ compressionCode: UInt16 },           // 00
+		{ atracChannels: UInt16 },             // 02
+		{ bitrate: UInt32 },                   // 04
+		{ averageBytesPerSecond: UInt16 },     // 08
+		{ blockAlignment: UInt16 },            // 0A
+		{ bytesPerFrame: UInt16 },             // 0C
+		{ _unk: UInt16 },                      // 0E
+		{ unknown: StructArray(UInt32, 6) },   // 10
+		{ _unk2: UInt16_b },                   // 28
+		{ _blockSize: UInt16_b },              // 2A
 	]);
 }
 

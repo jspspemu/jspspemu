@@ -243,39 +243,12 @@ export class CpuState {
 		this.HI = (rs % rt) | 0;
 	}
 
-	_multu(a: number, b: number, result: number[]= null) {
-		if (result === null) result = [0, 0];
-		var ah = a >>> 16, bh = b >>> 16;
-		var al = a & 0xFFFF, bl = b & 0xFFFF;
-
-		var mid = ah * bl + al * bh;
-		var albl = al * bl;
-
-		var imm = mid + (albl >>> 16);
-
-		var carry = (imm > 0xffffffff) ? 0x10000 : 0;
-
-		result[0] = ((mid << 16) + albl) >>> 0;
-		result[1] = (ah * bh + (imm >>> 16) + carry) >>> 0;
-		return result;
-	}
-
-	//_mults(rs: number, rt: number) {
-	//	var MIN_VALUE = -2147483648;
-	//	rs = ToInt32(rs);
-	//	rt = ToInt32(rt);
-	//
-	//	// Edge cases: -2147483648
-	//	this._multu(Math.abs(rs), Math.abs(rt));
-	//	// negate if one is negative and the other possitive
-	//}
+	private static _mult_temp = [0, 0];
 
 	mult(rs: number, rt: number) {
-		var a64 = Integer64.fromInt(rs);
-		var b64 = Integer64.fromInt(rt);
-		var result = a64.multiply(b64);
-		this.HI = result.high;
-		this.LO = result.low;
+		var result = Math.imul32_64(rs, rt, CpuState._mult_temp);
+		this.LO = result[0];
+		this.HI = result[1];
 	}
 
 	madd(rs: number, rt: number) {
@@ -294,21 +267,10 @@ export class CpuState {
 		this.LO = result.low;
 	}
 
-	private _mul_32_unsigned(a, b) {
-
-	}
-
-	private static _LOHI = [0, 0];
-
 	multu(rs: number, rt: number) {
-		var info = this._multu(rs, rt, CpuState._LOHI);
+		var info = Math.umul32_64(rs, rt, CpuState._mult_temp);
 		this.LO = info[0];
 		this.HI = info[1];
-		//var a64 = Integer64.fromUnsignedInt(rs);
-		//var b64 = Integer64.fromUnsignedInt(rt);
-		//var result = a64.multiply(b64);
-		//this.HI = result.high;
-		//this.LO = result.low;
 	}
 
 	maddu(rs: number, rt: number) {

@@ -2,6 +2,8 @@
 	clz32(value: number): number;
 	trunc(value: number): number;
 	imul(a: number, b: number): number;
+	imul32_64(a: number, b: number, result?: number[]): number[];
+	umul32_64(a: number, b: number, result?: number[]): number[];
 	fround(x: number): number;
 	sign(x: number): number;
 	rint(x: number): number;
@@ -70,6 +72,101 @@ if (!Math['imul']) {
 		// the shift by 0 fixes the sign on the high part
 		// the final |0 converts the unsigned value into a signed value
 		return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+	}
+}
+
+function testMultiply64_Base(a: number, b: number) {
+	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+	var result2 = Math.imul32_64(a, b, [1, 1]);
+	return {
+		int64: result,
+		fast: result2,
+		compare: (result.low == result2[0]) && (result.high == result2[1]),
+	};
+}
+
+function testMultiply64_Base_u(a: number, b: number) {
+	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+	var result2 = Math.umul32_64(a, b, [1, 1]);
+	return {
+		int64: result,
+		fast: result2,
+		compare: (result.low == result2[0]) && (result.high == result2[1]),
+	};
+}
+
+function testMultiply64() {
+	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+	values.forEach((v1) => {
+		values.forEach((v2) => {
+			var result = testMultiply64_Base(v1, v2);
+			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
+
+			var result = testMultiply64_Base_u(v1, v2);
+			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
+		});
+	});
+}
+
+if (!Math.umul32_64) {
+	Math.umul32_64 = function (a: number, b: number, result?: number[]) {
+		if (result === undefined) result = [0, 0];
+
+		a >>>= 0;
+		b >>>= 0;
+
+		if (a < 32767 && b < 65536) {
+			result[0] = a * b;
+			result[1] = (result[0] < 0) ? -1 : 0;
+			return result;
+		}
+
+
+		var a00 = a & 0xFFFF, a16 = a >>> 16;
+		var b00 = b & 0xFFFF, b16 = b >>> 16;
+
+		var c00 = a00 * b00;
+		var c16 = (c00 >>> 16) + (a16 * b00);
+		var c32 = c16 >>> 16;
+		c16 = (c16 & 0xFFFF) + (a00 * b16);
+		c32 += c16 >>> 16;
+		var c48 = c32 >>> 16;
+		c32 = (c32 & 0xFFFF) + (a16 * b16);
+		c48 += c32 >>> 16;
+
+		result[0] = ((c16 & 0xFFFF) << 16) | (c00 & 0xFFFF);
+		result[1] = ((c48 & 0xFFFF) << 16) | (c32 & 0xFFFF);
+		return result;
+	};
+}
+
+if (!Math.imul32_64) {
+	Math.imul32_64 = function (a: number, b: number, result?: number[]) {
+		if (result === undefined) result = [0, 0];
+
+		if (a == 0) return result[0] = result[1] = 0, result;
+		if (b == 0) return result[0] = result[1] = 0, result;
+
+		a |= 0, b |= 0;
+
+		if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
+			result[0] = a * b;
+			result[1] = (result[0] < 0) ? -1 : 0;
+			return result;
+		}
+
+		var doNegate = <any>(a < 0) ^ <any>(b < 0);
+
+		Math.umul32_64(Math.abs(a), Math.abs(b), result);
+
+		if (doNegate) {
+			result[0] = ~result[0];
+			result[1] = ~result[1];
+			result[0] = (result[0] + 1) | 0;
+			if (result[0] == 0) result[1] = (result[1] + 1) | 0;
+		}
+
+		return result;
 	}
 }
 

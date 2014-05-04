@@ -1,3 +1,4 @@
+@ECHO OFF
 set FILE=
 set FILE=%FILE% MaiAT3PlusDecoder/src/base/Heap_Alloc0.cc
 set FILE=%FILE% MaiAT3PlusDecoder/src/base/MaiBitReader.cc
@@ -16,8 +17,9 @@ set FILE=%FILE% MaiAT3PlusDecoder/src/MaiAT3PlusCoreDecoder_StaticData.cpp
 set FILE=%FILE% MaiAT3PlusDecoder/src/MaiAT3PlusCoreDecoder_SubFunc.cpp
 set FILE=%FILE% MaiAT3PlusDecoder/src/MaiAT3PlusFrameDecoder.cpp
 
-set FILE=%FILE% MaiAT3PlusDecoder/MiniPlayer/MiniPlayer.cpp
-REM set FILE=%FILE% MaiAT3PlusDecoder/MiniPlayer/MaiWaveOut.cpp
+set FILE=%FILE% MediaEngine.cpp
 
-REM em++ -s TOTAL_MEMORY=1677721 -O2 --closurecompiler 1 -I MaiAT3PlusDecoder/include -I MaiAT3PlusDecoder/MiniPlayer %FILE%
-em++ -s TOTAL_MEMORY=4194304 -O2 -I MaiAT3PlusDecoder/include -I MaiAT3PlusDecoder/MiniPlayer %FILE% --embed-file bgm_004_64.at3 -s EXPORTED_FUNCTIONS="['_main','_mai_test']"
+set EXPORTED_FUNCTIONS="['_atrac3_create_decoder','_atrac3_delete_decoder','_atrac3_get_channels','_atrac3_get_decoded_samples','_atrac3_decode']"
+
+em++ -s TOTAL_MEMORY=16777216 -s ASM_JS=0 -O2 -I MaiAT3PlusDecoder/include %FILE% -s EXPORTED_FUNCTIONS=%EXPORTED_FUNCTIONS% --pre-js MedianEngine.pre.js --post-js MedianEngine.post.js -o ../MediaEngine.js
+REM em++ -s TOTAL_MEMORY=16777216 -s ASM_JS=0 --closurecompiler 1 -O2 -I MaiAT3PlusDecoder/include %FILE% -s EXPORTED_FUNCTIONS=%EXPORTED_FUNCTIONS% --pre-js MedianEngine.pre.js --post-js MedianEngine.post.js -o MediaEngine.js
