@@ -324,6 +324,11 @@ class CpuBreakException implements Error {
 	}
 }
 
+class SceKernelException implements Error {
+	constructor(public id: number, public name: string = 'SceKernelException', public message: string = 'SceKernelException') {
+	}
+}
+
 var DebugOnceArray = {};
 function DebugOnce(name: string, times: number = 1) {
 	if (DebugOnceArray[name] >= times) return false;

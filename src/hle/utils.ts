@@ -46,7 +46,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
         }
     });
 
-    code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+	
+	code += 'try {';
+	code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+	code += '} catch (e) {';
+	code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
+	code += '}';
 
 	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
 	code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';

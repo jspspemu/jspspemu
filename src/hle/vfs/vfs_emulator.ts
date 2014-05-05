@@ -2,11 +2,12 @@
 
 export class EmulatorVfs extends _vfs.Vfs {
 	output = '';
+	screenshot = null;
 
 	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream) {
 		switch (command) {
 			case EmulatorDevclEnum.GetHasDisplay:
-				output.writeInt32(0);
+				if (output) output.writeInt32(0);
 				//output.writeInt32(1);
 				break;
 			case EmulatorDevclEnum.SendOutput:
@@ -16,9 +17,11 @@ export class EmulatorVfs extends _vfs.Vfs {
 				//console.info();
 				break;
 			case EmulatorDevclEnum.IsEmulator:
-				//return Promise.resolve(1);
-				//output.writeInt32(1);
-				break;
+				return 0; // Running on emulator
+			case EmulatorDevclEnum.EmitScreenshot:
+				this.screenshot = 1;
+				console.warn('emit screenshot!');
+				return 0;
 			default:
 				throw (new Error("Can't handle EmulatorVfs devctlAsync. Command '" + command + "'"));
 		}

@@ -1737,7 +1737,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2030,6 +2030,17 @@ var CpuBreakException = (function () {
         this.message = message;
     }
     return CpuBreakException;
+})();
+
+var SceKernelException = (function () {
+    function SceKernelException(id, name, message) {
+        if (typeof name === "undefined") { name = 'SceKernelException'; }
+        if (typeof message === "undefined") { message = 'SceKernelException'; }
+        this.id = id;
+        this.name = name;
+        this.message = message;
+    }
+    return SceKernelException;
 })();
 
 var DebugOnceArray = {};
@@ -15693,11 +15704,49 @@ var sceSasCore = (function () {
 
             return 0;
         });
-        while (this.voices.length < 16)
-            this.voices.push(new Voice());
+        this.__sceSasSetADSRmode = createNativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int', this, function (sasCorePointer, voiceId, flags, attackCurveMode, decayCurveMode, sustainCurveMode, releaseCurveMode) {
+            console.warn('__sceSasSetADSRmode not implemented!');
+            return 0;
+        });
+        this.__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            if (!voice.pause)
+                return 2151809046 /* ERROR_SAS_VOICE_PAUSED */;
+            voice.on = false;
+            return 0;
+        });
+        this.__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            voice.on = true;
+            return 0;
+        });
+        this.__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            console.warn('__sceSasSetVoicePCM not implemented!');
+            return 0;
+        });
+        this.__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            return _this.getSasCoreVoice(sasCorePointer, voiceId).envelope.height;
+        });
+        this.__sceSasSetSL = createNativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, sustainLevel) {
+            _this.getSasCoreVoice(sasCorePointer, voiceId).sustainLevel = sustainLevel;
+            return 0;
+        });
+        this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int', this, function (sasCorePointer, voiceBits, pause) {
+            _this.voices.forEach(function (voice) {
+                if (voiceBits & (1 << voice.index)) {
+                    voice.pause = pause;
+                }
+            });
+            return 0;
+        });
+        while (this.voices.length < 32)
+            this.voices.push(new Voice(this.voices.length));
     }
-    sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voice) {
-        return this.voices[voice];
+    sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voiceId) {
+        var voice = this.voices[voiceId];
+        if (!voice)
+            throw (new SceKernelException(2151809040 /* ERROR_SAS_INVALID_VOICE */));
+        return voice;
     };
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
     sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
@@ -15724,13 +15773,18 @@ var Envelope = (function () {
         this.decayRate = 0;
         this.sustainRate = 0;
         this.releaseRate = 0;
+        this.height = 0;
     }
     return Envelope;
 })();
 
 var Voice = (function () {
-    function Voice() {
+    function Voice(index) {
+        this.index = index;
         this.envelope = new Envelope();
+        this.sustainLevel = 0;
+        this.on = false;
+        this.pause = false;
     }
     return Voice;
 })();
@@ -15762,6 +15816,16 @@ var AdsrFlags;
     AdsrFlags[AdsrFlags["HasSustain"] = (1 << 2)] = "HasSustain";
     AdsrFlags[AdsrFlags["HasRelease"] = (1 << 3)] = "HasRelease";
 })(AdsrFlags || (AdsrFlags = {}));
+
+var AdsrCurveMode;
+(function (AdsrCurveMode) {
+    AdsrCurveMode[AdsrCurveMode["LINEAR_INCREASE"] = 0] = "LINEAR_INCREASE";
+    AdsrCurveMode[AdsrCurveMode["LINEAR_DECREASE"] = 1] = "LINEAR_DECREASE";
+    AdsrCurveMode[AdsrCurveMode["LINEAR_BENT"] = 2] = "LINEAR_BENT";
+    AdsrCurveMode[AdsrCurveMode["EXPONENT_REV"] = 3] = "EXPONENT_REV";
+    AdsrCurveMode[AdsrCurveMode["EXPONENT"] = 4] = "EXPONENT";
+    AdsrCurveMode[AdsrCurveMode["DIRECT"] = 5] = "DIRECT";
+})(AdsrCurveMode || (AdsrCurveMode = {}));
 //# sourceMappingURL=sceSasCore.js.map
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
@@ -17120,7 +17184,11 @@ function createNativeFunction(exportId, firmwareVersion, retval, arguments, _thi
         }
     });
 
+    code += 'try {';
     code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+    code += '} catch (e) {';
+    code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
+    code += '}';
 
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
     code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
@@ -17370,11 +17438,13 @@ var EmulatorVfs = (function (_super) {
     function EmulatorVfs() {
         _super.apply(this, arguments);
         this.output = '';
+        this.screenshot = null;
     }
     EmulatorVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
             case 1 /* GetHasDisplay */:
-                output.writeInt32(0);
+                if (output)
+                    output.writeInt32(0);
 
                 break;
             case 2 /* SendOutput */:
@@ -17384,7 +17454,11 @@ var EmulatorVfs = (function (_super) {
 
                 break;
             case 3 /* IsEmulator */:
-                break;
+                return 0;
+            case 32 /* EmitScreenshot */:
+                this.screenshot = 1;
+                console.warn('emit screenshot!');
+                return 0;
             default:
                 throw (new Error("Can't handle EmulatorVfs devctlAsync. Command '" + command + "'"));
         }
@@ -18589,6 +18663,9 @@ describe('pspautotests', function () {
                                     groupCollapsed = true;
                                     console.groupEnd();
                                     compareOutput(testName, emulator.emulatorVfs.output, string_expected);
+                                    if (emulator.emulatorVfs.screenshot != null) {
+                                        throw (new Error("Not implemented screenshot comparison"));
+                                    }
                                 });
                             });
                         });

@@ -23,7 +23,7 @@ export class sceSasCore {
 	private voices: Voice[] = [];
 
 	constructor(private context: _context.EmulatorContext) {
-		while (this.voices.length < 16) this.voices.push(new Voice());
+		while (this.voices.length < 32) this.voices.push(new Voice(this.voices.length));
 	}
 
 	__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, (sasCorePointer: number, grainSamples: number, maxVoices: number, outputMode: number, sampleRate: number) => {
@@ -82,8 +82,10 @@ export class sceSasCore {
 		return 0;
 	});
 
-	private getSasCoreVoice(sasCorePointer: number, voice: number) {
-		return this.voices[voice];
+	private getSasCoreVoice(sasCorePointer: number, voiceId: number) {
+		var voice = this.voices[voiceId];
+		if (!voice) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
+		return voice;
 	}
 
 	__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackRate: number, decayRate: number, sustainRate: number, releaseRate: number) => {
@@ -96,6 +98,47 @@ export class sceSasCore {
 
 		return 0;
 	});
+
+	__sceSasSetADSRmode = createNativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackCurveMode: AdsrCurveMode, decayCurveMode: AdsrCurveMode, sustainCurveMode: AdsrCurveMode, releaseCurveMode: AdsrCurveMode) => {
+		console.warn('__sceSasSetADSRmode not implemented!');
+		return 0;
+	});
+
+	__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+		if (!voice.pause) return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
+		voice.on = false;
+		return 0;
+	});
+
+	__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+		voice.on = true;
+		return 0;
+	});
+
+	__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+		console.warn('__sceSasSetVoicePCM not implemented!');
+		return 0;
+	});
+
+	__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+		return this.getSasCoreVoice(sasCorePointer, voiceId).envelope.height;
+	});
+
+	__sceSasSetSL = createNativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, sustainLevel: number) => {
+		this.getSasCoreVoice(sasCorePointer, voiceId).sustainLevel = sustainLevel;
+		return 0;
+	});
+
+	__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int', this, (sasCorePointer: number, voiceBits: number, pause: boolean) => {
+		this.voices.forEach((voice) => {
+			if (voiceBits & (1 << voice.index)) {
+				voice.pause = pause;
+			}
+		});
+		return 0;
+	});
 }
 
 class Envelope {
@@ -103,10 +146,17 @@ class Envelope {
 	decayRate = 0;
 	sustainRate = 0;
 	releaseRate = 0;
+	height = 0;
 }
 
 class Voice {
 	envelope = new Envelope();
+	sustainLevel = 0;
+	on = false;
+	pause = false;
+
+	constructor(public index: number) {
+	}
 }
 
 enum OutputMode
@@ -135,4 +185,14 @@ enum AdsrFlags {
 	HasDecay = (1 << 1),
 	HasSustain = (1 << 2),
 	HasRelease = (1 << 3),
+}
+
+enum AdsrCurveMode
+{
+	LINEAR_INCREASE = 0,
+	LINEAR_DECREASE = 1,
+	LINEAR_BENT = 2,
+	EXPONENT_REV = 3,
+	EXPONENT = 4,
+	DIRECT = 5,
 }

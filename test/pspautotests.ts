@@ -172,6 +172,9 @@ describe('pspautotests', function () {
 									groupCollapsed = true;
 									console.groupEnd();
 									compareOutput(testName, emulator.emulatorVfs.output, string_expected);
+									if (emulator.emulatorVfs.screenshot != null) {
+										throw(new Error("Not implemented screenshot comparison"));
+									}
 								});
 							});
 						});
