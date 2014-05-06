@@ -131,12 +131,33 @@ export class sceSasCore {
 		return 0;
 	});
 
-	__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int', this, (sasCorePointer: number, voiceBits: number, pause: boolean) => {
+	__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceBits: number, pause: boolean) => {
 		this.voices.forEach((voice) => {
 			if (voiceBits & (1 << voice.index)) {
 				voice.pause = pause;
 			}
 		});
+		return 0;
+	});
+
+	__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, (sasCorePointer: number) => {
+		var voiceBits = 0;
+		this.voices.forEach((voice) => {
+			voiceBits |= (voice.pause ? 1 : 0) << voice.index;
+		});
+		return voiceBits;
+	});
+
+	__sceSasGetAllEnvelopeHeights = createNativeFunction(0x07F58C24, 150, 'uint', 'int/void*', this, (sasCorePointer: number, heightPtr: Stream) => {
+		this.voices.forEach((voice) => {
+			heightPtr.writeInt32(voice.envelope.height);
+		});
+		return 0;
+	});
+
+	__sceSasSetNoise = createNativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, noiseFrequency: number) => {
+		if (noiseFrequency < 0 || noiseFrequency >= 64) return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
+		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		return 0;
 	});
 }

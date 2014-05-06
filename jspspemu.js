@@ -15731,12 +15731,31 @@ var sceSasCore = (function () {
             _this.getSasCoreVoice(sasCorePointer, voiceId).sustainLevel = sustainLevel;
             return 0;
         });
-        this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int', this, function (sasCorePointer, voiceBits, pause) {
+        this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceBits, pause) {
             _this.voices.forEach(function (voice) {
                 if (voiceBits & (1 << voice.index)) {
                     voice.pause = pause;
                 }
             });
+            return 0;
+        });
+        this.__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, function (sasCorePointer) {
+            var voiceBits = 0;
+            _this.voices.forEach(function (voice) {
+                voiceBits |= (voice.pause ? 1 : 0) << voice.index;
+            });
+            return voiceBits;
+        });
+        this.__sceSasGetAllEnvelopeHeights = createNativeFunction(0x07F58C24, 150, 'uint', 'int/void*', this, function (sasCorePointer, heightPtr) {
+            _this.voices.forEach(function (voice) {
+                heightPtr.writeInt32(voice.envelope.height);
+            });
+            return 0;
+        });
+        this.__sceSasSetNoise = createNativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, noiseFrequency) {
+            if (noiseFrequency < 0 || noiseFrequency >= 64)
+                return 2151809041 /* ERROR_SAS_INVALID_NOISE_CLOCK */;
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             return 0;
         });
         while (this.voices.length < 32)
@@ -16357,7 +16376,7 @@ var ThreadManForUser = (function () {
 
             return 0;
         });
-        this.sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint', this, function (currentThread, removeAttributes, addAttributes) {
+        this.sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint', this, function (currentThread, removeAttributes, addAttributes) {
             currentThread.attributes &= ~removeAttributes;
             currentThread.attributes |= addAttributes;
             return 0;
@@ -17119,7 +17138,7 @@ var _cpu = require('../core/cpu');
 var NativeFunction = _cpu.NativeFunction;
 exports.NativeFunction = NativeFunction;
 
-function createNativeFunction(exportId, firmwareVersion, retval, arguments, _this, internalFunc) {
+function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc) {
     var code = '';
 
     var args = [];
@@ -17144,7 +17163,14 @@ function createNativeFunction(exportId, firmwareVersion, retval, arguments, _thi
         return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
     }
 
-    arguments.split('/').forEach(function (item) {
+    var argTypes = argTypesString.split('/').filter(function (item) {
+        return item.length > 0;
+    });
+
+    if (argTypes.length != internalFunc.length)
+        throw (new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
+
+    argTypes.forEach(function (item) {
         switch (item) {
             case 'EmulatorContext':
                 args.push('context');
@@ -17176,8 +17202,6 @@ function createNativeFunction(exportId, firmwareVersion, retval, arguments, _thi
                 break;
             case 'byte[]':
                 args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
-                break;
-            case '':
                 break;
             default:
                 throw ('Invalid argument "' + item + '"');

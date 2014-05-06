@@ -4,7 +4,7 @@ import _memory = require('../core/memory');
 import Memory = _memory.Memory;
 export import NativeFunction = _cpu.NativeFunction;
 
-export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, arguments: string, _this: any, internalFunc: Function) {
+export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function) {
     var code = '';
 
     var args = [];
@@ -29,7 +29,11 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
 	}
 
-    arguments.split('/').forEach(item => {
+	var argTypes = argTypesString.split('/').filter(item => item.length > 0);
+
+	if (argTypes.length != internalFunc.length) throw(new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
+
+	argTypes.forEach(item => {
         switch (item) {
             case 'EmulatorContext': args.push('context'); break;
             case 'Thread': args.push('state.thread'); break;
@@ -41,7 +45,6 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'ulong': case 'long': args.push(readGpr64()); break;
 			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
 			case 'byte[]': args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
-            case '': break;
             default: throw ('Invalid argument "' + item + '"');
         }
     });

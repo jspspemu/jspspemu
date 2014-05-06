@@ -196,7 +196,7 @@ export class ThreadManForUser {
 		return 0;
 	});
 
-	sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint', this, (currentThread: Thread, removeAttributes: number, addAttributes: number) => {
+	sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint', this, (currentThread: Thread, removeAttributes: number, addAttributes: number) => {
 		currentThread.attributes &= ~removeAttributes;
 		currentThread.attributes |= addAttributes;
 		return 0;
