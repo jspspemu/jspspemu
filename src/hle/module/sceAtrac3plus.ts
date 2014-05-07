@@ -31,38 +31,39 @@ export class sceAtrac3plus {
 		return 0;
 	});
 
-	sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*', this, (id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) => {
+	sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, (id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) => {
 		var atrac3 = this.atrac3Ids.get(id);
 
-		var decodedSamples = atrac3.decode(samplesOutPtr);
-		var reachedEnd = 0;
-		var remainingFramesToDecode = atrac3.remainingFrames;
+		return atrac3.decodeAsync(samplesOutPtr).then((decodedSamples) => {
+			var reachedEnd = 0;
+			var remainingFramesToDecode = atrac3.remainingFrames;
 
-		function outputPointers() {
-			if (reachedEndPtr) reachedEndPtr.writeInt32(reachedEnd);
-			if (decodedSamplesCountPtr) decodedSamplesCountPtr.writeInt32(decodedSamples);
-			if (remainingFramesToDecodePtr) remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
-		}
-
-		//Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
-
-		if (atrac3.decodingReachedEnd) {
-			//if (atrac3.numberOfLoops == 0) {
-			if (true) {
-				decodedSamples = 0;
-				reachedEnd = 1;
-				remainingFramesToDecode = 0;
-				outputPointers();
-				return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
+			function outputPointers() {
+				if (reachedEndPtr) reachedEndPtr.writeInt32(reachedEnd);
+				if (decodedSamplesCountPtr) decodedSamplesCountPtr.writeInt32(decodedSamples);
+				if (remainingFramesToDecodePtr) remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
 			}
-			if (atrac3.numberOfLoops > 0) atrac3.numberOfLoops--;
 
-			//atrac3.decodingOffset = (atrac3.LoopInfoList.Length > 0) ? atrac3.LoopInfoList[0].StartSample : 0;
-		}
+			//Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
 
-		//return Atrac.GetUidIndex(InjectContext);
-		outputPointers();
-		return 0;
+			if (atrac3.decodingReachedEnd) {
+				//if (atrac3.numberOfLoops == 0) {
+				if (true) {
+					decodedSamples = 0;
+					reachedEnd = 1;
+					remainingFramesToDecode = 0;
+					outputPointers();
+					return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
+				}
+				if (atrac3.numberOfLoops > 0) atrac3.numberOfLoops--;
+
+				//atrac3.decodingOffset = (atrac3.LoopInfoList.Length > 0) ? atrac3.LoopInfoList[0].StartSample : 0;
+			}
+
+			//return Atrac.GetUidIndex(InjectContext);
+			outputPointers();
+			return 0;
+		});
 	});
 
 	/**
@@ -79,6 +80,12 @@ export class sceAtrac3plus {
 
 	sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, (id: number, writePointerPointer: Stream, availableBytesPtr: Stream, readOffsetPtr: Stream) => {
 		throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
+		return 0;
+	});
+
+	sceAtracGetBitrate = createNativeFunction(0xA554A158, 150, 'uint', 'int/void*', this, (id: number, bitratePtr: Stream) => {
+		var atrac3 = this.atrac3Ids.get(id);
+		bitratePtr.writeInt32(atrac3.bitrate);
 		return 0;
 	});
 
@@ -136,6 +143,11 @@ export class sceAtrac3plus {
 	});
 }
 
+declare class WorkerTask {
+	static executeAsync<T>(callback: (...args: any[]) => T, args: any[]): Promise<T>;
+	static executeAsync<T>(callback: (...args: any[]) => Promise<T>, args: any[]): Promise<T>;
+}
+
 class Atrac3 {
 	fmt = new At3FormatStruct();
 	fact = new FactStruct();
@@ -145,6 +157,10 @@ class Atrac3 {
 	decodingOffset = 0;
 	codecType = CodecType.PSP_MODE_AT_3_PLUS;
 	atrac3Decoder: MediaEngine.Atrac3Decoder;
+	firstDataChunk: Uint8Array;
+
+	constructor(private id:number) {
+	}
 
 	loadStream(data: Stream) {
 		this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
@@ -157,13 +173,22 @@ class Atrac3 {
 			'data': (stream: Stream) => { this.dataStream = stream; },
 		});
 
-		var firstDataChunk = this.dataStream.readBytes(this.fmt.blockSize);
+		this.firstDataChunk = this.dataStream.readBytes(this.fmt.blockSize).subarray(0);
 
-		this.atrac3Decoder.initWithHeader(firstDataChunk);
 		//console.log(this.fmt);
 		//console.log(this.fact);
 
 		return this;
+	}
+
+	get bitrate() {
+		var _atracBitrate = Math.floor((this.fmt.bytesPerFrame * 352800) / 1000);
+		if (this.codecType == CodecType.PSP_MODE_AT_3_PLUS) {
+			return ((_atracBitrate >> 11) + 8) & 0xFFFFFFF0;
+		}
+		else {
+			return (_atracBitrate + 511) >> 10;
+		}
 	}
 
 	get maximumSamples() {
@@ -184,19 +209,50 @@ class Atrac3 {
 		return this.remainingFrames <= 0;
 	}
 
-	decode(samplesOutPtr: Stream) {
-		if (this.dataStream.available < this.fmt.blockSize) return 0;
+	//private static useWorker = false;
+	private static useWorker = true;
+
+	decodeAsync(samplesOutPtr: Stream) {
+		if (this.dataStream.available < this.fmt.blockSize) return Promise.resolve(0);
 		var blockData = this.dataStream.readBytes(this.fmt.blockSize);
 		this.decodingOffset++;
 
-		var out = this.atrac3Decoder.decode(blockData);
-		for (var n = 0; n < out.length; n++) samplesOutPtr.writeInt16(out[n]);
+		var outPromise: Promise<Uint16Array>;
 
-		return out.length;
+		if (Atrac3.useWorker) {
+			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
+				if (!self['MediaEngine']) {
+					importScripts('polyfills/promise.js');
+					importScripts('MediaEngine.js');
+					self['MediaEngine'] = MediaEngine;
+				}
+
+				var atrac3Decoder = 'atrac3Decoder_' + id;
+				if (!self[atrac3Decoder]) {
+					self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
+					self[atrac3Decoder].initWithHeader(firstDataChunk);
+				}
+				return self[atrac3Decoder].decode(blockData);
+			}, [this.id, blockData, this.firstDataChunk]);
+		} else {
+			if (this.firstDataChunk) {
+				this.atrac3Decoder.initWithHeader(this.firstDataChunk);
+			}
+
+			outPromise = Promise.resolve(this.atrac3Decoder.decode(blockData))
+		}
+
+		this.firstDataChunk = null;
+
+		return outPromise.then(out => {
+			for (var n = 0; n < out.length; n++) samplesOutPtr.writeInt16(out[n]);
+			return out.length;
+		});
 	}
 
+	static lastId = 0;
 	static fromStream(data: Stream) {
-		return new Atrac3().loadStream(data);
+		return new Atrac3(Atrac3.lastId++).loadStream(data);
 	}
 }
 

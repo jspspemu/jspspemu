@@ -30,7 +30,7 @@
     <script src="lib/zlib/rawinflate.min.js"></script>
     <script src="lib/sprintf.js"></script>
     <script src="lib/FileSaver.js"></script>
-    <script src="polyfills/promise-0.1.1.js"></script>
+    <script src="polyfills/promise.js"></script>
     <!--
     <script src="polyfills/es6-collections.min.js"></script>
     <script src="polyfills/setImmediate.js"></script>
@@ -43,6 +43,7 @@
         var assert = chai.assert;
     </script>
 
+    <script src="workertask.js"></script>
     <script src="MediaEngine.js"></script>
 
     <script src="jspspemu.js"></script>
@@ -166,7 +167,7 @@
 
         function updateScaleWith(scale) {
             var width = 480 * scale, height = 272 * scale;
-            console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
+            //console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
             $('#body').css('width', width + 'px');
             $('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
             $('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');

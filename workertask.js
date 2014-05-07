@@ -6,8 +6,9 @@ if (IN_WORKER) {
 		var data = e.data;
 		
 		var func = new Function('var func = (' + data.code + '); return func.apply(null, arguments);')
+		var argsArray = data.payload;
 
-		var result = func(data.payload);
+		var result = func.apply(null, argsArray);
 		
 		function resolve(result) {
 			self.postMessage({ id: data.id, type: data.type, payload: result });
@@ -27,7 +28,7 @@ if (IN_WORKER) {
 		function WorkerTask() { }
 
 		var lastId = 0;
-		WorkerTask.executeAsync = function(code, payload) {
+		WorkerTask.executeAsync = function(code, argsArray) {
 			return new Promise(function(resolve, reject) {
 				var id = lastId++;
 				
@@ -40,7 +41,7 @@ if (IN_WORKER) {
 				}
 				
 				worker.addEventListener('message', handler);
-				worker.postMessage({ id: id, code: code.toString(), payload: payload }); // Send data to our worker.
+				worker.postMessage({ id: id, code: code.toString(), payload: argsArray }); // Send data to our worker.
 			});
 		};
 		

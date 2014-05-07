@@ -20,7 +20,7 @@ export class sceUmdUser {
 		return 0;
 	});
 
-	sceUmdWaitDriveStatCB = createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint', this, (pspUmdState: number, timeout: number) => {
+	sceUmdWaitDriveStatCB = createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint', this, (pspUmdState: number, timeout: number) => {
 		console.warn('Not implemented sceUmdWaitDriveStatCB');
 		return 0;
 	});
