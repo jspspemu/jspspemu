@@ -78,8 +78,8 @@ export class CpuState {
 		return this.callstack.slice(0);
 	}
 
-	getPointerStream(address: number) {
-		return this.memory.getPointerStream(address);
+	getPointerStream(address: number, size?: number) {
+		return this.memory.getPointerStream(address, size);
 	}
 
 	get REGS() {

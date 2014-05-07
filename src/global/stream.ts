@@ -317,6 +317,7 @@ class Stream {
 	}
 
 	readString(count: number) {
+		if (count > 128 * 1024) throw(new Error("Trying to read a string larger than 128KB"));
 		var str = '';
 		for (var n = 0; n < count; n++) {
 			str += String.fromCharCode(this.readUInt8());

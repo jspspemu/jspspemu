@@ -20,7 +20,7 @@ export class sceRtc {
 		return this.context.rtc.getDaysInMonth(year, month);
 	});
 
-	sceRtcGetTickResolution = createNativeFunction(0xC41C2853, 150, 'uint', '', this, (tickPtr: Stream) => {
+	sceRtcGetTickResolution = createNativeFunction(0xC41C2853, 150, 'uint', 'void*', this, (tickPtr: Stream) => {
 		return 1000000;
 	});
 

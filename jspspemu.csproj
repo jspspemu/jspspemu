@@ -37,12 +37,13 @@
     <Content Include="me\MedianEngine.post.js" />
     <Content Include="me\MedianEngine.pre.js" />
     <Content Include="me\testMediaEngine.js" />
-    <Content Include="polyfills\promise-0.1.1.js" />
+    <Content Include="polyfills\promise.js" />
     <Content Include="polyfills\setImmediate.js" />
     <Content Include="pspemu.css" />
     <Content Include="samples\minifire_B0h_1EFh.elf.raw" />
     <Content Include="lib\underscore.js" />
     <Content Include="web.config" />
+    <Content Include="workertask.js" />
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="src\context.ts" />
@@ -87,7 +88,7 @@
     <TypeScriptCompile Include="src\hle\manager\module.ts" />
     <TypeScriptCompile Include="src\hle\module\ExceptionManagerForKernel.ts" />
     <TypeScriptCompile Include="src\hle\module\InterruptManager.ts" />
-    <TypeScriptCompile Include="src\hle\module\IoFileMgrForUser.ts" />
+    <TypeScriptCompile Include="src\hle\module\iofilemgr\IoFileMgrForUser.ts" />
     <TypeScriptCompile Include="src\hle\module\KDebugForKernel.ts" />
     <TypeScriptCompile Include="src\hle\module\Kernel_Library.ts" />
     <TypeScriptCompile Include="src\hle\module\LoadCoreForKernel.ts" />

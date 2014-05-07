@@ -11,7 +11,7 @@ function _registerSyscall(syscallManager: _cpu.SyscallManager, moduleManager: _m
 function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(require('./module/ExceptionManagerForKernel'));
 	manager.registerModule(require('./module/InterruptManager'));
-	manager.registerModule(require('./module/IoFileMgrForUser'));
+	manager.registerModule(require('./module/iofilemgr/IoFileMgrForUser'));
 	manager.registerModule(require('./module/KDebugForKernel'));
 	manager.registerModule(require('./module/Kernel_Library'));
 	manager.registerModule(require('./module/LoadCoreForKernel'));

@@ -39,12 +39,12 @@ export class sceGe_user {
 	});
 
 	sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, () => {
-		console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);
+		//console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);
 		return 0x04000000;
 	});
 
 	sceGeEdramGetSize = createNativeFunction(0x1F6752AD, 150, 'uint', '', this, () => {
-		console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
+		//console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
 		return 0x00200000; // 2MB
 	});
 }

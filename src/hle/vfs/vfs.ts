@@ -38,6 +38,7 @@ export class VfsEntry {
 	get size(): number { throw (new Error("Must override size : " + this)); }
 	readAllAsync() { return this.readChunkAsync(0, this.size); }
 	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync : " + this)); }
+	writeChunkAsync(offset: number, data: ArrayBuffer): Promise<number> { throw (new Error("Must override writeChunkAsync : " + this)); }
 	close() { }
 	stat(): VfsStat { throw(new Error("Must override stat")); }
 }

@@ -1,11 +1,11 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
+﻿import _utils = require('../../utils');
+import _context = require('../../../context');
 import createNativeFunction = _utils.createNativeFunction;
-import _vfs = require('../vfs');
-import _structs = require('../structs');
-import SceKernelErrors = require('../SceKernelErrors');
+import _vfs = require('../../vfs');
+import _structs = require('../../structs');
+import SceKernelErrors = require('../../SceKernelErrors');
 
-import _manager = require('../manager'); _manager.Thread;
+import _manager = require('../../manager'); _manager.Thread;
 import Thread = _manager.Thread;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
@@ -22,16 +22,20 @@ export class IoFileMgrForUser {
 	});
 
 
-	fileUids = new UidCollection<_manager.HleFile>(1);
+	fileUids = new UidCollection<_manager.HleFile>(3);
 	directoryUids = new UidCollection<_manager.HleDirectory>(1);
+
+	getFileById(id) {
+		return this.fileUids.get(id);
+	}
 
 	sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: FileOpenFlags, mode: FileMode) => {
 		return this._sceIoOpenAsync(filename, flags, mode).then(result => {
 			var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
 			if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
-				console.error(str);
+				console.error(str, result);
 			} else {
-				console.info(str);
+				console.info(str, result);
 			}
 			return result;
 		});
@@ -57,7 +61,7 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
-		var file = this.fileUids.get(fileId);
+		var file = this.getFileById(fileId);
 		if (file) file.close();
 
 		this.fileUids.remove(fileId);
@@ -65,15 +69,27 @@ export class IoFileMgrForUser {
 		return 0;
 	});
 
-	sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/uint/int', this, (fileId: number, inputPointer: number, inputLength: number) => {
-		var input = this.context.memory.getPointerStream(inputPointer, inputLength);
-		console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite("%s")', input.readString(input.length)));
-		//console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoWrite(%d, 0x%08X, %d)', fileId, inputPointer, inputLength));
-		return inputLength;
+	sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, (fileId: number, input: Stream): any => {
+		if (fileId < 3) {
+			// @TODO: Fixme! Create a proper file
+			console.log('STD[' + fileId + ']', input.readString(input.length));
+			return 0;
+		} else {
+			var file = this.getFileById(fileId);
+
+			console.warn('Not implemented sceIoWrite -> ' + fileId, file);
+			return input.length;
+			/*
+			return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((readedCount: number) => {
+				file.cursor += readedCount;
+				return readedCount;
+			});
+			*/
+		}
 	});
 
 	sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
-		var file = this.fileUids.get(fileId);
+		var file = this.getFileById(fileId);
 
 		return file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
 			file.cursor += readedData.byteLength;
@@ -85,7 +101,7 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
-		var file = this.fileUids.get(fileId);
+		var file = this.getFileById(fileId);
 
 		file.asyncOperationResolved = false;
 		file.asyncOperation = file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
@@ -103,7 +119,7 @@ export class IoFileMgrForUser {
 
 		if (this.fileUids.has(fileId)) return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
 
-		var file = this.fileUids.get(fileId);
+		var file = this.getFileById(fileId);
 
 		if (!file.asyncOperation) file.asyncOperation = Promise.resolve(0);
 
