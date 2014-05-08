@@ -46,6 +46,7 @@ export class ProgramExecutor {
 		} catch (e) {
 			if (!(e instanceof CpuBreakException)) {
 				console.log(this.state);
+				this.state.printCallstack();
 				throw (e);
 			}
 		}

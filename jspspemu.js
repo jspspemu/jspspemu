@@ -1271,6 +1271,8 @@ var Stream = (function () {
     };
 
     Stream.prototype.readString = function (count) {
+        if (count > 128 * 1024)
+            throw (new Error("Trying to read a string larger than 128KB"));
         var str = '';
         for (var n = 0; n < count; n++) {
             str += String.fromCharCode(this.readUInt8());
@@ -1607,6 +1609,8 @@ var StructStringz = (function () {
         return this.stringn.read(stream).split(String.fromCharCode(0))[0];
     };
     StructStringz.prototype.write = function (stream, value) {
+        if (!value)
+            value = '';
         var items = value.split('').map(function (char) {
             return char.charCodeAt(0);
         });
@@ -3887,6 +3891,7 @@ var ProgramExecutor = (function () {
         } catch (e) {
             if (!(e instanceof CpuBreakException)) {
                 console.log(this.state);
+                this.state.printCallstack();
                 throw (e);
             }
         }
@@ -3953,8 +3958,9 @@ var FunctionGenerator = (function () {
         //var enableOptimizations = false;
         var enableOptimizations = true;
 
-        if (address == 0x00000000)
+        if (address == 0x00000000) {
             throw (new Error("Trying to execute 0x00000000"));
+        }
 
         var ast = new MipsAstBuilder();
 
@@ -5169,6 +5175,17 @@ var CpuState = (function () {
 
     CpuState.prototype.callstackPop = function () {
         this.callstack.pop();
+    };
+
+    CpuState.prototype.printCallstack = function (symbolLookup) {
+        if (typeof symbolLookup === "undefined") { symbolLookup = null; }
+        this.getCallstack().forEach(function (PC) {
+            var line = sprintf("%08X", PC);
+            if (symbolLookup) {
+                line += sprintf(' : %s', symbolLookup.getSymbolAt(PC));
+            }
+            console.log(line);
+        });
     };
 
     CpuState.prototype.getCallstack = function () {
@@ -7475,6 +7492,11 @@ var WebGlPspDrawDriver = (function () {
         this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
         if (!this.gl)
             this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
+
+        if (!this.gl) {
+            alert("Can't initialize WebGL!");
+            throw (new Error("Can't initialize WebGL!"));
+        }
 
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
@@ -12764,6 +12786,8 @@ var MemoryManager = _memory.MemoryManager;
 exports.MemoryManager = MemoryManager;
 var MemoryPartition = _memory.MemoryPartition;
 exports.MemoryPartition = MemoryPartition;
+var OutOfMemoryError = _memory.OutOfMemoryError;
+exports.OutOfMemoryError = OutOfMemoryError;
 
 var ModuleManager = _module.ModuleManager;
 exports.ModuleManager = ModuleManager;
@@ -13024,6 +13048,16 @@ var MemoryPartitions;
 })(exports.MemoryAnchor || (exports.MemoryAnchor = {}));
 var MemoryAnchor = exports.MemoryAnchor;
 
+var OutOfMemoryError = (function () {
+    function OutOfMemoryError(message, name) {
+        if (typeof name === "undefined") { name = 'OutOfMemoryError'; }
+        this.message = message;
+        this.name = name;
+    }
+    return OutOfMemoryError;
+})();
+exports.OutOfMemoryError = OutOfMemoryError;
+
 var MemoryPartition = (function () {
     function MemoryPartition(name, low, high, allocated, parent) {
         this.name = name;
@@ -13092,7 +13126,7 @@ var MemoryPartition = (function () {
         var addressHigh = addressLow + size;
 
         if (!this.contains(addressLow) || !this.contains(addressHigh)) {
-            throw (new Error(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
+            throw (new OutOfMemoryError(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
         }
 
         for (var n = 0; n < childs.length; n++) {
@@ -13158,7 +13192,7 @@ var MemoryPartition = (function () {
         }
 
         console.info(this);
-        throw ("Can't find a partition with " + size + " available");
+        throw (new OutOfMemoryError("Can't find a partition with " + size + " available"));
     };
 
     MemoryPartition.prototype.unallocate = function () {
@@ -13365,6 +13399,7 @@ var ThreadStatus = exports.ThreadStatus;
 
 (function (PspThreadAttributes) {
     PspThreadAttributes[PspThreadAttributes["None"] = 0] = "None";
+    PspThreadAttributes[PspThreadAttributes["LowFF"] = 0x000000FF] = "LowFF";
     PspThreadAttributes[PspThreadAttributes["Vfpu"] = 0x00004000] = "Vfpu";
     PspThreadAttributes[PspThreadAttributes["User"] = 0x80000000] = "User";
     PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 0xa0000000] = "UsbWlan";
@@ -13376,7 +13411,7 @@ var ThreadStatus = exports.ThreadStatus;
 var PspThreadAttributes = exports.PspThreadAttributes;
 
 var Thread = (function () {
-    function Thread(manager, state, instructionCache) {
+    function Thread(manager, memoryManager, state, instructionCache, stackSize) {
         var _this = this;
         this.manager = manager;
         this.state = state;
@@ -13404,7 +13439,12 @@ var Thread = (function () {
         this.runningPromise = new Promise(function (resolve, reject) {
             _this.runningStop = resolve;
         });
+        this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
     }
+    Thread.prototype.delete = function () {
+        this.stackPartition.deallocate();
+    };
+
     Thread.prototype.waitEndAsync = function () {
         return this.runningPromise;
     };
@@ -13551,9 +13591,7 @@ var ThreadManager = (function () {
     ThreadManager.prototype.create = function (name, entryPoint, initialPriority, stackSize, attributes) {
         if (typeof stackSize === "undefined") { stackSize = 0x1000; }
         if (typeof attributes === "undefined") { attributes = 0; }
-        var thread = new Thread(this, new CpuState(this.memory, this.syscallManager), this.instructionCache);
-        thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
-
+        var thread = new Thread(this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
         thread.name = name;
         thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
@@ -13821,9 +13859,7 @@ var LoadExecForUser = (function () {
         });
         this.sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'Thread', this, function (thread) {
             console.info("Call stack:");
-            thread.state.getCallstack().forEach(function (PC) {
-                console.info(sprintf("%08X : %s", PC, _this.context.symbolLookup.getSymbolAt(PC)));
-            });
+            thread.state.printCallstack(_this.context.symbolLookup);
 
             //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.info('sceKernelExitGame2');
@@ -13858,9 +13894,7 @@ var ModuleMgrForUser = (function () {
         });
         this.sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'Thread/int/int/int', this, function (thread, unknown, argsize, argp) {
             console.info("Call stack:");
-            thread.state.getCallstack().forEach(function (PC) {
-                console.info(sprintf("%08X : %s", PC, _this.context.symbolLookup.getSymbolAt(PC)));
-            });
+            thread.state.printCallstack(_this.context.symbolLookup);
 
             //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
@@ -13901,13 +13935,13 @@ var StdioForUser = (function () {
     function StdioForUser(context) {
         this.context = context;
         this.sceKernelStdin = createNativeFunction(0x172D316E, 150, 'int', '', this, function () {
-            return 10000001;
+            return 0;
         });
         this.sceKernelStdout = createNativeFunction(0xA6BAB2E9, 150, 'int', '', this, function () {
-            return 10000002;
+            return 1;
         });
         this.sceKernelStderr = createNativeFunction(0xF78BA90A, 150, 'int', '', this, function () {
-            return 10000003;
+            return 2;
         });
     }
     return StdioForUser;
@@ -16286,6 +16320,8 @@ var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
 var Thread = _manager.Thread;
 var ThreadStatus = _manager.ThreadStatus;
+var PspThreadAttributes = _manager.PspThreadAttributes;
+var OutOfMemoryError = _manager.OutOfMemoryError;
 
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
@@ -16293,17 +16329,33 @@ var ThreadManForUser = (function () {
         this.context = context;
         this.threadUids = new UidCollection(1);
         this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attributes, optionPtr) {
-            stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
-            stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
+            if (!_this.context.memory.isValidAddress(entryPoint) || entryPoint == 0)
+                return 2147615122 /* ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR */;
+            if ((name == null) || (name.length > 24))
+                return 2147614721 /* ERROR_ERROR */;
+            if (stackSize > 2 * 1024 * 1024)
+                return -3;
 
-            //var stackPartition = this.context.memoryManager.stackPartition;
-            var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
-            newThread.id = _this.threadUids.allocate(newThread);
-            newThread.status = 16 /* DORMANT */;
+            attributes |= 2147483648 /* User */;
+            attributes |= 255 /* LowFF */;
 
-            console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d', newThread.id, newThread.name, newThread.priority, currentThread.priority));
+            try  {
+                stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
+                stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
 
-            return newThread.id;
+                //var stackPartition = this.context.memoryManager.stackPartition;
+                var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
+                newThread.id = _this.threadUids.allocate(newThread);
+                newThread.status = 16 /* DORMANT */;
+
+                console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
+
+                return newThread.id;
+            } catch (e) {
+                if (e instanceof OutOfMemoryError)
+                    return 2147614721 /* ERROR_ERROR */;
+                throw (e);
+            }
         });
         this.sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
             return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds);
@@ -16312,16 +16364,12 @@ var ThreadManForUser = (function () {
             return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds);
         });
         this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            var newThread = _this.threadUids.get(threadId);
-
-            return newThread.waitEndAsync().then(function () {
+            return _this.getThreadById(threadId).waitEndAsync().then(function () {
                 return 0;
             });
         });
         this.sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            var newThread = _this.threadUids.get(threadId);
-
-            return newThread.waitEndAsync().then(function () {
+            return _this.getThreadById(threadId).waitEndAsync().then(function () {
                 return 0;
             });
         });
@@ -16329,7 +16377,7 @@ var ThreadManForUser = (function () {
             return currentThread.priority;
         });
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
-            var newThread = _this.threadUids.get(threadId);
+            var newThread = _this.getThreadById(threadId);
 
             //if (!newThread) debugger;
             var newState = newThread.state;
@@ -16352,9 +16400,7 @@ var ThreadManForUser = (function () {
             return Promise.resolve(0);
         });
         this.sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, function (currentThread, threadId, priority) {
-            if (!_this.threadUids.has(threadId))
-                return 2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */;
-            var thread = _this.threadUids.get(threadId);
+            var thread = _this.getThreadById(threadId);
             thread.priority = priority;
             return Promise.resolve(0);
         });
@@ -16373,8 +16419,7 @@ var ThreadManForUser = (function () {
 
             return _this._sceKernelTerminateThread(threadId);
         });
-        this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'CpuState/int', this, function (state, exitStatus) {
-            var currentThread = state.thread;
+        this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, function (currentThread, exitStatus) {
             currentThread.exitStatus = exitStatus;
             currentThread.stop();
             throw (new CpuBreakException());
@@ -16391,7 +16436,7 @@ var ThreadManForUser = (function () {
             return currentThread.wakeupSleepAsync();
         });
         this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
-            var thread = _this.threadUids.get(threadId);
+            var thread = _this.getThreadById(threadId);
             return thread.wakeupWakeupAsync();
         });
         this.sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
@@ -16406,9 +16451,7 @@ var ThreadManForUser = (function () {
             return currentThread.id;
         });
         this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
-            if (!_this.threadUids.has(threadId))
-                return 2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */;
-            var thread = _this.threadUids.get(threadId);
+            var thread = _this.getThreadById(threadId);
 
             var info = new SceKernelThreadInfo();
 
@@ -16448,19 +16491,26 @@ var ThreadManForUser = (function () {
             return microseconds;
         });
     }
+    ThreadManForUser.prototype.getThreadById = function (id) {
+        if (!this.threadUids.has(id))
+            throw (new SceKernelException(2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */));
+        return this.threadUids.get(id);
+    };
+
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (thread, delayInMicroseconds) {
         return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds));
     };
 
     ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
-        var newThread = this.threadUids.get(threadId);
+        var newThread = this.getThreadById(threadId);
         newThread.stop();
         newThread.exitStatus = 0x800201ac;
         return 0;
     };
 
     ThreadManForUser.prototype._sceKernelDeleteThread = function (threadId) {
-        var newThread = this.threadUids.get(threadId);
+        var newThread = this.getThreadById(threadId);
+        newThread.delete();
         this.threadUids.remove(threadId);
         return 0;
     };

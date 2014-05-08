@@ -13,6 +13,10 @@ export enum MemoryAnchor {
     HighAligned = 4,
 }
 
+export class OutOfMemoryError implements Error {
+	constructor(public message: string, public name: string = 'OutOfMemoryError') { }
+}
+
 export class MemoryPartition {
     private _childPartitions: MemoryPartition[] = [];
 
@@ -54,7 +58,7 @@ export class MemoryPartition {
         var addressHigh = addressLow + size;
 
         if (!this.contains(addressLow) || !this.contains(addressHigh)) {
-            throw (new Error(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
+			throw (new OutOfMemoryError(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
         }
 
         for (var n = 0; n < childs.length; n++) {
@@ -111,7 +115,7 @@ export class MemoryPartition {
         }
 
         console.info(this);
-        throw ("Can't find a partition with " + size + " available");
+        throw (new OutOfMemoryError("Can't find a partition with " + size + " available"));
     }
 
     unallocate() {

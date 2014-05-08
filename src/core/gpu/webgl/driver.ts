@@ -27,6 +27,11 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
 		if (!this.gl) this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
 
+		if (!this.gl) {
+			alert("Can't initialize WebGL!");
+			throw (new Error("Can't initialize WebGL!"));
+		}
+
 		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
 		this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);

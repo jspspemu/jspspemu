@@ -27,6 +27,7 @@ export enum ThreadStatus {
 
 export enum PspThreadAttributes {
 	None = 0,
+	LowFF = 0x000000FF,
 	Vfpu = 0x00004000, // Enable VFPU access for the thread.
 	User = 0x80000000, // Start the thread in user mode (done automatically if the thread creating it is in user mode).
 	UsbWlan = 0xa0000000, // Thread is part of the USB/WLAN API.
@@ -56,10 +57,15 @@ export class Thread {
 	runningPromise: Promise<number> = null;
 	runningStop: () => void;
 
-    constructor(public manager: ThreadManager, public state: CpuState, private instructionCache: InstructionCache) {
+	constructor(public manager: ThreadManager, memoryManager:MemoryManager, public state: CpuState, private instructionCache: InstructionCache, stackSize: number) {
         this.state.thread = this;
 		this.programExecutor = new ProgramExecutor(state, instructionCache);
 		this.runningPromise = new Promise((resolve, reject) => { this.runningStop = resolve; });
+		this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
+	}
+
+	delete() {
+		this.stackPartition.deallocate();
 	}
 
 	waitEndAsync() {
@@ -205,9 +211,7 @@ export class ThreadManager {
     }
 
 	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
-		var thread = new Thread(this, new CpuState(this.memory, this.syscallManager), this.instructionCache);
-		thread.stackPartition = this.memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
-
+		var thread = new Thread(this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
 		thread.name = name;
 		thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;

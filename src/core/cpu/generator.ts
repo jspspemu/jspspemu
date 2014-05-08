@@ -59,7 +59,9 @@ export class FunctionGenerator {
 		//var enableOptimizations = false;
 		var enableOptimizations = true;
 
-		if (address == 0x00000000) throw (new Error("Trying to execute 0x00000000"));
+		if (address == 0x00000000) {
+			throw (new Error("Trying to execute 0x00000000"));
+		}
 
 		var ast = new MipsAstBuilder();
 

@@ -74,6 +74,16 @@ export class CpuState {
 		this.callstack.pop();
 	}
 
+	printCallstack(symbolLookup: any = null) {
+		this.getCallstack().forEach((PC) => {
+			var line = sprintf("%08X", PC);
+			if (symbolLookup) {
+				line += sprintf(' : %s', symbolLookup.getSymbolAt(PC));
+			}
+			console.log(line);
+		});
+	}
+
 	getCallstack() {
 		return this.callstack.slice(0);
 	}

@@ -13,6 +13,7 @@ export import Uri = _file.Uri;
 export import MemoryAnchor = _memory.MemoryAnchor;
 export import MemoryManager = _memory.MemoryManager;
 export import MemoryPartition = _memory.MemoryPartition;
+export import OutOfMemoryError = _memory.OutOfMemoryError;
 
 export import ModuleManager = _module.ModuleManager;
 export import ModuleWrapper = _module.ModuleWrapper;

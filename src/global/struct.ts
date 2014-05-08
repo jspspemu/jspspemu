@@ -206,6 +206,7 @@ class StructStringz {
 		return this.stringn.read(stream).split(String.fromCharCode(0))[0];
 	}
 	write(stream: Stream, value: string): void {
+		if (!value) value = '';
 		var items = value.split('').map(char => char.charCodeAt(0));
 		while (items.length < this.count) items.push(0);
 		for (var n = 0; n < items.length; n++) stream.writeUInt8(items[n]);
