@@ -13163,6 +13163,20 @@ var MemoryPartition = (function () {
         return this.allocateLowHigh(size, false, name);
     };
 
+    MemoryPartition.prototype._validateChilds = function () {
+        var childs = this._childPartitions;
+
+        if (childs[0].low != this.low)
+            throw (new Error("Invalid state [1]"));
+        if (childs[childs.length - 1].high != this.high)
+            throw (new Error("Invalid state [2]"));
+
+        for (var n = 0; n < childs.length - 1; n++) {
+            if (childs[n + 0].high != childs[n + 1].low)
+                throw (new Error("Invalid state [3] -> " + n));
+        }
+    };
+
     MemoryPartition.prototype.allocateLowHigh = function (size, low, name) {
         if (typeof name === "undefined") { name = ''; }
         var childs = this.childPartitions;
@@ -13179,19 +13193,19 @@ var MemoryPartition = (function () {
                 var p3 = child.high;
                 var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
                 var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
+                childs.splice(n, 1, allocatedChild, unallocatedChild);
             } else {
                 var p1 = child.low;
                 var p2 = child.high - size;
                 var p3 = child.high;
                 var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
                 var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
+                childs.splice(n, 1, unallocatedChild, allocatedChild);
             }
-            childs.splice(n, 1, allocatedChild, unallocatedChild);
             this.cleanup();
             return allocatedChild;
         }
 
-        console.info(this);
         throw (new OutOfMemoryError("Can't find a partition with " + size + " available"));
     };
 
@@ -13203,6 +13217,9 @@ var MemoryPartition = (function () {
     };
 
     MemoryPartition.prototype.cleanup = function () {
+        var startTotalFreeMemory = this.getTotalFreeMemory();
+
+        //this._validateChilds();
         // join contiguous free memory
         var childs = this.childPartitions;
         if (childs.length >= 2) {
@@ -13210,6 +13227,7 @@ var MemoryPartition = (function () {
                 var child = childs[n + 0];
                 var c1 = childs[n + 1];
                 if (!child.allocated && !c1.allocated) {
+                    //console.log('joining', child, c1, child.low, c1.high);
                     childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
                     n--;
                 }
@@ -13220,6 +13238,13 @@ var MemoryPartition = (function () {
             var child = childs[n];
             if (!child.allocated && child.size == 0)
                 childs.splice(n, 1);
+        }
+
+        //this._validateChilds();
+        var endTotalFreeMemory = this.getTotalFreeMemory();
+
+        if (endTotalFreeMemory != startTotalFreeMemory) {
+            console.log('assertion failed! : ' + startTotalFreeMemory + ',' + endTotalFreeMemory);
         }
     };
 
@@ -13240,10 +13265,9 @@ var MemoryPartition = (function () {
     };
 
     MemoryPartition.prototype.getMaxContiguousFreeMemory = function () {
-        var items = this.nonAllocatedPartitions.sort(function (a, b) {
-            return a.size - b.size;
+        return this.nonAllocatedPartitions.max(function (item) {
+            return item.size;
         });
-        return (items.length) ? items[0].size : 0;
     };
 
     MemoryPartition.prototype.findFreeChildWithSize = function (size) {
@@ -13422,7 +13446,7 @@ var Thread = (function () {
         this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
-        this.exitStatus = 0;
+        this.exitStatus = 0x800201a2;
         this.running = false;
         this.preemptionCount = 0;
         this.info = null;
@@ -16331,10 +16355,14 @@ var ThreadManForUser = (function () {
         this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attributes, optionPtr) {
             if (!_this.context.memory.isValidAddress(entryPoint) || entryPoint == 0)
                 return 2147615122 /* ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR */;
-            if ((name == null) || (name.length > 24))
+            if (name == null)
                 return 2147614721 /* ERROR_ERROR */;
+            if (name.length > 31)
+                name = name.substr(0, 31);
             if (stackSize > 2 * 1024 * 1024)
                 return -3;
+            if (attributes == 0x100)
+                return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
 
             attributes |= 2147483648 /* User */;
             attributes |= 255 /* LowFF */;
@@ -16343,14 +16371,16 @@ var ThreadManForUser = (function () {
                 stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
                 stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
 
-                //var stackPartition = this.context.memoryManager.stackPartition;
                 var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
                 newThread.id = _this.threadUids.allocate(newThread);
                 newThread.status = 16 /* DORMANT */;
 
+                newThread.state.GP = currentThread.state.GP;
+
                 console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
 
                 return newThread.id;
+                //return Promise.resolve(newThread.id);
             } catch (e) {
                 if (e instanceof OutOfMemoryError)
                     return 2147614721 /* ERROR_ERROR */;
@@ -16381,7 +16411,6 @@ var ThreadManForUser = (function () {
 
             //if (!newThread) debugger;
             var newState = newThread.state;
-            newState.GP = currentThread.state.GP;
             newState.RA = 268435455 /* EXIT_THREAD */;
 
             var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
@@ -18543,8 +18572,8 @@ var _manager = require('../../src/hle/manager');
 var MemoryAnchor = _manager.MemoryAnchor;
 var MemoryPartition = _manager.MemoryPartition;
 
-describe("memory manager", function () {
-    it("should work", function () {
+describe("memorymanager", function () {
+    it("low", function () {
         var partition = new MemoryPartition("test", 0, 100, false);
         assert.equal(partition.getMaxContiguousFreeMemory(), 100);
         assert.equal(partition.getTotalFreeMemory(), 100);
@@ -18565,6 +18594,54 @@ describe("memory manager", function () {
 
         assert.equal(partition.getMaxContiguousFreeMemory(), 75);
         assert.equal(partition.getTotalFreeMemory(), 75);
+    });
+
+    it("low2", function () {
+        var partition = new MemoryPartition("test", 0, 100, false);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 100);
+        assert.equal(partition.getTotalFreeMemory(), 100);
+
+        var p1 = partition.allocateLow(25);
+        var p2 = partition.allocateLow(25);
+        var p3 = partition.allocateLow(25);
+
+        assert.equal(partition.getTotalFreeMemory(), 25);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 25);
+
+        p3.deallocate();
+
+        assert.equal(partition.getTotalFreeMemory(), 50);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 50);
+
+        p1.unallocate();
+
+        console.info(partition);
+
+        assert.equal(partition.getTotalFreeMemory(), 75);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 50);
+    });
+
+    it("high", function () {
+        var partition = new MemoryPartition("test", 0, 100, false);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 100);
+        assert.equal(partition.getTotalFreeMemory(), 100);
+
+        var p1 = partition.allocateHigh(25);
+        var p2 = partition.allocateHigh(25);
+        var p3 = partition.allocateHigh(25);
+
+        assert.equal(partition.getTotalFreeMemory(), 25);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 25);
+
+        p3.deallocate();
+
+        assert.equal(partition.getTotalFreeMemory(), 50);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 50);
+
+        p1.unallocate();
+
+        assert.equal(partition.getTotalFreeMemory(), 75);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 50);
     });
 });
 //# sourceMappingURL=memorymanagerTest.js.map

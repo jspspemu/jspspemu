@@ -20,8 +20,10 @@ export class ThreadManForUser {
 
 	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number) => {
 		if (!this.context.memory.isValidAddress(entryPoint) || entryPoint == 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR;
-		if ((name == null) || (name.length > 24)) return SceKernelErrors.ERROR_ERROR;
+		if (name == null) return SceKernelErrors.ERROR_ERROR;
+		if (name.length > 31) name = name.substr(0, 31);
 		if (stackSize > 2 * 1024 * 1024) return -3;
+		if (attributes == 0x100) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
 
 		attributes |= PspThreadAttributes.User;
 		attributes |= PspThreadAttributes.LowFF;
@@ -34,9 +36,12 @@ export class ThreadManForUser {
 			newThread.id = this.threadUids.allocate(newThread);
 			newThread.status = ThreadStatus.DORMANT;
 
+			newThread.state.GP = currentThread.state.GP;
+
 			console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
 
 			return newThread.id;
+			//return Promise.resolve(newThread.id);
 		} catch (e) {
 			if (e instanceof OutOfMemoryError) return SceKernelErrors.ERROR_ERROR;
 			throw(e);
@@ -76,7 +81,6 @@ export class ThreadManForUser {
 		//if (!newThread) debugger;
 
 		var newState = newThread.state;
-		newState.GP = currentThread.state.GP;
 		newState.RA = CpuSpecialAddresses.EXIT_THREAD;
 
 		var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));

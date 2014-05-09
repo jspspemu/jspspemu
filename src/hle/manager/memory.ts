@@ -87,7 +87,18 @@ export class MemoryPartition {
 
 	allocateHigh(size: number, name: string = '', alignment: number = 1) {
         return this.allocateLowHigh(size, false, name);
-    }
+	}
+
+	private _validateChilds() {
+		var childs = this._childPartitions;
+
+		if (childs[0].low != this.low) throw(new Error("Invalid state [1]"));
+		if (childs[childs.length - 1].high != this.high) throw (new Error("Invalid state [2]"));
+
+		for (var n = 0; n < childs.length - 1; n++) {
+			if (childs[n + 0].high != childs[n + 1].low) throw (new Error("Invalid state [3] -> " + n));
+		}
+	}
 
 	private allocateLowHigh(size: number, low: boolean, name: string = '') {
         var childs = this.childPartitions;
@@ -102,19 +113,20 @@ export class MemoryPartition {
                 var p3 = child.high;
                 var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
                 var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
+				childs.splice(n, 1, allocatedChild, unallocatedChild);
             } else {
                 var p1 = child.low;
                 var p2 = child.high - size;
                 var p3 = child.high;
                 var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
 				var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
+				childs.splice(n, 1, unallocatedChild, allocatedChild);
             }
-            childs.splice(n, 1, allocatedChild, unallocatedChild);
             this.cleanup();
             return allocatedChild;
         }
 
-        console.info(this);
+        //console.info(this);
         throw (new OutOfMemoryError("Can't find a partition with " + size + " available"));
     }
 
@@ -124,24 +136,37 @@ export class MemoryPartition {
         if (this.parent) this.parent.cleanup();
     }
 
-    private cleanup() {
+	private cleanup() {
+		var startTotalFreeMemory = this.getTotalFreeMemory();
+
+		//this._validateChilds();
+
         // join contiguous free memory
         var childs = this.childPartitions;
         if (childs.length >= 2) {
             for (var n = 0; n < childs.length - 1; n++) {
                 var child = childs[n + 0];
                 var c1 = childs[n + 1];
-                if (!child.allocated && !c1.allocated) {
-                    childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
+				if (!child.allocated && !c1.allocated) {
+					//console.log('joining', child, c1, child.low, c1.high);
+					childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
                     n--;
                 }
             }
         }
         // remove empty segments
-        for (var n = 0; n < childs.length; n++) {
+		for (var n = 0; n < childs.length; n++) {
             var child = childs[n];
             if (!child.allocated && child.size == 0) childs.splice(n, 1);
-        }
+		}
+
+		//this._validateChilds();
+
+		var endTotalFreeMemory = this.getTotalFreeMemory();
+
+		if (endTotalFreeMemory != startTotalFreeMemory) {
+			console.log('assertion failed! : ' + startTotalFreeMemory + ',' + endTotalFreeMemory);
+		}
     }
 
     get nonAllocatedPartitions() {
@@ -152,9 +177,8 @@ export class MemoryPartition {
         return this.nonAllocatedPartitions.reduce<number>((prev, item) => item.size + prev, 0);
     }
 
-    getMaxContiguousFreeMemory() {
-        var items = this.nonAllocatedPartitions.sort((a, b) => a.size - b.size);
-        return (items.length) ? items[0].size : 0;
+	getMaxContiguousFreeMemory() {
+		return this.nonAllocatedPartitions.max(item => item.size);
     }
 
     private findFreeChildWithSize(size: number) {

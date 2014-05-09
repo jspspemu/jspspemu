@@ -46,7 +46,7 @@ export class Thread {
 	entryPoint: number = 0;
 	priority: number = 10;
 	attributes: number = 0;
-    exitStatus: number = 0;
+	exitStatus: number = 0x800201a2;
     running: boolean = false;
 	stackPartition: MemoryPartition;
 	preemptionCount: number = 0;
