@@ -23,7 +23,10 @@ export class ThreadManForUser {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 		if (name.length > 31) name = name.substr(0, 31);
 		if (stackSize > 2 * 1024 * 1024) return -3;
-		if (attributes == 0x100) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
+		if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
+			//console.log(sprintf('Invalid mask %08X, %08X, %08X', attributes, PspThreadAttributes.ValidMask, (attributes & (~PspThreadAttributes.ValidMask))));
+			return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
+		}
 
 		attributes |= PspThreadAttributes.User;
 		attributes |= PspThreadAttributes.LowFF;

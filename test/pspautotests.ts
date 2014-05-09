@@ -2,6 +2,8 @@
 
 import Emulator = _emulator.Emulator;
 
+declare var difflib: any;
+
 describe('pspautotests', function () {
 	this.timeout(5000);
 
@@ -108,10 +110,108 @@ describe('pspautotests', function () {
 		return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
 	}
 
+	function compareLines2(lines1, lines2) {
+		return new difflib.SequenceMatcher(lines1, lines2).get_opcodes();
+	}
+
+	function compareText2(text1, text2) {
+		return new difflib.SequenceMatcher(difflib.stringAsLines(text1), difflib.stringAsLines(text2)).get_opcodes();
+	}
+
+	/*
+	function compareLines(text1, text2) {
+		var out = [];
+		var sm = new difflib.SequenceMatcher(text1, text2);
+		var opcodes = sm.get_opcodes();
+		for (var n = 0; n < opcodes.length; n++) {
+			var opcode = <string>(opcodes[n]);
+			var start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
+			var start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
+			var length1 = end1 - start1;
+			var length2 = end2 - start2;
+			switch (opcode[0]) {
+				case 'equal': for (var m = start1; m < end1; m++) out.push(['', m, text1[m]]); break;
+				case 'delete': for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]); break;
+				case 'insert': for (var m = start2; m < end2; m++) out.push(['+', m, text1[m]]); break;
+				case 'replace':
+					if (length1 == length2) {
+						for (var m = 0; m < length1; m++) {
+							out.push(['!', m + start1, m + start2, text1[m + start1], text2[m + start2]]);
+						}
+					} else {
+						for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]);
+						for (var m = start2; m < end2; m++) out.push(['+', m, text2[m]]);
+					}
+					break;
+			}
+		}
+		return out;
+	}
+
+	function compareText(text1, text2) {
+		return compareLines(difflib.stringAsLines(text1), difflib.stringAsLines(text2));
+	}
+	*/
+
+	//console.log(compareText('a', 'b'));
+
 	function compareOutput(name:string, output: string, expected: string) {
 		output = normalizeString(output);
 		expected = normalizeString(expected);
 
+		var outputLines = difflib.stringAsLines(output);
+		var expectedLines = difflib.stringAsLines(expected);
+
+		var equalLines = 0;
+		var totalLines = expectedLines.length;
+		console.groupCollapsed('TEST RESULT: ' + name);
+
+		var opcodes = compareText2(output, expected);
+
+		for (var n = 0; n < opcodes.length; n++) {
+			var opcode = <string>(opcodes[n]);
+			var start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
+			var start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
+			var length1 = end1 - start1;
+			var length2 = end2 - start2;
+			switch (opcode[0]) {
+				case 'equal':
+					var showBegin = (n > 0);
+					var showEnd = (n < opcodes.length - 1);
+					var broke = false;
+					for (var m = start1; m < end1; m++) {
+						if (!((showBegin && m < start1 + 2) || (showEnd && m > end1 - 2))) {
+							if (!broke) console.log(' ...');
+							broke = true;
+							continue;
+						}
+						console.log(sprintf(' %04d %s', m + 1, outputLines[m]));
+						equalLines++;
+					}
+					break;
+				case 'delete':
+					for (var m = start1; m < end1; m++) console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
+					break;
+				case 'insert':
+					for (var m = start2; m < end2; m++) console.info(sprintf('\u2714%04d %s', m + 1, expectedLines[m]));
+					break;
+				case 'replace':
+					if (length1 == length2) {
+						for (var m = 0; m < length1; m++) {
+							console.warn(sprintf('\u2716%04d %s', m + start1 + 1, outputLines[m + start1]));
+							console.info(sprintf('\u2714%04d %s', m + start2 + 1, expectedLines[m + start2]));
+						}
+					} else {
+						for (var m = start1; m < end1; m++) console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
+						for (var m = start2; m < end2; m++) console.info(sprintf('\u2714%04d %s', m + 1, expectedLines[m]));
+					}
+					break;
+			}
+			//console.log(opcode);
+		}
+		var distinctLines = totalLines - equalLines;
+
+		/*
 		var output_lines = output.split('\n');
 		var expected_lines = expected.split('\n');
 
@@ -141,6 +241,7 @@ describe('pspautotests', function () {
 		}
 
 		if (distinctLines == 0) console.log('great: output and expected are equal!');
+		*/
 
 		console.groupEnd();
 

@@ -13425,12 +13425,21 @@ var ThreadStatus = exports.ThreadStatus;
     PspThreadAttributes[PspThreadAttributes["None"] = 0] = "None";
     PspThreadAttributes[PspThreadAttributes["LowFF"] = 0x000000FF] = "LowFF";
     PspThreadAttributes[PspThreadAttributes["Vfpu"] = 0x00004000] = "Vfpu";
+    PspThreadAttributes[PspThreadAttributes["V0x2000"] = 0x2000] = "V0x2000";
+    PspThreadAttributes[PspThreadAttributes["V0x4000"] = 0x4000] = "V0x4000";
+    PspThreadAttributes[PspThreadAttributes["V0x400000"] = 0x400000] = "V0x400000";
+    PspThreadAttributes[PspThreadAttributes["V0x800000"] = 0x800000] = "V0x800000";
+    PspThreadAttributes[PspThreadAttributes["V0xf00000"] = 0xf00000] = "V0xf00000";
+    PspThreadAttributes[PspThreadAttributes["V0x8000000"] = 0x8000000] = "V0x8000000";
+    PspThreadAttributes[PspThreadAttributes["V0xf000000"] = 0xf000000] = "V0xf000000";
     PspThreadAttributes[PspThreadAttributes["User"] = 0x80000000] = "User";
     PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 0xa0000000] = "UsbWlan";
     PspThreadAttributes[PspThreadAttributes["Vsh"] = 0xc0000000] = "Vsh";
-    PspThreadAttributes[PspThreadAttributes["ScratchRamEnable"] = 0x00008000] = "ScratchRamEnable";
+
+    //ScratchRamEnable = 0x00008000, // Allow using scratchpad memory for a thread, NOT USABLE ON V1.0
     PspThreadAttributes[PspThreadAttributes["NoFillStack"] = 0x00100000] = "NoFillStack";
     PspThreadAttributes[PspThreadAttributes["ClearStack"] = 0x00200000] = "ClearStack";
+    PspThreadAttributes[PspThreadAttributes["ValidMask"] = PspThreadAttributes.LowFF | PspThreadAttributes.Vfpu | PspThreadAttributes.User | PspThreadAttributes.UsbWlan | PspThreadAttributes.Vsh | PspThreadAttributes.NoFillStack | PspThreadAttributes.ClearStack | PspThreadAttributes.V0x2000 | PspThreadAttributes.V0x4000 | PspThreadAttributes.V0x400000 | PspThreadAttributes.V0x800000 | PspThreadAttributes.V0xf00000 | PspThreadAttributes.V0x8000000 | PspThreadAttributes.V0xf000000] = "ValidMask";
 })(exports.PspThreadAttributes || (exports.PspThreadAttributes = {}));
 var PspThreadAttributes = exports.PspThreadAttributes;
 
@@ -16361,8 +16370,10 @@ var ThreadManForUser = (function () {
                 name = name.substr(0, 31);
             if (stackSize > 2 * 1024 * 1024)
                 return -3;
-            if (attributes == 0x100)
+            if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
+                //console.log(sprintf('Invalid mask %08X, %08X, %08X', attributes, PspThreadAttributes.ValidMask, (attributes & (~PspThreadAttributes.ValidMask))));
                 return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
+            }
 
             attributes |= 2147483648 /* User */;
             attributes |= 255 /* LowFF */;
@@ -18813,42 +18824,141 @@ describe('pspautotests', function () {
         return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
     }
 
+    function compareLines2(lines1, lines2) {
+        return new difflib.SequenceMatcher(lines1, lines2).get_opcodes();
+    }
+
+    function compareText2(text1, text2) {
+        return new difflib.SequenceMatcher(difflib.stringAsLines(text1), difflib.stringAsLines(text2)).get_opcodes();
+    }
+
+    /*
+    function compareLines(text1, text2) {
+    var out = [];
+    var sm = new difflib.SequenceMatcher(text1, text2);
+    var opcodes = sm.get_opcodes();
+    for (var n = 0; n < opcodes.length; n++) {
+    var opcode = <string>(opcodes[n]);
+    var start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
+    var start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
+    var length1 = end1 - start1;
+    var length2 = end2 - start2;
+    switch (opcode[0]) {
+    case 'equal': for (var m = start1; m < end1; m++) out.push(['', m, text1[m]]); break;
+    case 'delete': for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]); break;
+    case 'insert': for (var m = start2; m < end2; m++) out.push(['+', m, text1[m]]); break;
+    case 'replace':
+    if (length1 == length2) {
+    for (var m = 0; m < length1; m++) {
+    out.push(['!', m + start1, m + start2, text1[m + start1], text2[m + start2]]);
+    }
+    } else {
+    for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]);
+    for (var m = start2; m < end2; m++) out.push(['+', m, text2[m]]);
+    }
+    break;
+    }
+    }
+    return out;
+    }
+    
+    function compareText(text1, text2) {
+    return compareLines(difflib.stringAsLines(text1), difflib.stringAsLines(text2));
+    }
+    */
+    //console.log(compareText('a', 'b'));
     function compareOutput(name, output, expected) {
         output = normalizeString(output);
         expected = normalizeString(expected);
 
+        var outputLines = difflib.stringAsLines(output);
+        var expectedLines = difflib.stringAsLines(expected);
+
+        var equalLines = 0;
+        var totalLines = expectedLines.length;
+        console.groupCollapsed('TEST RESULT: ' + name);
+
+        var opcodes = compareText2(output, expected);
+
+        for (var n = 0; n < opcodes.length; n++) {
+            var opcode = (opcodes[n]);
+            var start1 = (opcode[1]), end1 = (opcode[2]);
+            var start2 = (opcode[3]), end2 = (opcode[4]);
+            var length1 = end1 - start1;
+            var length2 = end2 - start2;
+            switch (opcode[0]) {
+                case 'equal':
+                    var showBegin = (n > 0);
+                    var showEnd = (n < opcodes.length - 1);
+                    var broke = false;
+                    for (var m = start1; m < end1; m++) {
+                        if (!((showBegin && m < start1 + 2) || (showEnd && m > end1 - 2))) {
+                            if (!broke)
+                                console.log(' ...');
+                            broke = true;
+                            continue;
+                        }
+                        console.log(sprintf(' %04d %s', m + 1, outputLines[m]));
+                        equalLines++;
+                    }
+                    break;
+                case 'delete':
+                    for (var m = start1; m < end1; m++)
+                        console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
+                    break;
+                case 'insert':
+                    for (var m = start2; m < end2; m++)
+                        console.info(sprintf('\u2714%04d %s', m + 1, expectedLines[m]));
+                    break;
+                case 'replace':
+                    if (length1 == length2) {
+                        for (var m = 0; m < length1; m++) {
+                            console.warn(sprintf('\u2716%04d %s', m + start1 + 1, outputLines[m + start1]));
+                            console.info(sprintf('\u2714%04d %s', m + start2 + 1, expectedLines[m + start2]));
+                        }
+                    } else {
+                        for (var m = start1; m < end1; m++)
+                            console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
+                        for (var m = start2; m < end2; m++)
+                            console.info(sprintf('\u2714%04d %s', m + 1, expectedLines[m]));
+                    }
+                    break;
+            }
+            //console.log(opcode);
+        }
+        var distinctLines = totalLines - equalLines;
+
+        /*
         var output_lines = output.split('\n');
         var expected_lines = expected.split('\n');
-
+        
         var distinctLines = 0;
-        var totalLines = Math.max(output_lines.length, expected_lines.length);
+        var totalLines = Math.max(output_lines.length, expected_lines.length)
         console.groupCollapsed('TEST RESULT: ' + name);
         var linesToShow = {};
         for (var n = 0; n < totalLines; n++) {
-            if (output_lines[n] != expected_lines[n]) {
-                distinctLines++;
-                for (var m = -2; m <= 2; m++)
-                    linesToShow[n + m] = true;
-            }
+        if (output_lines[n] != expected_lines[n]) {
+        distinctLines++;
+        for (var m = -2; m <= 2; m++) linesToShow[n + m] = true;
         }
-
+        }
+        
         for (var n = 0; n < totalLines; n++) {
-            var lineNumber = n + 1;
-            var output_line = output_lines[n];
-            var expected_line = expected_lines[n];
-            if (linesToShow[n]) {
-                if (output_line != expected_line) {
-                    console.warn(sprintf('%04d: %s', lineNumber, output_line));
-                    console.info(sprintf('%04d: %s', lineNumber, expected_line));
-                } else {
-                    console.log(sprintf('%04d: %s', lineNumber, output_line));
-                }
-            }
+        var lineNumber = n + 1;
+        var output_line = output_lines[n];
+        var expected_line = expected_lines[n];
+        if (linesToShow[n]) {
+        if (output_line != expected_line) {
+        console.warn(sprintf('%04d: %s', lineNumber, output_line));
+        console.info(sprintf('%04d: %s', lineNumber, expected_line));
+        } else {
+        console.log(sprintf('%04d: %s', lineNumber, output_line));
         }
-
-        if (distinctLines == 0)
-            console.log('great: output and expected are equal!');
-
+        }
+        }
+        
+        if (distinctLines == 0) console.log('great: output and expected are equal!');
+        */
         console.groupEnd();
 
         assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check console for details.");

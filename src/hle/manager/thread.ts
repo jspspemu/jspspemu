@@ -29,12 +29,20 @@ export enum PspThreadAttributes {
 	None = 0,
 	LowFF = 0x000000FF,
 	Vfpu = 0x00004000, // Enable VFPU access for the thread.
+	V0x2000 = 0x2000,
+	V0x4000 = 0x4000,
+	V0x400000 = 0x400000,
+	V0x800000 = 0x800000,
+	V0xf00000 = 0xf00000,
+	V0x8000000 = 0x8000000,
+	V0xf000000 = 0xf000000,
 	User = 0x80000000, // Start the thread in user mode (done automatically if the thread creating it is in user mode).
 	UsbWlan = 0xa0000000, // Thread is part of the USB/WLAN API.
 	Vsh = 0xc0000000, // Thread is part of the VSH API.
-	ScratchRamEnable = 0x00008000, // Allow using scratchpad memory for a thread, NOT USABLE ON V1.0
+	//ScratchRamEnable = 0x00008000, // Allow using scratchpad memory for a thread, NOT USABLE ON V1.0
 	NoFillStack = 0x00100000, // Disables filling the stack with 0xFF on creation
 	ClearStack = 0x00200000, // Clear the stack when the thread is deleted
+	ValidMask = LowFF | Vfpu | User | UsbWlan | Vsh | /*ScratchRamEnable |*/ NoFillStack | ClearStack | V0x2000 | V0x4000 | V0x400000 | V0x800000 | V0xf00000 | V0x8000000 | V0xf000000,
 }
 
 export class Thread {
