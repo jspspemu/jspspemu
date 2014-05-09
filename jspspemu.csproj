@@ -19,6 +19,7 @@
     <Content Include="icon.png" />
     <Content Include="lib\aes.js" />
     <Content Include="lib\chai.js" />
+    <Content Include="lib\difflib.js" />
     <Content Include="lib\FileSaver.js" />
     <Content Include="lib\gl-matrix.js" />
     <Content Include="index.html" />
