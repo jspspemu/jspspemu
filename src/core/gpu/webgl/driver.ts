@@ -103,10 +103,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		}
 
 		var blending = state.blending;
-		if (this.enableDisable(gl.BLEND, state.blending.enabled)) {
-
-			gl.blendFunc(gl.SRC_COLOR + state.blending.functionSource, gl.SRC_COLOR + state.blending.functionDestination);
-			switch (state.blending.equation) {
+		if (this.enableDisable(gl.BLEND, blending.enabled)) {
+			gl.blendFunc(gl.SRC_COLOR + blending.functionSource, gl.SRC_COLOR + blending.functionDestination);
+			switch (blending.equation) {
 				case _state.GuBlendingEquation.Abs:
 				case _state.GuBlendingEquation.Max:
 				case _state.GuBlendingEquation.Min:
@@ -114,6 +113,14 @@ class WebGlPspDrawDriver implements IDrawDriver {
 				case _state.GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
 				case _state.GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
 			}
+		}
+
+		var stencil = state.stencil;
+		if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
+			var opsConvert = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
+			var funcConvert = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
+			gl.stencilFunc(funcConvert[stencil.func], stencil.funcRef, stencil.funcMask);
+			gl.stencilOp(opsConvert[stencil.fail], opsConvert[stencil.zfail], opsConvert[stencil.zpass]);
 		}
 
 		var alphaTest = state.alphaTest;

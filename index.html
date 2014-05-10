@@ -57,7 +57,7 @@
                 <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
                 <input type="file" id="load_file" name="load_file" style="width:132px;" />
                 <a href="javascript:requestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">Fullscreen</a>
-                <a href="javascript:saveAs(new Blob([emulator.memory.getPointerDataView(0x08000000, 0x2000000)]), 'memory.bin');" style="font:16px Arial;color:white;">[M]</a>
+                <a href="javascript:emulator.memory.dump();" style="font:16px Arial;color:white;">[M]</a>
             </center>
         </div>
         <div id="canvas_container">

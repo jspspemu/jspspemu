@@ -307,8 +307,8 @@ export class TextureState {
 }
 
 export class CullingState {
-	enabled: boolean;
-	direction: CullingDirection;
+	enabled = false;
+	direction = CullingDirection.ClockWise;
 }
 
 export class LightingState {
@@ -327,8 +327,9 @@ export enum TestFunctionEnum {
 }
 
 export class DepthTestState {
-	func = TestFunctionEnum.Always;
 	enabled = false;
+	func = TestFunctionEnum.Always;
+	mask = 0;
 }
 
 export enum ShadingModelEnum {
@@ -394,6 +395,25 @@ export class SkinningState {
 	}
 }
 
+export enum StencilOperationEnum {
+	Keep = 0,
+	Zero = 1,
+	Replace = 2,
+	Invert = 3,
+	Increment = 4,
+	Decrement = 5,
+}
+
+export class StencilState {
+	enabled = false;
+	fail = StencilOperationEnum.Keep;
+	zpass = StencilOperationEnum.Keep;
+	zfail = StencilOperationEnum.Keep;
+	func = TestFunctionEnum.Always;
+	funcRef = 0;
+	funcMask = 0;
+}
+
 export class GpuState {
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
 	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
@@ -406,6 +426,7 @@ export class GpuState {
 	shadeModel = ShadingModelEnum.Flat;
 	frameBuffer = new GpuFrameBufferState();
 	vertex = new VertexState();
+	stencil = new StencilState();
 	skinning = new SkinningState();
 	morphWeights = [1, 0, 0, 0, 0, 0, 0, 0];
 	projectionMatrix = new Matrix4x4();

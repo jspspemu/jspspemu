@@ -322,13 +322,14 @@ export class PspElfLoader {
         var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
 		var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
 		var registeredNativeFunctions = <NativeFunction[]>[];
+		var unknownFunctions = []
 
         var registerN = (nid: number, n: number) => {
             var nfunc: NativeFunction;
-            try {
-                nfunc = _module.getByNid(nid)
-            } catch (e) {
-                console.warn(e);
+			nfunc = _module.getByNid(nid);
+			if (!nfunc) {
+				unknownFunctions.push(sprintf("'%s':0x%08X", _module.moduleName, nid));
+
 				nfunc = new NativeFunction();
                 nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
                 nfunc.nid = nid;
@@ -356,6 +357,8 @@ export class PspElfLoader {
             callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
             callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
 		}
+
+		console.warn("Can't find functions", unknownFunctions);
 
 		return {
 			name : moduleImport.name,

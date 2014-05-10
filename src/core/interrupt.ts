@@ -25,11 +25,13 @@ export class InterruptManager {
 	suspend() {
 		var currentFlags = this.flags;
 		this.flags = 0;
+		this.enabled = false;
 		return currentFlags;
 	}
 
 	resume(value: number) {
 		this.flags = value;
+		this.enabled = true;
 	}
 
 	get(pspInterrupt: PspInterrupts) {

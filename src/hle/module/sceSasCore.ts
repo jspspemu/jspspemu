@@ -160,6 +160,14 @@ export class sceSasCore {
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		return 0;
 	});
+
+	__sceSasSetVolume = createNativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, leftVolume: number, rightVolume: number, effectLeftVol: number, effectRightVol: number) => {
+		return 0;
+	});
+
+	__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, pitch: number) => {
+		return 0;
+	});
 }
 
 class Envelope {

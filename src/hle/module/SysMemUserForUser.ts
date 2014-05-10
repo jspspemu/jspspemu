@@ -80,7 +80,7 @@ export class SysMemUserForUser {
 		* Get the size of the largest free memory block.
 		*/
 	sceKernelMaxFreeMemSize = createNativeFunction(0xA291F107, 150, 'int', '', this, () => {
-		return this.context.memoryManager.userPartition.nonAllocatedPartitions.max(partition => partition.size);
+		return this.context.memoryManager.userPartition.nonAllocatedPartitions.max(partition => partition.size).size;
 	});
 
 	sceKernelSetCompiledSdkVersion = createNativeFunction(0x7591C7DB, 150, 'int', 'uint', this, (sdkVersion: number) => {

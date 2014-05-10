@@ -1,5 +1,7 @@
 ﻿import Signal = require('../util/Signal');
 
+declare function saveAs(data: Blob, name: string):void;
+
 export class Memory {
 	buffer: ArrayBuffer;
 	s8: Uint8Array;
@@ -26,6 +28,7 @@ export class Memory {
 
 	constructor() {
 		this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
+		//this.buffer = new ArrayBuffer(0xa000000 + 4);
 		this.data = new DataView(this.buffer);
 		this.s8 = new Int8Array(this.buffer);
 		this.u8 = new Uint8Array(this.buffer);
@@ -206,5 +209,9 @@ export class Memory {
 		var _source = new Uint8Array(source, sourcePosition, length);
 		var _destination = new Uint8Array(destination, destinationPosition, length);
 		_destination.set(_source);
+	}
+
+	dump() {
+		saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), 'memory.bin');
 	}
 }

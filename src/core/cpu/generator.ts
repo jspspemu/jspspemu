@@ -19,6 +19,15 @@ export interface InstructionUsage {
 	count: number;
 }
 
+class PspInstructionStm extends ast_builder.ANodeStm {
+	constructor(public PC: number, private code: ast_builder.ANodeStm) {
+		super();
+	}
+
+	toJs() { return sprintf("/*%08X*/ %s", this.PC, this.code.toJs()); }
+	optimize() { return new PspInstructionStm(this.PC, this.code.optimize()); }
+}
+
 export class FunctionGenerator {
 	private instructions: Instructions = Instructions.instance;
 	private instructionAst = new InstructionAst();
@@ -72,7 +81,7 @@ export class FunctionGenerator {
 		var pcToLabel: NumberDictionary<number> = {};
 
 		var emitInstruction = () => {
-			var result = this.generateInstructionAstNode(this.decodeInstruction(PC))
+			var result = new PspInstructionStm(PC, this.generateInstructionAstNode(this.decodeInstruction(PC)));
 			PC += 4;
 			return result;
 		};

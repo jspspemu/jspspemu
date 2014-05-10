@@ -178,7 +178,7 @@ export class MemoryPartition {
     }
 
 	getMaxContiguousFreeMemory() {
-		return this.nonAllocatedPartitions.max(item => item.size);
+		return this.nonAllocatedPartitions.max(item => item.size).size;
     }
 
     private findFreeChildWithSize(size: number) {

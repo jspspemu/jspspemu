@@ -1,10 +1,13 @@
 ﻿import _cpu = require('../../core/cpu');
 import _memory = require('../../core/memory');
 import _display = require('../../core/display');
+import _interrupt = require('../../core/interrupt');
 import _manager_memory = require('./memory');
 
-import MemoryManager = _manager_memory.MemoryManager
-import MemoryPartition = _manager_memory.MemoryPartition
+import MemoryManager = _manager_memory.MemoryManager;
+import InterruptManager = _interrupt.InterruptManager;
+
+import MemoryPartition = _manager_memory.MemoryPartition;
 import SyscallManager = _cpu.SyscallManager;
 import PspDisplay = _display.PspDisplay;
 import Memory = _memory.Memory;
@@ -47,7 +50,6 @@ export enum PspThreadAttributes {
 
 export class Thread {
     id: number = 0;
-	name: string;
 	status: ThreadStatus = ThreadStatus.DORMANT;
 	programExecutor: ProgramExecutor;
 	initialPriority: number = 10;
@@ -65,7 +67,7 @@ export class Thread {
 	runningPromise: Promise<number> = null;
 	runningStop: () => void;
 
-	constructor(public manager: ThreadManager, memoryManager:MemoryManager, public state: CpuState, private instructionCache: InstructionCache, stackSize: number) {
+	constructor(public name:string, public manager: ThreadManager, memoryManager:MemoryManager, public state: CpuState, private instructionCache: InstructionCache, stackSize: number) {
         this.state.thread = this;
 		this.programExecutor = new ProgramExecutor(state, instructionCache);
 		this.runningPromise = new Promise((resolve, reject) => { this.runningStop = resolve; });
@@ -91,9 +93,10 @@ export class Thread {
 		});
 	}
 
-	wakeupSleepAsync() {
+	wakeupSleepAsync(callbacks:boolean) {
 		this.wakeupCount--;
 		this.suspend();
+		//return new Promise((resolve, reject) => { });
 		return this.getWakeupPromise();
 	}
 
@@ -212,15 +215,14 @@ export class ThreadManager {
 	exitPromise: Promise<any>;
 	exitResolve: () => void;
 
-	constructor(private memory: Memory, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager, private instructionCache: InstructionCache) {
+	constructor(private memory: Memory, private interruptManager:InterruptManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager, private instructionCache: InstructionCache) {
 		this.exitPromise = new Promise((resolve, reject) => {
 			this.exitResolve = resolve;
 		});
     }
 
 	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
-		var thread = new Thread(this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
-		thread.name = name;
+		var thread = new Thread(name, this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
 		thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
         thread.state.RA = CpuSpecialAddresses.EXIT_THREAD;
@@ -278,7 +280,12 @@ export class ThreadManager {
 
 			this.threads.forEach((thread) => {
 				if (thread.running) {
-					if (thread.priority == priority) thread.runStep();
+					if (thread.priority == priority) {
+						do {
+							thread.runStep();
+							if (!this.interruptManager.enabled) console.log('interrupts disabled, no thread scheduling!');
+						} while (!this.interruptManager.enabled);
+					}
 				}
 			});
 

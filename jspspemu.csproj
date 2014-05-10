@@ -135,6 +135,7 @@
     <TypeScriptCompile Include="src\core\cpu\syscall.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_callbacks.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_eventflag.ts" />
+    <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_mutex.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_sema.ts" />
     <TypeScriptCompile Include="src\hle\module\threadman\ThreadManForUser_vpl.ts" />
     <TypeScriptCompile Include="src\hle\module\UtilsForKernel.ts" />

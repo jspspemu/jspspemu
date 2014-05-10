@@ -37,24 +37,24 @@ export class ThreadManForUser {
 		return 0;
 	});
 
-	private _sceKernelWaitSemaCB(currentThread: Thread, id: number, signal: number, timeout: Stream): any {
+	private _sceKernelWaitSemaCB(currentThread: Thread, id: number, signal: number, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
 		//console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		var promise = semaphore.waitAsync(currentThread, signal);
 		if (promise) {
-			return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise);
+			return new WaitingThreadInfo('sceKernelWaitSema', semaphore, promise, acceptCallbacks);
 		} else {
 			return 0;
 		}
 	}
 
 	sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
-		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
+		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.YES);
 	});
 
 	sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
-		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout);
+		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.NO);
 	});
 
 	sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, (id: number, infoStream: Stream) => {

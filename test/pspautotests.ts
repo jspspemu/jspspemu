@@ -155,7 +155,7 @@ describe('pspautotests', function () {
 
 	//console.log(compareText('a', 'b'));
 
-	function compareOutput(name:string, output: string, expected: string) {
+	function compareOutput(name: string, output: string, expected: string) {
 		output = normalizeString(output);
 		expected = normalizeString(expected);
 
@@ -164,7 +164,7 @@ describe('pspautotests', function () {
 
 		var equalLines = 0;
 		var totalLines = expectedLines.length;
-		console.groupCollapsed('TEST RESULT: ' + name);
+		console.groupCollapsed(name + ' (TEST RESULT DIFF)');
 
 		var opcodes = compareText2(output, expected);
 
@@ -185,7 +185,7 @@ describe('pspautotests', function () {
 							broke = true;
 							continue;
 						}
-						console.log(sprintf(' %04d %s', m + 1, outputLines[m]));
+						console.log(sprintf('\u2714%04d %s', m + 1, outputLines[m]));
 						equalLines++;
 					}
 					break;
@@ -193,17 +193,17 @@ describe('pspautotests', function () {
 					for (var m = start1; m < end1; m++) console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
 					break;
 				case 'insert':
-					for (var m = start2; m < end2; m++) console.info(sprintf('\u2714%04d %s', m + 1, expectedLines[m]));
+					for (var m = start2; m < end2; m++) console.info(sprintf(' %04d %s', m + 1, expectedLines[m]));
 					break;
 				case 'replace':
 					if (length1 == length2) {
 						for (var m = 0; m < length1; m++) {
 							console.warn(sprintf('\u2716%04d %s', m + start1 + 1, outputLines[m + start1]));
-							console.info(sprintf('\u2714%04d %s', m + start2 + 1, expectedLines[m + start2]));
+							console.info(sprintf(' %04d %s', m + start2 + 1, expectedLines[m + start2]));
 						}
 					} else {
 						for (var m = start1; m < end1; m++) console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
-						for (var m = start2; m < end2; m++) console.info(sprintf('\u2714%04d %s', m + 1, expectedLines[m]));
+						for (var m = start2; m < end2; m++) console.info(sprintf(' %04d %s', m + 1, expectedLines[m]));
 					}
 					break;
 			}
@@ -243,7 +243,17 @@ describe('pspautotests', function () {
 		if (distinctLines == 0) console.log('great: output and expected are equal!');
 		*/
 
+		var table = [];
+		for (var n = 0; n < Math.max(outputLines.length, expectedLines.length); n++) {
+			table[n + 1] = { output: outputLines[n], expected: expectedLines[n] };
+		}
+
 		console.groupEnd();
+
+		console.groupCollapsed(name + ' (TEST RESULT TABLE)');
+		if (console['table']) console['table'](table);
+		console.groupEnd();
+
 
 		assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check console for details.");
 	}

@@ -32,30 +32,30 @@ export class sceDisplay {
 		return 0;
 	});
 
-	_waitVblankAsync(thread: Thread) {
+	_waitVblankAsync(thread: Thread, acceptCallbacks: AcceptCallbacks) {
 		this.context.display.updateTime();
-		return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync(thread));
+		return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync(thread), acceptCallbacks);
 	}
 
-	_waitVblankStartAsync(thread: Thread) {
+	_waitVblankStartAsync(thread: Thread, acceptCallbacks: AcceptCallbacks) {
 		this.context.display.updateTime();
-		return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread));
+		return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread), acceptCallbacks);
 	}
 
     sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, (thread:Thread, cycleNum: number) => {
-		return this._waitVblankAsync(thread);
+		return this._waitVblankAsync(thread, AcceptCallbacks.NO);
 	});
 
 	sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, (thread: Thread, cycleNum: number) => {
-		return this._waitVblankAsync(thread);
+		return this._waitVblankAsync(thread, AcceptCallbacks.YES);
 	});
 
 	sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, (thread: Thread) => {
-		return this._waitVblankStartAsync(thread);
+		return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
 	});
 
 	sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, (thread: Thread) => {
-		return this._waitVblankStartAsync(thread)
+		return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
 	});
 
 	sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, () => {

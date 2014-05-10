@@ -105,9 +105,9 @@ export class Emulator {
 			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
-			this.threadManager = new ThreadManager(this.memory, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
-			this.moduleManager = new ModuleManager(this.context);
 			this.interruptManager = new InterruptManager();
+			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
+			this.moduleManager = new ModuleManager(this.context);
 			this.callbackManager = new CallbackManager();
 			this.rtc = new PspRtc();
 

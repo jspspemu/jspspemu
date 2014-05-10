@@ -35,19 +35,18 @@ export class Cso implements AsyncStream {
 	get name() { return this.stream.name; }
     get size() { return this.header.totalBytes; }
 
-	private cachedBlockIndex: number;
-	private cachedBlockData: ArrayBuffer;
+	private cache = new AsyncCache<ArrayBuffer>(128 * 1024, arraybuffer => arraybuffer.byteLength);
 	private decodeBlockAsync(index: number) {
-		if (this.cachedBlockIndex == index) return Promise.resolve(this.cachedBlockData);
-		this.cachedBlockIndex = index;
-		var compressed = ((this.offsets[index + 0] & 0x80000000) == 0);
-		var low = this.offsets[index + 0] & 0x7FFFFFFF;
-		var high = this.offsets[index + 1] & 0x7FFFFFFF;
-		return this.stream.readChunkAsync(low, high - low).then((data) => {
-			return this.cachedBlockData = (compressed ? ArrayBufferUtils.fromUInt8Array(new Zlib.RawInflate(data).decompress()) : data);
-		}).catch(e => {
-			console.error(e);
-			throw(e);
+		return this.cache.getOrGenerateAsync('item-' + index, () => {
+			var compressed = ((this.offsets[index + 0] & 0x80000000) == 0);
+			var low = this.offsets[index + 0] & 0x7FFFFFFF;
+			var high = this.offsets[index + 1] & 0x7FFFFFFF;
+			return this.stream.readChunkAsync(low, high - low).then((data) => {
+				return (compressed ? ArrayBufferUtils.fromUInt8Array(new Zlib.RawInflate(data).decompress()) : data);
+			}).catch(e => {
+				console.error(e);
+				throw (e);
+			});
 		});
     }
 
@@ -57,17 +56,20 @@ export class Cso implements AsyncStream {
 		var blockHigh = blockLow + this.header.blockSize;
 		var maxReadCount = blockHigh - offset;
 		var toReadInChunk = Math.min(count, maxReadCount);
+
 		var chunkPromise = this.decodeBlockAsync(blockIndex).then(data => {
 			//console.log(data.byteLength);
 			var low = offset - blockLow;
 			return data.slice(low, low + toReadInChunk);
 		});
 
-		//console.log(sprintf("readChunkAsync: %08X, %d, (%d) : %d, %d", offset, count, blockIndex, toReadInChunk, offset - blockLow));
 
 		if (count <= maxReadCount) {
+			//console.log(sprintf("readChunkAsyncOne: %08X, %d, (%d) : %d, %d", offset, count, blockIndex, toReadInChunk, offset - blockLow));
+
 			return chunkPromise;
 		} else {
+			//console.log(sprintf("readChunkAsyncSeveral: %08X, %d, (%d)", offset, count, blockIndex), (new Error())['stack']);
 			return chunkPromise.then(chunk1 => {
 				return this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(chunk2 => {
 					return ArrayBufferUtils.concat([chunk1, chunk2]);

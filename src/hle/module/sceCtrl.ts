@@ -17,7 +17,7 @@ export class sceCtrl {
 	sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, (thread: Thread, sceCtrlDataPtr: Stream, count: number) => {
 		_controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 		//return Promise.resolve(0);
-		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread));
+		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread), AcceptCallbacks.NO);
 		//return 0;
     });
 

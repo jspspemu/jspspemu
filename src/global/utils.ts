@@ -17,6 +17,61 @@ enum Endian {
     BIG = 1,
 }
 
+class AsyncEntry<T> {
+	constructor(public id:string, public size: number, public usageCount: number, public value: T, public lastUsedTime:number) {
+	}
+}
+
+class AsyncCache<T> {
+	itemsMap: StringDictionary<AsyncEntry<T>> = {};
+
+	constructor(private maxSize: number = 16, private measure?: (value: T) => number) {
+		if (!measure) measure = ((item) => 1);
+	}
+
+	private get items() {
+		var items = <AsyncEntry<T>[]>[];
+		for (var key in this.itemsMap) {
+			var item = this.itemsMap[key];
+			if (item instanceof AsyncEntry) items.push(item);
+		}
+		return items;
+	}
+
+	private get usedSize() {
+		return this.items.sum(item => item.size);
+	}
+
+	private get availableSize() {
+		return this.maxSize - this.usedSize;
+	}
+
+	private freeUntilAvailable(size: number) {
+		if (size > this.maxSize) throw (new Error("Element too big"));
+		//console.log('count => ', size, this.availableSize, this.usedSize, this.maxSize, this.items.length);
+
+		while (this.availableSize < size) {
+			var itemToDelete = this.items.min(item => item.lastUsedTime);
+			delete this.itemsMap[itemToDelete.id];
+		}
+	}
+
+	getOrGenerateAsync(id: string, generator: () => Promise<T>): Promise<T> {
+		var item = this.itemsMap[id];
+		if (item) {
+			item.lastUsedTime = Date.now();
+			return Promise.resolve(item.value);
+		} else {
+			return generator().then(value => {
+				var size = this.measure(value);
+				this.freeUntilAvailable(size);
+				this.itemsMap[id] = new AsyncEntry(id, size, 1, value, Date.now());
+				return value;
+			});
+		}
+	}
+}
+
 class SortedSet<T> {
     public elements: T[] = [];
 
@@ -314,8 +369,10 @@ function setToString(Enum: any, value: number) {
 	return items.join(' | ');
 }
 
+enum AcceptCallbacks { NO = 0, YES = 1 }
+
 class WaitingThreadInfo<T> {
-	public constructor(public name: string, public object: any, public promise: Promise<T>) {
+	public constructor(public name: string, public object: any, public promise: Promise<T>, public callbacks: AcceptCallbacks) {
 	}
 }
 

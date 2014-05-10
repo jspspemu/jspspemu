@@ -7,7 +7,7 @@ export class ModuleWrapper {
     private names: StringDictionary<NativeFunction> = {};
 	private nids: NumberDictionary<NativeFunction> = {};
 
-	constructor(private moduleName: string, private _modules: any[]) {
+	constructor(public moduleName: string, private _modules: any[]) {
 		_modules.forEach((_module) => {
 			for (var key in _module) {
 				var item: any = _module[key];
@@ -27,7 +27,7 @@ export class ModuleWrapper {
 
 	getByNid(nid: number): NativeFunction {
         var result = this.nids[nid];
-        if (!result) throw (sprintf("Can't find function '%s':0x%08X", this.moduleName, nid));
+        //if (!result) throw (new Error(sprintf("Can't find function '%s':0x%08X", this.moduleName, nid)));
         return result;
     }
 }

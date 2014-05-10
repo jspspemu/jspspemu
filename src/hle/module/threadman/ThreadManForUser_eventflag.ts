@@ -33,7 +33,7 @@ export class ThreadManForUser {
 		return 0;
 	});
 
-	private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: boolean): any {
+	private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		var eventFlag = this.eventFlagUids.get(id);
 
@@ -41,18 +41,18 @@ export class ThreadManForUser {
 		if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
 		var timedOut = false;
 		var previousPattern = eventFlag.currentPattern;
-		return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, callbacks).then(() => {
+		return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).then(() => {
 			if (outBits != null) outBits.writeUInt32(previousPattern);
 			return 0;
-		}));
+		}), acceptCallbacks);
 	}
 
 	sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
-		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, false);
+		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
 	});
 
 	sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
-		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, true);
+		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
 	});
 
 	sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream) => {
@@ -121,7 +121,7 @@ class EventFlag {
 	initialPattern: number;
 	waitingThreads = new SortedSet<EventFlagWaitingThread>();
 
-	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: boolean) {
+	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
 		return new Promise((resolve, reject) => {
 			var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);

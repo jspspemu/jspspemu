@@ -58,6 +58,7 @@ function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(require('./module/threadman/ThreadManForUser_sema'));
 	manager.registerModule(require('./module/threadman/ThreadManForUser_eventflag'));
 	manager.registerModule(require('./module/threadman/ThreadManForUser_vpl'));
+	manager.registerModule(require('./module/threadman/ThreadManForUser_mutex'));
 	manager.registerModule(require('./module/UtilsForKernel'));
 	manager.registerModule(require('./module/UtilsForUser'));
 }

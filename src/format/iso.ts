@@ -245,6 +245,7 @@ export class Iso implements AsyncStream {
 
 	get(path: string): IIsoNode {
 		path = path.replace(/^\/+/, '');
+		if (path == '') return this.root;
 		var node = this._childrenByPath[path];
 		if (!node) {
 			//console.info(this);

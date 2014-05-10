@@ -209,8 +209,8 @@ class Atrac3 {
 		return this.remainingFrames <= 0;
 	}
 
-	//private static useWorker = false;
-	private static useWorker = true;
+	private static useWorker = false;
+	//private static useWorker = true;
 
 	decodeAsync(samplesOutPtr: Stream) {
 		if (this.dataStream.available < this.fmt.blockSize) return Promise.resolve(0);

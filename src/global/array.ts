@@ -8,8 +8,9 @@ interface Array<T> {
 	count(filter?: (item: T) => boolean): number;
 	cast<T2>(): T2[];
 	first(filter?: (item: T) => boolean): T;
-	sum<Q>(selector?: (item: T) => Q);
-	max<Q>(selector?: (item: T) => Q);
+	sum<Q>(selector?: (item: T) => Q):number;
+	min<Q>(selector?: (item: T) => Q):T;
+	max<Q>(selector?: (item: T) => Q):T;
 	binarySearchIndex(selector: (item: T) => number): number;
 	binarySearchValue(selector: (item: T) => number): T;
 	contains(item: T): boolean;
@@ -80,10 +81,18 @@ Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) 
 	return -1;
 };
 
+Array.prototype.min = <any>(function (selector: Function) {
+	var array = <any[]>this;
+	if (!selector) selector = a => a;
+	if (array.length == 0) return null;
+	return array.reduce((previous, current) => { return (selector(previous) < selector(current) ? previous : current); }, array[0]);
+});
+
 Array.prototype.max = <any>(function (selector: Function) {
 	var array = <any[]>this;
 	if (!selector) selector = a => a;
-	return array.reduce((previous, current) => { return Math.max(previous, selector(current)); }, selector(array[0]));
+	if (array.length == 0) return null;
+	return array.reduce((previous, current) => { return (selector(previous) > selector(current) ? previous : current); }, array[0]);
 });
 
 Array.prototype.sortBy = function (selector: Function) {

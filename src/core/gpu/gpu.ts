@@ -185,6 +185,7 @@ class PspGpuList {
         var op: GpuOpCodes = instruction >>> 24;
 		var params24: number = instruction & 0xFFFFFF;
 
+		function bool1() { return params24 != 0; }
 		function float1() { return MathFloat.reinterpretIntAsFloat(params24 << 8); }
 
 		switch (op) {
@@ -425,6 +426,26 @@ class PspGpuList {
 			case GpuOpCodes.BONE_START: this.state.skinning.currentBoneIndex = params24; break;
 			case GpuOpCodes.BONE_PUT: this.state.skinning.write(float1()); break;
 
+			case GpuOpCodes.STE:
+				this.state.stencil.enabled = bool1();
+				break;
+
+			case GpuOpCodes.SOP:
+				this.state.stencil.fail = BitUtils.extractEnum<_state.StencilOperationEnum>(params24, 0, 8);
+				this.state.stencil.zfail = BitUtils.extractEnum<_state.StencilOperationEnum>(params24, 8, 8);
+				this.state.stencil.zpass = BitUtils.extractEnum<_state.StencilOperationEnum>(params24, 16, 8);
+				break;
+			case GpuOpCodes.STST:
+				this.state.stencil.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8);
+				this.state.stencil.funcRef = BitUtils.extract(params24, 8, 8);
+				this.state.stencil.funcMask = BitUtils.extract(params24, 16, 8);
+				break;
+
+			case GpuOpCodes.ZMSK:
+				this.state.depthTest.mask = BitUtils.extract(params24, 0, 16);
+				break;
+
+
 			case GpuOpCodes.MW0:
 			case GpuOpCodes.MW1:
 			case GpuOpCodes.MW2:
@@ -442,9 +463,11 @@ class PspGpuList {
                 this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
 				break;
 
-			case GpuOpCodes.BCE: this.state.culling.enabled = (params24 != 0);
+			case GpuOpCodes.BCE:
+				this.state.culling.enabled = (params24 != 0);
+				break;
 			case GpuOpCodes.FFACE:
-				this.state.culling.direction = <_state.CullingDirection>params24; // FrontFaceDirectionEnum
+				this.state.culling.direction = <_state.CullingDirection>params24;
 				break;
 
 			case GpuOpCodes.SFIX: this.state.blending.fixColorSourceRGB = params24; break;

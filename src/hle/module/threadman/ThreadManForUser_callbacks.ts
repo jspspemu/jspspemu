@@ -32,4 +32,8 @@ export class ThreadManForUser {
 		//console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
 		return this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
 	});
+
+	sceKernelNotifyCallback = createNativeFunction(0xC11BA8C4, 150, 'uint', 'Thread/int/int', this, (thread: Thread, callbackId: number, argument2: number) => {
+		return this.context.callbackManager.notify(callbackId, argument2);
+	});
 }
