@@ -276,6 +276,11 @@ class PspGpuList {
 
 			case GpuOpCodes.TME: this.state.texture.enabled = (params24 != 0); break;
 
+			case GpuOpCodes.TEXTURE_ENV_MAP_MATRIX:
+				this.state.texture.shadeU = BitUtils.extract(params24, 0, 2);
+				this.state.texture.shadeV = BitUtils.extract(params24, 8, 2);
+				break;
+
 			case GpuOpCodes.TEC:
 				this.state.texture.envColor.r = BitUtils.extractScalei(params24, 0, 8, 1);
 				this.state.texture.envColor.g = BitUtils.extractScalei(params24, 8, 8, 1);

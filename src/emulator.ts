@@ -96,16 +96,16 @@ export class Emulator {
 			this.memory.reset();
 			this.context = new EmulatorContext();
 			this.memoryManager = new MemoryManager();
+			this.interruptManager = new InterruptManager();
 			this.audio = new PspAudio();
 			this.canvas = <HTMLCanvasElement>(document.getElementById('canvas'));
 			this.webgl_canvas = <HTMLCanvasElement>(document.getElementById('webgl_canvas'));
-			this.display = new PspDisplay(this.memory, this.canvas, this.webgl_canvas);
+			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
 			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas);
 			this.controller = new PspController();
 			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
-			this.interruptManager = new InterruptManager();
 			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new ModuleManager(this.context);
 			this.callbackManager = new CallbackManager();

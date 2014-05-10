@@ -79,7 +79,8 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, (id: number, writePointerPointer: Stream, availableBytesPtr: Stream, readOffsetPtr: Stream) => {
-		throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
+		console.warn("Not implemented sceAtracGetStreamDataInfo");
+		//throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
 		return 0;
 	});
 

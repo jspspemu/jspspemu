@@ -803,6 +803,20 @@ function compare(a, b) {
     return 0;
 }
 
+var IntUtils = (function () {
+    function IntUtils() {
+    }
+    IntUtils.parseFormattedInt = function (str) {
+        str = str.replace(/_/g, '');
+        if (str.substr(0, 2) == '0b')
+            return parseInt(str.substr(2), 2);
+        if (str.substr(0, 2) == '0x')
+            return parseInt(str.substr(2), 16);
+        return parseInt(str, 10);
+    };
+    return IntUtils;
+})();
+
 var MathUtils = (function () {
     function MathUtils() {
     }
@@ -2494,6 +2508,7 @@ var PspController = (function () {
         this.analogRight = false;
         this.analogAddX = 0;
         this.analogAddY = 0;
+        this.latchSamplingCount = 0;
         this.animationTimeId = 0;
         this.gamepadsButtons = [];
         this.buttonMapping = {};
@@ -3136,6 +3151,8 @@ var InstructionAst = (function () {
     InstructionAst.prototype.srlv = function (i) {
         return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31))));
     };
+
+    //srlv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.srl', [gpr(i.rt), gpr(i.rs)])); }
     InstructionAst.prototype.rotrv = function (i) {
         return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
     };
@@ -4119,7 +4136,7 @@ var FunctionGenerator = (function () {
 
             if (this.instructionUsageCount[di.type.name] === undefined) {
                 this.instructionUsageCount[di.type.name] = 0;
-                //console.warn('NEW instruction: ', di.type.name);
+                //console.warn('**** NEW instruction: ', di.type.name);
             }
             this.instructionUsageCount[di.type.name]++;
 
@@ -5650,7 +5667,10 @@ var __extends = this.__extends || function (d, b) {
 };
 var memory = require('./memory');
 var pixelformat = require('./pixelformat');
+var _interrupt = require('./interrupt');
 var Signal = require('../util/Signal');
+
+var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
 var PixelFormat = pixelformat.PixelFormat;
 var PixelConverter = pixelformat.PixelConverter;
@@ -5703,9 +5723,10 @@ exports.DummyPspDisplay = DummyPspDisplay;
 
 var PspDisplay = (function (_super) {
     __extends(PspDisplay, _super);
-    function PspDisplay(memory, canvas, webglcanvas) {
+    function PspDisplay(memory, interruptManager, canvas, webglcanvas) {
         _super.call(this);
         this.memory = memory;
+        this.interruptManager = interruptManager;
         this.canvas = canvas;
         this.webglcanvas = webglcanvas;
         this.vblank = new Signal();
@@ -5781,6 +5802,7 @@ var PspDisplay = (function (_super) {
             _this.vblankCount++;
             _this.update();
             _this.vblank.dispatch(_this.vblankCount);
+            _this.interruptManager.interrupt(30 /* PSP_VBLANK_INT */);
         }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
         return Promise.resolve();
     };
@@ -6146,6 +6168,11 @@ var PspGpuList = (function () {
 
             case 30 /* TME */:
                 this.state.texture.enabled = (params24 != 0);
+                break;
+
+            case 193 /* TEXTURE_ENV_MAP_MATRIX */:
+                this.state.texture.shadeU = BitUtils.extract(params24, 0, 2);
+                this.state.texture.shadeV = BitUtils.extract(params24, 8, 2);
                 break;
 
             case 202 /* TEC */:
@@ -7383,6 +7410,8 @@ var TextureState = (function () {
         this.offsetV = 0;
         this.scaleU = 1;
         this.scaleV = 1;
+        this.shadeU = 0;
+        this.shadeV = 0;
         this.wrapV = 0 /* Repeat */;
         this.effect = 0 /* Modulate */;
         this.colorComponent = 0 /* Rgb */;
@@ -8026,14 +8055,16 @@ var PixelConverter = _pixelformat.PixelConverter;
 var Texture = (function () {
     function Texture(gl) {
         this.gl = gl;
+        this.recheckTimestamp = undefined;
         this.valid = true;
+        this.swizzled = false;
         this.texture = gl.createTexture();
-        console.warn('New texture allocated!', this.texture);
     }
     Texture.prototype.setInfo = function (state) {
         var texture = state.texture;
         var mipmap = texture.mipmaps[0];
 
+        this.swizzled = texture.swizzled;
         this.address = mipmap.address;
         this.pixelFormat = texture.pixelFormat;
         this.clutFormat = texture.clut.pixelFormat;
@@ -8079,8 +8110,9 @@ var Texture = (function () {
     Texture.hashFast = function (state) {
         var result = state.texture.mipmaps[0].address;
         if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-            result = result + state.texture.clut.adress * Math.pow(2, 23);
+            result += state.texture.clut.adress * Math.pow(2, 23);
         }
+        result += (state.texture.swizzled ? 1 : 0) * Math.pow(2, 13);
         return result;
     };
 
@@ -8107,7 +8139,7 @@ var Texture = (function () {
 
     Texture.prototype.toString = function () {
         var out = '';
-        out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + '';
+        out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + ', swizzled = ' + this.swizzled;
         if (PixelFormatUtils.hasClut(this.pixelFormat)) {
             out += ', clutFormat=' + this.clutFormat;
         }
@@ -8197,10 +8229,11 @@ var TextureHandler = (function () {
             //console.log(hash);
             texture = this.texturesByHash2[hash2];
 
-            if (!texture || !texture.valid) {
-                //if (!texture) {
+            //if (!texture || !texture.valid) {
+            if (!texture) {
                 if (!this.texturesByAddress[mipmap.address]) {
                     this.texturesByAddress[mipmap.address] = new Texture(gl);
+                    console.warn('New texture allocated!', mipmap, state.texture);
                 }
 
                 texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = this.texturesByAddress[mipmap.address];
@@ -8231,10 +8264,14 @@ var TextureHandler = (function () {
                 }
 
                 //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
+                var dataBuffer = new ArrayBuffer(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
+                var data = new Uint8Array(dataBuffer);
+                data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
+
                 if (state.texture.swizzled) {
-                    PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
+                    PixelConverter.unswizzleInline(state.texture.pixelFormat, dataBuffer, 0, w2, h);
                 }
-                PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+                PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
                 if (true) {
                     texture.fromBytes(data2, w2, h);
@@ -8405,24 +8442,33 @@ exports.FastFloat32Buffer = FastFloat32Buffer;
 //# sourceMappingURL=utils.js.map
 },
 "src/core/interrupt": function(module, exports, require) {
+var Signal = require('../util/Signal');
+
 var InterruptHandler = (function () {
-    function InterruptHandler() {
+    function InterruptHandler(no) {
+        this.no = no;
         this.enabled = false;
         this.address = 0;
         this.argument = 0;
+        this.cpuState = null;
     }
     return InterruptHandler;
 })();
 exports.InterruptHandler = InterruptHandler;
 
 var InterruptHandlers = (function () {
-    function InterruptHandlers() {
+    function InterruptHandlers(pspInterrupt) {
+        this.pspInterrupt = pspInterrupt;
         this.handlers = {};
     }
     InterruptHandlers.prototype.get = function (handlerIndex) {
         if (!this.handlers[handlerIndex])
-            this.handlers[handlerIndex] = new InterruptHandler();
+            this.handlers[handlerIndex] = new InterruptHandler(handlerIndex);
         return this.handlers[handlerIndex];
+    };
+
+    InterruptHandlers.prototype.remove = function (handlerIndex) {
+        delete this.handlers[handlerIndex];
     };
 
     InterruptHandlers.prototype.has = function (handlerIndex) {
@@ -8437,6 +8483,8 @@ var InterruptManager = (function () {
         this.enabled = true;
         this.flags = 0xFFFFFFFF;
         this.interruptHandlers = {};
+        this.event = new Signal();
+        this.queue = [];
     }
     InterruptManager.prototype.suspend = function () {
         var currentFlags = this.flags;
@@ -8452,8 +8500,33 @@ var InterruptManager = (function () {
 
     InterruptManager.prototype.get = function (pspInterrupt) {
         if (!this.interruptHandlers[pspInterrupt])
-            this.interruptHandlers[pspInterrupt] = new InterruptHandlers();
+            this.interruptHandlers[pspInterrupt] = new InterruptHandlers(pspInterrupt);
         return this.interruptHandlers[pspInterrupt];
+    };
+
+    InterruptManager.prototype.interrupt = function (pspInterrupt) {
+        var interrupt = this.get(pspInterrupt);
+        var handlers = interrupt.handlers;
+        for (var n in handlers) {
+            var handler = handlers[n];
+            if (handler.enabled) {
+                this.queue.push(handler);
+                this.execute(null);
+            }
+        }
+    };
+
+    InterruptManager.prototype.execute = function (_state) {
+        while (this.queue.length > 0) {
+            var item = this.queue.shift();
+            var state = item.cpuState;
+            state.preserveRegisters(function () {
+                state.gpr[4] = item.no;
+                state.gpr[5] = item.argument;
+                state.callPCSafe(item.address);
+            });
+        }
+        //state.callPCSafe();
     };
     return InterruptManager;
 })();
@@ -9238,9 +9311,8 @@ var Signal = require('../util/Signal');
 var Memory = (function () {
     function Memory() {
         this.invalidateDataRange = new Signal();
-        this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
-
-        //this.buffer = new ArrayBuffer(0xa000000 + 4);
+        //this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
+        this.buffer = new ArrayBuffer(0xa000000 + 4);
         this.data = new DataView(this.buffer);
         this.s8 = new Int8Array(this.buffer);
         this.u8 = new Uint8Array(this.buffer);
@@ -9793,16 +9865,16 @@ var Emulator = (function () {
             _this.memory.reset();
             _this.context = new EmulatorContext();
             _this.memoryManager = new MemoryManager();
+            _this.interruptManager = new InterruptManager();
             _this.audio = new PspAudio();
             _this.canvas = (document.getElementById('canvas'));
             _this.webgl_canvas = (document.getElementById('webgl_canvas'));
-            _this.display = new PspDisplay(_this.memory, _this.canvas, _this.webgl_canvas);
+            _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
             _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas);
             _this.controller = new PspController();
             _this.instructionCache = new InstructionCache(_this.memory);
             _this.syscallManager = new SyscallManager(_this.context);
             _this.fileManager = new FileManager();
-            _this.interruptManager = new InterruptManager();
             _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new ModuleManager(_this.context);
             _this.callbackManager = new CallbackManager();
@@ -10826,6 +10898,13 @@ var SECTOR_SIZE = 0x800;
 
 var DirectoryRecordDate = (function () {
     function DirectoryRecordDate() {
+        this.year = 2004;
+        this.month = 1;
+        this.day = 1;
+        this.hour = 0;
+        this.minute = 0;
+        this.second = 0;
+        this.offset = 0;
     }
     Object.defineProperty(DirectoryRecordDate.prototype, "date", {
         get: function () {
@@ -10945,6 +11024,16 @@ var DirectoryRecordFlags;
 
 var DirectoryRecord = (function () {
     function DirectoryRecord() {
+        this.length = 0;
+        this.extendedAttributeLength = 0;
+        this.extent = 0;
+        this.size = 0;
+        this.date = new DirectoryRecordDate();
+        this.flags = DirectoryRecordFlags.Directory;
+        this.fileUnitSize = 0;
+        this.interleave = 0;
+        this.volumeSequenceNumber = 0;
+        this.nameLength = 0;
         this.name = '';
     }
     Object.defineProperty(DirectoryRecord.prototype, "offset", {
@@ -11134,6 +11223,20 @@ var Iso = (function () {
 
     Iso.prototype.get = function (path) {
         path = path.replace(/^\/+/, '');
+
+        var sce_file = path.match(/^sce_lbn(0x[0-9a-f]+|\d+)_size(0x[0-9a-f]+|\d+)$/i);
+        if (sce_file) {
+            var lba = IntUtils.parseFormattedInt(sce_file[1]);
+            var size = IntUtils.parseFormattedInt(sce_file[2]);
+            var dr = new DirectoryRecord();
+            dr.extent = lba;
+            dr.size = size;
+            dr.name = '';
+
+            //console.log(dr);
+            return new IsoNode(this, dr, null);
+        }
+
         if (path == '')
             return this.root;
         var node = this._childrenByPath[path];
@@ -13114,9 +13217,38 @@ var HleFile = (function () {
     function HleFile(entry) {
         this.entry = entry;
         this.cursor = 0;
-        this.asyncOperation = null;
-        this.asyncOperationResolved = false;
+        this._asyncResult = null;
+        this._asyncPromise = null;
     }
+    Object.defineProperty(HleFile.prototype, "asyncResult", {
+        get: function () {
+            return this._asyncResult;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(HleFile.prototype, "asyncOperation", {
+        get: function () {
+            return this._asyncPromise;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    HleFile.prototype.startAsyncOperation = function () {
+        this._asyncResult = null;
+    };
+
+    HleFile.prototype.setAsyncOperation = function (operation) {
+        var _this = this;
+        this._asyncResult = null;
+        this._asyncPromise = operation.then(function (value) {
+            _this._asyncResult = value;
+            return value;
+        });
+    };
+
     HleFile.prototype.close = function () {
         this.entry.close();
     };
@@ -13488,8 +13620,11 @@ var MemoryManager = (function () {
     }
     MemoryManager.prototype.init = function () {
         this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
-        this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
-        this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+
+        //this.memoryPartitionsUid[MemoryPartitions.User] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+        //this.memoryPartitionsUid[MemoryPartitions.UserStacks] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+        this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
+        this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
         this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
     };
 
@@ -13661,7 +13796,8 @@ var Thread = (function () {
         this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
-        this.exitStatus = 0x800201a2;
+        //exitStatus: number = 0x800201a2;
+        this.exitStatus = 0;
         this.running = false;
         this.preemptionCount = 0;
         this.info = null;
@@ -13830,6 +13966,7 @@ var ThreadManager = (function () {
         this.exitPromise = new Promise(function (resolve, reject) {
             _this.exitResolve = resolve;
         });
+        this.interruptManager.event.add(this.eventOcurred);
     }
     ThreadManager.prototype.create = function (name, entryPoint, initialPriority, stackSize, attributes) {
         if (typeof stackSize === "undefined") { stackSize = 0x1000; }
@@ -13885,6 +14022,10 @@ var ThreadManager = (function () {
         var start = window.performance.now();
 
         while (true) {
+            if (this.threads.elements.length > 0) {
+                this.interruptManager.execute(this.threads.elements[0].state);
+            }
+
             var threadCount = 0;
             var priority = 2147483648;
 
@@ -13982,11 +14123,12 @@ var InterruptManager = (function () {
     function InterruptManager(context) {
         var _this = this;
         this.context = context;
-        this.sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, function (interrupt, handlerIndex, callbackAddress, callbackArgument) {
+        this.sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint', this, function (thread, interrupt, handlerIndex, callbackAddress, callbackArgument) {
             var interruptManager = _this.context.interruptManager;
             var interruptHandler = interruptManager.get(interrupt).get(handlerIndex);
             interruptHandler.address = callbackAddress;
             interruptHandler.argument = callbackArgument;
+            interruptHandler.cpuState = thread.state;
             return 0;
         });
         this.sceKernelEnableSubIntr = createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (interrupt, handlerIndex) {
@@ -14268,7 +14410,7 @@ var SysMemUserForUser = (function () {
         this.sceKernelTotalFreeMemSize = createNativeFunction(0xF919F628, 150, 'int', '', this, function () {
             return _this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
         });
-        this.sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, function (partitionId) {
+        this.sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'uint', 'int', this, function (partitionId) {
             if (!_this.partitionUids.has(partitionId))
                 return 2147615158 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK */;
             var block = _this.partitionUids.get(partitionId);
@@ -14468,17 +14610,22 @@ var IoFileMgrForUser = (function () {
             console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 
             //if (filename == '') return Promise.resolve(0);
-            return _this._sceIoOpenAsync(filename, flags, mode);
+            return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
+                var file = _this.getFileById(fileId);
+                file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+                return fileId;
+            });
         });
         this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
             console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
-            var file = _this.getFileById(fileId);
 
             //if (filename == '') return Promise.resolve(0);
-            file.asyncOperationResolved = true;
-            file.asyncOperation = Promise.resolve(0);
+            var file = _this.getFileById(fileId);
+            if (file)
+                file.close();
 
-            _this.sceIoClose.nativeCall(fileId);
+            //file.setAsyncOperation(Promise.resolve(Integer64.fromInt(fileId)));
+            file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
 
             return 0;
         });
@@ -14530,13 +14677,12 @@ var IoFileMgrForUser = (function () {
         this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
             var file = _this.getFileById(fileId);
 
-            file.asyncOperationResolved = false;
-            file.asyncOperation = file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                file.asyncOperationResolved = true;
+            file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+                //console.log(new Uint8Array(readedData));
                 file.cursor += readedData.byteLength;
                 _this.context.memory.writeBytes(outputPointer, readedData);
-                return readedData.byteLength;
-            });
+                return Integer64.fromNumber(readedData.byteLength);
+            }));
 
             return 0;
         });
@@ -14546,28 +14692,34 @@ var IoFileMgrForUser = (function () {
         this.sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
             return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
         });
-        this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            if (_this.fileUids.has(fileId))
-                return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
-            var file = _this.fileUids.get(fileId);
+        this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            var file = _this.getFileById(fileId);
 
-            if (file.asyncOperationResolved) {
-                return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+            if (file.asyncResult) {
+                //return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+                //console.log('resolved -> ', file.asyncResult.number);
+                resultPointer.writeInt64(file.asyncResult);
+                return 0;
             } else {
-                resultPointer.writeInt32(0);
-                return Promise.resolve(1);
+                //console.log('not resolved');
+                resultPointer.writeInt64(Integer64.fromInt(0));
+                return 1;
             }
         });
         this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
-            if (sceIoStatPointer)
+            if (sceIoStatPointer) {
+                sceIoStatPointer.position = 0;
                 _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+            }
 
             try  {
                 return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
                     var stat2 = _this._vfsStatToSceIoStat(stat);
                     console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-                    if (sceIoStatPointer)
+                    if (sceIoStatPointer) {
+                        sceIoStatPointer.position = 0;
                         _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+                    }
                     return 0;
                 }).catch(function (error) {
                     return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
@@ -14637,7 +14789,7 @@ var IoFileMgrForUser = (function () {
     }
     IoFileMgrForUser.prototype.getFileById = function (id) {
         if (!this.fileUids.has(id))
-            throw (new SceKernelException(2147549193 /* ERROR_ERRNO_INVALID_FILE_DESCRIPTOR */));
+            throw (new SceKernelException(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */));
         return this.fileUids.get(id);
     };
 
@@ -14645,7 +14797,8 @@ var IoFileMgrForUser = (function () {
         var _this = this;
         return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
             return _this.fileUids.allocate(file);
-        }, function (e) {
+        }).catch(function (e) {
+            console.error('Not found', filename, e);
             return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
         });
     };
@@ -14658,13 +14811,15 @@ var IoFileMgrForUser = (function () {
 
         var file = this.getFileById(fileId);
 
-        if (!file.asyncOperation)
-            file.asyncOperation = Promise.resolve(0);
-
-        return file.asyncOperation.then(function (result) {
-            resultPointer.writeInt64(Integer64.fromNumber(result));
-            return 0;
-        });
+        if (file.asyncOperation) {
+            return file.asyncOperation.then(function (result) {
+                resultPointer.writeInt64(result);
+                return 0;
+            });
+        } else {
+            resultPointer.writeInt64(Integer64.fromNumber(0));
+            return Promise.resolve(1);
+        }
     };
 
     /*
@@ -14681,7 +14836,9 @@ var IoFileMgrForUser = (function () {
     */
     IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
         var stat2 = new _structs.SceIoStat();
-        stat2.mode = parseInt('777', 8);
+
+        //stat2.mode = <_structs.SceMode>parseInt('777', 8)
+        stat2.mode = 0;
         stat2.size = stat.size;
         stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
         stat2.timeLastAccess = _structs.ScePspDateTime.fromDate(stat.timeLastAccess);
@@ -14691,10 +14848,11 @@ var IoFileMgrForUser = (function () {
 
         stat2.attributes = 0;
         if (stat.isDirectory) {
-            stat2.mode |= 0x1000; // Directory
+            stat2.mode = 0x1000; // Directory
             stat2.attributes |= 16 /* Directory */;
+            stat2.attributes |= 4 /* CanRead */;
         } else {
-            stat2.mode |= 0x2000; // File
+            stat2.mode = 0x2000; // File
             stat2.attributes |= 32 /* File */;
             stat2.attributes |= 1 /* CanExecute */;
             stat2.attributes |= 4 /* CanRead */;
@@ -14803,7 +14961,9 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
-            throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
+            console.warn("Not implemented sceAtracGetStreamDataInfo");
+
+            //throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
             return 0;
         });
         this.sceAtracGetBitrate = createNativeFunction(0xA554A158, 150, 'uint', 'int/void*', this, function (id, bitratePtr) {
@@ -15126,6 +15286,8 @@ var sceAudio = (function () {
         this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
             if (!_this.isValidChannel(channelId))
                 return -1;
+            if (!buffer)
+                return -1;
             var channel = _this.channels[channelId];
             return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))), 0 /* NO */);
         });
@@ -15193,22 +15355,27 @@ var _controller = require('../../core/controller');
 
 var createNativeFunction = _utils.createNativeFunction;
 
+var SceCtrlData = _controller.SceCtrlData;
+
 var sceCtrl = (function () {
     function sceCtrl(context) {
         var _this = this;
         this.context = context;
         this.sceCtrlPeekBufferPositive = createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, function (sceCtrlDataPtr, count) {
-            _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            return waitAsync(1).then(function (v) {
-                return 0;
-            });
-            //return 0;
+            for (var n = 0; n < count; n++)
+                _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
+
+            //return waitAsync(1).then(v => count);
+            return count;
         });
         this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, function (thread, sceCtrlDataPtr, count) {
-            _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
+            for (var n = 0; n < count; n++)
+                _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
 
             //return Promise.resolve(0);
-            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread), 0 /* NO */);
+            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread).then(function (v) {
+                return count;
+            }), 0 /* NO */);
             //return 0;
         });
         this.sceCtrlSetSamplingCycle = createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
@@ -15219,14 +15386,31 @@ var sceCtrl = (function () {
             //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
             return 0;
         });
+        this.lastLatchData = new SceCtrlData();
         this.sceCtrlReadLatch = createNativeFunction(0x0B588501, 150, 'uint', 'void*', this, function (currentLatchPtr) {
-            console.warn('Not implemented sceCtrl.sceCtrlReadLatch');
-            return 0;
+            try  {
+                return _this._peekLatch(currentLatchPtr);
+            } finally {
+                _this.lastLatchData = _this.context.controller.data;
+                _this.context.controller.latchSamplingCount = 0;
+            }
         });
         this.sceCtrlSetIdleCancelThreshold = createNativeFunction(0xA7144800, 150, 'uint', 'int/int', this, function (idlereset, idleback) {
             return 0;
         });
     }
+    sceCtrl.prototype._peekLatch = function (currentLatchPtr) {
+        var ButtonsNew = this.context.controller.data.buttons;
+        var ButtonsOld = this.lastLatchData.buttons;
+        var ButtonsChanged = ButtonsOld ^ ButtonsNew;
+
+        currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged); // uiMake
+        currentLatchPtr.writeInt32(ButtonsOld & ButtonsChanged); // uiBreak
+        currentLatchPtr.writeInt32(ButtonsNew); // uiPress
+        currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged); // uiRelease
+
+        return this.context.controller.latchSamplingCount;
+    };
     return sceCtrl;
 })();
 exports.sceCtrl = sceCtrl;
@@ -15711,6 +15895,26 @@ var sceOpenPSID = (function () {
 })();
 exports.sceOpenPSID = sceOpenPSID;
 //# sourceMappingURL=sceOpenPSID.js.map
+},
+"src/hle/module/sceParseHttp": function(module, exports, require) {
+var sceParseHttp = (function () {
+    function sceParseHttp(context) {
+        this.context = context;
+    }
+    return sceParseHttp;
+})();
+exports.sceParseHttp = sceParseHttp;
+//# sourceMappingURL=sceParseHttp.js.map
+},
+"src/hle/module/sceParseUri": function(module, exports, require) {
+var sceParseUri = (function () {
+    function sceParseUri(context) {
+        this.context = context;
+    }
+    return sceParseUri;
+})();
+exports.sceParseUri = sceParseUri;
+//# sourceMappingURL=sceParseUri.js.map
 },
 "src/hle/module/scePower": function(module, exports, require) {
 var _utils = require('../utils');
@@ -16734,6 +16938,14 @@ var ThreadManForUser = (function () {
         this.sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, function (currentThread) {
             return currentThread.id;
         });
+        this.sceKernelSuspendThread = createNativeFunction(0x9944F31F, 150, 'int', 'int', this, function (threadId) {
+            _this.getThreadById(threadId).suspend();
+            return 0;
+        });
+        this.sceKernelResumeThread = createNativeFunction(0x75156E8F, 150, 'int', 'int', this, function (threadId) {
+            _this.getThreadById(threadId).resume();
+            return 0;
+        });
         this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
             if (threadId == 0)
                 return 0;
@@ -17387,6 +17599,8 @@ function registerModules(manager) {
     manager.registerModule(require('./module/sceGe_user'));
     manager.registerModule(require('./module/sceHprm'));
     manager.registerModule(require('./module/sceHttp'));
+    manager.registerModule(require('./module/sceParseHttp'));
+    manager.registerModule(require('./module/sceParseUri'));
     manager.registerModule(require('./module/sceImpose'));
     manager.registerModule(require('./module/sceLibFont'));
     manager.registerModule(require('./module/sceMp3'));
@@ -17483,6 +17697,8 @@ var ScePspDateTime = (function () {
         this.microseconds = 0;
     }
     ScePspDateTime.fromDate = function (date) {
+        if (!date)
+            date = new Date();
         var pspdate = new ScePspDateTime();
         pspdate.year = date.getFullYear();
         pspdate.month = date.getMonth();
@@ -17639,8 +17855,11 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
     code += '}';
 
-    //code += "var info = 'calling_' + state.thread.name + '_' + nativeFunction.name;";
-    //code += "if (DebugOnce(info, 10)) console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result)" : "result") + ");";
+    //code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
+    //code += "if (DebugOnce(info, 200)) {";
+    //code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
+    //code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
+    //code += "}";
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
     code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
 

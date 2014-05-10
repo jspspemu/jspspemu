@@ -67,6 +67,7 @@ export class sceAudio {
 
 	sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any => {
 		if (!this.isValidChannel(channelId)) return -1;
+		if (!buffer) return -1;
 		var channel = this.channels[channelId];
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))), AcceptCallbacks.NO);
 	});

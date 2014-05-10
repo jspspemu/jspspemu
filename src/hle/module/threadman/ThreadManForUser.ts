@@ -186,6 +186,16 @@ export class ThreadManForUser {
 		return currentThread.id
 	});
 
+	sceKernelSuspendThread = createNativeFunction(0x9944F31F, 150, 'int', 'int', this, (threadId: number) => {
+		this.getThreadById(threadId).suspend();
+		return 0;
+	});
+
+	sceKernelResumeThread = createNativeFunction(0x75156E8F, 150, 'int', 'int', this, (threadId: number) => {
+		this.getThreadById(threadId).resume();
+		return 0;
+	});
+
 	sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, (threadId: number, sceKernelThreadInfoPtr: Stream) => {
 		if (threadId == 0) return 0;
 

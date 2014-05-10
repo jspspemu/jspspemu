@@ -11,8 +11,9 @@ import Memory = _memory.Memory;
 
 export class Texture {
 	private texture: WebGLTexture;
-	recheckTimestamp: number;
-	valid: boolean = true;
+	recheckTimestamp = undefined;
+	valid = true;
+	swizzled = false;
 	hash1: number;
 	hash2: number;
 	private address: number;
@@ -21,13 +22,13 @@ export class Texture {
 
 	constructor(private gl: WebGLRenderingContext) {
 		this.texture = gl.createTexture();
-		console.warn('New texture allocated!', this.texture);
 	}
 
 	setInfo(state: _state.GpuState) {
 		var texture = state.texture;
 		var mipmap = texture.mipmaps[0];
 
+		this.swizzled = texture.swizzled;
 		this.address = mipmap.address;
 		this.pixelFormat = texture.pixelFormat;
 		this.clutFormat = texture.clut.pixelFormat;
@@ -73,8 +74,9 @@ export class Texture {
 	static hashFast(state: _state.GpuState) {
 		var result = state.texture.mipmaps[0].address;
 		if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-			result = result + state.texture.clut.adress * Math.pow(2, 23);
+			result += state.texture.clut.adress * Math.pow(2, 23);
 		}
+		result += (state.texture.swizzled ? 1 : 0) * Math.pow(2, 13);
 		return result;
 	}
 
@@ -101,7 +103,7 @@ export class Texture {
 
 	toString() {
 		var out = '';
-		out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + '';
+		out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + ', swizzled = ' + this.swizzled;
 		if (PixelFormatUtils.hasClut(this.pixelFormat)) {
 			out += ', clutFormat=' + this.clutFormat;
 		}
@@ -193,10 +195,11 @@ export class TextureHandler {
 
 			texture = this.texturesByHash2[hash2];
 
-			if (!texture || !texture.valid) {
-			//if (!texture) {
+			//if (!texture || !texture.valid) {
+			if (!texture) {
 				if (!this.texturesByAddress[mipmap.address]) {
 					this.texturesByAddress[mipmap.address] = new Texture(gl);
+					console.warn('New texture allocated!', mipmap, state.texture);
 				}
 
 				texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = this.texturesByAddress[mipmap.address];
@@ -229,10 +232,14 @@ export class TextureHandler {
 
 				//console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
 
+				var dataBuffer = new ArrayBuffer(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
+				var data = new Uint8Array(dataBuffer);
+				data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
+
 				if (state.texture.swizzled) {
-					PixelConverter.unswizzleInline(state.texture.pixelFormat, this.memory.buffer, mipmap.address, w2, h);
+					PixelConverter.unswizzleInline(state.texture.pixelFormat, dataBuffer, 0, w2, h);
 				}
-				PixelConverter.decode(state.texture.pixelFormat, this.memory.buffer, mipmap.address, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+				PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
 				if (true) {
 					texture.fromBytes(data2, w2, h);

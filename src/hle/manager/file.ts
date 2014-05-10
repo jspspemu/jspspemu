@@ -26,10 +26,28 @@ export class Device {
 export class HleFile {
 	cursor = 0;
 
-	asyncOperation: Promise<number> = null;
-	asyncOperationResolved = false;
+	private _asyncResult: Integer64 = null;
+	private _asyncPromise: Promise<Integer64> = null;
 
 	constructor(public entry: _vfs.VfsEntry) {
+	}
+
+	get asyncResult() { return this._asyncResult; }
+
+	get asyncOperation() {
+		return this._asyncPromise;
+	}
+
+	startAsyncOperation() {
+		this._asyncResult = null;
+	}
+
+	setAsyncOperation(operation: Promise<Integer64>) {
+		this._asyncResult = null;
+		this._asyncPromise = operation.then((value) => {
+			this._asyncResult = value;
+			return value;
+		});
 	}
 
 	close() {

@@ -296,6 +296,8 @@ export class TextureState {
 	offsetV = 0;
 	scaleU = 1;
 	scaleV = 1;
+	shadeU = 0;
+	shadeV = 0;
 	wrapV = WrapMode.Repeat;
 	effect = TextureEffect.Modulate;
 	colorComponent = TextureColorComponent.Rgb;

@@ -1,15 +1,29 @@
-﻿export class InterruptHandler {
+﻿import Signal = require('../util/Signal');
+import _cpu = require('./cpu');
+
+export class InterruptHandler {
 	enabled = false;
 	address = 0;
 	argument = 0;
+	cpuState = null;
+
+	constructor(public no:number) {
+	}
 }
 
 export class InterruptHandlers {
 	handlers: NumberDictionary<InterruptHandler> = {};
 
+	constructor(public pspInterrupt: PspInterrupts) {
+	}
+
 	get(handlerIndex: number) {
-		if (!this.handlers[handlerIndex]) this.handlers[handlerIndex] = new InterruptHandler();
+		if (!this.handlers[handlerIndex]) this.handlers[handlerIndex] = new InterruptHandler(handlerIndex);
 		return this.handlers[handlerIndex];
+	}
+
+	remove(handlerIndex: number) {
+		delete this.handlers[handlerIndex];
 	}
 
 	has(handlerIndex: number) {
@@ -21,6 +35,8 @@ export class InterruptManager {
 	enabled: boolean = true;
 	flags: number = 0xFFFFFFFF;
 	interruptHandlers: NumberDictionary<InterruptHandlers> = {};
+	event = new Signal<void>();
+	queue = <InterruptHandler[]>[];
 
 	suspend() {
 		var currentFlags = this.flags;
@@ -35,8 +51,33 @@ export class InterruptManager {
 	}
 
 	get(pspInterrupt: PspInterrupts) {
-		if (!this.interruptHandlers[pspInterrupt]) this.interruptHandlers[pspInterrupt] = new InterruptHandlers();
+		if (!this.interruptHandlers[pspInterrupt]) this.interruptHandlers[pspInterrupt] = new InterruptHandlers(pspInterrupt);
 		return this.interruptHandlers[pspInterrupt];
+	}
+
+	interrupt(pspInterrupt: PspInterrupts) {
+		var interrupt = this.get(pspInterrupt);
+		var handlers = interrupt.handlers;
+		for (var n in handlers) {
+			var handler = handlers[n];
+			if (handler.enabled) {
+				this.queue.push(handler);
+				this.execute(null);
+			}
+		}
+	}
+
+	execute(_state: _cpu.CpuState) {
+		while (this.queue.length > 0) {
+			var item = this.queue.shift();
+			var state = item.cpuState;
+			state.preserveRegisters(() => {
+				state.gpr[4] = item.no;
+				state.gpr[5] = item.argument;
+				state.callPCSafe(item.address);
+			});
+		}
+		//state.callPCSafe();
 	}
 }
 

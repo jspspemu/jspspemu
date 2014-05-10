@@ -57,8 +57,11 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
 	code += '}';
 
-	//code += "var info = 'calling_' + state.thread.name + '_' + nativeFunction.name;";
-	//code += "if (DebugOnce(info, 10)) console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result)" : "result") + ");";
+	//code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
+	//code += "if (DebugOnce(info, 200)) {";
+	//code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
+	//code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
+	//code += "}";
 
 	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
 	code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';

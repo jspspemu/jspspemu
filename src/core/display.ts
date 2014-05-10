@@ -1,6 +1,10 @@
 ﻿import memory = require('./memory');
 import pixelformat = require('./pixelformat');
+import _interrupt = require('./interrupt');
 import Signal = require('../util/Signal');
+
+import InterruptManager = _interrupt.InterruptManager;
+import PspInterrupts = _interrupt.PspInterrupts;
 import Memory = memory.Memory;
 import PixelFormat = pixelformat.PixelFormat;
 import PixelConverter = pixelformat.PixelConverter;
@@ -129,7 +133,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		this.secondsLeftForVblankStart = this.rowsLeftForVblankStart * PspDisplay.HORIZONTAL_SECONDS;
 	}
 
-	constructor(public memory: Memory, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
+	constructor(public memory: Memory, private interruptManager: InterruptManager, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 		super();
 		this.context = this.canvas.getContext('2d');
 		this.imageData = this.context.createImageData(512, 272);
@@ -165,6 +169,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 			this.vblankCount++;
 			this.update();
 			this.vblank.dispatch(this.vblankCount);
+			this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
 		}, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
 		return Promise.resolve();
 	}

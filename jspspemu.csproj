@@ -102,6 +102,7 @@
     <TypeScriptCompile Include="src\hle\module\sceDmac.ts" />
     <TypeScriptCompile Include="src\hle\module\sceGe_user.ts" />
     <TypeScriptCompile Include="src\hle\module\sceHprm.ts" />
+    <TypeScriptCompile Include="src\hle\module\sceParseHttp.ts" />
     <TypeScriptCompile Include="src\hle\module\sceHttp.ts" />
     <TypeScriptCompile Include="src\hle\module\sceImpose.ts" />
     <TypeScriptCompile Include="src\hle\module\sceLibFont.ts" />
@@ -118,6 +119,7 @@
     <TypeScriptCompile Include="src\hle\module\sceNpAuth.ts" />
     <TypeScriptCompile Include="src\hle\module\sceNpService.ts" />
     <TypeScriptCompile Include="src\hle\module\sceOpenPSID.ts" />
+    <TypeScriptCompile Include="src\hle\module\sceParseUri.ts" />
     <TypeScriptCompile Include="src\hle\module\scePower.ts" />
     <TypeScriptCompile Include="src\hle\module\scePspNpDrm_user.ts" />
     <TypeScriptCompile Include="src\hle\module\sceReg.ts" />

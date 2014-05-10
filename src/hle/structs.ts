@@ -27,6 +27,7 @@ export class ScePspDateTime {
 	microseconds: number = 0;
 
 	static fromDate(date: Date) {
+		if (!date) date = new Date();
 		var pspdate = new ScePspDateTime();
 		pspdate.year = date.getFullYear();
 		pspdate.month = date.getMonth();

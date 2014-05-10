@@ -1,13 +1,13 @@
 var SECTOR_SIZE = 0x800;
 
 class DirectoryRecordDate {
-	year: number;
-	month: number;
-	day: number;
-	hour: number;
-	minute: number;
-	second: number;
-    offset: number;
+	year = 2004;
+	month = 1;
+	day = 1;
+	hour = 0;
+	minute = 0;
+	second = 0;
+    offset = 0;
 
     get date() {
         return new Date(this.year, this.month, this.day, this.hour, this.minute, this.second);
@@ -74,17 +74,17 @@ enum DirectoryRecordFlags {// : byte
 
 
 class DirectoryRecord {
-	length: number;
-	extendedAttributeLength: number;
-    extent: number;
-    size: number;
-    date: DirectoryRecordDate;
-    flags: DirectoryRecordFlags;
-    fileUnitSize: number;
-    interleave: number;
-    volumeSequenceNumber: number;
-    nameLength: number;
-    name: string = '';
+	length = 0;
+	extendedAttributeLength = 0;
+    extent = 0;
+    size = 0;
+	date = new DirectoryRecordDate();
+	flags = DirectoryRecordFlags.Directory;
+    fileUnitSize = 0;
+    interleave = 0;
+    volumeSequenceNumber = 0;
+    nameLength = 0;
+    name = '';
     get offset() { return this.extent * SECTOR_SIZE; }
 
     get isDirectory() { return (this.flags & DirectoryRecordFlags.Directory) != 0; }
@@ -245,6 +245,19 @@ export class Iso implements AsyncStream {
 
 	get(path: string): IIsoNode {
 		path = path.replace(/^\/+/, '');
+
+		var sce_file = path.match(/^sce_lbn(0x[0-9a-f]+|\d+)_size(0x[0-9a-f]+|\d+)$/i);
+		if (sce_file) {
+			var lba = IntUtils.parseFormattedInt(sce_file[1]);
+			var size = IntUtils.parseFormattedInt(sce_file[2]);
+			var dr = new DirectoryRecord();
+			dr.extent = lba;
+			dr.size = size;
+			dr.name = '';
+			//console.log(dr);
+			return new IsoNode(this, dr, null);
+		}
+
 		if (path == '') return this.root;
 		var node = this._childrenByPath[path];
 		if (!node) {

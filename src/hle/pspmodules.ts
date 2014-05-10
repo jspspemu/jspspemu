@@ -25,6 +25,8 @@ function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(require('./module/sceGe_user'));
 	manager.registerModule(require('./module/sceHprm'));
 	manager.registerModule(require('./module/sceHttp'));
+	manager.registerModule(require('./module/sceParseHttp'));
+	manager.registerModule(require('./module/sceParseUri'));
 	manager.registerModule(require('./module/sceImpose'));
 	manager.registerModule(require('./module/sceLibFont'));
 	manager.registerModule(require('./module/sceMp3'));

@@ -2,6 +2,7 @@
 	startAsync();
 	stopAsync();
 	data: SceCtrlData;
+	latchSamplingCount: number;
 }
 
 export class SceCtrlData {
@@ -43,6 +44,8 @@ export class PspController {
 
 	analogAddX: number = 0;
 	analogAddY: number = 0;
+
+	latchSamplingCount: number = 0;
 
 	constructor() {
 		this.buttonMapping = {};

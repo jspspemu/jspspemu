@@ -1,6 +1,9 @@
 ﻿import _utils = require('../utils');
+import _manager = require('../manager');
 import _context = require('../../context');
 import _interrupt = require('../../core/interrupt');
+
+import Thread = _manager.Thread;
 
 import InterruptHandler = _interrupt.InterruptHandler;
 import PspInterrupts = _interrupt.PspInterrupts;
@@ -13,11 +16,12 @@ export class InterruptManager {
 		});
 	}
 
-	sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'int/int/uint/uint', this, (interrupt: PspInterrupts, handlerIndex: number, callbackAddress: number, callbackArgument: number) => {
+	sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint', this, (thread:Thread, interrupt: PspInterrupts, handlerIndex: number, callbackAddress: number, callbackArgument: number) => {
 		var interruptManager = this.context.interruptManager;
 		var interruptHandler: InterruptHandler = interruptManager.get(interrupt).get(handlerIndex);
 		interruptHandler.address = callbackAddress;
 		interruptHandler.argument = callbackArgument;
+		interruptHandler.cpuState = thread.state;
 		return 0;
 	});
 

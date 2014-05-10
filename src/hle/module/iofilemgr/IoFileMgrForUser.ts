@@ -26,7 +26,7 @@ export class IoFileMgrForUser {
 	directoryUids = new UidCollection<_manager.HleDirectory>(1);
 
 	getFileById(id) {
-		if (!this.fileUids.has(id)) throw(new SceKernelException(SceKernelErrors.ERROR_ERRNO_INVALID_FILE_DESCRIPTOR));
+		if (!this.fileUids.has(id)) throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND));
 		return this.fileUids.get(id);
 	}
 
@@ -44,7 +44,13 @@ export class IoFileMgrForUser {
 
 	private _sceIoOpenAsync(filename: string, flags: FileOpenFlags, mode: FileMode) {
 		return this.context.fileManager.openAsync(filename, flags, mode)
-			.then(file => this.fileUids.allocate(file), e => SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND)
+			.then(file => {
+				return this.fileUids.allocate(file);
+			})
+			.catch(e => {
+				console.error('Not found', filename, e);
+				return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+			})
 		;
 	}
 
@@ -52,18 +58,22 @@ export class IoFileMgrForUser {
 		console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 		//if (filename == '') return Promise.resolve(0);
 
-		return this._sceIoOpenAsync(filename, flags, mode);
+		return this._sceIoOpenAsync(filename, flags, mode).then(fileId => {
+			var file = this.getFileById(fileId);
+			file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+			return fileId;
+		});
 	});
 
 	sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, (fileId: number) => {
 		console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
-		var file = this.getFileById(fileId);
 		//if (filename == '') return Promise.resolve(0);
 
-		file.asyncOperationResolved = true;
-		file.asyncOperation = Promise.resolve(0);
+		var file = this.getFileById(fileId);
+		if (file) file.close();
 
-		this.sceIoClose.nativeCall(fileId);
+		//file.setAsyncOperation(Promise.resolve(Integer64.fromInt(fileId)));
+		file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
 
 		return 0;
 	});
@@ -118,13 +128,12 @@ export class IoFileMgrForUser {
 	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
 		var file = this.getFileById(fileId);
 
-		file.asyncOperationResolved = false;
-		file.asyncOperation = file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
-			file.asyncOperationResolved = true;
+		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
+			//console.log(new Uint8Array(readedData));
 			file.cursor += readedData.byteLength;
 			this.context.memory.writeBytes(outputPointer, readedData);
-			return readedData.byteLength;
-		});
+			return Integer64.fromNumber(readedData.byteLength);
+		}));
 
 		return 0;
 	});
@@ -136,12 +145,15 @@ export class IoFileMgrForUser {
 
 		var file = this.getFileById(fileId);
 
-		if (!file.asyncOperation) file.asyncOperation = Promise.resolve(0);
-
-		return file.asyncOperation.then((result) => {
-			resultPointer.writeInt64(Integer64.fromNumber(result));
-			return 0;
-		});
+		if (file.asyncOperation) {
+			return file.asyncOperation.then((result) => {
+				resultPointer.writeInt64(result);
+				return 0;
+			});
+		} else {
+			resultPointer.writeInt64(Integer64.fromNumber(0));
+			return Promise.resolve(1);
+		}
 	}
 
 
@@ -153,15 +165,18 @@ export class IoFileMgrForUser {
 		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
 	});
 
-	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'int', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
-		if (this.fileUids.has(fileId)) return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
-		var file = this.fileUids.get(fileId);
+	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+		var file = this.getFileById(fileId);
 
-		if (file.asyncOperationResolved) {
-			return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+		if (file.asyncResult) {
+			//return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+			//console.log('resolved -> ', file.asyncResult.number);
+			resultPointer.writeInt64(file.asyncResult);
+			return 0;
 		} else {
-			resultPointer.writeInt32(0);
-			return Promise.resolve(1);
+			//console.log('not resolved');
+			resultPointer.writeInt64(Integer64.fromInt(0));
+			return 1;
 		}
 	});
 
@@ -180,7 +195,8 @@ export class IoFileMgrForUser {
 
 	_vfsStatToSceIoStat(stat: VfsStat) {
 		var stat2 = new _structs.SceIoStat();
-		stat2.mode = <_structs.SceMode>parseInt('777', 8)
+		//stat2.mode = <_structs.SceMode>parseInt('777', 8)
+		stat2.mode = 0;
 		stat2.size = stat.size;
 		stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
 		stat2.timeLastAccess = _structs.ScePspDateTime.fromDate(stat.timeLastAccess);
@@ -190,10 +206,11 @@ export class IoFileMgrForUser {
 
 		stat2.attributes = 0;
 		if (stat.isDirectory) {
-			stat2.mode |= 0x1000; // Directory
+			stat2.mode = 0x1000; // Directory
 			stat2.attributes |= _structs.IOFileModes.Directory;
+			stat2.attributes |= _structs.IOFileModes.CanRead;
 		} else {
-			stat2.mode |= 0x2000; // File
+			stat2.mode = 0x2000; // File
 			stat2.attributes |= _structs.IOFileModes.File;
 			stat2.attributes |= _structs.IOFileModes.CanExecute;
 			stat2.attributes |= _structs.IOFileModes.CanRead;
@@ -203,14 +220,20 @@ export class IoFileMgrForUser {
 	}
 
 	sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, (fileName: string, sceIoStatPointer: Stream): any => {
-		if (sceIoStatPointer) _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+		if (sceIoStatPointer) {
+			sceIoStatPointer.position = 0;
+			_structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+		}
 
 		try {
 			return this.context.fileManager.getStatAsync(fileName)
 				.then(stat => {
 					var stat2 = this._vfsStatToSceIoStat(stat);
 					console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-					if (sceIoStatPointer) _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+					if (sceIoStatPointer) {
+						sceIoStatPointer.position = 0;
+						_structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+					}
 					return 0;
 				})
 				.catch(error => SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND)

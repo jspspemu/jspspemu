@@ -56,7 +56,8 @@ export class Thread {
 	entryPoint: number = 0;
 	priority: number = 10;
 	attributes: number = 0;
-	exitStatus: number = 0x800201a2;
+	//exitStatus: number = 0x800201a2;
+	exitStatus: number = 0;
     running: boolean = false;
 	stackPartition: MemoryPartition;
 	preemptionCount: number = 0;
@@ -221,6 +222,7 @@ export class ThreadManager {
 		this.exitPromise = new Promise((resolve, reject) => {
 			this.exitResolve = resolve;
 		});
+		this.interruptManager.event.add(this.eventOcurred);
     }
 
 	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
@@ -267,7 +269,11 @@ export class ThreadManager {
         this.enqueued = false;
         var start = window.performance.now();
 
-        while (true) {
+		while (true) {
+			if (this.threads.elements.length > 0) {
+				this.interruptManager.execute(this.threads.elements[0].state);
+			}
+
             var threadCount = 0;
             var priority = 2147483648;
 
