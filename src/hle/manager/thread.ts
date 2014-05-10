@@ -145,7 +145,7 @@ export class Thread {
         this.manager.eventOcurred();
 	}
 
-	suspendUntileDone(info: WaitingThreadInfo<any>) {
+	suspendUntilDone(info: WaitingThreadInfo<any>) {
 		this.info = info;
 		this.waitingName = info.name;
 		this.waitingObject = info.object;

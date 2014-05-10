@@ -2387,6 +2387,11 @@ var PspAudioChannel = (function () {
                 if (this.buffers.length == 0)
                     break;
 
+                //for (var n = 0; n < Math.min(3, this.buffers.length); n++) if (this.buffers[n]) this.buffers[n].resolve();
+                this.buffers.slice(0, 3).forEach(function (buffer) {
+                    return buffer.resolve();
+                });
+
                 this.currentBuffer = this.buffers.shift();
                 this.currentBuffer.resolve();
             }
@@ -2396,6 +2401,7 @@ var PspAudioChannel = (function () {
                 right[n] = this.currentBuffer.read();
             } else {
                 this.currentBuffer = null;
+                n--;
             }
         }
     };
@@ -2407,13 +2413,18 @@ var PspAudioChannel = (function () {
                 return 0;
             });
 
-        return new Promise(function (resolved, rejected) {
-            if (_this.node) {
+        if (this.buffers.length < 4) {
+            //(data.length / 2)
+            this.buffers.push(new PspAudioBuffer(null, data));
+
+            //return 0;
+            return Promise.resolve(0);
+        } else {
+            return new Promise(function (resolved, rejected) {
                 _this.buffers.push(new PspAudioBuffer(resolved, data));
-            } else {
-                resolved();
-            }
-        });
+                return 0;
+            });
+        }
     };
     return PspAudioChannel;
 })();
@@ -2431,10 +2442,19 @@ var PspAudio = (function () {
         return new PspAudioChannel(this, this.context);
     };
 
-    PspAudio.convertS16ToF32 = function (input) {
-        var output = new Float32Array(input.length);
-        for (var n = 0; n < output.length; n++)
-            output[n] = input[n] / 32767.0;
+    PspAudio.convertS16ToF32 = function (channels, input) {
+        var output = new Float32Array(input.length * 2 / channels);
+        switch (channels) {
+            case 2:
+                for (var n = 0; n < output.length; n++)
+                    output[n] = input[n] / 32767.0;
+                break;
+            case 1:
+                for (var n = 0, m = 0; n < input.length; n++) {
+                    output[m++] = output[m++] = (input[n] / 32767.0);
+                }
+                break;
+        }
         return output;
     };
 
@@ -13930,7 +13950,7 @@ var Thread = (function () {
         this.manager.eventOcurred();
     };
 
-    Thread.prototype.suspendUntileDone = function (info) {
+    Thread.prototype.suspendUntilDone = function (info) {
         this.info = info;
         this.waitingName = info.name;
         this.waitingObject = info.object;
@@ -14971,7 +14991,7 @@ var sceAtrac3plus = (function () {
                     if (reachedEndPtr)
                         reachedEndPtr.writeInt32(reachedEnd);
                     if (decodedSamplesCountPtr)
-                        decodedSamplesCountPtr.writeInt32(decodedSamples);
+                        decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.fmt.atracChannels);
                     if (remainingFramesToDecodePtr)
                         remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
                 }
@@ -15171,9 +15191,9 @@ var Atrac3 = (function () {
 
         if (Atrac3.useWorker) {
             outPromise = WorkerTask.executeAsync(function (id, blockData, firstDataChunk) {
-                //self['window'] = undefined
+                self['window'] = self;
                 if (!self['MediaEngine']) {
-                    //importScripts('polyfills/promise.js');
+                    importScripts('polyfills/promise.js');
                     importScripts('MediaEngine.js');
                     self['MediaEngine'] = MediaEngine;
                 }
@@ -15268,6 +15288,7 @@ var CodecType;
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
 var _utils = require('../utils');
+var SceKernelErrors = require('../SceKernelErrors');
 
 var _audio = require('../../core/audio');
 var createNativeFunction = _utils.createNativeFunction;
@@ -15309,54 +15330,44 @@ var sceAudio = (function () {
             return channelId;
         });
         this.sceAudioChRelease = createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, function (channelId) {
-            if (!_this.isValidChannel(channelId))
-                return -1;
-            var channel = _this.channels[channelId];
+            var channel = _this.getChannelById(channelId);
             channel.allocated = false;
             channel.channel.stop();
             channel.channel = null;
             return 0;
         });
         this.sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
-            if (!_this.isValidChannel(channelId))
-                return -1;
-            var channel = _this.channels[channelId];
+            var channel = _this.getChannelById(channelId);
             channel.format = format;
             return 0;
         });
         this.sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
-            if (!_this.isValidChannel(channelId))
-                return -1;
-            var channel = _this.channels[channelId];
+            var channel = _this.getChannelById(channelId);
             channel.sampleCount = sampleCount;
             return 0;
         });
         this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
-            if (!_this.isValidChannel(channelId))
-                return -1;
             if (!buffer)
                 return -1;
-            var channel = _this.channels[channelId];
-            return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))), 0 /* NO */);
+            var channel = _this.getChannelById(channelId);
+            return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount))), 0 /* NO */);
         });
         this.sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
-            if (!_this.isValidChannel(channelId))
+            if (!buffer)
                 return -1;
-            var channel = _this.channels[channelId];
-            return new WaitingThreadInfo('sceAudioOutputBlocking', channel, channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount))), 0 /* NO */);
+            var channel = _this.getChannelById(channelId);
+            return channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+            //debugger;
+            //return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
         });
         this.sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
-            if (!_this.isValidChannel(channelId))
-                return -1;
-            var channel = _this.channels[channelId];
-            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+            var channel = _this.getChannelById(channelId);
+            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             return 0;
         });
         this.sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
-            if (!_this.isValidChannel(channelId))
-                return -1;
-            var channel = _this.channels[channelId];
-            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+            var channel = _this.getChannelById(channelId);
+            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             return 0;
         });
         this.sceAudioChangeChannelVolume = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
@@ -15372,6 +15383,12 @@ var sceAudio = (function () {
     }
     sceAudio.prototype.isValidChannel = function (channelId) {
         return (channelId >= 0 && channelId < this.channels.length);
+    };
+
+    sceAudio.prototype.getChannelById = function (id) {
+        if (!this.isValidChannel(id))
+            throw (new SceKernelException(2149974019 /* ERROR_AUDIO_INVALID_CHANNEL */));
+        return this.channels[id];
     };
     return sceAudio;
 })();
@@ -15390,6 +15407,22 @@ var Channel = (function () {
         this.sampleCount = 44100;
         this.format = 0 /* Stereo */;
     }
+    Object.defineProperty(Channel.prototype, "totalSampleCount", {
+        get: function () {
+            return this.sampleCount * this.numberOfChannels;
+            //return this.sampleCount;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Channel.prototype, "numberOfChannels", {
+        get: function () {
+            return (this.format == 0 /* Stereo */) ? 2 : 1;
+        },
+        enumerable: true,
+        configurable: true
+    });
     return Channel;
 })();
 //# sourceMappingURL=sceAudio.js.map
@@ -17909,7 +17942,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     //code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
     //code += "}";
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
-    code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
+    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } } ';
 
     switch (retval) {
         case 'void':

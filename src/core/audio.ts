@@ -49,6 +49,9 @@ export class PspAudioChannel {
 			if (!this.currentBuffer) {
 				if (this.buffers.length == 0) break;
 
+				//for (var n = 0; n < Math.min(3, this.buffers.length); n++) if (this.buffers[n]) this.buffers[n].resolve();
+				this.buffers.slice(0, 3).forEach(buffer => buffer.resolve());
+
 				this.currentBuffer = this.buffers.shift();
 				this.currentBuffer.resolve();
 			}
@@ -58,20 +61,25 @@ export class PspAudioChannel {
 				right[n] = this.currentBuffer.read();
 			} else {
 				this.currentBuffer = null;
+				n--;
 			}
 		}
 	}
 
-	playAsync(data: Float32Array) {
+	playAsync(data: Float32Array): any {
 		if (!this.node) return waitAsync(16).then(() => 0);
 
-		return new Promise<number>((resolved, rejected) => {
-			if (this.node) {
+		if (this.buffers.length < 4) {
+			//(data.length / 2)
+			this.buffers.push(new PspAudioBuffer(null, data));
+			//return 0;
+			return Promise.resolve(0);
+		} else {
+			return new Promise<number>((resolved, rejected) => {
 				this.buffers.push(new PspAudioBuffer(resolved, data));
-			} else {
-				resolved();
-			}
-		});
+				return 0;
+			});
+		}
 	}
 }
 
@@ -90,9 +98,18 @@ export class PspAudio {
 		return new PspAudioChannel(this, this.context);
 	}
 
-	static convertS16ToF32(input: Int16Array) {
-		var output = new Float32Array(input.length);
-		for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
+	static convertS16ToF32(channels: number, input: Int16Array) {
+		var output = new Float32Array(input.length * 2 / channels);
+		switch (channels) {
+			case 2:
+				for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
+				break;
+			case 1:
+				for (var n = 0, m = 0; n < input.length; n++) {
+					output[m++] = output[m++] = (input[n] / 32767.0);
+				}
+				break;
+		}
 		return output;
 	}
 

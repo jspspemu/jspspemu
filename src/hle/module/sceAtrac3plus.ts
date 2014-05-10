@@ -40,7 +40,7 @@ export class sceAtrac3plus {
 
 			function outputPointers() {
 				if (reachedEndPtr) reachedEndPtr.writeInt32(reachedEnd);
-				if (decodedSamplesCountPtr) decodedSamplesCountPtr.writeInt32(decodedSamples);
+				if (decodedSamplesCountPtr) decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.fmt.atracChannels);
 				if (remainingFramesToDecodePtr) remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
 			}
 
@@ -222,9 +222,9 @@ class Atrac3 {
 
 		if (Atrac3.useWorker) {
 			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
-				//self['window'] = undefined
+				self['window'] = self;
 				if (!self['MediaEngine']) {
-					//importScripts('polyfills/promise.js');
+					importScripts('polyfills/promise.js');
 					importScripts('MediaEngine.js');
 					self['MediaEngine'] = MediaEngine;
 				}
