@@ -87,13 +87,15 @@ export class Thread {
 	private wakeupFunc: () => void = null;
 
 	private getWakeupPromise() {
-		if (this.wakeupPromise) return this.wakeupPromise;
-		this.wakeupPromise = new Promise<number>((resolve, reject) => {
-			this.wakeupFunc = resolve;
-		});
+		if (!this.wakeupPromise) {
+			this.wakeupPromise = new Promise<number>((resolve, reject) => {
+				this.wakeupFunc = resolve;
+			});
+		}
+		return this.wakeupPromise;
 	}
 
-	wakeupSleepAsync(callbacks:boolean) {
+	wakeupSleepAsync(callbacks: AcceptCallbacks) {
 		this.wakeupCount--;
 		this.suspend();
 		//return new Promise((resolve, reject) => { });

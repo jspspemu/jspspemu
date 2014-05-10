@@ -70,7 +70,7 @@ export class SysMemUserForUser {
 		return this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
 	});
 
-	sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'int', 'int', this, (partitionId: number) => {
+	sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'uint', 'int', this, (partitionId: number) => {
 		if (!this.partitionUids.has(partitionId)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
 		var block = this.partitionUids.get(partitionId)
 		return block.low;

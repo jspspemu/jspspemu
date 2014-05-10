@@ -11,7 +11,8 @@ export class sceCtrl {
 
     sceCtrlPeekBufferPositive = createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, (sceCtrlDataPtr: Stream, count: number) => {
 		_controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
-        return 0;
+		return waitAsync(1).then(v => 0);
+        //return 0;
     });
 
 	sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, (thread: Thread, sceCtrlDataPtr: Stream, count: number) => {

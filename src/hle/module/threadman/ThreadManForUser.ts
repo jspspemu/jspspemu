@@ -18,7 +18,7 @@ export class ThreadManForUser {
 
 	private threadUids = new UidCollection<Thread>(1);
 
-	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number) => {
+	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number) => {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 		if (stackSize < 0x200) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_STACK_SIZE;
 		if (initPriority < 0x08 || initPriority > 0x77) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_PRIORITY;
@@ -156,11 +156,11 @@ export class ThreadManForUser {
 	});
 
 	sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, (currentThread: Thread) => {
-		return currentThread.wakeupSleepAsync(true);
+		return currentThread.wakeupSleepAsync(AcceptCallbacks.YES);
 	});
 
 	sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'Thread', this, (currentThread: Thread) => {
-		return currentThread.wakeupSleepAsync(false);
+		return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
 	});
 
 	sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, (threadId: number) => {

@@ -169,10 +169,11 @@ Object.defineProperty(Array.prototype, "toLookupMap", { enumerable: false });
 Object.defineProperty(Array.prototype, "cast", { enumerable: false });
 Object.defineProperty(Array.prototype, "count", { enumerable: false });
 Object.defineProperty(Array.prototype, "any", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "min", { enumerable: false });
 Object.defineProperty(Array.prototype, "max", { enumerable: false });
 Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
 Object.defineProperty(Array.prototype, "first", { enumerable: false });
-Object.defineProperty(Array.prototype, "sum", { enumerable: false });
 Object.defineProperty(Array.prototype, "remove", { enumerable: false });
 Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
 Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
@@ -13689,11 +13690,12 @@ var Thread = (function () {
 
     Thread.prototype.getWakeupPromise = function () {
         var _this = this;
-        if (this.wakeupPromise)
-            return this.wakeupPromise;
-        this.wakeupPromise = new Promise(function (resolve, reject) {
-            _this.wakeupFunc = resolve;
-        });
+        if (!this.wakeupPromise) {
+            this.wakeupPromise = new Promise(function (resolve, reject) {
+                _this.wakeupFunc = resolve;
+            });
+        }
+        return this.wakeupPromise;
     };
 
     Thread.prototype.wakeupSleepAsync = function (callbacks) {
@@ -14143,11 +14145,12 @@ var ModuleMgrForUser = (function () {
 
             //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
+            throw (new Error("sceKernelSelfStopUnloadModule"));
             return 0;
         });
         this.sceKernelLoadModule = createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, function (path, flags, sceKernelLMOption) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
-            return 0x08000000;
+            return 0x08900000;
         });
         this.sceKernelStartModule = createNativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*', this, function (moduleId, argumentSize, argumentPointer, status, sceKernelSMOption) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
@@ -14155,7 +14158,7 @@ var ModuleMgrForUser = (function () {
         });
         this.sceKernelGetModuleIdByAddress = createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, function (address) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
-            return -1;
+            return 3;
         });
         this.sceKernelGetModuleId = createNativeFunction(0xF0A26395, 150, 'uint', '', this, function () {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
@@ -14462,12 +14465,22 @@ var IoFileMgrForUser = (function () {
             });
         });
         this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            //this.context.memory.dump();
-            //debugger;
             console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 
             //if (filename == '') return Promise.resolve(0);
             return _this._sceIoOpenAsync(filename, flags, mode);
+        });
+        this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
+            console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+            var file = _this.getFileById(fileId);
+
+            //if (filename == '') return Promise.resolve(0);
+            file.asyncOperationResolved = true;
+            file.asyncOperation = Promise.resolve(0);
+
+            _this.sceIoClose.nativeCall(fileId);
+
+            return 0;
         });
         this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
             // IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
@@ -14553,11 +14566,8 @@ var IoFileMgrForUser = (function () {
                 return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
                     var stat2 = _this._vfsStatToSceIoStat(stat);
                     console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-                    if (sceIoStatPointer) {
+                    if (sceIoStatPointer)
                         _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
-                    }
-
-                    //return waitAsync(5).then(v => 0);
                     return 0;
                 }).catch(function (error) {
                     return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
@@ -14626,6 +14636,8 @@ var IoFileMgrForUser = (function () {
         });
     }
     IoFileMgrForUser.prototype.getFileById = function (id) {
+        if (!this.fileUids.has(id))
+            throw (new SceKernelException(2147549193 /* ERROR_ERRNO_INVALID_FILE_DESCRIPTOR */));
         return this.fileUids.get(id);
     };
 
@@ -15187,7 +15199,10 @@ var sceCtrl = (function () {
         this.context = context;
         this.sceCtrlPeekBufferPositive = createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, function (sceCtrlDataPtr, count) {
             _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            return 0;
+            return waitAsync(1).then(function (v) {
+                return 0;
+            });
+            //return 0;
         });
         this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, function (thread, sceCtrlDataPtr, count) {
             _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
@@ -16585,7 +16600,7 @@ var ThreadManForUser = (function () {
         var _this = this;
         this.context = context;
         this.threadUids = new UidCollection(1);
-        this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'uint', 'Thread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attributes, optionPtr) {
+        this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'Thread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attributes, optionPtr) {
             if (name == null)
                 return 2147614721 /* ERROR_ERROR */;
             if (stackSize < 0x200)
@@ -16699,10 +16714,10 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, function (currentThread) {
-            return currentThread.wakeupSleepAsync(true);
+            return currentThread.wakeupSleepAsync(1 /* YES */);
         });
         this.sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'Thread', this, function (currentThread) {
-            return currentThread.wakeupSleepAsync(false);
+            return currentThread.wakeupSleepAsync(0 /* NO */);
         });
         this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
             var thread = _this.getThreadById(threadId);
@@ -17617,12 +17632,15 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         }
     });
 
+    code += 'var args = [' + args.join(', ') + '];';
     code += 'try {';
-    code += 'var result = internalFunc.apply(_this, [' + args.join(', ') + ']);';
+    code += 'var result = internalFunc.apply(_this, args);';
     code += '} catch (e) {';
     code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
     code += '}';
 
+    //code += "var info = 'calling_' + state.thread.name + '_' + nativeFunction.name;";
+    //code += "if (DebugOnce(info, 10)) console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result)" : "result") + ");";
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
     code += 'if (result instanceof WaitingThreadInfo) { state.thread.suspendUntileDone(result); throw (new CpuBreakException()); } ';
 

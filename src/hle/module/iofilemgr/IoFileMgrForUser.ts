@@ -26,6 +26,7 @@ export class IoFileMgrForUser {
 	directoryUids = new UidCollection<_manager.HleDirectory>(1);
 
 	getFileById(id) {
+		if (!this.fileUids.has(id)) throw(new SceKernelException(SceKernelErrors.ERROR_ERRNO_INVALID_FILE_DESCRIPTOR));
 		return this.fileUids.get(id);
 	}
 
@@ -53,6 +54,20 @@ export class IoFileMgrForUser {
 
 		return this._sceIoOpenAsync(filename, flags, mode);
 	});
+
+	sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, (fileId: number) => {
+		console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+		var file = this.getFileById(fileId);
+		//if (filename == '') return Promise.resolve(0);
+
+		file.asyncOperationResolved = true;
+		file.asyncOperation = Promise.resolve(0);
+
+		this.sceIoClose.nativeCall(fileId);
+
+		return 0;
+	});
+
 
 	sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, (device1: string, device2: string, device3: string, mode: number, unk1Ptr: Stream, unk2: Integer64) => {
 		// IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
