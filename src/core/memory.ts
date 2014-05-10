@@ -193,7 +193,50 @@ export class Memory {
 	}
 	*/
 
+	hashWordCount(addressAligned: number, count: number) {
+		addressAligned >>>= 2;
+		count >>>= 2;
+
+		var result = 0;
+		var u32 = this.u32;
+		for (var n = 0; n < count; n++) {
+			var v = u32[addressAligned + n];
+			result = (result + v ^ n) | 0;
+		}
+		return result;
+
+		/*
+		var result1 = 0;
+		var result2 = 0;
+		var u32 = this.u32;
+		for (var n = 0; n < count; n++) {
+			var v = u32[addressAligned + n];
+
+			result1 = (result1 + v * n) | 0;
+			result2 = ((result2 + v + n) ^ (n << 17)) | 0;
+
+		}
+		return result1 + result2 * Math.pow(2, 24);
+		*/
+	}
+
 	hash(address: number, count: number) {
+		var result = 0;
+
+		while ((address & 3) != 0) { result += this.u8[address++]; count--; }
+
+		var count2 = MathUtils.prevAligned(count, 4);
+
+		result += this.hashWordCount(address, count2);
+
+		address += count2;
+		count -= count2;
+
+		while (address & 3) { result += this.u8[address++] * 7; count--; }
+
+		return result;
+
+		/*
 		var result1 = 0;
 		var result2 = 0;
 		var u8 = this.u8;
@@ -203,6 +246,7 @@ export class Memory {
 			result2 = ((result2 + byte + n) ^ (n << 17)) | 0;
 		}
 		return result1 + result2 * Math.pow(2, 24);
+		*/
 	}
 
 	static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {

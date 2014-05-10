@@ -9528,16 +9528,64 @@ var Memory = (function () {
     return result;
     }
     */
+    Memory.prototype.hashWordCount = function (addressAligned, count) {
+        addressAligned >>>= 2;
+        count >>>= 2;
+
+        var result = 0;
+        var u32 = this.u32;
+        for (var n = 0; n < count; n++) {
+            var v = u32[addressAligned + n];
+            result = (result + v ^ n) | 0;
+        }
+        return result;
+        /*
+        var result1 = 0;
+        var result2 = 0;
+        var u32 = this.u32;
+        for (var n = 0; n < count; n++) {
+        var v = u32[addressAligned + n];
+        
+        result1 = (result1 + v * n) | 0;
+        result2 = ((result2 + v + n) ^ (n << 17)) | 0;
+        
+        }
+        return result1 + result2 * Math.pow(2, 24);
+        */
+    };
+
     Memory.prototype.hash = function (address, count) {
+        var result = 0;
+
+        while ((address & 3) != 0) {
+            result += this.u8[address++];
+            count--;
+        }
+
+        var count2 = MathUtils.prevAligned(count, 4);
+
+        result += this.hashWordCount(address, count2);
+
+        address += count2;
+        count -= count2;
+
+        while (address & 3) {
+            result += this.u8[address++] * 7;
+            count--;
+        }
+
+        return result;
+        /*
         var result1 = 0;
         var result2 = 0;
         var u8 = this.u8;
         for (var n = 0; n < count; n++) {
-            var byte = u8[address++];
-            result1 = (result1 + Math.imul(byte, n + 1)) | 0;
-            result2 = ((result2 + byte + n) ^ (n << 17)) | 0;
+        var byte = u8[address++];
+        result1 = (result1 + Math.imul(byte, n + 1)) | 0;
+        result2 = ((result2 + byte + n) ^ (n << 17)) | 0;
         }
         return result1 + result2 * Math.pow(2, 24);
+        */
     };
 
     Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
@@ -15113,7 +15161,6 @@ var Atrac3 = (function () {
         configurable: true
     });
 
-    //private static useWorker = true;
     Atrac3.prototype.decodeAsync = function (samplesOutPtr) {
         if (this.dataStream.available < this.fmt.blockSize)
             return Promise.resolve(0);
@@ -15124,8 +15171,9 @@ var Atrac3 = (function () {
 
         if (Atrac3.useWorker) {
             outPromise = WorkerTask.executeAsync(function (id, blockData, firstDataChunk) {
+                //self['window'] = undefined
                 if (!self['MediaEngine']) {
-                    importScripts('polyfills/promise.js');
+                    //importScripts('polyfills/promise.js');
                     importScripts('MediaEngine.js');
                     self['MediaEngine'] = MediaEngine;
                 }
@@ -15157,7 +15205,7 @@ var Atrac3 = (function () {
     Atrac3.fromStream = function (data) {
         return new Atrac3(Atrac3.lastId++).loadStream(data);
     };
-    Atrac3.useWorker = false;
+    Atrac3.useWorker = true;
 
     Atrac3.lastId = 0;
     return Atrac3;

@@ -210,8 +210,8 @@ class Atrac3 {
 		return this.remainingFrames <= 0;
 	}
 
-	private static useWorker = false;
-	//private static useWorker = true;
+	//private static useWorker = false;
+	private static useWorker = true;
 
 	decodeAsync(samplesOutPtr: Stream) {
 		if (this.dataStream.available < this.fmt.blockSize) return Promise.resolve(0);
@@ -222,8 +222,9 @@ class Atrac3 {
 
 		if (Atrac3.useWorker) {
 			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
+				//self['window'] = undefined
 				if (!self['MediaEngine']) {
-					importScripts('polyfills/promise.js');
+					//importScripts('polyfills/promise.js');
 					importScripts('MediaEngine.js');
 					self['MediaEngine'] = MediaEngine;
 				}

@@ -1,9 +1,9 @@
 {
   "main": "index.html",
-  "name": "nw-demo",
-  "description": "demo app of node-webkit",
+  "name": "jspspemu",
+  "description": "javascript psp emulator",
   "version": "0.1.0",
-  "keywords": [ "demo", "node-webkit" ],
+  "keywords": [ "emulator", "psp" ],
   "window": {
     "title": "node-webkit demo",
     "icon": "icon.png",
