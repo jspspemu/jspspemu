@@ -527,11 +527,13 @@ class PspGpuList {
 				var getBezierControlPoints = (ucount: number, vcount: number) => {
 					var controlPoints = ArrayUtils.create2D<_state.Vertex>(ucount, vcount);
 
+					var mipmap = this.state.texture.mipmaps[0];
+					var scale = mipmap.textureWidth / mipmap.bufferWidth;
 					for (var u = 0; u < ucount; u++) {
 						for (var v = 0; v < vcount; v++) {
 							var vertex = vertexReader.readOne(vertexInput, v * ucount + u);;
 							controlPoints[u][v] = vertex;
-							vertex.tx = (u / (ucount - 1));
+							vertex.tx = (u / (ucount - 1)) * scale;
 							vertex.ty = (v / (vcount - 1));
 							//Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
 						}

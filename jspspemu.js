@@ -6420,6 +6420,7 @@ var PspGpuList = (function () {
     };
 
     PspGpuList.prototype.runInstruction = function (current, instruction) {
+        var _this = this;
         var op = instruction >>> 24;
         var params24 = instruction & 0xFFFFFF;
 
@@ -6790,12 +6791,14 @@ var PspGpuList = (function () {
                 var getBezierControlPoints = function (ucount, vcount) {
                     var controlPoints = ArrayUtils.create2D(ucount, vcount);
 
+                    var mipmap = _this.state.texture.mipmaps[0];
+                    var scale = mipmap.textureWidth / mipmap.bufferWidth;
                     for (var u = 0; u < ucount; u++) {
                         for (var v = 0; v < vcount; v++) {
                             var vertex = vertexReader.readOne(vertexInput, v * ucount + u);
                             ;
                             controlPoints[u][v] = vertex;
-                            vertex.tx = (u / (ucount - 1));
+                            vertex.tx = (u / (ucount - 1)) * scale;
                             vertex.ty = (v / (vcount - 1));
                             //Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
                         }
@@ -8905,11 +8908,12 @@ var TextureHandler = (function () {
                 }
                 PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
-                if (true) {
+                if (false) {
                     texture.fromBytes(data2, w2, h);
                 } else {
                     var canvas = document.createElement('canvas');
-                    canvas.width = w;
+                    canvas.style.border = '1px solid white';
+                    canvas.width = w2;
                     canvas.height = h;
                     var ctx = canvas.getContext('2d');
                     var imageData = ctx.createImageData(w2, h);
@@ -8921,7 +8925,7 @@ var TextureHandler = (function () {
                     ctx.putImageData(imageData, 0, 0);
 
                     console.error('generated texture!' + texture.toString());
-                    $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString()));
+                    $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h));
                     texture.fromCanvas(canvas);
                 }
             }
