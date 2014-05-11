@@ -122,6 +122,10 @@ export class Memory {
 		Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
 	}
 
+	readArrayBuffer(address: number, length: number) {
+		return this.buffer.slice(address, address + length);
+	}
+
 	readBytes(address: number, length: number) {
 		return new Uint8Array(this.buffer, address, length);
 	}

@@ -248,8 +248,8 @@ export class Iso implements AsyncStream {
 
 		var sce_file = path.match(/^sce_lbn(0x[0-9a-f]+|\d+)_size(0x[0-9a-f]+|\d+)$/i);
 		if (sce_file) {
-			var lba = IntUtils.parseFormattedInt(sce_file[1]);
-			var size = IntUtils.parseFormattedInt(sce_file[2]);
+			var lba = parseIntFormat(sce_file[1]);
+			var size = parseIntFormat(sce_file[2]);
 			var dr = new DirectoryRecord();
 			dr.extent = lba;
 			dr.size = size;

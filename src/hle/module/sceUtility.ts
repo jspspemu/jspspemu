@@ -1,7 +1,12 @@
 ﻿import _utils = require('../utils');
+import _manager = require('../manager');
+import _vfs = require('../vfs');
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+
+import FileOpenFlags = _vfs.FileOpenFlags;
+import FileMode = _vfs.FileMode;
 
 export class sceUtility {
 	constructor(private context: _context.EmulatorContext) { }
@@ -14,16 +19,59 @@ export class sceUtility {
 	});
 
 	sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, (paramsPtr: Stream) => {
+		console.log('sceUtilitySavedataInitStart');
+		var params = SceUtilitySavedataParam.struct.read(paramsPtr);
+
+		var fileManager = this.context.fileManager;
+		var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
+		var saveDataBin = savePathFolder + "/DATA.BIN";
+		var saveIcon0 = savePathFolder + "/ICON0.PNG";
+		var savePic1 = savePathFolder + "/PIC1.PNG";
+
 		this.currentStep = DialogStepEnum.SUCCESS;
-		return 0;
+
+		switch (params.mode) {
+			case PspUtilitySavedataMode.Autoload:
+				return fileManager
+					.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777'))
+					.then(file => file.entry.readAllAsync())
+					.then(data => {
+						this.context.memory.writeBytes(params.dataBufPointer, data);
+						return 0;
+					})
+					.catch(error => {
+						return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
+					})
+				;
+			case PspUtilitySavedataMode.Autosave:
+				var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+
+				return fileManager
+					.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
+					.then(file => file.entry.writeAllAsync(data))
+					.then(written => {
+						return 0;
+					})
+					.catch(error => {
+						return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
+					})
+				;
+			default:
+				throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+		}
+		return Promise.resolve(0);
 	});
 
 	sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, () => {
+		//console.log('sceUtilitySavedataShutdownStart');
+		//debugger;
 		this.currentStep = DialogStepEnum.SHUTDOWN;
 		return 0;
 	});
 
 	sceUtilitySavedataGetStatus = createNativeFunction(0x8874DBE0, 150, 'uint', '', this, () => {
+		//console.log('sceUtilitySavedataGetStatus');
+		//debugger;
 		try {
 			return this.currentStep;
 		} finally {
@@ -228,4 +276,170 @@ enum PspModule {
 
 	// IrDA
 	PSP_MODULE_IRDA = 0x0600,
+}
+
+class PspUtilityDialogCommon {
+	size = 0; // 0000 - Size of the structure
+	language = PspLanguages.ENGLISH; // 0004 - Language
+	buttonSwap = 0; // 0008 - Set to 1 for X/O button swap
+	graphicsThread = 0; // 000C - Graphics thread priority
+	accessThread = 0; // 0010 - Access/fileio thread priority (SceJobThread)
+	fontThread = 0; // 0014 - Font thread priority (ScePafThread)
+	soundThread = 0; // 0018 - Sound thread priority
+	result = SceKernelErrors.ERROR_OK; // 001C - Result
+	reserved = [0, 0, 0, 0]; // 0020 - Set to 0
+
+	static struct = StructClass.create<PspUtilityDialogCommon>(PspUtilityDialogCommon, [
+		{ size: Int32 },
+		{ language: Int32 },
+		{ buttonSwap: Int32 },
+		{ graphicsThread: Int32 },
+		{ accessThread: Int32 },
+		{ fontThread: Int32 },
+		{ soundThread: Int32 },
+		{ result: Int32 },
+		{ reserved: StructArray<number>(Int32, 4) },
+	]);
+}
+
+enum PspUtilitySavedataMode {
+	Autoload = 0, // PSP_UTILITY_SAVEDATA_AUTOLOAD = 0
+	Autosave = 1, // PSP_UTILITY_SAVEDATA_AUTOSAVE = 1
+	Load = 2, // PSP_UTILITY_SAVEDATA_LOAD = 2
+	Save = 3, // PSP_UTILITY_SAVEDATA_SAVE = 3
+	ListLoad = 4, // PSP_UTILITY_SAVEDATA_LISTLOAD = 4
+	ListSave = 5, // PSP_UTILITY_SAVEDATA_LISTSAVE = 5 
+	ListDelete = 6, // PSP_UTILITY_SAVEDATA_LISTDELETE = 6
+	Delete = 7, // PSP_UTILITY_SAVEDATA_DELETE = 7
+	Sizes = 8, // PSP_UTILITY_SAVEDATA_SIZES = 8
+	AutoDelete = 9, // PSP_UTILITY_SAVEDATA_AUTODELETE = 9
+	SingleDelete = 10, // PSP_UTILITY_SAVEDATA_SINGLEDELETE = 10 = 0x0A
+	List = 11, // PSP_UTILITY_SAVEDATA_LIST = 11 = 0x0B
+	Files = 12, // PSP_UTILITY_SAVEDATA_FILES = 12 = 0x0C
+	MakeDataSecure = 13, // PSP_UTILITY_SAVEDATA_MAKEDATASECURE = 13 = 0x0D
+	MakeData = 14, // PSP_UTILITY_SAVEDATA_MAKEDATA = 14 = 0x0E
+	ReadSecure = 15, // PSP_UTILITY_SAVEDATA_READSECURE = 15 = 0x0F
+	Read = 16, // PSP_UTILITY_SAVEDATA_READ = 16 = 0x10
+	WriteSecure = 17, // PSP_UTILITY_SAVEDATA_WRITESECURE = 17 = 0x11
+	Write = 18, // PSP_UTILITY_SAVEDATA_WRITE = 18 = 0x12
+	EraseSecure = 19, // PSP_UTILITY_SAVEDATA_ERASESECURE = 19 = 0x13
+	Erase = 20, // PSP_UTILITY_SAVEDATA_ERASE = 20 = 0x14
+	DeleteData = 21, // PSP_UTILITY_SAVEDATA_DELETEDATA = 21 = 0x15
+	GetSize = 22, // PSP_UTILITY_SAVEDATA_GETSIZE = 22 = 0x16
+}
+
+enum PspUtilitySavedataFocus {
+	PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN = 0, // 
+	PSP_UTILITY_SAVEDATA_FOCUS_FIRSTLIST = 1, // First in list
+	PSP_UTILITY_SAVEDATA_FOCUS_LASTLIST = 2, // Last in list
+	PSP_UTILITY_SAVEDATA_FOCUS_LATEST = 3, // Most recent date
+	PSP_UTILITY_SAVEDATA_FOCUS_OLDEST = 4, // Oldest date
+	PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN2 = 5, //
+	PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN3 = 6, //
+	PSP_UTILITY_SAVEDATA_FOCUS_FIRSTEMPTY = 7, // First empty slot
+	PSP_UTILITY_SAVEDATA_FOCUS_LASTEMPTY = 8, // Last empty slot
+}
+
+class PspUtilitySavedataFileData {
+	bufferPointer = 0; // 0000 -
+	bufferSize = 0; // 0004 -
+	size = 0; // 0008 - why are there two sizes?
+	unknown = 0; // 000C -
+
+	get used() {
+		if (this.bufferPointer == 0) return false;
+		//if (BufferSize == 0) return false;
+		if (this.size == 0) return false;
+		return true;
 	}
+
+	static struct = StructClass.create<PspUtilitySavedataFileData>(PspUtilitySavedataFileData, [
+		{ bufferPointer: Int32 },
+		{ bufferSize: Int32 },
+		{ size: Int32 },
+		{ unknown: Int32 },
+	]);
+}
+
+class PspUtilitySavedataSFOParam {
+	title = ''; // 0000 -
+	savedataTitle = ''; // 0080 -
+	detail = ''; // 0100 -
+	parentalLevel = 0; // 0500 -
+	unknown = [0,0,0]; // 0501 -
+
+	static struct = StructClass.create<PspUtilitySavedataSFOParam>(PspUtilitySavedataSFOParam, [
+		{ title: Stringz(0x80) },
+		{ savedataTitle: Stringz(0x80) },
+		{ detail: Stringz(0x400) },
+		{ parentalLevel: UInt8 },
+		{ unknown: StructArray(UInt8, 3) },
+	]);
+}
+
+class SceUtilitySavedataParam {
+	base = new PspUtilityDialogCommon(); // 0000 - PspUtilityDialogCommon
+	mode = <PspUtilitySavedataMode>0; // 0030 - 
+	unknown1 = 0; // 0034 -
+	overwrite = 0; // 0038 -
+	gameName = ''; // 003C - GameName: name used from the game for saves, equal for all saves
+	saveName = ''; // 004C - SaveName: name of the particular save, normally a number
+	saveNameListPointer = 0; // 0060 - SaveNameList: used by multiple modes (char[20])
+	fileName = ''; // 0064 - FileName: Name of the data file of the game for example DATA.BIN
+	dataBufPointer = 0; // 0074 - Pointer to a buffer that will contain data file unencrypted data
+	dataBufSize = 0; // 0078 - Size of allocated space to dataBuf
+	dataSize = 0; // 007C -
+	sfoParam = new PspUtilitySavedataSFOParam(); // 0080 - (504?)
+	icon0FileData = new PspUtilitySavedataFileData(); // 0584 - (16)
+	icon1FileData = new PspUtilitySavedataFileData(); // 0594 - (16)
+	pic1FileData = new PspUtilitySavedataFileData(); // 05A4 - (16)
+	snd0FileData = new PspUtilitySavedataFileData(); // 05B4 - (16)
+	newDataPointer = 0; // 05C4 -Pointer to an PspUtilitySavedataListSaveNewData structure (PspUtilitySavedataListSaveNewData *)
+	focus = PspUtilitySavedataFocus.PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN; // 05C8 -Initial focus for lists
+	abortStatus = 0; // 05CC -
+	msFreeAddr = 0; // 05D0 -
+	msDataAddr = 0; // 05D4 -
+	utilityDataAddr = 0; // 05D8 -
+
+	//#if _PSP_FW_VERSION >= 200
+	key  =[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
+	secureVersion = 0; // 05F0 -
+	multiStatus = 0; // 05F4 -
+	idListAddr = 0; // 05F8 -
+	fileListAddr = 0; // 05FC -
+	sizeAddr = 0; // 0600 -
+	unknown3 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]; // 0604 -unknown3: ?
+	//#endif
+
+	static struct = StructClass.create<SceUtilitySavedataParam>(SceUtilitySavedataParam, [
+		{ base: PspUtilityDialogCommon.struct },
+		{ mode: Int32 },
+		{ unknown1: Int32 },
+		{ overwrite: Int32 },
+		{ gameName: Stringz(16) },
+		{ saveName: Stringz(20) },
+		{ saveNameListPointer: UInt32 },
+		{ fileName: Stringz(16) },
+		{ dataBufPointer: UInt32 },
+		{ dataBufSize: UInt32 },
+		{ dataSize: UInt32 },
+		{ sfoParam: PspUtilitySavedataSFOParam.struct },
+		{ icon0FileData: PspUtilitySavedataFileData.struct },
+		{ icon1FileData: PspUtilitySavedataFileData.struct },
+		{ pic1FileData: PspUtilitySavedataFileData.struct },
+		{ snd0FileData: PspUtilitySavedataFileData.struct },
+		{ newDataPointer: UInt32 },
+		{ focus: UInt32 },
+		{ abortStatus: UInt32 },
+		{ msFreeAddr: UInt32 },
+		{ msDataAddr: UInt32 },
+		{ utilityDataAddr: UInt32 },
+		{ key: StructArray(UInt8, 16) },
+		{ secureVersion: UInt32 },
+		{ multiStatus: UInt32 },
+		{ idListAddr: UInt32 },
+		{ fileListAddr: UInt32 },
+		{ sizeAddr: UInt32 },
+		{ unknown3: StructArray(UInt8, 20 - 5) },
+	]);
+}

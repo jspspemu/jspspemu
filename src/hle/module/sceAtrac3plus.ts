@@ -131,9 +131,10 @@ export class sceAtrac3plus {
 
 	sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, (id: number, bytesToAdd: number) => {
 		var atrac3 = this.getById(id);
-		console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
+		//console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
 		//throw (new Error("Not implemented sceAtracAddStreamData"));
-		return -1;
+		//return -1;
+		return 0;
 	});
 
 	sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, (id: number, writePointerPointer: Stream, availableBytesPtr: Stream, readOffsetPtr: Stream) => {
@@ -145,9 +146,10 @@ export class sceAtrac3plus {
 		//AvailableBytes = Atrac.PrimaryBuffer.Size;
 		//ReadOffset = Atrac.PrimaryBufferReaded;
 
-		console.warn("Not implemented sceAtracGetStreamDataInfo");
+		//console.warn("Not implemented sceAtracGetStreamDataInfo");
 		//throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
-		return -1;
+		//return -1;
+		return 0;
 	});
 
 	sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, (id: number, samplePositionPtr: Stream) => {

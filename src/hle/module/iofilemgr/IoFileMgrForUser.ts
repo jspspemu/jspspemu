@@ -102,14 +102,10 @@ export class IoFileMgrForUser {
 		} else {
 			var file = this.getFileById(fileId);
 
-			console.warn('Not implemented sceIoWrite -> ' + fileId, file);
-			return input.length;
-			/*
-			return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((readedCount: number) => {
-				file.cursor += readedCount;
-				return readedCount;
+			return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((writtenCount: number) => {
+				file.cursor += writtenCount;
+				return writtenCount;
 			});
-			*/
 		}
 	});
 

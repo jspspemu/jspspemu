@@ -14,11 +14,11 @@ import FileOpenFlags = _vfs.FileOpenFlags;
 import CallbackManager = _manager.CallbackManager;
 
 export class MemoryStickVfs extends ProxyVfs {
-	constructor(parentVfs: Vfs, private callbackManager: CallbackManager, private memory: Memory) {
-		super(parentVfs);
+	constructor(parentVfsList: Vfs[], private callbackManager: CallbackManager, private memory: Memory) {
+		super(parentVfsList);
 	}
 
-	devctlAsync(command: CommandType, input: Stream, output: Stream) {
+	devctlAsync(command: CommandType, input: Stream, output: Stream): any {
 		switch (command) {
 			case CommandType.CheckInserted:
 				if (output == null || output.length < 4) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;

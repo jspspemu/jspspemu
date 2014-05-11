@@ -30,6 +30,7 @@ import MountableVfs = _vfs.MountableVfs;
 import UriVfs = _vfs.UriVfs;
 import IsoVfs = _vfs.IsoVfs;
 import ZipVfs = _vfs.ZipVfs;
+import StorageVfs = _vfs.StorageVfs;
 import MemoryStickVfs = _vfs.MemoryStickVfs;
 import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
@@ -74,6 +75,7 @@ export class Emulator {
 	private ms0Vfs: MountableVfs;
 	private callbackManager: CallbackManager;
 	private interop: Interop;
+	private storageVfs: StorageVfs;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
@@ -116,8 +118,9 @@ export class Emulator {
 
 			this.emulatorVfs = new EmulatorVfs();
 			this.ms0Vfs = new MountableVfs();
+			this.storageVfs = new StorageVfs('psp_storage');
 
-			var msvfs = new MemoryStickVfs(this.ms0Vfs, this.callbackManager, this.memory);
+			var msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
 			this.fileManager.mount('fatms0', msvfs);
 			this.fileManager.mount('ms0', msvfs);
 			this.fileManager.mount('mscmhc0', msvfs);
@@ -206,7 +209,7 @@ export class Emulator {
 					});
 				case 'zip':
 					return _format_zip.Zip.fromStreamAsync(asyncStream).then(zip => {
-						var zipFs = new ZipVfs(zip);
+						var zipFs = new ZipVfs(zip, this.storageVfs);
 						var mountableVfs = this.ms0Vfs;
 						mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
 

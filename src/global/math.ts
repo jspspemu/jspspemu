@@ -325,13 +325,11 @@ function compare<T>(a: T, b: T): number {
 	return 0;
 }
 
-class IntUtils {
-	static parseFormattedInt(str: string) {
-		str = str.replace(/_/g, '');
-		if (str.substr(0, 2) == '0b') return parseInt(str.substr(2), 2);
-		if (str.substr(0, 2) == '0x') return parseInt(str.substr(2), 16);
-		return parseInt(str, 10);
-	}
+function parseIntFormat(str: string) {
+	str = str.replace(/_/g, '');
+	if (str.substr(0, 2) == '0b') return parseInt(str.substr(2), 2);
+	if (str.substr(0, 2) == '0x') return parseInt(str.substr(2), 16);
+	return parseInt(str, 10);
 }
 
 class MathUtils {

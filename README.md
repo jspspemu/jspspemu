@@ -6,10 +6,10 @@ A PSP emulator made using javascript (actually typescript). It works with modern
 ![TrigWars screenshot](/docs/screenshot_TrigWars.png?raw=true "TrigWars screenshot")
 
 Lastest version have been tested on:
-* Google Chrome 33
+* Google Chrome 33 (fastest)
+* Opera 20
 * Firefox 29
 * Internet Explorer 11 (no sound)
-* Opera 20
 
 Opera and Chrome performs the best because they use V8 that is lightning fast.
 
@@ -21,7 +21,7 @@ You can reference some samples like this:
 * http://jspspemu.com/#samples/TrigWars.zip
 * http://jspspemu.com/#samples/Doom.zip
 
-It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API and the Gamepad API.
+It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API, Web Workers and the Gamepad API.
 It will use FileSystem API / IndexedDB too.
 
 At this point it can run some demos and homebrew games.

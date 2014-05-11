@@ -21,7 +21,7 @@ export class UriVfs extends Vfs {
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 		if (flags & FileOpenFlags.Write) {
-			return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
+			return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 		}
 
 		var url = this.getAbsoluteUrl(path);
@@ -30,7 +30,7 @@ export class UriVfs extends Vfs {
 	}
 
 	openDirectoryAsync(path: string) {
-		return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
+		return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 	}
 
 	getStatAsync(path: string): Promise<VfsStat> {

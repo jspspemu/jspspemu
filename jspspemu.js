@@ -812,19 +812,14 @@ function compare(a, b) {
     return 0;
 }
 
-var IntUtils = (function () {
-    function IntUtils() {
-    }
-    IntUtils.parseFormattedInt = function (str) {
-        str = str.replace(/_/g, '');
-        if (str.substr(0, 2) == '0b')
-            return parseInt(str.substr(2), 2);
-        if (str.substr(0, 2) == '0x')
-            return parseInt(str.substr(2), 16);
-        return parseInt(str, 10);
-    };
-    return IntUtils;
-})();
+function parseIntFormat(str) {
+    str = str.replace(/_/g, '');
+    if (str.substr(0, 2) == '0b')
+        return parseInt(str.substr(2), 2);
+    if (str.substr(0, 2) == '0x')
+        return parseInt(str.substr(2), 16);
+    return parseInt(str, 10);
+}
 
 var MathUtils = (function () {
     function MathUtils() {
@@ -1801,7 +1796,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -10092,6 +10087,10 @@ var Memory = (function () {
         Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
     };
 
+    Memory.prototype.readArrayBuffer = function (address, length) {
+        return this.buffer.slice(address, address + length);
+    };
+
     Memory.prototype.readBytes = function (address, length) {
         return new Uint8Array(this.buffer, address, length);
     };
@@ -10500,6 +10499,7 @@ var MountableVfs = _vfs.MountableVfs;
 var UriVfs = _vfs.UriVfs;
 var IsoVfs = _vfs.IsoVfs;
 var ZipVfs = _vfs.ZipVfs;
+var StorageVfs = _vfs.StorageVfs;
 var MemoryStickVfs = _vfs.MemoryStickVfs;
 var EmulatorVfs = _vfs.EmulatorVfs;
 _vfs.EmulatorVfs;
@@ -10568,8 +10568,9 @@ var Emulator = (function () {
 
             _this.emulatorVfs = new EmulatorVfs();
             _this.ms0Vfs = new MountableVfs();
+            _this.storageVfs = new StorageVfs('psp_storage');
 
-            var msvfs = new MemoryStickVfs(_this.ms0Vfs, _this.callbackManager, _this.memory);
+            var msvfs = new MemoryStickVfs([_this.storageVfs, _this.ms0Vfs], _this.callbackManager, _this.memory);
             _this.fileManager.mount('fatms0', msvfs);
             _this.fileManager.mount('ms0', msvfs);
             _this.fileManager.mount('mscmhc0', msvfs);
@@ -10658,7 +10659,7 @@ var Emulator = (function () {
                     });
                 case 'zip':
                     return _format_zip.Zip.fromStreamAsync(asyncStream).then(function (zip) {
-                        var zipFs = new ZipVfs(zip);
+                        var zipFs = new ZipVfs(zip, _this.storageVfs);
                         var mountableVfs = _this.ms0Vfs;
                         mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
 
@@ -11912,8 +11913,8 @@ var Iso = (function () {
 
         var sce_file = path.match(/^sce_lbn(0x[0-9a-f]+|\d+)_size(0x[0-9a-f]+|\d+)$/i);
         if (sce_file) {
-            var lba = IntUtils.parseFormattedInt(sce_file[1]);
-            var size = IntUtils.parseFormattedInt(sce_file[2]);
+            var lba = parseIntFormat(sce_file[1]);
+            var size = parseIntFormat(sce_file[2]);
             var dr = new DirectoryRecord();
             dr.extent = lba;
             dr.size = size;
@@ -14707,7 +14708,7 @@ var ThreadManager = (function () {
         var thread = new Thread(name, this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
         thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
-        thread.state.RA = 268435455 /* EXIT_THREAD */;
+        thread.state.setRA(268435455 /* EXIT_THREAD */);
         thread.state.SP = thread.stackPartition.high;
         thread.initialPriority = initialPriority;
         thread.priority = initialPriority;
@@ -15405,14 +15406,10 @@ var IoFileMgrForUser = (function () {
             } else {
                 var file = _this.getFileById(fileId);
 
-                console.warn('Not implemented sceIoWrite -> ' + fileId, file);
-                return input.length;
-                /*
-                return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((readedCount: number) => {
-                file.cursor += readedCount;
-                return readedCount;
+                return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
+                    file.cursor += writtenCount;
+                    return writtenCount;
                 });
-                */
             }
         });
         this.sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
@@ -15745,10 +15742,11 @@ var sceAtrac3plus = (function () {
         });
         this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
             var atrac3 = _this.getById(id);
-            console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
 
+            //console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
             //throw (new Error("Not implemented sceAtracAddStreamData"));
-            return -1;
+            //return -1;
+            return 0;
         });
         this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
             var atrac3 = _this.getById(id);
@@ -15759,10 +15757,10 @@ var sceAtrac3plus = (function () {
             //WritePointerPointer = Atrac.PrimaryBuffer.Low; // @FIXME!!
             //AvailableBytes = Atrac.PrimaryBuffer.Size;
             //ReadOffset = Atrac.PrimaryBufferReaded;
-            console.warn("Not implemented sceAtracGetStreamDataInfo");
-
+            //console.warn("Not implemented sceAtracGetStreamDataInfo");
             //throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
-            return -1;
+            //return -1;
+            return 0;
         });
         this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
             var atrac3 = _this.getById(id);
@@ -17407,7 +17405,12 @@ var PspUmdState;
 "src/hle/module/sceUtility": function(module, exports, require) {
 var _utils = require('../utils');
 
+var _vfs = require('../vfs');
+
 var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../SceKernelErrors');
+
+var FileOpenFlags = _vfs.FileOpenFlags;
 
 var sceUtility = (function () {
     function sceUtility(context) {
@@ -17419,10 +17422,45 @@ var sceUtility = (function () {
             return Promise.resolve(0);
         });
         this.sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
+            console.log('sceUtilitySavedataInitStart');
+            var params = SceUtilitySavedataParam.struct.read(paramsPtr);
+
+            var fileManager = _this.context.fileManager;
+            var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
+            var saveDataBin = savePathFolder + "/DATA.BIN";
+            var saveIcon0 = savePathFolder + "/ICON0.PNG";
+            var savePic1 = savePathFolder + "/PIC1.PNG";
+
             _this.currentStep = 3 /* SUCCESS */;
-            return 0;
+
+            switch (params.mode) {
+                case 0 /* Autoload */:
+                    return fileManager.openAsync(saveDataBin, 1 /* Read */, parseIntFormat('0777')).then(function (file) {
+                        return file.entry.readAllAsync();
+                    }).then(function (data) {
+                        _this.context.memory.writeBytes(params.dataBufPointer, data);
+                        return 0;
+                    }).catch(function (error) {
+                        return 2148598535 /* ERROR_SAVEDATA_LOAD_NO_DATA */;
+                    });
+                case 1 /* Autosave */:
+                    var data = _this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+
+                    return fileManager.openAsync(saveDataBin, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseIntFormat('0777')).then(function (file) {
+                        return file.entry.writeAllAsync(data);
+                    }).then(function (written) {
+                        return 0;
+                    }).catch(function (error) {
+                        return 2148598661 /* ERROR_SAVEDATA_SAVE_ACCESS_ERROR */;
+                    });
+                default:
+                    throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+            }
+            return Promise.resolve(0);
         });
         this.sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
+            //console.log('sceUtilitySavedataShutdownStart');
+            //debugger;
             _this.currentStep = 4 /* SHUTDOWN */;
             return 0;
         });
@@ -17650,6 +17688,187 @@ var PspModule;
     // IrDA
     PspModule[PspModule["PSP_MODULE_IRDA"] = 0x0600] = "PSP_MODULE_IRDA";
 })(PspModule || (PspModule = {}));
+
+var PspUtilityDialogCommon = (function () {
+    function PspUtilityDialogCommon() {
+        this.size = 0;
+        this.language = 1 /* ENGLISH */;
+        this.buttonSwap = 0;
+        this.graphicsThread = 0;
+        this.accessThread = 0;
+        this.fontThread = 0;
+        this.soundThread = 0;
+        this.result = 0 /* ERROR_OK */;
+        this.reserved = [0, 0, 0, 0];
+    }
+    PspUtilityDialogCommon.struct = StructClass.create(PspUtilityDialogCommon, [
+        { size: Int32 },
+        { language: Int32 },
+        { buttonSwap: Int32 },
+        { graphicsThread: Int32 },
+        { accessThread: Int32 },
+        { fontThread: Int32 },
+        { soundThread: Int32 },
+        { result: Int32 },
+        { reserved: StructArray(Int32, 4) }
+    ]);
+    return PspUtilityDialogCommon;
+})();
+
+var PspUtilitySavedataMode;
+(function (PspUtilitySavedataMode) {
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Autoload"] = 0] = "Autoload";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Autosave"] = 1] = "Autosave";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Load"] = 2] = "Load";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Save"] = 3] = "Save";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["ListLoad"] = 4] = "ListLoad";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["ListSave"] = 5] = "ListSave";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["ListDelete"] = 6] = "ListDelete";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Delete"] = 7] = "Delete";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Sizes"] = 8] = "Sizes";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["AutoDelete"] = 9] = "AutoDelete";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["SingleDelete"] = 10] = "SingleDelete";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["List"] = 11] = "List";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Files"] = 12] = "Files";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["MakeDataSecure"] = 13] = "MakeDataSecure";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["MakeData"] = 14] = "MakeData";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["ReadSecure"] = 15] = "ReadSecure";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Read"] = 16] = "Read";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["WriteSecure"] = 17] = "WriteSecure";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Write"] = 18] = "Write";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["EraseSecure"] = 19] = "EraseSecure";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["Erase"] = 20] = "Erase";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["DeleteData"] = 21] = "DeleteData";
+    PspUtilitySavedataMode[PspUtilitySavedataMode["GetSize"] = 22] = "GetSize";
+})(PspUtilitySavedataMode || (PspUtilitySavedataMode = {}));
+
+var PspUtilitySavedataFocus;
+(function (PspUtilitySavedataFocus) {
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN"] = 0] = "PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_FIRSTLIST"] = 1] = "PSP_UTILITY_SAVEDATA_FOCUS_FIRSTLIST";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_LASTLIST"] = 2] = "PSP_UTILITY_SAVEDATA_FOCUS_LASTLIST";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_LATEST"] = 3] = "PSP_UTILITY_SAVEDATA_FOCUS_LATEST";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_OLDEST"] = 4] = "PSP_UTILITY_SAVEDATA_FOCUS_OLDEST";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN2"] = 5] = "PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN2";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN3"] = 6] = "PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN3";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_FIRSTEMPTY"] = 7] = "PSP_UTILITY_SAVEDATA_FOCUS_FIRSTEMPTY";
+    PspUtilitySavedataFocus[PspUtilitySavedataFocus["PSP_UTILITY_SAVEDATA_FOCUS_LASTEMPTY"] = 8] = "PSP_UTILITY_SAVEDATA_FOCUS_LASTEMPTY";
+})(PspUtilitySavedataFocus || (PspUtilitySavedataFocus = {}));
+
+var PspUtilitySavedataFileData = (function () {
+    function PspUtilitySavedataFileData() {
+        this.bufferPointer = 0;
+        this.bufferSize = 0;
+        this.size = 0;
+        this.unknown = 0;
+    }
+    Object.defineProperty(PspUtilitySavedataFileData.prototype, "used", {
+        get: function () {
+            if (this.bufferPointer == 0)
+                return false;
+
+            //if (BufferSize == 0) return false;
+            if (this.size == 0)
+                return false;
+            return true;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    PspUtilitySavedataFileData.struct = StructClass.create(PspUtilitySavedataFileData, [
+        { bufferPointer: Int32 },
+        { bufferSize: Int32 },
+        { size: Int32 },
+        { unknown: Int32 }
+    ]);
+    return PspUtilitySavedataFileData;
+})();
+
+var PspUtilitySavedataSFOParam = (function () {
+    function PspUtilitySavedataSFOParam() {
+        this.title = '';
+        this.savedataTitle = '';
+        this.detail = '';
+        this.parentalLevel = 0;
+        this.unknown = [0, 0, 0];
+    }
+    PspUtilitySavedataSFOParam.struct = StructClass.create(PspUtilitySavedataSFOParam, [
+        { title: Stringz(0x80) },
+        { savedataTitle: Stringz(0x80) },
+        { detail: Stringz(0x400) },
+        { parentalLevel: UInt8 },
+        { unknown: StructArray(UInt8, 3) }
+    ]);
+    return PspUtilitySavedataSFOParam;
+})();
+
+var SceUtilitySavedataParam = (function () {
+    function SceUtilitySavedataParam() {
+        this.base = new PspUtilityDialogCommon();
+        this.mode = 0;
+        this.unknown1 = 0;
+        this.overwrite = 0;
+        this.gameName = '';
+        this.saveName = '';
+        this.saveNameListPointer = 0;
+        this.fileName = '';
+        this.dataBufPointer = 0;
+        this.dataBufSize = 0;
+        this.dataSize = 0;
+        this.sfoParam = new PspUtilitySavedataSFOParam();
+        this.icon0FileData = new PspUtilitySavedataFileData();
+        this.icon1FileData = new PspUtilitySavedataFileData();
+        this.pic1FileData = new PspUtilitySavedataFileData();
+        this.snd0FileData = new PspUtilitySavedataFileData();
+        this.newDataPointer = 0;
+        this.focus = 0 /* PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN */;
+        this.abortStatus = 0;
+        this.msFreeAddr = 0;
+        this.msDataAddr = 0;
+        this.utilityDataAddr = 0;
+        //#if _PSP_FW_VERSION >= 200
+        this.key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        this.secureVersion = 0;
+        this.multiStatus = 0;
+        this.idListAddr = 0;
+        this.fileListAddr = 0;
+        this.sizeAddr = 0;
+        this.unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    }
+    SceUtilitySavedataParam.struct = StructClass.create(SceUtilitySavedataParam, [
+        { base: PspUtilityDialogCommon.struct },
+        { mode: Int32 },
+        { unknown1: Int32 },
+        { overwrite: Int32 },
+        { gameName: Stringz(16) },
+        { saveName: Stringz(20) },
+        { saveNameListPointer: UInt32 },
+        { fileName: Stringz(16) },
+        { dataBufPointer: UInt32 },
+        { dataBufSize: UInt32 },
+        { dataSize: UInt32 },
+        { sfoParam: PspUtilitySavedataSFOParam.struct },
+        { icon0FileData: PspUtilitySavedataFileData.struct },
+        { icon1FileData: PspUtilitySavedataFileData.struct },
+        { pic1FileData: PspUtilitySavedataFileData.struct },
+        { snd0FileData: PspUtilitySavedataFileData.struct },
+        { newDataPointer: UInt32 },
+        { focus: UInt32 },
+        { abortStatus: UInt32 },
+        { msFreeAddr: UInt32 },
+        { msDataAddr: UInt32 },
+        { utilityDataAddr: UInt32 },
+        { key: StructArray(UInt8, 16) },
+        { secureVersion: UInt32 },
+        { multiStatus: UInt32 },
+        { idListAddr: UInt32 },
+        { fileListAddr: UInt32 },
+        { sizeAddr: UInt32 },
+        { unknown3: StructArray(UInt8, 20 - 5) }
+    ]);
+    return SceUtilitySavedataParam;
+})();
 //# sourceMappingURL=sceUtility.js.map
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
@@ -18868,6 +19087,12 @@ var Vfs = (function () {
         });
     };
 
+    Vfs.prototype.writeAllAsync = function (path, data) {
+        return this.openAsync(path, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseInt('0777', 8)).then(function (entry) {
+            return entry.writeAllAsync(data);
+        });
+    };
+
     Vfs.prototype.openDirectoryAsync = function (path) {
         return this.openAsync(path, 1 /* Read */, parseInt('0777', 8));
     };
@@ -18883,21 +19108,39 @@ exports.Vfs = Vfs;
 
 var ProxyVfs = (function (_super) {
     __extends(ProxyVfs, _super);
-    function ProxyVfs(parentVfs) {
+    function ProxyVfs(parentVfsList) {
         _super.call(this);
-        this.parentVfs = parentVfs;
+        this.parentVfsList = parentVfsList;
     }
+    ProxyVfs.prototype._callChainWhenError = function (callback) {
+        var promise = Promise.reject(new Error());
+        this.parentVfsList.forEach(function (parentVfs) {
+            promise = promise.catch(function (e) {
+                return callback(parentVfs, e);
+            });
+        });
+        return promise;
+    };
+
     ProxyVfs.prototype.devctlAsync = function (command, input, output) {
-        return this.parentVfs.devctlAsync(command, input, output);
+        return this._callChainWhenError(function (vfs, e) {
+            return vfs.devctlAsync(command, input, output);
+        });
     };
     ProxyVfs.prototype.openAsync = function (path, flags, mode) {
-        return this.parentVfs.openAsync(path, flags, mode);
+        return this._callChainWhenError(function (vfs, e) {
+            return vfs.openAsync(path, flags, mode);
+        });
     };
     ProxyVfs.prototype.openDirectoryAsync = function (path) {
-        return this.parentVfs.openDirectoryAsync(path);
+        return this._callChainWhenError(function (vfs, e) {
+            return vfs.openDirectoryAsync(path);
+        });
     };
     ProxyVfs.prototype.getStatAsync = function (path) {
-        return this.parentVfs.getStatAsync(path);
+        return this._callChainWhenError(function (vfs, e) {
+            return vfs.getStatAsync(path);
+        });
     };
     return ProxyVfs;
 })(Vfs);
@@ -18913,18 +19156,23 @@ var VfsEntry = (function () {
         enumerable: true,
         configurable: true
     });
-    VfsEntry.prototype.enumerateAsync = function () {
-        throw (new Error("Must override enumerateAsync : " + this));
-    };
     Object.defineProperty(VfsEntry.prototype, "size", {
         get: function () {
-            throw (new Error("Must override size : " + this));
+            return this.stat().size;
         },
         enumerable: true,
         configurable: true
     });
+
     VfsEntry.prototype.readAllAsync = function () {
         return this.readChunkAsync(0, this.size);
+    };
+    VfsEntry.prototype.writeAllAsync = function (data) {
+        return this.writeChunkAsync(0, data);
+    };
+
+    VfsEntry.prototype.enumerateAsync = function () {
+        throw (new Error("Must override enumerateAsync : " + this));
     };
     VfsEntry.prototype.readChunkAsync = function (offset, length) {
         throw (new Error("Must override readChunkAsync : " + this));
@@ -18932,10 +19180,10 @@ var VfsEntry = (function () {
     VfsEntry.prototype.writeChunkAsync = function (offset, data) {
         throw (new Error("Must override writeChunkAsync : " + this));
     };
-    VfsEntry.prototype.close = function () {
-    };
     VfsEntry.prototype.stat = function () {
         throw (new Error("Must override stat"));
+    };
+    VfsEntry.prototype.close = function () {
     };
     return VfsEntry;
 })();
@@ -19152,12 +19400,17 @@ var MemoryVfs = (function (_super) {
         this.files = {};
     }
     MemoryVfs.prototype.addFile = function (name, data) {
-        this.files[name] = data;
+        this.files[name] = new MemoryVfsEntry(name, data);
     };
 
     MemoryVfs.prototype.openAsync = function (path, flags, mode) {
         if (flags & 2 /* Write */) {
-            this.files[path] = new ArrayBuffer(0);
+            if (!this.files[path]) {
+                this.addFile(path, new ArrayBuffer(0));
+            }
+        }
+        if (flags & 1024 /* Truncate */) {
+            this.addFile(path, new ArrayBuffer(0));
         }
         var file = this.files[path];
         if (!file) {
@@ -19165,7 +19418,7 @@ var MemoryVfs = (function (_super) {
             console.error(error);
             return Promise.reject(error);
         } else {
-            return Promise.resolve(new MemoryVfsEntry(file));
+            return Promise.resolve(file);
         }
     };
     return MemoryVfs;
@@ -19174,8 +19427,9 @@ exports.MemoryVfs = MemoryVfs;
 
 var MemoryVfsEntry = (function (_super) {
     __extends(MemoryVfsEntry, _super);
-    function MemoryVfsEntry(data) {
+    function MemoryVfsEntry(name, data) {
         _super.call(this);
+        this.name = name;
         this.data = data;
     }
     Object.defineProperty(MemoryVfsEntry.prototype, "isDirectory", {
@@ -19185,15 +19439,29 @@ var MemoryVfsEntry = (function (_super) {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(MemoryVfsEntry.prototype, "size", {
-        get: function () {
-            return this.data.byteLength;
-        },
-        enumerable: true,
-        configurable: true
-    });
+
     MemoryVfsEntry.prototype.readChunkAsync = function (offset, length) {
         return Promise.resolve(this.data.slice(offset, offset + length));
+    };
+
+    MemoryVfsEntry.prototype.writeChunkAsync = function (offset, data) {
+        var newData = new ArrayBuffer(Math.max(this.data.byteLength, offset + data.byteLength));
+        var newDataArray = new Uint8Array(newData);
+        newDataArray.set(new Uint8Array(this.data), 0);
+        newDataArray.set(new Uint8Array(data), offset);
+        this.data = newData;
+        return Promise.resolve(data.byteLength);
+    };
+
+    MemoryVfsEntry.prototype.stat = function () {
+        return {
+            name: this.name,
+            size: this.data.byteLength,
+            isDirectory: false,
+            timeCreation: new Date(),
+            timeLastAccess: new Date(),
+            timeLastModification: new Date()
+        };
     };
     MemoryVfsEntry.prototype.close = function () {
     };
@@ -19231,7 +19499,7 @@ var MountableVfs = (function (_super) {
     };
 
     MountableVfs.prototype.mountFileData = function (path, data) {
-        this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(data)));
+        this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(path, data)));
     };
 
     MountableVfs.prototype.normalizePath = function (path) {
@@ -19334,8 +19602,8 @@ var CallbackManager = _manager.CallbackManager;
 
 var MemoryStickVfs = (function (_super) {
     __extends(MemoryStickVfs, _super);
-    function MemoryStickVfs(parentVfs, callbackManager, memory) {
-        _super.call(this, parentVfs);
+    function MemoryStickVfs(parentVfsList, callbackManager, memory) {
+        _super.call(this, parentVfsList);
         this.callbackManager = callbackManager;
         this.memory = memory;
     }
@@ -19435,33 +19703,218 @@ var __extends = this.__extends || function (d, b) {
 var _vfs = require('./vfs');
 
 var Vfs = _vfs.Vfs;
+var VfsEntry = _vfs.VfsEntry;
+
+var FileOpenFlags = _vfs.FileOpenFlags;
+
+
+function indexedDbOpenAsync(name, version, stores) {
+    return new Promise(function (resolve, reject) {
+        var request = indexedDB.open(name, version);
+        request.onupgradeneeded = function (e) {
+            var db = request.result;
+
+            // A versionchange transaction is started automatically.
+            //request.transaction.onerror = html5rocks.indexedDB.onerror;
+            console.log('upgrade!');
+
+            stores.forEach(function (store) {
+                if (db.objectStoreNames.contains(store))
+                    db.deleteObjectStore(store);
+                db.createObjectStore(store, { keyPath: "name" });
+            });
+        };
+        request.onerror = function (event) {
+            reject(new Error("Can't open indexedDB"));
+        };
+        request.onsuccess = function (event) {
+            resolve(request.result);
+        };
+    });
+}
+
+function indexedDbPutAsync(store, value) {
+    return new Promise(function (resolve, reject) {
+        var request = store.put(value);
+        request.onsuccess = function (e) {
+            resolve();
+        };
+        request.onerror = function (e) {
+            reject(e['value']);
+        };
+    });
+}
+
+function indexedDbDeleteAsync(store, key) {
+    return new Promise(function (resolve, reject) {
+        var request = store.delete(key);
+
+        request.onsuccess = function (e) {
+            resolve();
+        };
+
+        request.onerror = function (e) {
+            reject(e['value']);
+        };
+    });
+}
+
+function indexedDbGetRangeAsync(store, keyRange, iterator) {
+    return new Promise(function (resolve, reject) {
+        try  {
+            var cursorRequest = store.openCursor(keyRange);
+        } catch (e) {
+            console.error(e);
+            reject(e);
+        }
+
+        //console.log('mm', cursorRequest);
+        cursorRequest.onsuccess = function (e) {
+            var cursor = cursorRequest.result;
+            if (!!cursor == false) {
+                resolve();
+                return;
+            } else {
+                var result2 = iterator(cursor.value);
+                cursor.continue();
+            }
+        };
+
+        cursorRequest.onerror = function (e) {
+            //console.log('dd');
+            reject(e['value']);
+        };
+    });
+}
+
+function indexedDbGetOneAsync(store, keyRange) {
+    return new Promise(function (resolve, reject) {
+        indexedDbGetRangeAsync(store, keyRange, function (item) {
+            resolve(item);
+        }).then(function () {
+            resolve(null);
+        }).catch(function (e) {
+            reject(e);
+        });
+    });
+}
 
 var StorageVfs = (function (_super) {
     __extends(StorageVfs, _super);
-    function StorageVfs(db) {
+    function StorageVfs(key) {
         _super.call(this);
-        this.db = db;
+        this.key = key;
     }
-    StorageVfs.prototype.fromKeyAsync = function (key) {
-        return new Promise(function (resolve, reject) {
-            var db;
-            var request = indexedDB.open(key, 1);
-            request.onerror = function (event) {
-                reject(new Error("Can't open indexedDB"));
-            };
-            request.onsuccess = function (event) {
-                db = request.result;
-                resolve(new StorageVfs(db));
-            };
-        });
+    StorageVfs.prototype.initializeOnceAsync = function () {
+        var _this = this;
+        if (!this.openDbPromise) {
+            this.openDbPromise = indexedDbOpenAsync(this.key, 3, ['files']).then(function (db) {
+                _this.db = db;
+                return _this;
+            });
+        }
+        return this.openDbPromise;
     };
 
     StorageVfs.prototype.openAsync = function (path, flags, mode) {
-        throw (new Error("Not implemented StorageVfs!"));
+        var _this = this;
+        return this.initializeOnceAsync().then(function () {
+            return StorageVfsEntry.fromNameAsync(_this.db, path, flags, mode);
+        });
     };
     return StorageVfs;
 })(Vfs);
 exports.StorageVfs = StorageVfs;
+
+var StorageVfsEntry = (function (_super) {
+    __extends(StorageVfsEntry, _super);
+    function StorageVfsEntry(db, name) {
+        _super.call(this);
+        this.db = db;
+        this.name = name;
+    }
+    StorageVfsEntry.prototype.initAsync = function (flags, mode) {
+        var _this = this;
+        return this._getFileAsync().then(function (file) {
+            if (!file.exists) {
+                if (!(flags & 512 /* Create */)) {
+                    throw (new Error("File '" + file.name + "' doesn't exist"));
+                }
+            }
+            if (flags & 1024 /* Truncate */) {
+                file.content = new Uint8Array([]);
+            }
+            _this.file = file;
+            return _this;
+        });
+    };
+
+    StorageVfsEntry.fromNameAsync = function (db, name, flags, mode) {
+        return (new StorageVfsEntry(db, name)).initAsync(flags, mode);
+    };
+
+    StorageVfsEntry.prototype._getFileAsync = function () {
+        var _this = this;
+        var store = this.db.transaction(["files"], "readwrite").objectStore('files');
+        return indexedDbGetOneAsync(store, IDBKeyRange.only(this.name)).then(function (file) {
+            if (file == null)
+                file = { name: _this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
+            return file;
+        });
+    };
+
+    StorageVfsEntry.prototype._getAllAsync = function () {
+        return this._getFileAsync().then(function (item) {
+            return item.content;
+        });
+    };
+
+    StorageVfsEntry.prototype._writeAllAsync = function (data) {
+        var store = this.db.transaction(["files"], "readwrite").objectStore('files');
+        return indexedDbPutAsync(store, {
+            'name': this.name,
+            'content': new Uint8Array(data),
+            'date': new Date(),
+            'exists': true
+        });
+    };
+
+    StorageVfsEntry.prototype.enumerateAsync = function () {
+        throw (new Error("Must override enumerateAsync : " + this));
+    };
+
+    StorageVfsEntry.prototype.readChunkAsync = function (offset, length) {
+        //console.log(this.file);
+        return Promise.resolve(this.file.content.buffer.slice(offset, offset + length));
+    };
+
+    StorageVfsEntry.prototype.writeChunkAsync = function (offset, data) {
+        var newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
+        var newContentArray = new Uint8Array(newContent);
+        newContentArray.set(new Uint8Array(this.file.content), 0);
+        newContentArray.set(new Uint8Array(data), offset);
+        this.file.content = newContentArray;
+        return this._writeAllAsync(newContent).then(function () {
+            return data.byteLength;
+        });
+    };
+
+    StorageVfsEntry.prototype.stat = function () {
+        return {
+            name: this.file.name,
+            size: this.file.content.byteLength,
+            isDirectory: false,
+            timeCreation: this.file.date,
+            timeLastAccess: this.file.date,
+            timeLastModification: this.file.date,
+            dependentData0: 0,
+            dependentData1: 0
+        };
+    };
+    StorageVfsEntry.prototype.close = function () {
+    };
+    return StorageVfsEntry;
+})(VfsEntry);
 //# sourceMappingURL=vfs_storage.js.map
 },
 "src/hle/vfs/vfs_uri": function(module, exports, require) {
@@ -19548,9 +20001,10 @@ var VfsEntry = _vfs.VfsEntry;
 
 var ZipVfs = (function (_super) {
     __extends(ZipVfs, _super);
-    function ZipVfs(zip) {
+    function ZipVfs(zip, writeVfs) {
         _super.call(this);
         this.zip = zip;
+        this.writeVfs = writeVfs;
     }
     ZipVfs.prototype.openAsync = function (path, flags, mode) {
         try  {
@@ -20054,6 +20508,12 @@ describe("memorymanager", function () {
 var _iso = require('../../src/format/iso');
 var _psf = require('../../src/format/psf');
 var _vfs = require('../../src/hle/vfs');
+_vfs.StorageVfs;
+
+var StorageVfs = _vfs.StorageVfs;
+var MemoryVfs = _vfs.MemoryVfs;
+var MemoryStickVfs = _vfs.MemoryStickVfs;
+var FileOpenFlags = _vfs.FileOpenFlags;
 
 describe('vfs', function () {
     var isoData;
@@ -20064,7 +20524,7 @@ describe('vfs', function () {
         });
     });
 
-    it('should work', function () {
+    it('iso', function () {
         var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
 
         return _iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
@@ -20074,6 +20534,97 @@ describe('vfs', function () {
                     var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(content));
                     assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
                 });
+            });
+        });
+    });
+
+    it('storage', function () {
+        var storageVfs = new StorageVfs('test');
+
+        return Promise.resolve(0).then(function () {
+            storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+        }).then(function () {
+            return storageVfs.getStatAsync('simple').then(function (stat) {
+                assert.equal('simple', stat.name);
+                assert.equal(5, stat.size);
+            });
+        }).then(function () {
+            return storageVfs.readAllAsync('simple').then(function (data) {
+                assert.equal(5, data.byteLength);
+            });
+        }).then(function () {
+            return storageVfs.readAllAsync('nonExistant').then(function (data) {
+                assert['fail']();
+            }).catch(function (e) {
+                assert.equal("File 'nonExistant' doesn't exist", e.message);
+            });
+        }).then(function () {
+            return storageVfs.openAsync('simple2', 512 /* Create */ | 2 /* Write */ | 1024 /* Truncate */, parseIntFormat('0777')).then(function (file) {
+                return Promise.resolve(0).then(function () {
+                    return file.writeChunkAsync(0, new Int8Array([1, 2, 3, 4, 5]).buffer);
+                }).then(function () {
+                    return file.writeChunkAsync(2, new Int8Array([-3, -4, -5, -6, -7]).buffer);
+                }).then(function () {
+                    return file.readAllAsync().then(function (data) {
+                        var v = new Int8Array(data);
+                        assert.equal(7, v.length);
+                        assert.equal(1, v[0]);
+                        assert.equal(2, v[1]);
+                        assert.equal(-3, v[2]);
+                        assert.equal(-4, v[3]);
+                        assert.equal(-5, v[4]);
+                        assert.equal(-6, v[5]);
+                        assert.equal(-7, v[6]);
+                    });
+                });
+                ;
+            });
+        });
+    });
+
+    it('memorystick', function () {
+        var storageVfs = new StorageVfs('test');
+        var msVfs = new MemoryStickVfs([storageVfs], null, null);
+
+        return Promise.resolve(0).then(function () {
+            msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+        }).then(function () {
+            return msVfs.getStatAsync('simple').then(function (stat) {
+                assert.equal('simple', stat.name);
+                assert.equal(5, stat.size);
+            });
+        }).then(function () {
+            return msVfs.readAllAsync('simple').then(function (data) {
+                assert.equal(5, data.byteLength);
+            });
+        }).then(function () {
+            return msVfs.readAllAsync('nonExistant').then(function (data) {
+                assert['fail']();
+            }).catch(function (e) {
+                assert.equal("File 'nonExistant' doesn't exist", e.message);
+            });
+        });
+    });
+
+    it('memorystick_combined', function () {
+        var vfs1 = new MemoryVfs();
+        var vfs2 = new MemoryVfs();
+
+        var msVfs = new MemoryStickVfs([vfs1, vfs2], null, null);
+
+        return Promise.resolve(0).then(function () {
+            vfs1.writeAllAsync('simple1', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+            vfs2.writeAllAsync('simple2', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+        }).then(function () {
+            return msVfs.getStatAsync('simple1').then(function (stat) {
+                console.log(stat);
+                assert.equal('simple1', stat.name);
+                assert.equal(5, stat.size);
+            });
+        }).then(function () {
+            return msVfs.getStatAsync('simple2').then(function (stat) {
+                assert.equal('simple2', stat.name);
+                assert.equal(5, stat.size);
             });
         });
     });

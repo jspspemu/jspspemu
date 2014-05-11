@@ -267,6 +267,12 @@
                 document.body['mozRequestFullScreen']();
             }
         }
+
+        window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
+            console.error(errorObj);
+            console.error(errorObj['stack']);
+            alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
+        }
     </script>
 
     <!--

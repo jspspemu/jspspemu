@@ -8,7 +8,7 @@ import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 
 export class ZipVfs extends Vfs {
-	constructor(private zip: format_zip.Zip) {
+	constructor(private zip: format_zip.Zip, private writeVfs?: Vfs) {
 		super();
 	}
 
