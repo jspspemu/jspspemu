@@ -8908,7 +8908,7 @@ var TextureHandler = (function () {
                 }
                 PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
-                if (false) {
+                if (true) {
                     texture.fromBytes(data2, w2, h);
                 } else {
                     var canvas = document.createElement('canvas');
