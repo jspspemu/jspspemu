@@ -47,7 +47,9 @@ export class AsyncClient {
 				$('#dropbox').html('logged');
 			}
 
-			//this.client.authDriver(new Dropbox.AuthDriver.Popup({ receiverUrl: "http://" + document.location.host }));
+			this.client.authDriver(new Dropbox.AuthDriver.Redirect({
+				redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1' : "https://" + document.location.host
+			}));
 
 			this.initPromise = new Promise((resolve, reject) => {
 				this.client.authenticate({ interactive: true }, function (e) {
@@ -64,8 +66,8 @@ export class AsyncClient {
 	}
 
 	writeFileAsync(fullpath: string, content: ArrayBuffer) {
-		delete this.readdirCache[getDirectoryPath(fullpath)];
-		delete this.statCache[getBaseName(fullpath)];
+		delete this.readdirCachePromise[getDirectoryPath(fullpath)];
+		delete this.statCachePromise[getBaseName(fullpath)];
 
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
@@ -108,11 +110,11 @@ export class AsyncClient {
 		});
 	}
 
-	statCache = {};
+	statCachePromise = {};
 	statAsync(fullpath: string): Promise<Info> {
 		return this.initOnceAsync().then(() => {
-			if (!this.statCache[fullpath]) {
-				this.statCache[fullpath] = this.readdirAsync(getDirectoryPath(fullpath)).then((files) => {
+			if (!this.statCachePromise[fullpath]) {
+				this.statCachePromise[fullpath] = this.readdirAsync(getDirectoryPath(fullpath)).then((files) => {
 					var basename = getBaseName(fullpath);
 					if (!files.contains(basename)) throw(new Error("folder not contains file"));
 					return new Promise((resolve, reject) => {
@@ -125,16 +127,16 @@ export class AsyncClient {
 						});
 					});
 				});
-				return this.statCache[fullpath];
+				return this.statCachePromise[fullpath];
 			}
 		});
 	}
 
-	readdirCache = {};
+	readdirCachePromise = {};
 	readdirAsync(name: string): Promise<string[]> {
 		return this.initOnceAsync().then(() => {
-			if (!this.readdirCache[name]) {
-				this.readdirCache[name] = new Promise((resolve, reject) => {
+			if (!this.readdirCachePromise[name]) {
+				this.readdirCachePromise[name] = new Promise((resolve, reject) => {
 					this.client.readdir(name, {}, function (e, data) {
 						if (e) {
 							reject(e);
@@ -144,7 +146,7 @@ export class AsyncClient {
 					});
 				});
 			}
-			return this.readdirCache[name];
+			return this.readdirCachePromise[name];
 		});
 	}
 }
@@ -155,6 +157,19 @@ function getDirectoryPath(fullpath: string) {
 
 function getBaseName(fullpath: string) {
 	return fullpath.split('/').pop();
+}
+
+function normalizePath(fullpath: string) {
+	var out = [];
+	var parts = fullpath.replace(/\\/g, '/').split('/');
+	parts.forEach(part => {
+		switch (part) {
+			case '.': break;
+			case '..': out.pop(); break;
+			default: out.push(part);
+		}
+	});
+	return out.join('/');
 }
 
 var client = new AsyncClient('4mdwp62ogo4tna1');
@@ -189,6 +204,7 @@ export class DropboxVfs extends Vfs {
 	}
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+		path = normalizePath(path);
 		if (!this.enabled) return Promise.reject(new Error("Not using dropbox"));
 		return DropboxVfsEntry.fromPathAsync(path, flags, mode);
 	}

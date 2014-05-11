@@ -19305,8 +19305,8 @@ var FileOpenFlags = _vfs.FileOpenFlags;
 var AsyncClient = (function () {
     function AsyncClient(key) {
         this.key = key;
-        this.statCache = {};
-        this.readdirCache = {};
+        this.statCachePromise = {};
+        this.readdirCachePromise = {};
     }
     AsyncClient.prototype.initOnceAsync = function () {
         var _this = this;
@@ -19319,7 +19319,10 @@ var AsyncClient = (function () {
                 $('#dropbox').html('logged');
             }
 
-            //this.client.authDriver(new Dropbox.AuthDriver.Popup({ receiverUrl: "http://" + document.location.host }));
+            this.client.authDriver(new Dropbox.AuthDriver.Redirect({
+                redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1' : "https://" + document.location.host
+            }));
+
             this.initPromise = new Promise(function (resolve, reject) {
                 _this.client.authenticate({ interactive: true }, function (e) {
                     if (e) {
@@ -19336,8 +19339,8 @@ var AsyncClient = (function () {
 
     AsyncClient.prototype.writeFileAsync = function (fullpath, content) {
         var _this = this;
-        delete this.readdirCache[getDirectoryPath(fullpath)];
-        delete this.statCache[getBaseName(fullpath)];
+        delete this.readdirCachePromise[getDirectoryPath(fullpath)];
+        delete this.statCachePromise[getBaseName(fullpath)];
 
         return this.initOnceAsync().then(function () {
             return new Promise(function (resolve, reject) {
@@ -19387,8 +19390,8 @@ var AsyncClient = (function () {
     AsyncClient.prototype.statAsync = function (fullpath) {
         var _this = this;
         return this.initOnceAsync().then(function () {
-            if (!_this.statCache[fullpath]) {
-                _this.statCache[fullpath] = _this.readdirAsync(getDirectoryPath(fullpath)).then(function (files) {
+            if (!_this.statCachePromise[fullpath]) {
+                _this.statCachePromise[fullpath] = _this.readdirAsync(getDirectoryPath(fullpath)).then(function (files) {
                     var basename = getBaseName(fullpath);
                     if (!files.contains(basename))
                         throw (new Error("folder not contains file"));
@@ -19402,7 +19405,7 @@ var AsyncClient = (function () {
                         });
                     });
                 });
-                return _this.statCache[fullpath];
+                return _this.statCachePromise[fullpath];
             }
         });
     };
@@ -19410,8 +19413,8 @@ var AsyncClient = (function () {
     AsyncClient.prototype.readdirAsync = function (name) {
         var _this = this;
         return this.initOnceAsync().then(function () {
-            if (!_this.readdirCache[name]) {
-                _this.readdirCache[name] = new Promise(function (resolve, reject) {
+            if (!_this.readdirCachePromise[name]) {
+                _this.readdirCachePromise[name] = new Promise(function (resolve, reject) {
                     _this.client.readdir(name, {}, function (e, data) {
                         if (e) {
                             reject(e);
@@ -19421,7 +19424,7 @@ var AsyncClient = (function () {
                     });
                 });
             }
-            return _this.readdirCache[name];
+            return _this.readdirCachePromise[name];
         });
     };
     return AsyncClient;
@@ -19434,6 +19437,23 @@ function getDirectoryPath(fullpath) {
 
 function getBaseName(fullpath) {
     return fullpath.split('/').pop();
+}
+
+function normalizePath(fullpath) {
+    var out = [];
+    var parts = fullpath.replace(/\\/g, '/').split('/');
+    parts.forEach(function (part) {
+        switch (part) {
+            case '.':
+                break;
+            case '..':
+                out.pop();
+                break;
+            default:
+                out.push(part);
+        }
+    });
+    return out.join('/');
 }
 
 var client = new AsyncClient('4mdwp62ogo4tna1');
@@ -19465,6 +19485,7 @@ var DropboxVfs = (function (_super) {
     };
 
     DropboxVfs.prototype.openAsync = function (path, flags, mode) {
+        path = normalizePath(path);
         if (!this.enabled)
             return Promise.reject(new Error("Not using dropbox"));
         return DropboxVfsEntry.fromPathAsync(path, flags, mode);
