@@ -20,6 +20,7 @@
     <Content Include="lib\aes.js" />
     <Content Include="lib\chai.js" />
     <Content Include="lib\difflib.js" />
+    <Content Include="lib\dropbox-datastores-1.0-latest.js" />
     <Content Include="lib\FileSaver.js" />
     <Content Include="lib\gl-matrix.js" />
     <Content Include="index.html" />
@@ -148,6 +149,7 @@
     <TypeScriptCompile Include="src\hle\structs.ts" />
     <TypeScriptCompile Include="src\hle\utils.ts" />
     <TypeScriptCompile Include="src\hle\vfs.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\vfs_dropbox.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_emulator.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_iso.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_memory.ts" />

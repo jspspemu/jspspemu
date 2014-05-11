@@ -103,8 +103,12 @@ export class IoFileMgrForUser {
 			var file = this.getFileById(fileId);
 
 			return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((writtenCount: number) => {
+				console.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
 				file.cursor += writtenCount;
 				return writtenCount;
+			}).catch((e) => {
+				console.error(e);
+				return SceKernelErrors.ERROR_ERROR;
 			});
 		}
 	});

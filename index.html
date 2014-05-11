@@ -22,7 +22,8 @@
     <script src="lib/aes.js"></script>
     <script src="lib/sha1.js"></script>
     <script src="lib/lib-typedarrays-min.js"></script>
-    
+    <script src="lib/dropbox-datastores-1.0-latest.js" type="text/javascript"></script>
+
     <script src="lib/jquery-2.1.0.js"></script>
     <script src="lib/gl-matrix.js"></script>
     <script src="lib/underscore.js"></script>
@@ -63,6 +64,8 @@
                 <a href="http://github.com/soywiz/jspspemu" style="font:16px Arial;color:white;" target="_blank">[Github]</a>
                 <a href="http://blog.jspspemu.com" style="font:16px Arial;color:white;" target="_blank">[Blog]</a>
                 <a href="javascript:emulator.memory.dump();" style="font:16px Arial;color:white;">[Dump]</a>
+                <a href="javascript:emulator.toggleDropbox();" style="font:16px Arial;color:white;">[Dropbox]</a>
+                <span id="dropbox" style="color:white;"></span>
             </center>
         </div>
         <div id="canvas_container">
@@ -272,6 +275,8 @@
                 document.body['mozRequestFullScreen']();
             }
         }
+
+        emulator.checkPlugins();
 
         window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
             console.error(errorObj);

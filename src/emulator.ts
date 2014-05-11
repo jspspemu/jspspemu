@@ -34,6 +34,7 @@ import StorageVfs = _vfs.StorageVfs;
 import MemoryStickVfs = _vfs.MemoryStickVfs;
 import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
+import DropboxVfs = _vfs.DropboxVfs;
 
 import PspElfLoader = _elf_psp.PspElfLoader;
 
@@ -76,6 +77,8 @@ export class Emulator {
 	private callbackManager: CallbackManager;
 	private interop: Interop;
 	private storageVfs: StorageVfs;
+	private dropboxVfs: DropboxVfs;
+	private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
@@ -119,8 +122,10 @@ export class Emulator {
 			this.emulatorVfs = new EmulatorVfs();
 			this.ms0Vfs = new MountableVfs();
 			this.storageVfs = new StorageVfs('psp_storage');
+			this.dropboxVfs = new DropboxVfs();
+			this.dropboxVfs.enabled = this.usingDropbox;
 
-			var msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
+			var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
 			this.fileManager.mount('fatms0', msvfs);
 			this.fileManager.mount('ms0', msvfs);
 			this.fileManager.mount('mscmhc0', msvfs);
@@ -283,6 +288,39 @@ export class Emulator {
 					throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));
 			}
 		});
+	}
+
+	toggleDropbox() {
+		this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
+	}
+
+	connectToDropbox(newValue: boolean) {
+		newValue = !!newValue;
+		$('#dropbox').html(newValue ? '<span style="color:#3A3;">dropbox enabled</span>' : '<span style="color:#777;">dropbox disabled</span>');
+		var oldValue = (localStorage["dropbox"] == 'true');
+
+		console.log('dropbox: ', oldValue, '->', newValue);
+
+		if (newValue) {
+			localStorage["dropbox"] = 'true';
+
+			DropboxVfs.tryLoginAsync().then(() => {
+				$('#dropbox').html('<span style="color:#7F7;">dropbox connected</span>');
+			}).catch((e) => {
+				console.error(e);
+				$('#dropbox').html('<span style="color:#F77;">dropbox error</span>');
+			});
+		} else {
+			delete localStorage["dropbox"];
+		}
+		this.usingDropbox = newValue;
+		if (this.dropboxVfs) {
+			this.dropboxVfs.enabled = newValue;
+		}
+	}
+
+	checkPlugins() {
+		this.connectToDropbox(localStorage["dropbox"] == 'true');
 	}
 
 	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string) {

@@ -10504,6 +10504,7 @@ var MemoryStickVfs = _vfs.MemoryStickVfs;
 var EmulatorVfs = _vfs.EmulatorVfs;
 _vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
+var DropboxVfs = _vfs.DropboxVfs;
 
 var PspElfLoader = _elf_psp.PspElfLoader;
 
@@ -10526,6 +10527,7 @@ var Interop = _manager.Interop;
 
 var Emulator = (function () {
     function Emulator(memory) {
+        this.usingDropbox = false;
         this.gameTitle = '';
         if (!memory)
             memory = Memory.instance;
@@ -10569,8 +10571,10 @@ var Emulator = (function () {
             _this.emulatorVfs = new EmulatorVfs();
             _this.ms0Vfs = new MountableVfs();
             _this.storageVfs = new StorageVfs('psp_storage');
+            _this.dropboxVfs = new DropboxVfs();
+            _this.dropboxVfs.enabled = _this.usingDropbox;
 
-            var msvfs = new MemoryStickVfs([_this.storageVfs, _this.ms0Vfs], _this.callbackManager, _this.memory);
+            var msvfs = new MemoryStickVfs([_this.dropboxVfs, _this.storageVfs, _this.ms0Vfs], _this.callbackManager, _this.memory);
             _this.fileManager.mount('fatms0', msvfs);
             _this.fileManager.mount('ms0', msvfs);
             _this.fileManager.mount('mscmhc0', msvfs);
@@ -10741,6 +10745,39 @@ var Emulator = (function () {
                     throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));
             }
         });
+    };
+
+    Emulator.prototype.toggleDropbox = function () {
+        this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
+    };
+
+    Emulator.prototype.connectToDropbox = function (newValue) {
+        newValue = !!newValue;
+        $('#dropbox').html(newValue ? '<span style="color:#3A3;">dropbox enabled</span>' : '<span style="color:#777;">dropbox disabled</span>');
+        var oldValue = (localStorage["dropbox"] == 'true');
+
+        console.log('dropbox: ', oldValue, '->', newValue);
+
+        if (newValue) {
+            localStorage["dropbox"] = 'true';
+
+            DropboxVfs.tryLoginAsync().then(function () {
+                $('#dropbox').html('<span style="color:#7F7;">dropbox connected</span>');
+            }).catch(function (e) {
+                console.error(e);
+                $('#dropbox').html('<span style="color:#F77;">dropbox error</span>');
+            });
+        } else {
+            delete localStorage["dropbox"];
+        }
+        this.usingDropbox = newValue;
+        if (this.dropboxVfs) {
+            this.dropboxVfs.enabled = newValue;
+        }
+    };
+
+    Emulator.prototype.checkPlugins = function () {
+        this.connectToDropbox(localStorage["dropbox"] == 'true');
     };
 
     Emulator.prototype.loadExecuteAndWaitAsync = function (asyncStream, url) {
@@ -15407,8 +15444,12 @@ var IoFileMgrForUser = (function () {
                 var file = _this.getFileById(fileId);
 
                 return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
+                    console.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
                     file.cursor += writtenCount;
                     return writtenCount;
+                }).catch(function (e) {
+                    console.error(e);
+                    return 2147614721 /* ERROR_ERROR */;
                 });
             }
         });
@@ -19015,22 +19056,24 @@ exports.createNativeFunction = createNativeFunction;
 "src/hle/vfs": function(module, exports, require) {
 var _vfs = require('./vfs/vfs');
 _vfs.Vfs;
-var _vfs_zip = require('./vfs/vfs_zip');
-_vfs_zip.ZipVfs;
-var _vfs_iso = require('./vfs/vfs_iso');
-_vfs_iso.IsoVfs;
-var _vfs_uri = require('./vfs/vfs_uri');
-_vfs_uri.UriVfs;
-var _vfs_ms = require('./vfs/vfs_ms');
-_vfs_ms.MemoryStickVfs;
-var _vfs_memory = require('./vfs/vfs_memory');
-_vfs_memory.MemoryVfs;
-var _vfs_mountable = require('./vfs/vfs_mountable');
-_vfs_mountable.MountableVfs;
-var _vfs_storage = require('./vfs/vfs_storage');
-_vfs_storage.StorageVfs;
-var _vfs_emulator = require('./vfs/vfs_emulator');
-_vfs_emulator.EmulatorVfs;
+var _zip = require('./vfs/vfs_zip');
+_zip.ZipVfs;
+var _iso = require('./vfs/vfs_iso');
+_iso.IsoVfs;
+var _uri = require('./vfs/vfs_uri');
+_uri.UriVfs;
+var _ms = require('./vfs/vfs_ms');
+_ms.MemoryStickVfs;
+var _memory = require('./vfs/vfs_memory');
+_memory.MemoryVfs;
+var _mountable = require('./vfs/vfs_mountable');
+_mountable.MountableVfs;
+var _storage = require('./vfs/vfs_storage');
+_storage.StorageVfs;
+var _emulator = require('./vfs/vfs_emulator');
+_emulator.EmulatorVfs;
+var _dropbox = require('./vfs/vfs_dropbox');
+_dropbox.DropboxVfs;
 
 var FileMode = _vfs.FileMode;
 exports.FileMode = FileMode;
@@ -19041,21 +19084,23 @@ exports.Vfs = Vfs;
 var VfsEntry = _vfs.VfsEntry;
 exports.VfsEntry = VfsEntry;
 
-var ZipVfs = _vfs_zip.ZipVfs;
+var ZipVfs = _zip.ZipVfs;
 exports.ZipVfs = ZipVfs;
-var IsoVfs = _vfs_iso.IsoVfs;
+var IsoVfs = _iso.IsoVfs;
 exports.IsoVfs = IsoVfs;
-var UriVfs = _vfs_uri.UriVfs;
+var UriVfs = _uri.UriVfs;
 exports.UriVfs = UriVfs;
-var MemoryVfs = _vfs_memory.MemoryVfs;
+var MemoryVfs = _memory.MemoryVfs;
 exports.MemoryVfs = MemoryVfs;
-var MountableVfs = _vfs_mountable.MountableVfs;
+var DropboxVfs = _dropbox.DropboxVfs;
+exports.DropboxVfs = DropboxVfs;
+var MountableVfs = _mountable.MountableVfs;
 exports.MountableVfs = MountableVfs;
-var StorageVfs = _vfs_storage.StorageVfs;
+var StorageVfs = _storage.StorageVfs;
 exports.StorageVfs = StorageVfs;
-var EmulatorVfs = _vfs_emulator.EmulatorVfs;
+var EmulatorVfs = _emulator.EmulatorVfs;
 exports.EmulatorVfs = EmulatorVfs;
-var MemoryStickVfs = _vfs_ms.MemoryStickVfs;
+var MemoryStickVfs = _ms.MemoryStickVfs;
 exports.MemoryStickVfs = MemoryStickVfs;
 //# sourceMappingURL=vfs.js.map
 },
@@ -19242,6 +19287,304 @@ var FileOpenFlags = exports.FileOpenFlags;
 })(exports.FileMode || (exports.FileMode = {}));
 var FileMode = exports.FileMode;
 //# sourceMappingURL=vfs.js.map
+},
+"src/hle/vfs/vfs_dropbox": function(module, exports, require) {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var _vfs = require('./vfs');
+
+var Vfs = _vfs.Vfs;
+var VfsEntry = _vfs.VfsEntry;
+
+var FileOpenFlags = _vfs.FileOpenFlags;
+
+var AsyncClient = (function () {
+    function AsyncClient(key) {
+        this.key = key;
+        this.statCache = {};
+        this.readdirCache = {};
+    }
+    AsyncClient.prototype.initOnceAsync = function () {
+        var _this = this;
+        if (!this.initPromise) {
+            this.client = new Dropbox.Client({ key: this.key });
+
+            if (this.client.isAuthenticated()) {
+                //DropboxLogged();
+                // Client is authenticated. Display UI.
+                $('#dropbox').html('logged');
+            }
+
+            //this.client.authDriver(new Dropbox.AuthDriver.Popup({ receiverUrl: "http://" + document.location.host }));
+            this.initPromise = new Promise(function (resolve, reject) {
+                _this.client.authenticate({ interactive: true }, function (e) {
+                    if (e) {
+                        this.initPromise = null;
+                        reject(e);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        }
+        return this.initPromise;
+    };
+
+    AsyncClient.prototype.writeFileAsync = function (fullpath, content) {
+        var _this = this;
+        delete this.readdirCache[getDirectoryPath(fullpath)];
+        delete this.statCache[getBaseName(fullpath)];
+
+        return this.initOnceAsync().then(function () {
+            return new Promise(function (resolve, reject) {
+                _this.client.writeFile(fullpath, content, function (e, data) {
+                    if (e) {
+                        reject(e);
+                    } else {
+                        resolve(data);
+                    }
+                });
+            });
+        });
+    };
+
+    AsyncClient.prototype.mkdirAsync = function (path) {
+        var _this = this;
+        return this.initOnceAsync().then(function () {
+            return new Promise(function (resolve, reject) {
+                _this.client.mkdir(path, function (e, data) {
+                    if (e) {
+                        reject(e);
+                    } else {
+                        resolve(data);
+                    }
+                });
+            });
+        });
+    };
+
+    AsyncClient.prototype.readFileAsync = function (name, offset, length) {
+        var _this = this;
+        if (typeof offset === "undefined") { offset = 0; }
+        if (typeof length === "undefined") { length = undefined; }
+        return this.initOnceAsync().then(function () {
+            return new Promise(function (resolve, reject) {
+                _this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, function (e, data) {
+                    if (e) {
+                        reject(e);
+                    } else {
+                        resolve(data);
+                    }
+                });
+            });
+        });
+    };
+
+    AsyncClient.prototype.statAsync = function (fullpath) {
+        var _this = this;
+        return this.initOnceAsync().then(function () {
+            if (!_this.statCache[fullpath]) {
+                _this.statCache[fullpath] = _this.readdirAsync(getDirectoryPath(fullpath)).then(function (files) {
+                    var basename = getBaseName(fullpath);
+                    if (!files.contains(basename))
+                        throw (new Error("folder not contains file"));
+                    return new Promise(function (resolve, reject) {
+                        _this.client.stat(fullpath, {}, function (e, data) {
+                            if (e) {
+                                reject(e);
+                            } else {
+                                resolve(data);
+                            }
+                        });
+                    });
+                });
+                return _this.statCache[fullpath];
+            }
+        });
+    };
+
+    AsyncClient.prototype.readdirAsync = function (name) {
+        var _this = this;
+        return this.initOnceAsync().then(function () {
+            if (!_this.readdirCache[name]) {
+                _this.readdirCache[name] = new Promise(function (resolve, reject) {
+                    _this.client.readdir(name, {}, function (e, data) {
+                        if (e) {
+                            reject(e);
+                        } else {
+                            resolve(data);
+                        }
+                    });
+                });
+            }
+            return _this.readdirCache[name];
+        });
+    };
+    return AsyncClient;
+})();
+exports.AsyncClient = AsyncClient;
+
+function getDirectoryPath(fullpath) {
+    return fullpath.split('/').slice(0, -1).join('/');
+}
+
+function getBaseName(fullpath) {
+    return fullpath.split('/').pop();
+}
+
+var client = new AsyncClient('4mdwp62ogo4tna1');
+
+/*
+client.mkdirAsync('PSP').then(() => {
+console.log('resilt');
+}).catch(e => {
+console.error(e);
+});
+*/
+//client.mkdirAsync('PSP/GAME');
+//client.mkdirAsync('PSP/GAME/virtual');
+/*
+client.writeFileAsync('/PSP/GAME/virtual/lsdlmidi.bin', new Uint8Array([1, 2, 3, 4]).buffer).then((result) => {
+console.log(result);
+}).catch((error) => {
+console.error(error);
+});
+*/
+var DropboxVfs = (function (_super) {
+    __extends(DropboxVfs, _super);
+    function DropboxVfs() {
+        _super.call(this);
+        this.enabled = true;
+    }
+    DropboxVfs.tryLoginAsync = function () {
+        return client.initOnceAsync();
+    };
+
+    DropboxVfs.prototype.openAsync = function (path, flags, mode) {
+        if (!this.enabled)
+            return Promise.reject(new Error("Not using dropbox"));
+        return DropboxVfsEntry.fromPathAsync(path, flags, mode);
+    };
+    return DropboxVfs;
+})(Vfs);
+exports.DropboxVfs = DropboxVfs;
+
+var DropboxVfsEntry = (function (_super) {
+    __extends(DropboxVfsEntry, _super);
+    function DropboxVfsEntry(path, name, _size, isFile, date) {
+        _super.call(this);
+        this.path = path;
+        this.name = name;
+        this._size = _size;
+        this.isFile = isFile;
+        this.date = date;
+        this.writeTimer = -1;
+    }
+    DropboxVfsEntry.fromPathAsync = function (path, flags, mode) {
+        function readedErrorAsync(e) {
+            if (flags & 512 /* Create */) {
+                //console.log('creating file!');
+                var entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
+                return client.writeFileAsync(path, new ArrayBuffer(0)).then(function () {
+                    //console.log('created file!');
+                    return entry;
+                }).catch(function (e) {
+                    console.error(e);
+                    throw (e);
+                });
+            } else {
+                throw (e);
+            }
+        }
+
+        return client.statAsync(path).then(function (info) {
+            if (info.isRemoved) {
+                return readedErrorAsync(new Error("file not exists"));
+            } else {
+                //console.log(info);
+                return new DropboxVfsEntry(path, info.name, info.size, info.isFile, info.modifiedAt);
+            }
+        }).catch(function (e) {
+            return readedErrorAsync(e);
+        });
+    };
+
+    DropboxVfsEntry.prototype.enumerateAsync = function () {
+        throw (new Error("Must implement DropboxVfsEntry.enumerateAsync"));
+    };
+
+    DropboxVfsEntry.prototype.readChunkAsync = function (offset, length) {
+        //console.log('dropbox: read chunk!', this.path, offset, length);
+        var _this = this;
+        if (this._size < 128 * 1024 * 1024) {
+            if (this.cachedContent)
+                return Promise.resolve(this.cachedContent.slice(offset, offset + length));
+            return client.readFileAsync(this.path).then(function (data) {
+                _this.cachedContent = data;
+                return _this.cachedContent.slice(offset, offset + length);
+            });
+        } else {
+            //console.log('read dropbox file ' + this.path);
+            return client.readFileAsync(this.path, offset, offset + length);
+        }
+    };
+
+    DropboxVfsEntry.prototype.writeChunkAsync = function (offset, dataToWrite) {
+        var _this = this;
+        return this.readChunkAsync(0, this._size).then(function (base) {
+            //console.log('dropbox: write chunk!', this.path, offset, dataToWrite.byteLength);
+            var newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));
+            var newContentArray = new Uint8Array(newContent);
+            newContentArray.set(new Uint8Array(base), 0);
+            newContentArray.set(new Uint8Array(dataToWrite), offset);
+            _this._size = newContent.byteLength;
+            _this.cachedContent = newContent;
+
+            //return client.writeFileAsync(this.path, newContent).then(() => data.byteLength);
+            //console.log(newContentArray);
+            clearTimeout(_this.writeTimer);
+            _this.writeTimer = setTimeout(function () {
+                client.writeFileAsync(_this.path, newContent);
+            }, 500);
+            return dataToWrite.byteLength;
+        });
+    };
+
+    DropboxVfsEntry.prototype.stat = function () {
+        return {
+            name: this.name,
+            size: this._size,
+            isDirectory: !this.isFile,
+            timeCreation: this.date,
+            timeLastAccess: this.date,
+            timeLastModification: this.date,
+            dependentData0: 0,
+            dependentData1: 1
+        };
+    };
+    DropboxVfsEntry.prototype.close = function () {
+    };
+    return DropboxVfsEntry;
+})(VfsEntry);
+exports.DropboxVfsEntry = DropboxVfsEntry;
+/*
+var dvfs = new DropboxVfs();
+dvfs.openAsync('/test', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, <FileMode>parseIntFormat('0777')).then(value => {
+console.info('dvfs result:', value);
+}).catch(e => {
+console.error('dvfs error:', e);
+});
+*/
+/*
+client.readdirAsync('/PSP/GAME/virtual/SAVE/SharewareDoom').then(result => {
+console.log(result);
+});
+*/
+//# sourceMappingURL=vfs_dropbox.js.map
 },
 "src/hle/vfs/vfs_emulator": function(module, exports, require) {
 var __extends = this.__extends || function (d, b) {
@@ -19947,7 +20290,7 @@ var UriVfs = (function (_super) {
 
     UriVfs.prototype.openAsync = function (path, flags, mode) {
         if (flags & 2 /* Write */) {
-            return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
+            return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
         }
 
         var url = this.getAbsoluteUrl(path);
@@ -19958,7 +20301,7 @@ var UriVfs = (function (_super) {
     };
 
     UriVfs.prototype.openDirectoryAsync = function (path) {
-        return Promise.resolve(new MemoryVfsEntry(new ArrayBuffer(0)));
+        return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
     };
 
     UriVfs.prototype.getStatAsync = function (path) {
