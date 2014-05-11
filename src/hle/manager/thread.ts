@@ -238,7 +238,7 @@ export class ThreadManager {
 		var thread = new Thread(name, this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
 		thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
-        thread.state.RA = CpuSpecialAddresses.EXIT_THREAD;
+        thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
 		thread.state.SP = thread.stackPartition.high;
 		thread.initialPriority = initialPriority;
 		thread.priority = initialPriority;

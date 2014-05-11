@@ -30,9 +30,9 @@ export class CpuState {
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
 
 	vfpuSetMatrix(m: number, values: number[]) {
+		// @TODO
 		this.vfpr[0] = 0;
 	}
-	
 
 	BRANCHFLAG: boolean = false;
 	BRANCHPC: number = 0;
@@ -71,6 +71,7 @@ export class CpuState {
 	get SP():number { return this.gpr[29]; } set SP(value: number) { this.gpr[29] = value; }
 	get FP():number { return this.gpr[30]; } set FP(value: number) { this.gpr[30] = value; }
 	get RA(): number { return this.gpr[31]; } set RA(value: number) { this.gpr[31] = value; }
+	getRA(): number { return this.gpr[31]; } setRA(value: number) { this.gpr[31] = value; }
 
 	private callstack: number[] = [];
 
@@ -309,13 +310,13 @@ export class CpuState {
 
 	callPC(pc: number) {
 		this.PC = pc;
-		var ra = this.RA;
+		var ra = this.getRA();
 		this.executor.executeUntilPCReachesWithoutCall(ra);
 	}
 
 	callPCSafe(pc: number) {
 		this.PC = pc;
-		var ra = this.RA;
+		var ra = this.getRA();
 		while (this.PC != ra) {
 			/*
 			if (DebugOnce('test', 10)) {
@@ -328,6 +329,8 @@ export class CpuState {
 				this.executor.executeUntilPCReachesWithoutCall(ra);
 			} catch (e) {
 				if (!(e instanceof CpuBreakException)) {
+					console.error(e);
+					console.error(e['stack']);
 					throw (e);
 				}
 			}

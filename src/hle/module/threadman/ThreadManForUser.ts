@@ -87,7 +87,7 @@ export class ThreadManForUser {
 		//if (!newThread) debugger;
 
 		var newState = newThread.state;
-		newState.RA = CpuSpecialAddresses.EXIT_THREAD;
+		newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
 
 		var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
 
@@ -117,6 +117,11 @@ export class ThreadManForUser {
 		currentThread.exitStatus = exitStatus;
 		currentThread.stop();
 		throw (new CpuBreakException());
+	});
+
+	sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, (threadId: number) => {
+		var thread = this.getThreadById(threadId);
+		return thread.exitStatus;
 	});
 
 	_sceKernelTerminateThread(threadId: number) {

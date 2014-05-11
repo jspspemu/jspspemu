@@ -51,6 +51,7 @@ import ModuleManager = _manager.ModuleManager;
 import MemoryManager = _manager.MemoryManager;
 import FileManager = _manager.FileManager;
 import CallbackManager = _manager.CallbackManager;
+import Interop = _manager.Interop;
 
 
 export class Emulator {
@@ -72,6 +73,7 @@ export class Emulator {
 	private moduleManager: ModuleManager;
 	private ms0Vfs: MountableVfs;
 	private callbackManager: CallbackManager;
+	private interop: Interop;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
@@ -104,10 +106,11 @@ export class Emulator {
 			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
-			this.callbackManager = new CallbackManager();
+			this.interop = new Interop();
+			this.callbackManager = new CallbackManager(this.interop);
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
-			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas);
+			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas, this.interop);
 			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new ModuleManager(this.context);
 

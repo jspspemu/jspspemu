@@ -51,12 +51,13 @@
 </head>
 <body>
     <div id="body">
-        <div id="header_info">
+        <div id="header_info" style="background:transparent;">
             <center>
                 <select id="files" style="width:160px;"></select>
                 <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
                 <input type="file" id="load_file" name="load_file" style="width:132px;" />
-                <a href="javascript:requestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">Fullscreen</a>
+                <a href="javascript:requestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">[Fullscreen]</a>
+                <a href="http://github.com/soywiz/jspspemu" style="font:16px Arial;color:white;" target="_blank">[Source]</a>
                 <a href="javascript:emulator.memory.dump();" style="font:16px Arial;color:white;">[M]</a>
             </center>
         </div>
@@ -258,11 +259,13 @@
         onResize();
 
         function requestFullScreen() {
-            //var fullscreenWithoutKeys = document.body['requestFullScreen'] || document.body['webkitRequestFullScreen'] || document.body['mozRequestFullScreen'];
-            //var fullscreenWithKeys = document.body['requestFullScreenWithKeys'] || document.body['webkitRequestFullScreenWithKeys'] || document.body['mozRequestFullScreenWithKeys'];
-            //var fullscreen = fullscreenWithKeys || fullscreenWithoutKeys;
-            document.body.webkitRequestFullScreen();
-            //fullscreen();
+            if (document.body['requestFullScreen']) {
+                document.body['requestFullScreen']();
+            } else if (document.body['webkitRequestFullScreen']) {
+                document.body['webkitRequestFullScreen']();
+            } else if (document.body['mozRequestFullScreen']) {
+                document.body['mozRequestFullScreen']();
+            }
         }
     </script>
 

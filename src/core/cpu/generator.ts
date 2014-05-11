@@ -86,7 +86,7 @@ export class FunctionGenerator {
 			return result;
 		};
 
-		stms.add(ast.raw('var expectedRA = state.RA;'));
+		stms.add(ast.raw('var expectedRA = state.getRA();'));
 
 		function returnWithCheck() {
 			stms.add(ast.raw('return;'));

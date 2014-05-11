@@ -2,25 +2,31 @@
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+import _manager = require('../manager');
 
-import _gpu = require('../../core/gpu');
+import Callback = _manager.Callback;
+import Thread = _manager.Thread;
+import _gpu = require('../../core/gpu'); _gpu.PspGpuCallback;
+
+import PspGpuCallback = _gpu.PspGpuCallback;
 
 export class sceGe_user {
     constructor(private context: _context.EmulatorContext) {
     }
 
-    sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, (callbackDataPtr: number) => {
-        //console.warn('Not implemented sceGe_user.sceGeSetCallback');
-        return 0;
+	sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*', this, (thread: Thread, callbackDataPtr: Stream) => {
+		var callbacks = this.context.gpu.callbacks;
+		var info = CallbackData.struct.read(callbackDataPtr);
+		return callbacks.allocate(new PspGpuCallback(thread.state, info.signalFunction, info.signalArgument, info.finishFunction, info.finishArgument));
 	});
 
 	sceGeUnsetCallback = createNativeFunction(0x05DB22CE, 150, 'uint', 'int', this, (callbackId: number) => {
-		//console.warn('Not implemented sceGe_user.sceGeSetCallback');
+		this.context.gpu.callbacks.remove(callbackId);
 		return 0;
 	});
 
-    sceGeListEnQueue = createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, (start: number, stall: number, callbackId: number, argsPtr: Stream) => {
-        return this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
+	sceGeListEnQueue = createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, (start: number, stall: number, callbackId: number, argsPtr: Stream) => {
+		return this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
     });
 
 	sceGeListSync = createNativeFunction(0x03444EB4, 150, 'uint', 'int/int', this, (displayListId: number, syncType: _gpu.SyncType) => {
@@ -33,10 +39,8 @@ export class sceGe_user {
         return this.context.gpu.updateStallAddr(displayListId, stall);
     });
 
-	sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: _gpu.SyncType) => {
-		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
-		if (syncType == _gpu.SyncType.Peek) throw(new Error("Not implemented SyncType.Peek"));
-        return this.context.gpu.drawSync(syncType);
+	sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: _gpu.SyncType):any => {
+		return this.context.gpu.drawSync(syncType);
 	});
 
 	sceGeContinue = createNativeFunction(0x4C06E472, 150, 'uint', '', this, () => {
@@ -56,4 +60,18 @@ export class sceGe_user {
 		//console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
 		return 0x00200000; // 2MB
 	});
+}
+
+class CallbackData {
+	signalFunction; // GE callback for the signal interrupt alias void function(int id, void *arg) PspGeCallback;
+	signalArgument; // GE callback argument for signal interrupt
+	finishFunction; // GE callback for the finish interrupt alias void function(int id, void *arg) PspGeCallback;
+	finishArgument; // GE callback argument for finish interrupt
+
+	static struct = StructClass.create<CallbackData>(CallbackData, [
+		{ signalFunction: UInt32 },
+		{ signalArgument: UInt32 },
+		{ finishFunction: UInt32 },
+		{ finishArgument: UInt32 },
+	]);
 }

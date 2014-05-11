@@ -86,6 +86,7 @@
     <TypeScriptCompile Include="src\hle\manager.ts" />
     <TypeScriptCompile Include="src\hle\manager\callback.ts" />
     <TypeScriptCompile Include="src\hle\manager\file.ts" />
+    <TypeScriptCompile Include="src\hle\manager\interop.ts" />
     <TypeScriptCompile Include="src\hle\manager\module.ts" />
     <TypeScriptCompile Include="src\hle\module\ExceptionManagerForKernel.ts" />
     <TypeScriptCompile Include="src\hle\module\InterruptManager.ts" />

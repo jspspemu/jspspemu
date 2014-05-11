@@ -2,7 +2,8 @@
 import _memory = require('./manager/memory'); _memory.MemoryManager;
 import _module = require('./manager/module'); _module.ModuleManager;
 import _thread = require('./manager/thread'); _thread.Thread;
-import _callback = require('./manager/callback'); _callback.Callback;;
+import _callback = require('./manager/callback'); _callback.Callback;
+import _interop = require('./manager/interop'); _interop.Interop;
 
 export import Device = _file.Device;
 export import FileManager = _file.FileManager;
@@ -25,3 +26,5 @@ export import PspThreadAttributes = _thread.PspThreadAttributes;
 
 export import Callback = _callback.Callback;
 export import CallbackManager = _callback.CallbackManager;
+
+export import Interop = _interop.Interop;

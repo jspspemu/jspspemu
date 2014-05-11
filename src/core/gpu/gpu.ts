@@ -4,8 +4,11 @@ import _pixelformat = require('../pixelformat');
 import _instructions = require('./instructions');
 import _state = require('./state');
 import _driver = require('./driver');
+import _cpu = require('../cpu'); _cpu.CpuState;
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 
+import DisplayListStatus = _state.DisplayListStatus;
+import CpuState = _cpu.CpuState;
 import PixelFormat = _pixelformat.PixelFormat;
 import IPspDisplay = _display.IPspDisplay;
 import Memory = _memory.Memory;
@@ -13,6 +16,10 @@ import IDrawDriver = _driver.IDrawDriver;
 import ColorEnum = _state.ColorEnum;
 import GpuOpCodes = _instructions.GpuOpCodes;
 import WebGlPspDrawDriver = require('./webgl/driver');
+
+export interface CpuExecutor {
+	execute(state: CpuState, address: number, gprArray: number[]);
+}
 
 export interface IPspGpu {
     startAsync();
@@ -159,15 +166,17 @@ var singleCallTest = false;
 class PspGpuList {
     current: number;
     stall: number;
-    callbackId: number;
+	callbackId: number;
+	argsPtr: Stream;
     completed: boolean = false;
 	state: _state.GpuState = new _state.GpuState();
+	status = DisplayListStatus.Paused;
 	private promise: Promise<any>;
 	private promiseResolve: Function;
 	private promiseReject: Function;
 	private errorCount: number = 0;
 
-	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private runner: PspGpuListRunner) {
+	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private runner: PspGpuListRunner, private gpu:PspGpu, private cpuExecutor: CpuExecutor) {
     }
 
     private complete() {
@@ -540,7 +549,10 @@ class PspGpuList {
                 break;
 
 			case GpuOpCodes.FINISH:
-				//console.log('finish');
+				var callback = this.gpu.callbacks.get(this.callbackId);
+
+				//this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [callback.finishArgument, params24]);
+				
                 break;
 
 			case GpuOpCodes.END:
@@ -561,13 +573,20 @@ class PspGpuList {
         }
 
         return false;
-    }
+	}
+
+	private get isStalled() {
+		return ((this.stall != 0) && (this.current >= this.stall));
+	}
+
 
     private get hasMoreInstructions() {
-        return !this.completed && ((this.stall == 0) || (this.current < this.stall));
+		return !this.completed && !this.isStalled;
+		//return !this.completed && ((this.stall == 0) || (this.current < this.stall));
     }
 
 	private runUntilStall() {
+		this.status = DisplayListStatus.Drawing;
 		while (this.hasMoreInstructions) {
 			try {
 				while (this.hasMoreInstructions) {
@@ -575,6 +594,7 @@ class PspGpuList {
 					this.current += 4
 					if (this.runInstruction(this.current - 4, instruction)) return;
 				}
+				this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 			} catch (e) {
 				console.log(e);
 				console.log(e['stack']);
@@ -594,6 +614,8 @@ class PspGpuList {
     }
 
 	start() {
+		this.status = DisplayListStatus.Queued;
+
 		this.promise = new Promise((resolve, reject) => {
 			this.promiseResolve = resolve;
 			this.promiseReject = reject;
@@ -613,9 +635,9 @@ class PspGpuListRunner {
     private freeLists: PspGpuList[] = [];
     private runningLists: PspGpuList[] = [];
 
-    constructor(private memory: Memory, private drawDriver: IDrawDriver) {
+	constructor(private memory: Memory, private drawDriver: IDrawDriver, private gpu: PspGpu, private callbackManager: CpuExecutor) {
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, drawDriver, this);
+            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager);
             this.lists.push(list);
             this.freeLists.push(list);
         }
@@ -635,22 +657,41 @@ class PspGpuListRunner {
     deallocate(list: PspGpuList) {
         this.freeLists.push(list);
         this.runningLists.remove(list);
-    }
+	}
+
+	peek() {
+		var _peek = (() => {
+			for (var n = 0; n < this.runningLists.length; n++) {
+				var list = this.runningLists[n];
+				if (list.status != DisplayListStatus.Completed) return list.status;
+			}
+			return DisplayListStatus.Completed;
+		});
+		var result = _peek();
+		console.warn('not implemented gpu list peeking -> ' + result);
+		return result;
+	}
 
 	waitAsync() {
 		return Promise.all(this.runningLists.map(list => list.waitAsync())).then(() => _state.DisplayListStatus.Completed);
     }
 }
 
+export class PspGpuCallback {
+	constructor(public cpuState: CpuState, public signalFunction: number, public signalArgument: number, public finishFunction: number, public finishArgument: number) {
+	}
+}
+
 export class PspGpu implements IPspGpu {
     //private gl: WebGLRenderingContext;
 	private listRunner: PspGpuListRunner;
 	driver: IDrawDriver;
+	callbacks = new UidCollection<PspGpuCallback>(1);
 
-	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
+	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement, private cpuExecutor: CpuExecutor) {
 		this.driver = new WebGlPspDrawDriver(memory, display, canvas);
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
-        this.listRunner = new PspGpuListRunner(memory, this.driver);
+		this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
     }
 
 	startAsync() {
@@ -660,13 +701,13 @@ export class PspGpu implements IPspGpu {
 	stopAsync() {
 		return Promise.resolve();
     }
-
         
-    listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {
+	listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {
         var list = this.listRunner.allocate();
         list.current = start;
         list.stall = stall;
-        list.callbackId = callbackId;
+		list.callbackId = callbackId;
+		list.argsPtr = argsPtr;
         list.start();
         return list.id;
     }
@@ -681,8 +722,13 @@ export class PspGpu implements IPspGpu {
         return 0;
     }
 
-	drawSync(syncType: _state.SyncType) {
+	drawSync(syncType: _state.SyncType): any {
 		//console.log('drawSync');
-        return this.listRunner.waitAsync();
+		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
+		switch (syncType) {
+			case _state.SyncType.Peek: return this.listRunner.peek();
+			case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();
+			default: throw (new Error("Not implemented SyncType." + syncType));
+		}
     }
 }

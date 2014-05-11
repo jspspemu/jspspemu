@@ -1,14 +1,19 @@
 ﻿import _thread = require('./thread');
+import _interop = require('./interop');
 import _cpu = require('../../core/cpu');
 import Signal = require('../../util/Signal');
 
 import CpuState = _cpu.CpuState;
 import Thread = _thread.Thread;
+import Interop = _interop.Interop;
 
 export class CallbackManager {
 	private uids = new UidCollection<Callback>(1);
 	private notifications = <CallbackNotification[]>[];
 	public onAdded = new Signal<number>();
+
+	constructor(private interop:Interop) {
+	}
 
 	get hasPendingCallbacks() {
 		return this.notifications.length > 0;
@@ -40,13 +45,11 @@ export class CallbackManager {
 		while (this.notifications.length > 0) {
 			var notification = this.notifications.shift();
 
-			state.preserveRegisters(() => {
-				state.RA = 0x1234;
-				state.gpr[4] = 1;
-				state.gpr[5] = notification.arg2;
-				state.gpr[6] = notification.callback.argument;
-				state.callPCSafe(notification.callback.funcptr);
-			});
+			this.interop.execute(
+				state,
+				notification.callback.funcptr,
+				[1, notification.arg2, notification.callback.argument]
+			);
 
 			count++;
 		}

@@ -398,8 +398,7 @@ function DebugOnce(name: string, times: number = 1) {
 }
 
 function isTouchDevice() {
-	return 'ontouchstart' in window // works on most browsers 
-		|| 'onmsgesturechange' in window; // works on ie10
+	return 'ontouchstart' in window;
 }
 
 class HalfFloat {

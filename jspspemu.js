@@ -2191,7 +2191,7 @@ function DebugOnce(name, times) {
 }
 
 function isTouchDevice() {
-    return 'ontouchstart' in window || 'onmsgesturechange' in window;
+    return 'ontouchstart' in window;
 }
 
 var HalfFloat = (function () {
@@ -4269,7 +4269,7 @@ var FunctionGenerator = (function () {
             return result;
         };
 
-        stms.add(ast.raw('var expectedRA = state.RA;'));
+        stms.add(ast.raw('var expectedRA = state.getRA();'));
 
         function returnWithCheck() {
             stms.add(ast.raw('return;'));
@@ -5525,6 +5525,7 @@ var CpuState = (function () {
         this.fcr31 = 0x00000e00;
     }
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
+        // @TODO
         this.vfpr[0] = 0;
     };
 
@@ -5619,6 +5620,12 @@ var CpuState = (function () {
         enumerable: true,
         configurable: true
     });
+    CpuState.prototype.getRA = function () {
+        return this.gpr[31];
+    };
+    CpuState.prototype.setRA = function (value) {
+        this.gpr[31] = value;
+    };
 
     CpuState.prototype.callstackPush = function (PC) {
         this.callstack.push(PC);
@@ -5888,18 +5895,20 @@ var CpuState = (function () {
 
     CpuState.prototype.callPC = function (pc) {
         this.PC = pc;
-        var ra = this.RA;
+        var ra = this.getRA();
         this.executor.executeUntilPCReachesWithoutCall(ra);
     };
 
     CpuState.prototype.callPCSafe = function (pc) {
         this.PC = pc;
-        var ra = this.RA;
+        var ra = this.getRA();
         while (this.PC != ra) {
             try  {
                 this.executor.executeUntilPCReachesWithoutCall(ra);
             } catch (e) {
                 if (!(e instanceof CpuBreakException)) {
+                    console.error(e);
+                    console.error(e['stack']);
                     throw (e);
                 }
             }
@@ -6170,10 +6179,15 @@ _gpu.PspGpu;
 var _state = require('./gpu/state');
 _state.AlphaTest;
 
+var PspGpuCallback = _gpu.PspGpuCallback;
+exports.PspGpuCallback = PspGpuCallback;
+_gpu.PspGpuCallback;
 var PspGpu = _gpu.PspGpu;
 exports.PspGpu = PspGpu;
 var SyncType = _state.SyncType;
 exports.SyncType = SyncType;
+var DisplayListStatus = _state.DisplayListStatus;
+exports.DisplayListStatus = DisplayListStatus;
 //# sourceMappingURL=gpu.js.map
 },
 "src/core/gpu/driver": function(module, exports, require) {
@@ -6183,7 +6197,12 @@ exports.SyncType = SyncType;
 var _instructions = require('./instructions');
 var _state = require('./state');
 
+var _cpu = require('../cpu');
+_cpu.CpuState;
 var _IndentStringGenerator = require('../../util/IndentStringGenerator');
+
+var DisplayListStatus = _state.DisplayListStatus;
+var CpuState = _cpu.CpuState;
 
 var ColorEnum = _state.ColorEnum;
 var GpuOpCodes = _instructions.GpuOpCodes;
@@ -6345,13 +6364,16 @@ var vertexBuffer = new VertexBuffer();
 var singleCallTest = false;
 
 var PspGpuList = (function () {
-    function PspGpuList(id, memory, drawDriver, runner) {
+    function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor) {
         this.id = id;
         this.memory = memory;
         this.drawDriver = drawDriver;
         this.runner = runner;
+        this.gpu = gpu;
+        this.cpuExecutor = cpuExecutor;
         this.completed = false;
         this.state = new _state.GpuState();
+        this.status = 4 /* Paused */;
         this.errorCount = 0;
     }
     PspGpuList.prototype.complete = function () {
@@ -6770,6 +6792,8 @@ var PspGpuList = (function () {
                 break;
 
             case 15 /* FINISH */:
+                var callback = this.gpu.callbacks.get(this.callbackId);
+
                 break;
 
             case 12 /* END */:
@@ -6791,15 +6815,25 @@ var PspGpuList = (function () {
         return false;
     };
 
+    Object.defineProperty(PspGpuList.prototype, "isStalled", {
+        get: function () {
+            return ((this.stall != 0) && (this.current >= this.stall));
+        },
+        enumerable: true,
+        configurable: true
+    });
+
     Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
         get: function () {
-            return !this.completed && ((this.stall == 0) || (this.current < this.stall));
+            return !this.completed && !this.isStalled;
+            //return !this.completed && ((this.stall == 0) || (this.current < this.stall));
         },
         enumerable: true,
         configurable: true
     });
 
     PspGpuList.prototype.runUntilStall = function () {
+        this.status = 2 /* Drawing */;
         while (this.hasMoreInstructions) {
             try  {
                 while (this.hasMoreInstructions) {
@@ -6808,6 +6842,7 @@ var PspGpuList = (function () {
                     if (this.runInstruction(this.current - 4, instruction))
                         return;
                 }
+                this.status = (this.isStalled) ? 3 /* Stalling */ : 0 /* Completed */;
             } catch (e) {
                 console.log(e);
                 console.log(e['stack']);
@@ -6829,6 +6864,8 @@ var PspGpuList = (function () {
 
     PspGpuList.prototype.start = function () {
         var _this = this;
+        this.status = 1 /* Queued */;
+
         this.promise = new Promise(function (resolve, reject) {
             _this.promiseResolve = resolve;
             _this.promiseReject = reject;
@@ -6845,14 +6882,16 @@ var PspGpuList = (function () {
 })();
 
 var PspGpuListRunner = (function () {
-    function PspGpuListRunner(memory, drawDriver) {
+    function PspGpuListRunner(memory, drawDriver, gpu, callbackManager) {
         this.memory = memory;
         this.drawDriver = drawDriver;
+        this.gpu = gpu;
+        this.callbackManager = callbackManager;
         this.lists = [];
         this.freeLists = [];
         this.runningLists = [];
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, drawDriver, this);
+            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager);
             this.lists.push(list);
             this.freeLists.push(list);
         }
@@ -6874,6 +6913,21 @@ var PspGpuListRunner = (function () {
         this.runningLists.remove(list);
     };
 
+    PspGpuListRunner.prototype.peek = function () {
+        var _this = this;
+        var _peek = (function () {
+            for (var n = 0; n < _this.runningLists.length; n++) {
+                var list = _this.runningLists[n];
+                if (list.status != 0 /* Completed */)
+                    return list.status;
+            }
+            return 0 /* Completed */;
+        });
+        var result = _peek();
+        console.warn('not implemented gpu list peeking -> ' + result);
+        return result;
+    };
+
     PspGpuListRunner.prototype.waitAsync = function () {
         return Promise.all(this.runningLists.map(function (list) {
             return list.waitAsync();
@@ -6884,15 +6938,29 @@ var PspGpuListRunner = (function () {
     return PspGpuListRunner;
 })();
 
+var PspGpuCallback = (function () {
+    function PspGpuCallback(cpuState, signalFunction, signalArgument, finishFunction, finishArgument) {
+        this.cpuState = cpuState;
+        this.signalFunction = signalFunction;
+        this.signalArgument = signalArgument;
+        this.finishFunction = finishFunction;
+        this.finishArgument = finishArgument;
+    }
+    return PspGpuCallback;
+})();
+exports.PspGpuCallback = PspGpuCallback;
+
 var PspGpu = (function () {
-    function PspGpu(memory, display, canvas) {
+    function PspGpu(memory, display, canvas, cpuExecutor) {
         this.memory = memory;
         this.display = display;
         this.canvas = canvas;
+        this.cpuExecutor = cpuExecutor;
+        this.callbacks = new UidCollection(1);
         this.driver = new WebGlPspDrawDriver(memory, display, canvas);
 
         //this.driver = new Context2dPspDrawDriver(memory, canvas);
-        this.listRunner = new PspGpuListRunner(memory, this.driver);
+        this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
     }
     PspGpu.prototype.startAsync = function () {
         return this.driver.initAsync();
@@ -6907,6 +6975,7 @@ var PspGpu = (function () {
         list.current = start;
         list.stall = stall;
         list.callbackId = callbackId;
+        list.argsPtr = argsPtr;
         list.start();
         return list.id;
     };
@@ -6922,8 +6991,14 @@ var PspGpu = (function () {
     };
 
     PspGpu.prototype.drawSync = function (syncType) {
-        //console.log('drawSync');
-        return this.listRunner.waitAsync();
+        switch (syncType) {
+            case 1 /* Peek */:
+                return this.listRunner.peek();
+            case 0 /* WaitForCompletion */:
+                return this.listRunner.waitAsync();
+            default:
+                throw (new Error("Not implemented SyncType." + syncType));
+        }
     };
     return PspGpu;
 })();
@@ -10334,6 +10409,7 @@ var ModuleManager = _manager.ModuleManager;
 var MemoryManager = _manager.MemoryManager;
 var FileManager = _manager.FileManager;
 var CallbackManager = _manager.CallbackManager;
+var Interop = _manager.Interop;
 
 var Emulator = (function () {
     function Emulator(memory) {
@@ -10369,10 +10445,11 @@ var Emulator = (function () {
             _this.instructionCache = new InstructionCache(_this.memory);
             _this.syscallManager = new SyscallManager(_this.context);
             _this.fileManager = new FileManager();
-            _this.callbackManager = new CallbackManager();
+            _this.interop = new Interop();
+            _this.callbackManager = new CallbackManager(_this.interop);
             _this.rtc = new PspRtc();
             _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
-            _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas);
+            _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas, _this.interop);
             _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new ModuleManager(_this.context);
 
@@ -13571,7 +13648,8 @@ var _thread = require('./manager/thread');
 _thread.Thread;
 var _callback = require('./manager/callback');
 _callback.Callback;
-;
+var _interop = require('./manager/interop');
+_interop.Interop;
 
 var Device = _file.Device;
 exports.Device = Device;
@@ -13611,13 +13689,17 @@ var Callback = _callback.Callback;
 exports.Callback = Callback;
 var CallbackManager = _callback.CallbackManager;
 exports.CallbackManager = CallbackManager;
+
+var Interop = _interop.Interop;
+exports.Interop = Interop;
 //# sourceMappingURL=manager.js.map
 },
 "src/hle/manager/callback": function(module, exports, require) {
 var Signal = require('../../util/Signal');
 
 var CallbackManager = (function () {
-    function CallbackManager() {
+    function CallbackManager(interop) {
+        this.interop = interop;
         this.uids = new UidCollection(1);
         this.notifications = [];
         this.onAdded = new Signal();
@@ -13657,13 +13739,7 @@ var CallbackManager = (function () {
         while (this.notifications.length > 0) {
             var notification = this.notifications.shift();
 
-            state.preserveRegisters(function () {
-                state.RA = 0x1234;
-                state.gpr[4] = 1;
-                state.gpr[5] = notification.arg2;
-                state.gpr[6] = notification.callback.argument;
-                state.callPCSafe(notification.callback.funcptr);
-            });
+            this.interop.execute(state, notification.callback.funcptr, [1, notification.arg2, notification.callback.argument]);
 
             count++;
         }
@@ -13874,6 +13950,29 @@ var FileManager = (function () {
 })();
 exports.FileManager = FileManager;
 //# sourceMappingURL=file.js.map
+},
+"src/hle/manager/interop": function(module, exports, require) {
+var _cpu = require('../../core/cpu');
+_cpu.CpuState;
+
+var CpuState = _cpu.CpuState;
+
+var Interop = (function () {
+    function Interop() {
+    }
+    Interop.prototype.execute = function (state, address, gprArray) {
+        state.preserveRegisters(function () {
+            state.setRA(0x1234);
+            for (var n = 0; n < gprArray.length; n++) {
+                state.gpr[4 + n] = gprArray[n];
+            }
+            state.callPCSafe(address);
+        });
+    };
+    return Interop;
+})();
+exports.Interop = Interop;
+//# sourceMappingURL=interop.js.map
 },
 "src/hle/manager/memory": function(module, exports, require) {
 var MemoryPartitions;
@@ -16203,17 +16302,21 @@ var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 
 var _gpu = require('../../core/gpu');
+_gpu.PspGpuCallback;
+
+var PspGpuCallback = _gpu.PspGpuCallback;
 
 var sceGe_user = (function () {
     function sceGe_user(context) {
         var _this = this;
         this.context = context;
-        this.sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'int', this, function (callbackDataPtr) {
-            //console.warn('Not implemented sceGe_user.sceGeSetCallback');
-            return 0;
+        this.sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*', this, function (thread, callbackDataPtr) {
+            var callbacks = _this.context.gpu.callbacks;
+            var info = CallbackData.struct.read(callbackDataPtr);
+            return callbacks.allocate(new PspGpuCallback(thread.state, info.signalFunction, info.signalArgument, info.finishFunction, info.finishArgument));
         });
         this.sceGeUnsetCallback = createNativeFunction(0x05DB22CE, 150, 'uint', 'int', this, function (callbackId) {
-            //console.warn('Not implemented sceGe_user.sceGeSetCallback');
+            _this.context.gpu.callbacks.remove(callbackId);
             return 0;
         });
         this.sceGeListEnQueue = createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, function (start, stall, callbackId, argsPtr) {
@@ -16228,9 +16331,6 @@ var sceGe_user = (function () {
             return _this.context.gpu.updateStallAddr(displayListId, stall);
         });
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
-            //console.warn('Not implemented sceGe_user.sceGeDrawSync');
-            if (syncType == 1 /* Peek */)
-                throw (new Error("Not implemented SyncType.Peek"));
             return _this.context.gpu.drawSync(syncType);
         });
         this.sceGeContinue = createNativeFunction(0x4C06E472, 150, 'uint', '', this, function () {
@@ -16251,6 +16351,18 @@ var sceGe_user = (function () {
     return sceGe_user;
 })();
 exports.sceGe_user = sceGe_user;
+
+var CallbackData = (function () {
+    function CallbackData() {
+    }
+    CallbackData.struct = StructClass.create(CallbackData, [
+        { signalFunction: UInt32 },
+        { signalArgument: UInt32 },
+        { finishFunction: UInt32 },
+        { finishArgument: UInt32 }
+    ]);
+    return CallbackData;
+})();
 //# sourceMappingURL=sceGe_user.js.map
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
@@ -17534,7 +17646,7 @@ var ThreadManForUser = (function () {
 
             //if (!newThread) debugger;
             var newState = newThread.state;
-            newState.RA = 268435455 /* EXIT_THREAD */;
+            newState.setRA(268435455 /* EXIT_THREAD */);
 
             var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
 
@@ -17562,6 +17674,10 @@ var ThreadManForUser = (function () {
             currentThread.exitStatus = exitStatus;
             currentThread.stop();
             throw (new CpuBreakException());
+        });
+        this.sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, function (threadId) {
+            var thread = _this.getThreadById(threadId);
+            return thread.exitStatus;
         });
         this.sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
             return _this._sceKernelDeleteThread(threadId);
@@ -19438,6 +19554,7 @@ var Signal = (function () {
     }
     Signal.prototype.add = function (callback) {
         this.callbacks.push(callback);
+        return callback;
     };
 
     Signal.prototype.remove = function (callback) {
