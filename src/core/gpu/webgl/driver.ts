@@ -53,9 +53,11 @@ class WebGlPspDrawDriver implements IDrawDriver {
 	}
 
 	private clearing: boolean;
+	private clearingFlags: ClearBufferSet;
 
 	setClearMode(clearing: boolean, flags: number) {
 		this.clearing = clearing;
+		this.clearingFlags = <ClearBufferSet>flags;
 		//console.log('clearing: ' + clearing + '; ' + flags);
 	}
 
@@ -88,7 +90,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.state = state;
 	}
 
-	private updateState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+	private updateNormalState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
 
@@ -123,6 +125,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.stencilOp(opsConvert[stencil.fail], opsConvert[stencil.zfail], opsConvert[stencil.zpass]);
 		}
 
+		gl.disable(gl.DEPTH_TEST);
+
 		var alphaTest = state.alphaTest;
 		if (alphaTest.enabled) {
 			//console.log(alphaTest.value);
@@ -134,13 +138,64 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			//console.warn("alphaTest.enabled = false");
 		}
 
-		var ratio = this.getScaleRatio();
+		gl.colorMask(true, true, true, true);
 
+	}
+
+	private updateClearState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+		var state = this.state;
+		var gl = this.gl;
+		var ccolorMask = false, calphaMask = false;
+		var clearingFlags = this.clearingFlags;
+		//gl.disable(gl.TEXTURE_2D);
+		gl.disable(gl.SCISSOR_TEST);
+		gl.disable(gl.BLEND);
+		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.STENCIL_TEST);
+		gl.disable(gl.CULL_FACE);
+		gl.depthMask(false);
+
+		if (clearingFlags & ClearBufferSet.ColorBuffer) {
+			ccolorMask = true;
+		}
+
+		if (clearingFlags & ClearBufferSet.StencilBuffer) {
+			calphaMask = true;
+			gl.enable(gl.STENCIL_TEST);
+			gl.stencilFunc(gl.ALWAYS, 0x00, 0xFF);
+			gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
+		}
+
+		if (clearingFlags & ClearBufferSet.DepthBuffer) {
+			gl.enable(gl.DEPTH_TEST);
+			gl.depthFunc(gl.ALWAYS);
+			gl.depthMask(true);
+			gl.depthRange(0, 0);
+		}
+
+		gl.colorMask(ccolorMask, ccolorMask, ccolorMask, calphaMask);
+	}
+
+	private updateCommonState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+		var ratio = this.getScaleRatio();
 		this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * ratio, this.state.viewPort.height * ratio);
+	}
+
+	private updateState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+		if (this.state.clearing) {
+			this.updateClearState(program, vertexState, primitiveType);
+		} else {
+			this.updateNormalState(program, vertexState, primitiveType);
+		}
+		this.updateCommonState(program, vertexState, primitiveType);
 	}
 
 	getScaleRatio() {
 		return this.canvas.width / 480;
+	}
+
+	drawBezier(ucount: number, vcount: number) {
+		var divs = this.state.patch.divs, divt = this.state.patch.divt;
 	}
 
 	drawElements(primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
@@ -288,23 +343,35 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		var gl = this.gl;
 
 		//console.log(primitiveType);
-		if (this.clearing) {
-			this.textureHandler.unbindTexture(program, this.state);
-			gl.clearColor(0, 0, 0, 1);
-			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-			return;
-		}
-
 		var program = this.cache.getProgram(vertexState, this.state);
 		program.use();
-		this.updateState(program, vertexState, originalPrimitiveType);
-
 		this.demuxVertices(vertices, count, vertexState, primitiveType);
+
+		this.updateState(program, vertexState, originalPrimitiveType);
 		this.setProgramParameters(gl, program, vertexState);
-		this.prepareTexture(gl, program, vertexState);
+
+		if (this.clearing) {
+			this.textureHandler.unbindTexture(program, this.state);
+			/*
+			gl.clearColor(0.5, 0, 0, 1);
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			return;
+			*/
+		} else {
+			this.prepareTexture(gl, program, vertexState);
+		}
+
 		this.drawArraysActual(gl, primitiveType, count);
 		this.unsetProgramParameters(gl, program, vertexState);
 	}
 }
 
+enum ClearBufferSet {
+	ColorBuffer = 1,
+	StencilBuffer = 2,
+	DepthBuffer = 4,
+	FastClear = 16
+}
+
 export = WebGlPspDrawDriver;
+

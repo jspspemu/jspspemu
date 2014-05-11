@@ -707,6 +707,15 @@ var BitUtils = (function () {
         return (data >> offset) & ((1 << length) - 1);
     };
 
+    BitUtils.extractSigned = function (data, offset, length) {
+        var mask = this.mask(length);
+        var value = this.extract(data, offset, length);
+        var signBit = (1 << (offset + (length - 1)));
+        if (value & signBit)
+            value |= ~mask;
+        return value;
+    };
+
     BitUtils.extractScale1f = function (data, offset, length) {
         var mask = (1 << length) - 1;
         return (((data >>> offset) & mask) / mask);
@@ -1771,7 +1780,7 @@ function StringWithSize(callback) {
 }
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2184,6 +2193,80 @@ function DebugOnce(name, times) {
 function isTouchDevice() {
     return 'ontouchstart' in window || 'onmsgesturechange' in window;
 }
+
+var HalfFloat = (function () {
+    function HalfFloat() {
+    }
+    HalfFloat.fromFloat = function (Float) {
+        var i = MathFloat.reinterpretFloatAsInt(Float);
+        var s = ((i >> 16) & 0x00008000);
+        var e = ((i >> 23) & 0x000000ff) - (127 - 15);
+        var f = ((i >> 0) & 0x007fffff);
+
+        // need to handle NaNs and Inf?
+        if (e <= 0) {
+            if (e < -10) {
+                if (s != 0) {
+                    // handle -0.0
+                    return 0x8000;
+                }
+                return 0;
+            }
+            f = (f | 0x00800000) >> (1 - e);
+            return s | (f >> 13);
+        } else if (e == 0xff - (127 - 15)) {
+            if (f == 0) {
+                // Inf
+                return s | 0x7c00;
+            }
+
+            // NAN
+            f >>= 13;
+            return s | 0x7c00 | f | ((f == 0) ? 1 : 0);
+        }
+        if (e > 30) {
+            // Overflow
+            return s | 0x7c00;
+        }
+        return s | (e << 10) | (f >> 13);
+    };
+
+    HalfFloat.toFloat = function (imm16) {
+        var s = (imm16 >> 15) & 0x00000001;
+        var e = (imm16 >> 10) & 0x0000001f;
+        var f = (imm16 >> 0) & 0x000003ff;
+
+        // Need to handle 0x7C00 INF and 0xFC00 -INF?
+        if (e == 0) {
+            // Need to handle +-0 case f==0 or f=0x8000?
+            if (f == 0) {
+                // Plus or minus zero
+                return MathFloat.reinterpretIntAsFloat(s << 31);
+            }
+
+            while ((f & 0x00000400) == 0) {
+                f <<= 1;
+                e -= 1;
+            }
+            e += 1;
+            f &= ~0x00000400;
+        } else if (e == 31) {
+            if (f == 0) {
+                // Inf
+                return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000);
+            }
+
+            // NaN
+            return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000 | (f << 13));
+        }
+
+        e = e + (127 - 15);
+        f = f << 13;
+
+        return MathFloat.reinterpretIntAsFloat((s << 31) | (e << 23) | f);
+    };
+    return HalfFloat;
+})();
 //# sourceMappingURL=utils.js.map
 
 var require = (function() {
@@ -2369,18 +2452,26 @@ var PspAudioChannel = (function () {
         if (this.node)
             this.node.connect(this.context.destination);
         this.audio.playingChannels.add(this);
+        //document.addEventListener("visibilitychange", this.onVisibilityChanged);
     };
 
+    /*
+    private onVisibilityChanged() {
+    document.hidden;
+    }
+    */
     PspAudioChannel.prototype.stop = function () {
         if (this.node)
             this.node.disconnect();
         this.audio.playingChannels.delete(this);
+        //document.removeEventListener("visibilitychange", this.onVisibilityChanged);
     };
 
     PspAudioChannel.prototype.process = function (e) {
         var left = e.outputBuffer.getChannelData(0);
         var right = e.outputBuffer.getChannelData(1);
         var sampleCount = left.length;
+        var hidden = document.hidden;
 
         for (var n = 0; n < sampleCount; n++) {
             if (!this.currentBuffer) {
@@ -2403,6 +2494,9 @@ var PspAudioChannel = (function () {
                 this.currentBuffer = null;
                 n--;
             }
+
+            if (hidden)
+                left[n] = right[n] = 0;
         }
     };
 
@@ -3063,6 +3157,9 @@ function immBool(value) {
 function imm32(value) {
     return ast.imm32(value);
 }
+function imm_f(value) {
+    return ast.imm_f(value);
+}
 function u_imm32(value) {
     return ast.u_imm32(value);
 }
@@ -3121,12 +3218,26 @@ function cast_uint(expr) {
     return binop(expr, '>>>', ast.imm32(0));
 }
 
+function setMatrix(reg, generator) {
+    // @TODO
+    return stm(ast.call('state.vfpuSetMatrix', [
+        generator(0, 0)
+    ]));
+}
+
 var InstructionAst = (function () {
     function InstructionAst() {
         ast = new _ast.MipsAstBuilder();
     }
     InstructionAst.prototype.lui = function (i) {
         return assignGpr(i.rt, u_imm32(i.imm16 << 16));
+    };
+
+    InstructionAst.prototype.vmzero = function (i) {
+        // @TODO
+        return setMatrix(i.VD, function (c, r) {
+            return imm32(0);
+        });
     };
 
     InstructionAst.prototype.add = function (i) {
@@ -3773,6 +3884,19 @@ var ANodeExprI32 = (function (_super) {
 })(ANodeExpr);
 exports.ANodeExprI32 = ANodeExprI32;
 
+var ANodeExprFloat = (function (_super) {
+    __extends(ANodeExprFloat, _super);
+    function ANodeExprFloat(value) {
+        _super.call(this);
+        this.value = value;
+    }
+    ANodeExprFloat.prototype.toJs = function () {
+        return String(this.value);
+    };
+    return ANodeExprFloat;
+})(ANodeExpr);
+exports.ANodeExprFloat = ANodeExprFloat;
+
 var ANodeExprU32 = (function (_super) {
     __extends(ANodeExprU32, _super);
     function ANodeExprU32(value) {
@@ -3885,6 +4009,9 @@ var AstBuilder = (function () {
     };
     AstBuilder.prototype.imm32 = function (value) {
         return new ANodeExprI32(value);
+    };
+    AstBuilder.prototype.imm_f = function (value) {
+        return new ANodeExprFloat(value);
     };
     AstBuilder.prototype.u_imm32 = function (value) {
         return new ANodeExprU32(value);
@@ -5003,6 +5130,9 @@ var Instruction = (function () {
     Instruction.prototype.extract = function (offset, length) {
         return BitUtils.extract(this.data, offset, length);
     };
+    Instruction.prototype.extract_s = function (offset, length) {
+        return BitUtils.extractSigned(this.data, offset, length);
+    };
     Instruction.prototype.insert = function (offset, length, value) {
         this.data = BitUtils.insert(this.data, offset, length, value);
     };
@@ -5064,6 +5194,155 @@ var Instruction = (function () {
         },
         set: function (value) {
             this.insert(6 + 5 * 2, 5, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Instruction.prototype, "VD", {
+        get: function () {
+            return this.extract(0, 7);
+        },
+        set: function (value) {
+            this.insert(0, 7, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VS", {
+        get: function () {
+            return this.extract(8, 7);
+        },
+        set: function (value) {
+            this.insert(8, 7, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT", {
+        get: function () {
+            return this.extract(16, 7);
+        },
+        set: function (value) {
+            this.insert(16, 7, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT5_1", {
+        get: function () {
+            return this.VT5 | (this.VT1 << 5);
+        },
+        set: function (value) {
+            this.VT5 = value;
+            this.VT1 = (value >>> 5);
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Instruction.prototype, "IMM14", {
+        // @TODO: Signed or unsigned?
+        get: function () {
+            return this.extract_s(2, 14);
+        },
+        set: function (value) {
+            this.insert(2, 14, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Object.defineProperty(Instruction.prototype, "IMM8", {
+        get: function () {
+            return this.extract(16, 8);
+        },
+        set: function (value) {
+            this.insert(16, 8, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM5", {
+        get: function () {
+            return this.extract(16, 5);
+        },
+        set: function (value) {
+            this.insert(16, 5, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM3", {
+        get: function () {
+            return this.extract(16, 3);
+        },
+        set: function (value) {
+            this.insert(16, 3, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM7", {
+        get: function () {
+            return this.extract(0, 7);
+        },
+        set: function (value) {
+            this.insert(0, 7, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM4", {
+        get: function () {
+            return this.extract(0, 4);
+        },
+        set: function (value) {
+            this.insert(0, 4, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT1", {
+        get: function () {
+            return this.extract(0, 1);
+        },
+        set: function (value) {
+            this.insert(0, 1, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT2", {
+        get: function () {
+            return this.extract(0, 2);
+        },
+        set: function (value) {
+            this.insert(0, 2, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT5", {
+        get: function () {
+            return this.extract(16, 5);
+        },
+        set: function (value) {
+            this.insert(16, 5, value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT5_2", {
+        get: function () {
+            return this.VT5 | (this.VT2 << 5);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM_HF", {
+        get: function () {
+            return HalfFloat.toFloat(this.imm16);
         },
         enumerable: true,
         configurable: true
@@ -5226,6 +5505,8 @@ var CpuState = (function () {
         this.fpr = new Float32Array(this.fpr_Buffer);
         this.fpr_i = new Int32Array(this.fpr_Buffer);
         //fpr: Float32Array = new Float32Array(32);
+        this.vfpr_Buffer = new ArrayBuffer(128 * 4);
+        this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.BRANCHFLAG = false;
         this.BRANCHPC = 0;
         this.PC = 0;
@@ -5243,6 +5524,10 @@ var CpuState = (function () {
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
     }
+    CpuState.prototype.vfpuSetMatrix = function (m, values) {
+        this.vfpr[0] = 0;
+    };
+
     CpuState.prototype.preserveRegisters = function (callback) {
         var temp = new CpuState(this.memory, this.syscallManager);
         temp.copyRegistersFrom(this);
@@ -5941,7 +6226,6 @@ var VertexReader = (function () {
         var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
         var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
 
-        //debugger;
         if (this.vertexState.hasIndex) {
             for (var n = 0; n < count; n++) {
                 var index = indices[n];
@@ -6178,16 +6462,22 @@ var PspGpuList = (function () {
                 this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
                 break;
             case 198 /* TFLT */:
-                this.state.texture.filterMinification = BitUtils.extract(params24, 0, 8);
-                this.state.texture.filterMagnification = BitUtils.extract(params24, 8, 8);
+                this.state.texture.filterMinification = BitUtils.extractEnum(params24, 0, 8);
+                this.state.texture.filterMagnification = BitUtils.extractEnum(params24, 8, 8);
                 break;
             case 199 /* TWRAP */:
-                this.state.texture.wrapU = BitUtils.extract(params24, 0, 8);
-                this.state.texture.wrapV = BitUtils.extract(params24, 8, 8);
+                this.state.texture.wrapU = BitUtils.extractEnum(params24, 0, 8);
+                this.state.texture.wrapV = BitUtils.extractEnum(params24, 8, 8);
                 break;
 
             case 30 /* TME */:
                 this.state.texture.enabled = (params24 != 0);
+                break;
+
+            case 192 /* TMAP */:
+                this.state.texture.textureMapMode = BitUtils.extractEnum(params24, 0, 8);
+                this.state.texture.textureProjectionMapMode = BitUtils.extractEnum(params24, 8, 8);
+                this.state.vertex.normalCount = this.state.texture.getTextureComponentsCount();
                 break;
 
             case 193 /* TEXTURE_ENV_MAP_MATRIX */:
@@ -6424,6 +6714,17 @@ var PspGpuList = (function () {
                 this.state.blending.fixColorDestinationRGB = params24;
                 break;
 
+            case 54 /* PSUB */:
+                this.state.patch.divs = BitUtils.extract(params24, 0, 8);
+                this.state.patch.divt = BitUtils.extract(params24, 8, 8);
+                break;
+
+            case 5 /* BEZIER */:
+                var ucount = BitUtils.extract(params24, 0, 8);
+                var vcount = BitUtils.extract(params24, 8, 8);
+                this.drawDriver.drawBezier(ucount, vcount);
+                break;
+
             case 4 /* PRIM */:
                 //if (this.current < this.stall) {
                 //	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
@@ -6577,7 +6878,7 @@ var PspGpuListRunner = (function () {
         return Promise.all(this.runningLists.map(function (list) {
             return list.waitAsync();
         })).then(function () {
-            return 0;
+            return 0 /* Completed */;
         });
     };
     return PspGpuListRunner;
@@ -6903,13 +7204,19 @@ var PixelFormat = _pixelformat.PixelFormat;
 var CullingDirection = exports.CullingDirection;
 
 (function (SyncType) {
-    SyncType[SyncType["ListDone"] = 0] = "ListDone";
-    SyncType[SyncType["ListQueued"] = 1] = "ListQueued";
-    SyncType[SyncType["ListDrawingDone"] = 2] = "ListDrawingDone";
-    SyncType[SyncType["ListStallReached"] = 3] = "ListStallReached";
-    SyncType[SyncType["ListCancelDone"] = 4] = "ListCancelDone";
+    SyncType[SyncType["WaitForCompletion"] = 0] = "WaitForCompletion";
+    SyncType[SyncType["Peek"] = 1] = "Peek";
 })(exports.SyncType || (exports.SyncType = {}));
 var SyncType = exports.SyncType;
+
+(function (DisplayListStatus) {
+    DisplayListStatus[DisplayListStatus["Completed"] = 0] = "Completed";
+    DisplayListStatus[DisplayListStatus["Queued"] = 1] = "Queued";
+    DisplayListStatus[DisplayListStatus["Drawing"] = 2] = "Drawing";
+    DisplayListStatus[DisplayListStatus["Stalling"] = 3] = "Stalling";
+    DisplayListStatus[DisplayListStatus["Paused"] = 4] = "Paused";
+})(exports.DisplayListStatus || (exports.DisplayListStatus = {}));
+var DisplayListStatus = exports.DisplayListStatus;
 
 var GpuFrameBufferState = (function () {
     function GpuFrameBufferState() {
@@ -7011,6 +7318,7 @@ var VertexState = (function () {
         this.address = 0;
         this._value = 0;
         this.reversedNormal = false;
+        this.normalCount = 2;
         this.textureComponentCount = 2;
     }
     Object.defineProperty(VertexState.prototype, "value", {
@@ -7417,6 +7725,21 @@ var ClutState = (function () {
 })();
 exports.ClutState = ClutState;
 
+(function (TextureProjectionMapMode) {
+    TextureProjectionMapMode[TextureProjectionMapMode["GU_POSITION"] = 0] = "GU_POSITION";
+    TextureProjectionMapMode[TextureProjectionMapMode["GU_UV"] = 1] = "GU_UV";
+    TextureProjectionMapMode[TextureProjectionMapMode["GU_NORMALIZED_NORMAL"] = 2] = "GU_NORMALIZED_NORMAL";
+    TextureProjectionMapMode[TextureProjectionMapMode["GU_NORMAL"] = 3] = "GU_NORMAL";
+})(exports.TextureProjectionMapMode || (exports.TextureProjectionMapMode = {}));
+var TextureProjectionMapMode = exports.TextureProjectionMapMode;
+
+(function (TextureMapMode) {
+    TextureMapMode[TextureMapMode["GU_TEXTURE_COORDS"] = 0] = "GU_TEXTURE_COORDS";
+    TextureMapMode[TextureMapMode["GU_TEXTURE_MATRIX"] = 1] = "GU_TEXTURE_MATRIX";
+    TextureMapMode[TextureMapMode["GU_ENVIRONMENT_MAP"] = 2] = "GU_ENVIRONMENT_MAP";
+})(exports.TextureMapMode || (exports.TextureMapMode = {}));
+var TextureMapMode = exports.TextureMapMode;
+
 var TextureState = (function () {
     function TextureState() {
         this.enabled = false;
@@ -7440,7 +7763,32 @@ var TextureState = (function () {
         this.pixelFormat = 3 /* RGBA_8888 */;
         this.clut = new ClutState();
         this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
+        this.textureProjectionMapMode = 3 /* GU_NORMAL */;
+        this.textureMapMode = 0 /* GU_TEXTURE_COORDS */;
     }
+    TextureState.prototype.getTextureComponentsCount = function () {
+        switch (this.textureMapMode) {
+            default:
+            case 0 /* GU_TEXTURE_COORDS */:
+                return 2;
+            case 1 /* GU_TEXTURE_MATRIX */:
+                switch (this.textureProjectionMapMode) {
+                    case 3 /* GU_NORMAL */:
+                        return 3;
+                    case 2 /* GU_NORMALIZED_NORMAL */:
+                        return 3;
+                    case 0 /* GU_POSITION */:
+                        return 3;
+                    case 1 /* GU_UV */:
+                        return 2;
+                    default:
+                        return 2;
+                }
+                break;
+            case 2 /* GU_ENVIRONMENT_MAP */:
+                return 2;
+        }
+    };
     return TextureState;
 })();
 exports.TextureState = TextureState;
@@ -7606,6 +7954,15 @@ var StencilState = (function () {
 })();
 exports.StencilState = StencilState;
 
+var PatchState = (function () {
+    function PatchState() {
+        this.divs = 0;
+        this.divt = 0;
+    }
+    return PatchState;
+})();
+exports.PatchState = PatchState;
+
 var GpuState = (function () {
     function GpuState() {
         this.clearing = false;
@@ -7627,6 +7984,7 @@ var GpuState = (function () {
         this.lightning = new Lightning();
         this.alphaTest = new AlphaTest();
         this.blending = new Blending();
+        this.patch = new PatchState();
         this.texture = new TextureState();
         this.ambientModelColor = new ColorState();
         this.lighting = new LightingState();
@@ -7746,6 +8104,7 @@ var WebGlPspDrawDriver = (function () {
 
     WebGlPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
         this.clearing = clearing;
+        this.clearingFlags = flags;
         //console.log('clearing: ' + clearing + '; ' + flags);
     };
 
@@ -7774,7 +8133,7 @@ var WebGlPspDrawDriver = (function () {
         this.state = state;
     };
 
-    WebGlPspDrawDriver.prototype.updateState = function (program, vertexState, primitiveType) {
+    WebGlPspDrawDriver.prototype.updateNormalState = function (program, vertexState, primitiveType) {
         var state = this.state;
         var gl = this.gl;
 
@@ -7815,6 +8174,8 @@ var WebGlPspDrawDriver = (function () {
             gl.stencilOp(opsConvert[stencil.fail], opsConvert[stencil.zfail], opsConvert[stencil.zpass]);
         }
 
+        gl.disable(gl.DEPTH_TEST);
+
         var alphaTest = state.alphaTest;
         if (alphaTest.enabled) {
             //console.log(alphaTest.value);
@@ -7826,13 +8187,64 @@ var WebGlPspDrawDriver = (function () {
             //console.warn("alphaTest.enabled = false");
         }
 
-        var ratio = this.getScaleRatio();
+        gl.colorMask(true, true, true, true);
+    };
 
+    WebGlPspDrawDriver.prototype.updateClearState = function (program, vertexState, primitiveType) {
+        var state = this.state;
+        var gl = this.gl;
+        var ccolorMask = false, calphaMask = false;
+        var clearingFlags = this.clearingFlags;
+
+        //gl.disable(gl.TEXTURE_2D);
+        gl.disable(gl.SCISSOR_TEST);
+        gl.disable(gl.BLEND);
+        gl.disable(gl.DEPTH_TEST);
+        gl.disable(gl.STENCIL_TEST);
+        gl.disable(gl.CULL_FACE);
+        gl.depthMask(false);
+
+        if (clearingFlags & 1 /* ColorBuffer */) {
+            ccolorMask = true;
+        }
+
+        if (clearingFlags & 2 /* StencilBuffer */) {
+            calphaMask = true;
+            gl.enable(gl.STENCIL_TEST);
+            gl.stencilFunc(gl.ALWAYS, 0x00, 0xFF);
+            gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
+        }
+
+        if (clearingFlags & 4 /* DepthBuffer */) {
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(gl.ALWAYS);
+            gl.depthMask(true);
+            gl.depthRange(0, 0);
+        }
+
+        gl.colorMask(ccolorMask, ccolorMask, ccolorMask, calphaMask);
+    };
+
+    WebGlPspDrawDriver.prototype.updateCommonState = function (program, vertexState, primitiveType) {
+        var ratio = this.getScaleRatio();
         this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * ratio, this.state.viewPort.height * ratio);
+    };
+
+    WebGlPspDrawDriver.prototype.updateState = function (program, vertexState, primitiveType) {
+        if (this.state.clearing) {
+            this.updateClearState(program, vertexState, primitiveType);
+        } else {
+            this.updateNormalState(program, vertexState, primitiveType);
+        }
+        this.updateCommonState(program, vertexState, primitiveType);
     };
 
     WebGlPspDrawDriver.prototype.getScaleRatio = function () {
         return this.canvas.width / 480;
+    };
+
+    WebGlPspDrawDriver.prototype.drawBezier = function (ucount, vcount) {
+        var divs = this.state.patch.divs, divt = this.state.patch.divt;
     };
 
     WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
@@ -7985,25 +8397,37 @@ var WebGlPspDrawDriver = (function () {
         var gl = this.gl;
 
         //console.log(primitiveType);
-        if (this.clearing) {
-            this.textureHandler.unbindTexture(program, this.state);
-            gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            return;
-        }
-
         var program = this.cache.getProgram(vertexState, this.state);
         program.use();
-        this.updateState(program, vertexState, originalPrimitiveType);
-
         this.demuxVertices(vertices, count, vertexState, primitiveType);
+
+        this.updateState(program, vertexState, originalPrimitiveType);
         this.setProgramParameters(gl, program, vertexState);
-        this.prepareTexture(gl, program, vertexState);
+
+        if (this.clearing) {
+            this.textureHandler.unbindTexture(program, this.state);
+            /*
+            gl.clearColor(0.5, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            return;
+            */
+        } else {
+            this.prepareTexture(gl, program, vertexState);
+        }
+
         this.drawArraysActual(gl, primitiveType, count);
         this.unsetProgramParameters(gl, program, vertexState);
     };
     return WebGlPspDrawDriver;
 })();
+
+var ClearBufferSet;
+(function (ClearBufferSet) {
+    ClearBufferSet[ClearBufferSet["ColorBuffer"] = 1] = "ColorBuffer";
+    ClearBufferSet[ClearBufferSet["StencilBuffer"] = 2] = "StencilBuffer";
+    ClearBufferSet[ClearBufferSet["DepthBuffer"] = 4] = "DepthBuffer";
+    ClearBufferSet[ClearBufferSet["FastClear"] = 16] = "FastClear";
+})(ClearBufferSet || (ClearBufferSet = {}));
 
 module.exports = WebGlPspDrawDriver;
 //# sourceMappingURL=driver.js.map
@@ -8023,6 +8447,7 @@ var ShaderCache = (function () {
     ShaderCache.prototype.getProgram = function (vertex, state) {
         var hash = vertex.hash;
         hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
+        hash += Math.pow(2, 33) * (state.clearing ? 1 : 0);
         if (this.programs[hash])
             return this.programs[hash];
         return this.programs[hash] = this.createProgram(vertex, state);
@@ -8034,8 +8459,11 @@ var ShaderCache = (function () {
             defines.push('VERTEX_COLOR');
         if (vertex.hasTexture)
             defines.push('VERTEX_TEXTURE');
-        if (state.alphaTest.enabled)
-            defines.push('ALPHATEST');
+
+        if (!state.clearing) {
+            if (state.alphaTest.enabled)
+                defines.push('ALPHATEST');
+        }
 
         var preppend = defines.map(function (item) {
             return '#define ' + item + ' 1';
@@ -9937,16 +10365,16 @@ var Emulator = (function () {
             _this.audio = new PspAudio();
             _this.canvas = (document.getElementById('canvas'));
             _this.webgl_canvas = (document.getElementById('webgl_canvas'));
-            _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
-            _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas);
             _this.controller = new PspController();
             _this.instructionCache = new InstructionCache(_this.memory);
             _this.syscallManager = new SyscallManager(_this.context);
             _this.fileManager = new FileManager();
-            _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
-            _this.moduleManager = new ModuleManager(_this.context);
             _this.callbackManager = new CallbackManager();
             _this.rtc = new PspRtc();
+            _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
+            _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas);
+            _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
+            _this.moduleManager = new ModuleManager(_this.context);
 
             _this.emulatorVfs = new EmulatorVfs();
             _this.ms0Vfs = new MountableVfs();
@@ -13186,11 +13614,22 @@ exports.CallbackManager = CallbackManager;
 //# sourceMappingURL=manager.js.map
 },
 "src/hle/manager/callback": function(module, exports, require) {
+var Signal = require('../../util/Signal');
+
 var CallbackManager = (function () {
     function CallbackManager() {
         this.uids = new UidCollection(1);
         this.notifications = [];
+        this.onAdded = new Signal();
     }
+    Object.defineProperty(CallbackManager.prototype, "hasPendingCallbacks", {
+        get: function () {
+            return this.notifications.length > 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
     CallbackManager.prototype.register = function (callback) {
         return this.uids.allocate(callback);
     };
@@ -13208,6 +13647,7 @@ var CallbackManager = (function () {
 
         //if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
         this.notifications.push(new CallbackNotification(callback, arg2));
+        this.onAdded.dispatch(this.notifications.length);
     };
 
     CallbackManager.prototype.executePendingWithinThread = function (thread) {
@@ -13873,6 +14313,7 @@ var Thread = (function () {
         this.waitingObject = null;
         this.waitingPromise = null;
         this.runningPromise = null;
+        this.acceptingCallbacks = false;
         this.wakeupCount = 0;
         this.wakeupPromise = null;
         this.wakeupFunc = null;
@@ -13884,6 +14325,14 @@ var Thread = (function () {
         });
         this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
     }
+    Object.defineProperty(Thread.prototype, "runningOrAcceptingCallbacks", {
+        get: function () {
+            return this.running || this.acceptingCallbacks;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
     Thread.prototype.delete = function () {
         this.stackPartition.deallocate();
     };
@@ -13954,6 +14403,7 @@ var Thread = (function () {
         this.info = info;
         this.waitingName = info.name;
         this.waitingObject = info.object;
+        this.acceptingCallbacks = (info.callbacks == 1 /* YES */);
         this._suspendUntilPromiseDone(info.promise);
     };
 
@@ -13974,6 +14424,7 @@ var Thread = (function () {
             _this.waitingPromise = null;
             _this.waitingName = null;
             _this.waitingObject = null;
+            _this.acceptingCallbacks = false;
             if (result !== undefined)
                 _this.state.V0 = result;
 
@@ -14019,10 +14470,11 @@ var Thread = (function () {
 exports.Thread = Thread;
 
 var ThreadManager = (function () {
-    function ThreadManager(memory, interruptManager, memoryManager, display, syscallManager, instructionCache) {
+    function ThreadManager(memory, interruptManager, callbackManager, memoryManager, display, syscallManager, instructionCache) {
         var _this = this;
         this.memory = memory;
         this.interruptManager = interruptManager;
+        this.callbackManager = callbackManager;
         this.memoryManager = memoryManager;
         this.display = display;
         this.syscallManager = syscallManager;
@@ -14031,6 +14483,7 @@ var ThreadManager = (function () {
         this.interval = -1;
         this.enqueued = false;
         this.running = false;
+        this.callbackAdded = null;
         this.exitPromise = new Promise(function (resolve, reject) {
             _this.exitResolve = resolve;
         });
@@ -14094,30 +14547,46 @@ var ThreadManager = (function () {
                 this.interruptManager.execute(this.threads.elements[0].state);
             }
 
-            var threadCount = 0;
-            var priority = 2147483648;
+            var callbackThreadCount = 0;
+            var callbackPriority = Number.MAX_VALUE;
+            var runningThreadCount = 0;
+            var runningPriority = Number.MAX_VALUE;
 
             this.threads.forEach(function (thread) {
+                if (_this.callbackManager.hasPendingCallbacks) {
+                    if (thread.acceptingCallbacks) {
+                        callbackThreadCount++;
+                        callbackPriority = Math.min(callbackPriority, thread.priority);
+                    }
+                }
                 if (thread.running) {
-                    threadCount++;
-                    priority = Math.min(priority, thread.priority);
+                    runningThreadCount++;
+                    runningPriority = Math.min(runningPriority, thread.priority);
                 }
             });
 
-            if (threadCount == 0)
+            if ((runningThreadCount == 0) && (callbackThreadCount == 0))
                 break;
 
-            this.threads.forEach(function (thread) {
-                if (thread.running) {
-                    if (thread.priority == priority) {
+            if (callbackThreadCount != 0) {
+                this.threads.forEach(function (thread) {
+                    if (thread.acceptingCallbacks && (thread.priority == callbackPriority)) {
+                        _this.callbackManager.executePendingWithinThread(thread);
+                    }
+                });
+            }
+
+            if (runningThreadCount != 0) {
+                this.threads.forEach(function (thread) {
+                    if (thread.running && (thread.priority == runningPriority)) {
                         do {
                             thread.runStep();
                             if (!_this.interruptManager.enabled)
                                 console.log('interrupts disabled, no thread scheduling!');
                         } while(!_this.interruptManager.enabled);
                     }
-                }
-            });
+                });
+            }
 
             var current = window.performance.now();
             if (current - start >= 100) {
@@ -14138,13 +14607,18 @@ var ThreadManager = (function () {
     };
 
     ThreadManager.prototype.startAsync = function () {
+        var _this = this;
         this.running = true;
         this.eventOcurred();
+        this.callbackAdded = this.callbackManager.onAdded.add(function () {
+            _this.eventOcurred();
+        });
         return Promise.resolve();
     };
 
     ThreadManager.prototype.stopAsync = function () {
         this.running = false;
+        this.callbackManager.onAdded.remove(this.callbackAdded);
         clearInterval(this.interval);
         this.interval = -1;
         return Promise.resolve();
@@ -14962,12 +15436,12 @@ var sceAtrac3plus = (function () {
     function sceAtrac3plus(context) {
         var _this = this;
         this.context = context;
-        this.atrac3Ids = new UidCollection();
+        this._atrac3Ids = new UidCollection();
         this.sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]', this, function (data) {
-            return _this.atrac3Ids.allocate(Atrac3.fromStream(data));
+            return _this._atrac3Ids.allocate(Atrac3.fromStream(data));
         });
         this.sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
             puiPosition.writeInt32(0);
             puiDataByte.writeInt32(0);
             return 2153971746 /* ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED */;
@@ -14977,11 +15451,11 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracReleaseAtracID = createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
-            _this.atrac3Ids.remove(id);
+            _this._atrac3Ids.remove(id);
             return 0;
         });
         this.sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
 
             return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
                 var reachedEnd = 0;
@@ -14991,15 +15465,15 @@ var sceAtrac3plus = (function () {
                     if (reachedEndPtr)
                         reachedEndPtr.writeInt32(reachedEnd);
                     if (decodedSamplesCountPtr)
-                        decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.fmt.atracChannels);
+                        decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.format.atracChannels);
                     if (remainingFramesToDecodePtr)
                         remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
                 }
 
                 //Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
                 if (atrac3.decodingReachedEnd) {
-                    //if (atrac3.numberOfLoops == 0) {
-                    if (true) {
+                    if (atrac3.numberOfLoops == 0) {
+                        //if (true) {
                         decodedSamples = 0;
                         reachedEnd = 1;
                         remainingFramesToDecode = 0;
@@ -15008,7 +15482,8 @@ var sceAtrac3plus = (function () {
                     }
                     if (atrac3.numberOfLoops > 0)
                         atrac3.numberOfLoops--;
-                    //atrac3.decodingOffset = (atrac3.LoopInfoList.Length > 0) ? atrac3.LoopInfoList[0].StartSample : 0;
+
+                    atrac3.currentSample = (atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0;
                 }
 
                 //return Atrac.GetUidIndex(InjectContext);
@@ -15023,39 +15498,71 @@ var sceAtrac3plus = (function () {
         * @return Less than 0 on error, otherwise 0
         */
         this.sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
             if (remainFramePtr)
                 remainFramePtr.writeInt32(atrac3.remainingFrames);
             return 0;
         });
-        this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
-            console.warn("Not implemented sceAtracGetStreamDataInfo");
-
-            //throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
-            return 0;
-        });
         this.sceAtracGetBitrate = createNativeFunction(0xA554A158, 150, 'uint', 'int/void*', this, function (id, bitratePtr) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
             bitratePtr.writeInt32(atrac3.bitrate);
             return 0;
         });
-        this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
-            throw (new Error("Not implemented sceAtracAddStreamData"));
+        this.sceAtracGetChannel = createNativeFunction(0x31668baa, 150, 'uint', 'int/void*', this, function (id, channelsPtr) {
+            var atrac3 = _this.getById(id);
+            channelsPtr.writeInt32(atrac3.format.atracChannels);
             return 0;
         });
+        this.sceAtracGetMaxSample = createNativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*', this, function (id, maxNumberOfSamplesPtr) {
+            var atrac3 = _this.getById(id);
+            maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
+            return 0;
+        });
+        this.sceAtracGetNextSample = createNativeFunction(0x36FAABFB, 150, 'uint', 'int/void*', this, function (id, numberOfSamplesInNextFramePtr) {
+            var atrac3 = _this.getById(id);
+
+            numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
+            return 0;
+        });
+        this.sceAtracGetAtracID = createNativeFunction(0x780F88D1, 150, 'uint', 'int', this, function (codecType) {
+            if (codecType != 4097 /* PSP_MODE_AT_3 */ && codecType != 4096 /* PSP_MODE_AT_3_PLUS */) {
+                return 2153971716 /* ATRAC_ERROR_INVALID_CODECTYPE */;
+            }
+
+            return _this._atrac3Ids.allocate(new Atrac3(-1));
+        });
+        this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
+            var atrac3 = _this.getById(id);
+            console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
+
+            //throw (new Error("Not implemented sceAtracAddStreamData"));
+            return -1;
+        });
+        this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
+            var atrac3 = _this.getById(id);
+            writePointerPointer.writeInt32(0);
+            availableBytesPtr.writeInt32(0);
+            readOffsetPtr.writeInt32(0);
+
+            //WritePointerPointer = Atrac.PrimaryBuffer.Low; // @FIXME!!
+            //AvailableBytes = Atrac.PrimaryBuffer.Size;
+            //ReadOffset = Atrac.PrimaryBufferReaded;
+            console.warn("Not implemented sceAtracGetStreamDataInfo");
+
+            //throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
+            return -1;
+        });
         this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
             if (atrac3.decodingReachedEnd)
                 return 2153971748 /* ERROR_ATRAC_ALL_DATA_DECODED */;
             if (samplePositionPtr)
-                samplePositionPtr.writeInt32(atrac3.decodingOffset);
+                samplePositionPtr.writeInt32(atrac3.currentSample);
             return 0;
         });
         this.sceAtracGetSoundSample = createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
-            var atrac3 = _this.atrac3Ids.get(id);
-
-            //var hasLoops = (Atrac.LoopInfoList != null) && (Atrac.LoopInfoList.Length > 0);
-            var hasLoops = false;
+            var atrac3 = _this.getById(id);
+            var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
             if (endSamplePtr)
                 endSamplePtr.writeInt32(atrac3.fact.endSample);
 
@@ -15069,7 +15576,7 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracSetLoopNum = createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
             atrac3.numberOfLoops = numberOfLoops;
             return 0;
         });
@@ -15086,13 +15593,30 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, function (id, outputChannelPtr) {
-            var atrac3 = _this.atrac3Ids.get(id);
+            var atrac3 = _this.getById(id);
             var sceAudioChReserve = _this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
             var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
             outputChannelPtr.writeInt32(channel);
             return 0;
         });
     }
+    /*
+    [HlePspFunction(NID = 0x780F88D1, FirmwareVersion = 150)]
+    [HlePspNotImplemented]
+    public Atrac sceAtracGetAtracID(CodecType CodecType)
+    {
+    if (CodecType != CodecType.PSP_MODE_AT_3 && CodecType != CodecType.PSP_MODE_AT_3_PLUS) {
+    throw (new SceKernelException(SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE));
+    }
+    
+    return TryToAlloc(new Atrac(InjectContext, CodecType));
+    }
+    */
+    sceAtrac3plus.prototype.getById = function (id) {
+        if (!this._atrac3Ids.has(id))
+            throw (new SceKernelException(2153971715 /* ATRAC_ERROR_NO_ATRACID */));
+        return this._atrac3Ids.get(id);
+    };
     return sceAtrac3plus;
 })();
 exports.sceAtrac3plus = sceAtrac3plus;
@@ -15100,12 +15624,13 @@ exports.sceAtrac3plus = sceAtrac3plus;
 var Atrac3 = (function () {
     function Atrac3(id) {
         this.id = id;
-        this.fmt = new At3FormatStruct();
+        this.format = new At3FormatStruct();
         this.fact = new FactStruct();
-        //smpl = new SmplStruct();
+        this.smpl = new SmplStruct();
+        this.loopInfoList = [];
         this.dataStream = Stream.fromArray([]);
         this.numberOfLoops = 0;
-        this.decodingOffset = 0;
+        this.currentSample = 0;
         this.codecType = 4096 /* PSP_MODE_AT_3_PLUS */;
     }
     Atrac3.prototype.loadStream = function (data) {
@@ -15115,19 +15640,21 @@ var Atrac3 = (function () {
         //debugger;
         Riff.fromStreamWithHandlers(data, {
             'fmt ': function (stream) {
-                _this.fmt = At3FormatStruct.struct.read(stream);
+                _this.format = At3FormatStruct.struct.read(stream);
             },
             'fact': function (stream) {
                 _this.fact = FactStruct.struct.read(stream);
             },
             'smpl': function (stream) {
+                _this.smpl = SmplStruct.struct.read(stream);
+                _this.loopInfoList = StructArray(LoopInfoStruct.struct, _this.smpl.loopCount).read(stream);
             },
             'data': function (stream) {
                 _this.dataStream = stream;
             }
         });
 
-        this.firstDataChunk = this.dataStream.readBytes(this.fmt.blockSize).subarray(0);
+        this.firstDataChunk = this.dataStream.readBytes(this.format.blockSize).subarray(0);
 
         //console.log(this.fmt);
         //console.log(this.fact);
@@ -15136,7 +15663,7 @@ var Atrac3 = (function () {
 
     Object.defineProperty(Atrac3.prototype, "bitrate", {
         get: function () {
-            var _atracBitrate = Math.floor((this.fmt.bytesPerFrame * 352800) / 1000);
+            var _atracBitrate = Math.floor((this.format.bytesPerFrame * 352800) / 1000);
             if (this.codecType == 4096 /* PSP_MODE_AT_3_PLUS */) {
                 return ((_atracBitrate >> 11) + 8) & 0xFFFFFFF0;
             } else {
@@ -15149,7 +15676,7 @@ var Atrac3 = (function () {
 
     Object.defineProperty(Atrac3.prototype, "maximumSamples", {
         get: function () {
-            this.fmt.compressionCode;
+            this.format.compressionCode;
             switch (this.codecType) {
                 case 4096 /* PSP_MODE_AT_3_PLUS */:
                     return 0x800;
@@ -15163,11 +15690,23 @@ var Atrac3 = (function () {
         configurable: true
     });
 
+    Object.defineProperty(Atrac3.prototype, "endSample", {
+        get: function () {
+            return this.fact.endSample;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Atrac3.prototype.getNumberOfSamplesInNextFrame = function () {
+        return Math.min(this.maximumSamples, this.endSample - this.currentSample);
+    };
+
     Object.defineProperty(Atrac3.prototype, "remainingFrames", {
         get: function () {
-            if (this.fmt.blockSize == 0)
+            if (this.format.blockSize == 0)
                 return -1;
-            return (this.dataStream.available / this.fmt.blockSize);
+            return (this.dataStream.available / this.format.blockSize);
         },
         enumerable: true,
         configurable: true
@@ -15182,10 +15721,10 @@ var Atrac3 = (function () {
     });
 
     Atrac3.prototype.decodeAsync = function (samplesOutPtr) {
-        if (this.dataStream.available < this.fmt.blockSize)
+        if (this.dataStream.available < this.format.blockSize)
             return Promise.resolve(0);
-        var blockData = this.dataStream.readBytes(this.fmt.blockSize);
-        this.decodingOffset++;
+        var blockData = this.dataStream.readBytes(this.format.blockSize);
+        this.currentSample++;
 
         var outPromise;
 
@@ -15241,6 +15780,40 @@ var FactStruct = (function () {
         { sampleOffset: Int32 }
     ]);
     return FactStruct;
+})();
+
+var SmplStruct = (function () {
+    function SmplStruct() {
+        this.unknown = [0, 0, 0, 0, 0, 0, 0];
+        this.loopCount = 0;
+        this.unknown2 = 0;
+    }
+    SmplStruct.struct = StructClass.create(SmplStruct, [
+        { unknown: StructArray(Int32, 7) },
+        { loopCount: Int32 },
+        { unknown2: Int32 }
+    ]);
+    return SmplStruct;
+})();
+
+var LoopInfoStruct = (function () {
+    function LoopInfoStruct() {
+        this.cuePointID = 0;
+        this.type = 0;
+        this.startSample = 0;
+        this.endSample = 0;
+        this.fraction = 0;
+        this.playCount = 0;
+    }
+    LoopInfoStruct.struct = StructClass.create(LoopInfoStruct, [
+        { cuePointID: Int32 },
+        { type: Int32 },
+        { startSample: Int32 },
+        { endSample: Int32 },
+        { fraction: Int32 },
+        { playCount: Int32 }
+    ]);
+    return LoopInfoStruct;
 })();
 
 var At3FormatStruct = (function () {
@@ -15629,6 +16202,8 @@ var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
 
+var _gpu = require('../../core/gpu');
+
 var sceGe_user = (function () {
     function sceGe_user(context) {
         var _this = this;
@@ -15654,7 +16229,15 @@ var sceGe_user = (function () {
         });
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
             //console.warn('Not implemented sceGe_user.sceGeDrawSync');
+            if (syncType == 1 /* Peek */)
+                throw (new Error("Not implemented SyncType.Peek"));
             return _this.context.gpu.drawSync(syncType);
+        });
+        this.sceGeContinue = createNativeFunction(0x4C06E472, 150, 'uint', '', this, function () {
+            return -1;
+        });
+        this.sceGeBreak = createNativeFunction(0xB448EC0D, 150, 'uint', 'int/void*', this, function (mode, breakAddress) {
+            return -1;
         });
         this.sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
             //console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);

@@ -3,6 +3,7 @@
 
 	add(callback: (value?: T) => void) {
 		this.callbacks.push(callback);
+		return callback;
 	}
 
 	remove(callback: (value?: T) => void) {

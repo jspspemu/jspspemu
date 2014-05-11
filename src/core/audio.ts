@@ -33,17 +33,26 @@ export class PspAudioChannel {
 	start() {
 		if (this.node) this.node.connect(this.context.destination);
 		this.audio.playingChannels.add(this);
+		//document.addEventListener("visibilitychange", this.onVisibilityChanged);
 	}
+
+	/*
+	private onVisibilityChanged() {
+		document.hidden;
+	}
+	*/
 
 	stop() {
 		if (this.node) this.node.disconnect();
 		this.audio.playingChannels.delete(this);
+		//document.removeEventListener("visibilitychange", this.onVisibilityChanged);
 	}
 
 	process(e: AudioProcessingEvent) {
 		var left = e.outputBuffer.getChannelData(0);
 		var right = e.outputBuffer.getChannelData(1);
 		var sampleCount = left.length;
+		var hidden = document.hidden;
 
 		for (var n = 0; n < sampleCount; n++) {
 			if (!this.currentBuffer) {
@@ -63,6 +72,8 @@ export class PspAudioChannel {
 				this.currentBuffer = null;
 				n--;
 			}
+
+			if (hidden) left[n] = right[n] = 0;
 		}
 	}
 

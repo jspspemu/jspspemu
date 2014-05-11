@@ -232,6 +232,14 @@ class BitUtils {
 		return (data >> offset) & ((1 << length) - 1);
 	}
 
+	static extractSigned(data: number, offset: number, length: number) {
+		var mask = this.mask(length);
+		var value = this.extract(data, offset, length);
+		var signBit = (1 << (offset + (length - 1)));
+		if (value & signBit) value |= ~mask;
+		return value;
+	}
+
 	static extractScale1f(data: number, offset: number, length) {
 		var mask = (1 << length) - 1;
 		return (((data >>> offset) & mask) / mask)

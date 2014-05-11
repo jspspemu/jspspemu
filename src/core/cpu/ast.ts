@@ -17,6 +17,7 @@ function fpr_i(index: number) { return ast.fpr_i(index); }
 function gpr(index: number) { return ast.gpr(index); }
 function immBool(value: boolean) { return ast.imm32(value ? 1 : 0); }
 function imm32(value: number) { return ast.imm32(value); }
+function imm_f(value: number) { return ast.imm_f(value); }
 function u_imm32(value: number) { return ast.u_imm32(value); }
 function unop(op: string, right: _ast.ANodeExpr) { return ast.unop(op, right); }
 function binop(left: _ast.ANodeExpr, op: string, right: _ast.ANodeExpr) { return ast.binop(left, op, right); }
@@ -37,12 +38,24 @@ function i_uimm16(i: Instruction) { return u_imm32(i.u_imm16); }
 function rs_imm16(i: Instruction) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
 function cast_uint(expr: _ast.ANodeExpr) { return binop(expr, '>>>', ast.imm32(0)); }
 
+function setMatrix(reg: number, generator: (column: number, row: number) => _ast.ANodeExpr) {
+	// @TODO
+	return stm(ast.call('state.vfpuSetMatrix', [
+		generator(0, 0)
+	]));
+}
+
 export class InstructionAst {
 	constructor() {
 		ast = new _ast.MipsAstBuilder();
 	}
 
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
+
+	vmzero(i: Instruction) {
+		// @TODO
+		return setMatrix(i.VD, (c, r) => imm32(0));
+	}
 
 	add(i: Instruction) { return this.addu(i); }
 	addu(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); }

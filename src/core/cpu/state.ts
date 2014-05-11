@@ -26,6 +26,14 @@ export class CpuState {
 	fpr_i: Int32Array = new Int32Array(this.fpr_Buffer);
 	//fpr: Float32Array = new Float32Array(32);
 
+	vfpr_Buffer = new ArrayBuffer(128 * 4);
+	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
+
+	vfpuSetMatrix(m: number, values: number[]) {
+		this.vfpr[0] = 0;
+	}
+	
+
 	BRANCHFLAG: boolean = false;
 	BRANCHPC: number = 0;
 

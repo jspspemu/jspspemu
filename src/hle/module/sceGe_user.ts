@@ -34,8 +34,17 @@ export class sceGe_user {
     });
 
 	sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: _gpu.SyncType) => {
-        //console.warn('Not implemented sceGe_user.sceGeDrawSync');
+		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
+		if (syncType == _gpu.SyncType.Peek) throw(new Error("Not implemented SyncType.Peek"));
         return this.context.gpu.drawSync(syncType);
+	});
+
+	sceGeContinue = createNativeFunction(0x4C06E472, 150, 'uint', '', this, () => {
+		return -1;
+	});
+
+	sceGeBreak = createNativeFunction(0xB448EC0D, 150, 'uint', 'int/void*', this, (mode:number, breakAddress:Stream) => {
+		return -1;
 	});
 
 	sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, () => {

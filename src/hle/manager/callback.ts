@@ -1,5 +1,6 @@
 ﻿import _thread = require('./thread');
 import _cpu = require('../../core/cpu');
+import Signal = require('../../util/Signal');
 
 import CpuState = _cpu.CpuState;
 import Thread = _thread.Thread;
@@ -7,6 +8,11 @@ import Thread = _thread.Thread;
 export class CallbackManager {
 	private uids = new UidCollection<Callback>(1);
 	private notifications = <CallbackNotification[]>[];
+	public onAdded = new Signal<number>();
+
+	get hasPendingCallbacks() {
+		return this.notifications.length > 0;
+	}
 
 	register(callback: Callback) {
 		return this.uids.allocate(callback);
@@ -24,6 +30,7 @@ export class CallbackManager {
 		var callback = this.get(id);
 		//if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
 		this.notifications.push(new CallbackNotification(callback, arg2));
+		this.onAdded.dispatch(this.notifications.length);
 	}
 
 	executePendingWithinThread(thread: Thread) {

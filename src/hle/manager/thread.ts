@@ -3,7 +3,9 @@ import _memory = require('../../core/memory');
 import _display = require('../../core/display');
 import _interrupt = require('../../core/interrupt');
 import _manager_memory = require('./memory');
+import _callback = require('./callback');
 
+import CallbackManager = _callback.CallbackManager;
 import MemoryManager = _manager_memory.MemoryManager;
 import InterruptManager = _interrupt.InterruptManager;
 
@@ -67,6 +69,11 @@ export class Thread {
 	waitingPromise: Promise<any> = null;
 	runningPromise: Promise<number> = null;
 	runningStop: () => void;
+	acceptingCallbacks = false;
+
+	get runningOrAcceptingCallbacks() {
+		return this.running || this.acceptingCallbacks;
+	}
 
 	constructor(public name:string, public manager: ThreadManager, memoryManager:MemoryManager, public state: CpuState, private instructionCache: InstructionCache, stackSize: number) {
         this.state.thread = this;
@@ -149,6 +156,7 @@ export class Thread {
 		this.info = info;
 		this.waitingName = info.name;
 		this.waitingObject = info.object;
+		this.acceptingCallbacks = (info.callbacks == AcceptCallbacks.YES);
 		this._suspendUntilPromiseDone(info.promise);
 	}
 
@@ -169,6 +177,7 @@ export class Thread {
 			this.waitingPromise = null;
 			this.waitingName = null;
 			this.waitingObject = null;
+			this.acceptingCallbacks = false;
 			if (result !== undefined) this.state.V0 = result;
 				
 			//console.error('resumed ' + this.name);
@@ -218,7 +227,7 @@ export class ThreadManager {
 	exitPromise: Promise<any>;
 	exitResolve: () => void;
 
-	constructor(private memory: Memory, private interruptManager:InterruptManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager, private instructionCache: InstructionCache) {
+	constructor(private memory: Memory, private interruptManager:InterruptManager, private callbackManager:CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager, private instructionCache: InstructionCache) {
 		this.exitPromise = new Promise((resolve, reject) => {
 			this.exitResolve = resolve;
 		});
@@ -274,28 +283,38 @@ export class ThreadManager {
 				this.interruptManager.execute(this.threads.elements[0].state);
 			}
 
-            var threadCount = 0;
-            var priority = 2147483648;
+			var callbackThreadCount = 0;
+			var callbackPriority = Number.MAX_VALUE;
+			var runningThreadCount = 0;
+			var runningPriority = Number.MAX_VALUE;
 
 			this.threads.forEach((thread) => {
-				if (thread.running) {
-					threadCount++;
-					priority = Math.min(priority, thread.priority);
+				if (this.callbackManager.hasPendingCallbacks) {
+					if (thread.acceptingCallbacks) { callbackThreadCount++; callbackPriority = Math.min(callbackPriority, thread.priority); }
 				}
+				if (thread.running) { runningThreadCount++; runningPriority = Math.min(runningPriority, thread.priority); }
 			});
 
-            if (threadCount == 0) break;
+			if ((runningThreadCount == 0) && (callbackThreadCount == 0)) break;
 
-			this.threads.forEach((thread) => {
-				if (thread.running) {
-					if (thread.priority == priority) {
+			if (callbackThreadCount != 0) {
+				this.threads.forEach((thread) => {
+					if (thread.acceptingCallbacks && (thread.priority == callbackPriority)) {
+						this.callbackManager.executePendingWithinThread(thread);
+					}
+				});
+			}
+
+			if (runningThreadCount != 0) {
+				this.threads.forEach((thread) => {
+					if (thread.running && (thread.priority == runningPriority)) {
 						do {
 							thread.runStep();
 							if (!this.interruptManager.enabled) console.log('interrupts disabled, no thread scheduling!');
 						} while (!this.interruptManager.enabled);
 					}
-				}
-			});
+				});
+			}
 
             var current = window.performance.now();
 			if (current - start >= 100) {
@@ -313,14 +332,19 @@ export class ThreadManager {
         document.getElementById('thread_list').innerHTML = html;
     }
 
+	private callbackAdded: any = null;
 	startAsync() {
 		this.running = true;
 		this.eventOcurred();
+		this.callbackAdded = this.callbackManager.onAdded.add(() => {
+			this.eventOcurred();
+		});
 		return Promise.resolve();
     }
 
     stopAsync() {
 		this.running = false;
+		this.callbackManager.onAdded.remove(this.callbackAdded);
 		clearInterval(this.interval);
 		this.interval = -1;
 		return Promise.resolve();

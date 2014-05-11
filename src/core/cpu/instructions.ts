@@ -654,6 +654,7 @@ export class Instruction {
 	static fromMemoryAndPC(memory: Memory, PC: number) { return new Instruction(PC, memory.readInt32(PC)); }
 
 	extract(offset: number, length: number) { return BitUtils.extract(this.data, offset, length); }
+	extract_s(offset: number, length: number) { return BitUtils.extractSigned(this.data, offset, length); }
 	insert(offset: number, length: number, value: number) { this.data = BitUtils.insert(this.data, offset, length, value); }
 
 	get rd() { return this.extract(11 + 5 * 0, 5); } set rd(value: number) { this.insert(11 + 5 * 0, 5, value); }
@@ -663,6 +664,24 @@ export class Instruction {
 	get fd() { return this.extract(6 + 5 * 0, 5); } set fd(value: number) { this.insert(6 + 5 * 0, 5, value); }
 	get fs() { return this.extract(6 + 5 * 1, 5); } set fs(value: number) { this.insert(6 + 5 * 1, 5, value); }
 	get ft() { return this.extract(6 + 5 * 2, 5); } set ft(value: number) { this.insert(6 + 5 * 2, 5, value); }
+
+	get VD() { return this.extract(0, 7); } set VD(value:number) { this.insert(0, 7, value); }
+	get VS() { return this.extract(8, 7); } set VS(value: number) { this.insert(8, 7, value); }
+	get VT() { return this.extract(16, 7); } set VT(value: number) { this.insert(16, 7, value); }
+	get VT5_1() { return this.VT5 | (this.VT1 << 5); } set VT5_1(value: number) { this.VT5 = value; this.VT1 = (value >>> 5); }
+	// @TODO: Signed or unsigned?
+	get IMM14() { return this.extract_s(2, 14); } set IMM14(value: number) { this.insert(2, 14, value); }
+	
+	get IMM8() { return this.extract(16, 8); } set IMM8(value:number) { this.insert(16, 8, value); }
+	get IMM5() { return this.extract(16, 5); } set IMM5(value:number) { this.insert(16, 5, value); }
+	get IMM3() { return this.extract(16, 3); } set IMM3(value:number) { this.insert(16, 3, value); }
+	get IMM7() { return this.extract(0, 7); } set IMM7(value:number) { this.insert(0, 7, value); }
+	get IMM4() { return this.extract(0, 4); } set IMM4(value:number) { this.insert(0, 4, value); }
+	get VT1() { return this.extract(0, 1); } set VT1(value:number) { this.insert(0, 1, value); }
+	get VT2() { return this.extract(0, 2); } set VT2(value:number) { this.insert(0, 2, value); }
+	get VT5() { return this.extract(16, 5); } set VT5(value:number) { this.insert(16, 5, value); }
+	get VT5_2 () { return this.VT5 | (this.VT2 << 5); }
+	get IMM_HF() { return HalfFloat.toFloat(this.imm16); }
 
 	get pos() { return this.lsb; } set pos(value: number) { this.lsb = value; }
 	get size_e() { return this.msb + 1; } set size_e(value: number) { this.msb = value - 1; }

@@ -20,5 +20,6 @@ export interface IDrawDriver {
 	 */
 	textureSync(state: any);
 	drawElements(primitiveType: state.PrimitiveType, vertices: state.Vertex[], count: number, vertexState: state.VertexState);
+	drawBezier(ucount: number, vcount: number);
 	initAsync(): Promise<any>;
 }

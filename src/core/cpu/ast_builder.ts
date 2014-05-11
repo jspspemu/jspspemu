@@ -92,6 +92,11 @@ export class ANodeExprI32 extends ANodeExpr {
 	toJs() { return String(this.value); }
 }
 
+export class ANodeExprFloat extends ANodeExpr {
+	constructor(public value: number) { super(); }
+	toJs() { return String(this.value); }
+}
+
 export class ANodeExprU32 extends ANodeExpr {
 	constructor(public value: number) { super(); }
 	toJs() { return sprintf('0x%08X', this.value); }
@@ -135,6 +140,7 @@ export class AstBuilder {
 	unop(op: string, right: ANodeExpr) { return new ANodeExprUnop(op, right); }
 	binop_i(left: ANodeExpr, op: string, right: number) { return this.binop(left, op, this.imm32(right)); }
 	imm32(value: number) { return new ANodeExprI32(value); }
+	imm_f(value: number) { return new ANodeExprFloat(value); }
 	u_imm32(value: number) { return new ANodeExprU32(value); }
 	stm(expr: ANodeExpr) { return new ANodeStmExpr(expr); }
 	stmEmpty() { return new ANodeStm(); }

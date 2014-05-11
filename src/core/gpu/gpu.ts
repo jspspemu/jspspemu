@@ -59,7 +59,6 @@ export class VertexReader {
 		var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
 		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
 
-		//debugger;		
 		if (this.vertexState.hasIndex) {
 			for (var n = 0; n < count; n++) {
 				var index = indices[n];
@@ -266,15 +265,23 @@ class PspGpuList {
 				this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
 				break;
 			case GpuOpCodes.TFLT:
-				this.state.texture.filterMinification = <_state.TextureFilter>BitUtils.extract(params24, 0, 8);
-				this.state.texture.filterMagnification = <_state.TextureFilter>BitUtils.extract(params24, 8, 8);
+				this.state.texture.filterMinification = BitUtils.extractEnum<_state.TextureFilter>(params24, 0, 8);
+				this.state.texture.filterMagnification = BitUtils.extractEnum<_state.TextureFilter>(params24, 8, 8);
 				break;
 			case GpuOpCodes.TWRAP:
-				this.state.texture.wrapU = <_state.WrapMode>BitUtils.extract(params24, 0, 8);
-				this.state.texture.wrapV = <_state.WrapMode>BitUtils.extract(params24, 8, 8);
+				this.state.texture.wrapU = BitUtils.extractEnum<_state.WrapMode>(params24, 0, 8);
+				this.state.texture.wrapV = BitUtils.extractEnum<_state.WrapMode>(params24, 8, 8);
 				break;
 
-			case GpuOpCodes.TME: this.state.texture.enabled = (params24 != 0); break;
+			case GpuOpCodes.TME:
+				this.state.texture.enabled = (params24 != 0);
+				break;
+
+			case GpuOpCodes.TMAP:
+				this.state.texture.textureMapMode = BitUtils.extractEnum<_state.TextureMapMode>(params24, 0, 8);
+				this.state.texture.textureProjectionMapMode = BitUtils.extractEnum<_state.TextureProjectionMapMode>(params24, 8, 8);
+				this.state.vertex.normalCount = this.state.texture.getTextureComponentsCount();
+				break;
 
 			case GpuOpCodes.TEXTURE_ENV_MAP_MATRIX:
 				this.state.texture.shadeU = BitUtils.extract(params24, 0, 2);
@@ -478,6 +485,17 @@ class PspGpuList {
 			case GpuOpCodes.SFIX: this.state.blending.fixColorSourceRGB = params24; break;
 			case GpuOpCodes.DFIX: this.state.blending.fixColorDestinationRGB = params24; break;
 
+			case GpuOpCodes.PSUB:
+				this.state.patch.divs = BitUtils.extract(params24, 0, 8);
+				this.state.patch.divt = BitUtils.extract(params24, 8, 8);
+				break;
+
+			case GpuOpCodes.BEZIER:
+				var ucount = BitUtils.extract(params24, 0, 8);
+				var vcount = BitUtils.extract(params24, 8, 8);
+				this.drawDriver.drawBezier(ucount, vcount);
+				break;
+
 			case GpuOpCodes.PRIM:
 				//if (this.current < this.stall) {
 				//	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
@@ -521,7 +539,8 @@ class PspGpuList {
 
                 break;
 
-            case GpuOpCodes.FINISH:
+			case GpuOpCodes.FINISH:
+				//console.log('finish');
                 break;
 
 			case GpuOpCodes.END:
@@ -619,7 +638,7 @@ class PspGpuListRunner {
     }
 
 	waitAsync() {
-		return Promise.all(this.runningLists.map(list => list.waitAsync())).then(() => 0);
+		return Promise.all(this.runningLists.map(list => list.waitAsync())).then(() => _state.DisplayListStatus.Completed);
     }
 }
 

@@ -12,6 +12,7 @@ export class ShaderCache {
 	getProgram(vertex: _state.VertexState, state: _state.GpuState) {
 		var hash = vertex.hash;
 		hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
+		hash += Math.pow(2, 33) * (state.clearing ? 1 : 0);
 		if (this.programs[hash]) return this.programs[hash];
 		return this.programs[hash] = this.createProgram(vertex, state);
 	}
@@ -20,7 +21,10 @@ export class ShaderCache {
 		var defines = [];
 		if (vertex.hasColor) defines.push('VERTEX_COLOR');
 		if (vertex.hasTexture) defines.push('VERTEX_TEXTURE');
-		if (state.alphaTest.enabled) defines.push('ALPHATEST');
+
+		if (!state.clearing) {
+			if (state.alphaTest.enabled) defines.push('ALPHATEST');
+		}
 
 		var preppend = defines.map(item => '#define ' + item + ' 1').join("\n");
 

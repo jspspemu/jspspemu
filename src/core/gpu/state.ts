@@ -10,11 +10,16 @@ export enum CullingDirection {
 }
 
 export enum SyncType {
-	ListDone = 0,
-	ListQueued = 1,
-	ListDrawingDone = 2,
-	ListStallReached = 3,
-	ListCancelDone = 4,
+	WaitForCompletion = 0,
+	Peek = 1,
+}
+
+export enum DisplayListStatus {
+	Completed = 0, // The list has been completed (PSP_GE_LIST_COMPLETED)
+	Queued = 1, // list is queued but not executed yet (PSP_GE_LIST_QUEUED)
+	Drawing = 2, // The list is currently being executed (PSP_GE_LIST_DRAWING)
+	Stalling = 3, // The list was stopped because it encountered stall address (PSP_GE_LIST_STALLING)
+	Paused = 4, // The list is paused because of a signal or sceGeBreak (PSP_GE_LIST_PAUSED)
 }
 
 export class GpuFrameBufferState {
@@ -76,6 +81,7 @@ export class VertexState {
 	address = 0;
 	private _value = 0;
 	reversedNormal = false;
+	normalCount = 2;
 	textureComponentCount = 2;
 	size: number;
 
@@ -284,6 +290,20 @@ export class ClutState {
 	start = 0;
 }
 
+export enum TextureProjectionMapMode {
+	GU_POSITION = 0, // TMAP_TEXTURE_PROJECTION_MODE_POSITION - 3 texture components
+	GU_UV = 1, // TMAP_TEXTURE_PROJECTION_MODE_TEXTURE_COORDINATES - 2 texture components
+	GU_NORMALIZED_NORMAL = 2, // TMAP_TEXTURE_PROJECTION_MODE_NORMALIZED_NORMAL - 3 texture components
+	GU_NORMAL = 3, // TMAP_TEXTURE_PROJECTION_MODE_NORMAL - 3 texture components
+}
+
+export enum TextureMapMode {
+	GU_TEXTURE_COORDS = 0,
+	GU_TEXTURE_MATRIX = 1,
+	GU_ENVIRONMENT_MAP = 2,
+}
+
+
 export class TextureState {
 	enabled = false;
 	swizzled = false;
@@ -306,6 +326,25 @@ export class TextureState {
 	pixelFormat = PixelFormat.RGBA_8888;
 	clut = new ClutState();
 	mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
+	textureProjectionMapMode = TextureProjectionMapMode.GU_NORMAL;
+	textureMapMode = TextureMapMode.GU_TEXTURE_COORDS;
+
+	getTextureComponentsCount() {
+		switch (this.textureMapMode) {
+			default:
+			case TextureMapMode.GU_TEXTURE_COORDS: return 2;
+			case TextureMapMode.GU_TEXTURE_MATRIX:
+				switch (this.textureProjectionMapMode) {
+					case TextureProjectionMapMode.GU_NORMAL: return 3;
+					case TextureProjectionMapMode.GU_NORMALIZED_NORMAL: return 3;
+					case TextureProjectionMapMode.GU_POSITION: return 3;
+					case TextureProjectionMapMode.GU_UV: return 2;
+					default: return 2;
+				}
+				break;
+			case TextureMapMode.GU_ENVIRONMENT_MAP: return 2;
+		}
+	}
 }
 
 export class CullingState {
@@ -416,6 +455,11 @@ export class StencilState {
 	funcMask = 0;
 }
 
+export class PatchState {
+	divs = 0;
+	divt = 0;
+}
+
 export class GpuState {
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
 	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
@@ -439,6 +483,7 @@ export class GpuState {
 	lightning = new Lightning();
 	alphaTest = new AlphaTest();
 	blending = new Blending();
+	patch = new PatchState();
 	texture = new TextureState();
 	ambientModelColor = new ColorState();
 	lighting = new LightingState();
