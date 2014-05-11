@@ -53,12 +53,16 @@
     <div id="body">
         <div id="header_info" style="background:transparent;">
             <center>
-                <select id="files" style="width:160px;"></select>
+                <select id="files" style="width:110px;"></select>
+                <!--
                 <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
-                <input type="file" id="load_file" name="load_file" style="width:132px;" />
+                -->
+                <input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
+                <button onclick="$('#load_file').click();">Select Game...</button>
                 <a href="javascript:requestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">[Fullscreen]</a>
-                <a href="http://github.com/soywiz/jspspemu" style="font:16px Arial;color:white;" target="_blank">[Source]</a>
-                <a href="javascript:emulator.memory.dump();" style="font:16px Arial;color:white;">[M]</a>
+                <a href="http://github.com/soywiz/jspspemu" style="font:16px Arial;color:white;" target="_blank">[Github]</a>
+                <a href="http://blog.jspspemu.com" style="font:16px Arial;color:white;" target="_blank">[Blog]</a>
+                <a href="javascript:emulator.memory.dump();" style="font:16px Arial;color:white;">[Dump]</a>
             </center>
         </div>
         <div id="canvas_container">
@@ -105,70 +109,70 @@
     <script>
         var demos = [
             "-CPU",
-            "samples/compilerPerf.elf",
-            "samples/counter.elf",
-            "samples/fputest.elf",
-            "samples/mytest.elf",
+            "compilerPerf.elf",
+            "counter.elf",
+            "fputest.elf",
+            "mytest.elf",
 
             "-OS",
-            "samples/rtctest.elf",
-            "samples/rtctest.pbp",
-            "samples/threadstatus.elf",
-            "samples/taskScheduler.prx",
-            "samples/power.pbp",
-            "samples/controller.elf",
+            "rtctest.elf",
+            "rtctest.pbp",
+            "threadstatus.elf",
+            "taskScheduler.prx",
+            "power.pbp",
+            "controller.elf",
 
             "-IO",
-            "samples/mstick.pbp",
-            "samples/cwd.elf",
-            "samples/ioasync.pbp",
+            "mstick.pbp",
+            "cwd.elf",
+            "ioasync.pbp",
 
             "-AUDIO",
-            "samples/polyphonic.elf",
+            "polyphonic.elf",
 
             "-DISPLAY",
-            "samples/displayWait.prx",
-            "samples/minifire.elf",
-            "samples/HelloWorldPSP.elf",
+            "displayWait.prx",
+            "minifire.elf",
+            "HelloWorldPSP.elf",
 
             "-GPU",
-            "samples/2dstudio.prx",
-            "samples/3dstudio.pbp",
-            "samples/ortho.elf",
-            "samples/cube.elf",
-            "samples/cube.iso",
-            "samples/lights.pbp",
-            "samples/skinning.pbp",
-            "samples/sprite.pbp",
-            "samples/lines.pbp",
-            "samples/clut.pbp",
-            "samples/reflection.pbp",
-            "samples/text.elf",
-            "samples/intraFontTest.elf",
-            "samples/blend.pbp",
-            "samples/nehetutorial02.pbp",
-            "samples/nehetutorial03.pbp",
-            "samples/nehetutorial04.pbp",
-            "samples/nehetutorial05.pbp",
-            "samples/nehetutorial06.pbp",
-            "samples/nehetutorial07.pbp",
-            "samples/nehetutorial08.pbp",
-            "samples/nehetutorial09.pbp",
-            "samples/nehetutorial10.pbp",
+            "2dstudio.prx",
+            "3dstudio.pbp",
+            "ortho.elf",
+            "cube.elf",
+            "cube.iso",
+            "lights.pbp",
+            "skinning.pbp",
+            "sprite.pbp",
+            "lines.pbp",
+            "clut.pbp",
+            "reflection.pbp",
+            "text.elf",
+            "intraFontTest.elf",
+            "blend.pbp",
+            "nehetutorial02.pbp",
+            "nehetutorial03.pbp",
+            "nehetutorial04.pbp",
+            "nehetutorial05.pbp",
+            "nehetutorial06.pbp",
+            "nehetutorial07.pbp",
+            "nehetutorial08.pbp",
+            "nehetutorial09.pbp",
+            "nehetutorial10.pbp",
 
             "-GAMES",
-            "samples/cavestory.zip",
-            "samples/TrigWars.zip",
-            "samples/goldminer.zip",
-            "samples/Doom.zip",
-            "samples/cdogs.zip",
-            "samples/jazz.zip",
-            "samples/SkyRoads.zip",
-            "samples/PSPTris.zip",
-            "samples/Alex4C.zip",
-            //"samples/reminiscence/EBOOT.PBP",
-            //"samples/UraKaitenPatissierPSP/EBOOT.PBP",
-            //"samples/Doom/EBOOT.PBP",
+            "cavestory.zip",
+            "TrigWars.zip",
+            "goldminer.zip",
+            "Doom.zip",
+            "cdogs.zip",
+            "jazz.zip",
+            "SkyRoads.zip",
+            "PSPTris.zip",
+            "Alex4C.zip",
+            //"reminiscence/EBOOT.PBP",
+            //"UraKaitenPatissierPSP/EBOOT.PBP",
+            //"Doom/EBOOT.PBP",
         ];
 
         function updateScaleWith(scale) {
@@ -189,13 +193,14 @@
 
         $('#files').html('');
         var selectedItem = document.location.hash.substr(1);
-        $('#files').append('<option value="">-- SELECT DEMO --</option>');
+        $('#files').append('<option value="">-- DEMOS --</option>');
         demos.forEach(function (fileName) {
             if (fileName.substr(0, 1) == '-') {
                 $('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
             } else {
-                var item = $('<option value="' + fileName + '">' + fileName + '</option>');
-                if (selectedItem == fileName) item.attr('selected', 'selected')
+                var path = 'samples/' + fileName;
+                var item = $('<option value="' + path + '">' + fileName + '</option>');
+                if (selectedItem == path) item.attr('selected', 'selected')
                 $('#files').append(item);
             }
         });
@@ -278,5 +283,18 @@
     <!--
     <script data-main="js/src/app.js" src="lib/require.js"></script>
     -->
+
+    <script>
+    (function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+            (i[r].q = i[r].q || []).push(arguments)
+        }, i[r].l = 1 * new Date(); a = s.createElement(o),
+        m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+    })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+    ga('create', 'UA-50864498-1', 'jspspemu.com');
+    ga('send', 'pageview');
+
+    </script>
 </body>
 </html>
