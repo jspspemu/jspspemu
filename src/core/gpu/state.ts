@@ -85,6 +85,17 @@ export class VertexState {
 	textureComponentCount = 2;
 	size: number;
 
+	clone() {
+		var that = new VertexState();
+		that.address = this.address;
+		that._value = this._value;
+		that.reversedNormal = this.reversedNormal;
+		that.normalCount = this.normalCount;
+		that.textureComponentCount = this.textureComponentCount;
+		that.size = this.size;
+		return that;
+	}
+
 	get value() { return this._value; }
 
 	set value(value: number) {
@@ -129,6 +140,16 @@ export class VertexState {
 	get weightCount() { return BitUtils.extract(this.value, 14, 3); }
 	get morphingVertexCount() { return BitUtils.extract(this.value, 18, 2); }
 	get transform2D() { return BitUtils.extractEnum<boolean>(this.value, 23, 1); }
+
+	set texture(value: NumericEnum) { this.value = BitUtils.insert(this.value, 0, 2, value); }
+	set color(value: ColorEnum) { this.value = BitUtils.insert(this.value, 2, 3, value); }
+	set normal(value: NumericEnum) { this.value = BitUtils.insert(this.value, 5, 2, value); }
+	set position(value: NumericEnum) { this.value = BitUtils.insert(this.value, 7, 2, value); }
+	set weight(value: NumericEnum) { this.value = BitUtils.insert(this.value, 9, 2, value); }
+	set index(value: IndexEnum) { this.value = BitUtils.insert(this.value, 11, 2, value); }
+	set weightCount(value: number) { this.value = BitUtils.insert(this.value, 14, 3, value); }
+	set morphingVertexCount(value: number) { this.value = BitUtils.insert(this.value, 18, 2, value); }
+	set transform2D(value: boolean) { this.value = BitUtils.insert(this.value, 23, 1, value ? 1 : 0); }
 
 	get weightSize() { return this.NumericEnumGetSize(this.weight); }
 	get colorSize() { return this.ColorEnumGetSize(this.color); }

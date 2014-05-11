@@ -194,10 +194,6 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		return this.canvas.width / 480;
 	}
 
-	drawBezier(ucount: number, vcount: number) {
-		var divs = this.state.patch.divs, divt = this.state.patch.divt;
-	}
-
 	drawElements(primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
 		this.display.setEnabledDisplay(false);
 

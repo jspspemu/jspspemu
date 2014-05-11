@@ -363,3 +363,18 @@ function ToUint32(x) {
 function ToInt32(x) {
 	return x | 0;
 }
+
+class ArrayUtils {
+	static create2D<T>(w: number, h: number, generator?: (x, y) => T) {
+		if (!generator) generator = (x, y) => null;
+		var matrix = <T[][]>[];
+		for (var y = 0; y < h; y++) {
+			var row = [];
+			for (var x = 0; x < w; x++) {
+				row.push(generator(x, y));
+			}
+			matrix.push(row);
+		}
+		return matrix;
+	}
+}

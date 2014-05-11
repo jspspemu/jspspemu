@@ -60,6 +60,18 @@ export class VertexReader {
 		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
 	}
 
+	readOne(input:DataView, index: number) {
+		var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
+		var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
+		var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+
+		var inputOffset = this.vertexState.size * index;
+		var vertex = new _state.Vertex();
+		this.readOneFunc(vertex, inputOffset, input, f32, s8, s16, s32);
+		return vertex;
+	}
+
 	readCount(output: _state.Vertex[], input: DataView, indices: number[], count: number) {
 		var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
 		var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
@@ -502,7 +514,46 @@ class PspGpuList {
 			case GpuOpCodes.BEZIER:
 				var ucount = BitUtils.extract(params24, 0, 8);
 				var vcount = BitUtils.extract(params24, 8, 8);
-				this.drawDriver.drawBezier(ucount, vcount);
+				var divs = this.state.patch.divs;
+				var divt = this.state.patch.divt;
+				var vertexState = this.state.vertex;
+				var vertexReader = VertexReaderFactory.get(vertexState);
+				var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+				var vertexInput = this.memory.getPointerDataView(vertexAddress);
+
+				var vertexState2 = vertexState.clone();
+				vertexState2.texture = _state.NumericEnum.Float;
+
+				var getBezierControlPoints = (ucount: number, vcount: number) => {
+					var controlPoints = ArrayUtils.create2D<_state.Vertex>(ucount, vcount);
+
+					for (var u = 0; u < ucount; u++) {
+						for (var v = 0; v < vcount; v++) {
+							var vertex = vertexReader.readOne(vertexInput, v * ucount + u);;
+							controlPoints[u][v] = vertex;
+							vertex.tx = (u / (ucount - 1));
+							vertex.ty = (v / (vcount - 1));
+							//Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
+						}
+					}
+					return controlPoints;
+				};
+
+				var controlPoints = getBezierControlPoints(ucount, vcount);
+				var vertices2 = [];
+				vertices2.push(controlPoints[0][0]);
+				vertices2.push(controlPoints[ucount - 1][0]);
+				vertices2.push(controlPoints[0][vcount - 1]);
+
+				vertices2.push(controlPoints[ucount - 1][0]);
+				vertices2.push(controlPoints[ucount - 1][vcount - 1]);
+				vertices2.push(controlPoints[0][vcount - 1]);
+
+				if (vertexState2.hasTexture) {
+					//debugger;
+				}
+				//debugger;
+				this.drawDriver.drawElements(_state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
 				break;
 
 			case GpuOpCodes.PRIM:
@@ -542,7 +593,6 @@ class PspGpuList {
 				if (this.errorCount < 400) {
 					//console.log('PRIM:' + primitiveType + ' : ' + vertexCount + ':' + vertexState.hasIndex);
 				}
-
 
 				this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
 

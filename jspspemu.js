@@ -862,6 +862,27 @@ function ToUint32(x) {
 function ToInt32(x) {
     return x | 0;
 }
+
+var ArrayUtils = (function () {
+    function ArrayUtils() {
+    }
+    ArrayUtils.create2D = function (w, h, generator) {
+        if (!generator)
+            generator = function (x, y) {
+                return null;
+            };
+        var matrix = [];
+        for (var y = 0; y < h; y++) {
+            var row = [];
+            for (var x = 0; x < w; x++) {
+                row.push(generator(x, y));
+            }
+            matrix.push(row);
+        }
+        return matrix;
+    };
+    return ArrayUtils;
+})();
 //# sourceMappingURL=math.js.map
 
 ﻿var __extends = this.__extends || function (d, b) {
@@ -6239,6 +6260,18 @@ var VertexReader = (function () {
         this.readCode = this.createJs();
         this.readOneFunc = (new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
     }
+    VertexReader.prototype.readOne = function (input, index) {
+        var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
+        var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
+        var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+        var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+
+        var inputOffset = this.vertexState.size * index;
+        var vertex = new _state.Vertex();
+        this.readOneFunc(vertex, inputOffset, input, f32, s8, s16, s32);
+        return vertex;
+    };
+
     VertexReader.prototype.readCount = function (output, input, indices, count) {
         var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
         var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
@@ -6744,7 +6777,48 @@ var PspGpuList = (function () {
             case 5 /* BEZIER */:
                 var ucount = BitUtils.extract(params24, 0, 8);
                 var vcount = BitUtils.extract(params24, 8, 8);
-                this.drawDriver.drawBezier(ucount, vcount);
+                var divs = this.state.patch.divs;
+                var divt = this.state.patch.divt;
+                var vertexState = this.state.vertex;
+                var vertexReader = VertexReaderFactory.get(vertexState);
+                var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+                var vertexInput = this.memory.getPointerDataView(vertexAddress);
+
+                var vertexState2 = vertexState.clone();
+                vertexState2.texture = 3 /* Float */;
+
+                var getBezierControlPoints = function (ucount, vcount) {
+                    var controlPoints = ArrayUtils.create2D(ucount, vcount);
+
+                    for (var u = 0; u < ucount; u++) {
+                        for (var v = 0; v < vcount; v++) {
+                            var vertex = vertexReader.readOne(vertexInput, v * ucount + u);
+                            ;
+                            controlPoints[u][v] = vertex;
+                            vertex.tx = (u / (ucount - 1));
+                            vertex.ty = (v / (vcount - 1));
+                            //Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
+                        }
+                    }
+                    return controlPoints;
+                };
+
+                var controlPoints = getBezierControlPoints(ucount, vcount);
+                var vertices2 = [];
+                vertices2.push(controlPoints[0][0]);
+                vertices2.push(controlPoints[ucount - 1][0]);
+                vertices2.push(controlPoints[0][vcount - 1]);
+
+                vertices2.push(controlPoints[ucount - 1][0]);
+                vertices2.push(controlPoints[ucount - 1][vcount - 1]);
+                vertices2.push(controlPoints[0][vcount - 1]);
+
+                if (vertexState2.hasTexture) {
+                    //debugger;
+                }
+
+                //debugger;
+                this.drawDriver.drawElements(3 /* Triangles */, vertices2, vertices2.length, vertexState2);
                 break;
 
             case 4 /* PRIM */:
@@ -7396,6 +7470,17 @@ var VertexState = (function () {
         this.normalCount = 2;
         this.textureComponentCount = 2;
     }
+    VertexState.prototype.clone = function () {
+        var that = new VertexState();
+        that.address = this.address;
+        that._value = this._value;
+        that.reversedNormal = this.reversedNormal;
+        that.normalCount = this.normalCount;
+        that.textureComponentCount = this.textureComponentCount;
+        that.size = this.size;
+        return that;
+    };
+
     Object.defineProperty(VertexState.prototype, "value", {
         get: function () {
             return this._value;
@@ -7480,12 +7565,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this.value, 0, 2);
         },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 0, 2, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "color", {
         get: function () {
             return BitUtils.extractEnum(this.value, 2, 3);
+        },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 2, 3, value);
         },
         enumerable: true,
         configurable: true
@@ -7494,12 +7585,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this.value, 5, 2);
         },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 5, 2, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "position", {
         get: function () {
             return BitUtils.extractEnum(this.value, 7, 2);
+        },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 7, 2, value);
         },
         enumerable: true,
         configurable: true
@@ -7508,12 +7605,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this.value, 9, 2);
         },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 9, 2, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "index", {
         get: function () {
             return BitUtils.extractEnum(this.value, 11, 2);
+        },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 11, 2, value);
         },
         enumerable: true,
         configurable: true
@@ -7522,12 +7625,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extract(this.value, 14, 3);
         },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 14, 3, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
         get: function () {
             return BitUtils.extract(this.value, 18, 2);
+        },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 18, 2, value);
         },
         enumerable: true,
         configurable: true
@@ -7536,9 +7645,13 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this.value, 23, 1);
         },
+        set: function (value) {
+            this.value = BitUtils.insert(this.value, 23, 1, value ? 1 : 0);
+        },
         enumerable: true,
         configurable: true
     });
+
 
     Object.defineProperty(VertexState.prototype, "weightSize", {
         get: function () {
@@ -8316,10 +8429,6 @@ var WebGlPspDrawDriver = (function () {
 
     WebGlPspDrawDriver.prototype.getScaleRatio = function () {
         return this.canvas.width / 480;
-    };
-
-    WebGlPspDrawDriver.prototype.drawBezier = function (ucount, vcount) {
-        var divs = this.state.patch.divs, divt = this.state.patch.divt;
     };
 
     WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
