@@ -503,8 +503,8 @@ class PspGpuList {
 				this.state.culling.direction = <_state.CullingDirection>params24;
 				break;
 
-			case GpuOpCodes.SFIX: this.state.blending.fixColorSourceRGB = params24; break;
-			case GpuOpCodes.DFIX: this.state.blending.fixColorDestinationRGB = params24; break;
+			case GpuOpCodes.SFIX: this.state.blending.fixColorSource.setRGB(params24); break;
+			case GpuOpCodes.DFIX: this.state.blending.fixColorDestination.setRGB(params24); break;
 
 			case GpuOpCodes.PSUB:
 				this.state.patch.divs = BitUtils.extract(params24, 0, 8);

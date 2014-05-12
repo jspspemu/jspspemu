@@ -106,7 +106,31 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 		var blending = state.blending;
 		if (this.enableDisable(gl.BLEND, blending.enabled)) {
-			gl.blendFunc(gl.SRC_COLOR + blending.functionSource, gl.SRC_COLOR + blending.functionDestination);
+			var getBlendFix = (color: _state.Color) => {
+				if (color.equals(0, 0, 0, 1)) return gl.ZERO;
+				if (color.equals(1, 1, 1, 1)) return gl.ONE;
+				return gl.CONSTANT_COLOR;
+			};
+
+			var sfactor = gl.SRC_COLOR + blending.functionSource;
+			var dfactor = gl.SRC_COLOR + blending.functionDestination;
+
+			if (blending.functionSource == _state.GuBlendingFactor.GU_FIX) {
+				sfactor = getBlendFix(blending.fixColorSource);
+			}
+
+			if (blending.functionDestination == _state.GuBlendingFactor.GU_FIX) {
+				if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
+					dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
+				} else {
+					dfactor = getBlendFix(blending.fixColorDestination);
+				}
+			}
+
+			var equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
+
+			gl.blendEquation(equationTranslate[blending.equation]);
+			gl.blendFunc(sfactor, dfactor);
 			switch (blending.equation) {
 				case _state.GuBlendingEquation.Abs:
 				case _state.GuBlendingEquation.Max:
@@ -115,6 +139,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 				case _state.GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
 				case _state.GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
 			}
+
+			var blendColor = blending.fixColorDestination;
+			gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
 		}
 
 		var stencil = state.stencil;

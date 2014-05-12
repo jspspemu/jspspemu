@@ -6759,10 +6759,10 @@ var PspGpuList = (function () {
                 break;
 
             case 224 /* SFIX */:
-                this.state.blending.fixColorSourceRGB = params24;
+                this.state.blending.fixColorSource.setRGB(params24);
                 break;
             case 225 /* DFIX */:
-                this.state.blending.fixColorDestinationRGB = params24;
+                this.state.blending.fixColorDestination.setRGB(params24);
                 break;
 
             case 54 /* PSUB */:
@@ -8048,14 +8048,59 @@ var GuBlendingFactor = exports.GuBlendingFactor;
 })(exports.GuBlendingEquation || (exports.GuBlendingEquation = {}));
 var GuBlendingEquation = exports.GuBlendingEquation;
 
+var Color = (function () {
+    function Color(r, g, b, a) {
+        if (typeof r === "undefined") { r = 0; }
+        if (typeof g === "undefined") { g = 0; }
+        if (typeof b === "undefined") { b = 0; }
+        if (typeof a === "undefined") { a = 1; }
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+    Color.prototype.setRGB = function (rgb) {
+        this.r = BitUtils.extractScale1f(rgb, 0, 8);
+        this.g = BitUtils.extractScale1f(rgb, 8, 8);
+        this.b = BitUtils.extractScale1f(rgb, 16, 8);
+        this.a = 1;
+    };
+
+    Color.prototype.set = function (r, g, b, a) {
+        if (typeof a === "undefined") { a = 1; }
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+        return this;
+    };
+
+    Color.add = function (a, b, dest) {
+        if (typeof dest === "undefined") { dest = null; }
+        if (dest == null)
+            dest = new Color();
+        dest.r = a.r + b.r;
+        dest.g = a.g + b.g;
+        dest.b = a.b + b.b;
+        dest.a = a.a * b.a;
+        return dest;
+    };
+
+    Color.prototype.equals = function (r, g, b, a) {
+        return (this.r == r) && (this.g == g) && (this.b == b) && (this.a == a);
+    };
+    return Color;
+})();
+exports.Color = Color;
+
 var Blending = (function () {
     function Blending() {
         this.enabled = false;
         this.functionSource = 2 /* GU_SRC_ALPHA */;
         this.functionDestination = 5 /* GU_ONE_MINUS_DST_ALPHA */;
         this.equation = 0 /* Add */;
-        this.fixColorSourceRGB = 0;
-        this.fixColorDestinationRGB = 0;
+        this.fixColorSource = new Color();
+        this.fixColorDestination = new Color();
     }
     return Blending;
 })();
@@ -8338,7 +8383,33 @@ var WebGlPspDrawDriver = (function () {
 
         var blending = state.blending;
         if (this.enableDisable(gl.BLEND, blending.enabled)) {
-            gl.blendFunc(gl.SRC_COLOR + blending.functionSource, gl.SRC_COLOR + blending.functionDestination);
+            var getBlendFix = function (color) {
+                if (color.equals(0, 0, 0, 1))
+                    return gl.ZERO;
+                if (color.equals(1, 1, 1, 1))
+                    return gl.ONE;
+                return gl.CONSTANT_COLOR;
+            };
+
+            var sfactor = gl.SRC_COLOR + blending.functionSource;
+            var dfactor = gl.SRC_COLOR + blending.functionDestination;
+
+            if (blending.functionSource == 10 /* GU_FIX */) {
+                sfactor = getBlendFix(blending.fixColorSource);
+            }
+
+            if (blending.functionDestination == 10 /* GU_FIX */) {
+                if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
+                    dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
+                } else {
+                    dfactor = getBlendFix(blending.fixColorDestination);
+                }
+            }
+
+            var equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD];
+
+            gl.blendEquation(equationTranslate[blending.equation]);
+            gl.blendFunc(sfactor, dfactor);
             switch (blending.equation) {
                 case 5 /* Abs */:
                 case 4 /* Max */:
@@ -8353,6 +8424,9 @@ var WebGlPspDrawDriver = (function () {
                     gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
                     break;
             }
+
+            var blendColor = blending.fixColorDestination;
+            gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
         }
 
         var stencil = state.stencil;

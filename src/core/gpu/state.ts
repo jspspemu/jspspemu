@@ -418,13 +418,46 @@ export enum GuBlendingEquation {
 	Abs = 5,
 }
 
+export class Color {
+	public constructor(public r = 0, public g = 0, public b = 0, public a = 1) {
+	}
+
+	setRGB(rgb: number) {
+		this.r = BitUtils.extractScale1f(rgb, 0, 8);
+		this.g = BitUtils.extractScale1f(rgb, 8, 8);
+		this.b = BitUtils.extractScale1f(rgb, 16, 8);
+		this.a = 1;
+	}
+
+	set(r: number, g: number, b: number, a: number = 1) {
+		this.r = r;
+		this.g = g;
+		this.b = b;
+		this.a = a;
+		return this;
+	}
+
+	static add(a: Color, b: Color, dest: Color = null) {
+		if (dest == null) dest = new Color();
+		dest.r = a.r + b.r;
+		dest.g = a.g + b.g;
+		dest.b = a.b + b.b;
+		dest.a = a.a * b.a;
+		return dest;
+	}
+
+	equals(r, g, b, a) {
+		return (this.r == r) && (this.g == g) && (this.b == b) && (this.a == a);
+	}
+}
+
 export class Blending {
 	enabled = false;
 	functionSource = GuBlendingFactor.GU_SRC_ALPHA;
 	functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
 	equation = GuBlendingEquation.Add;
-	fixColorSourceRGB: number = 0;
-	fixColorDestinationRGB: number = 0;
+	fixColorSource: Color = new Color();
+	fixColorDestination: Color = new Color();
 }
 
 export class AlphaTest {
