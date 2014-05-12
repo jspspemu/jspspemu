@@ -168,6 +168,11 @@ export class sceSasCore {
 	__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, pitch: number) => {
 		return 0;
 	});
+
+	__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, vagPointer: Stream, loopCount: number) => {
+		// Not implemented
+		return 0;
+	});
 }
 
 class Envelope {

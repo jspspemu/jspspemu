@@ -61,6 +61,7 @@ export class IoFileMgrForUser {
 		return this._sceIoOpenAsync(filename, flags, mode).then(fileId => {
 			var file = this.getFileById(fileId);
 			file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+			console.info('-->', fileId);
 			return fileId;
 		});
 	});
@@ -88,6 +89,8 @@ export class IoFileMgrForUser {
 	sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
 		var file = this.getFileById(fileId);
 		if (file) file.close();
+
+		console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
 
 		this.fileUids.remove(fileId);
 
@@ -129,7 +132,7 @@ export class IoFileMgrForUser {
 		var file = this.getFileById(fileId);
 
 		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
-			//console.log(new Uint8Array(readedData));
+			//console.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
 			file.cursor += readedData.byteLength;
 			this.context.memory.writeBytes(outputPointer, readedData);
 			return Integer64.fromNumber(readedData.byteLength);
@@ -139,6 +142,7 @@ export class IoFileMgrForUser {
 	});
 
 	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream) {
+		console.info('_sceIoWaitAsyncCB', fileId);
 		thread.state.LO = fileId;
 
 		if (this.fileUids.has(fileId)) return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
@@ -166,6 +170,7 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+		console.info('sceIoPollAsync', fileId);
 		var file = this.getFileById(fileId);
 
 		if (file.asyncResult) {

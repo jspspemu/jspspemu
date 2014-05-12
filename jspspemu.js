@@ -6865,7 +6865,10 @@ var PspGpuList = (function () {
 
             case 15 /* FINISH */:
                 var callback = this.gpu.callbacks.get(this.callbackId);
-
+                this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+                break;
+            case 14 /* SIGNAL */:
+                console.warn('Not implemented: GPU SIGNAL');
                 break;
 
             case 12 /* END */:
@@ -15405,6 +15408,7 @@ var IoFileMgrForUser = (function () {
             return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
                 var file = _this.getFileById(fileId);
                 file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+                console.info('-->', fileId);
                 return fileId;
             });
         });
@@ -15430,6 +15434,8 @@ var IoFileMgrForUser = (function () {
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
+
+            console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
 
             _this.fileUids.remove(fileId);
 
@@ -15470,7 +15476,7 @@ var IoFileMgrForUser = (function () {
             var file = _this.getFileById(fileId);
 
             file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                //console.log(new Uint8Array(readedData));
+                //console.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
                 file.cursor += readedData.byteLength;
                 _this.context.memory.writeBytes(outputPointer, readedData);
                 return Integer64.fromNumber(readedData.byteLength);
@@ -15485,6 +15491,7 @@ var IoFileMgrForUser = (function () {
             return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
         });
         this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            console.info('sceIoPollAsync', fileId);
             var file = _this.getFileById(fileId);
 
             if (file.asyncResult) {
@@ -15596,6 +15603,7 @@ var IoFileMgrForUser = (function () {
     };
 
     IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
+        console.info('_sceIoWaitAsyncCB', fileId);
         thread.state.LO = fileId;
 
         if (this.fileUids.has(fileId))
@@ -17257,6 +17265,10 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, pitch) {
+            return 0;
+        });
+        this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, vagPointer, loopCount) {
+            // Not implemented
             return 0;
         });
         while (this.voices.length < 32)
