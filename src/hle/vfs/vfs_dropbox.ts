@@ -48,7 +48,7 @@ export class AsyncClient {
 			}
 
 			this.client.authDriver(new Dropbox.AuthDriver.Redirect({
-				redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1' : "https://" + document.location.host
+				redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1/oauth_receive.html' : "https://" + document.location.host + '/oauth_receive.html'
 			}));
 
 			this.initPromise = new Promise((resolve, reject) => {
