@@ -260,6 +260,25 @@ export class IoFileMgrForUser {
 		}
 	});
 
+	/*
+	[HlePspFunction(NID = 0x71B19E77, FirmwareVersion = 150)]
+	public int sceIoLseekAsync(SceUID FileId, long Offset, SeekAnchor Whence)
+	{
+		var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+		File.AsyncLastResult = sceIoLseek(FileId, Offset, Whence);
+		_DelayIo(IoDelayType.Seek);
+		return 0;
+	}
+	*/
+
+	sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
+		//var file = this.getFileById(fileId);
+		var file = this.getFileById(fileId);
+		var result = this._seek(fileId, offset.getNumber(), whence);
+		file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(result)));
+		return 0;
+	});
+
 	sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
 		var result = this._seek(fileId, offset.getNumber(), whence);
 		//console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
@@ -310,7 +329,7 @@ export class IoFileMgrForUser {
 	});
 
 	_seek(fileId: number, offset: number, whence: number) {
-		var file = this.fileUids.get(fileId);
+		var file = this.getFileById(fileId);
 		switch (whence) {
 			case _structs.SeekAnchor.Set:
 				file.cursor = 0 + offset;

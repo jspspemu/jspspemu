@@ -32,6 +32,8 @@ export class sceUtility {
 
 		switch (params.mode) {
 			case PspUtilitySavedataMode.Autoload:
+			case PspUtilitySavedataMode.Load:
+			case PspUtilitySavedataMode.ListLoad:
 				return fileManager
 					.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777'))
 					.then(file => file.entry.readAllAsync())
@@ -44,6 +46,8 @@ export class sceUtility {
 					})
 				;
 			case PspUtilitySavedataMode.Autosave:
+			case PspUtilitySavedataMode.Save:
+			case PspUtilitySavedataMode.ListSave:
 				var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
 
 				return fileManager

@@ -602,7 +602,9 @@ class PspGpuList {
 
 			case GpuOpCodes.FINISH:
 				var callback = this.gpu.callbacks.get(this.callbackId);
-				this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+				if (callback && callback.cpuState && callback.finishFunction) {
+					this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+				}
                 break;
 			case GpuOpCodes.SIGNAL:
 				console.warn('Not implemented: GPU SIGNAL');

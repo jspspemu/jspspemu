@@ -272,6 +272,24 @@ class Stream {
 		struct.write(this, value);
 	}
 
+	writeString(str: string) {
+		try {
+			str.split('').forEach(char => {
+				this.writeUInt8(char.charCodeAt(0));
+			});
+		} catch (e) {
+			console.log("Can't write string '" + str + "'");
+			debugger;
+			console.warn(this.data);
+			console.error(e);
+			throw (e);
+		}
+	}
+
+	writeStringz(str: string) {
+		return this.writeString(str + String.fromCharCode(0));
+	}
+
 	readBytes(count: number) {
 		return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
 	}
@@ -292,30 +310,6 @@ class Stream {
 		return Utf8.decode(this.readString(count));
 	}
 
-	/*
-	writeStream(from: Stream) {
-		new Uint8Array(this.data.buffer, this.data.byteOffset).set();
-	}
-	*/
-
-	writeString(str: string) {
-		try {
-			str.split('').forEach(char => {
-				this.writeUInt8(char.charCodeAt(0));
-			});
-		} catch (e) {
-			console.log("Can't write string '" + str + "'");
-			debugger;
-			console.warn(this.data);
-			console.error(e);
-			throw (e);
-		}
-	}
-
-	writeStringz(str: string) {
-		return this.writeString(str + String.fromCharCode(0));
-	}
-
 	readString(count: number) {
 		if (count > 128 * 1024) throw(new Error("Trying to read a string larger than 128KB"));
 		var str = '';
@@ -325,11 +319,11 @@ class Stream {
 		return str;
 	}
 
-	readUtf8Stringz(maxCount: number = 2147483648) {
+	readUtf8Stringz(maxCount: number = 131072) {
 		return Utf8.decode(this.readStringz(maxCount));
 	}
 
-	readStringz(maxCount: number = 2147483648) {
+	readStringz(maxCount: number = 131072) {
 		var str = '';
 		for (var n = 0; n < maxCount; n++) {
 			if (this.available <= 0) break;

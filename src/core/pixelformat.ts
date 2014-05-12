@@ -97,14 +97,25 @@ export class PixelConverter {
 		}
 	}
 
+	private static updateT4Translate = new Uint32Array(16);
 	private static updateT4(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 		var orValue = useAlpha ? 0 : 0xFF000000;
 		clutMask &= 0xF;
+
+		var updateT4Translate = PixelConverter.updateT4Translate;
+		//var updateT4Translate2 = [];
+		for (var n = 0; n < 16; n++) {
+			updateT4Translate[n] = palette[((clutStart + n) >>> clutShift) & clutMask];
+			//updateT4Translate2[n] = updateT4Translate[n];
+		}
+
+		//console.log('updateT4', clutStart, clutShift, clutMask, updateT4Translate, updateT4Translate2.map(item => sprintf('%08X', item)));
+
 		for (var n = 0, m = 0; n < count; n++) {
 			var char = from[fromIndex + n];
-			to32[m++] = palette[clutStart + (((char >> 0) & clutMask) << clutShift)] | orValue;
-			to32[m++] = palette[clutStart + (((char >> 4) & clutMask) << clutShift)] | orValue;
+			to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
+			to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
 		}
 	}
 
@@ -125,13 +136,16 @@ export class PixelConverter {
 	private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
 		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 
+		var orValue = useAlpha ? 0 : 0xFF000000;
+
 		for (var n = 0; n < count; n++) {
 			var it = from[fromIndex++];
 			var value = 0;
 			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
 			value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
 			value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
-			value |= (useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF) << 24;
+			value |= BitUtils.extractScalei(it, 15, 1, 0xFF) << 24;
+			value |= orValue;
 			to32[n] = value;
 		}
 	}
@@ -145,7 +159,7 @@ export class PixelConverter {
 			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
 			value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
 			value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
-			value |= 0xFF << 24;
+			value |= 0xFF000000;
 			to32[n] = value;
 		}
 	}

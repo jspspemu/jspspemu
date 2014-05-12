@@ -157,18 +157,37 @@ export class Memory {
 	}
 
 	copy(from: number, to: number, length: number) {
-		from &= Memory.MASK;
-		to &= Memory.MASK;
-		for (var n = 0; n < length; n++) {
-			this.u8[to + n] = this.u8[from + n];
-		}
+		this.u8.set(new Uint8Array(this.buffer, from & Memory.MASK, length), to & Memory.MASK);
 	}
 
 	memset(address: number, value: number, length: number) {
 		address &= Memory.MASK;
-		for (var n = 0; n < length; n++) {
-			this.u8[address + n] = value;
+
+		var start = address;
+		var end = start + length;
+		var value8 = value & 0xFF;
+
+		// @TODO: change with fill
+		while (address < end) this.u8[address++] = value8;
+
+		/*
+		var value16 = value8 | (value8 << 8);
+		var value32 = value16 | (value16 << 16);
+
+		debugger;
+
+		while ((address & 3) && (address < end)) this.u8[address++] = value8;
+
+		var end32 = end & ~3;
+
+		while (address < end32) {
+			this.u32[address >>> 2] = value32;
+			address += 4;
 		}
+
+		// @TODO: Optimize generating 32-bit values
+		while (address < end) this.u8[address++] = value8;
+		*/
 	}
 
 	/*

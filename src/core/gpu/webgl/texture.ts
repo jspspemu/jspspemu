@@ -222,11 +222,18 @@ export class TextureHandler {
 				var data2 = new Uint8Array(w2 * h * 4);
 
 				var clut = state.texture.clut;
+
+				if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
+					clut.numberOfColors = Math.max(clut.numberOfColors, clut.mask + 1);
+					//debugger;
+				}
+
 				var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
 				var paletteU8 = new Uint8Array(paletteBuffer);
 				var palette = new Uint32Array(paletteBuffer);
 
 				if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
+					//if (clut.pixelFormat == PixelFormat.RGBA_5551) debugger;
 					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
 				}
 

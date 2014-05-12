@@ -58,7 +58,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	code += '}';
 
 	//code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
-	//code += "if (DebugOnce(info, 200)) {";
+	//code += "if (DebugOnce(info, 10)) {";
 	//code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
 	//code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
 	//code += "}";

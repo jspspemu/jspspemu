@@ -120,6 +120,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		this.hcountTotal = (this.elapsedSeconds * PspDisplay.HORIZONTAL_SYNC_HZ) | 0;
 		this.hcountCurrent = (((this.elapsedSeconds % 1.00002) * PspDisplay.HORIZONTAL_SYNC_HZ) | 0) % PspDisplay.NUMBER_OF_ROWS;
 		this.vblankCount = (this.elapsedSeconds * PspDisplay.VERTICAL_SYNC_HZ) | 0;
+		//console.log(this.elapsedSeconds);
 		if (this.hcountCurrent >= PspDisplay.VSYNC_ROW) {
 			this.isInVblank = true;
 			this.rowsLeftForVblank = 0;
@@ -160,7 +161,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	}
 
 	startAsync() {
-		this.startTime = this.currentMs;
+		this.startTime = this.getCurrentMs();
 		this.updateTime();
 
 		//$(this.canvas).focus();

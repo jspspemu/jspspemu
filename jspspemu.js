@@ -1281,6 +1281,25 @@ var Stream = (function () {
         struct.write(this, value);
     };
 
+    Stream.prototype.writeString = function (str) {
+        var _this = this;
+        try  {
+            str.split('').forEach(function (char) {
+                _this.writeUInt8(char.charCodeAt(0));
+            });
+        } catch (e) {
+            console.log("Can't write string '" + str + "'");
+            debugger;
+            console.warn(this.data);
+            console.error(e);
+            throw (e);
+        }
+    };
+
+    Stream.prototype.writeStringz = function (str) {
+        return this.writeString(str + String.fromCharCode(0));
+    };
+
     Stream.prototype.readBytes = function (count) {
         return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
     };
@@ -1301,30 +1320,6 @@ var Stream = (function () {
         return Utf8.decode(this.readString(count));
     };
 
-    /*
-    writeStream(from: Stream) {
-    new Uint8Array(this.data.buffer, this.data.byteOffset).set();
-    }
-    */
-    Stream.prototype.writeString = function (str) {
-        var _this = this;
-        try  {
-            str.split('').forEach(function (char) {
-                _this.writeUInt8(char.charCodeAt(0));
-            });
-        } catch (e) {
-            console.log("Can't write string '" + str + "'");
-            debugger;
-            console.warn(this.data);
-            console.error(e);
-            throw (e);
-        }
-    };
-
-    Stream.prototype.writeStringz = function (str) {
-        return this.writeString(str + String.fromCharCode(0));
-    };
-
     Stream.prototype.readString = function (count) {
         if (count > 128 * 1024)
             throw (new Error("Trying to read a string larger than 128KB"));
@@ -1336,12 +1331,12 @@ var Stream = (function () {
     };
 
     Stream.prototype.readUtf8Stringz = function (maxCount) {
-        if (typeof maxCount === "undefined") { maxCount = 2147483648; }
+        if (typeof maxCount === "undefined") { maxCount = 131072; }
         return Utf8.decode(this.readStringz(maxCount));
     };
 
     Stream.prototype.readStringz = function (maxCount) {
-        if (typeof maxCount === "undefined") { maxCount = 2147483648; }
+        if (typeof maxCount === "undefined") { maxCount = 131072; }
         var str = '';
         for (var n = 0; n < maxCount; n++) {
             if (this.available <= 0)
@@ -6087,6 +6082,8 @@ var PspDisplay = (function (_super) {
         this.hcountTotal = (this.elapsedSeconds * PspDisplay.HORIZONTAL_SYNC_HZ) | 0;
         this.hcountCurrent = (((this.elapsedSeconds % 1.00002) * PspDisplay.HORIZONTAL_SYNC_HZ) | 0) % PspDisplay.NUMBER_OF_ROWS;
         this.vblankCount = (this.elapsedSeconds * PspDisplay.VERTICAL_SYNC_HZ) | 0;
+
+        //console.log(this.elapsedSeconds);
         if (this.hcountCurrent >= PspDisplay.VSYNC_ROW) {
             this.isInVblank = true;
             this.rowsLeftForVblank = 0;
@@ -6123,7 +6120,7 @@ var PspDisplay = (function (_super) {
 
     PspDisplay.prototype.startAsync = function () {
         var _this = this;
-        this.startTime = this.currentMs;
+        this.startTime = this.getCurrentMs();
         this.updateTime();
 
         //$(this.canvas).focus();
@@ -6865,7 +6862,9 @@ var PspGpuList = (function () {
 
             case 15 /* FINISH */:
                 var callback = this.gpu.callbacks.get(this.callbackId);
-                this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+                if (callback && callback.cpuState && callback.finishFunction) {
+                    this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+                }
                 break;
             case 14 /* SIGNAL */:
                 console.warn('Not implemented: GPU SIGNAL');
@@ -8962,11 +8961,18 @@ var TextureHandler = (function () {
                 var data2 = new Uint8Array(w2 * h * 4);
 
                 var clut = state.texture.clut;
+
+                if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
+                    clut.numberOfColors = Math.max(clut.numberOfColors, clut.mask + 1);
+                    //debugger;
+                }
+
                 var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
                 var paletteU8 = new Uint8Array(paletteBuffer);
                 var palette = new Uint32Array(paletteBuffer);
 
                 if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
+                    //if (clut.pixelFormat == PixelFormat.RGBA_5551) debugger;
                     PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
                 }
 
@@ -10201,18 +10207,36 @@ var Memory = (function () {
     };
 
     Memory.prototype.copy = function (from, to, length) {
-        from &= Memory.MASK;
-        to &= Memory.MASK;
-        for (var n = 0; n < length; n++) {
-            this.u8[to + n] = this.u8[from + n];
-        }
+        this.u8.set(new Uint8Array(this.buffer, from & Memory.MASK, length), to & Memory.MASK);
     };
 
     Memory.prototype.memset = function (address, value, length) {
         address &= Memory.MASK;
-        for (var n = 0; n < length; n++) {
-            this.u8[address + n] = value;
+
+        var start = address;
+        var end = start + length;
+        var value8 = value & 0xFF;
+
+        while (address < end)
+            this.u8[address++] = value8;
+        /*
+        var value16 = value8 | (value8 << 8);
+        var value32 = value16 | (value16 << 16);
+        
+        debugger;
+        
+        while ((address & 3) && (address < end)) this.u8[address++] = value8;
+        
+        var end32 = end & ~3;
+        
+        while (address < end32) {
+        this.u32[address >>> 2] = value32;
+        address += 4;
         }
+        
+        // @TODO: Optimize generating 32-bit values
+        while (address < end) this.u8[address++] = value8;
+        */
     };
 
     /*
@@ -10439,10 +10463,18 @@ var PixelConverter = (function () {
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
         clutMask &= 0xF;
+
+        var updateT4Translate = PixelConverter.updateT4Translate;
+
+        for (var n = 0; n < 16; n++) {
+            updateT4Translate[n] = palette[((clutStart + n) >>> clutShift) & clutMask];
+            //updateT4Translate2[n] = updateT4Translate[n];
+        }
+
         for (var n = 0, m = 0; n < count; n++) {
             var char = from[fromIndex + n];
-            to32[m++] = palette[clutStart + (((char >> 0) & clutMask) << clutShift)] | orValue;
-            to32[m++] = palette[clutStart + (((char >> 4) & clutMask) << clutShift)] | orValue;
+            to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
+            to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
         }
     };
 
@@ -10472,13 +10504,16 @@ var PixelConverter = (function () {
         if (typeof useAlpha === "undefined") { useAlpha = true; }
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 
+        var orValue = useAlpha ? 0 : 0xFF000000;
+
         for (var n = 0; n < count; n++) {
             var it = from[fromIndex++];
             var value = 0;
             value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
             value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
             value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
-            value |= (useAlpha ? BitUtils.extractScalei(it, 15, 1, 0xFF) : 0xFF) << 24;
+            value |= BitUtils.extractScalei(it, 15, 1, 0xFF) << 24;
+            value |= orValue;
             to32[n] = value;
         }
     };
@@ -10493,7 +10528,7 @@ var PixelConverter = (function () {
             value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
             value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
             value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
-            value |= 0xFF << 24;
+            value |= 0xFF000000;
             to32[n] = value;
         }
     };
@@ -10512,6 +10547,7 @@ var PixelConverter = (function () {
             to32[n] = value;
         }
     };
+    PixelConverter.updateT4Translate = new Uint32Array(16);
     return PixelConverter;
 })();
 exports.PixelConverter = PixelConverter;
@@ -15612,6 +15648,23 @@ var IoFileMgrForUser = (function () {
                 return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
             }
         });
+        /*
+        [HlePspFunction(NID = 0x71B19E77, FirmwareVersion = 150)]
+        public int sceIoLseekAsync(SceUID FileId, long Offset, SeekAnchor Whence)
+        {
+        var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+        File.AsyncLastResult = sceIoLseek(FileId, Offset, Whence);
+        _DelayIo(IoDelayType.Seek);
+        return 0;
+        }
+        */
+        this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
+            //var file = this.getFileById(fileId);
+            var file = _this.getFileById(fileId);
+            var result = _this._seek(fileId, offset.getNumber(), whence);
+            file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(result)));
+            return 0;
+        });
         this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
             var result = _this._seek(fileId, offset.getNumber(), whence);
 
@@ -15736,7 +15789,7 @@ var IoFileMgrForUser = (function () {
     };
 
     IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
-        var file = this.fileUids.get(fileId);
+        var file = this.getFileById(fileId);
         switch (whence) {
             case 0 /* Set */:
                 file.cursor = 0 + offset;
@@ -16451,7 +16504,7 @@ var sceDisplay = (function () {
         this.sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, function (thread) {
             return _this._waitVblankStartAsync(thread, 1 /* YES */);
         });
-        this.sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, function () {
+        this.sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'int', '', this, function () {
             _this.context.display.updateTime();
             return _this.context.display.vblankCount;
         });
@@ -16788,9 +16841,13 @@ var sceMpeg = (function () {
     function sceMpeg(context) {
         this.context = context;
         this.sceMpegInit = createNativeFunction(0x682A619B, 150, 'uint', '', this, function () {
-            return 0;
+            return -1;
+        });
+        this.sceMpegRingbufferQueryMemSize = createNativeFunction(0xD7A29F46, 150, 'uint', 'int', this, function (numberOfPackets) {
+            return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
         });
     }
+    sceMpeg.RING_BUFFER_PACKET_SIZE = 0x800;
     return sceMpeg;
 })();
 exports.sceMpeg = sceMpeg;
@@ -17562,6 +17619,8 @@ var sceUtility = (function () {
 
             switch (params.mode) {
                 case 0 /* Autoload */:
+                case 2 /* Load */:
+                case 4 /* ListLoad */:
                     return fileManager.openAsync(saveDataBin, 1 /* Read */, parseIntFormat('0777')).then(function (file) {
                         return file.entry.readAllAsync();
                     }).then(function (data) {
@@ -17571,6 +17630,8 @@ var sceUtility = (function () {
                         return 2148598535 /* ERROR_SAVEDATA_LOAD_NO_DATA */;
                     });
                 case 1 /* Autosave */:
+                case 3 /* Save */:
+                case 5 /* ListSave */:
                     var data = _this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
 
                     return fileManager.openAsync(saveDataBin, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseIntFormat('0777')).then(function (file) {
@@ -19095,7 +19156,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += '}';
 
     //code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
-    //code += "if (DebugOnce(info, 200)) {";
+    //code += "if (DebugOnce(info, 10)) {";
     //code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
     //code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
     //code += "}";

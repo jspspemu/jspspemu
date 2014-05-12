@@ -58,7 +58,7 @@ export class sceDisplay {
 		return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
 	});
 
-	sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'uint', '', this, () => {
+	sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'int', '', this, () => {
 		this.context.display.updateTime();
 		return this.context.display.vblankCount;
 	});
