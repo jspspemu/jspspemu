@@ -14845,6 +14845,7 @@ var ThreadManager = (function () {
         this.threads = new DSet();
         this.interval = -1;
         this.enqueued = false;
+        this.enqueuedTime = 0;
         this.running = false;
         this.callbackAdded = null;
         this.exitPromise = new Promise(function (resolve, reject) {
@@ -14883,6 +14884,7 @@ var ThreadManager = (function () {
         if (this.enqueued)
             return;
         this.enqueued = true;
+        this.enqueuedTime = performance.now();
         setImmediate(function () {
             return _this.eventOcurredCallback();
         });
@@ -14902,6 +14904,9 @@ var ThreadManager = (function () {
         if (!this.running)
             return;
 
+        var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
+
+        //console.log('delayedTime', timeMsToCompensate);
         this.enqueued = false;
         var start = window.performance.now();
 
@@ -14925,6 +14930,7 @@ var ThreadManager = (function () {
                 if (thread.running) {
                     runningThreadCount++;
                     runningPriority = Math.min(runningPriority, thread.priority);
+                    thread.accumulatedMicroseconds += microsecondsToCompensate;
                 }
             });
 

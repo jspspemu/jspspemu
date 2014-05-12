@@ -223,6 +223,7 @@ export class ThreadManager {
     threads: DSet<Thread> = new DSet<Thread>();
     interval: number = -1;
 	enqueued: boolean = false;
+	enqueuedTime = 0;
 	running: boolean = false;
 	exitPromise: Promise<any>;
 	exitResolve: () => void;
@@ -259,6 +260,7 @@ export class ThreadManager {
 		if (!this.running) return;
         if (this.enqueued) return;
 		this.enqueued = true;
+		this.enqueuedTime = performance.now();
 		setImmediate(() => this.eventOcurredCallback());
     }
 
@@ -275,6 +277,9 @@ export class ThreadManager {
 	eventOcurredCallback() {
 		if (!this.running) return;
 
+		var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
+		//console.log('delayedTime', timeMsToCompensate);
+
         this.enqueued = false;
         var start = window.performance.now();
 
@@ -290,9 +295,16 @@ export class ThreadManager {
 
 			this.threads.forEach((thread) => {
 				if (this.callbackManager.hasPendingCallbacks) {
-					if (thread.acceptingCallbacks) { callbackThreadCount++; callbackPriority = Math.min(callbackPriority, thread.priority); }
+					if (thread.acceptingCallbacks) {
+						callbackThreadCount++;
+						callbackPriority = Math.min(callbackPriority, thread.priority);
+					}
 				}
-				if (thread.running) { runningThreadCount++; runningPriority = Math.min(runningPriority, thread.priority); }
+				if (thread.running) {
+					runningThreadCount++;
+					runningPriority = Math.min(runningPriority, thread.priority);
+					thread.accumulatedMicroseconds += microsecondsToCompensate;
+				}
 			});
 
 			if ((runningThreadCount == 0) && (callbackThreadCount == 0)) break;
