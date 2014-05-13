@@ -52,7 +52,7 @@ export class AsyncClient {
 			}));
 
 			this.initPromise = new Promise((resolve, reject) => {
-				this.client.authenticate({ interactive: true }, function (e) {
+				this.client.authenticate({ interactive: true }, (e) => {
 					if (e) {
 						this.initPromise = null;
 						reject(e);
@@ -66,12 +66,21 @@ export class AsyncClient {
 	}
 
 	writeFileAsync(fullpath: string, content: ArrayBuffer) {
-		delete this.readdirCachePromise[getDirectoryPath(fullpath)];
-		delete this.statCachePromise[getBaseName(fullpath)];
+		var directory = getDirectoryPath(fullpath);
+		var basename = getBaseName(fullpath);
+		if (this.statCacheValue[basename]) {
+			this.statCacheValue[basename].size = content.byteLength;
+		}
+		if (this.readdirCacheValue[directory]) {
+			var entriesInDirectory = this.readdirCacheValue[directory];
+			if (!entriesInDirectory.contains(basename)) {
+				entriesInDirectory.push(basename);
+			}
+		}
 
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
-				this.client.writeFile(fullpath, content, function (e, data) {
+				this.client.writeFile(fullpath, content, (e, data) => {
 					if (e) {
 						reject(e);
 					} else {
@@ -85,7 +94,7 @@ export class AsyncClient {
 	mkdirAsync(path: string) {
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
-				this.client.mkdir(path, function (e, data) {
+				this.client.mkdir(path, (e, data) => {
 					if (e) {
 						reject(e);
 					} else {
@@ -99,7 +108,7 @@ export class AsyncClient {
 	readFileAsync(name: string, offset: number = 0, length: number = undefined):Promise<ArrayBuffer> {
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
-				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, function (e, data) {
+				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, (e, data) => {
 					if (e) {
 						reject(e);
 					} else {
@@ -110,7 +119,8 @@ export class AsyncClient {
 		});
 	}
 
-	statCachePromise = {};
+	statCacheValue: StringDictionary<Info> = {};
+	statCachePromise: StringDictionary<Promise<Info>> = {};
 	statAsync(fullpath: string): Promise<Info> {
 		return this.initOnceAsync().then(() => {
 			if (!this.statCachePromise[fullpath]) {
@@ -118,10 +128,11 @@ export class AsyncClient {
 					var basename = getBaseName(fullpath);
 					if (!files.contains(basename)) throw(new Error("folder not contains file"));
 					return new Promise((resolve, reject) => {
-						this.client.stat(fullpath, {}, function (e, data) {
+						this.client.stat(fullpath, {}, (e, data) => {
 							if (e) {
 								reject(e);
 							} else {
+								this.statCacheValue[fullpath] = data;
 								resolve(data);
 							}
 						});
@@ -132,15 +143,17 @@ export class AsyncClient {
 		});
 	}
 
-	readdirCachePromise = {};
+	readdirCacheValue: StringDictionary<string[]> = {};
+	readdirCachePromise: StringDictionary<Promise<string[]>> = {};
 	readdirAsync(name: string): Promise<string[]> {
 		return this.initOnceAsync().then(() => {
 			if (!this.readdirCachePromise[name]) {
 				this.readdirCachePromise[name] = new Promise((resolve, reject) => {
-					this.client.readdir(name, {}, function (e, data) {
+					this.client.readdir(name, {}, (e, data) => {
 						if (e) {
 							reject(e);
 						} else {
+							this.readdirCacheValue[name] = data;
 							resolve(data);
 						}
 					});

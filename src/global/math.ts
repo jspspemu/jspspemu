@@ -341,6 +341,15 @@ class MathUtils {
 		return (value % alignment) == 0;
 	}
 
+	static requiredBlocks(size: number, blockSize: number) {
+		if ((size % blockSize) != 0) {
+			return (size / blockSize) + 1;
+		}
+		else {
+			return size / blockSize;
+		}
+	}
+
 	static nextAligned(value: number, alignment: number) {
 		if (alignment <= 1) return value;
 		if ((value % alignment) == 0) return value;

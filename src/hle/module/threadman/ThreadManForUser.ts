@@ -18,7 +18,7 @@ export class ThreadManForUser {
 
 	private threadUids = new UidCollection<Thread>(1);
 
-	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'Thread/string/uint/int/int/int/int', this, (currentThread: Thread, name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number) => {
+	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread', this, (name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number, currentThread: Thread) => {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 		if (stackSize < 0x200) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_STACK_SIZE;
 		if (initPriority < 0x08 || initPriority > 0x77) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_PRIORITY;
@@ -55,6 +55,7 @@ export class ThreadManForUser {
 	});
 
 	getThreadById(id: number) {
+		if (id == 0) return this.context.threadManager.current;
 		if (!this.threadUids.has(id)) throw (new SceKernelException(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD));
 		return this.threadUids.get(id);
 	}
@@ -207,8 +208,6 @@ export class ThreadManForUser {
 	});
 
 	sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, (threadId: number, sceKernelThreadInfoPtr: Stream) => {
-		if (threadId == 0) return 0;
-
 		var thread = this.getThreadById(threadId);
 
 		var info = new SceKernelThreadInfo();

@@ -544,8 +544,18 @@ export class GpuState {
 	diffuseModelColor = new ColorState();
 	specularModelColor = new ColorState();
 	culling = new CullingState();
+	dithering = new DitheringState();
+	colorTest = new ColorTestState();
 	depthTest = new DepthTestState();
 	drawPixelFormat = PixelFormat.RGBA_8888;
+}
+
+export class ColorTestState {
+	enabled = false;
+}
+
+export class DitheringState {
+	enabled = false;
 }
 
 export enum WrapMode {

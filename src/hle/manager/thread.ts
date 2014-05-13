@@ -205,6 +205,8 @@ export class Thread {
     }
 
 	runStep() {
+		this.manager.current = this;
+
 		this.preemptionCount++;
 		//console.error("Running: " + this.name);
 		try {
@@ -228,6 +230,7 @@ export class ThreadManager {
 	running: boolean = false;
 	exitPromise: Promise<any>;
 	exitResolve: () => void;
+	current: Thread;
 
 	constructor(private memory: Memory, private interruptManager:InterruptManager, private callbackManager:CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager, private instructionCache: InstructionCache) {
 		this.exitPromise = new Promise((resolve, reject) => {
@@ -304,7 +307,7 @@ export class ThreadManager {
 				if (thread.running) {
 					runningThreadCount++;
 					runningPriority = Math.min(runningPriority, thread.priority);
-					thread.accumulatedMicroseconds += microsecondsToCompensate;
+					//thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
 				}
 			});
 

@@ -15,12 +15,17 @@ export class ModuleMgrForUser {
 		return 0;
 	});
 
-	sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'Thread/int/int/int', this, (thread: Thread, unknown: number, argsize: number, argp: number) => {
+	sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread', this, (unknown: number, argsize: number, argp: number, thread: Thread) => {
 		console.info("Call stack:");
 		thread.state.printCallstack(this.context.symbolLookup);
 		//this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
 		throw (new Error("sceKernelSelfStopUnloadModule"));
+		return 0;
+	});
+
+	sceKernelStopUnloadSelfModule = createNativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread', this, (argsize: number, argp: number, optionsAddress:number, thread: Thread) => {
+		throw (new Error("sceKernelStopUnloadSelfModule"));
 		return 0;
 	});
 

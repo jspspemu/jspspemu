@@ -56,7 +56,7 @@ export class scePower {
 		return (freq >= 19 && freq <= 111);
 	}
 
-	scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, (pllFreq: number, cpuFreq: number, busFreq: number) => {
+	_scePowerSetClockFrequency(pllFreq: number, cpuFreq: number, busFreq: number) {
 		if (!this._isValidCpuFreq(cpuFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
 		if (!this._isValidBusFreq(busFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
 		if (!this._isValidPllFreq(pllFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
@@ -64,7 +64,20 @@ export class scePower {
 		this._setCpuFreq(cpuFreq);
 		this.busFreq = busFreq;
 		return 0;
+	}
+
+	scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, (pllFreq: number, cpuFreq: number, busFreq: number) => {
+		return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
 	});
+
+	scePowerSetClockFrequency2 = createNativeFunction(0xEBD177D6, 150, 'int', 'int/int/int', this, (pllFreq: number, cpuFreq: number, busFreq: number) => {
+		return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+	});
+
+	scePowerSetClockFrequency3 = createNativeFunction(0x469989AD, 150, 'int', 'int/int/int', this, (pllFreq: number, cpuFreq: number, busFreq: number) => {
+		return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+	});
+	
 
 	scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, () => this._getCpuFreq());
 	scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, () => this._getCpuFreq());

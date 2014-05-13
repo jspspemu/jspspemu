@@ -832,6 +832,14 @@ var MathUtils = (function () {
         return (value % alignment) == 0;
     };
 
+    MathUtils.requiredBlocks = function (size, blockSize) {
+        if ((size % blockSize) != 0) {
+            return (size / blockSize) + 1;
+        } else {
+            return size / blockSize;
+        }
+    };
+
     MathUtils.nextAligned = function (value, alignment) {
         if (alignment <= 1)
             return value;
@@ -1835,15 +1843,23 @@ var Pointer = (function () {
         this.type = type;
         this.memory = memory;
         this.address = address;
-        this.value = null;
         this.stream = memory.getPointerStream(this.address);
     }
-    Pointer.prototype.read = function () {
-        this.value = this.type.read(this.stream.clone());
+    Pointer.prototype.readWrite = function (callback) {
+        var value = this.read();
+        try  {
+            callback(value);
+        } finally {
+            this.write(value);
+        }
     };
 
-    Pointer.prototype.write = function () {
-        this.type.write(this.stream.clone(), this.value);
+    Pointer.prototype.read = function () {
+        return this.type.read(this.stream.clone());
+    };
+
+    Pointer.prototype.write = function (value) {
+        this.type.write(this.stream.clone(), value);
     };
     return Pointer;
 })();
@@ -6805,8 +6821,16 @@ var PspGpuList = (function () {
                 this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
                 break;
 
+            case 39 /* CTE */:
+                this.state.colorTest.enabled = bool1();
+                break;
+
+            case 32 /* DTE */:
+                this.state.dithering.enabled = bool1();
+                break;
+
             case 29 /* BCE */:
-                this.state.culling.enabled = (params24 != 0);
+                this.state.culling.enabled = bool1();
                 break;
             case 155 /* FFACE */:
                 this.state.culling.direction = params24;
@@ -8281,6 +8305,8 @@ var GpuState = (function () {
         this.diffuseModelColor = new ColorState();
         this.specularModelColor = new ColorState();
         this.culling = new CullingState();
+        this.dithering = new DitheringState();
+        this.colorTest = new ColorTestState();
         this.depthTest = new DepthTestState();
         this.drawPixelFormat = 3 /* RGBA_8888 */;
     }
@@ -8293,6 +8319,22 @@ var GpuState = (function () {
     return GpuState;
 })();
 exports.GpuState = GpuState;
+
+var ColorTestState = (function () {
+    function ColorTestState() {
+        this.enabled = false;
+    }
+    return ColorTestState;
+})();
+exports.ColorTestState = ColorTestState;
+
+var DitheringState = (function () {
+    function DitheringState() {
+        this.enabled = false;
+    }
+    return DitheringState;
+})();
+exports.DitheringState = DitheringState;
 
 (function (WrapMode) {
     WrapMode[WrapMode["Repeat"] = 0] = "Repeat";
@@ -10119,6 +10161,12 @@ var Memory = (function () {
         return this.buffer.byteLength - (address & Memory.MASK);
     };
 
+    Memory.prototype.getPointerPointer = function (type, address) {
+        if (address == 0)
+            return null;
+        return new Pointer(type, this, address);
+    };
+
     Memory.prototype.getPointerDataView = function (address, size) {
         if (!size)
             size = this.availableAfterAddress(address);
@@ -10527,13 +10575,15 @@ var PixelConverter = (function () {
         if (typeof clutMask === "undefined") { clutMask = 0; }
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
+        count |= 0;
+        clutStart |= 0;
+        clutShift |= 0;
         clutMask &= 0xF;
 
         var updateT4Translate = PixelConverter.updateT4Translate;
 
-        for (var n = 0; n < 16; n++) {
-            updateT4Translate[n] = palette[((clutStart + n) >>> clutShift) & clutMask];
-            //updateT4Translate2[n] = updateT4Translate[n];
+        for (var m = 0; m < 16; m++) {
+            updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
         }
 
         for (var n = 0, m = 0; n < count; n++) {
@@ -10541,6 +10591,18 @@ var PixelConverter = (function () {
             to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
             to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
         }
+        //var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+        //var orValue = useAlpha ? 0 : 0xFF000000;
+        //count |= 0;
+        //clutStart |= 0;
+        //clutShift |= 0;
+        //clutMask &= 0xF;
+        //
+        //for (var n = 0, m = 0; n < count; n++) {
+        //	var char = from[fromIndex + n];
+        //	to32[m++] = palette[((clutStart + (char >>> 0) & 0xF) >>> clutShift) & clutMask]
+        //	to32[m++] = palette[((clutStart + (char >>> 4) & 0xF) >>> clutShift) & clutMask]
+        //}
     };
 
     PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
@@ -10683,6 +10745,7 @@ var EmulatorVfs = _vfs.EmulatorVfs;
 _vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
 var DropboxVfs = _vfs.DropboxVfs;
+var ProxyVfs = _vfs.ProxyVfs;
 
 var PspElfLoader = _elf_psp.PspElfLoader;
 
@@ -10863,22 +10926,33 @@ var Emulator = (function () {
                         _this.fileManager.mount('umd0', isoFs);
                         _this.fileManager.mount('disc0', isoFs);
 
-                        return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(function (paramSfoData) {
-                            var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
-                            _this.processParamsPsf(psf);
+                        return isoFs.existsAsync('PSP_GAME/PARAM.SFO').then(function (exists) {
+                            if (!exists) {
+                                var mountableVfs = _this.ms0Vfs;
+                                mountableVfs.mountVfs('/PSP/GAME/virtual', new ProxyVfs([isoFs, _this.storageVfs]));
 
-                            var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (data) {
-                                _this.loadIcon0(Stream.fromArrayBuffer(data));
-                            }).catch(function () {
-                            });
-                            var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (data) {
-                                _this.loadPic1(Stream.fromArrayBuffer(data));
-                            }).catch(function () {
-                            });
+                                return isoFs.readAllAsync('EBOOT.PBP').then(function (bootBinData) {
+                                    return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'ms0:/PSP/GAME/virtual/EBOOT.PBP');
+                                });
+                            } else {
+                                return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(function (paramSfoData) {
+                                    var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
+                                    _this.processParamsPsf(psf);
 
-                            return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
-                                return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
-                            });
+                                    var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (data) {
+                                        _this.loadIcon0(Stream.fromArrayBuffer(data));
+                                    }).catch(function () {
+                                    });
+                                    var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (data) {
+                                        _this.loadPic1(Stream.fromArrayBuffer(data));
+                                    }).catch(function () {
+                                    });
+
+                                    return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
+                                        return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                                    });
+                                });
+                            }
                         });
                     });
                 case 'elf':
@@ -11099,9 +11173,15 @@ var Cso = (function () {
             return chunkPromise;
         } else {
             //console.log(sprintf("readChunkAsyncSeveral: %08X, %d, (%d)", offset, count, blockIndex), (new Error())['stack']);
+            //var time1 = performance.now();
             return chunkPromise.then(function (chunk1) {
                 return _this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(function (chunk2) {
-                    return ArrayBufferUtils.concat([chunk1, chunk2]);
+                    //var time2 = performance.now();
+                    var result = ArrayBufferUtils.concat([chunk1, chunk2]);
+
+                    //var time3 = performance.now();
+                    //console.log('Cso.readChunkAsync', time1, time2, time3);
+                    return result;
                 });
             });
         }
@@ -14881,6 +14961,8 @@ var Thread = (function () {
     };
 
     Thread.prototype.runStep = function () {
+        this.manager.current = this;
+
         this.preemptionCount++;
 
         try  {
@@ -14996,7 +15078,7 @@ var ThreadManager = (function () {
                 if (thread.running) {
                     runningThreadCount++;
                     runningPriority = Math.min(runningPriority, thread.priority);
-                    thread.accumulatedMicroseconds += microsecondsToCompensate;
+                    //thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
                 }
             });
 
@@ -15267,13 +15349,17 @@ var ModuleMgrForUser = (function () {
         this.sceKernelUnloadModule = createNativeFunction(0x2E0911AA, 150, 'uint', 'int', this, function (id) {
             return 0;
         });
-        this.sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'Thread/int/int/int', this, function (thread, unknown, argsize, argp) {
+        this.sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread', this, function (unknown, argsize, argp, thread) {
             console.info("Call stack:");
             thread.state.printCallstack(_this.context.symbolLookup);
 
             //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
             throw (new Error("sceKernelSelfStopUnloadModule"));
+            return 0;
+        });
+        this.sceKernelStopUnloadSelfModule = createNativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread', this, function (argsize, argp, optionsAddress, thread) {
+            throw (new Error("sceKernelStopUnloadSelfModule"));
             return 0;
         });
         this.sceKernelLoadModule = createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, function (path, flags, sceKernelLMOption) {
@@ -15416,6 +15502,14 @@ var SysMemUserForUser = (function () {
         this.sceKernelSetCompilerVersion = createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, function (version) {
             console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
         });
+        this.sceKernelSetCompiledSdkVersion395 = createNativeFunction(0xEBD5C3E6, 150, 'int', 'uint', this, function (param) {
+            console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
+        });
+        this.sceKernelDevkitVersion = createNativeFunction(0x3FC9AE6A, 150, 'int', 'uint', this, function (version) {
+            //var Version = HleConfig.FirmwareVersion;
+            //return (Version.Major << 24) | (Version.Minor << 16) | (Version.Revision << 8) | 0x10;
+            return 0x02070110;
+        });
         this.sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string', this, function (thread, format) {
             var gprIndex = 5;
             var memory = _this.context.memory;
@@ -15547,6 +15641,9 @@ var UtilsForUser = (function () {
         });
         this.sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0xB435DEC5, 150, 'uint', '', this, function () {
             _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+            return 0;
+        });
+        this.sceKernelSetGPO = createNativeFunction(0x6AD345D7, 150, 'uint', 'int', this, function (value) {
             return 0;
         });
     }
@@ -15793,6 +15890,9 @@ var IoFileMgrForUser = (function () {
             }
             return directory.left;
         });
+        this.sceIoChangeAsyncPriority = createNativeFunction(0xB293727F, 150, 'int', 'int/int', this, function (fileId, priority) {
+            return 0;
+        });
     }
     IoFileMgrForUser.prototype.getFileById = function (id) {
         if (!this.fileUids.has(id))
@@ -15811,20 +15911,26 @@ var IoFileMgrForUser = (function () {
     };
 
     IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
-        console.info('_sceIoWaitAsyncCB', fileId);
         thread.state.LO = fileId;
 
-        if (this.fileUids.has(fileId))
+        if (!this.fileUids.has(fileId)) {
+            if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                console.info('_sceIoWaitAsyncCB', fileId, 'file not found');
             return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
+        }
 
         var file = this.getFileById(fileId);
 
         if (file.asyncOperation) {
+            if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                console.info('_sceIoWaitAsyncCB', fileId, 'completed');
             return file.asyncOperation.then(function (result) {
                 resultPointer.writeInt64(result);
                 return 0;
             });
         } else {
+            if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                console.info('_sceIoWaitAsyncCB', fileId, 'incompleted');
             resultPointer.writeInt64(Integer64.fromNumber(0));
             return Promise.resolve(1);
         }
@@ -16678,6 +16784,14 @@ var sceGe_user = (function () {
     function sceGe_user(context) {
         var _this = this;
         this.context = context;
+        this.eDRAMMemoryWidth = 0;
+        this.sceGeEdramSetAddrTranslation = createNativeFunction(0xB77905EA, 150, 'uint', 'int', this, function (size) {
+            try  {
+                return _this.eDRAMMemoryWidth;
+            } finally {
+                _this.eDRAMMemoryWidth = size;
+            }
+        });
         this.sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*', this, function (thread, callbackDataPtr) {
             var callbacks = _this.context.gpu.callbacks;
             var info = CallbackData.struct.read(callbackDataPtr);
@@ -16774,6 +16888,11 @@ var sceImpose = (function () {
             iconStatusPointer.writeInt32(3 /* FullyFilled */);
             return 0;
         });
+        this.sceImposeSetLanguageMode = createNativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint', this, function (language, buttonPreference) {
+            //this.context.config.language = language;
+            //this.context.config.buttonPreference = buttonPreference;
+            return 0;
+        });
     }
     return sceImpose;
 })();
@@ -16819,6 +16938,12 @@ var sceLibFont = (function () {
         });
         this.sceFontGetFontInfo = createNativeFunction(0x0DA7535E, 150, 'uint', 'int/void*', this, function (fontId, fontInfoPointer) {
             var font = _this.fontUid.get(fontId);
+            return 0;
+        });
+        this.sceFontSetResolution = createNativeFunction(0x48293280, 150, 'uint', 'int/float/float', this, function (fontLibId, horizontalResolution, verticalResolution) {
+            //var font = this.fontUid.get(fontId);
+            //FontLibrary.HorizontalResolution = HorizontalResolution;
+            //FontLibrary.VerticalResolution = VerticalResolution;
             return 0;
         });
     }
@@ -17222,16 +17347,13 @@ var scePower = (function () {
             return 0;
         });
         this.scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
-            if (!_this._isValidCpuFreq(cpuFreq))
-                return 2147484158 /* ERROR_INVALID_VALUE */;
-            if (!_this._isValidBusFreq(busFreq))
-                return 2147484158 /* ERROR_INVALID_VALUE */;
-            if (!_this._isValidPllFreq(pllFreq))
-                return 2147484158 /* ERROR_INVALID_VALUE */;
-            _this.pllFreq = pllFreq;
-            _this._setCpuFreq(cpuFreq);
-            _this.busFreq = busFreq;
-            return 0;
+            return _this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+        });
+        this.scePowerSetClockFrequency2 = createNativeFunction(0xEBD177D6, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
+            return _this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+        });
+        this.scePowerSetClockFrequency3 = createNativeFunction(0x469989AD, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
+            return _this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
         });
         this.scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, function () {
             return _this._getCpuFreq();
@@ -17337,6 +17459,19 @@ var scePower = (function () {
     scePower.prototype._isValidPllFreq = function (freq) {
         return (freq >= 19 && freq <= 111);
     };
+
+    scePower.prototype._scePowerSetClockFrequency = function (pllFreq, cpuFreq, busFreq) {
+        if (!this._isValidCpuFreq(cpuFreq))
+            return 2147484158 /* ERROR_INVALID_VALUE */;
+        if (!this._isValidBusFreq(busFreq))
+            return 2147484158 /* ERROR_INVALID_VALUE */;
+        if (!this._isValidPllFreq(pllFreq))
+            return 2147484158 /* ERROR_INVALID_VALUE */;
+        this.pllFreq = pllFreq;
+        this._setCpuFreq(cpuFreq);
+        this.busFreq = busFreq;
+        return 0;
+    };
     return scePower;
 })();
 exports.scePower = scePower;
@@ -17441,6 +17576,8 @@ var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var _structs = require('../structs');
 
+var ScePspDateTime = _structs.ScePspDateTime;
+
 var sceRtc = (function () {
     function sceRtc(context) {
         var _this = this;
@@ -17472,6 +17609,16 @@ var sceRtc = (function () {
                 return 2147484158 /* ERROR_INVALID_VALUE */;
             }
         });
+        this.sceRtcGetCurrentClock = createNativeFunction(0x4CFA57B0, 150, 'int', 'uint/int', this, function (dateAddress, timezone) {
+            //var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
+            //currentDate += timezone * 60 * 1000000;
+            var date = new Date();
+
+            var pointer = _this.context.memory.getPointerPointer(ScePspDateTime.struct, dateAddress);
+            pointer.write(ScePspDateTime.fromDate(new Date()));
+
+            return 0;
+        });
     }
     return sceRtc;
 })();
@@ -17488,6 +17635,7 @@ var sceSasCore = (function () {
     function sceSasCore(context) {
         var _this = this;
         this.context = context;
+        this.core = new SasCore();
         this.voices = [];
         this.__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
             if (sampleRate != 44100) {
@@ -17615,6 +17763,17 @@ var sceSasCore = (function () {
             // Not implemented
             return 0;
         });
+        this.__sceSasRevParam = createNativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', this, function (sasCorePointer, delay, feedback) {
+            _this.core.delay = delay;
+            _this.core.feedback = feedback;
+
+            // Not implemented
+            return 0;
+        });
+        this.__sceSasSetSimpleADSR = createNativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', this, function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            return 0;
+        });
         while (this.voices.length < 32)
             this.voices.push(new Voice(this.voices.length));
     }
@@ -17643,6 +17802,14 @@ var sceSasCore = (function () {
 })();
 exports.sceSasCore = sceSasCore;
 
+var SasCore = (function () {
+    function SasCore() {
+        this.delay = 0;
+        this.feedback = 0;
+    }
+    return SasCore;
+})();
+
 var Envelope = (function () {
     function Envelope() {
         this.attackRate = 0;
@@ -17670,7 +17837,6 @@ var OutputMode;
     OutputMode[OutputMode["STEREO"] = 0] = "STEREO";
     OutputMode[OutputMode["MULTICHANNEL"] = 1] = "MULTICHANNEL";
 })(OutputMode || (OutputMode = {}));
-
 var WaveformEffectType;
 (function (WaveformEffectType) {
     WaveformEffectType[WaveformEffectType["OFF"] = -1] = "OFF";
@@ -17684,15 +17850,6 @@ var WaveformEffectType;
     WaveformEffectType[WaveformEffectType["DELAY"] = 7] = "DELAY";
     WaveformEffectType[WaveformEffectType["PIPE"] = 8] = "PIPE";
 })(WaveformEffectType || (WaveformEffectType = {}));
-
-var AdsrFlags;
-(function (AdsrFlags) {
-    AdsrFlags[AdsrFlags["HasAttack"] = (1 << 0)] = "HasAttack";
-    AdsrFlags[AdsrFlags["HasDecay"] = (1 << 1)] = "HasDecay";
-    AdsrFlags[AdsrFlags["HasSustain"] = (1 << 2)] = "HasSustain";
-    AdsrFlags[AdsrFlags["HasRelease"] = (1 << 3)] = "HasRelease";
-})(AdsrFlags || (AdsrFlags = {}));
-
 var AdsrCurveMode;
 (function (AdsrCurveMode) {
     AdsrCurveMode[AdsrCurveMode["LINEAR_INCREASE"] = 0] = "LINEAR_INCREASE";
@@ -17702,6 +17859,14 @@ var AdsrCurveMode;
     AdsrCurveMode[AdsrCurveMode["EXPONENT"] = 4] = "EXPONENT";
     AdsrCurveMode[AdsrCurveMode["DIRECT"] = 5] = "DIRECT";
 })(AdsrCurveMode || (AdsrCurveMode = {}));
+
+var AdsrFlags;
+(function (AdsrFlags) {
+    AdsrFlags[AdsrFlags["HasAttack"] = (1 << 0)] = "HasAttack";
+    AdsrFlags[AdsrFlags["HasDecay"] = (1 << 1)] = "HasDecay";
+    AdsrFlags[AdsrFlags["HasSustain"] = (1 << 2)] = "HasSustain";
+    AdsrFlags[AdsrFlags["HasRelease"] = (1 << 3)] = "HasRelease";
+})(AdsrFlags || (AdsrFlags = {}));
 //# sourceMappingURL=sceSasCore.js.map
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
@@ -17767,7 +17932,11 @@ var sceUmdUser = (function () {
             return 0;
         });
         this.sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, function (mode, drive) {
-            console.warn('Not implemented sceUmdActivate');
+            console.warn('Not implemented sceUmdActivate', mode, drive);
+            return 0;
+        });
+        this.sceUmdDeactivate = createNativeFunction(0xE83742BA, 150, 'uint', 'int/string', this, function (mode, drive) {
+            console.warn('Not implemented sceUmdDeactivate', mode, drive);
             return 0;
         });
         this.sceUmdGetDriveStat = createNativeFunction(0x6B4A146C, 150, 'uint', '', this, function () {
@@ -17864,6 +18033,56 @@ var sceUtility = (function () {
                         return Promise.resolve(0);
                     }
                     break;
+
+                case 8 /* Sizes */:
+                     {
+                        var SceKernelError = 0 /* ERROR_OK */;
+
+                        //Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+                        var SectorSize = 1024;
+                        var FreeSize = 32 * 1024 * 1024;
+                        var UsedSize = 0;
+
+                         {
+                            var sizeFreeInfoPtr = _this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
+                            sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
+                                sizeFreeInfo.sectorSize = SectorSize;
+                                sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+                                sizeFreeInfo.freeKb = FreeSize / 1024;
+                                sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+                            });
+                        }
+
+                         {
+                            var sizeUsedInfoPtr = _this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
+                        }
+
+                         {
+                            var sizeRequiredSpaceInfoPtr = _this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+
+                            if (sizeRequiredSpaceInfoPtr != null) {
+                                var RequiredSize = 0;
+                                RequiredSize += params.icon0FileData.size;
+                                RequiredSize += params.icon1FileData.size;
+                                RequiredSize += params.pic1FileData.size;
+                                RequiredSize += params.snd0FileData.size;
+                                RequiredSize += params.dataSize;
+
+                                sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
+                                    sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+                                    sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+                                    sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+
+                                    sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+                                    sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+                                });
+                            }
+                        }
+
+                        if (SceKernelError != 0 /* ERROR_OK */)
+                            throw (new SceKernelException(SceKernelError));
+                    }
+                    break;
                 default:
                     throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
             }
@@ -17915,6 +18134,9 @@ var sceUtility = (function () {
             value = value.substr(0, Math.min(value.length, len - 1));
             if (strPtr)
                 strPtr.writeStringz(value);
+            return 0;
+        });
+        this.sceUtilityLoadAvModule = createNativeFunction(0xC629AF26, 150, 'uint', 'int', this, function (id) {
             return 0;
         });
     }
@@ -18280,6 +18502,46 @@ var SceUtilitySavedataParam = (function () {
     ]);
     return SceUtilitySavedataParam;
 })();
+
+var SizeFreeInfo = (function () {
+    function SizeFreeInfo() {
+    }
+    SizeFreeInfo.struct = StructClass.create(SizeFreeInfo, [
+        { sectorSize: UInt32 },
+        { freeSectors: UInt32 },
+        { freeKb: UInt32 },
+        { freeKbString: Stringz(8) }
+    ]);
+    return SizeFreeInfo;
+})();
+
+var SizeUsedInfo = (function () {
+    function SizeUsedInfo() {
+    }
+    SizeUsedInfo.struct = StructClass.create(SizeUsedInfo, [
+        { gameName: Stringz(16) },
+        { saveName: Stringz(24) },
+        { usedSectors: UInt32 },
+        { usedKb: UInt32 },
+        { usedKbString: Stringz(8) },
+        { usedKb32: UInt32 },
+        { usedKb32String: Stringz(8) }
+    ]);
+    return SizeUsedInfo;
+})();
+
+var SizeRequiredSpaceInfo = (function () {
+    function SizeRequiredSpaceInfo() {
+    }
+    SizeRequiredSpaceInfo.struct = StructClass.create(SizeRequiredSpaceInfo, [
+        { requiredSpaceSectors: UInt32 },
+        { requiredSpaceKb: UInt32 },
+        { requiredSpaceString: Stringz(8) },
+        { requiredSpace32KB: UInt32 },
+        { requiredSpace32KBString: Stringz(8) }
+    ]);
+    return SizeRequiredSpaceInfo;
+})();
 //# sourceMappingURL=sceUtility.js.map
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
@@ -18323,7 +18585,7 @@ var ThreadManForUser = (function () {
         var _this = this;
         this.context = context;
         this.threadUids = new UidCollection(1);
-        this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'Thread/string/uint/int/int/int/int', this, function (currentThread, name, entryPoint, initPriority, stackSize, attributes, optionPtr) {
+        this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread', this, function (name, entryPoint, initPriority, stackSize, attributes, optionPtr, currentThread) {
             if (name == null)
                 return 2147614721 /* ERROR_ERROR */;
             if (stackSize < 0x200)
@@ -18466,9 +18728,6 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
-            if (threadId == 0)
-                return 0;
-
             var thread = _this.getThreadById(threadId);
 
             var info = new SceKernelThreadInfo();
@@ -18510,6 +18769,8 @@ var ThreadManForUser = (function () {
         });
     }
     ThreadManForUser.prototype.getThreadById = function (id) {
+        if (id == 0)
+            return this.context.threadManager.current;
         if (!this.threadUids.has(id))
             throw (new SceKernelException(2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */));
         return this.threadUids.get(id);
@@ -19070,6 +19331,7 @@ var ThreadManForUser = (function () {
 
             try  {
                 var item = vpl.partition.allocateLow(size);
+                console.log('-->', item.low);
                 if (addressPtr)
                     addressPtr.writeInt32(item.low);
                 return 0;
@@ -19307,10 +19569,15 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     var code = '';
 
     var args = [];
-    var argindex = 4;
+    var gprindex = 4;
+    var fprindex = 0;
 
     function _readGpr32() {
-        return 'state.gpr[' + (argindex++) + ']';
+        return 'state.gpr[' + (gprindex++) + ']';
+    }
+
+    function readFpr32() {
+        return 'state.fpr[' + (fprindex++) + ']';
     }
 
     function readGpr32_S() {
@@ -19322,7 +19589,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     }
 
     function readGpr64() {
-        argindex = MathUtils.nextAligned(argindex, 2);
+        gprindex = MathUtils.nextAligned(gprindex, 2);
         var gprLow = readGpr32_S();
         var gprHigh = readGpr32_S();
         return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
@@ -19358,6 +19625,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
             case 'int':
                 args.push(readGpr32_S() + ' | 0');
                 break;
+            case 'float':
+                args.push(readFpr32());
+                break;
             case 'ulong':
             case 'long':
                 args.push(readGpr64());
@@ -19380,11 +19650,16 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
     code += '}';
 
-    //code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
-    //code += "if (DebugOnce(info, 100)) {";
-    //code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
-    //code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
-    //code += "}";
+    var debugSyscalls = false;
+
+    if (debugSyscalls) {
+        code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
+        code += "if (DebugOnce(info, 10)) {";
+        code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
+        code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
+        code += "}";
+    }
+
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
     code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } } ';
 
@@ -19453,6 +19728,8 @@ var FileOpenFlags = _vfs.FileOpenFlags;
 exports.FileOpenFlags = FileOpenFlags;
 var Vfs = _vfs.Vfs;
 exports.Vfs = Vfs;
+var ProxyVfs = _vfs.ProxyVfs;
+exports.ProxyVfs = ProxyVfs;
 var VfsEntry = _vfs.VfsEntry;
 exports.VfsEntry = VfsEntry;
 
@@ -19517,6 +19794,14 @@ var Vfs = (function () {
     Vfs.prototype.getStatAsync = function (path) {
         return this.openAsync(path, 1 /* Read */, parseInt('0777', 8)).then(function (entry) {
             return entry.stat();
+        });
+    };
+
+    Vfs.prototype.existsAsync = function (path) {
+        return this.getStatAsync(path).then(function () {
+            return true;
+        }).catch(function () {
+            return false;
         });
     };
     return Vfs;
@@ -19677,7 +19962,9 @@ var FileOpenFlags = _vfs.FileOpenFlags;
 var AsyncClient = (function () {
     function AsyncClient(key) {
         this.key = key;
+        this.statCacheValue = {};
         this.statCachePromise = {};
+        this.readdirCacheValue = {};
         this.readdirCachePromise = {};
     }
     AsyncClient.prototype.initOnceAsync = function () {
@@ -19698,7 +19985,7 @@ var AsyncClient = (function () {
             this.initPromise = new Promise(function (resolve, reject) {
                 _this.client.authenticate({ interactive: true }, function (e) {
                     if (e) {
-                        this.initPromise = null;
+                        _this.initPromise = null;
                         reject(e);
                     } else {
                         resolve();
@@ -19711,8 +19998,17 @@ var AsyncClient = (function () {
 
     AsyncClient.prototype.writeFileAsync = function (fullpath, content) {
         var _this = this;
-        delete this.readdirCachePromise[getDirectoryPath(fullpath)];
-        delete this.statCachePromise[getBaseName(fullpath)];
+        var directory = getDirectoryPath(fullpath);
+        var basename = getBaseName(fullpath);
+        if (this.statCacheValue[basename]) {
+            this.statCacheValue[basename].size = content.byteLength;
+        }
+        if (this.readdirCacheValue[directory]) {
+            var entriesInDirectory = this.readdirCacheValue[directory];
+            if (!entriesInDirectory.contains(basename)) {
+                entriesInDirectory.push(basename);
+            }
+        }
 
         return this.initOnceAsync().then(function () {
             return new Promise(function (resolve, reject) {
@@ -19772,6 +20068,7 @@ var AsyncClient = (function () {
                             if (e) {
                                 reject(e);
                             } else {
+                                _this.statCacheValue[fullpath] = data;
                                 resolve(data);
                             }
                         });
@@ -19791,6 +20088,7 @@ var AsyncClient = (function () {
                         if (e) {
                             reject(e);
                         } else {
+                            _this.readdirCacheValue[name] = data;
                             resolve(data);
                         }
                     });

@@ -47,6 +47,11 @@ export class Memory {
 		return this.buffer.byteLength - (address & Memory.MASK);
 	}
 
+	getPointerPointer<T>(type: IType, address: number) {
+		if (address == 0) return null;
+		return new Pointer<T>(type, this, address);
+	}
+
 	getPointerDataView(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
 		return new DataView(this.buffer, address & Memory.MASK, size);

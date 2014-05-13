@@ -26,6 +26,10 @@
 	getStatAsync(path: string): Promise<VfsStat> {
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.stat());
 	}
+
+	existsAsync(path: string): Promise<boolean> {
+		return this.getStatAsync(path).then(() => true).catch(() => false);
+	}
 }
 
 export class ProxyVfs extends Vfs {

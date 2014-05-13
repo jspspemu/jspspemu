@@ -12,6 +12,7 @@ import _dropbox = require('./vfs/vfs_dropbox'); _dropbox.DropboxVfs;
 export import FileMode = _vfs.FileMode;
 export import FileOpenFlags = _vfs.FileOpenFlags;
 export import Vfs = _vfs.Vfs;
+export import ProxyVfs = _vfs.ProxyVfs;
 export import VfsEntry = _vfs.VfsEntry;
 export import VfsStat = _vfs.VfsStat;
 

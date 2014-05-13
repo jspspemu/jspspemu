@@ -35,6 +35,7 @@ import MemoryStickVfs = _vfs.MemoryStickVfs;
 import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
 import DropboxVfs = _vfs.DropboxVfs;
+import ProxyVfs = _vfs.ProxyVfs;
 
 import PspElfLoader = _elf_psp.PspElfLoader;
 
@@ -234,18 +235,28 @@ export class Emulator {
 						this.fileManager.mount('umd0', isoFs);
 						this.fileManager.mount('disc0', isoFs);
 
-						return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(paramSfoData => {
-							var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
-							this.processParamsPsf(psf);
+						return isoFs.existsAsync('PSP_GAME/PARAM.SFO').then((exists) => {
+							if (!exists) {
+								var mountableVfs = this.ms0Vfs;
+								mountableVfs.mountVfs('/PSP/GAME/virtual', new ProxyVfs([isoFs, this.storageVfs]));
 
-							var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(data => { this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(() => { });
-							var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(data => { this.loadPic1(Stream.fromArrayBuffer(data)); }).catch(() => { });
+								return isoFs.readAllAsync('EBOOT.PBP').then(bootBinData => {
+									return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'ms0:/PSP/GAME/virtual/EBOOT.PBP');
+								});
+							} else {
+								return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(paramSfoData => {
+									var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
+									this.processParamsPsf(psf);
 
-							return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(bootBinData => {
-								return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
-							});
+									var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(data => { this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(() => { });
+									var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(data => { this.loadPic1(Stream.fromArrayBuffer(data)); }).catch(() => { });
+
+									return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(bootBinData => {
+										return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+									});
+								});
+							}
 						});
-
 					});
 				case 'elf':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {

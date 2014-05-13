@@ -321,18 +321,26 @@ interface PointerMemory {
 }
 
 class Pointer<T> {
-	value: T = null;
 	private stream: Stream;
 
 	constructor(private type: IType, public memory: PointerMemory, public address: number) {
 		this.stream = memory.getPointerStream(this.address);
 	}
 
-	read() {
-		this.value = this.type.read(this.stream.clone());
+	readWrite(callback: (item:T) => void) {
+		var value = this.read();
+		try {
+			callback(value);
+		} finally {
+			this.write(value);
+		}
 	}
 
-	write() {
-		this.type.write(this.stream.clone(), this.value);
+	read() {
+		return this.type.read(this.stream.clone());
+	}
+
+	write(value: T) {
+		this.type.write(this.stream.clone(), value);
 	}
 }

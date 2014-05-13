@@ -20,6 +20,7 @@ export class sceSasCore {
 	private static PSP_SAS_ADSR_SUSTAIN = 4;
 	private static PSP_SAS_ADSR_RELEASE = 8;
 
+	private core = new SasCore();
 	private voices: Voice[] = [];
 
 	constructor(private context: _context.EmulatorContext) {
@@ -173,6 +174,23 @@ export class sceSasCore {
 		// Not implemented
 		return 0;
 	});
+
+	__sceSasRevParam = createNativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, delay: number, feedback: number) => {
+		this.core.delay = delay;
+		this.core.feedback = feedback;
+		// Not implemented
+		return 0;
+	});
+
+	__sceSasSetSimpleADSR = createNativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', this, (sasCorePointer: number, voiceId: number, env1Bitfield: number, env2Bitfield: number) => {
+		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+		return 0;
+	});
+}
+
+class SasCore {
+	delay = 0;
+	feedback = 0;
 }
 
 class Envelope {
@@ -193,40 +211,13 @@ class Voice {
 	}
 }
 
-enum OutputMode
-{
-	STEREO = 0,
-	MULTICHANNEL = 1,
-}
-
-enum WaveformEffectType
-{
-	OFF = -1,
-	ROOM = 0,
-	UNK1 = 1,
-	UNK2 = 2,
-	UNK3 = 3,
-	HALL = 4,
-	SPACE = 5,
-	ECHO = 6,
-	DELAY = 7,
-	PIPE = 8,
-}
-
+enum OutputMode { STEREO = 0, MULTICHANNEL = 1 }
+enum WaveformEffectType { OFF = -1, ROOM = 0, UNK1 = 1, UNK2 = 2, UNK3 = 3, HALL = 4, SPACE = 5, ECHO = 6, DELAY = 7, PIPE = 8 }
+enum AdsrCurveMode { LINEAR_INCREASE = 0, LINEAR_DECREASE = 1, LINEAR_BENT = 2, EXPONENT_REV = 3, EXPONENT = 4, DIRECT = 5 }
 
 enum AdsrFlags {
 	HasAttack = (1 << 0),
 	HasDecay = (1 << 1),
 	HasSustain = (1 << 2),
 	HasRelease = (1 << 3),
-}
-
-enum AdsrCurveMode
-{
-	LINEAR_INCREASE = 0,
-	LINEAR_DECREASE = 1,
-	LINEAR_BENT = 2,
-	EXPONENT_REV = 3,
-	EXPONENT = 4,
-	DIRECT = 5,
 }

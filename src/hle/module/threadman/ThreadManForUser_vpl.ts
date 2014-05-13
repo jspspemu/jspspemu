@@ -27,6 +27,7 @@ export class ThreadManForUser {
 		//console.log('sceKernelTryAllocateVpl', vplId, size, addressPtr);
 		try {
 			var item = vpl.partition.allocateLow(size);
+			console.log('-->', item.low);
 			if (addressPtr) addressPtr.writeInt32(item.low);
 			return 0;
 		} catch (e) {

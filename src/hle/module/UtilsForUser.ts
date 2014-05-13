@@ -87,4 +87,8 @@ export class UtilsForUser {
 		this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
 		return 0;
 	});
+
+	sceKernelSetGPO = createNativeFunction(0x6AD345D7, 150, 'uint', 'int', this, (value: number) => {
+		return 0;
+	});
 }

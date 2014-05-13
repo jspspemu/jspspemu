@@ -496,8 +496,16 @@ class PspGpuList {
                 this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
 				break;
 
+			case GpuOpCodes.CTE:
+				this.state.colorTest.enabled = bool1();
+				break;
+
+			case GpuOpCodes.DTE:
+				this.state.dithering.enabled = bool1();
+				break;
+
 			case GpuOpCodes.BCE:
-				this.state.culling.enabled = (params24 != 0);
+				this.state.culling.enabled = bool1();
 				break;
 			case GpuOpCodes.FFACE:
 				this.state.culling.direction = <_state.CullingDirection>params24;

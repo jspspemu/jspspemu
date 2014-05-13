@@ -91,6 +91,16 @@ export class SysMemUserForUser {
 		console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
 	});
 
+	sceKernelSetCompiledSdkVersion395 = createNativeFunction(0xEBD5C3E6, 150, 'int', 'uint', this, (param: number) => {
+		console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
+	});
+
+	sceKernelDevkitVersion = createNativeFunction(0x3FC9AE6A, 150, 'int', 'uint', this, (version: number) => {
+		//var Version = HleConfig.FirmwareVersion;
+		//return (Version.Major << 24) | (Version.Minor << 16) | (Version.Revision << 8) | 0x10;
+		return 0x02070110;
+	});
+
 	sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string', this, (thread: Thread, format: string) => {
 		var gprIndex = 5;
 		var memory = this.context.memory;

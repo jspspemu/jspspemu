@@ -4,6 +4,8 @@ import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 import _structs = require('../structs');
 
+import ScePspDateTime = _structs.ScePspDateTime;
+
 export class sceRtc {
     constructor(private context: _context.EmulatorContext) { }
 
@@ -38,5 +40,17 @@ export class sceRtc {
 		} catch (e) {
 			return SceKernelErrors.ERROR_INVALID_VALUE;
 		}
+	});
+
+	sceRtcGetCurrentClock = createNativeFunction(0x4CFA57B0, 150, 'int', 'uint/int', this, (dateAddress: number, timezone: number) => {
+		//var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
+
+		//currentDate += timezone * 60 * 1000000;
+		var date = new Date();
+
+		var pointer = this.context.memory.getPointerPointer<ScePspDateTime>(ScePspDateTime.struct, dateAddress);
+		pointer.write(ScePspDateTime.fromDate(new Date()));
+
+		return 0;
 	});
 }

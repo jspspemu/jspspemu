@@ -8,10 +8,15 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     var code = '';
 
     var args = [];
-    var argindex = 4;
+	var gprindex = 4;
+	var fprindex = 0;
 
     function _readGpr32() {
-		return 'state.gpr[' + (argindex++) + ']';
+		return 'state.gpr[' + (gprindex++) + ']';
+	}
+
+	function readFpr32() {
+		return 'state.fpr[' + (fprindex++) + ']';
 	}
 
 	function readGpr32_S() {
@@ -23,7 +28,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	}
 
 	function readGpr64() {
-		argindex = MathUtils.nextAligned(argindex, 2);
+		gprindex = MathUtils.nextAligned(gprindex, 2);
 		var gprLow = readGpr32_S();
 		var gprHigh = readGpr32_S();
 		return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
@@ -42,6 +47,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;
 			case 'uint': args.push(readGpr32_U() + ' >>> 0'); break;
 			case 'int': args.push(readGpr32_S() + ' | 0'); break;
+			case 'float': args.push(readFpr32()); break;
 			case 'ulong': case 'long': args.push(readGpr64()); break;
 			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
 			case 'byte[]': args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
@@ -57,11 +63,15 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
 	code += '}';
 
-	//code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
-	//code += "if (DebugOnce(info, 100)) {";
-	//code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
-	//code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
-	//code += "}";
+	var debugSyscalls = false;
+
+	if (debugSyscalls) {
+		code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
+		code += "if (DebugOnce(info, 10)) {";
+		code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
+		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
+		code += "}";
+	}
 
 	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
 	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } } ';

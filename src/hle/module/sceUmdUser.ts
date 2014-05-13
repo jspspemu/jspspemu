@@ -26,7 +26,12 @@ export class sceUmdUser {
 	});
 
 	sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, (mode: number, drive: string) => {
-		console.warn('Not implemented sceUmdActivate');
+		console.warn('Not implemented sceUmdActivate', mode, drive);
+		return 0;
+	});
+
+	sceUmdDeactivate = createNativeFunction(0xE83742BA, 150, 'uint', 'int/string', this, (mode: number, drive: string) => {
+		console.warn('Not implemented sceUmdDeactivate', mode, drive);
 		return 0;
 	});
 

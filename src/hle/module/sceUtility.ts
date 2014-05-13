@@ -69,6 +69,65 @@ export class sceUtility {
 					return Promise.resolve(0);
 				}
 				break;
+
+			case PspUtilitySavedataMode.Sizes:
+				{
+					var SceKernelError = SceKernelErrors.ERROR_OK;
+
+					//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+
+					var SectorSize = 1024;
+					var FreeSize = 32 * 1024 * 1024; // 32 MB
+					var UsedSize = 0;
+
+					// MS free size.
+					// Gets the ammount of free space in the Memory Stick. If null,
+					// the size is ignored and no error is returned.
+					{
+						var sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr);
+						sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
+							sizeFreeInfo.sectorSize = SectorSize;
+							sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+							sizeFreeInfo.freeKb = FreeSize / 1024;
+							sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+						});
+					}
+
+					// MS data size.
+					// Gets the size of the data already saved in the Memory Stick.
+					// If null, the size is ignored and no error is returned.
+					{
+						var sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
+					}
+
+					// Utility data size.
+					// Gets the size of the data to be saved in the Memory Stick.
+					// If null, the size is ignored and no error is returned.
+					{
+						var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+
+						if (sizeRequiredSpaceInfoPtr != null) {
+							var RequiredSize = 0;
+							RequiredSize += params.icon0FileData.size;
+							RequiredSize += params.icon1FileData.size;
+							RequiredSize += params.pic1FileData.size;
+							RequiredSize += params.snd0FileData.size;
+							RequiredSize += params.dataSize;
+
+							sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
+								sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+								sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+								sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+
+								sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+								sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+							});
+						}
+					}
+
+					if (SceKernelError != SceKernelErrors.ERROR_OK) throw (new SceKernelException(SceKernelError));
+				}
+				break;
 			default:
 				throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
 		}
@@ -141,6 +200,10 @@ export class sceUtility {
 		var value = String(this._getKey(id));
 		value = value.substr(0, Math.min(value.length, len - 1));
 		if (strPtr) strPtr.writeStringz(value);
+		return 0;
+	});
+
+	sceUtilityLoadAvModule = createNativeFunction(0xC629AF26, 150, 'uint', 'int', this, (id: number) => {
 		return 0;
 	});
 }
@@ -454,5 +517,55 @@ class SceUtilitySavedataParam {
 		{ fileListAddr: UInt32 },
 		{ sizeAddr: UInt32 },
 		{ unknown3: StructArray(UInt8, 20 - 5) },
+	]);
+}
+
+class SizeFreeInfo {
+	sectorSize: number;
+	freeSectors: number;
+	freeKb: number;
+	freeKbString: string;
+
+	static struct = StructClass.create<SizeFreeInfo>(SizeFreeInfo, [
+		{ sectorSize: UInt32 },
+		{ freeSectors: UInt32 },
+		{ freeKb: UInt32 },
+		{ freeKbString: Stringz(8) },
+	]);
+}
+
+class SizeUsedInfo {
+	gameName: string; // 16
+	saveName: string; // 20
+	usedSectors: number;
+	usedKb: number;
+	usedKbString: string; // 8
+	usedKb32: number;
+	usedKb32String: string; // 8
+
+	static struct = StructClass.create<SizeUsedInfo>(SizeUsedInfo, [
+		{ gameName: Stringz(16) },
+		{ saveName: Stringz(24) },
+		{ usedSectors: UInt32 },
+		{ usedKb: UInt32 },
+		{ usedKbString: Stringz(8) },
+		{ usedKb32: UInt32 },
+		{ usedKb32String: Stringz(8) },
+	]);
+}
+
+class SizeRequiredSpaceInfo {
+	requiredSpaceSectors: number;
+	requiredSpaceKb: number;
+	requiredSpaceString: string; // 8
+	requiredSpace32KB: number;
+	requiredSpace32KBString: string; // 8
+
+	static struct = StructClass.create<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo, [
+		{ requiredSpaceSectors: UInt32 },
+		{ requiredSpaceKb: UInt32 },
+		{ requiredSpaceString: Stringz(8) },
+		{ requiredSpace32KB: UInt32 },
+		{ requiredSpace32KBString: Stringz(8) },
 	]);
 }

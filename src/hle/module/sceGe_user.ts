@@ -12,7 +12,13 @@ import PspGpuCallback = _gpu.PspGpuCallback;
 
 export class sceGe_user {
     constructor(private context: _context.EmulatorContext) {
-    }
+	}
+
+	private eDRAMMemoryWidth = 0;
+
+	sceGeEdramSetAddrTranslation = createNativeFunction(0xB77905EA, 150, 'uint', 'int', this, (size: number) => {
+		try { return this.eDRAMMemoryWidth; } finally { this.eDRAMMemoryWidth = size; }
+	});
 
 	sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*', this, (thread: Thread, callbackDataPtr: Stream) => {
 		var callbacks = this.context.gpu.callbacks;

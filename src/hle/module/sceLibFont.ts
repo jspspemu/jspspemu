@@ -28,6 +28,13 @@ export class sceLibFont {
 		var font = this.fontUid.get(fontId);
 		return 0;
 	});
+
+	sceFontSetResolution = createNativeFunction(0x48293280, 150, 'uint', 'int/float/float', this, (fontLibId: number, horizontalResolution: number, verticalResolution: number) => {
+		//var font = this.fontUid.get(fontId);
+		//FontLibrary.HorizontalResolution = HorizontalResolution;
+		//FontLibrary.VerticalResolution = VerticalResolution;
+		return 0;
+	});
 }
 
 class FontLib {

@@ -142,19 +142,23 @@ export class IoFileMgrForUser {
 	});
 
 	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream) {
-		console.info('_sceIoWaitAsyncCB', fileId);
 		thread.state.LO = fileId;
 
-		if (this.fileUids.has(fileId)) return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+		if (!this.fileUids.has(fileId)) {
+			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info('_sceIoWaitAsyncCB', fileId, 'file not found');
+			return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+		}
 
 		var file = this.getFileById(fileId);
 
 		if (file.asyncOperation) {
+			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info('_sceIoWaitAsyncCB', fileId, 'completed');
 			return file.asyncOperation.then((result) => {
 				resultPointer.writeInt64(result);
 				return 0;
 			});
 		} else {
+			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info('_sceIoWaitAsyncCB', fileId, 'incompleted');
 			resultPointer.writeInt64(Integer64.fromNumber(0));
 			return Promise.resolve(1);
 		}
@@ -326,6 +330,10 @@ export class IoFileMgrForUser {
 			_structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
 		}
 		return directory.left;
+	});
+
+	sceIoChangeAsyncPriority = createNativeFunction(0xB293727F, 150, 'int', 'int/int', this, (fileId: number, priority: number) => {
+		return 0;
 	});
 
 	_seek(fileId: number, offset: number, whence: number) {

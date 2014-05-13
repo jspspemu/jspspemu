@@ -101,13 +101,15 @@ export class PixelConverter {
 	private static updateT4(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 		var orValue = useAlpha ? 0 : 0xFF000000;
+		count |= 0;
+		clutStart |= 0;
+		clutShift |= 0;
 		clutMask &= 0xF;
 
 		var updateT4Translate = PixelConverter.updateT4Translate;
 		//var updateT4Translate2 = [];
-		for (var n = 0; n < 16; n++) {
-			updateT4Translate[n] = palette[((clutStart + n) >>> clutShift) & clutMask];
-			//updateT4Translate2[n] = updateT4Translate[n];
+		for (var m = 0; m < 16; m++) {
+			updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
 		}
 
 		//console.log('updateT4', clutStart, clutShift, clutMask, updateT4Translate, updateT4Translate2.map(item => sprintf('%08X', item)));
@@ -117,6 +119,18 @@ export class PixelConverter {
 			to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
 			to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
 		}
+		//var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		//var orValue = useAlpha ? 0 : 0xFF000000;
+		//count |= 0;
+		//clutStart |= 0;
+		//clutShift |= 0;
+		//clutMask &= 0xF;
+		//
+		//for (var n = 0, m = 0; n < count; n++) {
+		//	var char = from[fromIndex + n];
+		//	to32[m++] = palette[((clutStart + (char >>> 0) & 0xF) >>> clutShift) & clutMask]
+		//	to32[m++] = palette[((clutStart + (char >>> 4) & 0xF) >>> clutShift) & clutMask]
+		//}
 	}
 
 	private static updateT8(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
