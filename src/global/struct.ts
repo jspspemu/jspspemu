@@ -295,3 +295,44 @@ function Stringz(count: number) { return new StructStringz(count); }
 function StringWithSize(callback: (context: any) => number) {
 	return new StructStringWithSize(callback);
 }
+
+class StructPointerStruct<T> implements IType {
+	constructor(private elementType: IType) {
+	}
+	read(stream: Stream, context: any): Pointer<T> {
+		var address = stream.readInt32(Endian.LITTLE);
+		return new Pointer<T>(this.elementType, context['memory'], address);
+	}
+	write(stream: Stream, value: Pointer<T>, context: any): void {
+		var address = value.address;
+		stream.writeInt32(address, Endian.LITTLE);
+	}
+	get length() {
+		return 4;
+	}
+}
+
+function StructPointer<T>(type: IType) {
+	return new StructPointerStruct<T>(type);
+}
+
+interface PointerMemory {
+	getPointerStream(address: number, size?: number): Stream;
+}
+
+class Pointer<T> {
+	value: T = null;
+	private stream: Stream;
+
+	constructor(private type: IType, public memory: PointerMemory, public address: number) {
+		this.stream = memory.getPointerStream(this.address);
+	}
+
+	read() {
+		this.value = this.type.read(this.stream.clone());
+	}
+
+	write() {
+		this.type.write(this.stream.clone(), this.value);
+	}
+}

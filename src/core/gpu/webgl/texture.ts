@@ -185,6 +185,10 @@ export class TextureHandler {
 
 		var mipmap = state.texture.mipmaps[0];
 
+		if (mipmap.bufferWidth == 0) return;
+		if (mipmap.textureWidth == 0) return;
+		if (mipmap.textureHeight == 0) return;
+
 		var hash1 = Texture.hashFast(state);
 		var texture = this.texturesByHash1[hash1];
 		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
@@ -249,6 +253,7 @@ export class TextureHandler {
 				PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
 				if (true) {
+				//if (false) {
 					texture.fromBytes(data2, w2, h);
 				} else {
 					var canvas = document.createElement('canvas');

@@ -161,7 +161,8 @@ export class Thread {
 	}
 
 	suspendUntilPromiseDone(promise: Promise<any>, info:NativeFunction) {
-		this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
+		//this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
+		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
 		this.waitingObject = info;
 		this._suspendUntilPromiseDone(promise);
 	}
@@ -322,7 +323,9 @@ export class ThreadManager {
 					if (thread.running && (thread.priority == runningPriority)) {
 						do {
 							thread.runStep();
-							if (!this.interruptManager.enabled) console.log('interrupts disabled, no thread scheduling!');
+							if (!this.interruptManager.enabled) {
+								console.log(thread.name, ':interrupts disabled, no thread scheduling!');
+							}
 						} while (!this.interruptManager.enabled);
 					}
 				});

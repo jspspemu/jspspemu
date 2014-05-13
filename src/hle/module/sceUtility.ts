@@ -59,7 +59,16 @@ export class sceUtility {
 					.catch(error => {
 						return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
 					})
-				;
+					;
+			case PspUtilitySavedataMode.Read:
+			case PspUtilitySavedataMode.ReadSecure:
+				{
+					//throw (new SceKernelException(SceKernelErrors.ERROR_SAVEDATA_RW_NO_DATA));
+					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+					//return Promise.resolve(-1);
+					return Promise.resolve(0);
+				}
+				break;
 			default:
 				throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
 		}

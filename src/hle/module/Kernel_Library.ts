@@ -1,6 +1,11 @@
 ﻿import _utils = require('../utils');
+import _manager = require('../manager'); _manager.Thread;
+import SceKernelErrors = require('../SceKernelErrors');
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
+
+import Thread = _manager.Thread;
+
 export class Kernel_Library {
 	constructor(private context: _context.EmulatorContext) { }
 
@@ -8,9 +13,13 @@ export class Kernel_Library {
 		return this.context.interruptManager.suspend();
 	});
 
-	sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'uint', this, (flags: number) => {
+	sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint', this, (thread:Thread, flags: number) => {
 		this.context.interruptManager.resume(flags);
-		return 0;
+		//return 0;
+		//throw(new CpuBreakException());
+		//thread.state.V0 = 0;
+		//throw (new CpuBreakException());
+		return Promise.resolve(0);
 	});
 
 	sceKernelMemset = createNativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int', this, (address: number, value: number, size: number) => {

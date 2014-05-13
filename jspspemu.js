@@ -1083,6 +1083,20 @@ var FileAsyncStream = (function () {
     return FileAsyncStream;
 })();
 
+var Pointer = (function () {
+    function Pointer(memory, address) {
+        this.memory = memory;
+        this.address = address;
+        this.value = null;
+    }
+    Pointer.prototype.read = function () {
+    };
+
+    Pointer.prototype.write = function () {
+    };
+    return Pointer;
+})();
+
 var Stream = (function () {
     function Stream(data, offset) {
         if (typeof offset === "undefined") { offset = 0; }
@@ -1789,6 +1803,50 @@ function Stringz(count) {
 function StringWithSize(callback) {
     return new StructStringWithSize(callback);
 }
+
+var StructPointerStruct = (function () {
+    function StructPointerStruct(elementType) {
+        this.elementType = elementType;
+    }
+    StructPointerStruct.prototype.read = function (stream, context) {
+        var address = stream.readInt32(0 /* LITTLE */);
+        return new Pointer(this.elementType, context['memory'], address);
+    };
+    StructPointerStruct.prototype.write = function (stream, value, context) {
+        var address = value.address;
+        stream.writeInt32(address, 0 /* LITTLE */);
+    };
+    Object.defineProperty(StructPointerStruct.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructPointerStruct;
+})();
+
+function StructPointer(type) {
+    return new StructPointerStruct(type);
+}
+
+var Pointer = (function () {
+    function Pointer(type, memory, address) {
+        this.type = type;
+        this.memory = memory;
+        this.address = address;
+        this.value = null;
+        this.stream = memory.getPointerStream(this.address);
+    }
+    Pointer.prototype.read = function () {
+        this.value = this.type.read(this.stream.clone());
+    };
+
+    Pointer.prototype.write = function () {
+        this.type.write(this.stream.clone(), this.value);
+    };
+    return Pointer;
+})();
 //# sourceMappingURL=struct.js.map
 
 ///<reference path="../../typings/promise/promise.d.ts" />
@@ -5768,8 +5826,7 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.cache = function (rs, type, offset) {
-        if (DebugOnce('state.cache', 200))
-            console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
+        //if (DebugOnce('state.cache', 200)) console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
     };
     CpuState.prototype.syscall = function (id) {
         this.syscallManager.call(this, id);
@@ -8925,6 +8982,13 @@ var TextureHandler = (function () {
 
         var mipmap = state.texture.mipmaps[0];
 
+        if (mipmap.bufferWidth == 0)
+            return;
+        if (mipmap.textureWidth == 0)
+            return;
+        if (mipmap.textureHeight == 0)
+            return;
+
         var hash1 = Texture.hashFast(state);
         var texture = this.texturesByHash1[hash1];
 
@@ -8987,6 +9051,7 @@ var TextureHandler = (function () {
                 PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
                 if (true) {
+                    //if (false) {
                     texture.fromBytes(data2, w2, h);
                 } else {
                     var canvas = document.createElement('canvas');
@@ -14771,7 +14836,8 @@ var Thread = (function () {
     };
 
     Thread.prototype.suspendUntilPromiseDone = function (promise, info) {
-        this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
+        //this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
+        this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
         this.waitingObject = info;
         this._suspendUntilPromiseDone(promise);
     };
@@ -14950,8 +15016,9 @@ var ThreadManager = (function () {
                     if (thread.running && (thread.priority == runningPriority)) {
                         do {
                             thread.runStep();
-                            if (!_this.interruptManager.enabled)
-                                console.log('interrupts disabled, no thread scheduling!');
+                            if (!_this.interruptManager.enabled) {
+                                console.log(thread.name, ':interrupts disabled, no thread scheduling!');
+                            }
                         } while(!_this.interruptManager.enabled);
                     }
                 });
@@ -15092,8 +15159,11 @@ exports.KDebugForKernel = KDebugForKernel;
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
 var _utils = require('../utils');
+var _manager = require('../manager');
+_manager.Thread;
 
 var createNativeFunction = _utils.createNativeFunction;
+
 var Kernel_Library = (function () {
     function Kernel_Library(context) {
         var _this = this;
@@ -15101,9 +15171,14 @@ var Kernel_Library = (function () {
         this.sceKernelCpuSuspendIntr = createNativeFunction(0x092968F4, 150, 'uint', '', this, function () {
             return _this.context.interruptManager.suspend();
         });
-        this.sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'uint', this, function (flags) {
+        this.sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint', this, function (thread, flags) {
             _this.context.interruptManager.resume(flags);
-            return 0;
+
+            //return 0;
+            //throw(new CpuBreakException());
+            //thread.state.V0 = 0;
+            //throw (new CpuBreakException());
+            return Promise.resolve(0);
         });
         this.sceKernelMemset = createNativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int', this, function (address, value, size) {
             _this.context.memory.memset(address, value, size);
@@ -16842,9 +16917,11 @@ exports.sceMp3 = sceMp3;
 var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
+var SceKernelErrors = require('../SceKernelErrors');
 
 var sceMpeg = (function () {
     function sceMpeg(context) {
+        var _this = this;
         this.context = context;
         this.sceMpegInit = createNativeFunction(0x682A619B, 150, 'uint', '', this, function () {
             return -1;
@@ -16852,11 +16929,141 @@ var sceMpeg = (function () {
         this.sceMpegRingbufferQueryMemSize = createNativeFunction(0xD7A29F46, 150, 'uint', 'int', this, function (numberOfPackets) {
             return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
         });
+        this.sceMpegQueryMemSize = createNativeFunction(0xC132E22F, 150, 'uint', 'int', this, function (mode) {
+            return sceMpeg.MPEG_MEMSIZE;
+        });
+        this.sceMpegRingbufferConstruct = createNativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int', this, function (ringbufferAddr, numPackets, data, size, callbackAddr, callbackArg) {
+            if (ringbufferAddr == Stream.INVALID)
+                return 2147614931 /* ERROR_KERNEL_ILLEGAL_ADDR */;
+            if (size < 0)
+                return 2153840674 /* ERROR_MPEG_NO_MEMORY */;
+            if (_this.__mpegRingbufferQueryMemSize(numPackets) > size) {
+                if (numPackets < 0x00100000) {
+                    return 2153840674 /* ERROR_MPEG_NO_MEMORY */;
+                } else {
+                    // The PSP's firmware allows some cases here, due to a bug in its validation.
+                }
+            }
+            var buf = new RingBuffer();
+            buf.packets = numPackets;
+            buf.packetsRead = 0;
+            buf.packetsWritten = 0;
+            buf.packetsFree = 0;
+            buf.packetSize = 2048;
+            buf.data = data;
+            buf.callback_addr = callbackAddr;
+            buf.callback_args = callbackArg;
+            buf.dataUpperBound = data + numPackets * 2048;
+            buf.semaID = 0;
+            buf.mpeg = 0;
+
+            // This isn't in ver 0104, but it is in 0105.
+            //if (mpegLibVersion >= 0x0105) buf.gp = __KernelGetModuleGP(__KernelGetCurThreadModuleId());
+            RingBuffer.struct.write(ringbufferAddr, buf);
+        });
+        this.sceMpegCreate = createNativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint', this, function (mpegAddr, dataPtr, size, ringbufferAddr, mode, ddrTop) {
+            if (!_this.context.memory.isValidAddress(mpegAddr))
+                return -1;
+            if (size < sceMpeg.MPEG_MEMSIZE)
+                return 2153840674 /* ERROR_MPEG_NO_MEMORY */;
+            if (ringbufferAddr == Stream.INVALID) {
+                var ringBuffer = RingBuffer.struct.read(ringbufferAddr.clone());
+                if (ringBuffer.packetSize == 0) {
+                    ringBuffer.packetsFree = 0;
+                } else {
+                    ringBuffer.packetsFree = (ringBuffer.dataUpperBound - ringBuffer.data) / ringBuffer.packetSize;
+                }
+                ringBuffer.mpeg = mpegAddr;
+            }
+            var mpeg = _this.context.memory.getPointerStream(mpegAddr);
+
+            mpeg.writeInt32(dataPtr + 0x30);
+
+            var mpegHandle = _this.context.memory.getPointerStream(dataPtr + 0x30);
+            mpegHandle.writeString("LIBMPEG\0" + "001\0");
+            mpegHandle.writeInt32(-1);
+            // @TODO: WIP
+            //mpegHandle.writeInt32(mpegAddr);
+            //mpegHandle.write
+        });
     }
+    /*
+    u32 sceMpegCreate(u32 mpegAddr, u32 dataPtr, u32 size, u32 ringbufferAddr, u32 frameWidth, u32 mode, u32 ddrTop)
+    {
+    // Generate, and write mpeg handle into mpeg data, for some reason
+    int mpegHandle = dataPtr + 0x30;
+    Memory::Write_U32(mpegHandle, mpegAddr);
+    
+    // Initialize fake mpeg struct.
+    Memory::Memcpy(mpegHandle, "LIBMPEG\0", 8);
+    Memory::Memcpy(mpegHandle + 8, "001\0", 4);
+    Memory::Write_U32(-1, mpegHandle + 12);
+    if (ringbuffer.IsValid()) {
+    Memory::Write_U32(ringbufferAddr, mpegHandle + 16);
+    Memory::Write_U32(ringbuffer- > dataUpperBound, mpegHandle + 20);
+    }
+    MpegContext * ctx = new MpegContext;
+    if (mpegMap.find(mpegHandle) != mpegMap.end()) {
+    WARN_LOG_REPORT(HLE, "Replacing existing mpeg context at %08x", mpegAddr);
+    // Otherwise, it would leak.
+    delete mpegMap[mpegHandle];
+    }
+    mpegMap[mpegHandle] = ctx;
+    
+    // Initialize mpeg values.
+    ctx- > mpegRingbufferAddr = ringbufferAddr;
+    ctx- > videoFrameCount = 0;
+    ctx- > audioFrameCount = 0;
+    ctx- > videoPixelMode = GE_CMODE_32BIT_ABGR8888; // TODO: What's the actual default?
+    ctx- > avcRegistered = false;
+    ctx- > atracRegistered = false;
+    ctx- > pcmRegistered = false;
+    ctx- > dataRegistered = false;
+    ctx- > ignoreAtrac = false;
+    ctx- > ignorePcm = false;
+    ctx- > ignoreAvc = false;
+    ctx- > defaultFrameWidth = frameWidth;
+    for (int i = 0; i < MPEG_DATA_ES_BUFFERS; i++) {
+    ctx- > esBuffers[i] = false;
+    }
+    
+    // Detailed "analysis" is done later in Query* for some reason.
+    ctx- > isAnalyzed = false;
+    ctx- > mediaengine = new MediaEngine();
+    
+    INFO_LOG(ME, "%08x=sceMpegCreate(%08x, %08x, %i, %08x, %i, %i, %i)", mpegHandle, mpegAddr, dataPtr, size, ringbufferAddr, frameWidth, mode, ddrTop);
+    return hleDelayResult(0, "mpeg create", 29000);
+    }
+    */
+    sceMpeg.prototype.__mpegRingbufferQueryMemSize = function (packets) {
+        return packets * (104 + 2048);
+    };
     sceMpeg.RING_BUFFER_PACKET_SIZE = 0x800;
+    sceMpeg.MPEG_MEMSIZE = 64 * 1024;
     return sceMpeg;
 })();
 exports.sceMpeg = sceMpeg;
+
+var RingBuffer = (function () {
+    function RingBuffer() {
+    }
+    RingBuffer.struct = StructClass.create(RingBuffer, [
+        // PSP info
+        { packets: Int32 },
+        { packetsRead: Int32 },
+        { packetsWritten: Int32 },
+        { packetsFree: Int32 },
+        { packetSize: Int32 },
+        { data: UInt32 },
+        { callback_addr: UInt32 },
+        { callback_args: Int32 },
+        { dataUpperBound: Int32 },
+        { semaID: Int32 },
+        { mpeg: UInt32 },
+        { gp: UInt32 }
+    ]);
+    return RingBuffer;
+})();
 //# sourceMappingURL=sceMpeg.js.map
 },
 "src/hle/module/sceNet": function(module, exports, require) {
@@ -17647,6 +17854,16 @@ var sceUtility = (function () {
                     }).catch(function (error) {
                         return 2148598661 /* ERROR_SAVEDATA_SAVE_ACCESS_ERROR */;
                     });
+                case 16 /* Read */:
+                case 15 /* ReadSecure */:
+                     {
+                        //throw (new SceKernelException(SceKernelErrors.ERROR_SAVEDATA_RW_NO_DATA));
+                        console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+
+                        //return Promise.resolve(-1);
+                        return Promise.resolve(0);
+                    }
+                    break;
                 default:
                     throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
             }
@@ -18155,14 +18372,10 @@ var ThreadManForUser = (function () {
             return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, 1 /* YES */);
         });
         this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            return _this.getThreadById(threadId).waitEndAsync().then(function () {
-                return 0;
-            });
+            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), 1 /* YES */);
         });
         this.sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            return _this.getThreadById(threadId).waitEndAsync().then(function () {
-                return 0;
-            });
+            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), 0 /* NO */);
         });
         this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, function (currentThread) {
             return currentThread.priority;
@@ -18304,6 +18517,12 @@ var ThreadManForUser = (function () {
 
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (thread, delayInMicroseconds, acceptCallbacks) {
         return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds), acceptCallbacks);
+    };
+
+    ThreadManForUser.prototype._sceKernelWaitThreadEndCB = function (thread, acceptCallbacks) {
+        return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(function () {
+            return 0;
+        }), acceptCallbacks);
     };
 
     ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
@@ -19162,7 +19381,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += '}';
 
     //code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
-    //code += "if (DebugOnce(info, 10)) {";
+    //code += "if (DebugOnce(info, 100)) {";
     //code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
     //code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
     //code += "}";
