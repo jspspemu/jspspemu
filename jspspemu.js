@@ -840,6 +840,10 @@ var MathUtils = (function () {
         }
     };
 
+    MathUtils.isPowerOfTwo = function (x) {
+        return (x != 0) && ((x & (x - 1)) == 0);
+    };
+
     MathUtils.nextAligned = function (value, alignment) {
         if (alignment <= 1)
             return value;
@@ -1089,20 +1093,6 @@ var FileAsyncStream = (function () {
         });
     };
     return FileAsyncStream;
-})();
-
-var Pointer = (function () {
-    function Pointer(memory, address) {
-        this.memory = memory;
-        this.address = address;
-        this.value = null;
-    }
-    Pointer.prototype.read = function () {
-    };
-
-    Pointer.prototype.write = function () {
-    };
-    return Pointer;
 })();
 
 var Stream = (function () {
@@ -3205,7 +3195,427 @@ var MipsDisassembler = (function () {
 exports.MipsDisassembler = MipsDisassembler;
 //# sourceMappingURL=assembler.js.map
 },
-"src/core/cpu/ast": function(module, exports, require) {
+"src/core/cpu/ast_builder": function(module, exports, require) {
+///<reference path="../../typings.d.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var ANode = (function () {
+    function ANode() {
+    }
+    ANode.prototype.toJs = function () {
+        return '';
+    };
+    ANode.prototype.optimize = function () {
+        return this;
+    };
+    return ANode;
+})();
+exports.ANode = ANode;
+
+var ANodeStm = (function (_super) {
+    __extends(ANodeStm, _super);
+    function ANodeStm() {
+        _super.apply(this, arguments);
+    }
+    return ANodeStm;
+})(ANode);
+exports.ANodeStm = ANodeStm;
+
+var ANodeStmJump = (function (_super) {
+    __extends(ANodeStmJump, _super);
+    function ANodeStmJump(label) {
+        _super.call(this);
+        this.label = label;
+    }
+    return ANodeStmJump;
+})(ANodeStm);
+exports.ANodeStmJump = ANodeStmJump;
+
+var ANodeStmReturn = (function (_super) {
+    __extends(ANodeStmReturn, _super);
+    function ANodeStmReturn() {
+        _super.apply(this, arguments);
+    }
+    ANodeStmReturn.prototype.toJs = function () {
+        return 'return;';
+    };
+    return ANodeStmReturn;
+})(ANodeStm);
+exports.ANodeStmReturn = ANodeStmReturn;
+
+var ANodeStmList = (function (_super) {
+    __extends(ANodeStmList, _super);
+    function ANodeStmList(childs) {
+        _super.call(this);
+        this.childs = childs;
+        this.labels = {};
+    }
+    ANodeStmList.prototype.createLabel = function (label) {
+        this.labels[label] = this.childs.length;
+        return this.childs.length;
+    };
+
+    ANodeStmList.prototype.add = function (node) {
+        this.childs.push(node);
+    };
+
+    ANodeStmList.prototype.toJs = function () {
+        var jumpCount = 0;
+        var usedLabels = {};
+        for (var n = 0; n < this.childs.length; n++) {
+            var item = this.childs[n];
+            if (item instanceof ANodeStmJump) {
+                jumpCount++;
+                usedLabels[item.label] = true;
+            }
+        }
+        if (jumpCount > 1)
+            throw (new Error("Not supported more than one jump at this point!"));
+
+        var lines = [];
+        for (var n = 0; n < this.childs.length; n++) {
+            var child = this.childs[n];
+
+            if (usedLabels[n] !== undefined) {
+                lines.push('while(true) {');
+            }
+
+            //console.log(usedLabels);
+            lines.push(child.toJs());
+
+            if (child instanceof ANodeStmJump) {
+                lines.push('}');
+            }
+        }
+        return lines.join("\n");
+    };
+    return ANodeStmList;
+})(ANodeStm);
+exports.ANodeStmList = ANodeStmList;
+
+var ANodeStmRaw = (function (_super) {
+    __extends(ANodeStmRaw, _super);
+    function ANodeStmRaw(content) {
+        _super.call(this);
+        this.content = content;
+    }
+    ANodeStmRaw.prototype.toJs = function () {
+        return this.content;
+    };
+    return ANodeStmRaw;
+})(ANodeStm);
+exports.ANodeStmRaw = ANodeStmRaw;
+
+var ANodeStmExpr = (function (_super) {
+    __extends(ANodeStmExpr, _super);
+    function ANodeStmExpr(expr) {
+        _super.call(this);
+        this.expr = expr;
+    }
+    ANodeStmExpr.prototype.toJs = function () {
+        return this.expr.toJs() + ';';
+    };
+    return ANodeStmExpr;
+})(ANodeStm);
+exports.ANodeStmExpr = ANodeStmExpr;
+
+var ANodeExpr = (function (_super) {
+    __extends(ANodeExpr, _super);
+    function ANodeExpr() {
+        _super.apply(this, arguments);
+    }
+    return ANodeExpr;
+})(ANode);
+exports.ANodeExpr = ANodeExpr;
+
+var ANodeExprLValue = (function (_super) {
+    __extends(ANodeExprLValue, _super);
+    function ANodeExprLValue() {
+        _super.apply(this, arguments);
+    }
+    return ANodeExprLValue;
+})(ANodeExpr);
+exports.ANodeExprLValue = ANodeExprLValue;
+
+var ANodeExprLValueVar = (function (_super) {
+    __extends(ANodeExprLValueVar, _super);
+    function ANodeExprLValueVar(name) {
+        _super.call(this);
+        this.name = name;
+    }
+    ANodeExprLValueVar.prototype.toJs = function () {
+        return this.name;
+    };
+    return ANodeExprLValueVar;
+})(ANodeExprLValue);
+exports.ANodeExprLValueVar = ANodeExprLValueVar;
+
+var ANodeExprI32 = (function (_super) {
+    __extends(ANodeExprI32, _super);
+    function ANodeExprI32(value) {
+        _super.call(this);
+        this.value = value;
+    }
+    ANodeExprI32.prototype.toJs = function () {
+        return String(this.value);
+    };
+    return ANodeExprI32;
+})(ANodeExpr);
+exports.ANodeExprI32 = ANodeExprI32;
+
+var ANodeExprFloat = (function (_super) {
+    __extends(ANodeExprFloat, _super);
+    function ANodeExprFloat(value) {
+        _super.call(this);
+        this.value = value;
+    }
+    ANodeExprFloat.prototype.toJs = function () {
+        return String(this.value);
+    };
+    return ANodeExprFloat;
+})(ANodeExpr);
+exports.ANodeExprFloat = ANodeExprFloat;
+
+var ANodeExprU32 = (function (_super) {
+    __extends(ANodeExprU32, _super);
+    function ANodeExprU32(value) {
+        _super.call(this);
+        this.value = value;
+    }
+    ANodeExprU32.prototype.toJs = function () {
+        return sprintf('0x%08X', this.value);
+    };
+    return ANodeExprU32;
+})(ANodeExpr);
+exports.ANodeExprU32 = ANodeExprU32;
+
+var ANodeExprBinop = (function (_super) {
+    __extends(ANodeExprBinop, _super);
+    function ANodeExprBinop(left, op, right) {
+        _super.call(this);
+        this.left = left;
+        this.op = op;
+        this.right = right;
+    }
+    ANodeExprBinop.prototype.toJs = function () {
+        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
+    };
+    return ANodeExprBinop;
+})(ANodeExpr);
+exports.ANodeExprBinop = ANodeExprBinop;
+
+var ANodeExprUnop = (function (_super) {
+    __extends(ANodeExprUnop, _super);
+    function ANodeExprUnop(op, right) {
+        _super.call(this);
+        this.op = op;
+        this.right = right;
+    }
+    ANodeExprUnop.prototype.toJs = function () {
+        return '(' + this.op + '(' + this.right.toJs() + '))';
+    };
+    return ANodeExprUnop;
+})(ANodeExpr);
+exports.ANodeExprUnop = ANodeExprUnop;
+
+var ANodeExprAssign = (function (_super) {
+    __extends(ANodeExprAssign, _super);
+    function ANodeExprAssign(left, right) {
+        _super.call(this);
+        this.left = left;
+        this.right = right;
+    }
+    ANodeExprAssign.prototype.toJs = function () {
+        return this.left.toJs() + ' = ' + this.right.toJs();
+    };
+    return ANodeExprAssign;
+})(ANodeExpr);
+exports.ANodeExprAssign = ANodeExprAssign;
+
+var ANodeExprArray = (function (_super) {
+    __extends(ANodeExprArray, _super);
+    function ANodeExprArray(_items) {
+        _super.call(this);
+        this._items = _items;
+    }
+    ANodeExprArray.prototype.toJs = function () {
+        return '[' + this._items.map(function (item) {
+            return item.toJs();
+        }).join(',') + ']';
+    };
+    return ANodeExprArray;
+})(ANodeExpr);
+exports.ANodeExprArray = ANodeExprArray;
+
+var ANodeExprCall = (function (_super) {
+    __extends(ANodeExprCall, _super);
+    function ANodeExprCall(name, _arguments) {
+        _super.call(this);
+        this.name = name;
+        this._arguments = _arguments;
+    }
+    ANodeExprCall.prototype.toJs = function () {
+        return this.name + '(' + this._arguments.map(function (argument) {
+            return argument.toJs();
+        }).join(',') + ')';
+    };
+    return ANodeExprCall;
+})(ANodeExpr);
+exports.ANodeExprCall = ANodeExprCall;
+
+var ANodeStmIf = (function (_super) {
+    __extends(ANodeStmIf, _super);
+    function ANodeStmIf(cond, codeTrue, codeFalse) {
+        _super.call(this);
+        this.cond = cond;
+        this.codeTrue = codeTrue;
+        this.codeFalse = codeFalse;
+    }
+    ANodeStmIf.prototype.toJs = function () {
+        var result = '';
+        result += 'if (' + this.cond.toJs() + ')';
+        result += ' { ' + this.codeTrue.toJs() + ' }';
+        if (this.codeFalse)
+            result += ' else { ' + this.codeFalse.toJs() + ' }';
+        return result;
+    };
+    return ANodeStmIf;
+})(ANodeStm);
+exports.ANodeStmIf = ANodeStmIf;
+
+var AstBuilder = (function () {
+    function AstBuilder() {
+    }
+    AstBuilder.prototype.assign = function (ref, value) {
+        return new ANodeExprAssign(ref, value);
+    };
+    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
+        return new ANodeStmIf(cond, codeTrue, codeFalse);
+    };
+    AstBuilder.prototype.binop = function (left, op, right) {
+        return new ANodeExprBinop(left, op, right);
+    };
+    AstBuilder.prototype.unop = function (op, right) {
+        return new ANodeExprUnop(op, right);
+    };
+    AstBuilder.prototype.binop_i = function (left, op, right) {
+        return this.binop(left, op, this.imm32(right));
+    };
+    AstBuilder.prototype.imm32 = function (value) {
+        return new ANodeExprI32(value);
+    };
+    AstBuilder.prototype.imm_f = function (value) {
+        return new ANodeExprFloat(value);
+    };
+    AstBuilder.prototype.u_imm32 = function (value) {
+        return new ANodeExprU32(value);
+    };
+    AstBuilder.prototype.stm = function (expr) {
+        return new ANodeStmExpr(expr);
+    };
+    AstBuilder.prototype.stmEmpty = function () {
+        return new ANodeStm();
+    };
+    AstBuilder.prototype.stms = function (stms) {
+        return new ANodeStmList(stms);
+    };
+    AstBuilder.prototype.array = function (exprList) {
+        return new ANodeExprArray(exprList);
+    };
+    AstBuilder.prototype.call = function (name, exprList) {
+        return new ANodeExprCall(name, exprList);
+    };
+    AstBuilder.prototype.jump = function (label) {
+        return new ANodeStmJump(label);
+    };
+    AstBuilder.prototype._return = function () {
+        return new ANodeStmReturn();
+    };
+    AstBuilder.prototype.raw = function (content) {
+        return new ANodeStmRaw(content);
+    };
+    return AstBuilder;
+})();
+exports.AstBuilder = AstBuilder;
+
+var MipsAstBuilder = (function (_super) {
+    __extends(MipsAstBuilder, _super);
+    function MipsAstBuilder() {
+        _super.apply(this, arguments);
+    }
+    MipsAstBuilder.prototype.debugger = function (comment) {
+        return new ANodeStmRaw("debugger; // " + comment + "\n");
+    };
+
+    MipsAstBuilder.prototype.functionPrefix = function () {
+        return this.stmEmpty();
+    };
+
+    MipsAstBuilder.prototype.gpr = function (index) {
+        if (index === 0)
+            return new ANodeExprLValueVar('0');
+        return new ANodeExprLValueVar('state.gpr[' + index + ']');
+    };
+
+    MipsAstBuilder.prototype.fpr = function (index) {
+        return new ANodeExprLValueVar('state.fpr[' + index + ']');
+    };
+
+    MipsAstBuilder.prototype.fpr_i = function (index) {
+        //return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
+        return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
+    };
+
+    MipsAstBuilder.prototype.fcr31_cc = function () {
+        return new ANodeExprLValueVar('state.fcr31_cc');
+    };
+    MipsAstBuilder.prototype.lo = function () {
+        return new ANodeExprLValueVar('state.LO');
+    };
+    MipsAstBuilder.prototype.hi = function () {
+        return new ANodeExprLValueVar('state.HI');
+    };
+    MipsAstBuilder.prototype.ic = function () {
+        return new ANodeExprLValueVar('state.IC');
+    };
+    MipsAstBuilder.prototype.pc = function () {
+        return new ANodeExprLValueVar('state.PC');
+    };
+    MipsAstBuilder.prototype.ra = function () {
+        return new ANodeExprLValueVar('state.gpr[31]');
+    };
+    MipsAstBuilder.prototype.branchflag = function () {
+        return new ANodeExprLValueVar('state.BRANCHFLAG');
+    };
+    MipsAstBuilder.prototype.branchpc = function () {
+        return new ANodeExprLValueVar('state.BRANCHPC');
+    };
+
+    MipsAstBuilder.prototype.assignGpr = function (index, expr) {
+        if (index == 0)
+            return this.stmEmpty();
+        return this.stm(this.assign(this.gpr(index), expr));
+    };
+
+    MipsAstBuilder.prototype.assignIC = function (expr) {
+        return this.stm(this.assign(this.ic(), expr));
+    };
+    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
+        return this.stm(this.assign(this.fpr(index), expr));
+    };
+    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
+        return this.stm(this.assign(this.fpr_i(index), expr));
+    };
+    return MipsAstBuilder;
+})(AstBuilder);
+exports.MipsAstBuilder = MipsAstBuilder;
+//# sourceMappingURL=ast_builder.js.map
+},
+"src/core/cpu/codegen": function(module, exports, require) {
 ///<reference path="../../typings.d.ts" />
 var _ast = require('./ast_builder');
 
@@ -3303,11 +3713,33 @@ function cast_uint(expr) {
     return binop(expr, '>>>', ast.imm32(0));
 }
 
-function setMatrix(reg, generator) {
-    // @TODO
-    return stm(ast.call('state.vfpuSetMatrix', [
-        generator(0, 0)
-    ]));
+var VMatRegClass = (function () {
+    function VMatRegClass(reg) {
+        this.reg = reg;
+    }
+    VMatRegClass.prototype.setMatrix = function (generator) {
+        // @TODO
+        var array = [];
+        for (var column = 0; column < 4; column++) {
+            for (var row = 0; row < 4; row++) {
+                array.push(generator(column, row));
+            }
+        }
+
+        return stm(ast.call('state.vfpuSetMatrix', [imm32(this.reg), ast.array(array)]));
+    };
+
+    VMatRegClass.prototype.setMatrixDebug = function (generator) {
+        return stms([
+            this.setMatrix(generator),
+            stm(ast.debugger('wip vfpu'))
+        ]);
+    };
+    return VMatRegClass;
+})();
+
+function VMatReg(index) {
+    return new VMatRegClass(index);
 }
 
 var InstructionAst = (function () {
@@ -3318,13 +3750,26 @@ var InstructionAst = (function () {
         return assignGpr(i.rt, u_imm32(i.imm16 << 16));
     };
 
-    InstructionAst.prototype.vmzero = function (i) {
-        // @TODO
-        return setMatrix(i.VD, function (c, r) {
-            return imm32(0);
-        });
-    };
-
+    // @TODO
+    //vmzero(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vmidt(i: Instruction) { return VMatReg(i.VD).setMatrixDebug((c, r) => imm32((c == r) ? 1 : 0)); }
+    //mtv(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //viim(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vrcp(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vpfxt(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vmul(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vrot(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vdiv(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vsub(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vmov(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vadd(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vmmul(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vmmov(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //"sv.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //"lv.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //"lvl.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //"lvr.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+    //vcst(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
     InstructionAst.prototype.add = function (i) {
         return this.addu(i);
     };
@@ -3795,409 +4240,7 @@ var InstructionAst = (function () {
     return InstructionAst;
 })();
 exports.InstructionAst = InstructionAst;
-//# sourceMappingURL=ast.js.map
-},
-"src/core/cpu/ast_builder": function(module, exports, require) {
-///<reference path="../../typings.d.ts" />
-var __extends = this.__extends || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
-};
-var ANode = (function () {
-    function ANode() {
-    }
-    ANode.prototype.toJs = function () {
-        return '';
-    };
-    ANode.prototype.optimize = function () {
-        return this;
-    };
-    return ANode;
-})();
-exports.ANode = ANode;
-
-var ANodeStm = (function (_super) {
-    __extends(ANodeStm, _super);
-    function ANodeStm() {
-        _super.apply(this, arguments);
-    }
-    return ANodeStm;
-})(ANode);
-exports.ANodeStm = ANodeStm;
-
-var ANodeStmJump = (function (_super) {
-    __extends(ANodeStmJump, _super);
-    function ANodeStmJump(label) {
-        _super.call(this);
-        this.label = label;
-    }
-    return ANodeStmJump;
-})(ANodeStm);
-exports.ANodeStmJump = ANodeStmJump;
-
-var ANodeStmReturn = (function (_super) {
-    __extends(ANodeStmReturn, _super);
-    function ANodeStmReturn() {
-        _super.apply(this, arguments);
-    }
-    ANodeStmReturn.prototype.toJs = function () {
-        return 'return;';
-    };
-    return ANodeStmReturn;
-})(ANodeStm);
-exports.ANodeStmReturn = ANodeStmReturn;
-
-var ANodeStmList = (function (_super) {
-    __extends(ANodeStmList, _super);
-    function ANodeStmList(childs) {
-        _super.call(this);
-        this.childs = childs;
-        this.labels = {};
-    }
-    ANodeStmList.prototype.createLabel = function (label) {
-        this.labels[label] = this.childs.length;
-        return this.childs.length;
-    };
-
-    ANodeStmList.prototype.add = function (node) {
-        this.childs.push(node);
-    };
-
-    ANodeStmList.prototype.toJs = function () {
-        var jumpCount = 0;
-        var usedLabels = {};
-        for (var n = 0; n < this.childs.length; n++) {
-            var item = this.childs[n];
-            if (item instanceof ANodeStmJump) {
-                jumpCount++;
-                usedLabels[item.label] = true;
-            }
-        }
-        if (jumpCount > 1)
-            throw (new Error("Not supported more than one jump at this point!"));
-
-        var lines = [];
-        for (var n = 0; n < this.childs.length; n++) {
-            var child = this.childs[n];
-
-            if (usedLabels[n] !== undefined) {
-                lines.push('while(true) {');
-            }
-
-            //console.log(usedLabels);
-            lines.push(child.toJs());
-
-            if (child instanceof ANodeStmJump) {
-                lines.push('}');
-            }
-        }
-        return lines.join("\n");
-    };
-    return ANodeStmList;
-})(ANodeStm);
-exports.ANodeStmList = ANodeStmList;
-
-var ANodeStmRaw = (function (_super) {
-    __extends(ANodeStmRaw, _super);
-    function ANodeStmRaw(content) {
-        _super.call(this);
-        this.content = content;
-    }
-    ANodeStmRaw.prototype.toJs = function () {
-        return this.content;
-    };
-    return ANodeStmRaw;
-})(ANodeStm);
-exports.ANodeStmRaw = ANodeStmRaw;
-
-var ANodeStmExpr = (function (_super) {
-    __extends(ANodeStmExpr, _super);
-    function ANodeStmExpr(expr) {
-        _super.call(this);
-        this.expr = expr;
-    }
-    ANodeStmExpr.prototype.toJs = function () {
-        return this.expr.toJs() + ';';
-    };
-    return ANodeStmExpr;
-})(ANodeStm);
-exports.ANodeStmExpr = ANodeStmExpr;
-
-var ANodeExpr = (function (_super) {
-    __extends(ANodeExpr, _super);
-    function ANodeExpr() {
-        _super.apply(this, arguments);
-    }
-    return ANodeExpr;
-})(ANode);
-exports.ANodeExpr = ANodeExpr;
-
-var ANodeExprLValue = (function (_super) {
-    __extends(ANodeExprLValue, _super);
-    function ANodeExprLValue() {
-        _super.apply(this, arguments);
-    }
-    return ANodeExprLValue;
-})(ANodeExpr);
-exports.ANodeExprLValue = ANodeExprLValue;
-
-var ANodeExprLValueVar = (function (_super) {
-    __extends(ANodeExprLValueVar, _super);
-    function ANodeExprLValueVar(name) {
-        _super.call(this);
-        this.name = name;
-    }
-    ANodeExprLValueVar.prototype.toJs = function () {
-        return this.name;
-    };
-    return ANodeExprLValueVar;
-})(ANodeExprLValue);
-exports.ANodeExprLValueVar = ANodeExprLValueVar;
-
-var ANodeExprI32 = (function (_super) {
-    __extends(ANodeExprI32, _super);
-    function ANodeExprI32(value) {
-        _super.call(this);
-        this.value = value;
-    }
-    ANodeExprI32.prototype.toJs = function () {
-        return String(this.value);
-    };
-    return ANodeExprI32;
-})(ANodeExpr);
-exports.ANodeExprI32 = ANodeExprI32;
-
-var ANodeExprFloat = (function (_super) {
-    __extends(ANodeExprFloat, _super);
-    function ANodeExprFloat(value) {
-        _super.call(this);
-        this.value = value;
-    }
-    ANodeExprFloat.prototype.toJs = function () {
-        return String(this.value);
-    };
-    return ANodeExprFloat;
-})(ANodeExpr);
-exports.ANodeExprFloat = ANodeExprFloat;
-
-var ANodeExprU32 = (function (_super) {
-    __extends(ANodeExprU32, _super);
-    function ANodeExprU32(value) {
-        _super.call(this);
-        this.value = value;
-    }
-    ANodeExprU32.prototype.toJs = function () {
-        return sprintf('0x%08X', this.value);
-    };
-    return ANodeExprU32;
-})(ANodeExpr);
-exports.ANodeExprU32 = ANodeExprU32;
-
-var ANodeExprBinop = (function (_super) {
-    __extends(ANodeExprBinop, _super);
-    function ANodeExprBinop(left, op, right) {
-        _super.call(this);
-        this.left = left;
-        this.op = op;
-        this.right = right;
-    }
-    ANodeExprBinop.prototype.toJs = function () {
-        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
-    };
-    return ANodeExprBinop;
-})(ANodeExpr);
-exports.ANodeExprBinop = ANodeExprBinop;
-
-var ANodeExprUnop = (function (_super) {
-    __extends(ANodeExprUnop, _super);
-    function ANodeExprUnop(op, right) {
-        _super.call(this);
-        this.op = op;
-        this.right = right;
-    }
-    ANodeExprUnop.prototype.toJs = function () {
-        return '(' + this.op + '(' + this.right.toJs() + '))';
-    };
-    return ANodeExprUnop;
-})(ANodeExpr);
-exports.ANodeExprUnop = ANodeExprUnop;
-
-var ANodeExprAssign = (function (_super) {
-    __extends(ANodeExprAssign, _super);
-    function ANodeExprAssign(left, right) {
-        _super.call(this);
-        this.left = left;
-        this.right = right;
-    }
-    ANodeExprAssign.prototype.toJs = function () {
-        return this.left.toJs() + ' = ' + this.right.toJs();
-    };
-    return ANodeExprAssign;
-})(ANodeExpr);
-exports.ANodeExprAssign = ANodeExprAssign;
-
-var ANodeExprCall = (function (_super) {
-    __extends(ANodeExprCall, _super);
-    function ANodeExprCall(name, _arguments) {
-        _super.call(this);
-        this.name = name;
-        this._arguments = _arguments;
-    }
-    ANodeExprCall.prototype.toJs = function () {
-        return this.name + '(' + this._arguments.map(function (argument) {
-            return argument.toJs();
-        }).join(',') + ')';
-    };
-    return ANodeExprCall;
-})(ANodeExpr);
-exports.ANodeExprCall = ANodeExprCall;
-
-var ANodeStmIf = (function (_super) {
-    __extends(ANodeStmIf, _super);
-    function ANodeStmIf(cond, codeTrue, codeFalse) {
-        _super.call(this);
-        this.cond = cond;
-        this.codeTrue = codeTrue;
-        this.codeFalse = codeFalse;
-    }
-    ANodeStmIf.prototype.toJs = function () {
-        var result = '';
-        result += 'if (' + this.cond.toJs() + ')';
-        result += ' { ' + this.codeTrue.toJs() + ' }';
-        if (this.codeFalse)
-            result += ' else { ' + this.codeFalse.toJs() + ' }';
-        return result;
-    };
-    return ANodeStmIf;
-})(ANodeStm);
-exports.ANodeStmIf = ANodeStmIf;
-
-var AstBuilder = (function () {
-    function AstBuilder() {
-    }
-    AstBuilder.prototype.assign = function (ref, value) {
-        return new ANodeExprAssign(ref, value);
-    };
-    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
-        return new ANodeStmIf(cond, codeTrue, codeFalse);
-    };
-    AstBuilder.prototype.binop = function (left, op, right) {
-        return new ANodeExprBinop(left, op, right);
-    };
-    AstBuilder.prototype.unop = function (op, right) {
-        return new ANodeExprUnop(op, right);
-    };
-    AstBuilder.prototype.binop_i = function (left, op, right) {
-        return this.binop(left, op, this.imm32(right));
-    };
-    AstBuilder.prototype.imm32 = function (value) {
-        return new ANodeExprI32(value);
-    };
-    AstBuilder.prototype.imm_f = function (value) {
-        return new ANodeExprFloat(value);
-    };
-    AstBuilder.prototype.u_imm32 = function (value) {
-        return new ANodeExprU32(value);
-    };
-    AstBuilder.prototype.stm = function (expr) {
-        return new ANodeStmExpr(expr);
-    };
-    AstBuilder.prototype.stmEmpty = function () {
-        return new ANodeStm();
-    };
-    AstBuilder.prototype.stms = function (stms) {
-        return new ANodeStmList(stms);
-    };
-    AstBuilder.prototype.call = function (name, exprList) {
-        return new ANodeExprCall(name, exprList);
-    };
-    AstBuilder.prototype.jump = function (label) {
-        return new ANodeStmJump(label);
-    };
-    AstBuilder.prototype._return = function () {
-        return new ANodeStmReturn();
-    };
-    AstBuilder.prototype.raw = function (content) {
-        return new ANodeStmRaw(content);
-    };
-    return AstBuilder;
-})();
-exports.AstBuilder = AstBuilder;
-
-var MipsAstBuilder = (function (_super) {
-    __extends(MipsAstBuilder, _super);
-    function MipsAstBuilder() {
-        _super.apply(this, arguments);
-    }
-    MipsAstBuilder.prototype.debugger = function (comment) {
-        return new ANodeStmRaw("debugger; // " + comment + "\n");
-    };
-
-    MipsAstBuilder.prototype.functionPrefix = function () {
-        return this.stmEmpty();
-    };
-
-    MipsAstBuilder.prototype.gpr = function (index) {
-        if (index === 0)
-            return new ANodeExprLValueVar('0');
-        return new ANodeExprLValueVar('state.gpr[' + index + ']');
-    };
-
-    MipsAstBuilder.prototype.fpr = function (index) {
-        return new ANodeExprLValueVar('state.fpr[' + index + ']');
-    };
-
-    MipsAstBuilder.prototype.fpr_i = function (index) {
-        //return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
-        return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
-    };
-
-    MipsAstBuilder.prototype.fcr31_cc = function () {
-        return new ANodeExprLValueVar('state.fcr31_cc');
-    };
-    MipsAstBuilder.prototype.lo = function () {
-        return new ANodeExprLValueVar('state.LO');
-    };
-    MipsAstBuilder.prototype.hi = function () {
-        return new ANodeExprLValueVar('state.HI');
-    };
-    MipsAstBuilder.prototype.ic = function () {
-        return new ANodeExprLValueVar('state.IC');
-    };
-    MipsAstBuilder.prototype.pc = function () {
-        return new ANodeExprLValueVar('state.PC');
-    };
-    MipsAstBuilder.prototype.ra = function () {
-        return new ANodeExprLValueVar('state.gpr[31]');
-    };
-    MipsAstBuilder.prototype.branchflag = function () {
-        return new ANodeExprLValueVar('state.BRANCHFLAG');
-    };
-    MipsAstBuilder.prototype.branchpc = function () {
-        return new ANodeExprLValueVar('state.BRANCHPC');
-    };
-
-    MipsAstBuilder.prototype.assignGpr = function (index, expr) {
-        if (index == 0)
-            return this.stmEmpty();
-        return this.stm(this.assign(this.gpr(index), expr));
-    };
-
-    MipsAstBuilder.prototype.assignIC = function (expr) {
-        return this.stm(this.assign(this.ic(), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
-        return this.stm(this.assign(this.fpr_i(index), expr));
-    };
-    return MipsAstBuilder;
-})(AstBuilder);
-exports.MipsAstBuilder = MipsAstBuilder;
-//# sourceMappingURL=ast_builder.js.map
+//# sourceMappingURL=codegen.js.map
 },
 "src/core/cpu/executor": function(module, exports, require) {
 var ProgramExecutor = (function () {
@@ -4224,7 +4267,7 @@ var ProgramExecutor = (function () {
             this.times++;
             if (this.times >= 100000) {
                 this.times = 0;
-                if ((performance.now() - this.lastTime) >= 100)
+                if ((performance.now() - this.lastTime) >= 50)
                     throw (new CpuBreakException());
                 this.lastTime = performance.now();
             }
@@ -4265,11 +4308,11 @@ var __extends = this.__extends || function (d, b) {
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var ast = require('./ast');
+var codegen = require('./codegen');
 var ast_builder = require('./ast_builder');
 var instructions = require('./instructions');
 
-var InstructionAst = ast.InstructionAst;
+var InstructionAst = codegen.InstructionAst;
 
 var Instructions = instructions.Instructions;
 var Instruction = instructions.Instruction;
@@ -4448,7 +4491,13 @@ var FunctionGenerator = (function () {
         if (n >= 100000)
             throw (new Error(sprintf("Too large function PC=%08X", address)));
 
-        return new Function('state', stms.toJs());
+        var code = stms.toJs();
+        try  {
+            return new Function('state', code);
+        } catch (e) {
+            console.info(code);
+            throw (e);
+        }
     };
     return FunctionGenerator;
 })();
@@ -5597,7 +5646,10 @@ var CpuState = (function () {
         this.PC = 0;
         this.IC = 0;
         this.LO = 0;
-        this.HI = 0;
+        this._HI = 0;
+        this._HI_op = 0;
+        this._HI_op1 = 0;
+        this._HI_op2 = 0;
         this.thread = null;
         this.callstack = [];
         this.fcr31_rm = 0;
@@ -5613,6 +5665,33 @@ var CpuState = (function () {
         // @TODO
         this.vfpr[0] = 0;
     };
+
+
+    CpuState.prototype.setHIOp = function (op, op1, op2) {
+        this._HI_op = op;
+        this._HI_op1 = op1;
+        this._HI_op2 = op2;
+    };
+
+    Object.defineProperty(CpuState.prototype, "HI", {
+        get: function () {
+            switch (this._HI_op) {
+                case 0:
+                    return this._HI;
+                case 1:
+                    var result = Math.imul32_64(this._HI_op1, this._HI_op2, CpuState._mult_temp);
+                    this._HI_op = 0;
+                    return this._HI = result[1];
+            }
+            throw (new Error("Can't generate HI"));
+        },
+        set: function (value) {
+            this._HI = value;
+            this._HI_op = 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
 
     CpuState.prototype.preserveRegisters = function (callback) {
         var temp = new CpuState(this.memory, this.syscallManager);
@@ -5934,9 +6013,8 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.mult = function (rs, rt) {
-        var result = Math.imul32_64(rs, rt, CpuState._mult_temp);
-        this.LO = result[0];
-        this.HI = result[1];
+        this.LO = Math.imul(rs, rt);
+        this.setHIOp(1, rs, rt);
     };
 
     CpuState.prototype.madd = function (rs, rt) {
@@ -8928,6 +9006,8 @@ var Texture = (function () {
     Texture.prototype.fromBytes = function (data, width, height) {
         var gl = this.gl;
 
+        this.width = width;
+        this.height = height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
         });
@@ -8936,6 +9016,8 @@ var Texture = (function () {
     Texture.prototype.fromCanvas = function (canvas) {
         var gl = this.gl;
 
+        this.width = canvas.width;
+        this.height = canvas.height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
         });
@@ -8948,6 +9030,8 @@ var Texture = (function () {
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag);
+        if (!MathUtils.isPowerOfTwo(this.width) || !MathUtils.isPowerOfTwo(this.height))
+            wraps = wrapt = gl.CLAMP_TO_EDGE;
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wraps);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
     };

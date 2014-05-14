@@ -38,11 +38,32 @@ function i_uimm16(i: Instruction) { return u_imm32(i.u_imm16); }
 function rs_imm16(i: Instruction) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
 function cast_uint(expr: _ast.ANodeExpr) { return binop(expr, '>>>', ast.imm32(0)); }
 
-function setMatrix(reg: number, generator: (column: number, row: number) => _ast.ANodeExpr) {
-	// @TODO
-	return stm(ast.call('state.vfpuSetMatrix', [
-		generator(0, 0)
-	]));
+class VMatRegClass {
+	constructor(private reg: number) {
+	}
+
+	setMatrix(generator: (column: number, row: number) => _ast.ANodeExpr) {
+		// @TODO
+		var array = <_ast.ANodeExpr[]>[];
+		for (var column = 0; column < 4; column++) {
+			for (var row = 0; row < 4; row++) {
+				array.push(generator(column, row));
+			}
+		}
+
+		return stm(ast.call('state.vfpuSetMatrix', <_ast.ANodeExpr[]>[imm32(this.reg), ast.array(array)]));
+	}
+
+	setMatrixDebug(generator: (column: number, row: number) => _ast.ANodeExpr) {
+		return stms([
+			this.setMatrix(generator),
+			stm(ast.debugger('wip vfpu'))
+		]);
+	}
+}
+
+function VMatReg(index: number) {
+	return new VMatRegClass(index);
 }
 
 export class InstructionAst {
@@ -52,10 +73,26 @@ export class InstructionAst {
 
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
-	vmzero(i: Instruction) {
-		// @TODO
-		return setMatrix(i.VD, (c, r) => imm32(0));
-	}
+	// @TODO
+	//vmzero(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vmidt(i: Instruction) { return VMatReg(i.VD).setMatrixDebug((c, r) => imm32((c == r) ? 1 : 0)); }
+	//mtv(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//viim(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vrcp(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vpfxt(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vmul(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vrot(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vdiv(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vsub(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vmov(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vadd(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vmmul(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vmmov(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//"sv.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//"lv.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//"lvl.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//"lvr.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	//vcst(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
 
 	add(i: Instruction) { return this.addu(i); }
 	addu(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); }

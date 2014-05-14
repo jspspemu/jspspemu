@@ -19,6 +19,8 @@ export class Texture {
 	private address: number;
 	private pixelFormat: PixelFormat;
 	private clutFormat: PixelFormat;
+	width: number;
+	height: number;
 
 	constructor(private gl: WebGLRenderingContext) {
 		this.texture = gl.createTexture();
@@ -47,6 +49,8 @@ export class Texture {
 	fromBytes(data: ArrayBufferView, width: number, height: number) {
 		var gl = this.gl;
 
+		this.width = width;
+		this.height = height;
 		this._create(() => {
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, <any>data);
 		});
@@ -55,6 +59,8 @@ export class Texture {
 	fromCanvas(canvas: HTMLCanvasElement) {
 		var gl = this.gl;
 
+		this.width = canvas.width;
+		this.height = canvas.height;
 		this._create(() => {
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
 		});
@@ -67,6 +73,7 @@ export class Texture {
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag);
+		if (!MathUtils.isPowerOfTwo(this.width) || !MathUtils.isPowerOfTwo(this.height)) wraps = wrapt = gl.CLAMP_TO_EDGE;
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wraps);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
 	}

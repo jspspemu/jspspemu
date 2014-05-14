@@ -2,11 +2,11 @@
 
 import memory = require('../memory');
 import state = require('./state');
-import ast = require('./ast');
+import codegen = require('./codegen');
 import ast_builder = require('./ast_builder');
 import instructions = require('./instructions');
 
-import InstructionAst = ast.InstructionAst;
+import InstructionAst = codegen.InstructionAst;
 import Memory = memory.Memory;
 import Instructions = instructions.Instructions;
 import Instruction = instructions.Instruction;
@@ -181,6 +181,12 @@ export class FunctionGenerator {
 
 		if (n >= 100000) throw (new Error(sprintf("Too large function PC=%08X", address)));
 
-		return new Function('state', stms.toJs());
+		var code = stms.toJs();
+		try {
+			return new Function('state', code);
+		} catch (e) {
+			console.info(code);
+			throw(e);
+		}
 	}
 }

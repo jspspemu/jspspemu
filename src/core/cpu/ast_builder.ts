@@ -117,6 +117,11 @@ export class ANodeExprAssign extends ANodeExpr {
 	toJs() { return this.left.toJs() + ' = ' + this.right.toJs(); }
 }
 
+export class ANodeExprArray extends ANodeExpr {
+	constructor(public _items: ANodeExpr[]) { super(); }
+	toJs() { return '[' + this._items.map((item) => item.toJs()).join(',') + ']'; }
+}
+
 export class ANodeExprCall extends ANodeExpr {
 	constructor(public name: string, public _arguments: ANodeExpr[]) { super(); }
 	toJs() { return this.name + '(' + this._arguments.map((argument) => argument.toJs()).join(',') + ')'; }
@@ -145,6 +150,7 @@ export class AstBuilder {
 	stm(expr: ANodeExpr) { return new ANodeStmExpr(expr); }
 	stmEmpty() { return new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
+	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
 	jump(label: number) { return new ANodeStmJump(label); }
 	_return() { return new ANodeStmReturn(); }

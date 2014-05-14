@@ -51,7 +51,7 @@
     <TypeScriptCompile Include="src\context.ts" />
     <TypeScriptCompile Include="src\core\audio.ts" />
     <TypeScriptCompile Include="src\core\cpu.ts" />
-    <TypeScriptCompile Include="src\core\cpu\ast.ts" />
+    <TypeScriptCompile Include="src\core\cpu\codegen.ts" />
     <TypeScriptCompile Include="src\core\cpu\ast_builder.ts" />
     <TypeScriptCompile Include="src\core\cpu\executor.ts" />
     <TypeScriptCompile Include="src\core\cpu\generator.ts" />

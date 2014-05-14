@@ -64,7 +64,7 @@ if (!Math['trunc']) {
 }
 
 if (!Math['imul']) {
-	Math['imul'] = function (a: number, b : number) {
+	Math['imul'] = function (a: number, b: number) {
 		var ah = (a >>> 16) & 0xffff;
 		var al = a & 0xffff;
 		var bh = (b >>> 16) & 0xffff;
@@ -348,6 +348,10 @@ class MathUtils {
 		else {
 			return size / blockSize;
 		}
+	}
+
+	static isPowerOfTwo(x: number) {
+		return (x != 0) && ((x & (x - 1)) == 0);
 	}
 
 	static nextAligned(value: number, alignment: number) {
