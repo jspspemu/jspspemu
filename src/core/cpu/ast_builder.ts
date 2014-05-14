@@ -197,23 +197,11 @@ export class MipsAstBuilder extends AstBuilder {
 		return new ANodeExprLValueVar('state.gpr[' + index + ']');
 	}
 
-	tempr(index: number): ANodeExprLValueVar {
-		return new ANodeExprLValueVar('state.temp[' + index + ']');
-	}
-
-	vfpr(index: number): ANodeExprLValueVar {
-		return new ANodeExprLValueVar('state.vfpr[' + index + ']');
-	}
-
-	fpr(index: number): ANodeExprLValueVar {
-		return new ANodeExprLValueVar('state.fpr[' + index + ']');
-	}
-
-	fpr_i(index: number): ANodeExprLValueVar {
-		//return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
-		return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
-	}
-
+	tempr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.temp[' + index + ']'); }
+	vfpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); }
+	vfpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); }
+	fpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr[' + index + ']'); }
+	fpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr_i[' + index + ']'); }
 	fcr31_cc() { return new ANodeExprLValueVar('state.fcr31_cc'); }
 	lo() { return new ANodeExprLValueVar('state.LO'); }
 	hi() { return new ANodeExprLValueVar('state.HI'); }

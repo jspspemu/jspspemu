@@ -3631,20 +3631,18 @@ var MipsAstBuilder = (function (_super) {
     MipsAstBuilder.prototype.tempr = function (index) {
         return new ANodeExprLValueVar('state.temp[' + index + ']');
     };
-
     MipsAstBuilder.prototype.vfpr = function (index) {
         return new ANodeExprLValueVar('state.vfpr[' + index + ']');
     };
-
+    MipsAstBuilder.prototype.vfpr_i = function (index) {
+        return new ANodeExprLValueVar('state.vfpr_i[' + index + ']');
+    };
     MipsAstBuilder.prototype.fpr = function (index) {
         return new ANodeExprLValueVar('state.fpr[' + index + ']');
     };
-
     MipsAstBuilder.prototype.fpr_i = function (index) {
-        //return this.call('MathFloat.reinterpretFloatAsInt', [this.fpr(index)]);
         return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
     };
-
     MipsAstBuilder.prototype.fcr31_cc = function () {
         return new ANodeExprLValueVar('state.fcr31_cc');
     };
@@ -3726,6 +3724,9 @@ function tempr(index) {
 }
 function vfpr(index) {
     return ast.vfpr(index);
+}
+function vfpr_i(index) {
+    return ast.vfpr_i(index);
 }
 function immBool(value) {
     return ast.imm32(value ? 1 : 0);
@@ -3970,6 +3971,12 @@ function readVector(vectorReg, N) {
     });
 }
 
+function readVector_i(vectorReg, N) {
+    return GetVectorRegs(N, vectorReg).map(function (index) {
+        return vfpr_i(index);
+    });
+}
+
 function readMatrix(vectorReg, N) {
     return GetMatrixRegs(N, vectorReg).map(function (index) {
         return vfpr(index);
@@ -4020,6 +4027,17 @@ function setMatrix(leftList, generator) {
 
 function setVector(leftList, generator) {
     return stm(call('state.vfpuStore', [
+        ast.array(leftList.map(function (item) {
+            return imm32(item);
+        })),
+        ast.array(ArrayUtils.range(0, leftList.length).map(function (index) {
+            return generator(index);
+        }))
+    ]));
+}
+
+function setVector_i(leftList, generator) {
+    return stm(call('state.vfpuStore_i', [
         ast.array(leftList.map(function (item) {
             return imm32(item);
         })),
@@ -4195,21 +4213,51 @@ var InstructionAst = (function () {
         });
     };
 
+    InstructionAst.prototype._vtXXX_q = function (i, func) {
+        var size = i.ONE_TWO;
+        if (size != 4)
+            throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
+        var dest = GetVectorRegs(2, i.VD);
+        var src = readVector_i(i.VS, 4);
+        return setVector_i(dest, function (index) {
+            return ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]);
+        });
+    };
+
+    InstructionAst.prototype['vt4444.q'] = function (i) {
+        return this._vtXXX_q(i, '_vt4444_step');
+    };
+    InstructionAst.prototype['vt5551.q'] = function (i) {
+        return this._vtXXX_q(i, '_vt5551_step');
+    };
+    InstructionAst.prototype['vt5650.q'] = function (i) {
+        return this._vtXXX_q(i, '_vt5650_step');
+    };
+
     InstructionAst.prototype.vcst = function (i) {
         return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)));
     };
 
-    // @TODO
     InstructionAst.prototype["lvl.q"] = function (i) {
-        return VMatReg(i.VD).setMatrix(function (c, r) {
-            return imm32(0);
-        });
-        //return stm();
+        return stm(call('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(4 /* Quad */, i.VT5_1).map(function (item) {
+                return imm32(item);
+            }))]));
     };
     InstructionAst.prototype["lvr.q"] = function (i) {
-        return VMatReg(i.VD).setMatrix(function (c, r) {
-            return imm32(0);
-        });
+        return stm(call('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(4 /* Quad */, i.VT5_1).map(function (item) {
+                return imm32(item);
+            }))]));
+    };
+
+    InstructionAst.prototype["svl.q"] = function (i) {
+        return stm(call('state.svl_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(4 /* Quad */, i.VT5_1).map(function (item) {
+                return imm32(item);
+            }))]));
+    };
+    InstructionAst.prototype["svr.q"] = function (i) {
+        return stm(call('state.svr_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(4 /* Quad */, i.VT5_1).map(function (item) {
+                return imm32(item);
+            }))]));
     };
 
     InstructionAst.prototype.add = function (i) {
@@ -6116,6 +6164,7 @@ var CpuState = (function () {
         //fpr: Float32Array = new Float32Array(32);
         this.vfpr_Buffer = new ArrayBuffer(128 * 4);
         this.vfpr = new Float32Array(this.vfpr_Buffer);
+        this.vfpr_i = new Int32Array(this.vfpr_Buffer);
         this.vpfxt = 0;
         this.BRANCHFLAG = false;
         this.BRANCHPC = 0;
@@ -6141,6 +6190,70 @@ var CpuState = (function () {
         this.vpfxt = value;
     };
 
+    CpuState.prototype._vt4444_step = function (i0, i1) {
+        var o0 = 0;
+        o0 |= ((i0 >> 4) & 15) << 0;
+        o0 |= ((i0 >> 12) & 15) << 4;
+        o0 |= ((i0 >> 20) & 15) << 8;
+        o0 |= ((i0 >> 28) & 15) << 12;
+        o0 |= ((i1 >> 4) & 15) << 16;
+        o0 |= ((i1 >> 12) & 15) << 20;
+        o0 |= ((i1 >> 20) & 15) << 24;
+        o0 |= ((i1 >> 28) & 15) << 28;
+        return o0;
+    };
+
+    CpuState.prototype._vt5551_step = function (i0, i1) {
+        var o0 = 0;
+        o0 |= ((i0 >> 3) & 31) << 0;
+        o0 |= ((i0 >> 11) & 31) << 5;
+        o0 |= ((i0 >> 19) & 31) << 10;
+        o0 |= ((i0 >> 31) & 1) << 15;
+        o0 |= ((i1 >> 3) & 31) << 16;
+        o0 |= ((i1 >> 11) & 31) << 21;
+        o0 |= ((i1 >> 19) & 31) << 26;
+        o0 |= ((i1 >> 31) & 1) << 31;
+        return o0;
+    };
+
+    CpuState.prototype._vt5650_step = function (i0, i1) {
+        var o0 = 0;
+        o0 |= ((i0 >> 3) & 31) << 0;
+        o0 |= ((i0 >> 10) & 63) << 5;
+        o0 |= ((i0 >> 19) & 31) << 11;
+        o0 |= ((i1 >> 3) & 31) << 16;
+        o0 |= ((i1 >> 10) & 63) << 21;
+        o0 |= ((i1 >> 19) & 31) << 27;
+        return o0;
+    };
+
+    CpuState.prototype.svl_q = function (address, r) {
+        var k = (3 - ((address >>> 2) & 3));
+        address &= ~0xF;
+        debugger;
+        for (var n = k; n < 4; n++, address += 4)
+            this.memory.writeInt32(address, this.vfpr_i[r[n]]);
+    };
+
+    CpuState.prototype.svr_q = function (address, r) {
+        var k = (4 - ((address >>> 2) & 3));
+        for (var n = 0; n < k; n++, address += 4)
+            this.memory.writeInt32(address, this.vfpr_i[r[n]]);
+    };
+
+    CpuState.prototype.lvl_q = function (address, r) {
+        var k = (3 - ((address >>> 2) & 3));
+        address &= ~0xF;
+        for (var n = k; n < 4; n++, address += 4)
+            this.vfpr_i[r[n]] = this.memory.readInt32(address);
+    };
+
+    CpuState.prototype.lvr_q = function (address, r) {
+        var k = (4 - ((address >>> 2) & 3));
+        for (var n = 0; n < k; n++, address += 4)
+            this.vfpr_i[r[n]] = this.memory.readInt32(address);
+    };
+
     CpuState.prototype.storeFloats = function (address, values) {
         for (var n = 0; n < values.length; n++) {
             this.memory.writeFloat32(address + n * 4, values[n]);
@@ -6148,9 +6261,12 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.vfpuStore = function (indices, values) {
-        for (var n = 0; n < indices.length; n++) {
+        for (var n = 0; n < indices.length; n++)
             this.vfpr[indices[n]] = values[n];
-        }
+    };
+    CpuState.prototype.vfpuStore_i = function (indices, values) {
+        for (var n = 0; n < indices.length; n++)
+            this.vfpr_i[indices[n]] = values[n];
     };
 
     CpuState.prototype.vfpuSetMatrix = function (m, values) {

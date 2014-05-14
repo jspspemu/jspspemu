@@ -30,11 +30,72 @@ export class CpuState {
 
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
+	vfpr_i: Float32Array = new Int32Array(this.vfpr_Buffer);
 
 	vpfxt: number = 0;
 
 	setVpfxt(value: number) {
 		this.vpfxt = value;
+	}
+
+	_vt4444_step(i0: number, i1: number) {
+		var o0 = 0;
+		o0 |= ((i0 >> 4) & 15) << 0;
+		o0 |= ((i0 >> 12) & 15) << 4;
+		o0 |= ((i0 >> 20) & 15) << 8;
+		o0 |= ((i0 >> 28) & 15) << 12;
+		o0 |= ((i1 >> 4) & 15) << 16;
+		o0 |= ((i1 >> 12) & 15) << 20;
+		o0 |= ((i1 >> 20) & 15) << 24;
+		o0 |= ((i1 >> 28) & 15) << 28;
+		return o0;
+	}
+
+	_vt5551_step(i0: number, i1: number) {
+		var o0 = 0;
+		o0 |= ((i0 >> 3) & 31) << 0;
+		o0 |= ((i0 >> 11) & 31) << 5;
+		o0 |= ((i0 >> 19) & 31) << 10;
+		o0 |= ((i0 >> 31) & 1) << 15;
+		o0 |= ((i1 >> 3) & 31) << 16;
+		o0 |= ((i1 >> 11) & 31) << 21;
+		o0 |= ((i1 >> 19) & 31) << 26;
+		o0 |= ((i1 >> 31) & 1) << 31;
+		return o0;
+	}
+
+	_vt5650_step(i0: number, i1: number) {
+		var o0 = 0;
+		o0 |= ((i0 >> 3) & 31) << 0;
+		o0 |= ((i0 >> 10) & 63) << 5;
+		o0 |= ((i0 >> 19) & 31) << 11;
+		o0 |= ((i1 >> 3) & 31) << 16;
+		o0 |= ((i1 >> 10) & 63) << 21;
+		o0 |= ((i1 >> 19) & 31) << 27;
+		return o0;
+	}
+
+	svl_q(address: number, r: number[]) {
+		var k = (3 - ((address >>> 2) & 3));
+		address &= ~0xF;
+		debugger;
+		for (var n = k; n < 4; n++, address += 4) this.memory.writeInt32(address, this.vfpr_i[r[n]]);
+	}
+
+	svr_q(address: number, r: number[]) {
+		var k = (4 - ((address >>> 2) & 3));
+		for (var n = 0; n < k; n++, address += 4) this.memory.writeInt32(address, this.vfpr_i[r[n]]);
+	}
+
+	lvl_q(address: number, r: number[]) {
+		var k = (3 - ((address >>> 2) & 3));
+		address &= ~0xF;
+		for (var n = k; n < 4; n++, address += 4) this.vfpr_i[r[n]] = this.memory.readInt32(address);
+	}
+
+	lvr_q(address: number, r: number[]) {
+		var k = (4 - ((address >>> 2) & 3));
+		for (var n = 0; n < k; n++, address += 4) this.vfpr_i[r[n]] = this.memory.readInt32(address);
 	}
 
 	storeFloats(address: number, values: number[]) {
@@ -43,11 +104,8 @@ export class CpuState {
 		}
 	}
 
-	vfpuStore(indices: number[], values: number[]) {
-		for (var n = 0; n < indices.length; n++) {
-			this.vfpr[indices[n]] = values[n];
-		}
-	}
+	vfpuStore(indices: number[], values: number[]) { for (var n = 0; n < indices.length; n++) this.vfpr[indices[n]] = values[n]; }
+	vfpuStore_i(indices: number[], values: number[]) { for (var n = 0; n < indices.length; n++) this.vfpr_i[indices[n]] = values[n]; }
 
 	vfpuSetMatrix(m: number, values: number[]) {
 		// @TODO

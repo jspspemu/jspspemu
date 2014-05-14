@@ -17,6 +17,7 @@ function fpr_i(index: number) { return ast.fpr_i(index); }
 function gpr(index: number) { return ast.gpr(index); }
 function tempr(index: number) { return ast.tempr(index); }
 function vfpr(index: number) { return ast.vfpr(index); }
+function vfpr_i(index: number) { return ast.vfpr_i(index); }
 function immBool(value: boolean) { return ast.imm32(value ? 1 : 0); }
 function imm32(value: number) { return ast.imm32(value); }
 function imm_f(value: number) { return ast.imm_f(value); }
@@ -174,6 +175,10 @@ function readVector(vectorReg: number, N: VectorSize) {
 	return GetVectorRegs(N, vectorReg).map(index => vfpr(index));
 }
 
+function readVector_i(vectorReg: number, N: VectorSize) {
+	return GetVectorRegs(N, vectorReg).map(index => vfpr_i(index));
+}
+
 function readMatrix(vectorReg: number, N: MatrixSize) {
 	return GetMatrixRegs(N, vectorReg).map(index => vfpr(index));
 }
@@ -212,6 +217,13 @@ function setMatrix(leftList: number[], generator: (column: number, row: number, 
 
 function setVector(leftList: number[], generator: (index: number) => _ast.ANodeExpr) {
 	return stm(call('state.vfpuStore', [
+		ast.array(leftList.map(item => imm32(item))),
+		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(index)))
+	]));
+}
+
+function setVector_i(leftList: number[], generator: (index: number) => _ast.ANodeExpr) {
+	return stm(call('state.vfpuStore_i', [
 		ast.array(leftList.map(item => imm32(item))),
 		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(index)))
 	]));
@@ -332,14 +344,25 @@ export class InstructionAst {
 		});
 	}
 
+	_vtXXX_q(i: Instruction, func:string) {
+		var size = i.ONE_TWO;
+		if (size != 4) throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
+		var dest = GetVectorRegs(2, i.VD);
+		var src = readVector_i(i.VS, 4);
+		return setVector_i(dest, (index) => ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]));
+	}
+
+	'vt4444.q'(i: Instruction) { return this._vtXXX_q(i, '_vt4444_step'); }
+	'vt5551.q'(i: Instruction) { return this._vtXXX_q(i, '_vt5551_step'); }
+	'vt5650.q'(i: Instruction) { return this._vtXXX_q(i, '_vt5650_step'); }
+
 	vcst(i: Instruction) { return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value))); }
 
-	// @TODO
-	"lvl.q"(i: Instruction) {
-		return VMatReg(i.VD).setMatrix((c, r) => imm32(0));
-		//return stm();
-	}
-	"lvr.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	"lvl.q"(i: Instruction) { return stm(call('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
+	"lvr.q"(i: Instruction) { return stm(call('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
+
+	"svl.q"(i: Instruction) { return stm(call('state.svl_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
+	"svr.q"(i: Instruction) { return stm(call('state.svr_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
 
 	add(i: Instruction) { return this.addu(i); }
 	addu(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); }
