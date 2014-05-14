@@ -80,10 +80,38 @@ export class ANodeExpr extends ANode {
 }
 
 export class ANodeExprLValue extends ANodeExpr {
+	toAssignJs(right: ANodeExpr) { return ''; }
 }
+
+export class ANodeExprLValueSetGet extends ANodeExpr {
+	constructor(private setTemplate: string, private getTemplate: string, private replacements: ANodeExpr[]) {
+		super();
+	}
+
+	private _toJs(template:string, right?: ANodeExpr) {
+		return template.replace(/(\$\d|#)/g, (match) => {
+			if (match == '#') {
+				return right.toJs();
+			} else if (match.startsWith('$')) {
+				return this.replacements[parseInt(match.substr(1))].toJs();
+			}
+		});
+	}
+
+	toAssignJs(right: ANodeExpr) {
+		return this._toJs(this.setTemplate, right);
+	}
+
+	toJs() {
+		return this._toJs(this.getTemplate);
+	}
+}
+
+
 
 export class ANodeExprLValueVar extends ANodeExprLValue {
 	constructor(public name: string) { super(); }
+	toAssignJs(right: ANodeExpr) { return this.name + ' = ' + right.toJs(); }
 	toJs() { return this.name; }
 }
 
@@ -114,17 +142,17 @@ export class ANodeExprUnop extends ANodeExpr {
 
 export class ANodeExprAssign extends ANodeExpr {
 	constructor(public left: ANodeExprLValue, public right: ANodeExpr) { super(); }
-	toJs() { return this.left.toJs() + ' = ' + this.right.toJs(); }
+	toJs() { return this.left.toAssignJs(this.right); }
 }
 
 export class ANodeExprArray extends ANodeExpr {
 	constructor(public _items: ANodeExpr[]) { super(); }
-	toJs() { return '[' + this._items.map((item) => item.toJs()).join(',') + ']'; }
+	toJs() { return '[' + this._items.map((item) => item.toJs()).join(', ') + ']'; }
 }
 
 export class ANodeExprCall extends ANodeExpr {
 	constructor(public name: string, public _arguments: ANodeExpr[]) { super(); }
-	toJs() { return this.name + '(' + this._arguments.map((argument) => argument.toJs()).join(',') + ')'; }
+	toJs() { return this.name + '(' + this._arguments.map((argument) => argument.toJs()).join(', ') + ')'; }
 }
 
 export class ANodeStmIf extends ANodeStm {
@@ -158,7 +186,7 @@ export class AstBuilder {
 }
 
 export class MipsAstBuilder extends AstBuilder {
-	debugger(comment: string): ANodeStm {
+	debugger(comment: string = '-'): ANodeStm {
 		return new ANodeStmRaw("debugger; // " + comment + "\n");
 	}
 
@@ -167,6 +195,14 @@ export class MipsAstBuilder extends AstBuilder {
 	gpr(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
 		return new ANodeExprLValueVar('state.gpr[' + index + ']');
+	}
+
+	tempr(index: number): ANodeExprLValueVar {
+		return new ANodeExprLValueVar('state.temp[' + index + ']');
+	}
+
+	vfpr(index: number): ANodeExprLValueVar {
+		return new ANodeExprLValueVar('state.vfpr[' + index + ']');
 	}
 
 	fpr(index: number): ANodeExprLValueVar {

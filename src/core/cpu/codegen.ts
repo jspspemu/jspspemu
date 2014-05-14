@@ -15,6 +15,8 @@ function fcr31_cc() { return ast.fcr31_cc(); }
 function fpr(index: number) { return ast.fpr(index); }
 function fpr_i(index: number) { return ast.fpr_i(index); }
 function gpr(index: number) { return ast.gpr(index); }
+function tempr(index: number) { return ast.tempr(index); }
+function vfpr(index: number) { return ast.vfpr(index); }
 function immBool(value: boolean) { return ast.imm32(value ? 1 : 0); }
 function imm32(value: number) { return ast.imm32(value); }
 function imm_f(value: number) { return ast.imm_f(value); }
@@ -42,7 +44,7 @@ class VMatRegClass {
 	constructor(private reg: number) {
 	}
 
-	setMatrix(generator: (column: number, row: number) => _ast.ANodeExpr) {
+	_setMatrix(generator: (column: number, row: number) => _ast.ANodeExpr) {
 		// @TODO
 		var array = <_ast.ANodeExpr[]>[];
 		for (var column = 0; column < 4; column++) {
@@ -54,17 +56,197 @@ class VMatRegClass {
 		return stm(ast.call('state.vfpuSetMatrix', <_ast.ANodeExpr[]>[imm32(this.reg), ast.array(array)]));
 	}
 
+	setMatrix(generator: (column: number, row: number) => _ast.ANodeExpr) {
+		return stms([
+			this._setMatrix(generator),
+			stm(ast.debugger('wip vfpu'))
+		]);
+	}
+
 	setMatrixDebug(generator: (column: number, row: number) => _ast.ANodeExpr) {
 		return stms([
-			this.setMatrix(generator),
+			this._setMatrix(generator),
 			stm(ast.debugger('wip vfpu'))
 		]);
 	}
 }
 
+class VVecRegClass {
+	constructor(private reg: number, size:VectorSize) {
+	}
+
+	private _setVector(generator: (index: number) => _ast.ANodeExpr) {
+		// @TODO
+		var array = <_ast.ANodeExpr[]>[];
+		var statements = [];
+		var regs = GetVectorRegs(VectorSize.Quad, this.reg);
+	
+		statements.push(stm(ast.call('state.vfpuStore', [
+			ast.array(regs.map(item => imm32(item))),
+			ast.array([0, 1, 2, 3].map(index => generator(index)))
+		])));
+
+		return stms(statements);
+	}
+
+	setVector(generator: (index: number) => _ast.ANodeExpr) {
+		return stms([
+			this._setVector(generator),
+			stm(ast.debugger('wip vfpu'))
+		]);
+	}
+
+}
+
+
 function VMatReg(index: number) {
 	return new VMatRegClass(index);
 }
+
+function VVecReg(index: number, size:VectorSize) {
+	return new VVecRegClass(index, size);
+}
+
+export enum VectorSize { Single = 1, Pair = 2, Triple = 3, Quad = 4 }
+export enum MatrixSize { M_2x2 = 2, M_3x3 = 3, M_4x4 = 4 };
+
+function GetVectorRegs(N: VectorSize, vectorReg: number) {
+	var mtx = (vectorReg >>> 2) & 7;
+	var col = vectorReg & 3;
+	var row = 0;
+	var length = 0;
+	var transpose = (vectorReg >>> 5) & 1;
+
+	switch (N) {
+		case VectorSize.Single: transpose = 0; row = (vectorReg >>> 5) & 3; length = 1; break;
+		case VectorSize.Pair: row = (vectorReg >>> 5) & 2; length = 2; break;
+		case VectorSize.Triple: row = (vectorReg >>> 6) & 1; length = 3; break;
+		case VectorSize.Quad: row = (vectorReg >>> 5) & 2; length = 4; break;
+		default: debugger;
+	}
+
+	var regs: number[] = new Array(length);
+	for (var i = 0; i < length; i++) {
+		var index = mtx * 4;
+		if (transpose) {
+			index += ((row + i) & 3) + col * 32;
+		} else {
+			index += col + ((row + i) & 3) * 32;
+		}
+		regs[i] = index;
+	}
+	return regs;
+}
+
+function GetMatrixRegs(N: MatrixSize, matrixReg: number) {
+	var mtx = (matrixReg >> 2) & 7;
+	var col = matrixReg & 3;
+
+	var row = 0;
+	var side = 0;
+
+	switch (N) {
+		case MatrixSize.M_2x2: row = (matrixReg >> 5) & 2; side = 2; break;
+		case MatrixSize.M_3x3: row = (matrixReg >> 6) & 1; side = 3; break;
+		case MatrixSize.M_4x4: row = (matrixReg >> 5) & 2; side = 4; break;
+		default: debugger;
+	}
+
+	var transpose = (matrixReg >> 5) & 1;
+
+	var regs: number[] = new Array(side * side);
+	for (var i = 0; i < side; i++) {
+		for (var j = 0; j < side; j++) {
+			var index = mtx * 4;
+			if (transpose) {
+				index += ((row + i) & 3) + ((col + j) & 3) * 32;
+			} else {
+				index += ((col + j) & 3) + ((row + i) & 3) * 32;
+			}
+			regs[j * 4 + i] = index;
+			//regs[j][i] = index;
+		}
+	}
+	return regs;
+}
+
+function readVector(vectorReg: number, N: VectorSize) {
+	return GetVectorRegs(N, vectorReg).map(index => vfpr(index));
+}
+
+function readMatrix(vectorReg: number, N: MatrixSize) {
+	return GetMatrixRegs(N, vectorReg).map(index => vfpr(index));
+}
+
+function setMemoryVector(offset: _ast.ANodeExpr, items: _ast.ANodeExpr[]) {
+	return stm(call('state.storeFloats', [offset, ast.array(items)]));
+}
+
+function memoryRef(type: string, address: _ast.ANodeExpr) {
+	switch (type) {
+		case 'float': return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
+		default: throw(new Error("Not implemented memoryRef type '" + type + "'"));
+	}
+	
+}
+
+function getMemoryVector(offset: _ast.ANodeExpr, count: number) {
+	return ArrayUtils.range(0, count).map(item => memoryRef('float', binop(offset, '+', imm32(item * 4))));
+}
+
+function setItems(leftList: _ast.ANodeExprLValue[], values: _ast.ANodeExpr[]) {
+	return stms(leftList.map((left, index) => ast.assign(left, values[index])));
+}
+
+function address_RS_IMM14(i: Instruction, offset: number = 0) {
+	return binop(gpr(i.rs), '+', imm32(i.IMM14 * 4 + offset));
+}
+
+function setMatrix(leftList: number[], generator: (column: number, row: number, index?:number) => _ast.ANodeExpr) {
+	var side = Math.sqrt(leftList.length);
+	return stm(call('state.vfpuStore', [
+		ast.array(leftList.map(item => imm32(item))),
+		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(Math.floor(index % side), Math.floor(index / side), index)))
+	]));
+}
+
+function setVector(leftList: number[], generator: (index: number) => _ast.ANodeExpr) {
+	return stm(call('state.vfpuStore', [
+		ast.array(leftList.map(item => imm32(item))),
+		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(index)))
+	]));
+}
+
+/*
+private AstNodeExpr Address_RS_IMM14(int Offset = 0)
+{
+return ast.Cast<uint>(ast.Binary(ast.GPR_s(RS), "+", Instruction.IMM14 * 4 + Offset), false);
+}
+*/
+
+
+var VfpuConstants = [
+	{ name: "VFPU_ZERO", value: 0.0 },
+	{ name: "VFPU_HUGE", value: 340282346638528859811704183484516925440 },
+	{ name: "VFPU_SQRT2", value: Math.sqrt(2.0) },
+	{ name: "VFPU_SQRT1_2", value: Math.sqrt(1.0 / 2.0) },
+	{ name: "VFPU_2_SQRTPI", value: 2.0 / Math.sqrt(Math.PI) },
+	{ name: "VFPU_2_PI", value: 2.0 / Math.PI },
+	{ name: "VFPU_1_PI", value: 1.0 / Math.PI },
+	{ name: "VFPU_PI_4", value: Math.PI / 4.0 },
+	{ name: "VFPU_PI_2", value: Math.PI / 2.0 },
+	{ name: "VFPU_PI", value: Math.PI },
+	{ name: "VFPU_E", value: Math.E },
+	{ name: "VFPU_LOG2E", value: Math.log2(Math.E) },
+	{ name: "VFPU_LOG10E", value: Math.log10(Math.E) },
+	{ name: "VFPU_LN2", value: Math.log(2) },
+	{ name: "VFPU_LN10", value: Math.log(10) },
+	{ name: "VFPU_2PI", value: 2.0 * Math.PI },
+	{ name: "VFPU_PI_6", value: Math.PI / 6.0 },
+	{ name: "VFPU_LOG10TWO", value: Math.log10(2.0) },
+	{ name: "VFPU_LOG2TEN", value: Math.log2(10.0) },
+	{ name: "VFPU_SQRT3_2", value: Math.sqrt(3.0) / 2.0 },
+];
 
 export class InstructionAst {
 	constructor() {
@@ -73,26 +255,91 @@ export class InstructionAst {
 
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
+	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
+		var dest = GetVectorRegs(i.ONE_TWO, i.VD);
+		var src = readVector(i.VS, i.ONE_TWO);
+		return setVector(dest, index => generate(index, src));
+	}
+
+	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
+		var dest = GetVectorRegs(i.ONE_TWO, i.VD);
+		var src = readVector(i.VS, i.ONE_TWO);
+		var target = readVector(i.VT, i.ONE_TWO);
+		return setVector(dest, index => generate(index, src, target));
+	}
+
+	"sv.q"(i: Instruction) { return setMemoryVector(address_RS_IMM14(i), readVector(i.VT5_1, VectorSize.Quad)); }
+	"lv.q"(i: Instruction) { return setItems(readVector(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
+	vmidt(i: Instruction) { return setMatrix(GetMatrixRegs(<MatrixSize>i.ONE_TWO, i.VD), (c, r) => imm32((c == r) ? 1 : 0)); }
+	vmzero(i: Instruction) { return setMatrix(GetMatrixRegs(<MatrixSize>i.ONE_TWO, i.VD), (c, r) => imm32(0)); }
+	vmone(i: Instruction) { return setMatrix(GetMatrixRegs(<MatrixSize>i.ONE_TWO, i.VD), (c, r) => imm32(1)); }
+	mtv(i: Instruction) { return stm(assign(vfpr(i.VD), fpr(i.rt))); }
+	viim(i: Instruction) { return stm(assign(vfpr(i.VT), imm32(i.imm16))); }
+	vmov(i: Instruction) { return this._vset2(i, (index, src) => src[index]); }
+	vrcp(i: Instruction) { return this._vset2(i, (index, src) => binop(imm32(1), '/', src[index])); }
+	vpfxt(i: Instruction) { return stm(call('state.setVpfxt', [imm32(i.data)])); }
+
+	vmul(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '*', target[i])); }
+	vdiv(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '/', target[i])); }
+	vadd(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '+', target[i])); }
+	vsub(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '-', target[i])); }
+	vrot(i: Instruction) {
+		var imm5 = i.IMM5;
+		var CosIndex = BitUtils.extract(imm5, 0, 2);
+		var SinIndex = BitUtils.extract(imm5, 2, 2);
+		var NegateSin = BitUtils.extractBool(imm5, 4);
+
+		//var Dest = VEC_VD;
+		//var Src = CEL_VS;
+
+		var dest = GetVectorRegs(i.ONE_TWO, i.VD);
+
+		var Sine = <_ast.ANodeExpr>call('MathFloat.sinv1', [vfpr(i.VS)]);
+		var Cosine = <_ast.ANodeExpr>call('MathFloat.cosv1', [vfpr(i.VS)]);
+		if (NegateSin) Sine = unop('-', Sine);
+
+		//Console.WriteLine("{0},{1},{2}", CosIndex, SinIndex, NegateSin);
+
+		return stms([
+			//stm(ast.debugger()),
+			setVector(dest, (Index) => {
+				if (Index == CosIndex) return Cosine;
+				if (Index == SinIndex) return Sine;
+				return (SinIndex == CosIndex) ? Sine : imm32(0);
+			})
+		]);
+	}
+	vmmov(i: Instruction) {
+		var dest = GetMatrixRegs(i.ONE_TWO, i.VD);
+		var src = readMatrix(i.VS, i.ONE_TWO);
+		//var target = readMatrix(i.VT, i.ONE_TWO);
+		return setMatrix(dest, (column, row, index) => src[index]);
+	}
+
+	vmmul(i: Instruction) {
+		var VectorSize = i.ONE_TWO;
+		var dest = GetMatrixRegs(VectorSize, i.VD);
+		var src = readMatrix(i.VS, VectorSize);
+		var target = readMatrix(i.VT, VectorSize);
+
+		return setMatrix(dest, (Column, Row, Index) =>
+		{
+			var adder = <_ast.ANodeExpr>imm_f(0);
+			for (var n = 0; n < VectorSize; n++) {
+				adder = binop(adder, '+', binop(target[Column * VectorSize + n], '*', src[Row * VectorSize + n]));
+			}
+			return adder;
+		});
+	}
+
+	vcst(i: Instruction) { return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value))); }
+
 	// @TODO
-	//vmzero(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vmidt(i: Instruction) { return VMatReg(i.VD).setMatrixDebug((c, r) => imm32((c == r) ? 1 : 0)); }
-	//mtv(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//viim(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vrcp(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vpfxt(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vmul(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vrot(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vdiv(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vsub(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vmov(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vadd(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vmmul(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vmmov(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//"sv.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//"lv.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//"lvl.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//"lvr.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
-	//vcst(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
+	"lvl.q"(i: Instruction) {
+		return VMatReg(i.VD).setMatrix((c, r) => imm32(0));
+		//return stm();
+	}
+	"lvr.q"(i: Instruction) { return VMatReg(i.VD).setMatrix((c, r) => imm32(0)); }
 
 	add(i: Instruction) { return this.addu(i); }
 	addu(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); }

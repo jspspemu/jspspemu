@@ -20,12 +20,12 @@ export interface InstructionUsage {
 }
 
 class PspInstructionStm extends ast_builder.ANodeStm {
-	constructor(public PC: number, private code: ast_builder.ANodeStm) {
+	constructor(public PC: number, private code: ast_builder.ANodeStm, private di: DecodedInstruction) {
 		super();
 	}
 
-	toJs() { return sprintf("/*%08X*/ %s", this.PC, this.code.toJs()); }
-	optimize() { return new PspInstructionStm(this.PC, this.code.optimize()); }
+	toJs() { return sprintf("/*%08X*/ /* %-6s */ %s ", this.PC, this.di.type.name, this.code.toJs()); }
+	optimize() { return new PspInstructionStm(this.PC, this.code.optimize(), this.di); }
 }
 
 export class FunctionGenerator {
@@ -81,7 +81,8 @@ export class FunctionGenerator {
 		var pcToLabel: NumberDictionary<number> = {};
 
 		var emitInstruction = () => {
-			var result = new PspInstructionStm(PC, this.generateInstructionAstNode(this.decodeInstruction(PC)));
+			var di = this.decodeInstruction(PC);
+			var result = new PspInstructionStm(PC, this.generateInstructionAstNode(di), di);
 			PC += 4;
 			return result;
 		};
@@ -185,7 +186,7 @@ export class FunctionGenerator {
 		try {
 			return new Function('state', code);
 		} catch (e) {
-			console.info(code);
+			console.info('code:\n', code);
 			throw(e);
 		}
 	}

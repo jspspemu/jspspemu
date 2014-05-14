@@ -21,6 +21,8 @@ export class CpuState {
 
 	executor: IExecutor;
 
+	temp = new Array(16);
+
 	fpr_Buffer = new ArrayBuffer(32 * 4);
 	fpr: Float32Array = new Float32Array(this.fpr_Buffer);
 	fpr_i: Int32Array = new Int32Array(this.fpr_Buffer);
@@ -28,6 +30,24 @@ export class CpuState {
 
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
+
+	vpfxt: number = 0;
+
+	setVpfxt(value: number) {
+		this.vpfxt = value;
+	}
+
+	storeFloats(address: number, values: number[]) {
+		for (var n = 0; n < values.length; n++) {
+			this.memory.writeFloat32(address + n * 4, values[n]);
+		}
+	}
+
+	vfpuStore(indices: number[], values: number[]) {
+		for (var n = 0; n < indices.length; n++) {
+			this.vfpr[indices[n]] = values[n];
+		}
+	}
 
 	vfpuSetMatrix(m: number, values: number[]) {
 		// @TODO
@@ -224,6 +244,7 @@ export class CpuState {
 	lh(address: number) { return this.memory.readInt16(address); }
 	lhu(address: number) { return this.memory.readUInt16(address); }
 	lw(address: number) { return this.memory.readInt32(address); }
+	lwc1(address: number) { return this.memory.readFloat32(address); }
 
 	min(a: number, b: number) { return ((a | 0) < (b | 0)) ? a : b; }
 	max(a: number, b: number) { return ((a | 0) > (b | 0)) ? a : b; }

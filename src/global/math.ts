@@ -7,7 +7,12 @@
 	fround(x: number): number;
 	sign(x: number): number;
 	rint(x: number): number;
+	log2(x: number): number;
+	log10(x: number): number;
 }
+
+if (!Math.log2) { Math.log2 = (x: number) => { return Math.log(x) / Math.LN2; }; }
+if (!Math.log10) { Math.log10 = (x: number) => { return Math.log(x) / Math.LN10; }; }
 
 declare var vec4: {
 	create(): Float32Array;
@@ -232,6 +237,10 @@ class BitUtils {
 		return (data >> offset) & ((1 << length) - 1);
 	}
 
+	static extractBool(data: number, offset: number) {
+		return (this.extract(data, offset, 1) != 0);
+	}
+
 	static extractSigned(data: number, offset: number, length: number) {
 		var mask = this.mask(length);
 		var value = this.extract(data, offset, length);
@@ -313,6 +322,14 @@ class MathFloat {
 		if (!isFinite(value)) return handleCastInfinite(value);
 		return Math.ceil(value);
 	}
+
+	static cosv1(value: number) {
+		return Math.cos(value * Math.PI * 0.5);
+	}
+
+	static sinv1(value: number) {
+		return Math.sin(value * Math.PI * 0.5);
+	}
 }
 
 function handleCastInfinite(value: number) {
@@ -387,5 +404,11 @@ class ArrayUtils {
 			matrix.push(row);
 		}
 		return matrix;
+	}
+
+	static range(start: number, end: number) {
+		var array = [];
+		for (var n = start; n < end; n++) array.push(n);
+		return array;
 	}
 }

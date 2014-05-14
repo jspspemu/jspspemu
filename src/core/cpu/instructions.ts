@@ -669,8 +669,12 @@ export class Instruction {
 	get VS() { return this.extract(8, 7); } set VS(value: number) { this.insert(8, 7, value); }
 	get VT() { return this.extract(16, 7); } set VT(value: number) { this.insert(16, 7, value); }
 	get VT5_1() { return this.VT5 | (this.VT1 << 5); } set VT5_1(value: number) { this.VT5 = value; this.VT1 = (value >>> 5); }
-	// @TODO: Signed or unsigned?
 	get IMM14() { return this.extract_s(2, 14); } set IMM14(value: number) { this.insert(2, 14, value); }
+
+	get ONE() { return this.extract(7, 1); } set ONE(value: number) { this.insert(7, 1, value); }
+	get TWO() { return this.extract(15, 1); } set TWO(value: number) { this.insert(15, 1, value); }
+	get ONE_TWO() { return (1 + 1 * this.ONE + 2 * this.TWO); } set ONE_TWO(value: number) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); }
+
 	
 	get IMM8() { return this.extract(16, 8); } set IMM8(value:number) { this.insert(16, 8, value); }
 	get IMM5() { return this.extract(16, 5); } set IMM5(value:number) { this.insert(16, 5, value); }
