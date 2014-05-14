@@ -24,8 +24,19 @@ class WebGlPspDrawDriver implements IDrawDriver {
 	private textureHandler: TextureHandler;
 
 	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
-		this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
-		if (!this.gl) this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
+		var webglOptions = {
+			alpha: false,
+			depth: true,
+			stencil: true,
+			antialias: false,
+			premultipliedAlpha: false,
+			preserveDrawingBuffer: true,
+			preferLowPowerToHighPerformance: false,
+			failIfMajorPerformanceCaveat: false,
+		};
+
+		this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
+		if (!this.gl) this.canvas.getContext('webgl', webglOptions);
 
 		if (!this.gl) {
 			alert("Can't initialize WebGL!");
@@ -298,10 +309,12 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			}
 
 			if (vertexState.hasTexture) {
+				var tx = v.tx, ty = v.ty, tz = v.tz;
 				if (vertexState.transform2D) {
-					this.textureData.push3(v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight, 1.0);
+					//this.textureData.push3((tx + 0.5) / (mipmap.bufferWidth), (ty + 0.5) / (mipmap.textureHeight), 0.0);
+					this.textureData.push3(tx / (mipmap.bufferWidth), ty / (mipmap.textureHeight), 0.0);
 				} else {
-					this.textureData.push3(v.tx * textureState.scaleU, v.ty * textureState.scaleV, v.tz);
+					this.textureData.push3(tx * textureState.scaleU, ty * textureState.scaleV, tz);
 				}
 			}
 		}

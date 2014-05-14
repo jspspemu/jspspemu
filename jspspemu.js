@@ -8408,9 +8408,20 @@ var WebGlPspDrawDriver = (function () {
         this.colorData = new FastFloat32Buffer();
         this.textureData = new FastFloat32Buffer();
         this.lastBaseAddress = 0;
-        this.gl = this.canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+        var webglOptions = {
+            alpha: false,
+            depth: true,
+            stencil: true,
+            antialias: false,
+            premultipliedAlpha: false,
+            preserveDrawingBuffer: true,
+            preferLowPowerToHighPerformance: false,
+            failIfMajorPerformanceCaveat: false
+        };
+
+        this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
         if (!this.gl)
-            this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
+            this.canvas.getContext('webgl', webglOptions);
 
         if (!this.gl) {
             alert("Can't initialize WebGL!");
@@ -8678,10 +8689,12 @@ var WebGlPspDrawDriver = (function () {
             }
 
             if (vertexState.hasTexture) {
+                var tx = v.tx, ty = v.ty, tz = v.tz;
                 if (vertexState.transform2D) {
-                    this.textureData.push3(v.tx / mipmap.bufferWidth, v.ty / mipmap.textureHeight, 1.0);
+                    //this.textureData.push3((tx + 0.5) / (mipmap.bufferWidth), (ty + 0.5) / (mipmap.textureHeight), 0.0);
+                    this.textureData.push3(tx / (mipmap.bufferWidth), ty / (mipmap.textureHeight), 0.0);
                 } else {
-                    this.textureData.push3(v.tx * textureState.scaleU, v.ty * textureState.scaleV, v.tz);
+                    this.textureData.push3(tx * textureState.scaleU, ty * textureState.scaleV, tz);
                 }
             }
         }
@@ -8852,6 +8865,8 @@ exports.ShaderCache = ShaderCache;
 //# sourceMappingURL=shader.js.map
 },
 "src/core/gpu/webgl/texture": function(module, exports, require) {
+var _state = require('../state');
+
 var _pixelformat = require('../../pixelformat');
 
 var PixelFormatUtils = _pixelformat.PixelFormatUtils;
@@ -8901,15 +8916,15 @@ var Texture = (function () {
         });
     };
 
-    Texture.prototype.bind = function (textureUnit) {
+    Texture.prototype.bind = function (textureUnit, min, mag, wraps, wrapt) {
         var gl = this.gl;
 
         gl.activeTexture(gl.TEXTURE0 + textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wraps);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
     };
 
     Texture.hashFast = function (state) {
@@ -9118,7 +9133,7 @@ var TextureHandler = (function () {
 
         this.lastTexture = texture;
 
-        texture.bind(0);
+        texture.bind(0, (state.texture.filterMinification == 1 /* Linear */) ? gl.LINEAR : gl.NEAREST, (state.texture.filterMagnification == 1 /* Linear */) ? gl.LINEAR : gl.NEAREST, (state.texture.wrapU == 1 /* Clamp */) ? gl.CLAMP_TO_EDGE : gl.REPEAT, (state.texture.wrapV == 1 /* Clamp */) ? gl.CLAMP_TO_EDGE : gl.REPEAT);
         prog.getUniform('uSampler').set1i(0);
 
         prog.getUniform('samplerClut').set1i(1);

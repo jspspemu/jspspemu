@@ -60,15 +60,15 @@ export class Texture {
 		});
 	}
 
-	bind(textureUnit: number) {
+	bind(textureUnit: number, min: number, mag: number, wraps: number, wrapt: number) {
 		var gl = this.gl;
 
 		gl.activeTexture(gl.TEXTURE0 + textureUnit);
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wraps);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
 	}
 
 	static hashFast(state: _state.GpuState) {
@@ -281,11 +281,19 @@ export class TextureHandler {
 
 		this.lastTexture = texture;
 
-		texture.bind(0);
+		texture.bind(
+			0,
+			(state.texture.filterMinification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
+			(state.texture.filterMagnification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
+			//gl.NEAREST, gl.NEAREST,
+			(state.texture.wrapU == _state.WrapMode.Clamp) ? gl.CLAMP_TO_EDGE : gl.REPEAT,
+			(state.texture.wrapV == _state.WrapMode.Clamp) ? gl.CLAMP_TO_EDGE : gl.REPEAT
+		);
 		prog.getUniform('uSampler').set1i(0);
 
 		prog.getUniform('samplerClut').set1i(1);
 	}
+
 
 	unbindTexture(program: WrappedWebGLProgram, state: _state.GpuState) {
 		var gl = this.gl;
