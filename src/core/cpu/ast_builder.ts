@@ -131,7 +131,11 @@ export class ANodeExprU32 extends ANodeExpr {
 }
 
 export class ANodeExprBinop extends ANodeExpr {
-	constructor(public left: ANodeExpr, public op: string, public right: ANodeExpr) { super(); }
+	constructor(public left: ANodeExpr, public op: string, public right: ANodeExpr) {
+		super();
+		if (!this.left || !this.left.toJs) debugger;
+		if (!this.right || !this.right.toJs) debugger;
+	}
 	toJs() { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; }
 }
 
@@ -179,6 +183,7 @@ export class AstBuilder {
 	stmEmpty() { return new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
 	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
+	arrayNumbers(values: number[]) { return this.array(values.map(value => this.imm_f(value))); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
 	jump(label: number) { return new ANodeStmJump(label); }
 	_return() { return new ANodeStmReturn(); }
@@ -197,8 +202,16 @@ export class MipsAstBuilder extends AstBuilder {
 		return new ANodeExprLValueVar('state.gpr[' + index + ']');
 	}
 
+	gpr_f(index: number): ANodeExprLValueVar {
+		if (index === 0) return new ANodeExprLValueVar('0');
+		return new ANodeExprLValueVar('state.gpr_f[' + index + ']');
+	}
+
 	tempr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.temp[' + index + ']'); }
+	vector_vs(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vector_vs[' + index + ']'); }
+	vector_vt(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vector_vt[' + index + ']'); }
 	vfpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); }
+
 	vfpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); }
 	fpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr[' + index + ']'); }
 	fpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr_i[' + index + ']'); }

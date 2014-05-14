@@ -10,6 +10,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     var args = [];
 	var gprindex = 4;
 	var fprindex = 0;
+	//var fprindex = 2;
 
     function _readGpr32() {
 		return 'state.gpr[' + (gprindex++) + ']';

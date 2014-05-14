@@ -16,69 +16,188 @@ export interface IExecutor {
 	executeUntilPCReachesWithoutCall(pc: number): void;
 }
 
+class VfpuPrefixBase {
+	public info = 0;
+	public enabled = false;
+
+	constructor() {
+	}
+
+	setInfo(info: number) {
+		this.info = info;
+		this.enabled = true;
+	}
+}
+
+
+class VfpuPrefixRead extends VfpuPrefixBase {
+	getSourceIndex(i: number) { return BitUtils.extract(this.info, 0 + i * 2, 2); }
+	getSourceAbsolute(i: number) { return BitUtils.extractBool(this.info, 8 + i * 1); }
+	getSourceConstant(i: number) { return BitUtils.extractBool(this.info, 12 + i * 1); }
+	getSourceNegate(i: number) { return BitUtils.extractBool(this.info, 16 + i * 1); }
+
+	transformValues(input: number[], output: Float32Array) {
+		if (!this.enabled) {
+			for (var n = 0; n < input.length; n++) output[n] = input[n];
+		} else {
+			for (var n = 0; n < input.length; n++) {
+				var sourceIndex = this.getSourceIndex(n);
+				var sourceConstant = this.getSourceConstant(n);
+				var sourceAbsolute = this.getSourceAbsolute(n);
+				var sourceNegate = this.getSourceNegate(n);
+				var value;
+				if (sourceConstant) {
+					switch (sourceIndex) {
+						case 0: value = sourceAbsolute ? (3) : (0); break;
+						case 1: value = sourceAbsolute ? (1 / 3) : (1); break;
+						case 2: value = sourceAbsolute ? (1 / 4) : (2); break;
+						case 3: value = sourceAbsolute ? (1 / 6) : (1 / 2); break;
+						default: throw (new Error("Invalid operation")); break;
+					}
+				} else {
+					//debugger;
+					value = input[sourceIndex];
+					if (sourceAbsolute) value = Math.abs(value);
+				}
+
+				if (sourceNegate) value = -value;
+				output[n] = value;
+			}
+		}
+	}
+}
+
+class VfpuPrefixWrite extends VfpuPrefixBase {
+	getDestinationSaturation(i: number) { return BitUtils.extract(this.info, 0 + i * 2, 2); }
+	getDestinationMask(i: number) { return BitUtils.extractBool(this.info, 8 + i * 1); }
+
+	storeTransformedValues(vfpr: Float32Array, indices: number[], values: number[]) {
+		if (!this.enabled) {
+			for (var n = 0; n < indices.length; n++)  vfpr[indices[n]] = values[n];
+		} else {
+			//debugger;
+			for (var n = 0; n < indices.length; n++) {
+				var destinationMask = this.getDestinationMask(n);
+				var destinationSaturation = this.getDestinationSaturation(n);
+				if (destinationMask) {
+					// Masked. No write value.
+				} else {
+					var value = values[n];
+					switch (destinationSaturation) {
+						case 1: value = MathUtils.clamp(value, 0, 1); break;
+						case 3: value = MathUtils.clamp(value, -1, 1); break;
+						default: break;
+					}
+					vfpr[indices[n]] = value;
+				}
+			}
+		}
+	}
+}
+
 export class CpuState {
-	gpr: Int32Array = new Int32Array(32);
+	gpr_Buffer = new ArrayBuffer(32 * 4);
+	gpr = new Int32Array(this.gpr_Buffer);
+	gpr_f = new Float32Array(this.gpr_Buffer);
 
 	executor: IExecutor;
 
 	temp = new Array(16);
 
 	fpr_Buffer = new ArrayBuffer(32 * 4);
-	fpr: Float32Array = new Float32Array(this.fpr_Buffer);
-	fpr_i: Int32Array = new Int32Array(this.fpr_Buffer);
+	fpr = new Float32Array(this.fpr_Buffer);
+	fpr_i = new Int32Array(this.fpr_Buffer);
 	//fpr: Float32Array = new Float32Array(32);
 
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
 	vfpr_i: Float32Array = new Int32Array(this.vfpr_Buffer);
 
-	vpfxt: number = 0;
+	private vpfxt = new VfpuPrefixRead();
+	private vpfxs = new VfpuPrefixRead();
+	private vpfxd = new VfpuPrefixWrite();
 
-	setVpfxt(value: number) {
-		this.vpfxt = value;
+	setVpfxt(value: number) { this.vpfxt.setInfo(value); }
+	setVpfxs(value: number) { this.vpfxs.setInfo(value); }
+	setVpfxd(value: number) { this.vpfxd.setInfo(value); }
+
+	vector_vs = new Float32Array(4);
+	vector_vt = new Float32Array(4);
+
+	get vfpumatrix0() { return this.getVfpumatrix(0); }
+	get vfpumatrix1() { return this.getVfpumatrix(1); }
+	get vfpumatrix2() { return this.getVfpumatrix(2); }
+	get vfpumatrix3() { return this.getVfpumatrix(3); }
+	get vfpumatrix4() { return this.getVfpumatrix(4); }
+	get vfpumatrix5() { return this.getVfpumatrix(5); }
+	get vfpumatrix6() { return this.getVfpumatrix(6); }
+	get vfpumatrix7() { return this.getVfpumatrix(7); }
+
+	getVfpumatrix(index: number) {
+		var values = [];
+		for (var r = 0; r < 4; r++) {
+			for (var c = 0; c < 4; c++) {
+				values.push(this.vfpr[r * 32 + index * 4 + c]);
+			}
+		}
+		return values;
+	}
+
+	loadVs_prefixed(values: number[]) {
+		this.vpfxs.transformValues(values, this.vector_vs);
+		this.vpfxs.enabled = false;
+	}
+
+	loadVt_prefixed(values: number[]) {
+		this.vpfxt.transformValues(values, this.vector_vt);
+		this.vpfxt.enabled = false;
+	}
+
+	storeVd_prefixed(indices: number[], values: number[]) {
+		this.vpfxd.storeTransformedValues(this.vfpr, indices, values);
+		this.vpfxd.enabled = false;
 	}
 
 	_vt4444_step(i0: number, i1: number) {
-		var o0 = 0;
-		o0 |= ((i0 >> 4) & 15) << 0;
-		o0 |= ((i0 >> 12) & 15) << 4;
-		o0 |= ((i0 >> 20) & 15) << 8;
-		o0 |= ((i0 >> 28) & 15) << 12;
-		o0 |= ((i1 >> 4) & 15) << 16;
-		o0 |= ((i1 >> 12) & 15) << 20;
-		o0 |= ((i1 >> 20) & 15) << 24;
-		o0 |= ((i1 >> 28) & 15) << 28;
-		return o0;
+		var o = 0;
+		o |= ((i0 >> 4) & 15) << 0;
+		o |= ((i0 >> 12) & 15) << 4;
+		o |= ((i0 >> 20) & 15) << 8;
+		o |= ((i0 >> 28) & 15) << 12;
+		o |= ((i1 >> 4) & 15) << 16;
+		o |= ((i1 >> 12) & 15) << 20;
+		o |= ((i1 >> 20) & 15) << 24;
+		o |= ((i1 >> 28) & 15) << 28;
+		return o;
 	}
 
 	_vt5551_step(i0: number, i1: number) {
-		var o0 = 0;
-		o0 |= ((i0 >> 3) & 31) << 0;
-		o0 |= ((i0 >> 11) & 31) << 5;
-		o0 |= ((i0 >> 19) & 31) << 10;
-		o0 |= ((i0 >> 31) & 1) << 15;
-		o0 |= ((i1 >> 3) & 31) << 16;
-		o0 |= ((i1 >> 11) & 31) << 21;
-		o0 |= ((i1 >> 19) & 31) << 26;
-		o0 |= ((i1 >> 31) & 1) << 31;
-		return o0;
+		var o = 0;
+		o |= ((i0 >> 3) & 31) << 0;
+		o |= ((i0 >> 11) & 31) << 5;
+		o |= ((i0 >> 19) & 31) << 10;
+		o |= ((i0 >> 31) & 1) << 15;
+		o |= ((i1 >> 3) & 31) << 16;
+		o |= ((i1 >> 11) & 31) << 21;
+		o |= ((i1 >> 19) & 31) << 26;
+		o |= ((i1 >> 31) & 1) << 31;
+		return o;
 	}
 
 	_vt5650_step(i0: number, i1: number) {
-		var o0 = 0;
-		o0 |= ((i0 >> 3) & 31) << 0;
-		o0 |= ((i0 >> 10) & 63) << 5;
-		o0 |= ((i0 >> 19) & 31) << 11;
-		o0 |= ((i1 >> 3) & 31) << 16;
-		o0 |= ((i1 >> 10) & 63) << 21;
-		o0 |= ((i1 >> 19) & 31) << 27;
-		return o0;
+		var o = 0;
+		o |= ((i0 >> 3) & 31) << 0;
+		o |= ((i0 >> 10) & 63) << 5;
+		o |= ((i0 >> 19) & 31) << 11;
+		o |= ((i1 >> 3) & 31) << 16;
+		o |= ((i1 >> 10) & 63) << 21;
+		o |= ((i1 >> 19) & 31) << 27;
+		return o;
 	}
 
 	svl_q(address: number, r: number[]) {
 		var k = (3 - ((address >>> 2) & 3));
 		address &= ~0xF;
-		debugger;
 		for (var n = k; n < 4; n++, address += 4) this.memory.writeInt32(address, this.vfpr_i[r[n]]);
 	}
 

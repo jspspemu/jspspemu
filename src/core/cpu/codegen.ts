@@ -15,8 +15,10 @@ function fcr31_cc() { return ast.fcr31_cc(); }
 function fpr(index: number) { return ast.fpr(index); }
 function fpr_i(index: number) { return ast.fpr_i(index); }
 function gpr(index: number) { return ast.gpr(index); }
+function gpr_f(index: number) { return ast.gpr_f(index); }
 function tempr(index: number) { return ast.tempr(index); }
-function vfpr(index: number) { return ast.vfpr(index); }
+function vfpr(reg: number) { return ast.vfpr(reg); }
+
 function vfpr_i(index: number) { return ast.vfpr_i(index); }
 function immBool(value: boolean) { return ast.imm32(value ? 1 : 0); }
 function imm32(value: number) { return ast.imm32(value); }
@@ -27,6 +29,7 @@ function binop(left: _ast.ANodeExpr, op: string, right: _ast.ANodeExpr) { return
 function binop_i(left: _ast.ANodeExpr, op: string, right: number) { return ast.binop_i(left, op, right); }
 function _if(cond: _ast.ANodeExpr, codeTrue: _ast.ANodeStm, codeFalse?: _ast.ANodeStm) { return ast._if(cond, codeTrue, codeFalse); }
 function call(name: string, exprList: _ast.ANodeExpr[]) { return ast.call(name, exprList); }
+function call_stm(name: string, exprList: _ast.ANodeExpr[]) { return stm(ast.call(name, exprList)); }
 function stm(expr: _ast.ANodeExpr) { return ast.stm(expr); }
 function stms(stms: _ast.ANodeStm[]) { return ast.stms(stms); }
 function pc() { return ast.pc(); }
@@ -36,6 +39,7 @@ function ic() { return ast.ic(); }
 function branchflag() { return ast.branchflag(); }
 function branchpc() { return ast.branchpc(); }
 function assign(ref: _ast.ANodeExprLValue, value: _ast.ANodeExpr) { return ast.assign(ref, value); }
+function assign_stm(ref: _ast.ANodeExprLValue, value: _ast.ANodeExpr) { return stm(ast.assign(ref, value)); }
 function i_simm16(i: Instruction) { return imm32(i.imm16); }
 function i_uimm16(i: Instruction) { return u_imm32(i.u_imm16); }
 function rs_imm16(i: Instruction) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
@@ -80,7 +84,7 @@ class VVecRegClass {
 		// @TODO
 		var array = <_ast.ANodeExpr[]>[];
 		var statements = [];
-		var regs = GetVectorRegs(VectorSize.Quad, this.reg);
+		var regs = getVectorRegs(this.reg, VectorSize.Quad);
 	
 		statements.push(stm(ast.call('state.vfpuStore', [
 			ast.array(regs.map(item => imm32(item))),
@@ -111,7 +115,7 @@ function VVecReg(index: number, size:VectorSize) {
 export enum VectorSize { Single = 1, Pair = 2, Triple = 3, Quad = 4 }
 export enum MatrixSize { M_2x2 = 2, M_3x3 = 3, M_4x4 = 4 };
 
-function GetVectorRegs(N: VectorSize, vectorReg: number) {
+function getVectorRegs(vectorReg: number, N: VectorSize) {
 	var mtx = (vectorReg >>> 2) & 7;
 	var col = vectorReg & 3;
 	var row = 0;
@@ -139,7 +143,7 @@ function GetVectorRegs(N: VectorSize, vectorReg: number) {
 	return regs;
 }
 
-function GetMatrixRegs(N: MatrixSize, matrixReg: number) {
+function getMatrixRegs(matrixReg: number, N: MatrixSize) {
 	var mtx = (matrixReg >> 2) & 7;
 	var col = matrixReg & 3;
 
@@ -164,27 +168,26 @@ function GetMatrixRegs(N: MatrixSize, matrixReg: number) {
 			} else {
 				index += ((col + j) & 3) + ((row + i) & 3) * 32;
 			}
-			regs[j * 4 + i] = index;
-			//regs[j][i] = index;
+			regs[j * side + i] = index;
 		}
 	}
 	return regs;
 }
 
 function readVector(vectorReg: number, N: VectorSize) {
-	return GetVectorRegs(N, vectorReg).map(index => vfpr(index));
+	return getVectorRegs(vectorReg, N).map(index => vfpr(index));
 }
 
 function readVector_i(vectorReg: number, N: VectorSize) {
-	return GetVectorRegs(N, vectorReg).map(index => vfpr_i(index));
+	return getVectorRegs(vectorReg, N).map(index => vfpr_i(index));
 }
 
 function readMatrix(vectorReg: number, N: MatrixSize) {
-	return GetMatrixRegs(N, vectorReg).map(index => vfpr(index));
+	return getMatrixRegs(vectorReg, N).map(index => vfpr(index));
 }
 
 function setMemoryVector(offset: _ast.ANodeExpr, items: _ast.ANodeExpr[]) {
-	return stm(call('state.storeFloats', [offset, ast.array(items)]));
+	return call_stm('state.storeFloats', [offset, ast.array(items)]);
 }
 
 function memoryRef(type: string, address: _ast.ANodeExpr) {
@@ -260,6 +263,10 @@ var VfpuConstants = [
 	{ name: "VFPU_SQRT3_2", value: Math.sqrt(3.0) / 2.0 },
 ];
 
+function getMatrixRegsVD(i: Instruction) {
+	return getMatrixRegs(i.VD, i.ONE_TWO);
+}
+
 export class InstructionAst {
 	constructor() {
 		ast = new _ast.MipsAstBuilder();
@@ -268,33 +275,74 @@ export class InstructionAst {
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
 	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
-		var dest = GetVectorRegs(i.ONE_TWO, i.VD);
-		var src = readVector(i.VS, i.ONE_TWO);
-		return setVector(dest, index => generate(index, src));
+		var dest = getVectorRegs(i.VD, i.ONE_TWO);
+		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
+
+		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, i.ONE_TWO))]));
+		st.push(call_stm('state.storeVd_prefixed', [
+			ast.arrayNumbers(dest),
+			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index, src))),
+		]));
+		//st.push(setVector(dest, index => generate(index, src)));
+		return stms(st);
 	}
 
-	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
-		var dest = GetVectorRegs(i.ONE_TWO, i.VD);
-		var src = readVector(i.VS, i.ONE_TWO);
-		var target = readVector(i.VT, i.ONE_TWO);
-		return setVector(dest, index => generate(index, src, target));
+	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0, targetSize = 0) {
+		if (destSize <= 0) destSize = i.ONE_TWO;
+		if (srcSize <= 0) srcSize = i.ONE_TWO;
+		if (targetSize <= 0) targetSize = i.ONE_TWO;
+		var dest = getVectorRegs(i.VD, destSize);
+		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, srcSize);
+		var target = [ast.vector_vt(0), ast.vector_vt(1), ast.vector_vt(2), ast.vector_vt(3)].slice(0, targetSize);
+		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, srcSize))]));
+		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, targetSize))]));
+		st.push(call_stm('state.storeVd_prefixed', [
+			ast.arrayNumbers(dest),
+			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index, src, target))),
+		]));
+		//st.push(setVector(dest, index => generate(index, src, target)));
+		return stms(st);
 	}
 
-	"sv.q"(i: Instruction) { return setMemoryVector(address_RS_IMM14(i), readVector(i.VT5_1, VectorSize.Quad)); }
-	"lv.q"(i: Instruction) { return setItems(readVector(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
-	vmidt(i: Instruction) { return setMatrix(GetMatrixRegs(<MatrixSize>i.ONE_TWO, i.VD), (c, r) => imm32((c == r) ? 1 : 0)); }
-	vmzero(i: Instruction) { return setMatrix(GetMatrixRegs(<MatrixSize>i.ONE_TWO, i.VD), (c, r) => imm32(0)); }
-	vmone(i: Instruction) { return setMatrix(GetMatrixRegs(<MatrixSize>i.ONE_TWO, i.VD), (c, r) => imm32(1)); }
-	mtv(i: Instruction) { return stm(assign(vfpr(i.VD), fpr(i.rt))); }
-	viim(i: Instruction) { return stm(assign(vfpr(i.VT), imm32(i.imm16))); }
-	vmov(i: Instruction) { return this._vset2(i, (index, src) => src[index]); }
-	vrcp(i: Instruction) { return this._vset2(i, (index, src) => binop(imm32(1), '/', src[index])); }
+	// Prefixes
 	vpfxt(i: Instruction) { return stm(call('state.setVpfxt', [imm32(i.data)])); }
+	vpfxs(i: Instruction) { return stm(call('state.setVpfxs', [imm32(i.data)])); }
+	vpfxd(i: Instruction) { return stm(call('state.setVpfxd', [imm32(i.data)])); }
 
-	vmul(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '*', target[i])); }
+	// Memory read/write
+	"lv.q"(i: Instruction) { return setItems(readVector(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
+	"lvl.q"(i: Instruction) { return stm(call('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
+	"lvr.q"(i: Instruction) { return stm(call('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
+	"sv.q"(i: Instruction) { return setMemoryVector(address_RS_IMM14(i), readVector(i.VT5_1, VectorSize.Quad)); }
+	"svl.q"(i: Instruction) { return stm(call('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
+	"svr.q"(i: Instruction) { return stm(call('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
+
+	// Constants
+	vfim(i: Instruction) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); }
+	vcst(i: Instruction) { return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value))); }
+	mtv(i: Instruction) { return stm(assign(vfpr(i.VD), gpr_f(i.rt))); }
+	viim(i: Instruction) { return stm(assign(vfpr(i.VT), imm32(i.imm16))); }
+
+	vmidt(i: Instruction) { return setMatrix(getMatrixRegsVD(i), (c, r) => imm32((c == r) ? 1 : 0)); }
+	vmzero(i: Instruction) { return setMatrix(getMatrixRegsVD(i), (c, r) => imm32(0)); }
+	vmone(i: Instruction) { return setMatrix(getMatrixRegsVD(i), (c, r) => imm32(1)); }
+
+	vmov(i: Instruction) {
+		//return stms([ast.debugger(), this._vset2(i, (index, src) => src[index])]);
+		return this._vset2(i, (index, src) => src[index]);
+	}
+	vrcp(i: Instruction) { return this._vset2(i, (index, src) => binop(imm32(1), '/', src[index])); }
+
+	vmul(i: Instruction) {
+		//return stms([ast.debugger(), this._vset3(i, (i, src, target) => binop(src[i], '*', target[i]))]);
+		return this._vset3(i, (i, src, target) => binop(src[i], '*', target[i]));
+	}
 	vdiv(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '/', target[i])); }
 	vadd(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '+', target[i])); }
 	vsub(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '-', target[i])); }
+	vscl(i: Instruction) { return this._vset3(i, (index, src, target) => binop(src[index], '*', target[0]), 0, 0, 1); }
 	vrot(i: Instruction) {
 		var imm5 = i.IMM5;
 		var CosIndex = BitUtils.extract(imm5, 0, 2);
@@ -304,66 +352,66 @@ export class InstructionAst {
 		//var Dest = VEC_VD;
 		//var Src = CEL_VS;
 
-		var dest = GetVectorRegs(i.ONE_TWO, i.VD);
+		var dest = getVectorRegs(i.VD, i.ONE_TWO);
 
-		var Sine = <_ast.ANodeExpr>call('MathFloat.sinv1', [vfpr(i.VS)]);
-		var Cosine = <_ast.ANodeExpr>call('MathFloat.cosv1', [vfpr(i.VS)]);
+		var Sine = <_ast.ANodeExpr>call('MathFloat.sinv1', [ast.vector_vs(0)]);
+		var Cosine = <_ast.ANodeExpr>call('MathFloat.cosv1', [ast.vector_vs(0)]);
+		// @TODO: WHY!?
 		if (NegateSin) Sine = unop('-', Sine);
 
 		//Console.WriteLine("{0},{1},{2}", CosIndex, SinIndex, NegateSin);
 
-		return stms([
-			//stm(ast.debugger()),
-			setVector(dest, (Index) => {
-				if (Index == CosIndex) return Cosine;
-				if (Index == SinIndex) return Sine;
-				return (SinIndex == CosIndex) ? Sine : imm32(0);
-			})
-		]);
+		var st = [];
+		//st.push(ast.debugger('vrot'));
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, 1))]));
+		st.push(setVector(dest, (Index) => {
+			if (Index == CosIndex) return Cosine;
+			if (Index == SinIndex) return Sine;
+			return (SinIndex == CosIndex) ? Sine : imm32(0);
+		}));
+
+		return stms(st);
 	}
 	vmmov(i: Instruction) {
-		var dest = GetMatrixRegs(i.ONE_TWO, i.VD);
-		var src = readMatrix(i.VS, i.ONE_TWO);
+		var VectorSize = i.ONE_TWO;
+		var dest = getMatrixRegs(i.VD, VectorSize);
+		var src = readMatrix(i.VS, VectorSize);
 		//var target = readMatrix(i.VT, i.ONE_TWO);
 		return setMatrix(dest, (column, row, index) => src[index]);
 	}
 
 	vmmul(i: Instruction) {
 		var VectorSize = i.ONE_TWO;
-		var dest = GetMatrixRegs(VectorSize, i.VD);
+		var dest = getMatrixRegs(i.VD, VectorSize);
 		var src = readMatrix(i.VS, VectorSize);
 		var target = readMatrix(i.VT, VectorSize);
 
-		return setMatrix(dest, (Column, Row, Index) =>
+		var st = [];
+		//st.push(ast.debugger());
+		st.push(setMatrix(dest, (Column, Row, Index) =>
 		{
 			var adder = <_ast.ANodeExpr>imm_f(0);
 			for (var n = 0; n < VectorSize; n++) {
-				adder = binop(adder, '+', binop(target[Column * VectorSize + n], '*', src[Row * VectorSize + n]));
+				adder = binop(adder, '+', binop(target[Row * VectorSize + n], '*', src[Column * VectorSize + n]));
 			}
 			return adder;
-		});
-	}
-
-	_vtXXX_q(i: Instruction, func:string) {
-		var size = i.ONE_TWO;
-		if (size != 4) throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
-		var dest = GetVectorRegs(2, i.VD);
-		var src = readVector_i(i.VS, 4);
-		return setVector_i(dest, (index) => ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]));
+		}));
+		return stms(st);
 	}
 
 	'vt4444.q'(i: Instruction) { return this._vtXXX_q(i, '_vt4444_step'); }
 	'vt5551.q'(i: Instruction) { return this._vtXXX_q(i, '_vt5551_step'); }
 	'vt5650.q'(i: Instruction) { return this._vtXXX_q(i, '_vt5650_step'); }
 
-	vcst(i: Instruction) { return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value))); }
+	_vtXXX_q(i: Instruction, func: string) {
+		var size = i.ONE_TWO;
+		if (size != 4) throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
+		var dest = getVectorRegs(i.VD, 2);
+		var src = readVector_i(i.VS, 4);
+		return setVector_i(dest, (index) => ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]));
+	}
 
-	"lvl.q"(i: Instruction) { return stm(call('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
-	"lvr.q"(i: Instruction) { return stm(call('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
-
-	"svl.q"(i: Instruction) { return stm(call('state.svl_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
-	"svr.q"(i: Instruction) { return stm(call('state.svr_q', [address_RS_IMM14(i, 0), ast.array(GetVectorRegs(VectorSize.Quad, i.VT5_1).map(item => imm32(item)))])); }
-
+	// CPU
 	add(i: Instruction) { return this.addu(i); }
 	addu(i: Instruction) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); }
 	addi(i: Instruction) { return this.addiu(i); }

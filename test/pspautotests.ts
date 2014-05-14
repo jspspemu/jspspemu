@@ -180,13 +180,13 @@ describe('pspautotests', function () {
 					var showEnd = (n < opcodes.length - 1);
 					var broke = false;
 					for (var m = start1; m < end1; m++) {
+						equalLines++;
 						if (!((showBegin && m < start1 + 2) || (showEnd && m > end1 - 2))) {
 							if (!broke) console.log(' ...');
 							broke = true;
 							continue;
 						}
 						console.log(sprintf('\u2714%04d %s', m + 1, outputLines[m]));
-						equalLines++;
 					}
 					break;
 				case 'delete':
