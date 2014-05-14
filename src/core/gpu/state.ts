@@ -253,7 +253,7 @@ export class Matrix4x4 {
 export class Matrix4x3 {
 	index = 0;
 	values = mat4.create();
-	static indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
+	static indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
 
 	put(value: number) {
 		this.putAt(this.index++, value);

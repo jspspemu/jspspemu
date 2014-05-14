@@ -288,14 +288,21 @@ class WebGlPspDrawDriver implements IDrawDriver {
 	private positionData = new FastFloat32Buffer();
 	private colorData = new FastFloat32Buffer();
 	private textureData = new FastFloat32Buffer();
+	private vertexWeightData1 = new FastFloat32Buffer();
+	private vertexWeightData2 = new FastFloat32Buffer();
+
 	private lastBaseAddress = 0;
 
 	private demuxVertices(vertices: _state.Vertex[], count: number, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var textureState = this.state.texture;
+		var weightCount = vertexState.weightCount;
 
 		this.positionData.restart();
 		this.colorData.restart();
 		this.textureData.restart();
+
+		this.vertexWeightData1.restart();
+		this.vertexWeightData2.restart();
 
 		var mipmap = this.state.texture.mipmaps[0];
 		//console.log('demuxVertices: ' + vertices.length + ', ' + count + ', ' + vertexState + ', PrimitiveType=' + primitiveType);
@@ -317,6 +324,13 @@ class WebGlPspDrawDriver implements IDrawDriver {
 					this.textureData.push3(tx * textureState.scaleU, ty * textureState.scaleV, tz);
 				}
 			}
+
+			if (weightCount > 0) {
+				this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
+				if (weightCount > 4) {
+					this.vertexWeightData2.push4(v.w4, v.w5, v.w6, v.w7);
+				}
+			}
 		}
 	}
 
@@ -331,6 +345,16 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			program.getUniform('tfx').set1i(this.state.texture.effect);
 			program.getUniform('tcc').set1i(this.state.texture.colorComponent);
 			program.getAttrib("vTexcoord").setFloats(3, this.textureData.slice());
+		}
+
+		if (vertexState.weightCount > 0) {
+			program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
+			if (vertexState.weightCount > 4) {
+				program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
+			}
+			for (var n = 0; n < vertexState.weightCount; n++) {
+				program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+			}
 		}
 
 		if (vertexState.hasColor) {

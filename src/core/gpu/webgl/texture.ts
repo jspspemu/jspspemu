@@ -294,7 +294,6 @@ export class TextureHandler {
 		prog.getUniform('samplerClut').set1i(1);
 	}
 
-
 	unbindTexture(program: WrappedWebGLProgram, state: _state.GpuState) {
 		var gl = this.gl;
 		gl.activeTexture(gl.TEXTURE0);

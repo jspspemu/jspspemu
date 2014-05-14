@@ -7912,7 +7912,7 @@ var Matrix4x3 = (function () {
     Matrix4x3.prototype.reset = function (startIndex) {
         this.index = startIndex;
     };
-    Matrix4x3.indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
+    Matrix4x3.indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
     return Matrix4x3;
 })();
 exports.Matrix4x3 = Matrix4x3;
@@ -8407,6 +8407,8 @@ var WebGlPspDrawDriver = (function () {
         this.positionData = new FastFloat32Buffer();
         this.colorData = new FastFloat32Buffer();
         this.textureData = new FastFloat32Buffer();
+        this.vertexWeightData1 = new FastFloat32Buffer();
+        this.vertexWeightData2 = new FastFloat32Buffer();
         this.lastBaseAddress = 0;
         var webglOptions = {
             alpha: false,
@@ -8672,10 +8674,14 @@ var WebGlPspDrawDriver = (function () {
 
     WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType) {
         var textureState = this.state.texture;
+        var weightCount = vertexState.weightCount;
 
         this.positionData.restart();
         this.colorData.restart();
         this.textureData.restart();
+
+        this.vertexWeightData1.restart();
+        this.vertexWeightData2.restart();
 
         var mipmap = this.state.texture.mipmaps[0];
 
@@ -8697,6 +8703,13 @@ var WebGlPspDrawDriver = (function () {
                     this.textureData.push3(tx * textureState.scaleU, ty * textureState.scaleV, tz);
                 }
             }
+
+            if (weightCount > 0) {
+                this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
+                if (weightCount > 4) {
+                    this.vertexWeightData2.push4(v.w4, v.w5, v.w6, v.w7);
+                }
+            }
         }
     };
 
@@ -8709,6 +8722,16 @@ var WebGlPspDrawDriver = (function () {
             program.getUniform('tfx').set1i(this.state.texture.effect);
             program.getUniform('tcc').set1i(this.state.texture.colorComponent);
             program.getAttrib("vTexcoord").setFloats(3, this.textureData.slice());
+        }
+
+        if (vertexState.weightCount > 0) {
+            program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
+            if (vertexState.weightCount > 4) {
+                program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
+            }
+            for (var n = 0; n < vertexState.weightCount; n++) {
+                program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+            }
         }
 
         if (vertexState.hasColor) {
@@ -8826,17 +8849,19 @@ var ShaderCache = (function () {
     ShaderCache.prototype.createProgram = function (vertex, state) {
         var defines = [];
         if (vertex.hasColor)
-            defines.push('VERTEX_COLOR');
+            defines.push('VERTEX_COLOR 1');
         if (vertex.hasTexture)
-            defines.push('VERTEX_TEXTURE');
+            defines.push('VERTEX_TEXTURE 1');
 
         if (!state.clearing) {
             if (state.alphaTest.enabled)
-                defines.push('ALPHATEST');
+                defines.push('ALPHATEST 1');
         }
 
+        defines.push('VERTEX_SIKINNING ' + vertex.weightCount);
+
         var preppend = defines.map(function (item) {
-            return '#define ' + item + ' 1';
+            return '#define ' + item + '';
         }).join("\n");
 
         return ShaderCache.shaderProgram(this.gl, preppend + "\n" + this.shaderVertString, preppend + "\n" + this.shaderFragString);

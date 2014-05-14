@@ -19,14 +19,16 @@ export class ShaderCache {
 
 	createProgram(vertex: _state.VertexState, state: _state.GpuState) {
 		var defines = [];
-		if (vertex.hasColor) defines.push('VERTEX_COLOR');
-		if (vertex.hasTexture) defines.push('VERTEX_TEXTURE');
+		if (vertex.hasColor) defines.push('VERTEX_COLOR 1');
+		if (vertex.hasTexture) defines.push('VERTEX_TEXTURE 1');
 
 		if (!state.clearing) {
-			if (state.alphaTest.enabled) defines.push('ALPHATEST');
+			if (state.alphaTest.enabled) defines.push('ALPHATEST 1');
 		}
 
-		var preppend = defines.map(item => '#define ' + item + ' 1').join("\n");
+		defines.push('VERTEX_SIKINNING ' + vertex.weightCount);
+
+		var preppend = defines.map(item => '#define ' + item + '').join("\n");
 
 		return ShaderCache.shaderProgram(
 			this.gl,
