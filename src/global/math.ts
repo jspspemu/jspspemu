@@ -293,6 +293,9 @@ class MathFloat {
 		return MathFloat.floatArray[0];
 	}
 
+	static min(a: number, b: number) { return (a < b) ? a : b; }
+	static max(a: number, b: number) { return (a > b) ? a : b; }
+
 	static abs(value: number) { return Math.abs(value); }
 	static neg(value: number) { return -value; }
 	static ocp(value: number) { return 1 - value; }

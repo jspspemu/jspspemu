@@ -775,6 +775,13 @@ var MathFloat = (function () {
         return MathFloat.floatArray[0];
     };
 
+    MathFloat.min = function (a, b) {
+        return (a < b) ? a : b;
+    };
+    MathFloat.max = function (a, b) {
+        return (a > b) ? a : b;
+    };
+
     MathFloat.abs = function (value) {
         return Math.abs(value);
     };
@@ -4236,6 +4243,13 @@ var InstructionAst = (function () {
     };
 
     // Memory read/write
+    InstructionAst.prototype["lv.s"] = function (i) {
+        return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)]));
+    };
+    InstructionAst.prototype["sv.s"] = function (i) {
+        return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]);
+    };
+
     InstructionAst.prototype["lv.q"] = function (i) {
         return setItems(readVector(i.VT5_1, 4 /* Quad */), getMemoryVector(address_RS_IMM14(i), 4));
     };
@@ -4398,37 +4412,242 @@ var InstructionAst = (function () {
         });
     };
 
+    InstructionAst.prototype.vbfy1 = function (i) {
+        return this._vset2(i, function (i, src) {
+            switch (i) {
+                case 0:
+                    return binop(src[0], '+', src[1]);
+                case 1:
+                    return binop(src[0], '-', src[1]);
+                case 2:
+                    return binop(src[2], '+', src[3]);
+                case 3:
+                    return binop(src[2], '-', src[3]);
+                default:
+                    throw (new Error("vbfy1: Invalid operation"));
+            }
+        });
+    };
+    InstructionAst.prototype.vbfy2 = function (i) {
+        return this._vset2(i, function (i, src) {
+            switch (i) {
+                case 0:
+                    return binop(src[0], '+', src[2]);
+                case 1:
+                    return binop(src[1], '+', src[3]);
+                case 2:
+                    return binop(src[0], '-', src[2]);
+                case 3:
+                    return binop(src[1], '-', src[3]);
+                default:
+                    throw (new Error("vbfy1: Invalid operation"));
+            }
+        });
+    };
+    InstructionAst.prototype.vsrt1 = function (i) {
+        return this._vset2(i, function (i, src) {
+            switch (i) {
+                case 0:
+                    return call('MathFloat.min', [src[0], src[1]]);
+                case 1:
+                    return call('MathFloat.max', [src[0], src[1]]);
+                case 2:
+                    return call('MathFloat.min', [src[2], src[3]]);
+                case 3:
+                    return call('MathFloat.max', [src[2], src[3]]);
+                default:
+                    throw (new Error("vbfy1: Invalid operation"));
+            }
+        });
+    };
+    InstructionAst.prototype.vsrt2 = function (i) {
+        return this._vset2(i, function (i, src) {
+            switch (i) {
+                case 0:
+                    return call('MathFloat.min', [src[0], src[3]]);
+                case 1:
+                    return call('MathFloat.min', [src[1], src[2]]);
+                case 2:
+                    return call('MathFloat.max', [src[1], src[2]]);
+                case 3:
+                    return call('MathFloat.max', [src[0], src[3]]);
+                default:
+                    throw (new Error("vbfy2: Invalid operation"));
+            }
+        });
+    };
+    InstructionAst.prototype.vsrt3 = function (i) {
+        return this._vset2(i, function (i, src) {
+            switch (i) {
+                case 0:
+                    return call('MathFloat.max', [src[0], src[1]]);
+                case 1:
+                    return call('MathFloat.min', [src[0], src[1]]);
+                case 2:
+                    return call('MathFloat.max', [src[2], src[3]]);
+                case 3:
+                    return call('MathFloat.min', [src[2], src[3]]);
+                default:
+                    throw (new Error("vbfy3: Invalid operation"));
+            }
+        });
+    };
+    InstructionAst.prototype.vsrt4 = function (i) {
+        return this._vset2(i, function (i, src) {
+            switch (i) {
+                case 0:
+                    return call('MathFloat.max', [src[0], src[3]]);
+                case 1:
+                    return call('MathFloat.max', [src[1], src[2]]);
+                case 2:
+                    return call('MathFloat.min', [src[1], src[2]]);
+                case 3:
+                    return call('MathFloat.min', [src[0], src[3]]);
+                default:
+                    throw (new Error("vbfy4: Invalid operation"));
+            }
+        });
+    };
+
+    InstructionAst.prototype._aggregateV = function (val, size, generator) {
+        for (var n = 0; n < size; n++)
+            val = generator(val, n);
+        return val;
+    };
+
+    InstructionAst.prototype.vfad = function (i) {
+        var vectorSize = i.ONE_TWO;
+        var st = [];
+        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+        st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, function (value, index) {
+            return binop(value, '+', ast.vector_vs(index));
+        })));
+        return stms(st);
+    };
+    InstructionAst.prototype.vavg = function (i) {
+        var vectorSize = i.ONE_TWO;
+        var st = [];
+        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+        st.push(assign_stm(vfpr(i.VD), binop(this._aggregateV(imm_f(0), vectorSize, function (value, index) {
+            return binop(value, '+', ast.vector_vs(index));
+        }), '/', imm_f(vectorSize))));
+        return stms(st);
+    };
+
+    InstructionAst.prototype.vidt = function (i) {
+        return this._vset1(i, function (index) {
+            return imm_f((index == (i.IMM7 % i.ONE_TWO)) ? 1 : 0);
+        });
+    };
+
+    InstructionAst.prototype["vcrs.t"] = function (i) {
+        return this._vset3(i, function (index, src, target) {
+            switch (index) {
+                case 0:
+                    return binop(src[1], '*', target[2]);
+                case 1:
+                    return binop(src[2], '*', target[0]);
+                case 2:
+                    return binop(src[0], '*', target[1]);
+                default:
+                    throw (new Error("vcrs_t not implemented"));
+            }
+        }, 3, 3, 3);
+    };
+    InstructionAst.prototype["vcrsp.t"] = function (i) {
+        return this._vset3(i, function (index, src, target) {
+            switch (index) {
+                case 0:
+                    return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
+                case 1:
+                    return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
+                case 2:
+                    return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
+                default:
+                    throw (new Error("vcrs_t not implemented"));
+            }
+        }, 3, 3, 3);
+    };
+
     // @TODO:
-    //vbfy1(i: Instruction) { return ast.stm(); }
-    //vbfy2(i: Instruction) { return ast.stm(); }
-    //vsrt1(i: Instruction) { return ast.stm(); }
-    //vsrt2(i: Instruction) { return ast.stm(); }
-    //vsrt3(i: Instruction) { return ast.stm(); }
-    //vsrt4(i: Instruction) { return ast.stm(); }
-    //vavg(i: Instruction) { return ast.stm(); }
-    //vfad(i: Instruction) { return ast.stm(); }
-    //vmin(i: Instruction) { return ast.stm(); }
-    //vmax(i: Instruction) { return ast.stm(); }
-    //vhdp(i: Instruction) { return ast.stm(); }
-    //vdet(i: Instruction) { return ast.stm(); }
-    //"lv.s"(i: Instruction) { return ast.stm(); }
-    //"sv.s"(i: Instruction) { return ast.stm(); }
-    //mtvc(i: Instruction) { return ast.stm(); }
-    //mfvc(i: Instruction) { return ast.stm(); }
-    //vslt(i: Instruction) { return ast.stm(); }
-    //vsle(i: Instruction) { return ast.stm(); }
-    //vsge(i: Instruction) { return ast.stm(); }
-    //vsgt(i: Instruction) { return ast.stm(); }
-    //vscmp(i: Instruction) { return ast.stm(); }
-    //vcmp(i: Instruction) { return ast.stm(); }
-    //vcmovt(i: Instruction) { return ast.stm(); }
-    //vcmovf(i: Instruction) { return ast.stm(); }
-    //vqmul(i: Instruction) { return ast.stm(); }
-    //"vcrs.t"(i: Instruction) { return ast.stm(); }
-    //"vcrsp.t"(i: Instruction) { return ast.stm(); }
-    //vwbn(i: Instruction) { return ast.stm(); }
-    //vsbn(i: Instruction) { return ast.stm(); }
-    //vidt(i: Instruction) { return ast.stm(); }
+    InstructionAst.prototype.vc2i = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vuc2i = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vs2i = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vi2f = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vf2id = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vf2in = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vf2iz = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vf2iu = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vf2h = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vh2f = function (i) {
+        return ast.stm();
+    };
+
+    InstructionAst.prototype.vhdp = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vdet = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.mtvc = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.mfvc = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vslt = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vsle = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vsge = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vsgt = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vscmp = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vcmp = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vcmovt = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vcmovf = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vqmul = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vwbn = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vsbn = function (i) {
+        return ast.stm();
+    };
+
+    //vsbn(i: Instruction) { throw(new Error("Not implemented")); }
     InstructionAst.prototype.vabs = function (i) {
         return this._vset2(i, function (i, src) {
             return call('MathFloat.abs', [src[i]]);
@@ -4510,6 +4729,16 @@ var InstructionAst = (function () {
         });
     };
 
+    InstructionAst.prototype.vmin = function (i) {
+        return this._vset3(i, function (i, src, target) {
+            return call('MathFloat.min', [src[i], target[i]]);
+        });
+    };
+    InstructionAst.prototype.vmax = function (i) {
+        return this._vset3(i, function (i, src, target) {
+            return call('MathFloat.max', [src[i], target[i]]);
+        });
+    };
     InstructionAst.prototype.vdiv = function (i) {
         return this._vset3(i, function (i, src, target) {
             return binop(src[i], '/', target[i]);

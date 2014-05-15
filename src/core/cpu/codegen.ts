@@ -323,6 +323,10 @@ export class InstructionAst {
 	vpfxd(i: Instruction) { return stm(call('state.setVpfxd', [imm32(i.data)])); }
 
 	// Memory read/write
+
+	"lv.s"(i: Instruction) { return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)])); }
+	"sv.s"(i: Instruction) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); }
+
 	"lv.q"(i: Instruction) { return setItems(readVector(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
 	"lvl.q"(i: Instruction) { return stm(call('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
 	"lvr.q"(i: Instruction) { return stm(call('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
@@ -410,37 +414,147 @@ export class InstructionAst {
 		return this._vset3(i, (i, src, target) => binop(src[i], '*', target[i]));
 	}
 
+	vbfy1(i: Instruction) {
+		return this._vset2(i, (i, src) => {
+			switch (i) {
+				case 0: return binop(src[0], '+', src[1]);
+				case 1: return binop(src[0], '-', src[1]);
+				case 2: return binop(src[2], '+', src[3]);
+				case 3: return binop(src[2], '-', src[3]);
+				default: throw (new Error("vbfy1: Invalid operation"));
+			}
+		});
+	}
+	vbfy2(i: Instruction) {
+		return this._vset2(i, (i, src) => {
+			switch (i) {
+				case 0: return binop(src[0], '+', src[2]);
+				case 1: return binop(src[1], '+', src[3]);
+				case 2: return binop(src[0], '-', src[2]);
+				case 3: return binop(src[1], '-', src[3]);
+				default: throw (new Error("vbfy1: Invalid operation"));
+			}
+		});
+	}
+	vsrt1(i: Instruction) {
+		return this._vset2(i, (i, src) => {
+			switch (i) {
+				case 0: return call('MathFloat.min', [src[0], src[1]]);
+				case 1: return call('MathFloat.max', [src[0], src[1]]);
+				case 2: return call('MathFloat.min', [src[2], src[3]]);
+				case 3: return call('MathFloat.max', [src[2], src[3]]);
+				default: throw (new Error("vbfy1: Invalid operation"));
+			}
+		});
+	}
+	vsrt2(i: Instruction) {
+		return this._vset2(i, (i, src) => {
+			switch (i) {
+				case 0: return call('MathFloat.min', [src[0], src[3]]);
+				case 1: return call('MathFloat.min', [src[1], src[2]]);
+				case 2: return call('MathFloat.max', [src[1], src[2]]);
+				case 3: return call('MathFloat.max', [src[0], src[3]]);
+				default: throw (new Error("vbfy2: Invalid operation"));
+			}
+		});
+	}
+	vsrt3(i: Instruction) {
+		return this._vset2(i, (i, src) => {
+			switch (i) {
+				case 0: return call('MathFloat.max', [src[0], src[1]]);
+				case 1: return call('MathFloat.min', [src[0], src[1]]);
+				case 2: return call('MathFloat.max', [src[2], src[3]]);
+				case 3: return call('MathFloat.min', [src[2], src[3]]);
+				default: throw (new Error("vbfy3: Invalid operation"));
+			}
+		});
+	}
+	vsrt4(i: Instruction) {
+		return this._vset2(i, (i, src) => {
+			switch (i) {
+				case 0: return call('MathFloat.max', [src[0], src[3]]);
+				case 1: return call('MathFloat.max', [src[1], src[2]]);
+				case 2: return call('MathFloat.min', [src[1], src[2]]);
+				case 3: return call('MathFloat.min', [src[0], src[3]]);
+				default: throw (new Error("vbfy4: Invalid operation"));
+			}
+		});
+	}
+
+	_aggregateV(val: _ast.ANodeExpr, size: number, generator: (value: _ast.ANodeExpr, index: number) => _ast.ANodeExpr) {
+		for (var n = 0; n < size; n++) val = generator(val, n);
+		return val;
+	}
+
+	vfad(i: Instruction) {
+		var vectorSize = i.ONE_TWO;
+		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+		st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', ast.vector_vs(index)))));
+		return stms(st);
+	}
+	vavg(i: Instruction) {
+		var vectorSize = i.ONE_TWO;
+		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+		st.push(assign_stm(vfpr(i.VD), binop(this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', ast.vector_vs(index))), '/', imm_f(vectorSize))));
+		return stms(st);
+	}
+
+	vidt(i: Instruction) {
+		return this._vset1(i, (index) => imm_f((index == (i.IMM7 % i.ONE_TWO)) ? 1 : 0));
+	}
+
+	"vcrs.t"(i: Instruction) {
+		return this._vset3(i, (index, src, target) => {
+			switch (index) {
+				case 0: return binop(src[1], '*', target[2]);
+				case 1: return binop(src[2], '*', target[0]);
+				case 2: return binop(src[0], '*', target[1]);
+				default: throw(new Error("vcrs_t not implemented"));
+			}
+		}, 3, 3, 3);
+	}
+	"vcrsp.t"(i: Instruction) {
+		return this._vset3(i, (index, src, target) => {
+			switch (index) {
+				case 0: return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
+				case 1: return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
+				case 2: return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
+				default: throw (new Error("vcrs_t not implemented"));
+			}
+		}, 3, 3, 3);
+	}
+
 	// @TODO:
-	//vbfy1(i: Instruction) { return ast.stm(); }
-	//vbfy2(i: Instruction) { return ast.stm(); }
-	//vsrt1(i: Instruction) { return ast.stm(); }
-	//vsrt2(i: Instruction) { return ast.stm(); }
-	//vsrt3(i: Instruction) { return ast.stm(); }
-	//vsrt4(i: Instruction) { return ast.stm(); }
-	//vavg(i: Instruction) { return ast.stm(); }
-	//vfad(i: Instruction) { return ast.stm(); }
-	//vmin(i: Instruction) { return ast.stm(); }
-	//vmax(i: Instruction) { return ast.stm(); }
-	//vhdp(i: Instruction) { return ast.stm(); }
-	//vdet(i: Instruction) { return ast.stm(); }
-	//"lv.s"(i: Instruction) { return ast.stm(); }
-	//"sv.s"(i: Instruction) { return ast.stm(); }
-	//mtvc(i: Instruction) { return ast.stm(); }
-	//mfvc(i: Instruction) { return ast.stm(); }
-	//vslt(i: Instruction) { return ast.stm(); }
-	//vsle(i: Instruction) { return ast.stm(); }
-	//vsge(i: Instruction) { return ast.stm(); }
-	//vsgt(i: Instruction) { return ast.stm(); }
-	//vscmp(i: Instruction) { return ast.stm(); }
-	//vcmp(i: Instruction) { return ast.stm(); }
-	//vcmovt(i: Instruction) { return ast.stm(); }
-	//vcmovf(i: Instruction) { return ast.stm(); }
-	//vqmul(i: Instruction) { return ast.stm(); }
-	//"vcrs.t"(i: Instruction) { return ast.stm(); }
-	//"vcrsp.t"(i: Instruction) { return ast.stm(); }
-	//vwbn(i: Instruction) { return ast.stm(); }
-	//vsbn(i: Instruction) { return ast.stm(); }
-	//vidt(i: Instruction) { return ast.stm(); }
+	vc2i(i: Instruction) { return ast.stm(); }
+	vuc2i(i: Instruction) { return ast.stm(); }
+	vs2i(i: Instruction) { return ast.stm(); }
+	vi2f(i: Instruction) { return ast.stm(); }
+	vf2id(i: Instruction) { return ast.stm(); }
+	vf2in(i: Instruction) { return ast.stm(); }
+	vf2iz(i: Instruction) { return ast.stm(); }
+	vf2iu(i: Instruction) { return ast.stm(); }
+	vf2h(i: Instruction) { return ast.stm(); }
+	vh2f(i: Instruction) { return ast.stm(); }
+	
+	vhdp(i: Instruction) { return ast.stm(); }
+	vdet(i: Instruction) { return ast.stm(); }
+	mtvc(i: Instruction) { return ast.stm(); }
+	mfvc(i: Instruction) { return ast.stm(); }
+	vslt(i: Instruction) { return ast.stm(); }
+	vsle(i: Instruction) { return ast.stm(); }
+	vsge(i: Instruction) { return ast.stm(); }
+	vsgt(i: Instruction) { return ast.stm(); }
+	vscmp(i: Instruction) { return ast.stm(); }
+	vcmp(i: Instruction) { return ast.stm(); }
+	vcmovt(i: Instruction) { return ast.stm(); }
+	vcmovf(i: Instruction) { return ast.stm(); }
+	vqmul(i: Instruction) { return ast.stm(); }
+	vwbn(i: Instruction) { return ast.stm(); }
+	vsbn(i: Instruction) { return ast.stm(); }
+
+	//vsbn(i: Instruction) { throw(new Error("Not implemented")); }
 
 	vabs(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.abs', [src[i]])); }
 	vocp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.ocp', [src[i]])); }
@@ -459,6 +573,8 @@ export class InstructionAst {
 	vnsin(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.nsinv1', [src[i]])); }
 	vnrcp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.nrcp', [src[i]])); }
 
+	vmin(i: Instruction) { return this._vset3(i, (i, src, target) => call('MathFloat.min', [src[i], target[i]])); }
+	vmax(i: Instruction) { return this._vset3(i, (i, src, target) => call('MathFloat.max', [src[i], target[i]])); }
 	vdiv(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '/', target[i])); }
 	vadd(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '+', target[i])); }
 	vsub(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '-', target[i])); }
