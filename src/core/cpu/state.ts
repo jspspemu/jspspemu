@@ -36,7 +36,7 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 	getSourceConstant(i: number) { return BitUtils.extractBool(this.info, 12 + i * 1); }
 	getSourceNegate(i: number) { return BitUtils.extractBool(this.info, 16 + i * 1); }
 
-	transformValues(input: number[], output: Float32Array) {
+	transformValues(input: number[], output: any) {
 		if (!this.enabled) {
 			for (var n = 0; n < input.length; n++) output[n] = input[n];
 		} else {
@@ -71,7 +71,7 @@ class VfpuPrefixWrite extends VfpuPrefixBase {
 	getDestinationSaturation(i: number) { return BitUtils.extract(this.info, 0 + i * 2, 2); }
 	getDestinationMask(i: number) { return BitUtils.extractBool(this.info, 8 + i * 1); }
 
-	storeTransformedValues(vfpr: Float32Array, indices: number[], values: number[]) {
+	storeTransformedValues(vfpr: any, indices: number[], values: number[]) {
 		if (!this.enabled) {
 			for (var n = 0; n < indices.length; n++)  vfpr[indices[n]] = values[n];
 		} else {
@@ -121,8 +121,8 @@ export class CpuState {
 	setVpfxs(value: number) { this.vpfxs.setInfo(value); }
 	setVpfxd(value: number) { this.vpfxd.setInfo(value); }
 
-	vector_vs = new Float32Array(4);
-	vector_vt = new Float32Array(4);
+	vector_vs = [0, 0, 0, 0];
+	vector_vt = [0, 0, 0, 0];
 
 	get vfpumatrix0() { return this.getVfpumatrix(0); }
 	get vfpumatrix1() { return this.getVfpumatrix(1); }
@@ -143,6 +143,14 @@ export class CpuState {
 		return values;
 	}
 
+	vc2i(index: number, value: number) {
+		return (value << ((3 - index) * 8)) & 0xFF000000;
+	}
+
+	vuc2i(index: number, value: number) {
+		return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1);
+	}
+
 	loadVs_prefixed(values: number[]) {
 		this.vpfxs.transformValues(values, this.vector_vs);
 		this.vpfxs.enabled = false;
@@ -155,6 +163,11 @@ export class CpuState {
 
 	storeVd_prefixed(indices: number[], values: number[]) {
 		this.vpfxd.storeTransformedValues(this.vfpr, indices, values);
+		this.vpfxd.enabled = false;
+	}
+
+	storeVd_prefixed_i(indices: number[], values: number[]) {
+		this.vpfxd.storeTransformedValues(this.vfpr_i, indices, values);
 		this.vpfxd.enabled = false;
 	}
 

@@ -4204,6 +4204,23 @@ var InstructionAst = (function () {
         return stms(st);
     };
 
+    InstructionAst.prototype._vset2_i = function (i, generate) {
+        var dest = getVectorRegs(i.VD, i.ONE_TWO);
+        var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
+
+        var st = [];
+        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector_i(i.VS, i.ONE_TWO))]));
+        st.push(call_stm('state.storeVd_prefixed_i', [
+            ast.arrayNumbers(dest),
+            ast.array(ArrayUtils.range(0, i.ONE_TWO).map(function (index) {
+                return generate(index, src);
+            }))
+        ]));
+
+        //st.push(setVector(dest, index => generate(index, src)));
+        return stms(st);
+    };
+
     InstructionAst.prototype._vset3 = function (i, generate, destSize, srcSize, targetSize) {
         if (typeof destSize === "undefined") { destSize = 0; }
         if (typeof srcSize === "undefined") { srcSize = 0; }
@@ -4282,7 +4299,16 @@ var InstructionAst = (function () {
         return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF));
     };
     InstructionAst.prototype.vcst = function (i) {
-        return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)));
+        return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value));
+    };
+    InstructionAst.prototype.vhdp = function (i) {
+        var vectorSize = i.ONE_TWO;
+        var st = [];
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+        st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, function (aggregate, index) {
+            return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == vectorSize - 1) ? imm_f(1) : ast.vector_vs(index)));
+        })));
+        return stms(st);
     };
     InstructionAst.prototype.mtv = function (i) {
         return stm(assign(vfpr(i.VD), gpr_f(i.rt)));
@@ -4569,13 +4595,26 @@ var InstructionAst = (function () {
         }, 3, 3, 3);
     };
 
-    // @TODO:
     InstructionAst.prototype.vc2i = function (i) {
-        return ast.stm();
+        return this._vset2_i(i, function (index, src) {
+            return call('state.vc2i', [imm32(index), src[index]]);
+        });
     };
     InstructionAst.prototype.vuc2i = function (i) {
-        return ast.stm();
+        return this._vset2_i(i, function (index, src) {
+            return call('state.vuc2i', [imm32(index), src[index]]);
+        });
     };
+
+    InstructionAst.prototype.vdet = function (i) {
+        var st = [];
+        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, 2))]));
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, 2))]));
+        st.push(assign_stm(vfpr(i.VD), binop(binop(ast.vector_vs(0), '*', ast.vector_vt(1)), '-', binop(ast.vector_vs(1), '*', ast.vector_vt(0)))));
+        return stms(st);
+    };
+
+    // @TODO:
     InstructionAst.prototype.vs2i = function (i) {
         return ast.stm();
     };
@@ -4601,12 +4640,6 @@ var InstructionAst = (function () {
         return ast.stm();
     };
 
-    InstructionAst.prototype.vhdp = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vdet = function (i) {
-        return ast.stm();
-    };
     InstructionAst.prototype.mtvc = function (i) {
         return ast.stm();
     };
@@ -6889,8 +6922,8 @@ var CpuState = (function () {
         this.vpfxt = new VfpuPrefixRead();
         this.vpfxs = new VfpuPrefixRead();
         this.vpfxd = new VfpuPrefixWrite();
-        this.vector_vs = new Float32Array(4);
-        this.vector_vt = new Float32Array(4);
+        this.vector_vs = [0, 0, 0, 0];
+        this.vector_vt = [0, 0, 0, 0];
         this.BRANCHFLAG = false;
         this.BRANCHPC = 0;
         this.PC = 0;
@@ -6988,6 +7021,14 @@ var CpuState = (function () {
         return values;
     };
 
+    CpuState.prototype.vc2i = function (index, value) {
+        return (value << ((3 - index) * 8)) & 0xFF000000;
+    };
+
+    CpuState.prototype.vuc2i = function (index, value) {
+        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1);
+    };
+
     CpuState.prototype.loadVs_prefixed = function (values) {
         this.vpfxs.transformValues(values, this.vector_vs);
         this.vpfxs.enabled = false;
@@ -7000,6 +7041,11 @@ var CpuState = (function () {
 
     CpuState.prototype.storeVd_prefixed = function (indices, values) {
         this.vpfxd.storeTransformedValues(this.vfpr, indices, values);
+        this.vpfxd.enabled = false;
+    };
+
+    CpuState.prototype.storeVd_prefixed_i = function (indices, values) {
+        this.vpfxd.storeTransformedValues(this.vfpr_i, indices, values);
         this.vpfxd.enabled = false;
     };
 

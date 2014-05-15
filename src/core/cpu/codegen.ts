@@ -299,6 +299,20 @@ export class InstructionAst {
 		return stms(st);
 	}
 
+	private _vset2_i(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
+		var dest = getVectorRegs(i.VD, i.ONE_TWO);
+		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
+
+		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector_i(i.VS, i.ONE_TWO))]));
+		st.push(call_stm('state.storeVd_prefixed_i', [
+			ast.arrayNumbers(dest),
+			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index, src))),
+		]));
+		//st.push(setVector(dest, index => generate(index, src)));
+		return stms(st);
+	}
+
 	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0, targetSize = 0) {
 		if (destSize <= 0) destSize = i.ONE_TWO;
 		if (srcSize <= 0) srcSize = i.ONE_TWO;
@@ -336,7 +350,16 @@ export class InstructionAst {
 
 	// Constants
 	vfim(i: Instruction) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); }
-	vcst(i: Instruction) { return stm(assign(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value))); }
+	vcst(i: Instruction) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); }
+	vhdp(i: Instruction) {
+		var vectorSize = i.ONE_TWO;
+		var st = [];
+		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+		st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
+			return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == vectorSize - 1) ? <_ast.ANodeExpr>imm_f(1) : <_ast.ANodeExpr>ast.vector_vs(index)))
+		})));
+		return stms(st);
+	}
 	mtv(i: Instruction) { return stm(assign(vfpr(i.VD), gpr_f(i.rt))); }
 	viim(i: Instruction) { return stm(assign(vfpr(i.VT), imm32(i.imm16))); }
 
@@ -526,9 +549,18 @@ export class InstructionAst {
 		}, 3, 3, 3);
 	}
 
+	vc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('state.vc2i', [imm32(index), src[index]])); }
+	vuc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('state.vuc2i', [imm32(index), src[index]])); }
+
+	vdet(i: Instruction) {
+		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, 2))]));
+		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, 2))]));
+		st.push(assign_stm(vfpr(i.VD), binop(binop(ast.vector_vs(0), '*', ast.vector_vt(1)), '-', binop(ast.vector_vs(1), '*', ast.vector_vt(0)))));
+		return stms(st);
+	}
+
 	// @TODO:
-	vc2i(i: Instruction) { return ast.stm(); }
-	vuc2i(i: Instruction) { return ast.stm(); }
 	vs2i(i: Instruction) { return ast.stm(); }
 	vi2f(i: Instruction) { return ast.stm(); }
 	vf2id(i: Instruction) { return ast.stm(); }
@@ -538,8 +570,6 @@ export class InstructionAst {
 	vf2h(i: Instruction) { return ast.stm(); }
 	vh2f(i: Instruction) { return ast.stm(); }
 	
-	vhdp(i: Instruction) { return ast.stm(); }
-	vdet(i: Instruction) { return ast.stm(); }
 	mtvc(i: Instruction) { return ast.stm(); }
 	mfvc(i: Instruction) { return ast.stm(); }
 	vslt(i: Instruction) { return ast.stm(); }
