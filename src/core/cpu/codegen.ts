@@ -360,7 +360,6 @@ export class InstructionAst {
 		})));
 		return stms(st);
 	}
-	mtv(i: Instruction) { return stm(assign(vfpr(i.VD), gpr_f(i.rt))); }
 	viim(i: Instruction) { return stm(assign(vfpr(i.VT), imm32(i.imm16))); }
 
 	vmidt(i: Instruction) { return setMatrix(getMatrixRegsVD(i), (c, r) => imm32((c == r) ? 1 : 0)); }
@@ -549,8 +548,17 @@ export class InstructionAst {
 		}, 3, 3, 3);
 	}
 
-	vc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('state.vc2i', [imm32(index), src[index]])); }
-	vuc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('state.vuc2i', [imm32(index), src[index]])); }
+	vc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vc2i', [imm32(index), src[index]])); }
+	vuc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vuc2i', [imm32(index), src[index]])); }
+	vs2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[index]])); }
+	vi2f(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vi2f', [imm32(index), src[index]])); }
+	vi2uc(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vi2uc', [imm32(index), src[index]])); }
+	vf2id(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2id', [imm32(index), src[index]])); }
+	vf2in(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2in', [imm32(index), src[index]])); }
+	vf2iz(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2iz', [imm32(index), src[index]])); }
+	vf2iu(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2iu', [imm32(index), src[index]])); }
+	vf2h(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2h', [imm32(index), src[index]])); }
+	vh2f(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vh2f', [imm32(index), src[index]])); }
 
 	vdet(i: Instruction) {
 		var st = [];
@@ -560,27 +568,80 @@ export class InstructionAst {
 		return stms(st);
 	}
 
+	mtv(i: Instruction) { return assign_stm(vfpr(i.VD), gpr_f(i.rt)); }
+	mfv(i: Instruction) { return assign_stm(gpr_f(i.rt), vfpr(i.VD)); }
+
+	vqmul(i: Instruction) {
+		return this._vset3(i, (i, s, t) => {
+			switch (i) {
+				case 0: return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 1: return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 2: return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 3: return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+			}
+		}, 4, 4, 4);
+	}
+
+	vslt(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.vslt', [s[i], t[i]])); }
+	vsle(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.vsle', [s[i], t[i]])); }
+	vsge(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.vsge', [s[i], t[i]])); }
+	vsgt(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.vsgt', [s[i], t[i]])); }
+	vscmp(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.sign2', [s[i], t[i]])); }
+
+	//private _bvtf(i:Instruction, True: boolean) {
+	//	var Register = i.IMM3;
+	//	var BranchExpr = ast.VCC(Register);
+	//	if (!True) BranchExpr = unop("!", BranchExpr);
+	//	return AssignBranchFlag(BranchExpr);
+	//}
+	//
+	//bvf(i: Instruction) { return this._bvtf(i, false); }
+	//bvfl(i: Instruction) { return this._bvtf(i, false); }
+	//bvt(i: Instruction) { return this._bvtf(i, true); }
+	//bvtl(i: Instruction) { return this._bvtf(i, true); }
+
 	// @TODO:
-	vs2i(i: Instruction) { return ast.stm(); }
-	vi2f(i: Instruction) { return ast.stm(); }
-	vf2id(i: Instruction) { return ast.stm(); }
-	vf2in(i: Instruction) { return ast.stm(); }
-	vf2iz(i: Instruction) { return ast.stm(); }
-	vf2iu(i: Instruction) { return ast.stm(); }
-	vf2h(i: Instruction) { return ast.stm(); }
-	vh2f(i: Instruction) { return ast.stm(); }
-	
+
 	mtvc(i: Instruction) { return ast.stm(); }
 	mfvc(i: Instruction) { return ast.stm(); }
-	vslt(i: Instruction) { return ast.stm(); }
-	vsle(i: Instruction) { return ast.stm(); }
-	vsge(i: Instruction) { return ast.stm(); }
-	vsgt(i: Instruction) { return ast.stm(); }
-	vscmp(i: Instruction) { return ast.stm(); }
+
 	vcmp(i: Instruction) { return ast.stm(); }
-	vcmovt(i: Instruction) { return ast.stm(); }
-	vcmovf(i: Instruction) { return ast.stm(); }
-	vqmul(i: Instruction) { return ast.stm(); }
+
+	private _vcmovtf(i: Instruction, True: boolean) {
+		//var Register = i.IMM3;
+		//
+		//var _VCC = (Index) => {
+		//	var Ret = ast.VCC(Index);
+		//	if (!True) Ret = unop("!", Ret);
+		//	return Ret;
+		//};
+		//
+		//if (Register < 6) {
+		//	// TODO: CHECK THIS!
+		//	return ast._if(
+		//		_VCC(Register),
+		//		VEC_VD.SetVector(Index => VEC_VS[Index], PC),
+		//		ast.Statements(
+		//			ast.Assign(ast.PrefixSourceEnabled(), false),
+		//			//ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
+		//			ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
+		//			)
+		//		);
+		//}
+		//
+		//if (Register == 6) {
+		//	return VEC_VD.SetVector(Index => ast.Ternary(_VCC(Index), VEC_VS[Index], VEC_VD[Index]), PC);
+		//}
+
+		// Register == 7
+
+		// Never copy (checked on a PSP)
+		return ast.stm();
+	}
+
+	vcmovt(i: Instruction) { return this._vcmovtf(i, true); }
+	vcmovf(i: Instruction) { return this._vcmovtf(i, false); }
+
 	vwbn(i: Instruction) { return ast.stm(); }
 	vsbn(i: Instruction) { return ast.stm(); }
 

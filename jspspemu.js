@@ -762,6 +762,61 @@ var BitUtils = (function () {
     return BitUtils;
 })();
 
+var MathVfpu = (function () {
+    function MathVfpu() {
+    }
+    MathVfpu.vqmul0 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
+        return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0);
+    };
+    MathVfpu.vqmul1 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
+        return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1);
+    };
+    MathVfpu.vqmul2 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
+        return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2);
+    };
+    MathVfpu.vqmul3 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
+        return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3);
+    };
+
+    MathVfpu.vc2i = function (index, value) {
+        return (value << ((3 - index) * 8)) & 0xFF000000;
+    };
+    MathVfpu.vuc2i = function (index, value) {
+        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1);
+    };
+
+    // @TODO
+    MathVfpu.vs2i = function () {
+        return 0;
+    };
+    MathVfpu.vi2f = function () {
+        return 0;
+    };
+    MathVfpu.vi2uc = function () {
+        return 0;
+    };
+
+    MathVfpu.vf2id = function () {
+        return 0;
+    };
+    MathVfpu.vf2in = function () {
+        return 0;
+    };
+    MathVfpu.vf2iz = function () {
+        return 0;
+    };
+    MathVfpu.vf2iu = function () {
+        return 0;
+    };
+    MathVfpu.vf2h = function () {
+        return 0;
+    };
+    MathVfpu.vh2f = function () {
+        return 0;
+    };
+    return MathVfpu;
+})();
+
 var MathFloat = (function () {
     function MathFloat() {
     }
@@ -866,6 +921,32 @@ var MathFloat = (function () {
     };
     MathFloat.sign = function (value) {
         return value ? ((value < 0) ? -1 : 1) : 0;
+    };
+
+    MathFloat.sign2 = function (left, right) {
+        var a = left - right;
+        return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0));
+    };
+
+    MathFloat.vslt = function (a, b) {
+        if (isNaN(a) || isNaN(b))
+            return 0;
+        return (a < b) ? 1 : 0;
+    };
+    MathFloat.vsle = function (a, b) {
+        if (isNaN(a) || isNaN(b))
+            return 0;
+        return (a <= b) ? 1 : 0;
+    };
+    MathFloat.vsgt = function (a, b) {
+        if (isNaN(a) || isNaN(b))
+            return 0;
+        return (a > b) ? 1 : 0;
+    };
+    MathFloat.vsge = function (a, b) {
+        if (isNaN(a) || isNaN(b))
+            return 0;
+        return (a >= b) ? 1 : 0;
     };
     MathFloat.floatArray = new Float32Array(1);
     MathFloat.intArray = new Int32Array(MathFloat.floatArray.buffer);
@@ -4310,9 +4391,6 @@ var InstructionAst = (function () {
         })));
         return stms(st);
     };
-    InstructionAst.prototype.mtv = function (i) {
-        return stm(assign(vfpr(i.VD), gpr_f(i.rt)));
-    };
     InstructionAst.prototype.viim = function (i) {
         return stm(assign(vfpr(i.VT), imm32(i.imm16)));
     };
@@ -4597,12 +4675,57 @@ var InstructionAst = (function () {
 
     InstructionAst.prototype.vc2i = function (i) {
         return this._vset2_i(i, function (index, src) {
-            return call('state.vc2i', [imm32(index), src[index]]);
+            return call('MathVfpu.vc2i', [imm32(index), src[index]]);
         });
     };
     InstructionAst.prototype.vuc2i = function (i) {
         return this._vset2_i(i, function (index, src) {
-            return call('state.vuc2i', [imm32(index), src[index]]);
+            return call('MathVfpu.vuc2i', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vs2i = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vs2i', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vi2f = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vi2f', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vi2uc = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vi2uc', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vf2id = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vf2id', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vf2in = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vf2in', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vf2iz = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vf2iz', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vf2iu = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vf2iu', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vf2h = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vf2h', [imm32(index), src[index]]);
+        });
+    };
+    InstructionAst.prototype.vh2f = function (i) {
+        return this._vset2_i(i, function (index, src) {
+            return call('MathVfpu.vh2f', [imm32(index), src[index]]);
         });
     };
 
@@ -4614,65 +4737,114 @@ var InstructionAst = (function () {
         return stms(st);
     };
 
-    // @TODO:
-    InstructionAst.prototype.vs2i = function (i) {
-        return ast.stm();
+    InstructionAst.prototype.mtv = function (i) {
+        return assign_stm(vfpr(i.VD), gpr_f(i.rt));
     };
-    InstructionAst.prototype.vi2f = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vf2id = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vf2in = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vf2iz = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vf2iu = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vf2h = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vh2f = function (i) {
-        return ast.stm();
+    InstructionAst.prototype.mfv = function (i) {
+        return assign_stm(gpr_f(i.rt), vfpr(i.VD));
     };
 
+    InstructionAst.prototype.vqmul = function (i) {
+        return this._vset3(i, function (i, s, t) {
+            switch (i) {
+                case 0:
+                    return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 1:
+                    return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 2:
+                    return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 3:
+                    return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+            }
+        }, 4, 4, 4);
+    };
+
+    InstructionAst.prototype.vslt = function (i) {
+        return this._vset3(i, function (i, s, t) {
+            return call('MathFloat.vslt', [s[i], t[i]]);
+        });
+    };
+    InstructionAst.prototype.vsle = function (i) {
+        return this._vset3(i, function (i, s, t) {
+            return call('MathFloat.vsle', [s[i], t[i]]);
+        });
+    };
+    InstructionAst.prototype.vsge = function (i) {
+        return this._vset3(i, function (i, s, t) {
+            return call('MathFloat.vsge', [s[i], t[i]]);
+        });
+    };
+    InstructionAst.prototype.vsgt = function (i) {
+        return this._vset3(i, function (i, s, t) {
+            return call('MathFloat.vsgt', [s[i], t[i]]);
+        });
+    };
+    InstructionAst.prototype.vscmp = function (i) {
+        return this._vset3(i, function (i, s, t) {
+            return call('MathFloat.sign2', [s[i], t[i]]);
+        });
+    };
+
+    //private _bvtf(i:Instruction, True: boolean) {
+    //	var Register = i.IMM3;
+    //	var BranchExpr = ast.VCC(Register);
+    //	if (!True) BranchExpr = unop("!", BranchExpr);
+    //	return AssignBranchFlag(BranchExpr);
+    //}
+    //
+    //bvf(i: Instruction) { return this._bvtf(i, false); }
+    //bvfl(i: Instruction) { return this._bvtf(i, false); }
+    //bvt(i: Instruction) { return this._bvtf(i, true); }
+    //bvtl(i: Instruction) { return this._bvtf(i, true); }
+    // @TODO:
     InstructionAst.prototype.mtvc = function (i) {
         return ast.stm();
     };
     InstructionAst.prototype.mfvc = function (i) {
         return ast.stm();
     };
-    InstructionAst.prototype.vslt = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsle = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsge = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsgt = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vscmp = function (i) {
-        return ast.stm();
-    };
+
     InstructionAst.prototype.vcmp = function (i) {
         return ast.stm();
     };
-    InstructionAst.prototype.vcmovt = function (i) {
+
+    InstructionAst.prototype._vcmovtf = function (i, True) {
+        //var Register = i.IMM3;
+        //
+        //var _VCC = (Index) => {
+        //	var Ret = ast.VCC(Index);
+        //	if (!True) Ret = unop("!", Ret);
+        //	return Ret;
+        //};
+        //
+        //if (Register < 6) {
+        //	// TODO: CHECK THIS!
+        //	return ast._if(
+        //		_VCC(Register),
+        //		VEC_VD.SetVector(Index => VEC_VS[Index], PC),
+        //		ast.Statements(
+        //			ast.Assign(ast.PrefixSourceEnabled(), false),
+        //			//ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
+        //			ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
+        //			)
+        //		);
+        //}
+        //
+        //if (Register == 6) {
+        //	return VEC_VD.SetVector(Index => ast.Ternary(_VCC(Index), VEC_VS[Index], VEC_VD[Index]), PC);
+        //}
+        // Register == 7
+        // Never copy (checked on a PSP)
         return ast.stm();
+    };
+
+    InstructionAst.prototype.vcmovt = function (i) {
+        return this._vcmovtf(i, true);
     };
     InstructionAst.prototype.vcmovf = function (i) {
-        return ast.stm();
+        return this._vcmovtf(i, false);
     };
-    InstructionAst.prototype.vqmul = function (i) {
-        return ast.stm();
-    };
+
     InstructionAst.prototype.vwbn = function (i) {
         return ast.stm();
     };
@@ -7019,14 +7191,6 @@ var CpuState = (function () {
             }
         }
         return values;
-    };
-
-    CpuState.prototype.vc2i = function (index, value) {
-        return (value << ((3 - index) * 8)) & 0xFF000000;
-    };
-
-    CpuState.prototype.vuc2i = function (index, value) {
-        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1);
     };
 
     CpuState.prototype.loadVs_prefixed = function (values) {
@@ -16665,6 +16829,9 @@ var ThreadManager = (function () {
         if (!this.running)
             return;
 
+        //var doCompensate = true;
+        var doCompensate = false;
+
         var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
 
         //console.log('delayedTime', timeMsToCompensate);
@@ -16691,7 +16858,8 @@ var ThreadManager = (function () {
                 if (thread.running) {
                     runningThreadCount++;
                     runningPriority = Math.min(runningPriority, thread.priority);
-                    //thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
+                    if (doCompensate)
+                        thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
                 }
             });
 
@@ -20320,6 +20488,11 @@ var ThreadManForUser = (function () {
         this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
             var thread = _this.getThreadById(threadId);
             return thread.wakeupWakeupAsync();
+        });
+        this.sceKernelUSec2SysClock = createNativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*', this, function (microseconds, clockPtr) {
+            if (clockPtr != null)
+                clockPtr.writeInt64(Integer64.fromUnsignedInt(microseconds));
+            return 0;
         });
         this.sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');

@@ -279,6 +279,28 @@ class BitUtils {
 	}
 }
 
+class MathVfpu {
+	static vqmul0(s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); }
+	static vqmul1(s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); }
+	static vqmul2(s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); }
+	static vqmul3(s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3); }
+
+	static vc2i(index: number, value: number) { return (value << ((3 - index) * 8)) & 0xFF000000; }
+	static vuc2i(index: number, value: number) { return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1); }
+
+	// @TODO
+	static vs2i() { return 0; }
+	static vi2f() { return 0; }
+	static vi2uc() { return 0; }
+
+	static vf2id() { return 0; }
+	static vf2in() { return 0; }
+	static vf2iz() { return 0; }
+	static vf2iu() { return 0; }
+	static vf2h() { return 0; }
+	static vh2f() { return 0; }
+}
+
 class MathFloat {
 	private static floatArray = new Float32Array(1);
 	private static intArray = new Int32Array(MathFloat.floatArray.buffer);
@@ -343,6 +365,13 @@ class MathFloat {
 	static rexp2(value: number) { return 1 / Math.pow(2.0, value); }
 	static log2(value: number) { return Math.log2(value); }
 	static sign(value: number) { return value ? ((value < 0) ? -1 : 1) : 0; }
+
+	static sign2(left: number, right: number) { var a = left - right; return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0)); }
+
+	static vslt(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a < b) ? 1 : 0; }
+	static vsle(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a <= b) ? 1 : 0; }
+	static vsgt(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a > b) ? 1 : 0; }
+	static vsge(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a >= b) ? 1 : 0; }
 }
 
 function handleCastInfinite(value: number) {

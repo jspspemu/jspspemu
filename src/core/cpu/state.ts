@@ -143,14 +143,6 @@ export class CpuState {
 		return values;
 	}
 
-	vc2i(index: number, value: number) {
-		return (value << ((3 - index) * 8)) & 0xFF000000;
-	}
-
-	vuc2i(index: number, value: number) {
-		return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1);
-	}
-
 	loadVs_prefixed(values: number[]) {
 		this.vpfxs.transformValues(values, this.vector_vs);
 		this.vpfxs.enabled = false;

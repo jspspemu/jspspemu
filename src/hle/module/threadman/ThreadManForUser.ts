@@ -183,6 +183,11 @@ export class ThreadManForUser {
 		return this.context.rtc.getCurrentUnixMicroseconds();
 	}
 
+	sceKernelUSec2SysClock = createNativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*', this, (microseconds: number, clockPtr: Stream) => {
+		if (clockPtr != null) clockPtr.writeInt64(Integer64.fromUnsignedInt(microseconds));
+		return 0;
+	});
+
 	sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, () => {
 		//console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
 		return this._getCurrentMicroseconds();

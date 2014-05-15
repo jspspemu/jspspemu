@@ -281,6 +281,9 @@ export class ThreadManager {
 	eventOcurredCallback() {
 		if (!this.running) return;
 
+		//var doCompensate = true;
+		var doCompensate = false; // TOOD: fix compensating gpu
+
 		var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
 		//console.log('delayedTime', timeMsToCompensate);
 
@@ -307,7 +310,7 @@ export class ThreadManager {
 				if (thread.running) {
 					runningThreadCount++;
 					runningPriority = Math.min(runningPriority, thread.priority);
-					//thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
+					if (doCompensate) thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
 				}
 			});
 
