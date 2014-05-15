@@ -440,6 +440,7 @@ export class InstructionAst {
 	//"vcrsp.t"(i: Instruction) { return ast.stm(); }
 	//vwbn(i: Instruction) { return ast.stm(); }
 	//vsbn(i: Instruction) { return ast.stm(); }
+	//vidt(i: Instruction) { return ast.stm(); }
 
 	vabs(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.abs', [src[i]])); }
 	vocp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.ocp', [src[i]])); }

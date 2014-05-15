@@ -201,6 +201,12 @@ class PspGpuList {
         this.current = this.state.baseAddress + offset;
 	}
 
+	private jumpAbsolute(address: number) {
+		this.current = address;
+	}
+
+	private callstack = <number[]>[];
+
     private runInstruction(current: number, instruction: number) {
         var op: GpuOpCodes = instruction >>> 24;
 		var params24: number = instruction & 0xFFFFFF;
@@ -276,7 +282,22 @@ class PspGpuList {
 				this.state.lightning.lights[op - GpuOpCodes.LTE0].enabled = params24 != 0;
 				break;
             case GpuOpCodes.BASE: this.state.baseAddress = ((params24 << 8) & 0xff000000); break;
-            case GpuOpCodes.JUMP: this.jumpRelativeOffset(params24 & ~3); break;
+			case GpuOpCodes.JUMP: this.jumpRelativeOffset(params24 & ~3); break;
+			case GpuOpCodes.CALL:
+				this.callstack.push(current + 4);
+				this.callstack.push(this.state.baseOffset);
+				this.jumpRelativeOffset(params24 & ~3);
+
+				break;
+			case GpuOpCodes.RET:
+				if (this.callstack.length > 0) {
+					this.state.baseOffset = this.callstack.pop();
+					this.jumpAbsolute(this.callstack.pop());
+				} else {
+					console.info('gpu callstack empty');
+				}
+				break;
+
             case GpuOpCodes.NOP: break;
             case GpuOpCodes.VTYPE: this.state.vertex.value = params24; break;
 			case GpuOpCodes.VADDR: this.state.vertex.address = params24; break;
@@ -606,7 +627,7 @@ class PspGpuList {
 
 				this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
 
-                break;
+				break;
 
 			case GpuOpCodes.FINISH:
 				var callback = this.gpu.callbacks.get(this.callbackId);

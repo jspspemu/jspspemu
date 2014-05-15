@@ -4428,6 +4428,7 @@ var InstructionAst = (function () {
     //"vcrsp.t"(i: Instruction) { return ast.stm(); }
     //vwbn(i: Instruction) { return ast.stm(); }
     //vsbn(i: Instruction) { return ast.stm(); }
+    //vidt(i: Instruction) { return ast.stm(); }
     InstructionAst.prototype.vabs = function (i) {
         return this._vset2(i, function (i, src) {
             return call('MathFloat.abs', [src[i]]);
@@ -7744,6 +7745,7 @@ var PspGpuList = (function () {
         this.state = new _state.GpuState();
         this.status = 4 /* Paused */;
         this.errorCount = 0;
+        this.callstack = [];
     }
     PspGpuList.prototype.complete = function () {
         this.completed = true;
@@ -7753,6 +7755,10 @@ var PspGpuList = (function () {
 
     PspGpuList.prototype.jumpRelativeOffset = function (offset) {
         this.current = this.state.baseAddress + offset;
+    };
+
+    PspGpuList.prototype.jumpAbsolute = function (address) {
+        this.current = address;
     };
 
     PspGpuList.prototype.runInstruction = function (current, instruction) {
@@ -7840,6 +7846,21 @@ var PspGpuList = (function () {
             case 8 /* JUMP */:
                 this.jumpRelativeOffset(params24 & ~3);
                 break;
+            case 10 /* CALL */:
+                this.callstack.push(current + 4);
+                this.callstack.push(this.state.baseOffset);
+                this.jumpRelativeOffset(params24 & ~3);
+
+                break;
+            case 11 /* RET */:
+                if (this.callstack.length > 0) {
+                    this.state.baseOffset = this.callstack.pop();
+                    this.jumpAbsolute(this.callstack.pop());
+                } else {
+                    console.info('gpu callstack empty');
+                }
+                break;
+
             case 0 /* NOP */:
                 break;
             case 18 /* VTYPE */:
