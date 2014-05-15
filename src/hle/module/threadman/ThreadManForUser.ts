@@ -188,6 +188,13 @@ export class ThreadManForUser {
 		return this._getCurrentMicroseconds();
 	});
 
+	sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, (timePtr: Stream) => {
+		if (timePtr == null) throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT));
+
+		timePtr.writeInt64(Integer64.fromNumber(this._getCurrentMicroseconds()));
+		return 0;
+	});
+
 	sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, () => {
 		//console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
 		return Integer64.fromNumber(this._getCurrentMicroseconds());

@@ -775,6 +775,31 @@ var MathFloat = (function () {
         return MathFloat.floatArray[0];
     };
 
+    MathFloat.abs = function (value) {
+        return Math.abs(value);
+    };
+    MathFloat.neg = function (value) {
+        return -value;
+    };
+    MathFloat.ocp = function (value) {
+        return 1 - value;
+    };
+    MathFloat.nrcp = function (value) {
+        return -(1 / value);
+    };
+    MathFloat.sat0 = function (value) {
+        return MathUtils.clamp(value, 0, 1);
+    };
+    MathFloat.sat1 = function (value) {
+        return MathUtils.clamp(value, -1, 1);
+    };
+    MathFloat.rsq = function (value) {
+        return 1 / Math.sqrt(value);
+    };
+    MathFloat.sqrt = function (value) {
+        return Math.sqrt(value);
+    };
+
     MathFloat.rint = function (value) {
         if (!isFinite(value))
             return handleCastInfinite(value);
@@ -814,9 +839,26 @@ var MathFloat = (function () {
     MathFloat.cosv1 = function (value) {
         return Math.cos(value * Math.PI * 0.5);
     };
-
     MathFloat.sinv1 = function (value) {
         return Math.sin(value * Math.PI * 0.5);
+    };
+    MathFloat.asinv1 = function (value) {
+        return Math.asin(value) / (Math.PI * 0.5);
+    };
+    MathFloat.nsinv1 = function (value) {
+        return -Math.sin(0.5 * Math.PI * value);
+    };
+    MathFloat.exp2 = function (value) {
+        return Math.pow(2.0, value);
+    };
+    MathFloat.rexp2 = function (value) {
+        return 1 / Math.pow(2.0, value);
+    };
+    MathFloat.log2 = function (value) {
+        return Math.log2(value);
+    };
+    MathFloat.sign = function (value) {
+        return value ? ((value < 0) ? -1 : 1) : 0;
     };
     MathFloat.floatArray = new Float32Array(1);
     MathFloat.intArray = new Int32Array(MathFloat.floatArray.buffer);
@@ -920,6 +962,10 @@ var ArrayUtils = (function () {
     };
     return ArrayUtils;
 })();
+
+function xrange(start, end) {
+    return ArrayUtils.range(start, end);
+}
 //# sourceMappingURL=math.js.map
 
 ﻿var __extends = this.__extends || function (d, b) {
@@ -1363,7 +1409,7 @@ var Stream = (function () {
     };
 
     Stream.prototype.readString = function (count) {
-        if (count > 128 * 1024)
+        if (count > 1 * 1024 * 1024)
             throw (new Error("Trying to read a string larger than 128KB"));
         var str = '';
         for (var n = 0; n < count; n++) {
@@ -3498,6 +3544,10 @@ var ANodeExprAssign = (function (_super) {
         _super.call(this);
         this.left = left;
         this.right = right;
+        if (!this.left || !this.left.toAssignJs)
+            debugger;
+        if (!this.right)
+            debugger;
     }
     ANodeExprAssign.prototype.toJs = function () {
         return this.left.toAssignJs(this.right);
@@ -3585,10 +3635,7 @@ var AstBuilder = (function () {
         return new ANodeExprU32(value);
     };
     AstBuilder.prototype.stm = function (expr) {
-        return new ANodeStmExpr(expr);
-    };
-    AstBuilder.prototype.stmEmpty = function () {
-        return new ANodeStm();
+        return expr ? (new ANodeStmExpr(expr)) : new ANodeStm();
     };
     AstBuilder.prototype.stms = function (stms) {
         return new ANodeStmList(stms);
@@ -3629,7 +3676,7 @@ var MipsAstBuilder = (function (_super) {
     };
 
     MipsAstBuilder.prototype.functionPrefix = function () {
-        return this.stmEmpty();
+        return this.stm();
     };
 
     MipsAstBuilder.prototype.gpr = function (index) {
@@ -3693,7 +3740,7 @@ var MipsAstBuilder = (function (_super) {
 
     MipsAstBuilder.prototype.assignGpr = function (index, expr) {
         if (index == 0)
-            return this.stmEmpty();
+            return this.stm();
         return this.stm(this.assign(this.gpr(index), expr));
     };
 
@@ -4120,6 +4167,19 @@ var InstructionAst = (function () {
         return assignGpr(i.rt, u_imm32(i.imm16 << 16));
     };
 
+    InstructionAst.prototype._vset1 = function (i, generate) {
+        var dest = getVectorRegs(i.VD, i.ONE_TWO);
+
+        var st = [];
+        st.push(call_stm('state.storeVd_prefixed', [
+            ast.arrayNumbers(dest),
+            ast.array(ArrayUtils.range(0, i.ONE_TWO).map(function (index) {
+                return generate(index);
+            }))
+        ]));
+        return stms(st);
+    };
+
     InstructionAst.prototype._vset2 = function (i, generate) {
         var dest = getVectorRegs(i.VD, i.ONE_TWO);
         var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
@@ -4233,11 +4293,97 @@ var InstructionAst = (function () {
         });
     };
 
+    InstructionAst.prototype._vtfm_x = function (i, vectorSize) {
+        var srcMat = readMatrix(i.VS, vectorSize);
+
+        var aggregateds = [];
+        for (var n = 0; n < vectorSize; n++) {
+            aggregateds[n] = imm_f(0);
+            for (var m = 0; m < vectorSize; m++) {
+                aggregateds[n] = binop(aggregateds[n], '+', binop(srcMat[n * vectorSize + m], '*', ast.vector_vt(m)));
+            }
+        }
+
+        var st = [];
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+        st.push(call_stm('state.storeVd_prefixed', [
+            ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
+            ast.array(xrange(0, vectorSize).map(function (index) {
+                return aggregateds[index];
+            }))
+        ]));
+        return stms(st);
+    };
+
+    InstructionAst.prototype._vhtfm_x = function (i, vectorSize) {
+        var srcMat = readMatrix(i.VS, vectorSize);
+
+        var aggregateds = [];
+        for (var n = 0; n < vectorSize; n++) {
+            aggregateds[n] = imm_f(0);
+            for (var m = 0; m < vectorSize; m++) {
+                aggregateds[n] = binop(aggregateds[n], '+', binop(srcMat[n * vectorSize + m], '*', ((m == vectorSize - 1) ? imm_f(1) : ast.vector_vt(m))));
+            }
+        }
+
+        var st = [];
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+        st.push(call_stm('state.storeVd_prefixed', [
+            ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
+            ast.array(xrange(0, vectorSize).map(function (index) {
+                return aggregateds[index];
+            }))
+        ]));
+        return stms(st);
+    };
+
+    InstructionAst.prototype.vtfm2 = function (i) {
+        return this._vtfm_x(i, 2);
+    };
+    InstructionAst.prototype.vtfm3 = function (i) {
+        return this._vtfm_x(i, 3);
+    };
+    InstructionAst.prototype.vtfm4 = function (i) {
+        return this._vtfm_x(i, 4);
+    };
+
+    InstructionAst.prototype.vhtfm2 = function (i) {
+        return this._vhtfm_x(i, 2);
+    };
+    InstructionAst.prototype.vhtfm3 = function (i) {
+        return this._vhtfm_x(i, 3);
+    };
+    InstructionAst.prototype.vhtfm4 = function (i) {
+        return this._vhtfm_x(i, 4);
+    };
+
+    InstructionAst.prototype.vmscl = function (i) {
+        var vectorSize = i.ONE_TWO;
+
+        //return ast.stm(ast.debugger('not implemented'));
+        var src = readMatrix(i.VS, vectorSize);
+        return setMatrix(getMatrixRegsVD(i), function (c, r, index) {
+            return binop(src[index], '*', vfpr(i.VT));
+        });
+    };
+
+    InstructionAst.prototype.vzero = function (i) {
+        return this._vset1(i, function (index) {
+            return imm_f(0);
+        });
+    };
+    InstructionAst.prototype.vone = function (i) {
+        return this._vset1(i, function (index) {
+            return imm_f(1);
+        });
+    };
+
     InstructionAst.prototype.vmov = function (i) {
         //return stms([ast.debugger(), this._vset2(i, (index, src) => src[index])]);
-        return this._vset2(i, function (index, src) {
+        return this._vset3(i, function (index, src, dest) {
             return src[index];
         });
+        //return this._vset2(i, (index, src) => src[index]);
     };
     InstructionAst.prototype.vrcp = function (i) {
         return this._vset2(i, function (index, src) {
@@ -4251,6 +4397,118 @@ var InstructionAst = (function () {
             return binop(src[i], '*', target[i]);
         });
     };
+
+    // @TODO:
+    //vbfy1(i: Instruction) { return ast.stm(); }
+    //vbfy2(i: Instruction) { return ast.stm(); }
+    //vsrt1(i: Instruction) { return ast.stm(); }
+    //vsrt2(i: Instruction) { return ast.stm(); }
+    //vsrt3(i: Instruction) { return ast.stm(); }
+    //vsrt4(i: Instruction) { return ast.stm(); }
+    //vavg(i: Instruction) { return ast.stm(); }
+    //vfad(i: Instruction) { return ast.stm(); }
+    //vmin(i: Instruction) { return ast.stm(); }
+    //vmax(i: Instruction) { return ast.stm(); }
+    //vhdp(i: Instruction) { return ast.stm(); }
+    //vdet(i: Instruction) { return ast.stm(); }
+    //"lv.s"(i: Instruction) { return ast.stm(); }
+    //"sv.s"(i: Instruction) { return ast.stm(); }
+    //mtvc(i: Instruction) { return ast.stm(); }
+    //mfvc(i: Instruction) { return ast.stm(); }
+    //vslt(i: Instruction) { return ast.stm(); }
+    //vsle(i: Instruction) { return ast.stm(); }
+    //vsge(i: Instruction) { return ast.stm(); }
+    //vsgt(i: Instruction) { return ast.stm(); }
+    //vscmp(i: Instruction) { return ast.stm(); }
+    //vcmp(i: Instruction) { return ast.stm(); }
+    //vcmovt(i: Instruction) { return ast.stm(); }
+    //vcmovf(i: Instruction) { return ast.stm(); }
+    //vqmul(i: Instruction) { return ast.stm(); }
+    //"vcrs.t"(i: Instruction) { return ast.stm(); }
+    //"vcrsp.t"(i: Instruction) { return ast.stm(); }
+    //vwbn(i: Instruction) { return ast.stm(); }
+    //vsbn(i: Instruction) { return ast.stm(); }
+    InstructionAst.prototype.vabs = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.abs', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vocp = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.ocp', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vneg = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.neg', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vsgn = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.sign', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vsat0 = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.sat0', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vsat1 = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.sat1', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vrsq = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.rsq', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vsin = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.sinv1', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vcos = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.cosv1', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vexp2 = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.exp2', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vrexp2 = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.rexp2', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vlog2 = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.log2', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vsqrt = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.sqrt', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vasin = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.asinv1', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vnsin = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.nsinv1', [src[i]]);
+        });
+    };
+    InstructionAst.prototype.vnrcp = function (i) {
+        return this._vset2(i, function (i, src) {
+            return call('MathFloat.nrcp', [src[i]]);
+        });
+    };
+
     InstructionAst.prototype.vdiv = function (i) {
         return this._vset3(i, function (i, src, target) {
             return binop(src[i], '/', target[i]);
@@ -4270,6 +4528,19 @@ var InstructionAst = (function () {
         return this._vset3(i, function (index, src, target) {
             return binop(src[index], '*', target[0]);
         }, 0, 0, 1);
+    };
+    InstructionAst.prototype.vdot = function (i) {
+        var result = imm_f(0);
+        var vectorSize = i.ONE_TWO;
+
+        for (var n = 0; n < vectorSize; n++)
+            result = binop(result, '+', binop(ast.vector_vs(n), '*', ast.vector_vt(n)));
+
+        var st = [];
+        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+        st.push(assign_stm(vfpr(i.VD), result));
+        return stms(st);
     };
     InstructionAst.prototype.vrot = function (i) {
         var imm5 = i.IMM5;
@@ -19758,6 +20029,13 @@ var ThreadManForUser = (function () {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
             return _this._getCurrentMicroseconds();
         });
+        this.sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, function (timePtr) {
+            if (timePtr == null)
+                throw (new SceKernelException(2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */));
+
+            timePtr.writeInt64(Integer64.fromNumber(_this._getCurrentMicroseconds()));
+            return 0;
+        });
         this.sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
             return Integer64.fromNumber(_this._getCurrentMicroseconds());
@@ -23008,6 +23286,8 @@ describe('pspautotests', function () {
 
                 testNameList.forEach(function (testName) {
                     it(testName, function () {
+                        this.timeout(15000);
+
                         var emulator = new Emulator();
                         var file_base = '../pspautotests/tests/' + testGroupName + '/' + testName;
                         var file_prx = file_base + '.prx';
@@ -23016,10 +23296,12 @@ describe('pspautotests', function () {
                         if (!groupCollapsed)
                             console.groupEnd();
                         groupCollapsed = false;
+
                         console.groupCollapsed('' + testName);
+
                         return downloadFileAsync(file_prx).then(function (data_prx) {
                             return downloadFileAsync(file_expected).then(function (data_expected) {
-                                var string_expected = String.fromCharCode.apply(null, new Uint8Array(data_expected));
+                                var string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
 
                                 return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(function () {
                                     groupCollapsed = true;

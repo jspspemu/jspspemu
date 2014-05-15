@@ -293,6 +293,15 @@ class MathFloat {
 		return MathFloat.floatArray[0];
 	}
 
+	static abs(value: number) { return Math.abs(value); }
+	static neg(value: number) { return -value; }
+	static ocp(value: number) { return 1 - value; }
+	static nrcp(value: number) { return -(1 / value); }
+	static sat0(value: number) { return MathUtils.clamp(value, 0, 1); }
+	static sat1(value: number) { return MathUtils.clamp(value, -1, 1); }
+	static rsq(value: number) { return 1 / Math.sqrt(value); }
+	static sqrt(value: number) { return Math.sqrt(value); }
+
 	static rint(value: number) {
 		if (!isFinite(value)) return handleCastInfinite(value);
 		return Math.rint(value);
@@ -323,13 +332,14 @@ class MathFloat {
 		return Math.ceil(value);
 	}
 
-	static cosv1(value: number) {
-		return Math.cos(value * Math.PI * 0.5);
-	}
-
-	static sinv1(value: number) {
-		return Math.sin(value * Math.PI * 0.5);
-	}
+	static cosv1(value: number) { return Math.cos(value * Math.PI * 0.5); }
+	static sinv1(value: number) { return Math.sin(value * Math.PI * 0.5); }
+	static asinv1(value: number) { return Math.asin(value) / (Math.PI * 0.5); }
+	static nsinv1(value: number) { return -Math.sin(0.5 * Math.PI * value); }
+	static exp2(value: number) { return Math.pow(2.0, value); }
+	static rexp2(value: number) { return 1 / Math.pow(2.0, value); }
+	static log2(value: number) { return Math.log2(value); }
+	static sign(value: number) { return value ? ((value < 0) ? -1 : 1) : 0; }
 }
 
 function handleCastInfinite(value: number) {
@@ -411,4 +421,8 @@ class ArrayUtils {
 		for (var n = start; n < end; n++) array.push(n);
 		return array;
 	}
+}
+
+function xrange(start: number, end: number) {
+	return ArrayUtils.range(start, end);
 }

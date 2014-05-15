@@ -145,7 +145,11 @@ export class ANodeExprUnop extends ANodeExpr {
 }
 
 export class ANodeExprAssign extends ANodeExpr {
-	constructor(public left: ANodeExprLValue, public right: ANodeExpr) { super(); }
+	constructor(public left: ANodeExprLValue, public right: ANodeExpr) {
+		super();
+		if (!this.left || !this.left.toAssignJs) debugger;
+		if (!this.right) debugger;
+	}
 	toJs() { return this.left.toAssignJs(this.right); }
 }
 
@@ -179,8 +183,7 @@ export class AstBuilder {
 	imm32(value: number) { return new ANodeExprI32(value); }
 	imm_f(value: number) { return new ANodeExprFloat(value); }
 	u_imm32(value: number) { return new ANodeExprU32(value); }
-	stm(expr: ANodeExpr) { return new ANodeStmExpr(expr); }
-	stmEmpty() { return new ANodeStm(); }
+	stm(expr?: ANodeExpr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
 	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
 	arrayNumbers(values: number[]) { return this.array(values.map(value => this.imm_f(value))); }
@@ -195,7 +198,7 @@ export class MipsAstBuilder extends AstBuilder {
 		return new ANodeStmRaw("debugger; // " + comment + "\n");
 	}
 
-	functionPrefix() { return this.stmEmpty(); }
+	functionPrefix() { return this.stm(); }
 
 	gpr(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
@@ -225,7 +228,7 @@ export class MipsAstBuilder extends AstBuilder {
 	branchpc() { return new ANodeExprLValueVar('state.BRANCHPC'); }
 
 	assignGpr(index: number, expr: ANodeStm) {
-		if (index == 0) return this.stmEmpty();
+		if (index == 0) return this.stm();
 		return this.stm(this.assign(this.gpr(index), expr));
 	}
 

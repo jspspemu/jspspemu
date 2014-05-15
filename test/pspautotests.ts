@@ -118,43 +118,6 @@ describe('pspautotests', function () {
 		return new difflib.SequenceMatcher(difflib.stringAsLines(text1), difflib.stringAsLines(text2)).get_opcodes();
 	}
 
-	/*
-	function compareLines(text1, text2) {
-		var out = [];
-		var sm = new difflib.SequenceMatcher(text1, text2);
-		var opcodes = sm.get_opcodes();
-		for (var n = 0; n < opcodes.length; n++) {
-			var opcode = <string>(opcodes[n]);
-			var start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
-			var start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
-			var length1 = end1 - start1;
-			var length2 = end2 - start2;
-			switch (opcode[0]) {
-				case 'equal': for (var m = start1; m < end1; m++) out.push(['', m, text1[m]]); break;
-				case 'delete': for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]); break;
-				case 'insert': for (var m = start2; m < end2; m++) out.push(['+', m, text1[m]]); break;
-				case 'replace':
-					if (length1 == length2) {
-						for (var m = 0; m < length1; m++) {
-							out.push(['!', m + start1, m + start2, text1[m + start1], text2[m + start2]]);
-						}
-					} else {
-						for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]);
-						for (var m = start2; m < end2; m++) out.push(['+', m, text2[m]]);
-					}
-					break;
-			}
-		}
-		return out;
-	}
-
-	function compareText(text1, text2) {
-		return compareLines(difflib.stringAsLines(text1), difflib.stringAsLines(text2));
-	}
-	*/
-
-	//console.log(compareText('a', 'b'));
-
 	function compareOutput(name: string, output: string, expected: string) {
 		output = normalizeString(output);
 		expected = normalizeString(expected);
@@ -211,38 +174,6 @@ describe('pspautotests', function () {
 		}
 		var distinctLines = totalLines - equalLines;
 
-		/*
-		var output_lines = output.split('\n');
-		var expected_lines = expected.split('\n');
-
-		var distinctLines = 0;
-		var totalLines = Math.max(output_lines.length, expected_lines.length)
-		console.groupCollapsed('TEST RESULT: ' + name);
-		var linesToShow = {};
-		for (var n = 0; n < totalLines; n++) {
-			if (output_lines[n] != expected_lines[n]) {
-				distinctLines++;
-				for (var m = -2; m <= 2; m++) linesToShow[n + m] = true;
-			}
-		}
-
-		for (var n = 0; n < totalLines; n++) {
-			var lineNumber = n + 1;
-			var output_line = output_lines[n];
-			var expected_line = expected_lines[n];
-			if (linesToShow[n]) {
-				if (output_line != expected_line) {
-					console.warn(sprintf('%04d: %s', lineNumber, output_line));
-					console.info(sprintf('%04d: %s', lineNumber, expected_line));
-				} else {
-					console.log(sprintf('%04d: %s', lineNumber, output_line));
-				}
-			}
-		}
-
-		if (distinctLines == 0) console.log('great: output and expected are equal!');
-		*/
-
 		var table = [];
 		for (var n = 0; n < Math.max(outputLines.length, expectedLines.length); n++) {
 			table[n + 1] = { output: outputLines[n], expected: expectedLines[n] };
@@ -266,7 +197,9 @@ describe('pspautotests', function () {
 				var testNameList: string[] = testGroup[testGroupName];
 
 				testNameList.forEach(testName => {
-					it(testName, () => {
+					it(testName, function() {
+						this.timeout(15000);
+
 						var emulator = new Emulator();
 						var file_base = '../pspautotests/tests/' + testGroupName + '/' + testName;
 						var file_prx = file_base + '.prx';
@@ -274,10 +207,13 @@ describe('pspautotests', function () {
 
 						if (!groupCollapsed) console.groupEnd();
 						groupCollapsed = false;
+
 						console.groupCollapsed('' + testName);
+
 						return downloadFileAsync(file_prx).then((data_prx) => {
 							return downloadFileAsync(file_expected).then((data_expected) => {
-								var string_expected = String.fromCharCode.apply(null, new Uint8Array(data_expected));
+
+								var string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
 
 								return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(() => {
 									groupCollapsed = true;
