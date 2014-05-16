@@ -19636,6 +19636,11 @@ var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 
+var PSP_SAS_VOL_MAX = 0x1000;
+var PSP_SAS_PITCH_MIN = 0x1;
+var PSP_SAS_PITCH_BASE = 0x1000;
+var PSP_SAS_PITCH_MAX = 0x4000;
+
 var sceSasCore = (function () {
     function sceSasCore(context) {
         var _this = this;
@@ -19670,24 +19675,44 @@ var sceSasCore = (function () {
             */
             return 0;
         });
+        this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loopCount) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            if (data == null) {
+                voice.unsetSource();
+            } else {
+                voice.setVag(data, loopCount);
+            }
+            return 0;
+        });
+        this.__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loopCount) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            if (data == null) {
+                voice.unsetSource();
+            } else {
+                voice.setPCM(data, loopCount);
+            }
+            return 0;
+        });
         this.__sceSasCore = createNativeFunction(0xA3589D81, 150, 'uint', 'int/void*', this, function (sasCorePointer, sasOut) {
             //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
             return 0;
         });
         this.__sceSasGetEndFlag = createNativeFunction(0x68A46B95, 150, 'uint', 'int', this, function (sasCorePointer) {
             //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
-            return 0;
+            return _this.core.endFlags;
         });
         this.__sceSasRevType = createNativeFunction(0x33D4AB37, 150, 'uint', 'int/int', this, function (sasCorePointer, waveformEffectType) {
-            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+            _this.core.waveformEffectType = waveformEffectType;
             return 0;
         });
         this.__sceSasRevVON = createNativeFunction(0xF983B186, 150, 'uint', 'int/int/int', this, function (sasCorePointer, waveformEffectIsDry, waveformEffectIsWet) {
-            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+            _this.core.waveformEffectIsDry = waveformEffectIsDry;
+            _this.core.waveformEffectIsWet = waveformEffectIsWet;
             return 0;
         });
         this.__sceSasRevEVOL = createNativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int', this, function (sasCorePointer, leftVolume, rightVolume) {
-            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
+            _this.core.leftVolume = leftVolume;
+            _this.core.rightVolume = rightVolume;
             return 0;
         });
         this.__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
@@ -19720,15 +19745,13 @@ var sceSasCore = (function () {
             voice.on = true;
             return 0;
         });
-        this.__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
-            console.warn('__sceSasSetVoicePCM not implemented!');
-            return 0;
-        });
         this.__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
-            return _this.getSasCoreVoice(sasCorePointer, voiceId).envelope.height;
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            return voice.envelope.height;
         });
         this.__sceSasSetSL = createNativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, sustainLevel) {
-            _this.getSasCoreVoice(sasCorePointer, voiceId).sustainLevel = sustainLevel;
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            voice.sustainLevel = sustainLevel;
             return 0;
         });
         this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceBits, pause) {
@@ -19759,13 +19782,29 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetVolume = createNativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int', this, function (sasCorePointer, voiceId, leftVolume, rightVolume, effectLeftVol, effectRightVol) {
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            leftVolume = Math.abs(leftVolume);
+            rightVolume = Math.abs(rightVolume);
+            effectLeftVol = Math.abs(effectLeftVol);
+            effectRightVol = Math.abs(effectRightVol);
+
+            if (leftVolume > PSP_SAS_VOL_MAX || rightVolume > PSP_SAS_VOL_MAX || effectLeftVol > PSP_SAS_VOL_MAX || effectRightVol > PSP_SAS_VOL_MAX) {
+                throw (new SceKernelException(2151809048 /* ERROR_SAS_INVALID_VOLUME_VAL */));
+            }
+
+            voice.leftVolume = leftVolume;
+            voice.rightVolume = rightVolume;
+            voice.effectLeftVolume = effectLeftVol;
+            voice.effectRightVolume = effectRightVol;
+
             return 0;
         });
         this.__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, pitch) {
-            return 0;
-        });
-        this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, vagPointer, loopCount) {
-            // Not implemented
+            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
+            if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX)
+                return -1;
+            voice.pitch = pitch;
+
             return 0;
         });
         this.__sceSasRevParam = createNativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', this, function (sasCorePointer, delay, feedback) {
@@ -19790,12 +19829,8 @@ var sceSasCore = (function () {
     };
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
     sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
-    sceSasCore.PSP_SAS_VOL_MAX = 0x1000;
     sceSasCore.PSP_SAS_LOOP_MODE_OFF = 0;
     sceSasCore.PSP_SAS_LOOP_MODE_ON = 1;
-    sceSasCore.PSP_SAS_PITCH_MIN = 0x1;
-    sceSasCore.PSP_SAS_PITCH_BASE = 0x1000;
-    sceSasCore.PSP_SAS_PITCH_MAX = 0x4000;
     sceSasCore.PSP_SAS_NOISE_FREQ_MAX = 0x3F;
     sceSasCore.PSP_SAS_ENVELOPE_HEIGHT_MAX = 0x40000000;
     sceSasCore.PSP_SAS_ENVELOPE_FREQ_MAX = 0x7FFFFFFF;
@@ -19811,8 +19846,54 @@ var SasCore = (function () {
     function SasCore() {
         this.delay = 0;
         this.feedback = 0;
+        this.endFlags = 0;
+        this.waveformEffectType = -1 /* OFF */;
+        this.waveformEffectIsDry = false;
+        this.waveformEffectIsWet = false;
+        this.leftVolume = PSP_SAS_VOL_MAX;
+        this.rightVolume = PSP_SAS_VOL_MAX;
     }
     return SasCore;
+})();
+
+var Voice = (function () {
+    function Voice(index) {
+        this.index = index;
+        this.envelope = new Envelope();
+        this.sustainLevel = 0;
+        this.on = false;
+        this.pause = false;
+        this.leftVolume = PSP_SAS_VOL_MAX;
+        this.rightVolume = PSP_SAS_VOL_MAX;
+        this.effectLeftVolume = PSP_SAS_VOL_MAX;
+        this.effectRightVolume = PSP_SAS_VOL_MAX;
+        this.pitch = PSP_SAS_PITCH_BASE;
+        this.source = null;
+    }
+    Voice.prototype.unsetSource = function () {
+        this.source = null;
+    };
+
+    Voice.prototype.setVag = function (stream, loopCount) {
+        this.source = new VagSoundSource(stream, loopCount);
+    };
+
+    Voice.prototype.setPCM = function (stream, loopCount) {
+        this.source = new PcmSoundSource(stream, loopCount);
+    };
+    return Voice;
+})();
+
+var VagSoundSource = (function () {
+    function VagSoundSource(stream, loopCount) {
+    }
+    return VagSoundSource;
+})();
+
+var PcmSoundSource = (function () {
+    function PcmSoundSource(stream, loopCount) {
+    }
+    return PcmSoundSource;
 })();
 
 var Envelope = (function () {
@@ -19824,17 +19905,6 @@ var Envelope = (function () {
         this.height = 0;
     }
     return Envelope;
-})();
-
-var Voice = (function () {
-    function Voice(index) {
-        this.index = index;
-        this.envelope = new Envelope();
-        this.sustainLevel = 0;
-        this.on = false;
-        this.pause = false;
-    }
-    return Voice;
 })();
 
 var OutputMode;
