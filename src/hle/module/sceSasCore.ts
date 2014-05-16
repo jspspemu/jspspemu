@@ -22,10 +22,8 @@ export class sceSasCore {
 	private static PSP_SAS_ADSR_RELEASE = 8;
 
 	private core = new SasCore();
-	private voices: Voice[] = [];
 
 	constructor(private context: _context.EmulatorContext) {
-		while (this.voices.length < 32) this.voices.push(new Voice(this.voices.length));
 	}
 
 	__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, (sasCorePointer: number, grainSamples: number, maxVoices: number, outputMode: number, sampleRate: number) => {
@@ -79,13 +77,15 @@ export class sceSasCore {
 		return 0;
 	});
 
+	__sceSasCoreWithMix = createNativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int', this, (sasCorePointer: number, sasOut: Stream, leftVolume: number, rightVolume: number) => {
+		return this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
+	});
+
 	__sceSasCore = createNativeFunction(0xA3589D81, 150, 'uint', 'int/void*', this, (sasCorePointer: number, sasOut: Stream) => {
-		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
-		return 0;
+		return this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
 	});
 
 	__sceSasGetEndFlag = createNativeFunction(0x68A46B95, 150, 'uint', 'int', this, (sasCorePointer: number) => {
-		//return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
 		return this.core.endFlags;
 	});
 
@@ -107,7 +107,7 @@ export class sceSasCore {
 	});
 
 	private getSasCoreVoice(sasCorePointer: number, voiceId: number) {
-		var voice = this.voices[voiceId];
+		var voice = this.core.voices[voiceId];
 		if (!voice) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
 		return voice;
 	}
@@ -153,7 +153,7 @@ export class sceSasCore {
 	});
 
 	__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceBits: number, pause: boolean) => {
-		this.voices.forEach((voice) => {
+		this.core.voices.forEach((voice) => {
 			if (voiceBits & (1 << voice.index)) {
 				voice.pause = pause;
 			}
@@ -163,14 +163,14 @@ export class sceSasCore {
 
 	__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, (sasCorePointer: number) => {
 		var voiceBits = 0;
-		this.voices.forEach((voice) => {
+		this.core.voices.forEach((voice) => {
 			voiceBits |= (voice.pause ? 1 : 0) << voice.index;
 		});
 		return voiceBits;
 	});
 
 	__sceSasGetAllEnvelopeHeights = createNativeFunction(0x07F58C24, 150, 'uint', 'int/void*', this, (sasCorePointer: number, heightPtr: Stream) => {
-		this.voices.forEach((voice) => {
+		this.core.voices.forEach((voice) => {
 			heightPtr.writeInt32(voice.envelope.height);
 		});
 		return 0;
@@ -232,6 +232,58 @@ class SasCore {
 	waveformEffectIsWet = false;
 	leftVolume = PSP_SAS_VOL_MAX;
 	rightVolume = PSP_SAS_VOL_MAX;
+	voices: Voice[] = [];
+
+	constructor() {
+		while (this.voices.length < 32) this.voices.push(new Voice(this.voices.length));
+	}
+
+	mix(sasCorePointer: number, sasOut: Stream, leftVolume: number, rightVolume: number) {
+		/*
+		var NumberOfChannels = (SasCore.OutputMode == OutputMode.PSP_SAS_OUTPUTMODE_STEREO) ? 2 : 1;
+		var NumberOfSamples = SasCore.GrainSamples;
+		var NumberOfVoicesPlaying = Math.Max(1, SasCore.Voices.Count(Voice => Voice.OnAndPlaying));
+
+		for (var n = 0; n < NumberOfSamples; n++) BufferTempPtr[n] = default(StereoIntSoundSample);
+
+		var PrevPosDiv = -1;
+		foreach (var Voice in SasCore.Voices) {
+				if (Voice.OnAndPlaying) {
+				//Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
+				//for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
+				var Pos = 0;
+				while (true) {
+				if ((Voice.Vag != null) && (Voice.Vag.HasMore)) {
+				int PosDiv = Pos / Voice.Pitch;
+
+				if (PosDiv >= NumberOfSamples) break;
+
+				var Sample = Voice.Vag.GetNextSample().ApplyVolumes(Voice.LeftVolume, Voice.RightVolume);
+
+				for (int m = PrevPosDiv + 1; m <= PosDiv; m++) BufferTempPtr[m] += Sample;
+
+				PrevPosDiv = PosDiv;
+				Pos += PSP_SAS_PITCH_BASE;
+				}
+				else {
+				Voice.SetPlaying(false);
+				break;
+				}
+				}
+			}
+		}
+
+		for (int n = 0; n < NumberOfSamples; n++) BufferShortPtr[n] = BufferTempPtr[n];
+
+		for (int channel = 0; channel < NumberOfChannels; channel++) {
+			for (int n = 0; n < NumberOfSamples; n++) {
+				SasOut[n * NumberOfChannels + channel] = BufferShortPtr[n].ApplyVolumes(LeftVolume, RightVolume).GetByIndex(channel);
+			}
+		}
+		*/
+		// @TODO
+		return 0;
+	}
 }
 
 interface SoundSource {

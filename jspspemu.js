@@ -19646,7 +19646,6 @@ var sceSasCore = (function () {
         var _this = this;
         this.context = context;
         this.core = new SasCore();
-        this.voices = [];
         this.__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
             if (sampleRate != 44100) {
                 return 2151809028 /* ERROR_SAS_INVALID_SAMPLE_RATE */;
@@ -19693,12 +19692,13 @@ var sceSasCore = (function () {
             }
             return 0;
         });
+        this.__sceSasCoreWithMix = createNativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int', this, function (sasCorePointer, sasOut, leftVolume, rightVolume) {
+            return _this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
+        });
         this.__sceSasCore = createNativeFunction(0xA3589D81, 150, 'uint', 'int/void*', this, function (sasCorePointer, sasOut) {
-            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
-            return 0;
+            return _this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
         });
         this.__sceSasGetEndFlag = createNativeFunction(0x68A46B95, 150, 'uint', 'int', this, function (sasCorePointer) {
-            //return __sceSasCore_Internal(GetSasCore(SasCorePointer), SasOut, null, 0x1000, 0x1000);
             return _this.core.endFlags;
         });
         this.__sceSasRevType = createNativeFunction(0x33D4AB37, 150, 'uint', 'int/int', this, function (sasCorePointer, waveformEffectType) {
@@ -19755,7 +19755,7 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceBits, pause) {
-            _this.voices.forEach(function (voice) {
+            _this.core.voices.forEach(function (voice) {
                 if (voiceBits & (1 << voice.index)) {
                     voice.pause = pause;
                 }
@@ -19764,13 +19764,13 @@ var sceSasCore = (function () {
         });
         this.__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, function (sasCorePointer) {
             var voiceBits = 0;
-            _this.voices.forEach(function (voice) {
+            _this.core.voices.forEach(function (voice) {
                 voiceBits |= (voice.pause ? 1 : 0) << voice.index;
             });
             return voiceBits;
         });
         this.__sceSasGetAllEnvelopeHeights = createNativeFunction(0x07F58C24, 150, 'uint', 'int/void*', this, function (sasCorePointer, heightPtr) {
-            _this.voices.forEach(function (voice) {
+            _this.core.voices.forEach(function (voice) {
                 heightPtr.writeInt32(voice.envelope.height);
             });
             return 0;
@@ -19818,11 +19818,9 @@ var sceSasCore = (function () {
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             return 0;
         });
-        while (this.voices.length < 32)
-            this.voices.push(new Voice(this.voices.length));
     }
     sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voiceId) {
-        var voice = this.voices[voiceId];
+        var voice = this.core.voices[voiceId];
         if (!voice)
             throw (new SceKernelException(2151809040 /* ERROR_SAS_INVALID_VOICE */));
         return voice;
@@ -19852,7 +19850,56 @@ var SasCore = (function () {
         this.waveformEffectIsWet = false;
         this.leftVolume = PSP_SAS_VOL_MAX;
         this.rightVolume = PSP_SAS_VOL_MAX;
+        this.voices = [];
+        while (this.voices.length < 32)
+            this.voices.push(new Voice(this.voices.length));
     }
+    SasCore.prototype.mix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
+        /*
+        var NumberOfChannels = (SasCore.OutputMode == OutputMode.PSP_SAS_OUTPUTMODE_STEREO) ? 2 : 1;
+        var NumberOfSamples = SasCore.GrainSamples;
+        var NumberOfVoicesPlaying = Math.Max(1, SasCore.Voices.Count(Voice => Voice.OnAndPlaying));
+        
+        for (var n = 0; n < NumberOfSamples; n++) BufferTempPtr[n] = default(StereoIntSoundSample);
+        
+        var PrevPosDiv = -1;
+        foreach (var Voice in SasCore.Voices) {
+        if (Voice.OnAndPlaying) {
+        //Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
+        //for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
+        var Pos = 0;
+        while (true) {
+        if ((Voice.Vag != null) && (Voice.Vag.HasMore)) {
+        int PosDiv = Pos / Voice.Pitch;
+        
+        if (PosDiv >= NumberOfSamples) break;
+        
+        var Sample = Voice.Vag.GetNextSample().ApplyVolumes(Voice.LeftVolume, Voice.RightVolume);
+        
+        for (int m = PrevPosDiv + 1; m <= PosDiv; m++) BufferTempPtr[m] += Sample;
+        
+        PrevPosDiv = PosDiv;
+        Pos += PSP_SAS_PITCH_BASE;
+        }
+        else {
+        Voice.SetPlaying(false);
+        break;
+        }
+        }
+        }
+        }
+        
+        for (int n = 0; n < NumberOfSamples; n++) BufferShortPtr[n] = BufferTempPtr[n];
+        
+        for (int channel = 0; channel < NumberOfChannels; channel++) {
+        for (int n = 0; n < NumberOfSamples; n++) {
+        SasOut[n * NumberOfChannels + channel] = BufferShortPtr[n].ApplyVolumes(LeftVolume, RightVolume).GetByIndex(channel);
+        }
+        }
+        */
+        // @TODO
+        return 0;
+    };
     return SasCore;
 })();
 
