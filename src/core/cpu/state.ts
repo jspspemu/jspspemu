@@ -17,26 +17,35 @@ export interface IExecutor {
 }
 
 class VfpuPrefixBase {
-	public info = 0;
 	public enabled = false;
 
-	constructor() {
+	constructor(private vfrc: number[], private index: number) {
+	}
+
+	_info: number;
+	_readInfo() {
+		this._info = this.getInfo();
+	}
+
+	getInfo() {
+		return this.vfrc[this.index];
 	}
 
 	setInfo(info: number) {
-		this.info = info;
+		this.vfrc[this.index] = info;
 		this.enabled = true;
 	}
 }
 
 
 class VfpuPrefixRead extends VfpuPrefixBase {
-	getSourceIndex(i: number) { return BitUtils.extract(this.info, 0 + i * 2, 2); }
-	getSourceAbsolute(i: number) { return BitUtils.extractBool(this.info, 8 + i * 1); }
-	getSourceConstant(i: number) { return BitUtils.extractBool(this.info, 12 + i * 1); }
-	getSourceNegate(i: number) { return BitUtils.extractBool(this.info, 16 + i * 1); }
+	private getSourceIndex(i: number) { return BitUtils.extract(this._info, 0 + i * 2, 2); }
+	private getSourceAbsolute(i: number) { return BitUtils.extractBool(this._info, 8 + i * 1); }
+	private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
+	private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
 
 	transformValues(input: number[], output: any) {
+		this._readInfo();
 		if (!this.enabled) {
 			for (var n = 0; n < input.length; n++) output[n] = input[n];
 		} else {
@@ -68,10 +77,12 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 }
 
 class VfpuPrefixWrite extends VfpuPrefixBase {
-	getDestinationSaturation(i: number) { return BitUtils.extract(this.info, 0 + i * 2, 2); }
-	getDestinationMask(i: number) { return BitUtils.extractBool(this.info, 8 + i * 1); }
+	getDestinationSaturation(i: number) { return (this._info >> (0 + i * 2)) & 3; }
+	getDestinationMask(i: number) { return (this._info >> (8 + i * 1)) & 1; }
 
 	storeTransformedValues(vfpr: any, indices: number[], values: number[]) {
+		this._readInfo();
+
 		if (!this.enabled) {
 			for (var n = 0; n < indices.length; n++)  vfpr[indices[n]] = values[n];
 		} else {
@@ -95,6 +106,17 @@ class VfpuPrefixWrite extends VfpuPrefixBase {
 	}
 }
 
+export enum VFPU_CTRL {
+	SPREFIX, TPREFIX, DPREFIX, CC, INF4, RSV5, RSV6, REV,
+	RCX0, RCX1, RCX2, RCX3, RCX4, RCX5, RCX6, RCX7, MAX,
+}
+
+export enum VCondition {
+	FL, EQ, LT, LE, TR, NE, GE, GT,
+	EZ, EN, EI, ES, NZ, NN, NI, NS
+};
+
+
 export class CpuState {
 	gpr_Buffer = new ArrayBuffer(32 * 4);
 	gpr = new Int32Array(this.gpr_Buffer);
@@ -112,10 +134,93 @@ export class CpuState {
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
 	vfpr_i: Float32Array = new Int32Array(this.vfpr_Buffer);
+	vfprc = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-	private vpfxt = new VfpuPrefixRead();
-	private vpfxs = new VfpuPrefixRead();
-	private vpfxd = new VfpuPrefixWrite();
+	setVfrCc(index: number, value: boolean) {
+		if (value) {
+			this.vfprc[VFPU_CTRL.CC] |= (1 << index);
+		} else {
+			this.vfprc[VFPU_CTRL.CC] &= ~(1 << index);
+		}
+	}
+
+	getVfrCc(index: number) {
+		return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
+	}
+
+	vcmp(cond: VCondition, vsRegs: number[], vtRegs: number[]) {
+		var vectorSize = vsRegs.length;
+		this.loadVs_prefixed(vsRegs.map(reg => this.vfpr[reg]));
+		this.loadVt_prefixed(vtRegs.map(reg => this.vfpr[reg]));
+		var s = this.vector_vs;
+		var t = this.vector_vt;
+
+		var cc = 0;
+		var or_val = 0;
+		var and_val = 1;
+		var affected_bits = (1 << 4) | (1 << 5);  // 4 and 5
+
+		for (var i = 0; i < vectorSize; i++) {
+			var c = false;
+			switch (cond) {
+				case VCondition.FL: c = false; break;
+				case VCondition.EQ: c = s[i] == t[i]; break;
+				case VCondition.LT: c = s[i] < t[i]; break;
+				case VCondition.LE: c = s[i] <= t[i]; break;
+
+				case VCondition.TR: c = true; break;
+				case VCondition.NE: c = s[i] != t[i]; break;
+				case VCondition.GE: c = s[i] >= t[i]; break;
+				case VCondition.GT: c = s[i] > t[i]; break;
+					 
+				case VCondition.EZ: c = s[i] == 0.0 || s[i] == -0.0; break;
+				case VCondition.EN: c = MathFloat.isnan(s[i]); break;
+				case VCondition.EI: c = MathFloat.isinf(s[i]); break;
+				case VCondition.ES: c = MathFloat.isnanorinf(s[i]); break;   // Tekken Dark Resurrection
+					 
+				case VCondition.NZ: c = s[i] != 0; break;
+				case VCondition.NN: c = !MathFloat.isnan(s[i]); break;
+				case VCondition.NI: c = !MathFloat.isinf(s[i]); break;
+				case VCondition.NS: c = !(MathFloat.isnanorinf(s[i])); break;   // How about t[i] ?	
+			}
+			cc |= ((c ? 1 : 0) << i);
+			or_val |= (c ? 1 : 0);
+			and_val &= (c ? 1 : 0);
+			affected_bits |= 1 << i;
+		}
+
+		this.vfprc[VFPU_CTRL.CC] = (this.vfprc[VFPU_CTRL.CC] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+		this.eatPrefixes();
+	}
+
+	vcmovtf(register: number, _true: boolean, vdRegs: number[], vsRegs: number[]) {
+		var vectorSize = vdRegs.length;
+		this.loadVs_prefixed(vsRegs.map(reg => this.vfpr[reg]));
+		this.loadVdRegs(vdRegs);
+
+		var compare = _true ? 1 : 0;
+		var cc = this.vfpr[VFPU_CTRL.CC];
+
+		if (register < 6) {
+			if (((cc >> register) & 1) == compare) {
+				for (var n = 0; n < vectorSize; n++) {
+					this.vector_vd[n] = this.vector_vs[n];
+				}
+			}
+		} if (register == 6) {
+			for (var n = 0; n < vectorSize; n++) {
+				if (((cc >> n) & 1) == compare) {
+					this.vector_vd[n] = this.vector_vs[n];
+				}
+			}
+		} else {
+		}
+		this.storeVdRegsWithPrefix(vdRegs);
+	}
+
+	private vpfxs = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.SPREFIX);
+	private vpfxt = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.TPREFIX);
+	private vpfxd = new VfpuPrefixWrite(this.vfprc, VFPU_CTRL.DPREFIX);
 
 	setVpfxt(value: number) { this.vpfxt.setInfo(value); }
 	setVpfxs(value: number) { this.vpfxs.setInfo(value); }
@@ -123,6 +228,7 @@ export class CpuState {
 
 	vector_vs = [0, 0, 0, 0];
 	vector_vt = [0, 0, 0, 0];
+	vector_vd = [0, 0, 0, 0];
 
 	get vfpumatrix0() { return this.getVfpumatrix(0); }
 	get vfpumatrix1() { return this.getVfpumatrix(1); }
@@ -133,6 +239,12 @@ export class CpuState {
 	get vfpumatrix6() { return this.getVfpumatrix(6); }
 	get vfpumatrix7() { return this.getVfpumatrix(7); }
 
+	eatPrefixes() {
+		this.vpfxd.enabled = false;
+		this.vpfxt.enabled = false;
+		this.vpfxs.enabled = false;
+	}
+
 	getVfpumatrix(index: number) {
 		var values = [];
 		for (var r = 0; r < 4; r++) {
@@ -141,6 +253,24 @@ export class CpuState {
 			}
 		}
 		return values;
+	}
+
+	loadVdRegs(regs: number[]) {
+		for (var n = 0; n < regs.length; n++) {
+			this.vector_vd[n] = this.vfpr[regs[n]];
+		}
+	}
+
+	storeVdRegsWithPrefix(regs: number[]) {
+		this.vpfxd.storeTransformedValues(this.vfpr, regs, this.vector_vd);
+		this.vpfxd.enabled = false;
+		this.storeVdRegs(regs);
+	}
+
+	storeVdRegs(regs: number[]) {
+		for (var n = 0; n < regs.length; n++) {
+			this.vfpr[regs[n]] = this.vector_vd[n];
+		}
 	}
 
 	loadVs_prefixed(values: number[]) {

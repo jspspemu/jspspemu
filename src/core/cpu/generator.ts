@@ -87,10 +87,10 @@ export class FunctionGenerator {
 			return result;
 		};
 
-		stms.add(ast.raw('var expectedRA = state.getRA();'));
+		stms.add(ast.raw_stm('var expectedRA = state.getRA();'));
 
 		function returnWithCheck() {
-			stms.add(ast.raw('return;'));
+			stms.add(ast.raw_stm('return;'));
 		}
 
 		for (var n = 0; n < 100000; n++) {
@@ -134,17 +134,17 @@ export class FunctionGenerator {
 
 				if (di2.type.isSyscall) {
 					stms.add(this.instructionAst._postBranch(PC));
-					stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+					stms.add(ast.raw_stm('if (!state.BRANCHFLAG) {'));
 					returnWithCheck();
-					stms.add(ast.raw('}'));
+					stms.add(ast.raw_stm('}'));
 					stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
 				}
 				else {
 					stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
 					stms.add(this.instructionAst._postBranch(PC));
-					stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+					stms.add(ast.raw_stm('if (!state.BRANCHFLAG) {'));
 					returnWithCheck();
-					stms.add(ast.raw('}'));
+					stms.add(ast.raw_stm('}'));
 				}
 
 				if (enableOptimizations) {

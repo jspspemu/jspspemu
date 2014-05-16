@@ -15,7 +15,7 @@
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.readAllAsync());
 	}
 
-	writeAllAsync(path: string, data:ArrayBuffer) {
+	writeAllAsync(path: string, data: ArrayBuffer) {
 		return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).then(entry => entry.writeAllAsync(data));
 	}
 

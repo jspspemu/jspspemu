@@ -285,11 +285,18 @@ class MathVfpu {
 	static vqmul2(s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); }
 	static vqmul3(s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3); }
 
-	static vc2i(index: number, value: number) { return (value << ((3 - index) * 8)) & 0xFF000000; }
-	static vuc2i(index: number, value: number) { return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1); }
+	static vc2i(index: number, value: number) {
+		return (value << ((3 - index) * 8)) & 0xFF000000;
+	}
+	static vuc2i(index: number, value: number) {
+		return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
+	}
 
 	// @TODO
-	static vs2i() { return 0; }
+	static vs2i(index: number, value: number) {
+		if ((index % 2) == 0) value <<= 16;
+		return value & 0xFFFF0000;
+	}
 	static vi2f() { return 0; }
 	static vi2uc() { return 0; }
 
@@ -317,6 +324,10 @@ class MathFloat {
 
 	static min(a: number, b: number) { return (a < b) ? a : b; }
 	static max(a: number, b: number) { return (a > b) ? a : b; }
+
+	static isnan(n: number) { return isNaN(n); }
+	static isinf(n: number) { return n === n / 0; }
+	static isnanorinf(n: number) { return MathFloat.isnan(n) || MathFloat.isinf(n); }
 
 	static abs(value: number) { return Math.abs(value); }
 	static neg(value: number) { return -value; }

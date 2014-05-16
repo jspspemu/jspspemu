@@ -782,12 +782,14 @@ var MathVfpu = (function () {
         return (value << ((3 - index) * 8)) & 0xFF000000;
     };
     MathVfpu.vuc2i = function (index, value) {
-        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1);
+        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
     };
 
     // @TODO
-    MathVfpu.vs2i = function () {
-        return 0;
+    MathVfpu.vs2i = function (index, value) {
+        if ((index % 2) == 0)
+            value <<= 16;
+        return value & 0xFFFF0000;
     };
     MathVfpu.vi2f = function () {
         return 0;
@@ -835,6 +837,16 @@ var MathFloat = (function () {
     };
     MathFloat.max = function (a, b) {
         return (a > b) ? a : b;
+    };
+
+    MathFloat.isnan = function (n) {
+        return isNaN(n);
+    };
+    MathFloat.isinf = function (n) {
+        return n === n / 0;
+    };
+    MathFloat.isnanorinf = function (n) {
+        return MathFloat.isnan(n) || MathFloat.isinf(n);
     };
 
     MathFloat.abs = function (value) {
@@ -3746,8 +3758,11 @@ var AstBuilder = (function () {
     AstBuilder.prototype._return = function () {
         return new ANodeStmReturn();
     };
-    AstBuilder.prototype.raw = function (content) {
+    AstBuilder.prototype.raw_stm = function (content) {
         return new ANodeStmRaw(content);
+    };
+    AstBuilder.prototype.raw = function (content) {
+        return new ANodeExprLValueVar(content);
     };
     return AstBuilder;
 })();
@@ -3791,6 +3806,9 @@ var MipsAstBuilder = (function (_super) {
     MipsAstBuilder.prototype.vfpr = function (index) {
         return new ANodeExprLValueVar('state.vfpr[' + index + ']');
     };
+    MipsAstBuilder.prototype.vfprc = function (index) {
+        return new ANodeExprLValueVar('state.vfprc[' + index + ']');
+    };
 
     MipsAstBuilder.prototype.vfpr_i = function (index) {
         return new ANodeExprLValueVar('state.vfpr_i[' + index + ']');
@@ -3815,6 +3833,9 @@ var MipsAstBuilder = (function (_super) {
     };
     MipsAstBuilder.prototype.pc = function () {
         return new ANodeExprLValueVar('state.PC');
+    };
+    MipsAstBuilder.prototype.VCC = function (index) {
+        return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
     };
     MipsAstBuilder.prototype.ra = function () {
         return new ANodeExprLValueVar('state.gpr[31]');
@@ -3886,7 +3907,9 @@ function tempr(index) {
 function vfpr(reg) {
     return ast.vfpr(reg);
 }
-
+function vfprc(reg) {
+    return ast.vfprc(reg);
+}
 function vfpr_i(index) {
     return ast.vfpr_i(index);
 }
@@ -4285,7 +4308,13 @@ var InstructionAst = (function () {
         return stms(st);
     };
 
-    InstructionAst.prototype._vset2_i = function (i, generate) {
+    InstructionAst.prototype._vset2_i = function (i, generate, destSize, srcSize) {
+        if (typeof destSize === "undefined") { destSize = 0; }
+        if (typeof srcSize === "undefined") { srcSize = 0; }
+        if (destSize <= 0)
+            destSize = i.ONE_TWO;
+        if (srcSize <= 0)
+            srcSize = i.ONE_TWO;
         var dest = getVectorRegs(i.VD, i.ONE_TWO);
         var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
 
@@ -4675,17 +4704,17 @@ var InstructionAst = (function () {
 
     InstructionAst.prototype.vc2i = function (i) {
         return this._vset2_i(i, function (index, src) {
-            return call('MathVfpu.vc2i', [imm32(index), src[index]]);
-        });
+            return call('MathVfpu.vc2i', [imm32(index), src[0]]);
+        }, 0, 1);
     };
     InstructionAst.prototype.vuc2i = function (i) {
         return this._vset2_i(i, function (index, src) {
-            return call('MathVfpu.vuc2i', [imm32(index), src[index]]);
-        });
+            return call('MathVfpu.vuc2i', [imm32(index), src[0]]);
+        }, 0, 1);
     };
     InstructionAst.prototype.vs2i = function (i) {
         return this._vset2_i(i, function (index, src) {
-            return call('MathVfpu.vs2i', [imm32(index), src[index]]);
+            return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]);
         });
     };
     InstructionAst.prototype.vi2f = function (i) {
@@ -4737,13 +4766,6 @@ var InstructionAst = (function () {
         return stms(st);
     };
 
-    InstructionAst.prototype.mtv = function (i) {
-        return assign_stm(vfpr(i.VD), gpr_f(i.rt));
-    };
-    InstructionAst.prototype.mfv = function (i) {
-        return assign_stm(gpr_f(i.rt), vfpr(i.VD));
-    };
-
     InstructionAst.prototype.vqmul = function (i) {
         return this._vset3(i, function (i, s, t) {
             switch (i) {
@@ -4785,57 +4807,48 @@ var InstructionAst = (function () {
         });
     };
 
-    //private _bvtf(i:Instruction, True: boolean) {
-    //	var Register = i.IMM3;
-    //	var BranchExpr = ast.VCC(Register);
-    //	if (!True) BranchExpr = unop("!", BranchExpr);
-    //	return AssignBranchFlag(BranchExpr);
-    //}
-    //
-    //bvf(i: Instruction) { return this._bvtf(i, false); }
-    //bvfl(i: Instruction) { return this._bvtf(i, false); }
-    //bvt(i: Instruction) { return this._bvtf(i, true); }
-    //bvtl(i: Instruction) { return this._bvtf(i, true); }
-    // @TODO:
-    InstructionAst.prototype.mtvc = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.mfvc = function (i) {
-        return ast.stm();
+    InstructionAst.prototype._bvtf = function (i, cond) {
+        var reg = i.IMM3;
+        var branchExpr = ast.VCC(reg);
+        if (!cond)
+            branchExpr = unop("!", branchExpr);
+        return this._branch(i, branchExpr);
     };
 
-    InstructionAst.prototype.vcmp = function (i) {
-        return ast.stm();
+    InstructionAst.prototype.bvf = function (i) {
+        return this._bvtf(i, false);
+    };
+    InstructionAst.prototype.bvfl = function (i) {
+        return this._bvtf(i, false);
+    };
+    InstructionAst.prototype.bvt = function (i) {
+        return this._bvtf(i, true);
+    };
+    InstructionAst.prototype.bvtl = function (i) {
+        return this._bvtf(i, true);
+    };
+
+    InstructionAst.prototype.mtv = function (i) {
+        return assign_stm(vfpr_i(i.VD), gpr(i.rt));
+    };
+    InstructionAst.prototype.mtvc = function (i) {
+        return assign_stm(vfprc(i.VD), gpr(i.rt));
+    };
+
+    InstructionAst.prototype.mfv = function (i) {
+        return assign_stm(gpr(i.rt), vfpr_i(i.VD));
+    };
+    InstructionAst.prototype.mfvc = function (i) {
+        return assign_stm(gpr(i.rt), vfprc(i.VD));
     };
 
     InstructionAst.prototype._vcmovtf = function (i, True) {
-        //var Register = i.IMM3;
-        //
-        //var _VCC = (Index) => {
-        //	var Ret = ast.VCC(Index);
-        //	if (!True) Ret = unop("!", Ret);
-        //	return Ret;
-        //};
-        //
-        //if (Register < 6) {
-        //	// TODO: CHECK THIS!
-        //	return ast._if(
-        //		_VCC(Register),
-        //		VEC_VD.SetVector(Index => VEC_VS[Index], PC),
-        //		ast.Statements(
-        //			ast.Assign(ast.PrefixSourceEnabled(), false),
-        //			//ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
-        //			ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
-        //			)
-        //		);
-        //}
-        //
-        //if (Register == 6) {
-        //	return VEC_VD.SetVector(Index => ast.Ternary(_VCC(Index), VEC_VS[Index], VEC_VD[Index]), PC);
-        //}
-        // Register == 7
-        // Never copy (checked on a PSP)
-        return ast.stm();
+        return call_stm('state.vcmovtf', [
+            imm32(i.IMM3),
+            immBool(True),
+            ast.arrayNumbers(getVectorRegs(i.VD, i.ONE_TWO)),
+            ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO))
+        ]);
     };
 
     InstructionAst.prototype.vcmovt = function (i) {
@@ -4845,14 +4858,22 @@ var InstructionAst = (function () {
         return this._vcmovtf(i, false);
     };
 
-    InstructionAst.prototype.vwbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsbn = function (i) {
-        return ast.stm();
+    InstructionAst.prototype.vcmp = function (i) {
+        return call_stm('state.vcmp', [
+            imm32(i.IMM4),
+            ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO)),
+            ast.arrayNumbers(getVectorRegs(i.VT, i.ONE_TWO))
+        ]);
     };
 
-    //vsbn(i: Instruction) { throw(new Error("Not implemented")); }
+    // @TODO:
+    InstructionAst.prototype.vwbn = function (i) {
+        return ast.stm(ast.debugger('not implemented'));
+    };
+    InstructionAst.prototype.vsbn = function (i) {
+        return ast.stm(ast.debugger('not implemented'));
+    };
+
     InstructionAst.prototype.vabs = function (i) {
         return this._vset2(i, function (i, src) {
             return call('MathFloat.abs', [src[i]]);
@@ -6960,12 +6981,21 @@ var __extends = this.__extends || function (d, b) {
 var CpuSpecialAddresses = exports.CpuSpecialAddresses;
 
 var VfpuPrefixBase = (function () {
-    function VfpuPrefixBase() {
-        this.info = 0;
+    function VfpuPrefixBase(vfrc, index) {
+        this.vfrc = vfrc;
+        this.index = index;
         this.enabled = false;
     }
+    VfpuPrefixBase.prototype._readInfo = function () {
+        this._info = this.getInfo();
+    };
+
+    VfpuPrefixBase.prototype.getInfo = function () {
+        return this.vfrc[this.index];
+    };
+
     VfpuPrefixBase.prototype.setInfo = function (info) {
-        this.info = info;
+        this.vfrc[this.index] = info;
         this.enabled = true;
     };
     return VfpuPrefixBase;
@@ -6977,19 +7007,20 @@ var VfpuPrefixRead = (function (_super) {
         _super.apply(this, arguments);
     }
     VfpuPrefixRead.prototype.getSourceIndex = function (i) {
-        return BitUtils.extract(this.info, 0 + i * 2, 2);
+        return BitUtils.extract(this._info, 0 + i * 2, 2);
     };
     VfpuPrefixRead.prototype.getSourceAbsolute = function (i) {
-        return BitUtils.extractBool(this.info, 8 + i * 1);
+        return BitUtils.extractBool(this._info, 8 + i * 1);
     };
     VfpuPrefixRead.prototype.getSourceConstant = function (i) {
-        return BitUtils.extractBool(this.info, 12 + i * 1);
+        return BitUtils.extractBool(this._info, 12 + i * 1);
     };
     VfpuPrefixRead.prototype.getSourceNegate = function (i) {
-        return BitUtils.extractBool(this.info, 16 + i * 1);
+        return BitUtils.extractBool(this._info, 16 + i * 1);
     };
 
     VfpuPrefixRead.prototype.transformValues = function (input, output) {
+        this._readInfo();
         if (!this.enabled) {
             for (var n = 0; n < input.length; n++)
                 output[n] = input[n];
@@ -7040,13 +7071,15 @@ var VfpuPrefixWrite = (function (_super) {
         _super.apply(this, arguments);
     }
     VfpuPrefixWrite.prototype.getDestinationSaturation = function (i) {
-        return BitUtils.extract(this.info, 0 + i * 2, 2);
+        return (this._info >> (0 + i * 2)) & 3;
     };
     VfpuPrefixWrite.prototype.getDestinationMask = function (i) {
-        return BitUtils.extractBool(this.info, 8 + i * 1);
+        return (this._info >> (8 + i * 1)) & 1;
     };
 
     VfpuPrefixWrite.prototype.storeTransformedValues = function (vfpr, indices, values) {
+        this._readInfo();
+
         if (!this.enabled) {
             for (var n = 0; n < indices.length; n++)
                 vfpr[indices[n]] = values[n];
@@ -7076,6 +7109,48 @@ var VfpuPrefixWrite = (function (_super) {
     return VfpuPrefixWrite;
 })(VfpuPrefixBase);
 
+(function (VFPU_CTRL) {
+    VFPU_CTRL[VFPU_CTRL["SPREFIX"] = 0] = "SPREFIX";
+    VFPU_CTRL[VFPU_CTRL["TPREFIX"] = 1] = "TPREFIX";
+    VFPU_CTRL[VFPU_CTRL["DPREFIX"] = 2] = "DPREFIX";
+    VFPU_CTRL[VFPU_CTRL["CC"] = 3] = "CC";
+    VFPU_CTRL[VFPU_CTRL["INF4"] = 4] = "INF4";
+    VFPU_CTRL[VFPU_CTRL["RSV5"] = 5] = "RSV5";
+    VFPU_CTRL[VFPU_CTRL["RSV6"] = 6] = "RSV6";
+    VFPU_CTRL[VFPU_CTRL["REV"] = 7] = "REV";
+    VFPU_CTRL[VFPU_CTRL["RCX0"] = 8] = "RCX0";
+    VFPU_CTRL[VFPU_CTRL["RCX1"] = 9] = "RCX1";
+    VFPU_CTRL[VFPU_CTRL["RCX2"] = 10] = "RCX2";
+    VFPU_CTRL[VFPU_CTRL["RCX3"] = 11] = "RCX3";
+    VFPU_CTRL[VFPU_CTRL["RCX4"] = 12] = "RCX4";
+    VFPU_CTRL[VFPU_CTRL["RCX5"] = 13] = "RCX5";
+    VFPU_CTRL[VFPU_CTRL["RCX6"] = 14] = "RCX6";
+    VFPU_CTRL[VFPU_CTRL["RCX7"] = 15] = "RCX7";
+    VFPU_CTRL[VFPU_CTRL["MAX"] = 16] = "MAX";
+})(exports.VFPU_CTRL || (exports.VFPU_CTRL = {}));
+var VFPU_CTRL = exports.VFPU_CTRL;
+
+(function (VCondition) {
+    VCondition[VCondition["FL"] = 0] = "FL";
+    VCondition[VCondition["EQ"] = 1] = "EQ";
+    VCondition[VCondition["LT"] = 2] = "LT";
+    VCondition[VCondition["LE"] = 3] = "LE";
+    VCondition[VCondition["TR"] = 4] = "TR";
+    VCondition[VCondition["NE"] = 5] = "NE";
+    VCondition[VCondition["GE"] = 6] = "GE";
+    VCondition[VCondition["GT"] = 7] = "GT";
+    VCondition[VCondition["EZ"] = 8] = "EZ";
+    VCondition[VCondition["EN"] = 9] = "EN";
+    VCondition[VCondition["EI"] = 10] = "EI";
+    VCondition[VCondition["ES"] = 11] = "ES";
+    VCondition[VCondition["NZ"] = 12] = "NZ";
+    VCondition[VCondition["NN"] = 13] = "NN";
+    VCondition[VCondition["NI"] = 14] = "NI";
+    VCondition[VCondition["NS"] = 15] = "NS";
+})(exports.VCondition || (exports.VCondition = {}));
+var VCondition = exports.VCondition;
+;
+
 var CpuState = (function () {
     function CpuState(memory, syscallManager) {
         this.memory = memory;
@@ -7091,11 +7166,13 @@ var CpuState = (function () {
         this.vfpr_Buffer = new ArrayBuffer(128 * 4);
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
-        this.vpfxt = new VfpuPrefixRead();
-        this.vpfxs = new VfpuPrefixRead();
-        this.vpfxd = new VfpuPrefixWrite();
+        this.vfprc = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0 /* SPREFIX */);
+        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1 /* TPREFIX */);
+        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2 /* DPREFIX */);
         this.vector_vs = [0, 0, 0, 0];
         this.vector_vt = [0, 0, 0, 0];
+        this.vector_vd = [0, 0, 0, 0];
         this.BRANCHFLAG = false;
         this.BRANCHPC = 0;
         this.PC = 0;
@@ -7116,6 +7193,129 @@ var CpuState = (function () {
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
     }
+    CpuState.prototype.setVfrCc = function (index, value) {
+        if (value) {
+            this.vfprc[3 /* CC */] |= (1 << index);
+        } else {
+            this.vfprc[3 /* CC */] &= ~(1 << index);
+        }
+    };
+
+    CpuState.prototype.getVfrCc = function (index) {
+        return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
+    };
+
+    CpuState.prototype.vcmp = function (cond, vsRegs, vtRegs) {
+        var _this = this;
+        var vectorSize = vsRegs.length;
+        this.loadVs_prefixed(vsRegs.map(function (reg) {
+            return _this.vfpr[reg];
+        }));
+        this.loadVt_prefixed(vtRegs.map(function (reg) {
+            return _this.vfpr[reg];
+        }));
+        var s = this.vector_vs;
+        var t = this.vector_vt;
+
+        var cc = 0;
+        var or_val = 0;
+        var and_val = 1;
+        var affected_bits = (1 << 4) | (1 << 5);
+
+        for (var i = 0; i < vectorSize; i++) {
+            var c = false;
+            switch (cond) {
+                case 0 /* FL */:
+                    c = false;
+                    break;
+                case 1 /* EQ */:
+                    c = s[i] == t[i];
+                    break;
+                case 2 /* LT */:
+                    c = s[i] < t[i];
+                    break;
+                case 3 /* LE */:
+                    c = s[i] <= t[i];
+                    break;
+
+                case 4 /* TR */:
+                    c = true;
+                    break;
+                case 5 /* NE */:
+                    c = s[i] != t[i];
+                    break;
+                case 6 /* GE */:
+                    c = s[i] >= t[i];
+                    break;
+                case 7 /* GT */:
+                    c = s[i] > t[i];
+                    break;
+
+                case 8 /* EZ */:
+                    c = s[i] == 0.0 || s[i] == -0.0;
+                    break;
+                case 9 /* EN */:
+                    c = MathFloat.isnan(s[i]);
+                    break;
+                case 10 /* EI */:
+                    c = MathFloat.isinf(s[i]);
+                    break;
+                case 11 /* ES */:
+                    c = MathFloat.isnanorinf(s[i]);
+                    break;
+
+                case 12 /* NZ */:
+                    c = s[i] != 0;
+                    break;
+                case 13 /* NN */:
+                    c = !MathFloat.isnan(s[i]);
+                    break;
+                case 14 /* NI */:
+                    c = !MathFloat.isinf(s[i]);
+                    break;
+                case 15 /* NS */:
+                    c = !(MathFloat.isnanorinf(s[i]));
+                    break;
+            }
+            cc |= ((c ? 1 : 0) << i);
+            or_val |= (c ? 1 : 0);
+            and_val &= (c ? 1 : 0);
+            affected_bits |= 1 << i;
+        }
+
+        this.vfprc[3 /* CC */] = (this.vfprc[3 /* CC */] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.eatPrefixes();
+    };
+
+    CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
+        var _this = this;
+        var vectorSize = vdRegs.length;
+        this.loadVs_prefixed(vsRegs.map(function (reg) {
+            return _this.vfpr[reg];
+        }));
+        this.loadVdRegs(vdRegs);
+
+        var compare = _true ? 1 : 0;
+        var cc = this.vfpr[3 /* CC */];
+
+        if (register < 6) {
+            if (((cc >> register) & 1) == compare) {
+                for (var n = 0; n < vectorSize; n++) {
+                    this.vector_vd[n] = this.vector_vs[n];
+                }
+            }
+        }
+        if (register == 6) {
+            for (var n = 0; n < vectorSize; n++) {
+                if (((cc >> n) & 1) == compare) {
+                    this.vector_vd[n] = this.vector_vs[n];
+                }
+            }
+        } else {
+        }
+        this.storeVdRegsWithPrefix(vdRegs);
+    };
+
     CpuState.prototype.setVpfxt = function (value) {
         this.vpfxt.setInfo(value);
     };
@@ -7183,6 +7383,12 @@ var CpuState = (function () {
         configurable: true
     });
 
+    CpuState.prototype.eatPrefixes = function () {
+        this.vpfxd.enabled = false;
+        this.vpfxt.enabled = false;
+        this.vpfxs.enabled = false;
+    };
+
     CpuState.prototype.getVfpumatrix = function (index) {
         var values = [];
         for (var r = 0; r < 4; r++) {
@@ -7191,6 +7397,24 @@ var CpuState = (function () {
             }
         }
         return values;
+    };
+
+    CpuState.prototype.loadVdRegs = function (regs) {
+        for (var n = 0; n < regs.length; n++) {
+            this.vector_vd[n] = this.vfpr[regs[n]];
+        }
+    };
+
+    CpuState.prototype.storeVdRegsWithPrefix = function (regs) {
+        this.vpfxd.storeTransformedValues(this.vfpr, regs, this.vector_vd);
+        this.vpfxd.enabled = false;
+        this.storeVdRegs(regs);
+    };
+
+    CpuState.prototype.storeVdRegs = function (regs) {
+        for (var n = 0; n < regs.length; n++) {
+            this.vfpr[regs[n]] = this.vector_vd[n];
+        }
     };
 
     CpuState.prototype.loadVs_prefixed = function (values) {

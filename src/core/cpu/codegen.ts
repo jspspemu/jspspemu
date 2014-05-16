@@ -18,7 +18,7 @@ function gpr(index: number) { return ast.gpr(index); }
 function gpr_f(index: number) { return ast.gpr_f(index); }
 function tempr(index: number) { return ast.tempr(index); }
 function vfpr(reg: number) { return ast.vfpr(reg); }
-
+function vfprc(reg: number) { return ast.vfprc(reg); }
 function vfpr_i(index: number) { return ast.vfpr_i(index); }
 function immBool(value: boolean) { return ast.imm32(value ? 1 : 0); }
 function imm32(value: number) { return ast.imm32(value); }
@@ -299,7 +299,9 @@ export class InstructionAst {
 		return stms(st);
 	}
 
-	private _vset2_i(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
+	private _vset2_i(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0) {
+		if (destSize <= 0) destSize = i.ONE_TWO;
+		if (srcSize <= 0) srcSize = i.ONE_TWO;
 		var dest = getVectorRegs(i.VD, i.ONE_TWO);
 		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
 
@@ -548,9 +550,9 @@ export class InstructionAst {
 		}, 3, 3, 3);
 	}
 
-	vc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vc2i', [imm32(index), src[index]])); }
-	vuc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vuc2i', [imm32(index), src[index]])); }
-	vs2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[index]])); }
+	vc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vc2i', [imm32(index), src[0]]), 0, 1); }
+	vuc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vuc2i', [imm32(index), src[0]]), 0, 1); }
+	vs2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]])); }
 	vi2f(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vi2f', [imm32(index), src[index]])); }
 	vi2uc(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vi2uc', [imm32(index), src[index]])); }
 	vf2id(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2id', [imm32(index), src[index]])); }
@@ -567,9 +569,6 @@ export class InstructionAst {
 		st.push(assign_stm(vfpr(i.VD), binop(binop(ast.vector_vs(0), '*', ast.vector_vt(1)), '-', binop(ast.vector_vs(1), '*', ast.vector_vt(0)))));
 		return stms(st);
 	}
-
-	mtv(i: Instruction) { return assign_stm(vfpr(i.VD), gpr_f(i.rt)); }
-	mfv(i: Instruction) { return assign_stm(gpr_f(i.rt), vfpr(i.VD)); }
 
 	vqmul(i: Instruction) {
 		return this._vset3(i, (i, s, t) => {
@@ -588,64 +587,47 @@ export class InstructionAst {
 	vsgt(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.vsgt', [s[i], t[i]])); }
 	vscmp(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.sign2', [s[i], t[i]])); }
 
-	//private _bvtf(i:Instruction, True: boolean) {
-	//	var Register = i.IMM3;
-	//	var BranchExpr = ast.VCC(Register);
-	//	if (!True) BranchExpr = unop("!", BranchExpr);
-	//	return AssignBranchFlag(BranchExpr);
-	//}
-	//
-	//bvf(i: Instruction) { return this._bvtf(i, false); }
-	//bvfl(i: Instruction) { return this._bvtf(i, false); }
-	//bvt(i: Instruction) { return this._bvtf(i, true); }
-	//bvtl(i: Instruction) { return this._bvtf(i, true); }
+	private _bvtf(i:Instruction, cond: boolean) {
+		var reg = i.IMM3;
+		var branchExpr = <_ast.ANodeExpr>ast.VCC(reg);
+		if (!cond) branchExpr = unop("!", branchExpr);
+		return this._branch(i, branchExpr);
+	}
+	
+	bvf(i: Instruction) { return this._bvtf(i, false); }
+	bvfl(i: Instruction) { return this._bvtf(i, false); }
+	bvt(i: Instruction) { return this._bvtf(i, true); }
+	bvtl(i: Instruction) { return this._bvtf(i, true); }
 
-	// @TODO:
+	mtv(i: Instruction) { return assign_stm(vfpr_i(i.VD), gpr(i.rt)); }
+	mtvc(i: Instruction) { return assign_stm(vfprc(i.VD), gpr(i.rt)); }
 
-	mtvc(i: Instruction) { return ast.stm(); }
-	mfvc(i: Instruction) { return ast.stm(); }
-
-	vcmp(i: Instruction) { return ast.stm(); }
+	mfv(i: Instruction) { return assign_stm(gpr(i.rt), vfpr_i(i.VD)); }
+	mfvc(i: Instruction) { return assign_stm(gpr(i.rt), vfprc(i.VD)); }
 
 	private _vcmovtf(i: Instruction, True: boolean) {
-		//var Register = i.IMM3;
-		//
-		//var _VCC = (Index) => {
-		//	var Ret = ast.VCC(Index);
-		//	if (!True) Ret = unop("!", Ret);
-		//	return Ret;
-		//};
-		//
-		//if (Register < 6) {
-		//	// TODO: CHECK THIS!
-		//	return ast._if(
-		//		_VCC(Register),
-		//		VEC_VD.SetVector(Index => VEC_VS[Index], PC),
-		//		ast.Statements(
-		//			ast.Assign(ast.PrefixSourceEnabled(), false),
-		//			//ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
-		//			ast.If(ast.PrefixDestinationEnabled(), VEC_VD.SetVector(Index => VEC_VD[Index], PC))
-		//			)
-		//		);
-		//}
-		//
-		//if (Register == 6) {
-		//	return VEC_VD.SetVector(Index => ast.Ternary(_VCC(Index), VEC_VS[Index], VEC_VD[Index]), PC);
-		//}
-
-		// Register == 7
-
-		// Never copy (checked on a PSP)
-		return ast.stm();
+		return call_stm('state.vcmovtf', [
+			imm32(i.IMM3),
+			immBool(True),
+			ast.arrayNumbers(getVectorRegs(i.VD, i.ONE_TWO)),
+			ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO))
+		]);
 	}
 
 	vcmovt(i: Instruction) { return this._vcmovtf(i, true); }
 	vcmovf(i: Instruction) { return this._vcmovtf(i, false); }
 
-	vwbn(i: Instruction) { return ast.stm(); }
-	vsbn(i: Instruction) { return ast.stm(); }
+	vcmp(i: Instruction) {
+		return call_stm('state.vcmp', [
+			imm32(i.IMM4),
+			ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO)),
+			ast.arrayNumbers(getVectorRegs(i.VT, i.ONE_TWO))
+		]);
+	}
 
-	//vsbn(i: Instruction) { throw(new Error("Not implemented")); }
+	// @TODO:
+	vwbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
+	vsbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
 
 	vabs(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.abs', [src[i]])); }
 	vocp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.ocp', [src[i]])); }
@@ -945,7 +927,7 @@ export class InstructionAst {
 		var fc_less = ((fc02 & 4) != 0);
 		var fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
 
-        return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]))
+		return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
     }
 
 	"c.f.s"(i: Instruction) { return this._comp(i, 0, 0); }

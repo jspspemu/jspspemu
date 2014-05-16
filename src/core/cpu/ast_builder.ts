@@ -190,7 +190,8 @@ export class AstBuilder {
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
 	jump(label: number) { return new ANodeStmJump(label); }
 	_return() { return new ANodeStmReturn(); }
-	raw(content: string) { return new ANodeStmRaw(content); }
+	raw_stm(content: string) { return new ANodeStmRaw(content); }
+	raw(content: string) { return new ANodeExprLValueVar(content); }
 }
 
 export class MipsAstBuilder extends AstBuilder {
@@ -214,6 +215,7 @@ export class MipsAstBuilder extends AstBuilder {
 	vector_vs(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vector_vs[' + index + ']'); }
 	vector_vt(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vector_vt[' + index + ']'); }
 	vfpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); }
+	vfprc(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfprc[' + index + ']'); }
 
 	vfpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); }
 	fpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr[' + index + ']'); }
@@ -223,6 +225,9 @@ export class MipsAstBuilder extends AstBuilder {
 	hi() { return new ANodeExprLValueVar('state.HI'); }
 	ic() { return new ANodeExprLValueVar('state.IC'); }
 	pc() { return new ANodeExprLValueVar('state.PC'); }
+	VCC(index: number) {
+		return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
+	}
 	ra() { return new ANodeExprLValueVar('state.gpr[31]'); }
 	branchflag() { return new ANodeExprLValueVar('state.BRANCHFLAG'); }
 	branchpc() { return new ANodeExprLValueVar('state.BRANCHPC'); }
