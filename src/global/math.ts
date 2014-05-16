@@ -297,7 +297,7 @@ class MathVfpu {
 		if ((index % 2) == 0) value <<= 16;
 		return value & 0xFFFF0000;
 	}
-	static vi2f() { return 0; }
+	static vi2f(value: number, count: number) { return MathFloat.scalb(MathFloat.reinterpretFloatAsInt(value), count); }
 	static vi2uc() { return 0; }
 
 	static vf2id() { return 0; }
@@ -322,6 +322,10 @@ class MathFloat {
 		return MathFloat.floatArray[0];
 	}
 
+	static scalb(value: number, count: number) {
+		return value * Math.pow(2, count);
+	}
+
 	static min(a: number, b: number) { return (a < b) ? a : b; }
 	static max(a: number, b: number) { return (a > b) ? a : b; }
 
@@ -330,7 +334,10 @@ class MathFloat {
 	static isnanorinf(n: number) { return MathFloat.isnan(n) || MathFloat.isinf(n); }
 
 	static abs(value: number) { return Math.abs(value); }
-	static neg(value: number) { return -value; }
+	static neg(value: number) {
+		//return MathFloat.reinterpretIntAsFloat(MathFloat.reinterpretFloatAsInt(value) ^ 0x80000000);
+		return -value;
+	}
 	static ocp(value: number) { return 1 - value; }
 	static nrcp(value: number) { return -(1 / value); }
 	static sat0(value: number) { return MathUtils.clamp(value, 0, 1); }

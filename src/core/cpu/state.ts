@@ -17,7 +17,7 @@ export interface IExecutor {
 }
 
 class VfpuPrefixBase {
-	public enabled = false;
+	enabled = false;
 
 	constructor(private vfrc: number[], private index: number) {
 	}
@@ -25,6 +25,10 @@ class VfpuPrefixBase {
 	_info: number;
 	_readInfo() {
 		this._info = this.getInfo();
+	}
+
+	eat() {
+		this.enabled = false;
 	}
 
 	getInfo() {
@@ -69,7 +73,7 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 					if (sourceAbsolute) value = Math.abs(value);
 				}
 
-				if (sourceNegate) value = -value;
+				if (sourceNegate) value = MathFloat.neg(value);
 				output[n] = value;
 			}
 		}
@@ -134,8 +138,7 @@ export class CpuState {
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
 	vfpr_i: Float32Array = new Int32Array(this.vfpr_Buffer);
-	vfprc = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
+	vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	setVfrCc(index: number, value: boolean) {
 		if (value) {
 			this.vfprc[VFPU_CTRL.CC] |= (1 << index);
@@ -183,9 +186,10 @@ export class CpuState {
 				case VCondition.NI: c = !MathFloat.isinf(s[i]); break;
 				case VCondition.NS: c = !(MathFloat.isnanorinf(s[i])); break;   // How about t[i] ?	
 			}
-			cc |= ((c ? 1 : 0) << i);
-			or_val |= (c ? 1 : 0);
-			and_val &= (c ? 1 : 0);
+			var c_i = (c ? 1 : 0);
+			cc |= (c_i << i);
+			or_val |= c_i;
+			and_val &= c_i;
 			affected_bits |= 1 << i;
 		}
 
@@ -199,7 +203,7 @@ export class CpuState {
 		this.loadVdRegs(vdRegs);
 
 		var compare = _true ? 1 : 0;
-		var cc = this.vfpr[VFPU_CTRL.CC];
+		var cc = this.vfprc[VFPU_CTRL.CC];
 
 		if (register < 6) {
 			if (((cc >> register) & 1) == compare) {
@@ -240,9 +244,9 @@ export class CpuState {
 	get vfpumatrix7() { return this.getVfpumatrix(7); }
 
 	eatPrefixes() {
-		this.vpfxd.enabled = false;
-		this.vpfxt.enabled = false;
-		this.vpfxs.enabled = false;
+		this.vpfxd.eat();
+		this.vpfxt.eat();
+		this.vpfxs.eat();
 	}
 
 	getVfpumatrix(index: number) {
@@ -263,7 +267,7 @@ export class CpuState {
 
 	storeVdRegsWithPrefix(regs: number[]) {
 		this.vpfxd.storeTransformedValues(this.vfpr, regs, this.vector_vd);
-		this.vpfxd.enabled = false;
+		this.vpfxd.eat();
 		this.storeVdRegs(regs);
 	}
 
@@ -275,12 +279,12 @@ export class CpuState {
 
 	loadVs_prefixed(values: number[]) {
 		this.vpfxs.transformValues(values, this.vector_vs);
-		this.vpfxs.enabled = false;
+		this.vpfxs.eat();
 	}
 
 	loadVt_prefixed(values: number[]) {
 		this.vpfxt.transformValues(values, this.vector_vt);
-		this.vpfxt.enabled = false;
+		this.vpfxt.eat();
 	}
 
 	storeVd_prefixed(indices: number[], values: number[]) {

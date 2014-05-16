@@ -274,26 +274,31 @@ export class InstructionAst {
 
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
-	private _vset1(i: Instruction, generate: (index: number) => _ast.ANodeExpr) {
-		var dest = getVectorRegs(i.VD, i.ONE_TWO);
+	private _vset1(i: Instruction, generate: (index: number) => _ast.ANodeExpr, destSize: number = 0) {
+		if (destSize <= 0) destSize = i.ONE_TWO;
+
+		var dest = getVectorRegs(i.VD, destSize);
 
 		var st = [];
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index))),
+			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index))),
 		]));
 		return stms(st);
 	}
 
-	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr) {
-		var dest = getVectorRegs(i.VD, i.ONE_TWO);
-		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
+	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize: number = 0, srcSize: number = 0) {
+		if (destSize <= 0) destSize = i.ONE_TWO;
+		if (srcSize <= 0) srcSize = i.ONE_TWO;
+
+		var dest = getVectorRegs(i.VD, destSize);
+		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, srcSize);
 
 		var st = [];
-		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, i.ONE_TWO))]));
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, srcSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index, src))),
+			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index, src))),
 		]));
 		//st.push(setVector(dest, index => generate(index, src)));
 		return stms(st);
@@ -302,14 +307,14 @@ export class InstructionAst {
 	private _vset2_i(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0) {
 		if (destSize <= 0) destSize = i.ONE_TWO;
 		if (srcSize <= 0) srcSize = i.ONE_TWO;
-		var dest = getVectorRegs(i.VD, i.ONE_TWO);
-		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, i.ONE_TWO);
+		var dest = getVectorRegs(i.VD, destSize);
+		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, srcSize);
 
 		var st = [];
-		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector_i(i.VS, i.ONE_TWO))]));
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector_i(i.VS, srcSize))]));
 		st.push(call_stm('state.storeVd_prefixed_i', [
 			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index, src))),
+			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index, src))),
 		]));
 		//st.push(setVector(dest, index => generate(index, src)));
 		return stms(st);
@@ -327,7 +332,7 @@ export class InstructionAst {
 		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, targetSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, i.ONE_TWO).map(index => generate(index, src, target))),
+			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index, src, target))),
 		]));
 		//st.push(setVector(dest, index => generate(index, src, target)));
 		return stms(st);
@@ -356,6 +361,7 @@ export class InstructionAst {
 	vhdp(i: Instruction) {
 		var vectorSize = i.ONE_TWO;
 		var st = [];
+		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
 		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
 		st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
 			return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == vectorSize - 1) ? <_ast.ANodeExpr>imm_f(1) : <_ast.ANodeExpr>ast.vector_vs(index)))
@@ -552,8 +558,8 @@ export class InstructionAst {
 
 	vc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vc2i', [imm32(index), src[0]]), 0, 1); }
 	vuc2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vuc2i', [imm32(index), src[0]]), 0, 1); }
-	vs2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]])); }
-	vi2f(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vi2f', [imm32(index), src[index]])); }
+	vs2i(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]), i.ONE_TWO * 2, i.ONE_TWO); }
+	vi2f(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)])); }
 	vi2uc(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vi2uc', [imm32(index), src[index]])); }
 	vf2id(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2id', [imm32(index), src[index]])); }
 	vf2in(i: Instruction) { return this._vset2_i(i, (index, src) => call('MathVfpu.vf2in', [imm32(index), src[index]])); }
@@ -618,16 +624,21 @@ export class InstructionAst {
 	vcmovf(i: Instruction) { return this._vcmovtf(i, false); }
 
 	vcmp(i: Instruction) {
-		return call_stm('state.vcmp', [
+		var st = [];
+		st.push(ast.debugger());
+		st.push(call_stm('state.vcmp', [
 			imm32(i.IMM4),
 			ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO)),
 			ast.arrayNumbers(getVectorRegs(i.VT, i.ONE_TWO))
-		]);
+		]));
+		return stms(st);
 	}
 
 	// @TODO:
-	vwbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
-	vsbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
+	//vwbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
+	//vsbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
+	vwbn(i: Instruction) { return ast.stm(); }
+	vsbn(i: Instruction) { return ast.stm(); }
 
 	vabs(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.abs', [src[i]])); }
 	vocp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.ocp', [src[i]])); }
