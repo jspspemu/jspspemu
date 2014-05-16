@@ -88,8 +88,11 @@ export class Memory {
 	getPointerStream(address: number, size?: number) {
 		//console.log(sprintf("getPointerStream: %08X", address));
 		if (address == 0) return null;
+		if (size === 0) return new Stream(new DataView(new ArrayBuffer(0)));
 		if (!this.isValidAddress(address)) return Stream.INVALID;
-		if (!size) size = this.availableAfterAddress(address & Memory.MASK);
+		if (size === undefined) size = this.availableAfterAddress(address & Memory.MASK);
+		if (size < 0) return Stream.INVALID;
+		if (size > this.u8.length - (address & Memory.MASK)) return Stream.INVALID;
 		return new Stream(this.getPointerDataView(address & Memory.MASK, size));
 	}
 
@@ -251,7 +254,7 @@ export class Memory {
 	hash(address: number, count: number) {
 		var result = 0;
 
-		while ((address & 3) != 0) { result += this.u8[address++]; count--; }
+		while (address & 3) { result += this.u8[address++]; count--; }
 
 		var count2 = MathUtils.prevAligned(count, 4);
 

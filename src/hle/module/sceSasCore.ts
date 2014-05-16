@@ -1,7 +1,11 @@
 ﻿import _utils = require('../utils');
 import _context = require('../../context');
+import _audio = require('../../core/audio');
+import _vag = require('../../format/vag');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+import Sample = _audio.Sample;
+import VagSoundSource = _vag.VagSoundSource;
 
 var PSP_SAS_VOL_MAX = 0x1000;
 var PSP_SAS_PITCH_MIN = 0x1;
@@ -41,28 +45,45 @@ export class sceSasCore {
 			return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
 		}
 
-		/*
-		var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
-		SasCore.Initialized = true;
-		SasCore.GrainSamples = GrainSamples;
-		SasCore.MaxVoices = MaxVoices;
-		SasCore.OutputMode = OutputMode;
-		SasCore.SampleRate = SampleRate;
+		//var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
+		this.core.grainSamples = grainSamples;
+		this.core.maxVoices = maxVoices;
+		this.core.outputMode = outputMode;
+		this.core.sampleRate = sampleRate;
+		this.core.initialized = true;
 
-		BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
-		BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
-		MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
-		*/
-
+		//BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
+		//BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
+		//MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
+		
 		return 0;
 	});
 
-	__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, data: Stream, loopCount: number) => {
+	__sceSasSetGrain = createNativeFunction(0xD1E0A01E, 150, 'uint', 'int/int', this, (sasCorePointer: number, grainSamples: number) => {
+		this.core.grainSamples = grainSamples;
+		return 0;
+	});
+
+	__sceSasSetOutputmode = createNativeFunction(0xE855BF76, 150, 'uint', 'int/int', this, (sasCorePointer: number, outputMode: OutputMode) => {
+		this.core.outputMode = outputMode;
+		return 0;
+	});
+
+	__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, data: Stream, loop: number) => {
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		if (data == null) {
 			voice.unsetSource();
+			return 0;
+		}
+		if (data.length == 0) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
+		if (data.length < 0x10) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
+		if (data.length % 0x10) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
+		if (data == Stream.INVALID) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
+		if (loop != 0 && loop != 1) throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_LOOP_POS));
+		if (data == null) {
+			voice.unsetSource();
 		} else {
-			voice.setVag(data, loopCount);
+			voice.setAdpcm(data, loop);
 		}
 		return 0;
 	});
@@ -130,14 +151,14 @@ export class sceSasCore {
 
 	__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		if (!voice.pause) return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
-		voice.on = false;
+		if (!voice.paused) return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
+		voice.setOn(false);
 		return 0;
 	});
 
 	__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		voice.on = true;
+		voice.setOn(true);
 		return 0;
 	});
 
@@ -155,7 +176,7 @@ export class sceSasCore {
 	__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceBits: number, pause: boolean) => {
 		this.core.voices.forEach((voice) => {
 			if (voiceBits & (1 << voice.index)) {
-				voice.pause = pause;
+				voice.paused = pause;
 			}
 		});
 		return 0;
@@ -164,7 +185,7 @@ export class sceSasCore {
 	__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, (sasCorePointer: number) => {
 		var voiceBits = 0;
 		this.core.voices.forEach((voice) => {
-			voiceBits |= (voice.pause ? 1 : 0) << voice.index;
+			voiceBits |= (voice.paused ? 1 : 0) << voice.index;
 		});
 		return voiceBits;
 	});
@@ -224,6 +245,11 @@ export class sceSasCore {
 }
 
 class SasCore {
+	initialized = false;
+	grainSamples = 0;
+	maxVoices = 32;
+	outputMode = OutputMode.STEREO;
+	sampleRate = 44100;
 	delay = 0;
 	feedback = 0;
 	endFlags = 0;
@@ -233,60 +259,66 @@ class SasCore {
 	leftVolume = PSP_SAS_VOL_MAX;
 	rightVolume = PSP_SAS_VOL_MAX;
 	voices: Voice[] = [];
+	bufferTempArray = <Sample[]>[];
 
 	constructor() {
 		while (this.voices.length < 32) this.voices.push(new Voice(this.voices.length));
 	}
 
 	mix(sasCorePointer: number, sasOut: Stream, leftVolume: number, rightVolume: number) {
-		/*
-		var NumberOfChannels = (SasCore.OutputMode == OutputMode.PSP_SAS_OUTPUTMODE_STEREO) ? 2 : 1;
-		var NumberOfSamples = SasCore.GrainSamples;
-		var NumberOfVoicesPlaying = Math.Max(1, SasCore.Voices.Count(Voice => Voice.OnAndPlaying));
+		while (this.bufferTempArray.length < this.grainSamples) this.bufferTempArray.push(new Sample(0, 0));
 
-		for (var n = 0; n < NumberOfSamples; n++) BufferTempPtr[n] = default(StereoIntSoundSample);
+		var numberOfChannels = (this.outputMode == OutputMode.STEREO) ? 2 : 1;
+		var numberOfSamples = this.grainSamples;
+		var numberOfVoicesPlaying = Math.max(1, this.voices.count(Voice => Voice.onAndPlaying));
 
-		var PrevPosDiv = -1;
-		foreach (var Voice in SasCore.Voices) {
-				if (Voice.OnAndPlaying) {
-				//Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
-				//for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
-				var Pos = 0;
-				while (true) {
-				if ((Voice.Vag != null) && (Voice.Vag.HasMore)) {
-				int PosDiv = Pos / Voice.Pitch;
+		for (var n = 0; n < numberOfSamples; n++) this.bufferTempArray[n].set(0, 0);
 
-				if (PosDiv >= NumberOfSamples) break;
+		var prevPosDiv = -1;
 
-				var Sample = Voice.Vag.GetNextSample().ApplyVolumes(Voice.LeftVolume, Voice.RightVolume);
+		this.voices.forEach((voice) => {
+			if (!voice.onAndPlaying) return;
 
-				for (int m = PrevPosDiv + 1; m <= PosDiv; m++) BufferTempPtr[m] += Sample;
+			//Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
+			//for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
+			var pos = 0;
+			while (true) {
+				if ((voice.source != null) && (voice.source.hasMore)) {
+					var posDiv = Math.floor(pos / voice.pitch);
 
-				PrevPosDiv = PosDiv;
-				Pos += PSP_SAS_PITCH_BASE;
-				}
-				else {
-				Voice.SetPlaying(false);
-				break;
-				}
+					if (posDiv >= numberOfSamples) break;
+
+					var sample = voice.source.getNextSample();
+
+					for (var m = prevPosDiv + 1; m <= posDiv; m++) {
+						this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
+					}
+
+					prevPosDiv = posDiv;
+					pos += PSP_SAS_PITCH_BASE;
+				} else {
+					voice.setPlaying(false);
+					break;
 				}
 			}
+		});
+
+		for (var n = 0; n < numberOfSamples; n++) {
+			var sample = this.bufferTempArray[n];
+			sample.scale(leftVolume / PSP_SAS_VOL_MAX, rightVolume / PSP_SAS_VOL_MAX);
+
+			if (numberOfChannels >= 1) sasOut.writeInt16(MathUtils.clamp(sample.left, -32768, 32767));
+			if (numberOfChannels >= 2) sasOut.writeInt16(MathUtils.clamp(sample.right, -32768, 32767));
 		}
 
-		for (int n = 0; n < NumberOfSamples; n++) BufferShortPtr[n] = BufferTempPtr[n];
-
-		for (int channel = 0; channel < NumberOfChannels; channel++) {
-			for (int n = 0; n < NumberOfSamples; n++) {
-				SasOut[n * NumberOfChannels + channel] = BufferShortPtr[n].ApplyVolumes(LeftVolume, RightVolume).GetByIndex(channel);
-			}
-		}
-		*/
-		// @TODO
 		return 0;
 	}
 }
 
 interface SoundSource {
+	hasMore: boolean;
+	reset(): void;
+	getNextSample(): Sample;
 }
 
 
@@ -294,7 +326,8 @@ class Voice {
 	envelope = new Envelope();
 	sustainLevel = 0;
 	on = false;
-	pause = false;
+	playing = false;
+	paused = false;
 	leftVolume = PSP_SAS_VOL_MAX;
 	rightVolume = PSP_SAS_VOL_MAX;
 	effectLeftVolume = PSP_SAS_VOL_MAX;
@@ -305,11 +338,31 @@ class Voice {
 	constructor(public index: number) {
 	}
 
+	get onAndPlaying() {
+		return this.on && this.playing;
+	}
+
+	setOn(set: boolean) {
+		this.on = set;
+		this.setPlaying(set);
+	}
+
+	setPlaying(set: boolean) {
+		this.playing = set;
+
+		// CHECK. Reset on change?
+		if (this.source) this.source.reset();
+	}
+
+	get ended() {
+		return !this.playing;
+	}
+
 	unsetSource() {
 		this.source = null;
 	}
 
-	setVag(stream: Stream, loopCount: number) {
+	setAdpcm(stream: Stream, loopCount: number) {
 		this.source = new VagSoundSource(stream, loopCount);
 	}
 
@@ -318,13 +371,20 @@ class Voice {
 	}
 }
 
-class VagSoundSource implements SoundSource {
-	constructor(stream:Stream, loopCount: number) {
-	}
-}
 
 class PcmSoundSource implements SoundSource {
 	constructor(stream: Stream, loopCount: number) {
+	}
+
+	reset() {
+	}
+
+	get hasMore() {
+		return false;
+	}
+
+	getNextSample(): Sample {
+		return null;
 	}
 }
 

@@ -412,13 +412,11 @@ export class CpuState {
 	}
 
 	copyRegistersFrom(other: CpuState) {
-		['PC', 'IC', 'LO', 'HI'].forEach((item) => {
-			this[item] = other[item];
-		});
-		for (var n = 0; n < 32; n++) {
-			this.gpr[n] = other.gpr[n];
-			this.fpr[n] = other.fpr[n];
-		}
+		['PC', 'IC', 'LO', 'HI'].forEach((item) => { this[item] = other[item]; });
+		for (var n = 0; n < 32; n++) this.gpr[n] = other.gpr[n];
+		for (var n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
+		for (var n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
+		for (var n = 0; n < 8; n++) this.vfprc[n] = other.vfprc[n];
 	}
 
 	get V0():number { return this.gpr[2]; } set V0(value: number) { this.gpr[2] = value; }

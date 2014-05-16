@@ -14,6 +14,7 @@ import _format_zip = require('./format/zip');
 import _pbp = require('./format/pbp');
 import _psf = require('./format/psf');
 import _vfs = require('./hle/vfs');
+import _config = require('./hle/config');
 import _elf_psp = require('./hle/elf_psp');
 import _elf_crypted_prx = require('./hle/elf_crypted_prx');
 
@@ -36,6 +37,8 @@ import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
 import DropboxVfs = _vfs.DropboxVfs;
 import ProxyVfs = _vfs.ProxyVfs;
+
+import Config = _config.Config;
 
 import PspElfLoader = _elf_psp.PspElfLoader;
 
@@ -79,6 +82,7 @@ export class Emulator {
 	private interop: Interop;
 	private storageVfs: StorageVfs;
 	private dropboxVfs: DropboxVfs;
+	private config: Config;
 	private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
 
@@ -113,6 +117,7 @@ export class Emulator {
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
 			this.interop = new Interop();
+			this.config = new Config();
 			this.callbackManager = new CallbackManager(this.interop);
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
@@ -140,7 +145,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config);
 
 			return Promise.all([
 				this.display.startAsync(),

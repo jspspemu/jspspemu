@@ -17,6 +17,30 @@ export class PspAudioBuffer {
 	get length() { return this.data.length; }
 }
 
+export class Sample {
+	constructor(public left: number, public right: number) {
+	}
+
+	set(left: number, right: number) {
+		this.left = left;
+		this.right = right;
+	}
+
+	scale(leftScale: number, rightScale: number) {
+		this.left *= leftScale;
+		this.right *= rightScale;
+	}
+
+	addScaled(sample: Sample, leftScale: number, rightScale: number) {
+		this.left += sample.left * leftScale;
+		this.right += sample.right * rightScale;
+	}
+
+	GetNextSample() {
+	}
+}
+
+
 export class PspAudioChannel {
 	private buffers: PspAudioBuffer[] = [];
 	node: ScriptProcessorNode;

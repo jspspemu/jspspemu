@@ -989,6 +989,11 @@ function parseIntFormat(str) {
 var MathUtils = (function () {
     function MathUtils() {
     }
+    MathUtils.sextend16 = function (value) {
+        return (((value & 0xFFFF) << 16) >> 16);
+        //value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
+    };
+
     MathUtils.prevAligned = function (value, alignment) {
         return Math.floor(value / alignment) * alignment;
     };
@@ -1339,6 +1344,8 @@ var Stream = (function () {
     };
 
     Stream.prototype.sliceWithLength = function (low, count) {
+        if (count === undefined)
+            count = this.length - low;
         return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
     };
 
@@ -2623,7 +2630,7 @@ controllerRegister();
 var EmulatorContext = (function () {
     function EmulatorContext() {
     }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -2637,6 +2644,7 @@ var EmulatorContext = (function () {
         this.rtc = rtc;
         this.callbackManager = callbackManager;
         this.moduleManager = moduleManager;
+        this.config = config;
     };
     return EmulatorContext;
 })();
@@ -2685,6 +2693,32 @@ var PspAudioBuffer = (function () {
     return PspAudioBuffer;
 })();
 exports.PspAudioBuffer = PspAudioBuffer;
+
+var Sample = (function () {
+    function Sample(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    Sample.prototype.set = function (left, right) {
+        this.left = left;
+        this.right = right;
+    };
+
+    Sample.prototype.scale = function (leftScale, rightScale) {
+        this.left *= leftScale;
+        this.right *= rightScale;
+    };
+
+    Sample.prototype.addScaled = function (sample, leftScale, rightScale) {
+        this.left += sample.left * leftScale;
+        this.right += sample.right * rightScale;
+    };
+
+    Sample.prototype.GetNextSample = function () {
+    };
+    return Sample;
+})();
+exports.Sample = Sample;
 
 var PspAudioChannel = (function () {
     function PspAudioChannel(audio, context) {
@@ -5711,10 +5745,10 @@ var FunctionGenerator = (function () {
             return result;
         };
 
-        stms.add(ast.raw('var expectedRA = state.getRA();'));
+        stms.add(ast.raw_stm('var expectedRA = state.getRA();'));
 
         function returnWithCheck() {
-            stms.add(ast.raw('return;'));
+            stms.add(ast.raw_stm('return;'));
         }
 
         for (var n = 0; n < 100000; n++) {
@@ -5757,16 +5791,16 @@ var FunctionGenerator = (function () {
 
                 if (di2.type.isSyscall) {
                     stms.add(this.instructionAst._postBranch(PC));
-                    stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+                    stms.add(ast.raw_stm('if (!state.BRANCHFLAG) {'));
                     returnWithCheck();
-                    stms.add(ast.raw('}'));
+                    stms.add(ast.raw_stm('}'));
                     stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
                 } else {
                     stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
                     stms.add(this.instructionAst._postBranch(PC));
-                    stms.add(ast.raw('if (!state.BRANCHFLAG) {'));
+                    stms.add(ast.raw_stm('if (!state.BRANCHFLAG) {'));
                     returnWithCheck();
-                    stms.add(ast.raw('}'));
+                    stms.add(ast.raw_stm('}'));
                 }
 
                 if (enableOptimizations) {
@@ -7562,10 +7596,14 @@ var CpuState = (function () {
         ['PC', 'IC', 'LO', 'HI'].forEach(function (item) {
             _this[item] = other[item];
         });
-        for (var n = 0; n < 32; n++) {
+        for (var n = 0; n < 32; n++)
             this.gpr[n] = other.gpr[n];
+        for (var n = 0; n < 32; n++)
             this.fpr[n] = other.fpr[n];
-        }
+        for (var n = 0; n < 128; n++)
+            this.vfpr[n] = other.vfpr[n];
+        for (var n = 0; n < 8; n++)
+            this.vfprc[n] = other.vfprc[n];
     };
 
     Object.defineProperty(CpuState.prototype, "V0", {
@@ -11017,7 +11055,8 @@ var TextureHandler = (function () {
 
     TextureHandler.prototype.mustRecheckSlowHash = function (texture) {
         //return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
-        return !texture || !texture.valid;
+        //return !texture || !texture.valid;
+        return !texture;
     };
 
     TextureHandler.prototype.bindTexture = function (prog, state) {
@@ -12216,10 +12255,16 @@ var Memory = (function () {
         //console.log(sprintf("getPointerStream: %08X", address));
         if (address == 0)
             return null;
+        if (size === 0)
+            return new Stream(new DataView(new ArrayBuffer(0)));
         if (!this.isValidAddress(address))
             return Stream.INVALID;
-        if (!size)
+        if (size === undefined)
             size = this.availableAfterAddress(address & Memory.MASK);
+        if (size < 0)
+            return Stream.INVALID;
+        if (size > this.u8.length - (address & Memory.MASK))
+            return Stream.INVALID;
         return new Stream(this.getPointerDataView(address & Memory.MASK, size));
     };
 
@@ -12407,7 +12452,7 @@ var Memory = (function () {
     Memory.prototype.hash = function (address, count) {
         var result = 0;
 
-        while ((address & 3) != 0) {
+        while (address & 3) {
             result += this.u8[address++];
             count--;
         }
@@ -12726,6 +12771,7 @@ var _format_zip = require('./format/zip');
 var _pbp = require('./format/pbp');
 var _psf = require('./format/psf');
 var _vfs = require('./hle/vfs');
+var _config = require('./hle/config');
 var _elf_psp = require('./hle/elf_psp');
 var _elf_crypted_prx = require('./hle/elf_crypted_prx');
 
@@ -12747,6 +12793,8 @@ _vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
 var DropboxVfs = _vfs.DropboxVfs;
 var ProxyVfs = _vfs.ProxyVfs;
+
+var Config = _config.Config;
 
 var PspElfLoader = _elf_psp.PspElfLoader;
 
@@ -12803,6 +12851,7 @@ var Emulator = (function () {
             _this.syscallManager = new SyscallManager(_this.context);
             _this.fileManager = new FileManager();
             _this.interop = new Interop();
+            _this.config = new Config();
             _this.callbackManager = new CallbackManager(_this.interop);
             _this.rtc = new PspRtc();
             _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
@@ -12830,7 +12879,7 @@ var Emulator = (function () {
 
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
 
-            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config);
 
             return Promise.all([
                 _this.display.startAsync(),
@@ -14522,6 +14571,224 @@ var Riff = (function () {
 exports.Riff = Riff;
 //# sourceMappingURL=riff.js.map
 },
+"src/format/vag": function(module, exports, require) {
+var _audio = require('../core/audio');
+var Sample = _audio.Sample;
+
+var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];
+
+var VagDecoder = (function () {
+    function VagDecoder(blockStream, BlockTotalCount) {
+        this.blockStream = blockStream;
+        this.BlockTotalCount = BlockTotalCount;
+        this.decodedBlockSamples = (new Array(VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK));
+        this.predict1 = 0;
+        this.predict2 = 0;
+        this.loopStack = [];
+        this.currentState = new VagState();
+        this.currentLoopCount = 0;
+        this.totalLoopCount = 0;
+        this.reset();
+    }
+    Object.defineProperty(VagDecoder.prototype, "hasMore", {
+        get: function () {
+            return !this.reachedEnd;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    VagDecoder.prototype.reset = function () {
+        this.currentState = new VagState();
+        this.sampleIndexInBlock = 0;
+        this.sampleIndexInBlock2 = 0;
+        this.reachedEnd = false;
+        this.currentLoopCount = 0;
+    };
+
+    VagDecoder.prototype.setLoopCount = function (LoopCount) {
+        this.currentLoopCount = 0;
+        this.totalLoopCount = LoopCount;
+    };
+
+    VagDecoder.prototype.seekNextBlock = function () {
+        if (this.reachedEnd || this.currentState.blockIndex >= this.BlockTotalCount) {
+            this.reachedEnd = true;
+            return;
+        }
+
+        this.blockStream.position = this.currentState.blockIndex * 16;
+        this.currentState.blockIndex++;
+
+        //var block = VagBlock.struct.read(this.blockStream);
+        var block = this.blockStream.readBytes(16);
+
+        switch (block[1]) {
+            case 6 /* LOOP_START */:
+                var copyState = this.currentState.clone();
+                copyState.blockIndex--;
+                this.loopStack.push(copyState);
+                break;
+            case 3 /* LOOP_END */:
+                if (this.currentLoopCount++ < this.totalLoopCount) {
+                    this.currentState = this.loopStack.pop();
+                } else {
+                    this.loopStack.pop();
+                }
+                break;
+            case 7 /* END */:
+                this.reachedEnd = true;
+                return;
+        }
+        this.decodeBlock(block);
+    };
+
+    VagDecoder.prototype.getNextSample = function () {
+        if (this.reachedEnd)
+            return new Sample(0, 0);
+
+        this.sampleIndexInBlock %= VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK;
+
+        if (this.sampleIndexInBlock == 0) {
+            this.seekNextBlock();
+        }
+
+        if (this.reachedEnd)
+            return new Sample(0, 0);
+
+        var value = this.decodedBlockSamples[this.sampleIndexInBlock++];
+        return new Sample(value, value);
+    };
+
+    VagDecoder.prototype.decodeBlock = function (block) {
+        var sampleOffset = 0;
+        var shiftFactor = BitUtils.extract(block[0], 0, 4);
+        var predictIndex = BitUtils.extract(block[0], 4, 4) % VAG_f.length;
+
+        this.predict1 = VAG_f[predictIndex * 2 + 0];
+        this.predict2 = VAG_f[predictIndex * 2 + 1];
+
+        for (var n = 0; n < VagDecoder.COMPRESSED_BYTES_IN_BLOCK; n++) {
+            var dataByte = block[n + 2];
+
+            //debugger;
+            var v1 = MathUtils.sextend16((((dataByte >>> 0) & 0xF) << 12)) >> shiftFactor;
+            var v2 = MathUtils.sextend16((((dataByte >>> 4) & 0xF) << 12)) >> shiftFactor;
+            this.decodedBlockSamples[sampleOffset + 0] = this.handleSampleKeepHistory(v1);
+            this.decodedBlockSamples[sampleOffset + 1] = this.handleSampleKeepHistory(v2);
+
+            //console.log("" + dataByte, ':', block.modificator, shiftFactor, ':', v1, v2, ':', this.currentState.history1, this.currentState.history2, ':', this.predict1, this.predict2, ':', this.decodedBlockSamples[sampleOffset + 0], this.decodedBlockSamples[sampleOffset + 1]);
+            sampleOffset += 2;
+        }
+        //console.log('--------------> ', this.currentState.history1, this.currentState.history2);
+    };
+
+    VagDecoder.prototype.handleSampleKeepHistory = function (unpackedSample) {
+        var sample = this.handleSample(unpackedSample);
+        this.currentState.history2 = this.currentState.history1;
+        this.currentState.history1 = sample;
+        return sample;
+    };
+
+    VagDecoder.prototype.handleSample = function (unpackedSample) {
+        var sample = 0;
+        sample += unpackedSample * 1;
+        sample += ((this.currentState.history1 * this.predict1) / 64) >> 0; // integer divide by 64
+        sample += ((this.currentState.history2 * this.predict2) / 64) >> 0;
+
+        //console.log(unpackedSample, '->', sample, ' : ');
+        return MathUtils.clamp(sample, -32768, 32767);
+    };
+    VagDecoder.COMPRESSED_BYTES_IN_BLOCK = 14;
+    VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK = VagDecoder.COMPRESSED_BYTES_IN_BLOCK * 2;
+    return VagDecoder;
+})();
+
+var VagBlockType;
+(function (VagBlockType) {
+    VagBlockType[VagBlockType["LOOP_END"] = 3] = "LOOP_END";
+    VagBlockType[VagBlockType["LOOP_START"] = 6] = "LOOP_START";
+    VagBlockType[VagBlockType["END"] = 7] = "END";
+})(VagBlockType || (VagBlockType = {}));
+
+/*
+class VagBlock {
+modificator: number;
+type: VagBlockType;
+data: number[];
+static struct = StructClass.create<VagBlock>(VagBlock, [
+{ modificator: UInt8 },
+{ type: UInt8 },
+{ data: StructArray<number>(UInt8, 14) },
+]);
+}
+*/
+var VagHeader = (function () {
+    function VagHeader() {
+    }
+    VagHeader.struct = StructClass.create(VagHeader, [
+        { magic: UInt32 },
+        { vagVersion: UInt32_b },
+        { dataSize: UInt32_b },
+        { sampleRate: UInt32_b }
+    ]);
+    return VagHeader;
+})();
+
+var VagSoundSource = (function () {
+    function VagSoundSource(stream, loopCount) {
+        this.header = null;
+        this.samplesCount = 0;
+        this.decoder = null;
+        if (stream.length < 0x10) {
+            this.header = null;
+            this.samplesCount = 0;
+            this.decoder = new VagDecoder(stream, 0);
+        } else {
+            var headerStream = stream.sliceWithLength(0, VagHeader.struct.length);
+            var dataStream = stream.sliceWithLength(VagHeader.struct.length);
+
+            //debugger;
+            this.header = VagHeader.struct.read(headerStream);
+            this.samplesCount = Math.floor(dataStream.length * 56 / 16);
+            this.decoder = new VagDecoder(dataStream, Math.floor(dataStream.length / 16));
+        }
+    }
+    VagSoundSource.prototype.reset = function () {
+        this.decoder.reset();
+    };
+
+    Object.defineProperty(VagSoundSource.prototype, "hasMore", {
+        get: function () {
+            return this.decoder.hasMore;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    VagSoundSource.prototype.getNextSample = function () {
+        return this.decoder.getNextSample();
+    };
+    return VagSoundSource;
+})();
+exports.VagSoundSource = VagSoundSource;
+
+var VagState = (function () {
+    function VagState(blockIndex, history1, history2) {
+        if (typeof blockIndex === "undefined") { blockIndex = 0; }
+        if (typeof history1 === "undefined") { history1 = 0; }
+        if (typeof history2 === "undefined") { history2 = 0; }
+        this.blockIndex = blockIndex;
+        this.history1 = history1;
+        this.history2 = history2;
+    }
+    VagState.prototype.clone = function () {
+        return new VagState(this.blockIndex, this.history1, this.history2);
+    };
+    return VagState;
+})();
+//# sourceMappingURL=vag.js.map
+},
 "src/format/zip": function(module, exports, require) {
 var ZipEntry = (function () {
     function ZipEntry(zip, name, parent) {
@@ -15257,6 +15524,7 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE"] = 0x80420010] = "ERROR_SAS_INVALID_VOICE";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_CURVE_MODE"] = 0x80420013] = "ERROR_SAS_INVALID_ADSR_CURVE_MODE";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PARAMETER"] = 0x80420014] = "ERROR_SAS_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_POS"] = 0x80420015] = "ERROR_SAS_INVALID_LOOP_POS";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_VOICE_PAUSED"] = 0x80420016] = "ERROR_SAS_VOICE_PAUSED";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_BUSY"] = 0x80420030] = "ERROR_SAS_BUSY";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_NOT_INIT"] = 0x80420100] = "ERROR_SAS_NOT_INIT";
@@ -15297,6 +15565,52 @@ var SceKernelErrors;
 
 module.exports = SceKernelErrors;
 //# sourceMappingURL=SceKernelErrors.js.map
+},
+"src/hle/config": function(module, exports, require) {
+var _structs = require('./structs');
+
+var PspLanguages = _structs.PspLanguages;
+
+var Config = (function () {
+    function Config() {
+        this.language = 1 /* ENGLISH */;
+        this.language = this.detectLanguage();
+    }
+    Config.prototype.detectLanguage = function () {
+        switch (navigator.language) {
+            case 'ja':
+                return 0 /* JAPANESE */;
+            case 'en':
+                return 1 /* ENGLISH */;
+            case 'fr':
+                return 2 /* FRENCH */;
+            case 'es':
+                return 3 /* SPANISH */;
+            case 'de':
+                return 4 /* GERMAN */;
+            case 'it':
+                return 5 /* ITALIAN */;
+            case 'nl':
+                return 6 /* DUTCH */;
+            case 'pt':
+                return 7 /* PORTUGUESE */;
+            case 'ru':
+                return 8 /* RUSSIAN */;
+            case 'ko':
+                return 9 /* KOREAN */;
+
+            case 'zh':
+                return 10 /* TRADITIONAL_CHINESE */;
+            case 'zh2':
+                return 11 /* SIMPLIFIED_CHINESE */;
+            default:
+                return 2 /* FRENCH */;
+        }
+    };
+    return Config;
+})();
+exports.Config = Config;
+//# sourceMappingURL=config.js.map
 },
 "src/hle/elf_crypted_prx": function(module, exports, require) {
 var keys144 = require('./elf_crypted_prx_keys_144');
@@ -17082,8 +17396,10 @@ var ThreadManager = (function () {
                 if (thread.running) {
                     runningThreadCount++;
                     runningPriority = Math.min(runningPriority, thread.priority);
-                    if (doCompensate)
+                    if (doCompensate) {
                         thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
+                        doCompensate = false;
+                    }
                 }
             });
 
@@ -19633,8 +19949,12 @@ exports.sceRtc = sceRtc;
 "src/hle/module/sceSasCore": function(module, exports, require) {
 var _utils = require('../utils');
 
+var _audio = require('../../core/audio');
+var _vag = require('../../format/vag');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
+var Sample = _audio.Sample;
+var VagSoundSource = _vag.VagSoundSource;
 
 var PSP_SAS_VOL_MAX = 0x1000;
 var PSP_SAS_PITCH_MIN = 0x1;
@@ -19660,26 +19980,46 @@ var sceSasCore = (function () {
                 return 2151809027 /* ERROR_SAS_INVALID_OUTPUT_MODE */;
             }
 
-            /*
-            var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
-            SasCore.Initialized = true;
-            SasCore.GrainSamples = GrainSamples;
-            SasCore.MaxVoices = MaxVoices;
-            SasCore.OutputMode = OutputMode;
-            SasCore.SampleRate = SampleRate;
-            
-            BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
-            BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
-            MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
-            */
+            //var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
+            _this.core.grainSamples = grainSamples;
+            _this.core.maxVoices = maxVoices;
+            _this.core.outputMode = outputMode;
+            _this.core.sampleRate = sampleRate;
+            _this.core.initialized = true;
+
+            //BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
+            //BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
+            //MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
             return 0;
         });
-        this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loopCount) {
+        this.__sceSasSetGrain = createNativeFunction(0xD1E0A01E, 150, 'uint', 'int/int', this, function (sasCorePointer, grainSamples) {
+            _this.core.grainSamples = grainSamples;
+            return 0;
+        });
+        this.__sceSasSetOutputmode = createNativeFunction(0xE855BF76, 150, 'uint', 'int/int', this, function (sasCorePointer, outputMode) {
+            _this.core.outputMode = outputMode;
+            return 0;
+        });
+        this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loop) {
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (data == null) {
                 voice.unsetSource();
+                return 0;
+            }
+            if (data.length == 0)
+                throw (new SceKernelException(2151809044 /* ERROR_SAS_INVALID_ADPCM_SIZE */));
+            if (data.length < 0x10)
+                throw (new SceKernelException(2151809044 /* ERROR_SAS_INVALID_ADPCM_SIZE */));
+            if (data.length % 0x10)
+                throw (new SceKernelException(2151809044 /* ERROR_SAS_INVALID_ADPCM_SIZE */));
+            if (data == Stream.INVALID)
+                throw (new SceKernelException(2151809040 /* ERROR_SAS_INVALID_VOICE */));
+            if (loop != 0 && loop != 1)
+                throw (new SceKernelException(2151809045 /* ERROR_SAS_INVALID_LOOP_POS */));
+            if (data == null) {
+                voice.unsetSource();
             } else {
-                voice.setVag(data, loopCount);
+                voice.setAdpcm(data, loop);
             }
             return 0;
         });
@@ -19735,14 +20075,14 @@ var sceSasCore = (function () {
         });
         this.__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            if (!voice.pause)
+            if (!voice.paused)
                 return 2151809046 /* ERROR_SAS_VOICE_PAUSED */;
-            voice.on = false;
+            voice.setOn(false);
             return 0;
         });
         this.__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            voice.on = true;
+            voice.setOn(true);
             return 0;
         });
         this.__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
@@ -19757,7 +20097,7 @@ var sceSasCore = (function () {
         this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceBits, pause) {
             _this.core.voices.forEach(function (voice) {
                 if (voiceBits & (1 << voice.index)) {
-                    voice.pause = pause;
+                    voice.paused = pause;
                 }
             });
             return 0;
@@ -19765,7 +20105,7 @@ var sceSasCore = (function () {
         this.__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, function (sasCorePointer) {
             var voiceBits = 0;
             _this.core.voices.forEach(function (voice) {
-                voiceBits |= (voice.pause ? 1 : 0) << voice.index;
+                voiceBits |= (voice.paused ? 1 : 0) << voice.index;
             });
             return voiceBits;
         });
@@ -19842,6 +20182,11 @@ exports.sceSasCore = sceSasCore;
 
 var SasCore = (function () {
     function SasCore() {
+        this.initialized = false;
+        this.grainSamples = 0;
+        this.maxVoices = 32;
+        this.outputMode = 0 /* STEREO */;
+        this.sampleRate = 44100;
         this.delay = 0;
         this.feedback = 0;
         this.endFlags = 0;
@@ -19851,53 +20196,65 @@ var SasCore = (function () {
         this.leftVolume = PSP_SAS_VOL_MAX;
         this.rightVolume = PSP_SAS_VOL_MAX;
         this.voices = [];
+        this.bufferTempArray = [];
         while (this.voices.length < 32)
             this.voices.push(new Voice(this.voices.length));
     }
     SasCore.prototype.mix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
-        /*
-        var NumberOfChannels = (SasCore.OutputMode == OutputMode.PSP_SAS_OUTPUTMODE_STEREO) ? 2 : 1;
-        var NumberOfSamples = SasCore.GrainSamples;
-        var NumberOfVoicesPlaying = Math.Max(1, SasCore.Voices.Count(Voice => Voice.OnAndPlaying));
-        
-        for (var n = 0; n < NumberOfSamples; n++) BufferTempPtr[n] = default(StereoIntSoundSample);
-        
-        var PrevPosDiv = -1;
-        foreach (var Voice in SasCore.Voices) {
-        if (Voice.OnAndPlaying) {
-        //Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
-        //for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
-        var Pos = 0;
-        while (true) {
-        if ((Voice.Vag != null) && (Voice.Vag.HasMore)) {
-        int PosDiv = Pos / Voice.Pitch;
-        
-        if (PosDiv >= NumberOfSamples) break;
-        
-        var Sample = Voice.Vag.GetNextSample().ApplyVolumes(Voice.LeftVolume, Voice.RightVolume);
-        
-        for (int m = PrevPosDiv + 1; m <= PosDiv; m++) BufferTempPtr[m] += Sample;
-        
-        PrevPosDiv = PosDiv;
-        Pos += PSP_SAS_PITCH_BASE;
+        var _this = this;
+        while (this.bufferTempArray.length < this.grainSamples)
+            this.bufferTempArray.push(new Sample(0, 0));
+
+        var numberOfChannels = (this.outputMode == 0 /* STEREO */) ? 2 : 1;
+        var numberOfSamples = this.grainSamples;
+        var numberOfVoicesPlaying = Math.max(1, this.voices.count(function (Voice) {
+            return Voice.onAndPlaying;
+        }));
+
+        for (var n = 0; n < numberOfSamples; n++)
+            this.bufferTempArray[n].set(0, 0);
+
+        var prevPosDiv = -1;
+
+        this.voices.forEach(function (voice) {
+            if (!voice.onAndPlaying)
+                return;
+
+            //Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
+            //for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
+            var pos = 0;
+            while (true) {
+                if ((voice.source != null) && (voice.source.hasMore)) {
+                    var posDiv = Math.floor(pos / voice.pitch);
+
+                    if (posDiv >= numberOfSamples)
+                        break;
+
+                    var sample = voice.source.getNextSample();
+
+                    for (var m = prevPosDiv + 1; m <= posDiv; m++) {
+                        _this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
+                    }
+
+                    prevPosDiv = posDiv;
+                    pos += PSP_SAS_PITCH_BASE;
+                } else {
+                    voice.setPlaying(false);
+                    break;
+                }
+            }
+        });
+
+        for (var n = 0; n < numberOfSamples; n++) {
+            var sample = this.bufferTempArray[n];
+            sample.scale(leftVolume / PSP_SAS_VOL_MAX, rightVolume / PSP_SAS_VOL_MAX);
+
+            if (numberOfChannels >= 1)
+                sasOut.writeInt16(MathUtils.clamp(sample.left, -32768, 32767));
+            if (numberOfChannels >= 2)
+                sasOut.writeInt16(MathUtils.clamp(sample.right, -32768, 32767));
         }
-        else {
-        Voice.SetPlaying(false);
-        break;
-        }
-        }
-        }
-        }
-        
-        for (int n = 0; n < NumberOfSamples; n++) BufferShortPtr[n] = BufferTempPtr[n];
-        
-        for (int channel = 0; channel < NumberOfChannels; channel++) {
-        for (int n = 0; n < NumberOfSamples; n++) {
-        SasOut[n * NumberOfChannels + channel] = BufferShortPtr[n].ApplyVolumes(LeftVolume, RightVolume).GetByIndex(channel);
-        }
-        }
-        */
-        // @TODO
+
         return 0;
     };
     return SasCore;
@@ -19909,7 +20266,8 @@ var Voice = (function () {
         this.envelope = new Envelope();
         this.sustainLevel = 0;
         this.on = false;
-        this.pause = false;
+        this.playing = false;
+        this.paused = false;
         this.leftVolume = PSP_SAS_VOL_MAX;
         this.rightVolume = PSP_SAS_VOL_MAX;
         this.effectLeftVolume = PSP_SAS_VOL_MAX;
@@ -19917,11 +20275,40 @@ var Voice = (function () {
         this.pitch = PSP_SAS_PITCH_BASE;
         this.source = null;
     }
+    Object.defineProperty(Voice.prototype, "onAndPlaying", {
+        get: function () {
+            return this.on && this.playing;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Voice.prototype.setOn = function (set) {
+        this.on = set;
+        this.setPlaying(set);
+    };
+
+    Voice.prototype.setPlaying = function (set) {
+        this.playing = set;
+
+        // CHECK. Reset on change?
+        if (this.source)
+            this.source.reset();
+    };
+
+    Object.defineProperty(Voice.prototype, "ended", {
+        get: function () {
+            return !this.playing;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
     Voice.prototype.unsetSource = function () {
         this.source = null;
     };
 
-    Voice.prototype.setVag = function (stream, loopCount) {
+    Voice.prototype.setAdpcm = function (stream, loopCount) {
         this.source = new VagSoundSource(stream, loopCount);
     };
 
@@ -19931,15 +20318,23 @@ var Voice = (function () {
     return Voice;
 })();
 
-var VagSoundSource = (function () {
-    function VagSoundSource(stream, loopCount) {
-    }
-    return VagSoundSource;
-})();
-
 var PcmSoundSource = (function () {
     function PcmSoundSource(stream, loopCount) {
     }
+    PcmSoundSource.prototype.reset = function () {
+    };
+
+    Object.defineProperty(PcmSoundSource.prototype, "hasMore", {
+        get: function () {
+            return false;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    PcmSoundSource.prototype.getNextSample = function () {
+        return null;
+    };
     return PcmSoundSource;
 })();
 
@@ -20094,9 +20489,12 @@ var PspUmdState;
 var _utils = require('../utils');
 
 var _vfs = require('../vfs');
+var _structs = require('../structs');
 
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
+
+var PspLanguages = _structs.PspLanguages;
 
 var FileOpenFlags = _vfs.FileOpenFlags;
 
@@ -20110,105 +20508,11 @@ var sceUtility = (function () {
             return Promise.resolve(0);
         });
         this.sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
-            console.log('sceUtilitySavedataInitStart');
-            var params = SceUtilitySavedataParam.struct.read(paramsPtr);
-
-            var fileManager = _this.context.fileManager;
-            var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
-            var saveDataBin = savePathFolder + "/DATA.BIN";
-            var saveIcon0 = savePathFolder + "/ICON0.PNG";
-            var savePic1 = savePathFolder + "/PIC1.PNG";
-
-            _this.currentStep = 3 /* SUCCESS */;
-
-            switch (params.mode) {
-                case 0 /* Autoload */:
-                case 2 /* Load */:
-                case 4 /* ListLoad */:
-                    return fileManager.openAsync(saveDataBin, 1 /* Read */, parseIntFormat('0777')).then(function (file) {
-                        return file.entry.readAllAsync();
-                    }).then(function (data) {
-                        _this.context.memory.writeBytes(params.dataBufPointer, data);
-                        return 0;
-                    }).catch(function (error) {
-                        return 2148598535 /* ERROR_SAVEDATA_LOAD_NO_DATA */;
-                    });
-                case 1 /* Autosave */:
-                case 3 /* Save */:
-                case 5 /* ListSave */:
-                    var data = _this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
-
-                    return fileManager.openAsync(saveDataBin, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseIntFormat('0777')).then(function (file) {
-                        return file.entry.writeAllAsync(data);
-                    }).then(function (written) {
-                        return 0;
-                    }).catch(function (error) {
-                        return 2148598661 /* ERROR_SAVEDATA_SAVE_ACCESS_ERROR */;
-                    });
-                case 16 /* Read */:
-                case 15 /* ReadSecure */:
-                     {
-                        //throw (new SceKernelException(SceKernelErrors.ERROR_SAVEDATA_RW_NO_DATA));
-                        console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-
-                        //return Promise.resolve(-1);
-                        return Promise.resolve(0);
-                    }
-                    break;
-
-                case 8 /* Sizes */:
-                     {
-                        var SceKernelError = 0 /* ERROR_OK */;
-
-                        //Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
-                        var SectorSize = 1024;
-                        var FreeSize = 32 * 1024 * 1024;
-                        var UsedSize = 0;
-
-                         {
-                            var sizeFreeInfoPtr = _this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
-                            sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
-                                sizeFreeInfo.sectorSize = SectorSize;
-                                sizeFreeInfo.freeSectors = FreeSize / SectorSize;
-                                sizeFreeInfo.freeKb = FreeSize / 1024;
-                                sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
-                            });
-                        }
-
-                         {
-                            var sizeUsedInfoPtr = _this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
-                        }
-
-                         {
-                            var sizeRequiredSpaceInfoPtr = _this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
-
-                            if (sizeRequiredSpaceInfoPtr != null) {
-                                var RequiredSize = 0;
-                                RequiredSize += params.icon0FileData.size;
-                                RequiredSize += params.icon1FileData.size;
-                                RequiredSize += params.pic1FileData.size;
-                                RequiredSize += params.snd0FileData.size;
-                                RequiredSize += params.dataSize;
-
-                                sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
-                                    sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
-                                    sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
-                                    sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
-
-                                    sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
-                                    sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
-                                });
-                            }
-                        }
-
-                        if (SceKernelError != 0 /* ERROR_OK */)
-                            throw (new SceKernelException(SceKernelError));
-                    }
-                    break;
-                default:
-                    throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
-            }
-            return Promise.resolve(0);
+            return Promise.resolve(_this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(function (result) {
+                var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
+                params.base.result = result;
+                return 0;
+            });
         });
         this.sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
             //console.log('sceUtilitySavedataShutdownStart');
@@ -20262,6 +20566,112 @@ var sceUtility = (function () {
             return 0;
         });
     }
+    sceUtility.prototype._sceUtilitySavedataInitStart = function (paramsPtr) {
+        var _this = this;
+        console.log('sceUtilitySavedataInitStart');
+        var params = SceUtilitySavedataParam.struct.read(paramsPtr);
+
+        var fileManager = this.context.fileManager;
+        var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
+        var saveDataBin = savePathFolder + "/DATA.BIN";
+        var saveIcon0 = savePathFolder + "/ICON0.PNG";
+        var savePic1 = savePathFolder + "/PIC1.PNG";
+
+        this.currentStep = 3 /* SUCCESS */;
+
+        //debugger;
+        params.base.result = 0;
+
+        switch (params.mode) {
+            case 0 /* Autoload */:
+            case 2 /* Load */:
+            case 4 /* ListLoad */:
+                return fileManager.openAsync(saveDataBin, 1 /* Read */, parseIntFormat('0777')).then(function (file) {
+                    return file.entry.readAllAsync();
+                }).then(function (data) {
+                    _this.context.memory.writeBytes(params.dataBufPointer, data);
+                    return 0;
+                }).catch(function (error) {
+                    return 2148598535 /* ERROR_SAVEDATA_LOAD_NO_DATA */;
+                });
+            case 1 /* Autosave */:
+            case 3 /* Save */:
+            case 5 /* ListSave */:
+                var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+
+                return fileManager.openAsync(saveDataBin, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseIntFormat('0777')).then(function (file) {
+                    return file.entry.writeAllAsync(data);
+                }).then(function (written) {
+                    return 0;
+                }).catch(function (error) {
+                    return 2148598661 /* ERROR_SAVEDATA_SAVE_ACCESS_ERROR */;
+                });
+            case 16 /* Read */:
+            case 15 /* ReadSecure */:
+                 {
+                    //throw (new SceKernelException(SceKernelErrors.ERROR_SAVEDATA_RW_NO_DATA));
+                    console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+
+                    //return Promise.resolve(-1);
+                    return Promise.resolve(0);
+                }
+                break;
+
+            case 8 /* Sizes */:
+                 {
+                    var SceKernelError = 0 /* ERROR_OK */;
+
+                    //Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+                    var SectorSize = 1024;
+                    var FreeSize = 32 * 1024 * 1024;
+                    var UsedSize = 0;
+
+                     {
+                        var sizeFreeInfoPtr = this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
+                        sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
+                            sizeFreeInfo.sectorSize = SectorSize;
+                            sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+                            sizeFreeInfo.freeKb = FreeSize / 1024;
+                            sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+                        });
+                    }
+
+                     {
+                        var sizeUsedInfoPtr = this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
+                    }
+
+                     {
+                        var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+
+                        if (sizeRequiredSpaceInfoPtr != null) {
+                            var RequiredSize = 0;
+                            RequiredSize += params.icon0FileData.size;
+                            RequiredSize += params.icon1FileData.size;
+                            RequiredSize += params.pic1FileData.size;
+                            RequiredSize += params.snd0FileData.size;
+                            RequiredSize += params.dataSize;
+
+                            sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
+                                sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+                                sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+                                sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+
+                                sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+                                sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+                            });
+                        }
+                    }
+
+                    if (SceKernelError != 0 /* ERROR_OK */)
+                        throw (new SceKernelException(SceKernelError));
+                }
+                break;
+            default:
+                throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+        }
+        return Promise.resolve(0);
+    };
+
     sceUtility.prototype._getKey = function (id) {
         switch (id) {
             case 2 /* INT_ADHOC_CHANNEL */:
@@ -20277,7 +20687,7 @@ var sceUtility = (function () {
             case 7 /* INT_DAYLIGHTSAVINGS */:
                 return 0 /* STD */;
             case 8 /* INT_LANGUAGE */:
-                return 1 /* ENGLISH */;
+                return this.context.config.language;
             case 9 /* INT_BUTTON_PREFERENCE */:
                 return 1 /* NA */;
             case 1 /* STRING_NICKNAME */:
@@ -20391,22 +20801,6 @@ var PSP_SYSTEMPARAM_BUTTON_PREFERENCE;
     PSP_SYSTEMPARAM_BUTTON_PREFERENCE[PSP_SYSTEMPARAM_BUTTON_PREFERENCE["NA"] = 1] = "NA";
 })(PSP_SYSTEMPARAM_BUTTON_PREFERENCE || (PSP_SYSTEMPARAM_BUTTON_PREFERENCE = {}));
 
-var PspLanguages;
-(function (PspLanguages) {
-    PspLanguages[PspLanguages["JAPANESE"] = 0] = "JAPANESE";
-    PspLanguages[PspLanguages["ENGLISH"] = 1] = "ENGLISH";
-    PspLanguages[PspLanguages["FRENCH"] = 2] = "FRENCH";
-    PspLanguages[PspLanguages["SPANISH"] = 3] = "SPANISH";
-    PspLanguages[PspLanguages["GERMAN"] = 4] = "GERMAN";
-    PspLanguages[PspLanguages["ITALIAN"] = 5] = "ITALIAN";
-    PspLanguages[PspLanguages["DUTCH"] = 6] = "DUTCH";
-    PspLanguages[PspLanguages["PORTUGUESE"] = 7] = "PORTUGUESE";
-    PspLanguages[PspLanguages["RUSSIAN"] = 8] = "RUSSIAN";
-    PspLanguages[PspLanguages["KOREAN"] = 9] = "KOREAN";
-    PspLanguages[PspLanguages["TRADITIONAL_CHINESE"] = 10] = "TRADITIONAL_CHINESE";
-    PspLanguages[PspLanguages["SIMPLIFIED_CHINESE"] = 11] = "SIMPLIFIED_CHINESE";
-})(PspLanguages || (PspLanguages = {}));
-
 var PspModule;
 (function (PspModule) {
     PspModule[PspModule["PSP_MODULE_NET_COMMON"] = 0x0100] = "PSP_MODULE_NET_COMMON";
@@ -20447,7 +20841,7 @@ var PspModule;
 var PspUtilityDialogCommon = (function () {
     function PspUtilityDialogCommon() {
         this.size = 0;
-        this.language = 1 /* ENGLISH */;
+        this.language = 3 /* SPANISH */;
         this.buttonSwap = 0;
         this.graphicsThread = 0;
         this.accessThread = 0;
@@ -21691,6 +22085,22 @@ var HleIoDirent = (function () {
     return HleIoDirent;
 })();
 exports.HleIoDirent = HleIoDirent;
+
+(function (PspLanguages) {
+    PspLanguages[PspLanguages["JAPANESE"] = 0] = "JAPANESE";
+    PspLanguages[PspLanguages["ENGLISH"] = 1] = "ENGLISH";
+    PspLanguages[PspLanguages["FRENCH"] = 2] = "FRENCH";
+    PspLanguages[PspLanguages["SPANISH"] = 3] = "SPANISH";
+    PspLanguages[PspLanguages["GERMAN"] = 4] = "GERMAN";
+    PspLanguages[PspLanguages["ITALIAN"] = 5] = "ITALIAN";
+    PspLanguages[PspLanguages["DUTCH"] = 6] = "DUTCH";
+    PspLanguages[PspLanguages["PORTUGUESE"] = 7] = "PORTUGUESE";
+    PspLanguages[PspLanguages["RUSSIAN"] = 8] = "RUSSIAN";
+    PspLanguages[PspLanguages["KOREAN"] = 9] = "KOREAN";
+    PspLanguages[PspLanguages["TRADITIONAL_CHINESE"] = 10] = "TRADITIONAL_CHINESE";
+    PspLanguages[PspLanguages["SIMPLIFIED_CHINESE"] = 11] = "SIMPLIFIED_CHINESE";
+})(exports.PspLanguages || (exports.PspLanguages = {}));
+var PspLanguages = exports.PspLanguages;
 //# sourceMappingURL=structs.js.map
 },
 "src/hle/utils": function(module, exports, require) {
@@ -21778,11 +22188,11 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         }
     });
 
-    code += 'var args = [' + args.join(', ') + '];';
     code += 'try {';
+    code += 'var args = [' + args.join(', ') + '];';
     code += 'var result = internalFunc.apply(_this, args);';
     code += '} catch (e) {';
-    code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
+    code += 'if (e instanceof SceKernelException) { result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
     code += '}';
 
     var debugSyscalls = false;
@@ -23336,6 +23746,7 @@ require('./format/isoTest');
 require('./format/pbpTest');
 require('./format/psfTest');
 require('./format/zipTest');
+require('./format/vagTest');
 require('./hle/elfTest');
 require('./hle/memorymanagerTest');
 require('./hle/vfsTest');
@@ -23459,6 +23870,43 @@ describe('psf', function () {
     });
 });
 //# sourceMappingURL=psfTest.js.map
+},
+"test/format/vagTest": function(module, exports, require) {
+var _vag = require('../../src/format/vag');
+
+describe('vag', function () {
+    var vagData;
+    var vagDataExpected;
+
+    before(function () {
+        return downloadFileAsync('samples/sample.vag').then(function (data) {
+            vagData = new Uint8Array(data);
+            return downloadFileAsync('samples/sample.vag.expected').then(function (data) {
+                vagDataExpected = new Uint8Array(data);
+            });
+        });
+    });
+
+    it('should load fine', function () {
+        var vag = new _vag.VagSoundSource(Stream.fromUint8Array(vagData), 0);
+        var expected = Stream.fromUint8Array(vagDataExpected);
+        vag.reset();
+        expected.position = 0;
+        var resultArray = [];
+        var expectedArray = [];
+        while (vag.hasMore) {
+            var sample = vag.getNextSample();
+            var expectedLeft = expected.readInt16();
+            var expectedRight = expected.readInt16();
+
+            //console.log(n, sample.left, "=", expectedLeft);
+            resultArray.push(sample.left, sample.right);
+            expectedArray.push(expectedLeft, expectedRight);
+        }
+        assert.equal(resultArray.join(','), expectedArray.join(','));
+    });
+});
+//# sourceMappingURL=vagTest.js.map
 },
 "test/format/zipTest": function(module, exports, require) {
 var _zip = require('../../src/format/zip');
@@ -23584,7 +24032,7 @@ describe('elf', function () {
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
@@ -23945,41 +24393,6 @@ describe('pspautotests', function () {
         return new difflib.SequenceMatcher(difflib.stringAsLines(text1), difflib.stringAsLines(text2)).get_opcodes();
     }
 
-    /*
-    function compareLines(text1, text2) {
-    var out = [];
-    var sm = new difflib.SequenceMatcher(text1, text2);
-    var opcodes = sm.get_opcodes();
-    for (var n = 0; n < opcodes.length; n++) {
-    var opcode = <string>(opcodes[n]);
-    var start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
-    var start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
-    var length1 = end1 - start1;
-    var length2 = end2 - start2;
-    switch (opcode[0]) {
-    case 'equal': for (var m = start1; m < end1; m++) out.push(['', m, text1[m]]); break;
-    case 'delete': for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]); break;
-    case 'insert': for (var m = start2; m < end2; m++) out.push(['+', m, text1[m]]); break;
-    case 'replace':
-    if (length1 == length2) {
-    for (var m = 0; m < length1; m++) {
-    out.push(['!', m + start1, m + start2, text1[m + start1], text2[m + start2]]);
-    }
-    } else {
-    for (var m = start1; m < end1; m++) out.push(['-', m, text1[m]]);
-    for (var m = start2; m < end2; m++) out.push(['+', m, text2[m]]);
-    }
-    break;
-    }
-    }
-    return out;
-    }
-    
-    function compareText(text1, text2) {
-    return compareLines(difflib.stringAsLines(text1), difflib.stringAsLines(text2));
-    }
-    */
-    //console.log(compareText('a', 'b'));
     function compareOutput(name, output, expected) {
         output = normalizeString(output);
         expected = normalizeString(expected);
@@ -24041,37 +24454,6 @@ describe('pspautotests', function () {
         }
         var distinctLines = totalLines - equalLines;
 
-        /*
-        var output_lines = output.split('\n');
-        var expected_lines = expected.split('\n');
-        
-        var distinctLines = 0;
-        var totalLines = Math.max(output_lines.length, expected_lines.length)
-        console.groupCollapsed('TEST RESULT: ' + name);
-        var linesToShow = {};
-        for (var n = 0; n < totalLines; n++) {
-        if (output_lines[n] != expected_lines[n]) {
-        distinctLines++;
-        for (var m = -2; m <= 2; m++) linesToShow[n + m] = true;
-        }
-        }
-        
-        for (var n = 0; n < totalLines; n++) {
-        var lineNumber = n + 1;
-        var output_line = output_lines[n];
-        var expected_line = expected_lines[n];
-        if (linesToShow[n]) {
-        if (output_line != expected_line) {
-        console.warn(sprintf('%04d: %s', lineNumber, output_line));
-        console.info(sprintf('%04d: %s', lineNumber, expected_line));
-        } else {
-        console.log(sprintf('%04d: %s', lineNumber, output_line));
-        }
-        }
-        }
-        
-        if (distinctLines == 0) console.log('great: output and expected are equal!');
-        */
         var table = [];
         for (var n = 0; n < Math.max(outputLines.length, expectedLines.length); n++) {
             table[n + 1] = { output: outputLines[n], expected: expectedLines[n] };

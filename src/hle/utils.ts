@@ -57,11 +57,11 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     });
 
 	
-	code += 'var args = [' + args.join(', ') + '];';
 	code += 'try {';
+	code += 'var args = [' + args.join(', ') + '];';
 	code += 'var result = internalFunc.apply(_this, args);';
 	code += '} catch (e) {';
-	code += 'if (e instanceof SceKernelException) { result = e.id; } else { throw(e); }';
+	code += 'if (e instanceof SceKernelException) { result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
 	code += '}';
 
 	var debugSyscalls = false;
@@ -92,8 +92,8 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     nativeFunction.name = 'unknown';
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
-    //console.log(code);
-    var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
+	//console.log(code);
+	var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
 	nativeFunction.call = (context, state) => {
         func(_this, internalFunc, context, state, nativeFunction);
 	};

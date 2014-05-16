@@ -5,6 +5,7 @@ require('./format/isoTest');
 require('./format/pbpTest');
 require('./format/psfTest');
 require('./format/zipTest');
+require('./format/vagTest');
 require('./hle/elfTest');
 require('./hle/memorymanagerTest');
 require('./hle/vfsTest');

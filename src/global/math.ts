@@ -403,6 +403,11 @@ function parseIntFormat(str: string) {
 }
 
 class MathUtils {
+	static sextend16(value: number) {
+		return (((value & 0xFFFF) << 16) >> 16);
+		//value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
+	}
+
 	static prevAligned(value: number, alignment: number) {
 		return Math.floor(value / alignment) * alignment;
 	}

@@ -184,7 +184,8 @@ export class TextureHandler {
 
 	private mustRecheckSlowHash(texture: Texture) {
 		//return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
-		return !texture || !texture.valid;
+		//return !texture || !texture.valid;
+		return !texture;
 	}
 
 	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState) {

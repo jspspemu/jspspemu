@@ -310,7 +310,10 @@ export class ThreadManager {
 				if (thread.running) {
 					runningThreadCount++;
 					runningPriority = Math.min(runningPriority, thread.priority);
-					if (doCompensate) thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
+					if (doCompensate) {
+						thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
+						doCompensate = false;
+					}
 				}
 			});
 

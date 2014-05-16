@@ -1,9 +1,12 @@
 ﻿import _utils = require('../utils');
 import _manager = require('../manager');
 import _vfs = require('../vfs');
+import _structs = require('../structs');
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+
+import PspLanguages = _structs.PspLanguages;
 
 import FileOpenFlags = _vfs.FileOpenFlags;
 import FileMode = _vfs.FileMode;
@@ -19,6 +22,14 @@ export class sceUtility {
 	});
 
 	sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, (paramsPtr: Stream) => {
+		return Promise.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
+			var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
+			params.base.result = result;
+			return 0;
+		});
+	});
+
+	_sceUtilitySavedataInitStart(paramsPtr: Stream) {
 		console.log('sceUtilitySavedataInitStart');
 		var params = SceUtilitySavedataParam.struct.read(paramsPtr);
 
@@ -29,6 +40,10 @@ export class sceUtility {
 		var savePic1 = savePathFolder + "/PIC1.PNG";
 
 		this.currentStep = DialogStepEnum.SUCCESS;
+
+		//debugger;
+
+		params.base.result = 0;
 
 		switch (params.mode) {
 			case PspUtilitySavedataMode.Autoload:
@@ -132,7 +147,7 @@ export class sceUtility {
 				throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
 		}
 		return Promise.resolve(0);
-	});
+	}
 
 	sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, () => {
 		//console.log('sceUtilitySavedataShutdownStart');
@@ -182,7 +197,7 @@ export class sceUtility {
 			case PSP_SYSTEMPARAM_ID.INT_TIME_FORMAT: return PSP_SYSTEMPARAM_TIME_FORMAT._24HR;
 			case PSP_SYSTEMPARAM_ID.INT_TIMEZONE: return -5 * 60;
 			case PSP_SYSTEMPARAM_ID.INT_DAYLIGHTSAVINGS: return PSP_SYSTEMPARAM_DAYLIGHTSAVINGS.STD;
-			case PSP_SYSTEMPARAM_ID.INT_LANGUAGE: return PspLanguages.ENGLISH;
+			case PSP_SYSTEMPARAM_ID.INT_LANGUAGE: return this.context.config.language;
 			case PSP_SYSTEMPARAM_ID.INT_BUTTON_PREFERENCE: return PSP_SYSTEMPARAM_BUTTON_PREFERENCE.NA;
 			case PSP_SYSTEMPARAM_ID.STRING_NICKNAME: return "USERNAME";
 		}
@@ -303,21 +318,6 @@ enum PSP_SYSTEMPARAM_BUTTON_PREFERENCE {
 	//CROSS = 1,
 }
 
-enum PspLanguages {
-	JAPANESE = 0,
-	ENGLISH = 1,
-	FRENCH = 2,
-	SPANISH = 3,
-	GERMAN = 4,
-	ITALIAN = 5,
-	DUTCH = 6,
-	PORTUGUESE = 7,
-	RUSSIAN = 8,
-	KOREAN = 9,
-	TRADITIONAL_CHINESE = 10,
-	SIMPLIFIED_CHINESE = 11,
-}
-
 enum PspModule {
 	PSP_MODULE_NET_COMMON = 0x0100,
 	PSP_MODULE_NET_ADHOC = 0x0101,
@@ -356,7 +356,7 @@ enum PspModule {
 
 class PspUtilityDialogCommon {
 	size = 0; // 0000 - Size of the structure
-	language = PspLanguages.ENGLISH; // 0004 - Language
+	language = PspLanguages.SPANISH; // 0004 - Language
 	buttonSwap = 0; // 0008 - Set to 1 for X/O button swap
 	graphicsThread = 0; // 000C - Graphics thread priority
 	accessThread = 0; // 0010 - Access/fileio thread priority (SceJobThread)

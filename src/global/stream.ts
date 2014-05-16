@@ -204,6 +204,7 @@ class Stream {
 	}
 
 	sliceWithLength(low: number, count?: number) {
+		if (count === undefined) count = this.length - low;
 		return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
 	}
 

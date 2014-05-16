@@ -93,3 +93,18 @@ export class HleIoDirent {
 		{ dummy: Int32 },
 	]);
 }
+
+export enum PspLanguages { // ISO-639-1
+	JAPANESE = 0, // ja
+	ENGLISH = 1, // en
+	FRENCH = 2, // fr
+	SPANISH = 3, // es
+	GERMAN = 4, // de
+	ITALIAN = 5, // it
+	DUTCH = 6, // nl
+	PORTUGUESE = 7, // pt
+	RUSSIAN = 8, // ru
+	KOREAN = 9, // ko
+	TRADITIONAL_CHINESE = 10, // zh
+	SIMPLIFIED_CHINESE = 11, // zh?
+}
