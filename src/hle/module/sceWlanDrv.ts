@@ -5,4 +5,9 @@ import SceKernelErrors = require('../SceKernelErrors');
 
 export class sceWlanDrv {
 	constructor(private context: _context.EmulatorContext) { }
+
+	sceWlanGetSwitchState = createNativeFunction(0xD7763699, 150, 'bool', '', this, () => {
+		return true;
+	});
+
 }

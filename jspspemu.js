@@ -19685,9 +19685,52 @@ var RingBuffer = (function () {
 //# sourceMappingURL=sceMpeg.js.map
 },
 "src/hle/module/sceNet": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceNet = (function () {
     function sceNet(context) {
         this.context = context;
+        this.sceNetInit = createNativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int', this, function (memoryPoolSize, calloutprio, calloutstack, netintrprio, netintrstack) {
+            return 0;
+        });
+        this.sceNetTerm = createNativeFunction(0x281928A9, 150, 'int', '', this, function () {
+            return 0;
+        });
+        this.sceNetFreeThreadinfo = createNativeFunction(0x50647530, 150, 'int', 'int', this, function (threadId) {
+            throw (new Error("Not implemented"));
+            return -1;
+        });
+        this.sceNetThreadAbort = createNativeFunction(0xAD6844c6, 150, 'int', 'int', this, function (threadId) {
+            throw (new Error("Not implemented"));
+            return -1;
+        });
+        /** Convert string to a Mac address **/
+        this.sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/void*', this, function (string, macAddress) {
+            for (var n = 0; n < 6; n++)
+                macAddress.writeInt8(0);
+            return 0;
+        });
+        /** Convert Mac address to a string **/
+        this.sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'void*/void*', this, function (macAddress, outputAddress) {
+            var mac = [0, 0, 0, 0, 0, 0];
+            for (var n = 0; n < 6; n++)
+                mac[n] = macAddress.readUInt8();
+            outputAddress.writeStringz(sprintf('%02X:%02X:%02X:%02X:%02X:%02X', mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], mac[6]));
+            return 0;
+        });
+        /** Retrieve the local Mac address **/
+        this.sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'void*', this, function (macAddress) {
+            var mac = [1, 2, 3, 4, 5, 6];
+            for (var n = 0; n < 6; n++)
+                macAddress.writeUInt8(mac[n]);
+            return 0;
+        });
+        this.sceNetGetMallocStat = createNativeFunction(0xCC393E48, 150, 'int', 'void*', this, function (statPtr) {
+            throw (new Error("Not implemented"));
+            return -1;
+        });
     }
     return sceNet;
 })();
@@ -19695,13 +19738,159 @@ exports.sceNet = sceNet;
 //# sourceMappingURL=sceNet.js.map
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
+        var _this = this;
         this.context = context;
+        /** Initialise the adhoc library. */
+        this.sceNetAdhocInit = createNativeFunction(0xE1D621D7, 150, 'int', '', this, function () {
+            return 0;
+        });
+        /** Terminate the adhoc library */
+        this.sceNetAdhocTerm = createNativeFunction(0xA62C6F57, 150, 'int', '', this, function () {
+            return 0;
+        });
+        /** */
+        this.sceNetAdhocPollSocket = createNativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int', this, function (socketAddress, int, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPollSocket"));
+            return -1;
+        });
+        this.pdps = new UidCollection(1);
+        /** Create a PDP object. */
+        this.sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'void*/int/uint/int', this, function (mac, port, bufsize, unk1) {
+            return _this.pdps.allocate(new PDP());
+        });
+        /** Delete a PDP object. */
+        this.sceNetAdhocPdpDelete = createNativeFunction(0x7F27BB5E, 150, 'int', 'int/int', this, function (pdpId, unk1) {
+            _this.pdps.remove(pdpId);
+            return 0;
+        });
+        /** Send a PDP packet to a destination. */
+        this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/void*/int/void*/int/int/int', this, function (pdpId, destMacAddr, port, data, len, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPdpSend"));
+            return -1;
+        });
+        /** Receive a PDP packet */
+        this.sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/void*/void*/void*/void*/int/int', this, function (pdpId, srcMacAddr, portPtr, data, dataLength, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPdpRecv"));
+            return -1;
+        });
+        /** Get the status of all PDP objects */
+        this.sceNetAdhocGetPdpStat = createNativeFunction(0x7F27BB5E, 150, 'int', 'int/int', this, function (size, pdpStatStruct) {
+            throw (new Error("Not implemented sceNetAdhocGetPdpStat"));
+            return -1;
+        });
+        /** Create own game object type data. */
+        this.sceNetAdhocGameModeCreateMaster = createNativeFunction(0x7F75C338, 150, 'int', 'byte[]', this, function (data) {
+            throw (new Error("Not implemented sceNetAdhocGameModeCreateMaster"));
+            return -1;
+        });
+        /** Create peer game object type data. */
+        this.sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'void*/byte[]', this, function (mac, data) {
+            throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
+            return -1;
+        });
+        /** Update own game object type data. */
+        this.sceNetAdhocGameModeUpdateMaster = createNativeFunction(0x98C204C8, 150, 'int', '', this, function () {
+            throw (new Error("Not implemented sceNetAdhocGameModeUpdateMaster"));
+            return -1;
+        });
+        /** Update peer game object type data. */
+        this.sceNetAdhocGameModeUpdateReplica = createNativeFunction(0xFA324B4E, 150, 'int', 'int/int', this, function (id, unk1) {
+            throw (new Error("Not implemented sceNetAdhocGameModeUpdateReplica"));
+            return -1;
+        });
+        /** Delete own game object type data. */
+        this.sceNetAdhocGameModeDeleteMaster = createNativeFunction(0xA0229362, 150, 'int', '', this, function () {
+            throw (new Error("Not implemented sceNetAdhocGameModeDeleteMaster"));
+            return -1;
+        });
+        /** Delete peer game object type data. */
+        this.sceNetAdhocGameModeDeleteReplica = createNativeFunction(0x0B2228E9, 150, 'int', 'int', this, function (id) {
+            throw (new Error("Not implemented sceNetAdhocGameModeDeleteReplica"));
+            return -1;
+        });
+        /** Open a PTP (Peer To Peer) connection */
+        this.sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'void*/int/void*/int/int/int/int/int', this, function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
+            throw (new Error("Not implemented sceNetAdhocPtpOpen"));
+            return -1;
+        });
+        /** Wait for an incoming PTP connection */
+        this.sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'void*/int/int/int/int/int/int', this, function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
+            throw (new Error("Not implemented sceNetAdhocPtpListen"));
+            return -1;
+        });
+        /** Wait for connection created by sceNetAdhocPtpOpen */
+        this.sceNetAdhocPtpConnect = createNativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int', this, function (id, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPtpConnect"));
+            return -1;
+        });
+        /** Accept an incoming PTP connection */
+        this.sceNetAdhocPtpAccept = createNativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPtpAccept"));
+            return -1;
+        });
+        /** Send data */
+        this.sceNetAdhocPtpSend = createNativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPtpSend"));
+            return -1;
+        });
+        /** Receive data */
+        this.sceNetAdhocPtpRecv = createNativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPtpRecv"));
+            return -1;
+        });
+        /** Wait for data in the buffer to be sent */
+        this.sceNetAdhocPtpFlush = createNativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int', this, function (id, timeout, nonblock) {
+            throw (new Error("Not implemented sceNetAdhocPtpFlush"));
+            return -1;
+        });
+        /** Close a socket */
+        this.sceNetAdhocPtpClose = createNativeFunction(0x157E6225, 150, 'int', 'int/int', this, function (id, unk1) {
+            throw (new Error("Not implemented sceNetAdhocPtpClose"));
+            return -1;
+        });
+        /** Get the status of all PTP objects */
+        this.sceNetAdhocGetPtpStat = createNativeFunction(0xB9685118, 150, 'int', 'void*/void*', this, function (size, stat) {
+            throw (new Error("Not implemented sceNetAdhocGetPtpStat"));
+            return -1;
+        });
     }
     return sceNetAdhoc;
 })();
 exports.sceNetAdhoc = sceNetAdhoc;
+
+var PDP = (function () {
+    function PDP() {
+    }
+    PDP.prototype.dispose = function () {
+    };
+    return PDP;
+})();
+/*
+class pdpStatStruct { // PDP status structure
+public uint NextPointer; // Pointer to next PDP structure in list (pdpStatStruct *next;) (uint)
+public int pdpId; // pdp ID
+public fixed byte mac[6]; // MAC address byte[6]
+public ushort port; // Port
+public uint rcvdData; // Bytes received
+}
+class ptpStatStruct { // PTP status structure
+public uint NextAddress; // Pointer to next PTP structure in list (ptpStatStruct *next;)
+public int ptpId; // ptp ID
+public fixed byte mac[6]; // MAC address
+public fixed byte peermac[6]; // Peer MAC address
+public ushort port; // Port
+public ushort peerport; // Peer Port
+public uint sentData; // Bytes sent
+public uint rcvdData; // Bytes received
+public int unk1; // Unknown
+}
+*/
 //# sourceMappingURL=sceNetAdhoc.js.map
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
@@ -19715,13 +19904,80 @@ exports.sceNetAdhocMatching = sceNetAdhocMatching;
 //# sourceMappingURL=sceNetAdhocMatching.js.map
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceNetAdhocctl = (function () {
     function sceNetAdhocctl(context) {
+        var _this = this;
         this.context = context;
+        this.currentState = 0 /* Disconnected */;
+        this.currentName = "noname";
+        /** Initialise the Adhoc control library */
+        this.sceNetAdhocctlInit = createNativeFunction(0xE26F226E, 150, 'int', 'int/int/void*', this, function (stacksize, priority, product) {
+            _this.currentState = 0 /* Disconnected */;
+            return 0;
+        });
+        /** Terminate the Adhoc control library */
+        this.sceNetAdhocctlTerm = createNativeFunction(0x9D689E13, 150, 'int', '', this, function () {
+            return 0;
+        });
+        /** Connect to the Adhoc control */
+        this.sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, function (name) {
+            _this.currentName = name;
+            _this.currentState = 1 /* Connected */;
+            _this._notifyAdhocctlHandler(1 /* Connected */);
+            return 0;
+        });
     }
+    sceNetAdhocctl.prototype._notifyAdhocctlHandler = function (event, error) {
+        if (typeof error === "undefined") { error = 0; }
+        //Console.Error.WriteLine("_notifyAdhocctlHandler:");
+        //foreach (var Handler in InjectContext.GetInstance<HleUidPoolManager>().List<AdhocctlHandler>())
+        //{
+        //Console.Error.WriteLine("_notifyAdhocctlHandler: {0:X8}: {1}: {2}, {3}", Handler.callback, @event, Error, Handler.parameter);
+        //HleInterop.ExecuteFunctionLater(Handler.callback, (uint)@event, (uint) Error, Handler.parameter);
+        //}
+    };
     return sceNetAdhocctl;
 })();
 exports.sceNetAdhocctl = sceNetAdhocctl;
+
+var Event;
+(function (Event) {
+    Event[Event["Error"] = 0] = "Error";
+    Event[Event["Connected"] = 1] = "Connected";
+    Event[Event["Disconnected"] = 2] = "Disconnected";
+    Event[Event["Scan"] = 3] = "Scan";
+    Event[Event["Game"] = 4] = "Game";
+    Event[Event["Discover"] = 5] = "Discover";
+    Event[Event["Wol"] = 6] = "Wol";
+    Event[Event["WolInterrupted"] = 7] = "WolInterrupted";
+})(Event || (Event = {}));
+
+var State;
+(function (State) {
+    State[State["Disconnected"] = 0] = "Disconnected";
+    State[State["Connected"] = 1] = "Connected";
+    State[State["Scan"] = 2] = "Scan";
+    State[State["Game"] = 3] = "Game";
+    State[State["Discover"] = 4] = "Discover";
+    State[State["Wol"] = 5] = "Wol";
+})(State || (State = {}));
+
+var Mode;
+(function (Mode) {
+    Mode[Mode["Normal"] = 0] = "Normal";
+    Mode[Mode["GameMode"] = 1] = "GameMode";
+    Mode[Mode["None"] = -1] = "None";
+})(Mode || (Mode = {}));
+
+var NICK_NAME_LENGTH = 128;
+var GROUP_NAME_LENGTH = 8;
+var IBSS_NAME_LENGTH = 6;
+var ADHOC_ID_LENGTH = 9;
+var MAX_GAME_MODE_MACS = 16;
 //# sourceMappingURL=sceNetAdhocctl.js.map
 },
 "src/hle/module/sceNetApctl": function(module, exports, require) {
@@ -21243,9 +21499,16 @@ exports.sceVaudio = sceVaudio;
 //# sourceMappingURL=sceVaudio.js.map
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
+var _utils = require('../utils');
+
+var createNativeFunction = _utils.createNativeFunction;
+
 var sceWlanDrv = (function () {
     function sceWlanDrv(context) {
         this.context = context;
+        this.sceWlanGetSwitchState = createNativeFunction(0xD7763699, 150, 'bool', '', this, function () {
+            return true;
+        });
     }
     return sceWlanDrv;
 })();
@@ -22344,6 +22607,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
             case 'int':
                 args.push(readGpr32_S() + ' | 0');
                 break;
+            case 'bool':
+                args.push(readGpr32_S() + ' != 0');
+                break;
             case 'float':
                 args.push(readFpr32());
                 break;
@@ -22389,6 +22655,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         case 'uint':
         case 'int':
             code += 'state.V0 = result | 0;';
+            break;
+        case 'bool':
+            code += 'state.V0 = result ? 1 : 0;';
             break;
         case 'float':
             code += 'state.fpr[0] = result;';

@@ -48,6 +48,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;
 			case 'uint': args.push(readGpr32_U() + ' >>> 0'); break;
 			case 'int': args.push(readGpr32_S() + ' | 0'); break;
+			case 'bool': args.push(readGpr32_S() + ' != 0'); break;
 			case 'float': args.push(readFpr32()); break;
 			case 'ulong': case 'long': args.push(readGpr64()); break;
 			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
@@ -81,6 +82,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     switch (retval) {
         case 'void': break;
 		case 'uint': case 'int': code += 'state.V0 = result | 0;'; break;
+		case 'bool': code += 'state.V0 = result ? 1 : 0;'; break;
 		case 'float': code += 'state.fpr[0] = result;'; break;
 		case 'long':
 			code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
