@@ -287,6 +287,19 @@ export class InstructionAst {
 		return stms(st);
 	}
 
+	private _vset1_i(i: Instruction, generate: (index: number) => _ast.ANodeExpr, destSize: number = 0) {
+		if (destSize <= 0) destSize = i.ONE_TWO;
+
+		var dest = getVectorRegs(i.VD, destSize);
+
+		var st = [];
+		st.push(call_stm('state.storeVd_prefixed_i', [
+			ast.arrayNumbers(dest),
+			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index))),
+		]));
+		return stms(st);
+	}
+
 	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize: number = 0, srcSize: number = 0) {
 		if (destSize <= 0) destSize = i.ONE_TWO;
 		if (srcSize <= 0) srcSize = i.ONE_TWO;
@@ -512,10 +525,26 @@ export class InstructionAst {
 		});
 	}
 
+	vrnds(i: Instruction) { return call_stm('state.vrnds', []); }
+	vrndi(i: Instruction) { return this._vset1_i(i, (i) => call('state.vrndi', [])); }
+	vrndf1(i: Instruction) { return this._vset1(i, (i) => call('state.vrndf1', [])); }
+	vrndf2(i: Instruction) { return this._vset1(i, (i) => call('state.vrndf2', [])); }
+
+	/*
+	public AstNodeStm vrnds(i: Instruction) { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int>) CpuEmitterUtils._vrnds, ast.CpuThreadState)); }
+	public AstNodeStm vrndi(i: Instruction) { return VEC_VD_i.SetVector(Index => ast.CallStatic((Func < CpuThreadState, int>) CpuEmitterUtils._vrndi, ast.CpuThreadState), PC); }
+	public AstNodeStm vrndf1(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf1, ast.CpuThreadState), PC); }
+	public AstNodeStm vrndf2(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf2, ast.CpuThreadState), PC); }
+	*/
+
 	_aggregateV(val: _ast.ANodeExpr, size: number, generator: (value: _ast.ANodeExpr, index: number) => _ast.ANodeExpr) {
 		for (var n = 0; n < size; n++) val = generator(val, n);
 		return val;
 	}
+
+	vnop(i: Instruction) { return ast.stm(); }
+	vsync(i: Instruction) { return ast.stm(); }
+	vflush(i: Instruction) { return ast.stm(); }
 
 	vfad(i: Instruction) {
 		var vectorSize = i.ONE_TWO;

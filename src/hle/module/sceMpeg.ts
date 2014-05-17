@@ -74,54 +74,23 @@ export class sceMpeg {
 		//mpegHandle.write
 	});
 
-	/*
-	u32 sceMpegCreate(u32 mpegAddr, u32 dataPtr, u32 size, u32 ringbufferAddr, u32 frameWidth, u32 mode, u32 ddrTop)
-	{
-		// Generate, and write mpeg handle into mpeg data, for some reason
-		int mpegHandle = dataPtr + 0x30;
-		Memory::Write_U32(mpegHandle, mpegAddr);
+	sceMpegDelete = createNativeFunction(0x606A4649, 150, 'uint', 'int', this, (sceMpegPointer: number) => {
+		//this.getMpeg(sceMpegPointer).delete();
 
-		// Initialize fake mpeg struct.
-		Memory::Memcpy(mpegHandle, "LIBMPEG\0", 8);
-		Memory::Memcpy(mpegHandle + 8, "001\0", 4);
-		Memory::Write_U32(-1, mpegHandle + 12);
-		if (ringbuffer.IsValid()) {
-			Memory::Write_U32(ringbufferAddr, mpegHandle + 16);
-			Memory::Write_U32(ringbuffer- > dataUpperBound, mpegHandle + 20);
-		}
-		MpegContext * ctx = new MpegContext;
-		if (mpegMap.find(mpegHandle) != mpegMap.end()) {
-			WARN_LOG_REPORT(HLE, "Replacing existing mpeg context at %08x", mpegAddr);
-			// Otherwise, it would leak.
-			delete mpegMap[mpegHandle];
-		}
-		mpegMap[mpegHandle] = ctx;
+		return 0;
+	});
 
-		// Initialize mpeg values.
-		ctx- > mpegRingbufferAddr = ringbufferAddr;
-		ctx- > videoFrameCount = 0;
-		ctx- > audioFrameCount = 0;
-		ctx- > videoPixelMode = GE_CMODE_32BIT_ABGR8888; // TODO: What's the actual default?
-		ctx- > avcRegistered = false;
-		ctx- > atracRegistered = false;
-		ctx- > pcmRegistered = false;
-		ctx- > dataRegistered = false;
-		ctx- > ignoreAtrac = false;
-		ctx- > ignorePcm = false;
-		ctx- > ignoreAvc = false;
-		ctx- > defaultFrameWidth = frameWidth;
-		for (int i = 0; i < MPEG_DATA_ES_BUFFERS; i++) {
-			ctx- > esBuffers[i] = false;
-		}
+	sceMpegFinish = createNativeFunction(0x874624D6, 150, 'uint', '', this, () => {
+		//this.getMpeg(sceMpegPointer).delete();
+		return 0;
+	});
 
-		// Detailed "analysis" is done later in Query* for some reason.
-		ctx- > isAnalyzed = false;
-		ctx- > mediaengine = new MediaEngine();
-
-		INFO_LOG(ME, "%08x=sceMpegCreate(%08x, %08x, %i, %08x, %i, %i, %i)", mpegHandle, mpegAddr, dataPtr, size, ringbufferAddr, frameWidth, mode, ddrTop);
-		return hleDelayResult(0, "mpeg create", 29000);
-	}
-*/
+	sceMpegRingbufferDestruct = createNativeFunction(0x13407F13, 150, 'uint', 'int', this, (ringBufferPointer: number) => {
+		//Ringbuffer- > PacketsAvailable = Ringbuffer- > PacketsTotal;
+		//Ringbuffer- > PacketsRead = 0;
+		//Ringbuffer- > PacketsWritten = 0;
+		return 0;
+	});
 
 	private __mpegRingbufferQueryMemSize(packets: number) {
 		return packets * (104 + 2048);

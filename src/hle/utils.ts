@@ -65,8 +65,8 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	code += 'if (e instanceof SceKernelException) { result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
 	code += '}';
 
-	var debugSyscalls = false;
-	//var debugSyscalls = true;
+	//var debugSyscalls = false;
+	var debugSyscalls = true;
 
 	if (debugSyscalls) {
 		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;";

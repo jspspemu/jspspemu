@@ -6,8 +6,12 @@ import SceKernelErrors = require('../SceKernelErrors');
 export class sceUmdUser {
 	constructor(private context: _context.EmulatorContext) { }
 
-	sceUmdRegisterUMDCallBack = createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, (callbackId:number) => {
-		console.warn('Not implemented sceUmdRegisterUMDCallBack');
+	callbackIds = <number[]>[];
+
+	sceUmdRegisterUMDCallBack = createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, (callbackId: number) => {
+		this.callbackIds.push(callbackId);
+		//this.context.callbackManager.notify(callbackId);
+		//console.warn('Not implemented sceUmdRegisterUMDCallBack');
 		return 0;
 	});
 
@@ -25,8 +29,15 @@ export class sceUmdUser {
 		return 0;
 	});
 
+	private _notify(data: number) {
+		this.callbackIds.forEach(callbackId => {
+			this.context.callbackManager.notify(callbackId, data);
+		});
+	}
+
 	sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, (mode: number, drive: string) => {
 		console.warn('Not implemented sceUmdActivate', mode, drive);
+		this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
 		return 0;
 	});
 
@@ -40,6 +51,11 @@ export class sceUmdUser {
 	});
 
 	sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, (state: number, timeout: number) => {
+		return Promise.resolve(0);
+	});
+
+	sceUmdGetErrorStat = createNativeFunction(0x20628E6F, 150, 'uint', '', this, () => {
+		console.warn('called sceUmdGetErrorStat!');
 		return Promise.resolve(0);
 	});
 }

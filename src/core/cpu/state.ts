@@ -147,6 +147,18 @@ export class CpuState {
 		}
 	}
 
+	vrnds() { }
+	vrndi() {
+		var v = 0;
+		for (var n = 0; n < 4; n++) {
+			v <<= 8;
+			v |= (Math.round(Math.random() * 255) & 0xFF);
+		}
+		return v;
+	}
+	vrndf1() { return Math.random() * 2; }
+	vrndf2() { return Math.random() * 4; }
+
 	getVfrCc(index: number) {
 		return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
 	}

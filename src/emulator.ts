@@ -145,7 +145,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop);
 
 			return Promise.all([
 				this.display.startAsync(),

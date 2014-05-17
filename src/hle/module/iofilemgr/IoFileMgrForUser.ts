@@ -286,7 +286,7 @@ export class IoFileMgrForUser {
 		//var file = this.getFileById(fileId);
 		var file = this.getFileById(fileId);
 		var result = this._seek(fileId, offset.getNumber(), whence);
-		file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(result)));
+		file.setAsyncOperationNow(Integer64.fromNumber(result));
 		return 0;
 	});
 

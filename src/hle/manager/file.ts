@@ -50,6 +50,11 @@ export class HleFile {
 		});
 	}
 
+	setAsyncOperationNow(value: Integer64) {
+		this._asyncResult = value;
+		this._asyncPromise = Promise.resolve(value);
+	}
+
 	close() {
 		this.entry.close();
 	}

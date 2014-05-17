@@ -35,11 +35,12 @@ export class EmulatorContext {
 	fileManager: _manager.FileManager;
 	interruptManager: _interrupt.InterruptManager;
 	symbolLookup: ISymbolLookup;
+	interop: _manager.Interop;
 
 	constructor() {
 	}
 
-	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager:_manager.ModuleManager, config: _config.Config) {
+	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager: _manager.ModuleManager, config: _config.Config, interop: _manager.Interop) {
 		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;
@@ -54,5 +55,6 @@ export class EmulatorContext {
 		this.callbackManager = callbackManager;
 		this.moduleManager = moduleManager;
 		this.config = config;
+		this.interop = interop;
 	}
 }

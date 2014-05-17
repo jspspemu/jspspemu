@@ -2645,7 +2645,7 @@ controllerRegister();
 var EmulatorContext = (function () {
     function EmulatorContext() {
     }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config, interop) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -2660,6 +2660,7 @@ var EmulatorContext = (function () {
         this.callbackManager = callbackManager;
         this.moduleManager = moduleManager;
         this.config = config;
+        this.interop = interop;
     };
     return EmulatorContext;
 })();
@@ -4344,6 +4345,23 @@ var InstructionAst = (function () {
         return stms(st);
     };
 
+    InstructionAst.prototype._vset1_i = function (i, generate, destSize) {
+        if (typeof destSize === "undefined") { destSize = 0; }
+        if (destSize <= 0)
+            destSize = i.ONE_TWO;
+
+        var dest = getVectorRegs(i.VD, destSize);
+
+        var st = [];
+        st.push(call_stm('state.storeVd_prefixed_i', [
+            ast.arrayNumbers(dest),
+            ast.array(ArrayUtils.range(0, destSize).map(function (index) {
+                return generate(index);
+            }))
+        ]));
+        return stms(st);
+    };
+
     InstructionAst.prototype._vset2 = function (i, generate, destSize, srcSize) {
         if (typeof destSize === "undefined") { destSize = 0; }
         if (typeof srcSize === "undefined") { srcSize = 0; }
@@ -4703,10 +4721,45 @@ var InstructionAst = (function () {
         });
     };
 
+    InstructionAst.prototype.vrnds = function (i) {
+        return call_stm('state.vrnds', []);
+    };
+    InstructionAst.prototype.vrndi = function (i) {
+        return this._vset1_i(i, function (i) {
+            return call('state.vrndi', []);
+        });
+    };
+    InstructionAst.prototype.vrndf1 = function (i) {
+        return this._vset1(i, function (i) {
+            return call('state.vrndf1', []);
+        });
+    };
+    InstructionAst.prototype.vrndf2 = function (i) {
+        return this._vset1(i, function (i) {
+            return call('state.vrndf2', []);
+        });
+    };
+
+    /*
+    public AstNodeStm vrnds(i: Instruction) { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int>) CpuEmitterUtils._vrnds, ast.CpuThreadState)); }
+    public AstNodeStm vrndi(i: Instruction) { return VEC_VD_i.SetVector(Index => ast.CallStatic((Func < CpuThreadState, int>) CpuEmitterUtils._vrndi, ast.CpuThreadState), PC); }
+    public AstNodeStm vrndf1(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf1, ast.CpuThreadState), PC); }
+    public AstNodeStm vrndf2(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf2, ast.CpuThreadState), PC); }
+    */
     InstructionAst.prototype._aggregateV = function (val, size, generator) {
         for (var n = 0; n < size; n++)
             val = generator(val, n);
         return val;
+    };
+
+    InstructionAst.prototype.vnop = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vsync = function (i) {
+        return ast.stm();
+    };
+    InstructionAst.prototype.vflush = function (i) {
+        return ast.stm();
     };
 
     InstructionAst.prototype.vfad = function (i) {
@@ -7264,6 +7317,23 @@ var CpuState = (function () {
         }
     };
 
+    CpuState.prototype.vrnds = function () {
+    };
+    CpuState.prototype.vrndi = function () {
+        var v = 0;
+        for (var n = 0; n < 4; n++) {
+            v <<= 8;
+            v |= (Math.round(Math.random() * 255) & 0xFF);
+        }
+        return v;
+    };
+    CpuState.prototype.vrndf1 = function () {
+        return Math.random() * 2;
+    };
+    CpuState.prototype.vrndf2 = function () {
+        return Math.random() * 4;
+    };
+
     CpuState.prototype.getVfrCc = function (index) {
         return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
     };
@@ -8416,6 +8486,22 @@ var VertexReader = (function () {
                 indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
                 indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
                 indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
+                break;
+            case 6 /* Color4444 */:
+                this.align(2);
+                indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
+                indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 4);\n');
+                indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 4, 4);\n');
+                indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 8, 4);\n');
+                indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 12, 4);\n');
+                break;
+            case 4 /* Color5650 */:
+                this.align(2);
+                indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
+                indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
+                indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 6);\n');
+                indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 11, 5);\n');
+                indentStringGenerator.write('output.a = 1.0;\n');
                 break;
             default:
                 throw (new Error("Not implemented color format '" + type + "'"));
@@ -16663,6 +16749,11 @@ var HleFile = (function () {
         });
     };
 
+    HleFile.prototype.setAsyncOperationNow = function (value) {
+        this._asyncResult = value;
+        this._asyncPromise = Promise.resolve(value);
+    };
+
     HleFile.prototype.close = function () {
         this.entry.close();
     };
@@ -18330,7 +18421,7 @@ var IoFileMgrForUser = (function () {
             //var file = this.getFileById(fileId);
             var file = _this.getFileById(fileId);
             var result = _this._seek(fileId, offset.getNumber(), whence);
-            file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(result)));
+            file.setAsyncOperationNow(Integer64.fromNumber(result));
             return 0;
         });
         this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
@@ -18504,6 +18595,11 @@ var sceAtrac3plus = (function () {
         this._atrac3Ids = new UidCollection();
         this.sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]', this, function (data) {
             return _this._atrac3Ids.allocate(Atrac3.fromStream(data));
+        });
+        this.sceAtracSetData = createNativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]', this, function (id, data) {
+            var atrac3 = _this.getById(id);
+            atrac3.setDataStream(data);
+            return 0;
         });
         this.sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
             var atrac3 = _this.getById(id);
@@ -18699,7 +18795,7 @@ var Atrac3 = (function () {
         this.currentSample = 0;
         this.codecType = 4096 /* PSP_MODE_AT_3_PLUS */;
     }
-    Atrac3.prototype.loadStream = function (data) {
+    Atrac3.prototype.setDataStream = function (data) {
         var _this = this;
         this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
 
@@ -18828,7 +18924,7 @@ var Atrac3 = (function () {
     };
 
     Atrac3.fromStream = function (data) {
-        return new Atrac3(Atrac3.lastId++).loadStream(data);
+        return new Atrac3(Atrac3.lastId++).setDataStream(data);
     };
     Atrac3.useWorker = true;
 
@@ -19604,55 +19700,21 @@ var sceMpeg = (function () {
             //mpegHandle.writeInt32(mpegAddr);
             //mpegHandle.write
         });
+        this.sceMpegDelete = createNativeFunction(0x606A4649, 150, 'uint', 'int', this, function (sceMpegPointer) {
+            //this.getMpeg(sceMpegPointer).delete();
+            return 0;
+        });
+        this.sceMpegFinish = createNativeFunction(0x874624D6, 150, 'uint', '', this, function () {
+            //this.getMpeg(sceMpegPointer).delete();
+            return 0;
+        });
+        this.sceMpegRingbufferDestruct = createNativeFunction(0x13407F13, 150, 'uint', 'int', this, function (ringBufferPointer) {
+            //Ringbuffer- > PacketsAvailable = Ringbuffer- > PacketsTotal;
+            //Ringbuffer- > PacketsRead = 0;
+            //Ringbuffer- > PacketsWritten = 0;
+            return 0;
+        });
     }
-    /*
-    u32 sceMpegCreate(u32 mpegAddr, u32 dataPtr, u32 size, u32 ringbufferAddr, u32 frameWidth, u32 mode, u32 ddrTop)
-    {
-    // Generate, and write mpeg handle into mpeg data, for some reason
-    int mpegHandle = dataPtr + 0x30;
-    Memory::Write_U32(mpegHandle, mpegAddr);
-    
-    // Initialize fake mpeg struct.
-    Memory::Memcpy(mpegHandle, "LIBMPEG\0", 8);
-    Memory::Memcpy(mpegHandle + 8, "001\0", 4);
-    Memory::Write_U32(-1, mpegHandle + 12);
-    if (ringbuffer.IsValid()) {
-    Memory::Write_U32(ringbufferAddr, mpegHandle + 16);
-    Memory::Write_U32(ringbuffer- > dataUpperBound, mpegHandle + 20);
-    }
-    MpegContext * ctx = new MpegContext;
-    if (mpegMap.find(mpegHandle) != mpegMap.end()) {
-    WARN_LOG_REPORT(HLE, "Replacing existing mpeg context at %08x", mpegAddr);
-    // Otherwise, it would leak.
-    delete mpegMap[mpegHandle];
-    }
-    mpegMap[mpegHandle] = ctx;
-    
-    // Initialize mpeg values.
-    ctx- > mpegRingbufferAddr = ringbufferAddr;
-    ctx- > videoFrameCount = 0;
-    ctx- > audioFrameCount = 0;
-    ctx- > videoPixelMode = GE_CMODE_32BIT_ABGR8888; // TODO: What's the actual default?
-    ctx- > avcRegistered = false;
-    ctx- > atracRegistered = false;
-    ctx- > pcmRegistered = false;
-    ctx- > dataRegistered = false;
-    ctx- > ignoreAtrac = false;
-    ctx- > ignorePcm = false;
-    ctx- > ignoreAvc = false;
-    ctx- > defaultFrameWidth = frameWidth;
-    for (int i = 0; i < MPEG_DATA_ES_BUFFERS; i++) {
-    ctx- > esBuffers[i] = false;
-    }
-    
-    // Detailed "analysis" is done later in Query* for some reason.
-    ctx- > isAnalyzed = false;
-    ctx- > mediaengine = new MediaEngine();
-    
-    INFO_LOG(ME, "%08x=sceMpegCreate(%08x, %08x, %i, %08x, %i, %i, %i)", mpegHandle, mpegAddr, dataPtr, size, ringbufferAddr, frameWidth, mode, ddrTop);
-    return hleDelayResult(0, "mpeg create", 29000);
-    }
-    */
     sceMpeg.prototype.__mpegRingbufferQueryMemSize = function (packets) {
         return packets * (104 + 2048);
     };
@@ -20860,9 +20922,14 @@ var createNativeFunction = _utils.createNativeFunction;
 
 var sceUmdUser = (function () {
     function sceUmdUser(context) {
+        var _this = this;
         this.context = context;
+        this.callbackIds = [];
         this.sceUmdRegisterUMDCallBack = createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, function (callbackId) {
-            console.warn('Not implemented sceUmdRegisterUMDCallBack');
+            _this.callbackIds.push(callbackId);
+
+            //this.context.callbackManager.notify(callbackId);
+            //console.warn('Not implemented sceUmdRegisterUMDCallBack');
             return 0;
         });
         this.sceUmdCheckMedium = createNativeFunction(0x46EBB729, 150, 'uint', '', this, function () {
@@ -20878,6 +20945,7 @@ var sceUmdUser = (function () {
         });
         this.sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, function (mode, drive) {
             console.warn('Not implemented sceUmdActivate', mode, drive);
+            _this._notify(32 /* PSP_UMD_READABLE */ | 16 /* PSP_UMD_READY */ | 2 /* PSP_UMD_PRESENT */);
             return 0;
         });
         this.sceUmdDeactivate = createNativeFunction(0xE83742BA, 150, 'uint', 'int/string', this, function (mode, drive) {
@@ -20890,7 +20958,17 @@ var sceUmdUser = (function () {
         this.sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
             return Promise.resolve(0);
         });
+        this.sceUmdGetErrorStat = createNativeFunction(0x20628E6F, 150, 'uint', '', this, function () {
+            console.warn('called sceUmdGetErrorStat!');
+            return Promise.resolve(0);
+        });
     }
+    sceUmdUser.prototype._notify = function (data) {
+        var _this = this;
+        this.callbackIds.forEach(function (callbackId) {
+            _this.context.callbackManager.notify(callbackId, data);
+        });
+    };
     return sceUmdUser;
 })();
 exports.sceUmdUser = sceUmdUser;
@@ -22635,9 +22713,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += 'if (e instanceof SceKernelException) { result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
     code += '}';
 
-    var debugSyscalls = false;
+    //var debugSyscalls = false;
+    var debugSyscalls = true;
 
-    //var debugSyscalls = true;
     if (debugSyscalls) {
         code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;";
         code += "if (DebugOnce(info, 10)) {";
@@ -24476,7 +24554,7 @@ describe('elf', function () {
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);

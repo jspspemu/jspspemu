@@ -14,6 +14,12 @@ export class sceAtrac3plus {
 		return this._atrac3Ids.allocate(Atrac3.fromStream(data));
 	});
 
+	sceAtracSetData = createNativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]', this, (id:number, data: Stream) => {
+		var atrac3 = this.getById(id);
+		atrac3.setDataStream(data);
+		return 0;
+	});
+
 	sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, (id: number, puiPosition: Stream, puiDataByte: Stream) => {
 		var atrac3 = this.getById(id);
 		puiPosition.writeInt32(0);
@@ -220,7 +226,7 @@ class Atrac3 {
 	constructor(private id:number) {
 	}
 
-	loadStream(data: Stream) {
+	setDataStream(data: Stream) {
 		this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
 		//debugger;
 
@@ -322,7 +328,7 @@ class Atrac3 {
 
 	static lastId = 0;
 	static fromStream(data: Stream) {
-		return new Atrac3(Atrac3.lastId++).loadStream(data);
+		return new Atrac3(Atrac3.lastId++).setDataStream(data);
 	}
 }
 

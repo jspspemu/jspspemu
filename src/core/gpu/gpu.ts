@@ -134,6 +134,22 @@ export class VertexReader {
 				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
 				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
 				break;
+			case ColorEnum.Color4444:
+				this.align(2);
+				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
+				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 4);\n');
+				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 4, 4);\n');
+				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 8, 4);\n');
+				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 12, 4);\n');
+				break;
+			case ColorEnum.Color5650:
+				this.align(2);
+				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
+				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
+				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 6);\n');
+				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 11, 5);\n');
+				indentStringGenerator.write('output.a = 1.0;\n');
+				break;
             default:
 				throw (new Error("Not implemented color format '" + type + "'"));
         }
