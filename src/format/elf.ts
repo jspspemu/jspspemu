@@ -215,7 +215,7 @@ export class ElfReloc {
 
 export class ElfLoader {
 	public header: ElfHeader = null;
-	private stream: Stream = null;
+	stream: Stream = null;
 	public programHeaders: ElfProgramHeader[];
 	public sectionHeaders: ElfSectionHeader[];
 	public sectionHeadersByName: StringDictionary<ElfSectionHeader>;
@@ -226,6 +226,7 @@ export class ElfLoader {
 	}
 
 	load(stream: Stream) {
+		this.stream = stream;
 		this.readAndCheckHeaders(stream);
 
 		var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);

@@ -252,6 +252,10 @@ class Stream {
 		return <any>struct.read(this);
 	}
 
+	copyTo(other: Stream) {
+		other.writeBytes(this.readBytes(this.available));
+	}
+
 	writeInt8(value: number, endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.setInt8(this.offset, value)); }
 	writeInt16(value: number, endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.setInt16(this.offset, value, (endian == Endian.LITTLE))); }
 	writeInt32(value: number, endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.setInt32(this.offset, value, (endian == Endian.LITTLE))); }
@@ -289,6 +293,10 @@ class Stream {
 
 	writeStringz(str: string) {
 		return this.writeString(str + String.fromCharCode(0));
+	}
+
+	writeBytes(data: Uint8Array) {
+		for (var n = 0; n < data.length; n++) this.writeInt8(data[n]);
 	}
 
 	readBytes(count: number) {

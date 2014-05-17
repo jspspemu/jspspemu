@@ -78,9 +78,11 @@
     <TypeScriptCompile Include="src\format\pbp.ts" />
     <TypeScriptCompile Include="src\format\psf.ts" />
     <TypeScriptCompile Include="src\format\riff.ts" />
+    <TypeScriptCompile Include="src\format\vag.ts" />
     <TypeScriptCompile Include="src\format\zip.ts" />
     <TypeScriptCompile Include="src\global\array.ts" />
     <TypeScriptCompile Include="src\global\me.d.ts" />
+    <TypeScriptCompile Include="src\hle\config.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx_keys_144.ts" />
     <TypeScriptCompile Include="src\hle\elf_crypted_prx_keys_16.ts" />
@@ -171,6 +173,7 @@
     <TypeScriptCompile Include="test\format\isoTest.ts" />
     <TypeScriptCompile Include="test\format\psfTest.ts" />
     <TypeScriptCompile Include="test\format\pbpTest.ts" />
+    <TypeScriptCompile Include="test\format\vagTest.ts" />
     <TypeScriptCompile Include="test\format\zipTest.ts" />
     <TypeScriptCompile Include="test\hle\vfsTest.ts" />
     <TypeScriptCompile Include="test\pspautotests.ts" />

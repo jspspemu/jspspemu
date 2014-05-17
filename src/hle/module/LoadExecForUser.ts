@@ -10,7 +10,7 @@ export class LoadExecForUser {
 
     sceKernelExitGame = createNativeFunction(0xBD2F1094, 150, 'uint', 'Thread', this, (thread: Thread) => {
         console.info('sceKernelExitGame');
-		thread.stop();
+		thread.stop('sceKernelExitGame');
 		this.context.threadManager.exitGame();
         throw (new CpuBreakException());
         return 0;
@@ -23,7 +23,7 @@ export class LoadExecForUser {
 
 		console.info('sceKernelExitGame2');
 		this.context.threadManager.exitGame();
-        thread.stop();
+		thread.stop('sceKernelExitGame2');
         throw (new CpuBreakException());
     });
 

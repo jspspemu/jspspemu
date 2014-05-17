@@ -128,12 +128,15 @@ export class IoFileMgrForUser {
 		});
 	});
 
-	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
+	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, (thread:Thread, fileId: number, outputPointer: number, outputLength: number) => {
 		var file = this.getFileById(fileId);
+
+		// SCE_KERNEL_ERROR_ASYNC_BUSY
 
 		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
 			//console.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
 			file.cursor += readedData.byteLength;
+			//console.info(thread, 'readed', new Uint8Array(readedData));
 			this.context.memory.writeBytes(outputPointer, readedData);
 			return Integer64.fromNumber(readedData.byteLength);
 		}));
@@ -152,13 +155,15 @@ export class IoFileMgrForUser {
 		var file = this.getFileById(fileId);
 
 		if (file.asyncOperation) {
-			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info('_sceIoWaitAsyncCB', fileId, 'completed');
+			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
 			return file.asyncOperation.then((result) => {
+				//debugger;
+				if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
 				resultPointer.writeInt64(result);
 				return 0;
 			});
 		} else {
-			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info('_sceIoWaitAsyncCB', fileId, 'incompleted');
+			if (DebugOnce('_sceIoWaitAsyncCB', 100)) console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
 			resultPointer.writeInt64(Integer64.fromNumber(0));
 			return Promise.resolve(1);
 		}
@@ -174,15 +179,17 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
-		console.info('sceIoPollAsync', fileId);
+		//console.info('sceIoPollAsync', fileId);
 		var file = this.getFileById(fileId);
 
 		if (file.asyncResult) {
 			//return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-			//console.log('resolved -> ', file.asyncResult.number);
+			if (DebugOnce('sceIoPollAsync', 100)) console.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
 			resultPointer.writeInt64(file.asyncResult);
 			return 0;
 		} else {
+			if (DebugOnce('sceIoPollAsync', 100)) console.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+
 			//console.log('not resolved');
 			resultPointer.writeInt64(Integer64.fromInt(0));
 			return 1;

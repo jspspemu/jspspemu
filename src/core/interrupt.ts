@@ -61,6 +61,7 @@ export class InterruptManager {
 		for (var n in handlers) {
 			var handler = handlers[n];
 			if (handler.enabled) {
+				//debugger;
 				this.queue.push(handler);
 				this.execute(null);
 			}

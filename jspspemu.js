@@ -965,8 +965,9 @@ var MathFloat = (function () {
             return 0;
         return (a >= b) ? 1 : 0;
     };
-    MathFloat.floatArray = new Float32Array(1);
-    MathFloat.intArray = new Int32Array(MathFloat.floatArray.buffer);
+    MathFloat.reinterpretBuffer = new ArrayBuffer(4);
+    MathFloat.floatArray = new Float32Array(MathFloat.reinterpretBuffer);
+    MathFloat.intArray = new Int32Array(MathFloat.reinterpretBuffer);
     return MathFloat;
 })();
 
@@ -1432,6 +1433,10 @@ var Stream = (function () {
         return struct.read(this);
     };
 
+    Stream.prototype.copyTo = function (other) {
+        other.writeBytes(this.readBytes(this.available));
+    };
+
     Stream.prototype.writeInt8 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this.skip(1, this.data.setInt8(this.offset, value));
@@ -1498,6 +1503,11 @@ var Stream = (function () {
 
     Stream.prototype.writeStringz = function (str) {
         return this.writeString(str + String.fromCharCode(0));
+    };
+
+    Stream.prototype.writeBytes = function (data) {
+        for (var n = 0; n < data.length; n++)
+            this.writeInt8(data[n]);
     };
 
     Stream.prototype.readBytes = function (count) {
@@ -4455,6 +4465,10 @@ var InstructionAst = (function () {
     };
 
     // Constants
+    // @TODO: d-prefix in vt register
+    InstructionAst.prototype.viim = function (i) {
+        return stm(assign(vfpr(i.VT), imm32(i.imm16)));
+    };
     InstructionAst.prototype.vfim = function (i) {
         return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF));
     };
@@ -4470,9 +4484,6 @@ var InstructionAst = (function () {
             return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == vectorSize - 1) ? imm_f(1) : ast.vector_vs(index)));
         })));
         return stms(st);
-    };
-    InstructionAst.prototype.viim = function (i) {
-        return stm(assign(vfpr(i.VT), imm32(i.imm16)));
     };
 
     InstructionAst.prototype.vmidt = function (i) {
@@ -4590,7 +4601,6 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype.vmul = function (i) {
-        //return stms([ast.debugger(), this._vset3(i, (i, src, target) => binop(src[i], '*', target[i]))]);
         return this._vset3(i, function (i, src, target) {
             return binop(src[i], '*', target[i]);
         });
@@ -4748,7 +4758,7 @@ var InstructionAst = (function () {
                 case 2:
                     return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
                 default:
-                    throw (new Error("vcrs_t not implemented"));
+                    throw (new Error("vcrs_t assert"));
             }
         }, 3, 3, 3);
     };
@@ -4910,14 +4920,11 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype.vcmp = function (i) {
-        var st = [];
-        st.push(ast.debugger());
-        st.push(call_stm('state.vcmp', [
+        return call_stm('state.vcmp', [
             imm32(i.IMM4),
             ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO)),
             ast.arrayNumbers(getVectorRegs(i.VT, i.ONE_TWO))
-        ]));
-        return stms(st);
+        ]);
     };
 
     // @TODO:
@@ -5042,17 +5049,13 @@ var InstructionAst = (function () {
         }, 0, 0, 1);
     };
     InstructionAst.prototype.vdot = function (i) {
-        var result = imm_f(0);
+        var _this = this;
         var vectorSize = i.ONE_TWO;
-
-        for (var n = 0; n < vectorSize; n++)
-            result = binop(result, '+', binop(ast.vector_vs(n), '*', ast.vector_vt(n)));
-
-        var st = [];
-        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
-        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
-        st.push(assign_stm(vfpr(i.VD), result));
-        return stms(st);
+        return this._vset3(i, function (i, s, t) {
+            return _this._aggregateV(imm_f(0), vectorSize, function (sum, n) {
+                return binop(sum, '+', binop(ast.vector_vs(n), '*', ast.vector_vt(n)));
+            });
+        }, 1, vectorSize, vectorSize);
     };
     InstructionAst.prototype.vrot = function (i) {
         var imm5 = i.IMM5;
@@ -5107,11 +5110,11 @@ var InstructionAst = (function () {
 
         //st.push(ast.debugger());
         st.push(setMatrix(dest, function (Column, Row, Index) {
-            var adder = imm_f(0);
+            var sum = imm_f(0);
             for (var n = 0; n < VectorSize; n++) {
-                adder = binop(adder, '+', binop(target[Row * VectorSize + n], '*', src[Column * VectorSize + n]));
+                sum = binop(sum, '+', binop(src[Column * VectorSize + n], '*', target[Row * VectorSize + n]));
             }
-            return adder;
+            return sum;
         }));
         return stms(st);
     };
@@ -5906,7 +5909,7 @@ var InstructionCache = (function () {
                 //console.log(state);
                 //console.log(state.thread);
                 //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
-                state.thread.stop();
+                state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
                 throw (new CpuBreakException());
             };
         } else {
@@ -8505,21 +8508,53 @@ var PspGpuList = (function () {
             case 2 /* IADDR */:
                 this.state.indexAddress = params24;
                 break;
-            case 19 /* OFFSET_ADDR */:
+            case 19 /* OFFSETADDR */:
                 this.state.baseOffset = (params24 << 8);
                 break;
-            case 156 /* FBP */:
+            case 156 /* FRAMEBUFPTR */:
                 this.state.frameBuffer.lowAddress = params24;
                 break;
+
+            case 31 /* FOGENABLE */:
+                this.state.fog.enabled = bool1();
+                break;
+
+            case 66 /* VIEWPORTX1 */:
+                this.state.viewport.width = float1();
+                break;
+            case 67 /* VIEWPORTY1 */:
+                this.state.viewport.height = float1();
+                break;
+            case 68 /* VIEWPORTZ1 */:
+                this.state.viewport.depth = float1();
+                break;
+
+            case 69 /* VIEWPORTX2 */:
+                this.state.viewport.x = float1();
+                break;
+            case 70 /* VIEWPORTY2 */:
+                this.state.viewport.y = float1();
+                break;
+            case 71 /* VIEWPORTZ2 */:
+                this.state.viewport.z = float1();
+                break;
+
+            case 76 /* OFFSETX */:
+                this.state.offset.x = params24 & 0xF;
+                break;
+            case 77 /* OFFSETY */:
+                this.state.offset.y = params24 & 0xF;
+                break;
+
             case 21 /* REGION1 */:
-                this.state.viewPort.x1 = BitUtils.extract(params24, 0, 10);
-                this.state.viewPort.y1 = BitUtils.extract(params24, 10, 10);
+                this.state.region.x1 = BitUtils.extract(params24, 0, 10);
+                this.state.region.y1 = BitUtils.extract(params24, 10, 10);
                 break;
             case 22 /* REGION2 */:
-                this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
-                this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
+                this.state.region.x2 = BitUtils.extract(params24, 0, 10);
+                this.state.region.y2 = BitUtils.extract(params24, 10, 10);
                 break;
-            case 28 /* CPE */:
+            case 28 /* CLIPENABLE */:
                 this.state.clipPlane.enabled = (params24 != 0);
                 break;
             case 212 /* SCISSOR1 */:
@@ -8531,19 +8566,19 @@ var PspGpuList = (function () {
                 this.state.clipPlane.scissor.bottom = BitUtils.extract(params24, 10, 10);
                 break;
 
-            case 157 /* FBW */:
+            case 157 /* FRAMEBUFWIDTH */:
                 this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
                 this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
                 break;
-            case 80 /* SHADE */:
+            case 80 /* SHADEMODE */:
                 this.state.shadeModel = BitUtils.extractEnum(params24, 0, 16);
                 break;
 
-            case 23 /* LTE */:
+            case 23 /* LIGHTINGENABLE */:
                 this.state.lightning.enabled = (params24 != 0);
                 break;
 
-            case 34 /* ATE */:
+            case 34 /* ALPHATESTENABLE */:
                 this.state.alphaTest.enabled = (params24 != 0);
                 break;
 
@@ -8553,7 +8588,7 @@ var PspGpuList = (function () {
                 this.state.alphaTest.mask = BitUtils.extract(params24, 16, 8);
                 break;
 
-            case 33 /* ABE */:
+            case 33 /* ALPHABLENDENABLE */:
                 this.state.blending.enabled = (params24 != 0);
                 break;
             case 223 /* ALPHA */:
@@ -8562,11 +8597,11 @@ var PspGpuList = (function () {
                 this.state.blending.equation = BitUtils.extractEnum(params24, 8, 4);
                 break;
 
-            case 24 /* LTE0 */:
-            case 25 /* LTE1 */:
-            case 26 /* LTE2 */:
-            case 27 /* LTE3 */:
-                this.state.lightning.lights[op - 24 /* LTE0 */].enabled = params24 != 0;
+            case 24 /* LIGHTENABLE0 */:
+            case 25 /* LIGHTENABLE1 */:
+            case 26 /* LIGHTENABLE2 */:
+            case 27 /* LIGHTENABLE3 */:
+                this.state.lightning.lights[op - 24 /* LIGHTENABLE0 */].enabled = params24 != 0;
                 break;
             case 16 /* BASE */:
                 this.state.baseAddress = ((params24 << 8) & 0xff000000);
@@ -8591,7 +8626,7 @@ var PspGpuList = (function () {
 
             case 0 /* NOP */:
                 break;
-            case 18 /* VTYPE */:
+            case 18 /* VERTEXTYPE */:
                 this.state.vertex.value = params24;
                 break;
             case 1 /* VADDR */:
@@ -8611,7 +8646,7 @@ var PspGpuList = (function () {
                 this.state.texture.wrapV = BitUtils.extractEnum(params24, 8, 8);
                 break;
 
-            case 30 /* TME */:
+            case 30 /* TEXTUREMAPENABLE */:
                 this.state.texture.enabled = (params24 != 0);
                 break;
 
@@ -8637,17 +8672,17 @@ var PspGpuList = (function () {
                 this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
                 this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
                 break;
-            case 74 /* UOFFSET */:
+            case 74 /* TEXOFFSETU */:
                 this.state.texture.offsetU = float1();
                 break;
-            case 75 /* VOFFSET */:
+            case 75 /* TEXOFFSETV */:
                 this.state.texture.offsetV = float1();
                 break;
 
-            case 72 /* USCALE */:
+            case 72 /* TEXSCALEU */:
                 this.state.texture.scaleU = float1();
                 break;
-            case 73 /* VSCALE */:
+            case 73 /* TEXSCALEV */:
                 this.state.texture.scaleV = float1();
                 break;
 
@@ -8683,32 +8718,32 @@ var PspGpuList = (function () {
 
                 break;
 
-            case 160 /* TBP0 */:
-            case 161 /* TBP1 */:
-            case 162 /* TBP2 */:
-            case 163 /* TBP3 */:
-            case 164 /* TBP4 */:
-            case 165 /* TBP5 */:
-            case 166 /* TBP6 */:
-            case 167 /* TBP7 */:
-                var mipMap = this.state.texture.mipmaps[op - 160 /* TBP0 */];
+            case 160 /* TEXADDR0 */:
+            case 161 /* TEXADDR1 */:
+            case 162 /* TEXADDR2 */:
+            case 163 /* TEXADDR3 */:
+            case 164 /* TEXADDR4 */:
+            case 165 /* TEXADDR5 */:
+            case 166 /* TEXADDR6 */:
+            case 167 /* TEXADDR7 */:
+                var mipMap = this.state.texture.mipmaps[op - 160 /* TEXADDR0 */];
                 mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
                 break;
 
-            case 168 /* TBW0 */:
-            case 169 /* TBW1 */:
-            case 170 /* TBW2 */:
-            case 171 /* TBW3 */:
-            case 172 /* TBW4 */:
-            case 173 /* TBW5 */:
-            case 174 /* TBW6 */:
-            case 175 /* TBW7 */:
-                var mipMap = this.state.texture.mipmaps[op - 168 /* TBW0 */];
+            case 168 /* TEXBUFWIDTH0 */:
+            case 169 /* TEXBUFWIDTH1 */:
+            case 170 /* TEXBUFWIDTH2 */:
+            case 171 /* TEXBUFWIDTH3 */:
+            case 172 /* TEXBUFWIDTH4 */:
+            case 173 /* TEXBUFWIDTH5 */:
+            case 174 /* TEXBUFWIDTH6 */:
+            case 175 /* TEXBUFWIDTH7 */:
+                var mipMap = this.state.texture.mipmaps[op - 168 /* TEXBUFWIDTH0 */];
                 mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
                 mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
                 break;
 
-            case 85 /* AMC */:
+            case 85 /* MATERIALAMBIENT */:
                 //printf("%08X: %08X", current, instruction);
                 //printf("GpuOpCodes.AMC: Params24: %08X", params24);
                 this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
@@ -8717,12 +8752,12 @@ var PspGpuList = (function () {
                 this.state.ambientModelColor.a = 1;
                 break;
 
-            case 88 /* AMA */:
+            case 88 /* MATERIALALPHA */:
                 //printf("GpuOpCodes.AMA: Params24: %08X", params24);
                 this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
                 break;
 
-            case 92 /* ALC */:
+            case 92 /* AMBIENTCOLOR */:
                 //printf("%08X: %08X", current, instruction);
                 this.state.lighting.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
                 this.state.lighting.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
@@ -8734,15 +8769,15 @@ var PspGpuList = (function () {
                 this.state.depthTest.func = BitUtils.extractEnum(params24, 0, 8);
                 break;
 
-            case 35 /* ZTE */:
+            case 35 /* ZTESTENABLE */:
                 this.state.depthTest.enabled = (params24 != 0);
                 break;
 
-            case 93 /* ALA */:
+            case 93 /* AMBIENTALPHA */:
                 this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
                 break;
 
-            case 86 /* DMC */:
+            case 86 /* MATERIALDIFFUSE */:
                 //printf("AMC:%08X", params24);
                 this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
                 this.state.diffuseModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
@@ -8750,18 +8785,18 @@ var PspGpuList = (function () {
                 this.state.diffuseModelColor.a = 1;
                 break;
 
-            case 87 /* SMC */:
+            case 87 /* MATERIALSPECULAR */:
                 this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
                 this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
                 this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
                 this.state.specularModelColor.a = 1;
                 break;
 
-            case 176 /* CBP */:
+            case 176 /* CLUTADDR */:
                 this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
                 break;
 
-            case 177 /* CBPH */:
+            case 177 /* CLUTADDRUPPER */:
                 this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
                 break;
 
@@ -8777,35 +8812,35 @@ var PspGpuList = (function () {
                 this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
                 break;
 
-            case 62 /* PROJ_START */:
+            case 62 /* PROJMATRIXNUMBER */:
                 this.state.projectionMatrix.reset(params24);
                 break;
-            case 63 /* PROJ_PUT */:
+            case 63 /* PROJMATRIXDATA */:
                 this.state.projectionMatrix.put(float1());
                 break;
 
-            case 60 /* VIEW_START */:
+            case 60 /* VIEWMATRIXNUMBER */:
                 this.state.viewMatrix.reset(params24);
                 break;
-            case 61 /* VIEW_PUT */:
+            case 61 /* VIEWMATRIXDATA */:
                 this.state.viewMatrix.put(float1());
                 break;
 
-            case 58 /* WORLD_START */:
+            case 58 /* WORLDMATRIXNUMBER */:
                 this.state.worldMatrix.reset(params24);
                 break;
-            case 59 /* WORLD_PUT */:
+            case 59 /* WORLDMATRIXDATA */:
                 this.state.worldMatrix.put(float1());
                 break;
 
-            case 42 /* BONE_START */:
+            case 42 /* BONEMATRIXNUMBER */:
                 this.state.skinning.currentBoneIndex = params24;
                 break;
-            case 43 /* BONE_PUT */:
+            case 43 /* BONEMATRIXDATA */:
                 this.state.skinning.write(float1());
                 break;
 
-            case 36 /* STE */:
+            case 36 /* STENCILTESTENABLE */:
                 this.state.stencil.enabled = bool1();
                 break;
 
@@ -8824,15 +8859,15 @@ var PspGpuList = (function () {
                 this.state.depthTest.mask = BitUtils.extract(params24, 0, 16);
                 break;
 
-            case 44 /* MW0 */:
-            case 45 /* MW1 */:
-            case 46 /* MW2 */:
-            case 47 /* MW3 */:
-            case 48 /* MW4 */:
-            case 49 /* MW5 */:
-            case 50 /* MW6 */:
-            case 51 /* MW7 */:
-                this.state.morphWeights[op - 44 /* MW0 */] = MathFloat.reinterpretIntAsFloat(params24 << 8);
+            case 44 /* MORPHWEIGHT0 */:
+            case 45 /* MORPHWEIGHT1 */:
+            case 46 /* MORPHWEIGHT2 */:
+            case 47 /* MORPHWEIGHT3 */:
+            case 48 /* MORPHWEIGHT4 */:
+            case 49 /* MORPHWEIGHT5 */:
+            case 50 /* MORPHWEIGHT6 */:
+            case 51 /* MORPHWEIGHT7 */:
+                this.state.morphWeights[op - 44 /* MORPHWEIGHT0 */] = MathFloat.reinterpretIntAsFloat(params24 << 8);
                 break;
 
             case 211 /* CLEAR */:
@@ -8841,18 +8876,18 @@ var PspGpuList = (function () {
                 this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
                 break;
 
-            case 39 /* CTE */:
+            case 39 /* COLORTESTENABLE */:
                 this.state.colorTest.enabled = bool1();
                 break;
 
-            case 32 /* DTE */:
+            case 32 /* DITHERENABLE */:
                 this.state.dithering.enabled = bool1();
                 break;
 
-            case 29 /* BCE */:
+            case 29 /* CULLFACEENABLE */:
                 this.state.culling.enabled = bool1();
                 break;
-            case 155 /* FFACE */:
+            case 155 /* CULL */:
                 this.state.culling.direction = params24;
                 break;
 
@@ -8863,7 +8898,7 @@ var PspGpuList = (function () {
                 this.state.blending.fixColorDestination.setRGB(params24);
                 break;
 
-            case 54 /* PSUB */:
+            case 54 /* PATCHDIVISION */:
                 this.state.patch.divs = BitUtils.extract(params24, 0, 8);
                 this.state.patch.divt = BitUtils.extract(params24, 8, 8);
                 break;
@@ -9099,6 +9134,8 @@ var PspGpuListRunner = (function () {
             return 0 /* Completed */;
         });
         var result = _peek();
+
+        //result = Math.floor(Math.random() * 4);
         console.warn('not implemented gpu list peeking -> ' + result);
         return result;
     };
@@ -9166,6 +9203,10 @@ var PspGpu = (function () {
     };
 
     PspGpu.prototype.drawSync = function (syncType) {
+        //console.log('drawSync');
+        //console.warn('Not implemented sceGe_user.sceGeDrawSync');
+        return this.listRunner.waitAsync();
+
         switch (syncType) {
             case 1 /* Peek */:
                 return this.listRunner.peek();
@@ -9189,7 +9230,7 @@ exports.PspGpu = PspGpu;
     GpuOpCodes[GpuOpCodes["PRIM"] = 0x04] = "PRIM";
     GpuOpCodes[GpuOpCodes["BEZIER"] = 0x05] = "BEZIER";
     GpuOpCodes[GpuOpCodes["SPLINE"] = 0x06] = "SPLINE";
-    GpuOpCodes[GpuOpCodes["BBOX"] = 0x07] = "BBOX";
+    GpuOpCodes[GpuOpCodes["BOUNDINGBOX"] = 0x07] = "BOUNDINGBOX";
     GpuOpCodes[GpuOpCodes["JUMP"] = 0x08] = "JUMP";
     GpuOpCodes[GpuOpCodes["BJUMP"] = 0x09] = "BJUMP";
     GpuOpCodes[GpuOpCodes["CALL"] = 0x0A] = "CALL";
@@ -9200,87 +9241,87 @@ exports.PspGpu = PspGpu;
     GpuOpCodes[GpuOpCodes["FINISH"] = 0x0F] = "FINISH";
     GpuOpCodes[GpuOpCodes["BASE"] = 0x10] = "BASE";
     GpuOpCodes[GpuOpCodes["Unknown0x11"] = 0x11] = "Unknown0x11";
-    GpuOpCodes[GpuOpCodes["VTYPE"] = 0x12] = "VTYPE";
-    GpuOpCodes[GpuOpCodes["OFFSET_ADDR"] = 0x13] = "OFFSET_ADDR";
-    GpuOpCodes[GpuOpCodes["ORIGIN_ADDR"] = 0x14] = "ORIGIN_ADDR";
+    GpuOpCodes[GpuOpCodes["VERTEXTYPE"] = 0x12] = "VERTEXTYPE";
+    GpuOpCodes[GpuOpCodes["OFFSETADDR"] = 0x13] = "OFFSETADDR";
+    GpuOpCodes[GpuOpCodes["ORIGIN"] = 0x14] = "ORIGIN";
     GpuOpCodes[GpuOpCodes["REGION1"] = 0x15] = "REGION1";
     GpuOpCodes[GpuOpCodes["REGION2"] = 0x16] = "REGION2";
-    GpuOpCodes[GpuOpCodes["LTE"] = 0x17] = "LTE";
-    GpuOpCodes[GpuOpCodes["LTE0"] = 0x18] = "LTE0";
-    GpuOpCodes[GpuOpCodes["LTE1"] = 0x19] = "LTE1";
-    GpuOpCodes[GpuOpCodes["LTE2"] = 0x1A] = "LTE2";
-    GpuOpCodes[GpuOpCodes["LTE3"] = 0x1B] = "LTE3";
-    GpuOpCodes[GpuOpCodes["CPE"] = 0x1C] = "CPE";
-    GpuOpCodes[GpuOpCodes["BCE"] = 0x1D] = "BCE";
-    GpuOpCodes[GpuOpCodes["TME"] = 0x1E] = "TME";
-    GpuOpCodes[GpuOpCodes["FGE"] = 0x1F] = "FGE";
-    GpuOpCodes[GpuOpCodes["DTE"] = 0x20] = "DTE";
-    GpuOpCodes[GpuOpCodes["ABE"] = 0x21] = "ABE";
-    GpuOpCodes[GpuOpCodes["ATE"] = 0x22] = "ATE";
-    GpuOpCodes[GpuOpCodes["ZTE"] = 0x23] = "ZTE";
-    GpuOpCodes[GpuOpCodes["STE"] = 0x24] = "STE";
-    GpuOpCodes[GpuOpCodes["AAE"] = 0x25] = "AAE";
-    GpuOpCodes[GpuOpCodes["PCE"] = 0x26] = "PCE";
-    GpuOpCodes[GpuOpCodes["CTE"] = 0x27] = "CTE";
-    GpuOpCodes[GpuOpCodes["LOE"] = 0x28] = "LOE";
+    GpuOpCodes[GpuOpCodes["LIGHTINGENABLE"] = 0x17] = "LIGHTINGENABLE";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE0"] = 0x18] = "LIGHTENABLE0";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE1"] = 0x19] = "LIGHTENABLE1";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE2"] = 0x1A] = "LIGHTENABLE2";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE3"] = 0x1B] = "LIGHTENABLE3";
+    GpuOpCodes[GpuOpCodes["CLIPENABLE"] = 0x1C] = "CLIPENABLE";
+    GpuOpCodes[GpuOpCodes["CULLFACEENABLE"] = 0x1D] = "CULLFACEENABLE";
+    GpuOpCodes[GpuOpCodes["TEXTUREMAPENABLE"] = 0x1E] = "TEXTUREMAPENABLE";
+    GpuOpCodes[GpuOpCodes["FOGENABLE"] = 0x1F] = "FOGENABLE";
+    GpuOpCodes[GpuOpCodes["DITHERENABLE"] = 0x20] = "DITHERENABLE";
+    GpuOpCodes[GpuOpCodes["ALPHABLENDENABLE"] = 0x21] = "ALPHABLENDENABLE";
+    GpuOpCodes[GpuOpCodes["ALPHATESTENABLE"] = 0x22] = "ALPHATESTENABLE";
+    GpuOpCodes[GpuOpCodes["ZTESTENABLE"] = 0x23] = "ZTESTENABLE";
+    GpuOpCodes[GpuOpCodes["STENCILTESTENABLE"] = 0x24] = "STENCILTESTENABLE";
+    GpuOpCodes[GpuOpCodes["ANTIALIASENABLE"] = 0x25] = "ANTIALIASENABLE";
+    GpuOpCodes[GpuOpCodes["PATCHCULLENABLE"] = 0x26] = "PATCHCULLENABLE";
+    GpuOpCodes[GpuOpCodes["COLORTESTENABLE"] = 0x27] = "COLORTESTENABLE";
+    GpuOpCodes[GpuOpCodes["LOGICOPENABLE"] = 0x28] = "LOGICOPENABLE";
     GpuOpCodes[GpuOpCodes["Unknown0x29"] = 0x29] = "Unknown0x29";
-    GpuOpCodes[GpuOpCodes["BONE_START"] = 0x2A] = "BONE_START";
-    GpuOpCodes[GpuOpCodes["BONE_PUT"] = 0x2B] = "BONE_PUT";
-    GpuOpCodes[GpuOpCodes["MW0"] = 0x2C] = "MW0";
-    GpuOpCodes[GpuOpCodes["MW1"] = 0x2D] = "MW1";
-    GpuOpCodes[GpuOpCodes["MW2"] = 0x2E] = "MW2";
-    GpuOpCodes[GpuOpCodes["MW3"] = 0x2F] = "MW3";
-    GpuOpCodes[GpuOpCodes["MW4"] = 0x30] = "MW4";
-    GpuOpCodes[GpuOpCodes["MW5"] = 0x31] = "MW5";
-    GpuOpCodes[GpuOpCodes["MW6"] = 0x32] = "MW6";
-    GpuOpCodes[GpuOpCodes["MW7"] = 0x33] = "MW7";
+    GpuOpCodes[GpuOpCodes["BONEMATRIXNUMBER"] = 0x2A] = "BONEMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["BONEMATRIXDATA"] = 0x2B] = "BONEMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT0"] = 0x2C] = "MORPHWEIGHT0";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT1"] = 0x2D] = "MORPHWEIGHT1";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT2"] = 0x2E] = "MORPHWEIGHT2";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT3"] = 0x2F] = "MORPHWEIGHT3";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT4"] = 0x30] = "MORPHWEIGHT4";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT5"] = 0x31] = "MORPHWEIGHT5";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT6"] = 0x32] = "MORPHWEIGHT6";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT7"] = 0x33] = "MORPHWEIGHT7";
     GpuOpCodes[GpuOpCodes["Unknown0x34"] = 0x34] = "Unknown0x34";
     GpuOpCodes[GpuOpCodes["Unknown0x35"] = 0x35] = "Unknown0x35";
-    GpuOpCodes[GpuOpCodes["PSUB"] = 0x36] = "PSUB";
-    GpuOpCodes[GpuOpCodes["PPRIM"] = 0x37] = "PPRIM";
-    GpuOpCodes[GpuOpCodes["PFACE"] = 0x38] = "PFACE";
+    GpuOpCodes[GpuOpCodes["PATCHDIVISION"] = 0x36] = "PATCHDIVISION";
+    GpuOpCodes[GpuOpCodes["PATCHPRIMITIVE"] = 0x37] = "PATCHPRIMITIVE";
+    GpuOpCodes[GpuOpCodes["PATCHFACING"] = 0x38] = "PATCHFACING";
     GpuOpCodes[GpuOpCodes["Unknown0x39"] = 0x39] = "Unknown0x39";
-    GpuOpCodes[GpuOpCodes["WORLD_START"] = 0x3A] = "WORLD_START";
-    GpuOpCodes[GpuOpCodes["WORLD_PUT"] = 0x3B] = "WORLD_PUT";
-    GpuOpCodes[GpuOpCodes["VIEW_START"] = 0x3C] = "VIEW_START";
-    GpuOpCodes[GpuOpCodes["VIEW_PUT"] = 0x3D] = "VIEW_PUT";
-    GpuOpCodes[GpuOpCodes["PROJ_START"] = 0x3E] = "PROJ_START";
-    GpuOpCodes[GpuOpCodes["PROJ_PUT"] = 0x3F] = "PROJ_PUT";
-    GpuOpCodes[GpuOpCodes["TMS"] = 0x40] = "TMS";
-    GpuOpCodes[GpuOpCodes["TMATRIX"] = 0x41] = "TMATRIX";
-    GpuOpCodes[GpuOpCodes["XSCALE"] = 0x42] = "XSCALE";
-    GpuOpCodes[GpuOpCodes["YSCALE"] = 0x43] = "YSCALE";
-    GpuOpCodes[GpuOpCodes["ZSCALE"] = 0x44] = "ZSCALE";
-    GpuOpCodes[GpuOpCodes["XPOS"] = 0x45] = "XPOS";
-    GpuOpCodes[GpuOpCodes["YPOS"] = 0x46] = "YPOS";
-    GpuOpCodes[GpuOpCodes["ZPOS"] = 0x47] = "ZPOS";
-    GpuOpCodes[GpuOpCodes["USCALE"] = 0x48] = "USCALE";
-    GpuOpCodes[GpuOpCodes["VSCALE"] = 0x49] = "VSCALE";
-    GpuOpCodes[GpuOpCodes["UOFFSET"] = 0x4A] = "UOFFSET";
-    GpuOpCodes[GpuOpCodes["VOFFSET"] = 0x4B] = "VOFFSET";
+    GpuOpCodes[GpuOpCodes["WORLDMATRIXNUMBER"] = 0x3A] = "WORLDMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["WORLDMATRIXDATA"] = 0x3B] = "WORLDMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["VIEWMATRIXNUMBER"] = 0x3C] = "VIEWMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["VIEWMATRIXDATA"] = 0x3D] = "VIEWMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["PROJMATRIXNUMBER"] = 0x3E] = "PROJMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["PROJMATRIXDATA"] = 0x3F] = "PROJMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["TGENMATRIXNUMBER"] = 0x40] = "TGENMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["TGENMATRIXDATA"] = 0x41] = "TGENMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["VIEWPORTX1"] = 0x42] = "VIEWPORTX1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTY1"] = 0x43] = "VIEWPORTY1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTZ1"] = 0x44] = "VIEWPORTZ1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTX2"] = 0x45] = "VIEWPORTX2";
+    GpuOpCodes[GpuOpCodes["VIEWPORTY2"] = 0x46] = "VIEWPORTY2";
+    GpuOpCodes[GpuOpCodes["VIEWPORTZ2"] = 0x47] = "VIEWPORTZ2";
+    GpuOpCodes[GpuOpCodes["TEXSCALEU"] = 0x48] = "TEXSCALEU";
+    GpuOpCodes[GpuOpCodes["TEXSCALEV"] = 0x49] = "TEXSCALEV";
+    GpuOpCodes[GpuOpCodes["TEXOFFSETU"] = 0x4A] = "TEXOFFSETU";
+    GpuOpCodes[GpuOpCodes["TEXOFFSETV"] = 0x4B] = "TEXOFFSETV";
     GpuOpCodes[GpuOpCodes["OFFSETX"] = 0x4C] = "OFFSETX";
     GpuOpCodes[GpuOpCodes["OFFSETY"] = 0x4D] = "OFFSETY";
     GpuOpCodes[GpuOpCodes["Unknown0x4E"] = 0x4E] = "Unknown0x4E";
     GpuOpCodes[GpuOpCodes["Unknown0x4F"] = 0x4F] = "Unknown0x4F";
-    GpuOpCodes[GpuOpCodes["SHADE"] = 0x50] = "SHADE";
-    GpuOpCodes[GpuOpCodes["RNORM"] = 0x51] = "RNORM";
+    GpuOpCodes[GpuOpCodes["SHADEMODE"] = 0x50] = "SHADEMODE";
+    GpuOpCodes[GpuOpCodes["REVERSENORMAL"] = 0x51] = "REVERSENORMAL";
     GpuOpCodes[GpuOpCodes["Unknown0x52"] = 0x52] = "Unknown0x52";
-    GpuOpCodes[GpuOpCodes["CMAT"] = 0x53] = "CMAT";
-    GpuOpCodes[GpuOpCodes["EMC"] = 0x54] = "EMC";
-    GpuOpCodes[GpuOpCodes["AMC"] = 0x55] = "AMC";
-    GpuOpCodes[GpuOpCodes["DMC"] = 0x56] = "DMC";
-    GpuOpCodes[GpuOpCodes["SMC"] = 0x57] = "SMC";
-    GpuOpCodes[GpuOpCodes["AMA"] = 0x58] = "AMA";
+    GpuOpCodes[GpuOpCodes["MATERIALUPDATE"] = 0x53] = "MATERIALUPDATE";
+    GpuOpCodes[GpuOpCodes["MATERIALEMISSIVE"] = 0x54] = "MATERIALEMISSIVE";
+    GpuOpCodes[GpuOpCodes["MATERIALAMBIENT"] = 0x55] = "MATERIALAMBIENT";
+    GpuOpCodes[GpuOpCodes["MATERIALDIFFUSE"] = 0x56] = "MATERIALDIFFUSE";
+    GpuOpCodes[GpuOpCodes["MATERIALSPECULAR"] = 0x57] = "MATERIALSPECULAR";
+    GpuOpCodes[GpuOpCodes["MATERIALALPHA"] = 0x58] = "MATERIALALPHA";
     GpuOpCodes[GpuOpCodes["Unknown0x59"] = 0x59] = "Unknown0x59";
     GpuOpCodes[GpuOpCodes["Unknown0x5A"] = 0x5A] = "Unknown0x5A";
-    GpuOpCodes[GpuOpCodes["SPOW"] = 0x5B] = "SPOW";
-    GpuOpCodes[GpuOpCodes["ALC"] = 0x5C] = "ALC";
-    GpuOpCodes[GpuOpCodes["ALA"] = 0x5D] = "ALA";
-    GpuOpCodes[GpuOpCodes["LMODE"] = 0x5E] = "LMODE";
-    GpuOpCodes[GpuOpCodes["LT0"] = 0x5F] = "LT0";
-    GpuOpCodes[GpuOpCodes["LT1"] = 0x60] = "LT1";
-    GpuOpCodes[GpuOpCodes["LT2"] = 0x61] = "LT2";
-    GpuOpCodes[GpuOpCodes["LT3"] = 0x62] = "LT3";
+    GpuOpCodes[GpuOpCodes["MATERIALSPECULARCOEF"] = 0x5B] = "MATERIALSPECULARCOEF";
+    GpuOpCodes[GpuOpCodes["AMBIENTCOLOR"] = 0x5C] = "AMBIENTCOLOR";
+    GpuOpCodes[GpuOpCodes["AMBIENTALPHA"] = 0x5D] = "AMBIENTALPHA";
+    GpuOpCodes[GpuOpCodes["LIGHTMODE"] = 0x5E] = "LIGHTMODE";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE0"] = 0x5F] = "LIGHTTYPE0";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE1"] = 0x60] = "LIGHTTYPE1";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE2"] = 0x61] = "LIGHTTYPE2";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE3"] = 0x62] = "LIGHTTYPE3";
     GpuOpCodes[GpuOpCodes["LXP0"] = 0x63] = "LXP0";
     GpuOpCodes[GpuOpCodes["LYP0"] = 0x64] = "LYP0";
     GpuOpCodes[GpuOpCodes["LZP0"] = 0x65] = "LZP0";
@@ -9294,72 +9335,72 @@ exports.PspGpu = PspGpu;
     GpuOpCodes[GpuOpCodes["LYP3"] = 0x6D] = "LYP3";
     GpuOpCodes[GpuOpCodes["LZP3"] = 0x6E] = "LZP3";
     GpuOpCodes[GpuOpCodes["LXD0"] = 0x6F] = "LXD0";
-    GpuOpCodes[GpuOpCodes["LYD0"] = 112] = "LYD0";
-    GpuOpCodes[GpuOpCodes["LZD0"] = 113] = "LZD0";
-    GpuOpCodes[GpuOpCodes["LXD1"] = 114] = "LXD1";
-    GpuOpCodes[GpuOpCodes["LYD1"] = 115] = "LYD1";
-    GpuOpCodes[GpuOpCodes["LZD1"] = 116] = "LZD1";
-    GpuOpCodes[GpuOpCodes["LXD2"] = 117] = "LXD2";
-    GpuOpCodes[GpuOpCodes["LYD2"] = 118] = "LYD2";
-    GpuOpCodes[GpuOpCodes["LZD2"] = 119] = "LZD2";
-    GpuOpCodes[GpuOpCodes["LXD3"] = 120] = "LXD3";
-    GpuOpCodes[GpuOpCodes["LYD3"] = 121] = "LYD3";
-    GpuOpCodes[GpuOpCodes["LZD3"] = 122] = "LZD3";
-    GpuOpCodes[GpuOpCodes["LCA0"] = 123] = "LCA0";
-    GpuOpCodes[GpuOpCodes["LLA0"] = 124] = "LLA0";
-    GpuOpCodes[GpuOpCodes["LQA0"] = 125] = "LQA0";
-    GpuOpCodes[GpuOpCodes["LCA1"] = 126] = "LCA1";
-    GpuOpCodes[GpuOpCodes["LLA1"] = 127] = "LLA1";
-    GpuOpCodes[GpuOpCodes["LQA1"] = 128] = "LQA1";
-    GpuOpCodes[GpuOpCodes["LCA2"] = 129] = "LCA2";
-    GpuOpCodes[GpuOpCodes["LLA2"] = 130] = "LLA2";
-    GpuOpCodes[GpuOpCodes["LQA2"] = 131] = "LQA2";
-    GpuOpCodes[GpuOpCodes["LCA3"] = 132] = "LCA3";
-    GpuOpCodes[GpuOpCodes["LLA3"] = 133] = "LLA3";
-    GpuOpCodes[GpuOpCodes["LQA3"] = 134] = "LQA3";
-    GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 135] = "SPOTEXP0";
-    GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 136] = "SPOTEXP1";
-    GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 137] = "SPOTEXP2";
-    GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 138] = "SPOTEXP3";
-    GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 139] = "SPOTCUT0";
-    GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 140] = "SPOTCUT1";
-    GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 141] = "SPOTCUT2";
-    GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 142] = "SPOTCUT3";
-    GpuOpCodes[GpuOpCodes["ALC0"] = 143] = "ALC0";
-    GpuOpCodes[GpuOpCodes["DLC0"] = 144] = "DLC0";
-    GpuOpCodes[GpuOpCodes["SLC0"] = 145] = "SLC0";
-    GpuOpCodes[GpuOpCodes["ALC1"] = 146] = "ALC1";
-    GpuOpCodes[GpuOpCodes["DLC1"] = 147] = "DLC1";
-    GpuOpCodes[GpuOpCodes["SLC1"] = 148] = "SLC1";
-    GpuOpCodes[GpuOpCodes["ALC2"] = 149] = "ALC2";
-    GpuOpCodes[GpuOpCodes["DLC2"] = 150] = "DLC2";
-    GpuOpCodes[GpuOpCodes["SLC2"] = 151] = "SLC2";
-    GpuOpCodes[GpuOpCodes["ALC3"] = 152] = "ALC3";
-    GpuOpCodes[GpuOpCodes["DLC3"] = 153] = "DLC3";
-    GpuOpCodes[GpuOpCodes["SLC3"] = 154] = "SLC3";
-    GpuOpCodes[GpuOpCodes["FFACE"] = 155] = "FFACE";
-    GpuOpCodes[GpuOpCodes["FBP"] = 156] = "FBP";
-    GpuOpCodes[GpuOpCodes["FBW"] = 157] = "FBW";
-    GpuOpCodes[GpuOpCodes["ZBP"] = 158] = "ZBP";
-    GpuOpCodes[GpuOpCodes["ZBW"] = 159] = "ZBW";
-    GpuOpCodes[GpuOpCodes["TBP0"] = 160] = "TBP0";
-    GpuOpCodes[GpuOpCodes["TBP1"] = 161] = "TBP1";
-    GpuOpCodes[GpuOpCodes["TBP2"] = 162] = "TBP2";
-    GpuOpCodes[GpuOpCodes["TBP3"] = 163] = "TBP3";
-    GpuOpCodes[GpuOpCodes["TBP4"] = 164] = "TBP4";
-    GpuOpCodes[GpuOpCodes["TBP5"] = 165] = "TBP5";
-    GpuOpCodes[GpuOpCodes["TBP6"] = 166] = "TBP6";
-    GpuOpCodes[GpuOpCodes["TBP7"] = 167] = "TBP7";
-    GpuOpCodes[GpuOpCodes["TBW0"] = 168] = "TBW0";
-    GpuOpCodes[GpuOpCodes["TBW1"] = 169] = "TBW1";
-    GpuOpCodes[GpuOpCodes["TBW2"] = 170] = "TBW2";
-    GpuOpCodes[GpuOpCodes["TBW3"] = 171] = "TBW3";
-    GpuOpCodes[GpuOpCodes["TBW4"] = 172] = "TBW4";
-    GpuOpCodes[GpuOpCodes["TBW5"] = 173] = "TBW5";
-    GpuOpCodes[GpuOpCodes["TBW6"] = 174] = "TBW6";
-    GpuOpCodes[GpuOpCodes["TBW7"] = 175] = "TBW7";
-    GpuOpCodes[GpuOpCodes["CBP"] = 176] = "CBP";
-    GpuOpCodes[GpuOpCodes["CBPH"] = 177] = "CBPH";
+    GpuOpCodes[GpuOpCodes["LYD0"] = 0x70] = "LYD0";
+    GpuOpCodes[GpuOpCodes["LZD0"] = 0x71] = "LZD0";
+    GpuOpCodes[GpuOpCodes["LXD1"] = 0x72] = "LXD1";
+    GpuOpCodes[GpuOpCodes["LYD1"] = 0x73] = "LYD1";
+    GpuOpCodes[GpuOpCodes["LZD1"] = 0x74] = "LZD1";
+    GpuOpCodes[GpuOpCodes["LXD2"] = 0x75] = "LXD2";
+    GpuOpCodes[GpuOpCodes["LYD2"] = 0x76] = "LYD2";
+    GpuOpCodes[GpuOpCodes["LZD2"] = 0x77] = "LZD2";
+    GpuOpCodes[GpuOpCodes["LXD3"] = 0x78] = "LXD3";
+    GpuOpCodes[GpuOpCodes["LYD3"] = 0x79] = "LYD3";
+    GpuOpCodes[GpuOpCodes["LZD3"] = 0x7A] = "LZD3";
+    GpuOpCodes[GpuOpCodes["LCA0"] = 0x7B] = "LCA0";
+    GpuOpCodes[GpuOpCodes["LLA0"] = 0x7C] = "LLA0";
+    GpuOpCodes[GpuOpCodes["LQA0"] = 0x7D] = "LQA0";
+    GpuOpCodes[GpuOpCodes["LCA1"] = 0x7E] = "LCA1";
+    GpuOpCodes[GpuOpCodes["LLA1"] = 0x7F] = "LLA1";
+    GpuOpCodes[GpuOpCodes["LQA1"] = 0x80] = "LQA1";
+    GpuOpCodes[GpuOpCodes["LCA2"] = 0x81] = "LCA2";
+    GpuOpCodes[GpuOpCodes["LLA2"] = 0x82] = "LLA2";
+    GpuOpCodes[GpuOpCodes["LQA2"] = 0x83] = "LQA2";
+    GpuOpCodes[GpuOpCodes["LCA3"] = 0x84] = "LCA3";
+    GpuOpCodes[GpuOpCodes["LLA3"] = 0x85] = "LLA3";
+    GpuOpCodes[GpuOpCodes["LQA3"] = 0x86] = "LQA3";
+    GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 0x87] = "SPOTEXP0";
+    GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 0x88] = "SPOTEXP1";
+    GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 0x89] = "SPOTEXP2";
+    GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 0x8A] = "SPOTEXP3";
+    GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 0x8B] = "SPOTCUT0";
+    GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 0x8C] = "SPOTCUT1";
+    GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 0x8D] = "SPOTCUT2";
+    GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 0x8E] = "SPOTCUT3";
+    GpuOpCodes[GpuOpCodes["ALC0"] = 0x8F] = "ALC0";
+    GpuOpCodes[GpuOpCodes["DLC0"] = 0x90] = "DLC0";
+    GpuOpCodes[GpuOpCodes["SLC0"] = 0x91] = "SLC0";
+    GpuOpCodes[GpuOpCodes["ALC1"] = 0x92] = "ALC1";
+    GpuOpCodes[GpuOpCodes["DLC1"] = 0x93] = "DLC1";
+    GpuOpCodes[GpuOpCodes["SLC1"] = 0x94] = "SLC1";
+    GpuOpCodes[GpuOpCodes["ALC2"] = 0x95] = "ALC2";
+    GpuOpCodes[GpuOpCodes["DLC2"] = 0x96] = "DLC2";
+    GpuOpCodes[GpuOpCodes["SLC2"] = 0x97] = "SLC2";
+    GpuOpCodes[GpuOpCodes["ALC3"] = 0x98] = "ALC3";
+    GpuOpCodes[GpuOpCodes["DLC3"] = 0x99] = "DLC3";
+    GpuOpCodes[GpuOpCodes["SLC3"] = 0x9A] = "SLC3";
+    GpuOpCodes[GpuOpCodes["CULL"] = 0x9B] = "CULL";
+    GpuOpCodes[GpuOpCodes["FRAMEBUFPTR"] = 0x9C] = "FRAMEBUFPTR";
+    GpuOpCodes[GpuOpCodes["FRAMEBUFWIDTH"] = 0x9D] = "FRAMEBUFWIDTH";
+    GpuOpCodes[GpuOpCodes["ZBUFPTR"] = 0x9E] = "ZBUFPTR";
+    GpuOpCodes[GpuOpCodes["ZBUFWIDTH"] = 0x9F] = "ZBUFWIDTH";
+    GpuOpCodes[GpuOpCodes["TEXADDR0"] = 160] = "TEXADDR0";
+    GpuOpCodes[GpuOpCodes["TEXADDR1"] = 161] = "TEXADDR1";
+    GpuOpCodes[GpuOpCodes["TEXADDR2"] = 162] = "TEXADDR2";
+    GpuOpCodes[GpuOpCodes["TEXADDR3"] = 163] = "TEXADDR3";
+    GpuOpCodes[GpuOpCodes["TEXADDR4"] = 164] = "TEXADDR4";
+    GpuOpCodes[GpuOpCodes["TEXADDR5"] = 165] = "TEXADDR5";
+    GpuOpCodes[GpuOpCodes["TEXADDR6"] = 166] = "TEXADDR6";
+    GpuOpCodes[GpuOpCodes["TEXADDR7"] = 167] = "TEXADDR7";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH0"] = 168] = "TEXBUFWIDTH0";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH1"] = 169] = "TEXBUFWIDTH1";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH2"] = 170] = "TEXBUFWIDTH2";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH3"] = 171] = "TEXBUFWIDTH3";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH4"] = 172] = "TEXBUFWIDTH4";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH5"] = 173] = "TEXBUFWIDTH5";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH6"] = 174] = "TEXBUFWIDTH6";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH7"] = 175] = "TEXBUFWIDTH7";
+    GpuOpCodes[GpuOpCodes["CLUTADDR"] = 176] = "CLUTADDR";
+    GpuOpCodes[GpuOpCodes["CLUTADDRUPPER"] = 177] = "CLUTADDRUPPER";
     GpuOpCodes[GpuOpCodes["TRXSBP"] = 178] = "TRXSBP";
     GpuOpCodes[GpuOpCodes["TRXSBW"] = 179] = "TRXSBW";
     GpuOpCodes[GpuOpCodes["TRXDBP"] = 180] = "TRXDBP";
@@ -9939,28 +9980,27 @@ exports.Matrix4x3 = Matrix4x3;
 
 var ViewPort = (function () {
     function ViewPort() {
+        this.x = 2048;
+        this.y = 2048;
+        this.z = 0;
+        this.width = 512;
+        this.height = 272;
+        this.depth = 0;
+    }
+    return ViewPort;
+})();
+exports.ViewPort = ViewPort;
+
+var Region = (function () {
+    function Region() {
         this.x1 = 0;
         this.y1 = 0;
         this.x2 = 512;
         this.y2 = 272;
     }
-    Object.defineProperty(ViewPort.prototype, "width", {
-        get: function () {
-            return this.x2 - this.x1;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ViewPort.prototype, "height", {
-        get: function () {
-            return this.y2 - this.y1;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return ViewPort;
+    return Region;
 })();
-exports.ViewPort = ViewPort;
+exports.Region = Region;
 
 var Light = (function () {
     function Light() {
@@ -10297,6 +10337,14 @@ var PatchState = (function () {
 })();
 exports.PatchState = PatchState;
 
+var Fog = (function () {
+    function Fog() {
+        this.enabled = false;
+    }
+    return Fog;
+})();
+exports.Fog = Fog;
+
 var GpuState = (function () {
     function GpuState() {
         this.clearing = false;
@@ -10313,7 +10361,10 @@ var GpuState = (function () {
         this.projectionMatrix = new Matrix4x4();
         this.viewMatrix = new Matrix4x3();
         this.worldMatrix = new Matrix4x3();
-        this.viewPort = new ViewPort();
+        this.viewport = new ViewPort();
+        this.region = new Region();
+        this.offset = { x: 0, y: 0 };
+        this.fog = new Fog();
         this.clipPlane = new ClipPlane();
         this.lightning = new Lightning();
         this.alphaTest = new AlphaTest();
@@ -10620,8 +10671,16 @@ var WebGlPspDrawDriver = (function () {
     };
 
     WebGlPspDrawDriver.prototype.updateCommonState = function (program, vertexState, primitiveType) {
+        var viewport = this.state.viewport;
+
+        var x = 2048 - viewport.x;
+        var y = 2048 - viewport.y;
+        var width = viewport.width * 2;
+        var height = -viewport.height * 2;
+
+        //debugger;
         var ratio = this.getScaleRatio();
-        this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * ratio, this.state.viewPort.height * ratio);
+        this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
     };
 
     WebGlPspDrawDriver.prototype.updateState = function (program, vertexState, primitiveType) {
@@ -11398,6 +11457,7 @@ var InterruptManager = (function () {
         for (var n in handlers) {
             var handler = handlers[n];
             if (handler.enabled) {
+                //debugger;
                 this.queue.push(handler);
                 this.execute(null);
             }
@@ -13060,8 +13120,7 @@ var Emulator = (function () {
                         _this.context.symbolLookup = pspElf;
                         var moduleInfo = pspElf.moduleInfo;
 
-                        //return;
-                        //window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');
+                        //this.memory.dump(); debugger;
                         // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
                         thread.state.GP = moduleInfo.gp;
@@ -13519,6 +13578,7 @@ var ElfLoader = (function () {
     }
     ElfLoader.prototype.load = function (stream) {
         var _this = this;
+        this.stream = stream;
         this.readAndCheckHeaders(stream);
 
         var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
@@ -16127,6 +16187,7 @@ var PspElfLoader = (function () {
         this.elfDwarfLoader = new ElfDwarfLoader();
         this.elfDwarfLoader.parseElfLoader(this.elfLoader);
 
+        //this.memory.dump(); debugger;
         //this.elfDwarfLoader.getSymbolAt();
         console.log(this.moduleInfo);
     };
@@ -16153,6 +16214,7 @@ var PspElfLoader = (function () {
                 return partition.size;
             }).reverse().first().low;
             this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
+            //this.baseAddress = 0x08800000 + 0x4000;
         }
 
         var lowest = 0xFFFFFFFF;
@@ -16286,10 +16348,27 @@ var PspElfLoader = (function () {
         console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
 
         //console.log(moduleInfo);
+        this.elfLoader.programHeaders.filter(function (programHeader) {
+            return (programHeader.type == 1);
+        }).forEach(function (programHeader) {
+            var fileOffset = programHeader.offset;
+            var memOffset = _this.baseAddress + programHeader.virtualAddress;
+            var fileSize = programHeader.fileSize;
+            var memSize = programHeader.memorySize;
+
+            _this.elfLoader.stream.sliceWithLength(fileOffset, fileSize).copyTo(_this.memory.getPointerStream(memOffset, fileSize));
+            _this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
+
+            //this.getSectionHeaderMemoryStream
+            console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
+        });
+
         this.elfLoader.sectionHeaders.filter(function (sectionHeader) {
             return ((sectionHeader.flags & 2 /* Allocate */) != 0);
         }).forEach(function (sectionHeader) {
             var low = loadAddress + sectionHeader.address;
+
+            console.info('Section Header: ', sectionHeader, sprintf('LOW:%08X, SIZE:%08X', low, sectionHeader.size));
 
             switch (sectionHeader.type) {
                 case 8 /* NoBits */:
@@ -17096,8 +17175,60 @@ var ModuleManager = (function () {
 exports.ModuleManager = ModuleManager;
 //# sourceMappingURL=module.js.map
 },
+"src/hle/manager/scemodule": function(module, exports, require) {
+// 0x08400000
+var SceModule = (function () {
+    function SceModule() {
+    }
+    SceModule.struct = StructClass.create(SceModule, [
+        { next: UInt32 },
+        { attribute: UInt16 },
+        { version: UInt16 },
+        { modname: Stringz(28) },
+        { status: UInt32 },
+        { unk1: UInt32 },
+        { modid: UInt32 },
+        { usermod_thid: UInt32 },
+        { memid: UInt32 },
+        { mpidtext: UInt32 },
+        { mpiddata: UInt32 },
+        { ent_top: UInt32 },
+        { ent_size: UInt32 },
+        { stub_top: UInt32 },
+        { stub_size: UInt32 },
+        { module_start_func: UInt32 },
+        { module_stop_func: UInt32 },
+        { module_bootstart_func: UInt32 },
+        { module_reboot_before_func: UInt32 },
+        { module_reboot_phase_func: UInt32 },
+        { entry_addr: UInt32 },
+        { gp_value: UInt32 },
+        { text_addr: UInt32 },
+        { text_size: UInt32 },
+        { data_size: UInt32 },
+        { bss_size: UInt32 },
+        { nsegment: UInt32 },
+        { segmentaddr: StructArray(UInt32, 4) },
+        { segmentsize: StructArray(UInt32, 4) },
+        { module_start_thread_priority: UInt32 },
+        { module_start_thread_stacksize: UInt32 },
+        { module_start_thread_attr: UInt32 },
+        { module_stop_thread_priority: UInt32 },
+        { module_stop_thread_stacksize: UInt32 },
+        { module_stop_thread_attr: UInt32 },
+        { module_reboot_before_thread_priority: UInt32 },
+        { module_reboot_before_thread_stacksize: UInt32 },
+        { module_reboot_before_thread_attr: UInt32 }
+    ]);
+    return SceModule;
+})();
+exports.SceModule = SceModule;
+//# sourceMappingURL=scemodule.js.map
+},
 "src/hle/manager/thread": function(module, exports, require) {
 var _cpu = require('../../core/cpu');
+
+var SceKernelErrors = require('../SceKernelErrors');
 
 var SyscallManager = _cpu.SyscallManager;
 
@@ -17155,7 +17286,7 @@ var Thread = (function () {
         this.priority = 10;
         this.attributes = 0;
         //exitStatus: number = 0x800201a2;
-        this.exitStatus = 0;
+        this.exitStatus = 2147615138 /* ERROR_KERNEL_THREAD_ALREADY_DORMANT */;
         this.running = false;
         this.preemptionCount = 0;
         this.info = null;
@@ -17291,13 +17422,17 @@ var Thread = (function () {
 
     Thread.prototype.start = function () {
         this.running = true;
+        console.info('starting thread ', this.name);
         this.manager.threads.add(this);
         this.manager.eventOcurred();
     };
 
-    Thread.prototype.stop = function () {
+    Thread.prototype.stop = function (reason) {
         this.running = false;
         this.runningStop();
+
+        //debugger;
+        console.info('stopping thread ', this.name, 'reason:', reason);
         this.manager.threads.delete(this);
         this.manager.eventOcurred();
     };
@@ -17314,7 +17449,7 @@ var Thread = (function () {
         } catch (e) {
             console.error(e);
             console.error(e['stack']);
-            this.stop();
+            this.stop('error:' + e);
             throw (e);
         }
     };
@@ -17657,7 +17792,7 @@ var LoadExecForUser = (function () {
         this.context = context;
         this.sceKernelExitGame = createNativeFunction(0xBD2F1094, 150, 'uint', 'Thread', this, function (thread) {
             console.info('sceKernelExitGame');
-            thread.stop();
+            thread.stop('sceKernelExitGame');
             _this.context.threadManager.exitGame();
             throw (new CpuBreakException());
             return 0;
@@ -17669,7 +17804,7 @@ var LoadExecForUser = (function () {
             //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.info('sceKernelExitGame2');
             _this.context.threadManager.exitGame();
-            thread.stop();
+            thread.stop('sceKernelExitGame2');
             throw (new CpuBreakException());
         });
         this.sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
@@ -18108,12 +18243,15 @@ var IoFileMgrForUser = (function () {
                 return readedData.byteLength;
             });
         });
-        this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
+        this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, function (thread, fileId, outputPointer, outputLength) {
             var file = _this.getFileById(fileId);
 
+            // SCE_KERNEL_ERROR_ASYNC_BUSY
             file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
                 //console.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
                 file.cursor += readedData.byteLength;
+
+                //console.info(thread, 'readed', new Uint8Array(readedData));
                 _this.context.memory.writeBytes(outputPointer, readedData);
                 return Integer64.fromNumber(readedData.byteLength);
             }));
@@ -18127,15 +18265,19 @@ var IoFileMgrForUser = (function () {
             return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
         });
         this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            console.info('sceIoPollAsync', fileId);
+            //console.info('sceIoPollAsync', fileId);
             var file = _this.getFileById(fileId);
 
             if (file.asyncResult) {
                 //return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-                //console.log('resolved -> ', file.asyncResult.number);
+                if (DebugOnce('sceIoPollAsync', 100))
+                    console.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
                 resultPointer.writeInt64(file.asyncResult);
                 return 0;
             } else {
+                if (DebugOnce('sceIoPollAsync', 100))
+                    console.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+
                 //console.log('not resolved');
                 resultPointer.writeInt64(Integer64.fromInt(0));
                 return 1;
@@ -18271,14 +18413,17 @@ var IoFileMgrForUser = (function () {
 
         if (file.asyncOperation) {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                console.info('_sceIoWaitAsyncCB', fileId, 'completed');
+                console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
             return file.asyncOperation.then(function (result) {
+                //debugger;
+                if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                    console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
                 resultPointer.writeInt64(result);
                 return 0;
             });
         } else {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                console.info('_sceIoWaitAsyncCB', fileId, 'incompleted');
+                console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
             resultPointer.writeInt64(Integer64.fromNumber(0));
             return Promise.resolve(1);
         }
@@ -21188,6 +21333,8 @@ var ThreadManForUser = (function () {
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
             var newThread = _this.getThreadById(threadId);
 
+            newThread.exitStatus = 2147615140 /* ERROR_KERNEL_THREAD_IS_NOT_DORMANT */;
+
             //if (!newThread) debugger;
             var newState = newThread.state;
             newState.setRA(268435455 /* EXIT_THREAD */);
@@ -21215,8 +21362,8 @@ var ThreadManForUser = (function () {
         this.sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, function (currentThread, exitStatus) {
             console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
-            currentThread.exitStatus = exitStatus;
-            currentThread.stop();
+            currentThread.exitStatus = (exitStatus < 0) ? 2147614930 /* ERROR_KERNEL_ILLEGAL_ARGUMENT */ : exitStatus;
+            currentThread.stop('sceKernelExitThread');
             throw (new CpuBreakException());
         });
         this.sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, function (threadId) {
@@ -21233,7 +21380,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, function (currentThread, exitStatus) {
             currentThread.exitStatus = exitStatus;
-            currentThread.stop();
+            currentThread.stop('sceKernelExitDeleteThread');
             throw (new CpuBreakException());
         });
         this.sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, function (threadId) {
@@ -21337,13 +21484,13 @@ var ThreadManForUser = (function () {
 
     ThreadManForUser.prototype._sceKernelWaitThreadEndCB = function (thread, acceptCallbacks) {
         return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(function () {
-            return 0;
+            return thread.exitStatus;
         }), acceptCallbacks);
     };
 
     ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
         var newThread = this.getThreadById(threadId);
-        newThread.stop();
+        newThread.stop('_sceKernelTerminateThread');
         newThread.exitStatus = 0x800201ac;
         return 0;
     };
@@ -22224,11 +22371,12 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
 
     var debugSyscalls = false;
 
+    //var debugSyscalls = true;
     if (debugSyscalls) {
-        code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
+        code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;";
         code += "if (DebugOnce(info, 10)) {";
         code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
-        code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
+        code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
         code += "}";
     }
 
@@ -22260,7 +22408,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     nativeFunction.firmwareVersion = firmwareVersion;
 
     //console.log(code);
-    var func = new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
+    var func = new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
     nativeFunction.call = function (context, state) {
         func(_this, internalFunc, context, state, nativeFunction);
     };

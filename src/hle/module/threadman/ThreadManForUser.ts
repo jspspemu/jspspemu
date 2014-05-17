@@ -73,8 +73,7 @@ export class ThreadManForUser {
 	});
 
 	private _sceKernelWaitThreadEndCB(thread: Thread, acceptCallbacks:AcceptCallbacks) {
-		return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(() => 0), acceptCallbacks);
-
+		return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(() => thread.exitStatus), acceptCallbacks);
 	}
 
 	sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, (threadId: number, timeoutPtr: Stream):any => {
@@ -89,6 +88,8 @@ export class ThreadManForUser {
 
 	sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number):any => {
 		var newThread = this.getThreadById(threadId);
+
+		newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
 
 		//if (!newThread) debugger;
 
@@ -120,8 +121,8 @@ export class ThreadManForUser {
 	sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
 		console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
-		currentThread.exitStatus = exitStatus;
-		currentThread.stop();
+		currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
+		currentThread.stop('sceKernelExitThread');
 		throw (new CpuBreakException());
 	});
 
@@ -132,7 +133,7 @@ export class ThreadManForUser {
 
 	_sceKernelTerminateThread(threadId: number) {
 		var newThread = this.getThreadById(threadId);
-		newThread.stop();
+		newThread.stop('_sceKernelTerminateThread');
 		newThread.exitStatus = 0x800201ac;
 		return 0;
 	}
@@ -156,7 +157,7 @@ export class ThreadManForUser {
 
 	sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
 		currentThread.exitStatus = exitStatus;
-		currentThread.stop();
+		currentThread.stop('sceKernelExitDeleteThread');
 		throw (new CpuBreakException());
 	});
 

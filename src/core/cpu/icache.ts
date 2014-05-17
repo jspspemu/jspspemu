@@ -35,7 +35,7 @@ export class InstructionCache {
 				//console.log(state.thread);
 				//console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
 
-				state.thread.stop();
+				state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
 				throw (new CpuBreakException());
 			};
 		} else {

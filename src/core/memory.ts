@@ -286,7 +286,7 @@ export class Memory {
 		_destination.set(_source);
 	}
 
-	dump() {
-		saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), 'memory.bin');
+	dump(name = 'memory.bin') {
+		saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), name);
 	}
 }

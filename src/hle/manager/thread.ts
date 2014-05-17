@@ -4,6 +4,7 @@ import _display = require('../../core/display');
 import _interrupt = require('../../core/interrupt');
 import _manager_memory = require('./memory');
 import _callback = require('./callback');
+import SceKernelErrors = require('../SceKernelErrors');
 
 import CallbackManager = _callback.CallbackManager;
 import MemoryManager = _manager_memory.MemoryManager;
@@ -59,7 +60,7 @@ export class Thread {
 	priority: number = 10;
 	attributes: number = 0;
 	//exitStatus: number = 0x800201a2;
-	exitStatus: number = 0;
+	exitStatus: number = SceKernelErrors.ERROR_KERNEL_THREAD_ALREADY_DORMANT;
     running: boolean = false;
 	stackPartition: MemoryPartition;
 	preemptionCount: number = 0;
@@ -192,14 +193,17 @@ export class Thread {
     }
 
     start() {
-        this.running = true;
+		this.running = true;
+		console.info('starting thread ', this.name);
 		this.manager.threads.add(this);
 		this.manager.eventOcurred();
     }
 
-    stop() {
+    stop(reason: string) {
 		this.running = false;
 		this.runningStop();
+		//debugger;
+		console.info('stopping thread ', this.name, 'reason:', reason);
 		this.manager.threads.delete(this);
 		this.manager.eventOcurred();
     }
@@ -216,7 +220,7 @@ export class Thread {
 		} catch (e) {
 			console.error(e);
 			console.error(e['stack']);
-			this.stop();
+			this.stop('error:' + e);
 			throw (e);
 		}
     }

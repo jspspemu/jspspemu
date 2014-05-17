@@ -214,25 +214,40 @@ class PspGpuList {
 		function bool1() { return params24 != 0; }
 		function float1() { return MathFloat.reinterpretIntAsFloat(params24 << 8); }
 
+		//console.info('op:', op, GpuOpCodes[op]);
 		switch (op) {
 			case GpuOpCodes.IADDR:
 				this.state.indexAddress = params24;
 				break;
-			case GpuOpCodes.OFFSET_ADDR:
+			case GpuOpCodes.OFFSETADDR:
 				this.state.baseOffset = (params24 << 8);
 				break;
-            case GpuOpCodes.FBP:
+            case GpuOpCodes.FRAMEBUFPTR:
                 this.state.frameBuffer.lowAddress = params24;
 				break;
+
+			case GpuOpCodes.FOGENABLE: this.state.fog.enabled = bool1(); break;
+
+			case GpuOpCodes.VIEWPORTX1: this.state.viewport.width = float1(); break;
+			case GpuOpCodes.VIEWPORTY1: this.state.viewport.height = float1(); break;
+			case GpuOpCodes.VIEWPORTZ1: this.state.viewport.depth = float1(); break;
+
+			case GpuOpCodes.VIEWPORTX2: this.state.viewport.x = float1(); break;
+			case GpuOpCodes.VIEWPORTY2: this.state.viewport.y = float1(); break;
+			case GpuOpCodes.VIEWPORTZ2: this.state.viewport.z = float1(); break;
+
+			case GpuOpCodes.OFFSETX: this.state.offset.x = params24 & 0xF; break;
+			case GpuOpCodes.OFFSETY: this.state.offset.y = params24 & 0xF; break;
+
 			case GpuOpCodes.REGION1:
-				this.state.viewPort.x1 = BitUtils.extract(params24, 0, 10);
-				this.state.viewPort.y1 = BitUtils.extract(params24, 10, 10);
+				this.state.region.x1 = BitUtils.extract(params24, 0, 10);
+				this.state.region.y1 = BitUtils.extract(params24, 10, 10);
 				break;
 			case GpuOpCodes.REGION2:
-				this.state.viewPort.x2 = BitUtils.extract(params24, 0, 10);
-				this.state.viewPort.y2 = BitUtils.extract(params24, 10, 10);
+				this.state.region.x2 = BitUtils.extract(params24, 0, 10);
+				this.state.region.y2 = BitUtils.extract(params24, 10, 10);
 				break;
-			case GpuOpCodes.CPE:
+			case GpuOpCodes.CLIPENABLE:
 				this.state.clipPlane.enabled = (params24 != 0);
 				break;
 			case GpuOpCodes.SCISSOR1:
@@ -244,19 +259,19 @@ class PspGpuList {
 				this.state.clipPlane.scissor.bottom = BitUtils.extract(params24, 10, 10);
 				break;
 
-            case GpuOpCodes.FBW:
+            case GpuOpCodes.FRAMEBUFWIDTH:
                 this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
                 this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
 				break;
-			case GpuOpCodes.SHADE:
+			case GpuOpCodes.SHADEMODE:
 				this.state.shadeModel = BitUtils.extractEnum<_state.ShadingModelEnum>(params24, 0, 16)
 				break;
 
-			case GpuOpCodes.LTE:
+			case GpuOpCodes.LIGHTINGENABLE:
 				this.state.lightning.enabled = (params24 != 0);
 				break;
 
-			case GpuOpCodes.ATE:
+			case GpuOpCodes.ALPHATESTENABLE:
 				this.state.alphaTest.enabled = (params24 != 0);
 				break;
 
@@ -266,7 +281,7 @@ class PspGpuList {
 				this.state.alphaTest.mask = BitUtils.extract(params24, 16, 8);
 				break;
 
-			case GpuOpCodes.ABE:
+			case GpuOpCodes.ALPHABLENDENABLE:
 				this.state.blending.enabled = (params24 != 0);
 				break;
 			case GpuOpCodes.ALPHA:
@@ -275,11 +290,11 @@ class PspGpuList {
 				this.state.blending.equation = BitUtils.extractEnum<_state.GuBlendingEquation>(params24, 8, 4);
 				break;
 
-			case GpuOpCodes.LTE0: 
-			case GpuOpCodes.LTE1: 
-			case GpuOpCodes.LTE2: 
-			case GpuOpCodes.LTE3:
-				this.state.lightning.lights[op - GpuOpCodes.LTE0].enabled = params24 != 0;
+			case GpuOpCodes.LIGHTENABLE0: 
+			case GpuOpCodes.LIGHTENABLE1: 
+			case GpuOpCodes.LIGHTENABLE2: 
+			case GpuOpCodes.LIGHTENABLE3:
+				this.state.lightning.lights[op - GpuOpCodes.LIGHTENABLE0].enabled = params24 != 0;
 				break;
             case GpuOpCodes.BASE: this.state.baseAddress = ((params24 << 8) & 0xff000000); break;
 			case GpuOpCodes.JUMP: this.jumpRelativeOffset(params24 & ~3); break;
@@ -299,7 +314,7 @@ class PspGpuList {
 				break;
 
             case GpuOpCodes.NOP: break;
-            case GpuOpCodes.VTYPE: this.state.vertex.value = params24; break;
+            case GpuOpCodes.VERTEXTYPE: this.state.vertex.value = params24; break;
 			case GpuOpCodes.VADDR: this.state.vertex.address = params24; break;
 			case GpuOpCodes.TMODE:
 				this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
@@ -315,7 +330,7 @@ class PspGpuList {
 				this.state.texture.wrapV = BitUtils.extractEnum<_state.WrapMode>(params24, 8, 8);
 				break;
 
-			case GpuOpCodes.TME:
+			case GpuOpCodes.TEXTUREMAPENABLE:
 				this.state.texture.enabled = (params24 != 0);
 				break;
 
@@ -341,11 +356,11 @@ class PspGpuList {
 				this.state.texture.colorComponent = <_state.TextureColorComponent>BitUtils.extract(params24, 8, 8);
 				this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
 				break;
-			case GpuOpCodes.UOFFSET: this.state.texture.offsetU = float1(); break;
-			case GpuOpCodes.VOFFSET: this.state.texture.offsetV = float1(); break;
+			case GpuOpCodes.TEXOFFSETU: this.state.texture.offsetU = float1(); break;
+			case GpuOpCodes.TEXOFFSETV: this.state.texture.offsetV = float1(); break;
 
-			case GpuOpCodes.USCALE: this.state.texture.scaleU = float1(); break;
-			case GpuOpCodes.VSCALE: this.state.texture.scaleV = float1(); break;
+			case GpuOpCodes.TEXSCALEU: this.state.texture.scaleU = float1(); break;
+			case GpuOpCodes.TEXSCALEV: this.state.texture.scaleV = float1(); break;
 
 			case GpuOpCodes.TFLUSH: this.drawDriver.textureFlush(this.state); break;
 			case GpuOpCodes.TSYNC: this.drawDriver.textureSync(this.state); break;
@@ -373,32 +388,32 @@ class PspGpuList {
 
 				break;
 
-			case GpuOpCodes.TBP0:
-			case GpuOpCodes.TBP1:
-			case GpuOpCodes.TBP2:
-			case GpuOpCodes.TBP3:
-			case GpuOpCodes.TBP4:
-			case GpuOpCodes.TBP5:
-			case GpuOpCodes.TBP6:
-			case GpuOpCodes.TBP7:
-				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TBP0];
+			case GpuOpCodes.TEXADDR0:
+			case GpuOpCodes.TEXADDR1:
+			case GpuOpCodes.TEXADDR2:
+			case GpuOpCodes.TEXADDR3:
+			case GpuOpCodes.TEXADDR4:
+			case GpuOpCodes.TEXADDR5:
+			case GpuOpCodes.TEXADDR6:
+			case GpuOpCodes.TEXADDR7:
+				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TEXADDR0];
 				mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
 				break;
 
-			case GpuOpCodes.TBW0:
-			case GpuOpCodes.TBW1:
-			case GpuOpCodes.TBW2:
-			case GpuOpCodes.TBW3:
-			case GpuOpCodes.TBW4:
-			case GpuOpCodes.TBW5:
-			case GpuOpCodes.TBW6:
-			case GpuOpCodes.TBW7:
-				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TBW0];
+			case GpuOpCodes.TEXBUFWIDTH0:
+			case GpuOpCodes.TEXBUFWIDTH1:
+			case GpuOpCodes.TEXBUFWIDTH2:
+			case GpuOpCodes.TEXBUFWIDTH3:
+			case GpuOpCodes.TEXBUFWIDTH4:
+			case GpuOpCodes.TEXBUFWIDTH5:
+			case GpuOpCodes.TEXBUFWIDTH6:
+			case GpuOpCodes.TEXBUFWIDTH7:
+				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TEXBUFWIDTH0];
 				mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
 				mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
 				break;
 
-			case GpuOpCodes.AMC:
+			case GpuOpCodes.MATERIALAMBIENT:
 				//printf("%08X: %08X", current, instruction);
 				//printf("GpuOpCodes.AMC: Params24: %08X", params24);
 				this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
@@ -407,12 +422,12 @@ class PspGpuList {
 				this.state.ambientModelColor.a = 1;
 				break;
 
-			case GpuOpCodes.AMA:
+			case GpuOpCodes.MATERIALALPHA:
 				//printf("GpuOpCodes.AMA: Params24: %08X", params24);
 				this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
 				break;
 
-			case GpuOpCodes.ALC:
+			case GpuOpCodes.AMBIENTCOLOR:
 				//printf("%08X: %08X", current, instruction);
 				this.state.lighting.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
 				this.state.lighting.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
@@ -424,15 +439,15 @@ class PspGpuList {
 				this.state.depthTest.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8);
 				break;
 
-			case GpuOpCodes.ZTE:
+			case GpuOpCodes.ZTESTENABLE:
 				this.state.depthTest.enabled = (params24 != 0);
 				break;
 
-			case GpuOpCodes.ALA:
+			case GpuOpCodes.AMBIENTALPHA:
 				this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
 				break;
 
-			case GpuOpCodes.DMC:
+			case GpuOpCodes.MATERIALDIFFUSE:
 				//printf("AMC:%08X", params24);
 
 				this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
@@ -441,18 +456,18 @@ class PspGpuList {
 				this.state.diffuseModelColor.a = 1;
 				break;
 
-			case GpuOpCodes.SMC:
+			case GpuOpCodes.MATERIALSPECULAR:
 				this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
 				this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
 				this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
 				this.state.specularModelColor.a = 1;
 				break;
 
-			case GpuOpCodes.CBP:
+			case GpuOpCodes.CLUTADDR:
 				this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
 				break;
 
-			case GpuOpCodes.CBPH:
+			case GpuOpCodes.CLUTADDRUPPER:
 				this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
 				break;
 
@@ -468,19 +483,19 @@ class PspGpuList {
 				this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
 				break;
 
-            case GpuOpCodes.PROJ_START: this.state.projectionMatrix.reset(params24); break;
-			case GpuOpCodes.PROJ_PUT: this.state.projectionMatrix.put(float1()); break;
+            case GpuOpCodes.PROJMATRIXNUMBER: this.state.projectionMatrix.reset(params24); break;
+			case GpuOpCodes.PROJMATRIXDATA: this.state.projectionMatrix.put(float1()); break;
 
-            case GpuOpCodes.VIEW_START: this.state.viewMatrix.reset(params24); break;
-			case GpuOpCodes.VIEW_PUT: this.state.viewMatrix.put(float1()); break;
+            case GpuOpCodes.VIEWMATRIXNUMBER: this.state.viewMatrix.reset(params24); break;
+			case GpuOpCodes.VIEWMATRIXDATA: this.state.viewMatrix.put(float1()); break;
 
-            case GpuOpCodes.WORLD_START: this.state.worldMatrix.reset(params24); break;
-			case GpuOpCodes.WORLD_PUT: this.state.worldMatrix.put(float1()); break;
+            case GpuOpCodes.WORLDMATRIXNUMBER: this.state.worldMatrix.reset(params24); break;
+			case GpuOpCodes.WORLDMATRIXDATA: this.state.worldMatrix.put(float1()); break;
 
-			case GpuOpCodes.BONE_START: this.state.skinning.currentBoneIndex = params24; break;
-			case GpuOpCodes.BONE_PUT: this.state.skinning.write(float1()); break;
+			case GpuOpCodes.BONEMATRIXNUMBER: this.state.skinning.currentBoneIndex = params24; break;
+			case GpuOpCodes.BONEMATRIXDATA: this.state.skinning.write(float1()); break;
 
-			case GpuOpCodes.STE:
+			case GpuOpCodes.STENCILTESTENABLE:
 				this.state.stencil.enabled = bool1();
 				break;
 
@@ -500,15 +515,15 @@ class PspGpuList {
 				break;
 
 
-			case GpuOpCodes.MW0:
-			case GpuOpCodes.MW1:
-			case GpuOpCodes.MW2:
-			case GpuOpCodes.MW3:
-			case GpuOpCodes.MW4:
-			case GpuOpCodes.MW5:
-			case GpuOpCodes.MW6:
-			case GpuOpCodes.MW7:
-				this.state.morphWeights[op - GpuOpCodes.MW0] = MathFloat.reinterpretIntAsFloat(params24 << 8);
+			case GpuOpCodes.MORPHWEIGHT0:
+			case GpuOpCodes.MORPHWEIGHT1:
+			case GpuOpCodes.MORPHWEIGHT2:
+			case GpuOpCodes.MORPHWEIGHT3:
+			case GpuOpCodes.MORPHWEIGHT4:
+			case GpuOpCodes.MORPHWEIGHT5:
+			case GpuOpCodes.MORPHWEIGHT6:
+			case GpuOpCodes.MORPHWEIGHT7:
+				this.state.morphWeights[op - GpuOpCodes.MORPHWEIGHT0] = MathFloat.reinterpretIntAsFloat(params24 << 8);
 				break;
 
             case GpuOpCodes.CLEAR:
@@ -517,25 +532,25 @@ class PspGpuList {
                 this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
 				break;
 
-			case GpuOpCodes.CTE:
+			case GpuOpCodes.COLORTESTENABLE:
 				this.state.colorTest.enabled = bool1();
 				break;
 
-			case GpuOpCodes.DTE:
+			case GpuOpCodes.DITHERENABLE:
 				this.state.dithering.enabled = bool1();
 				break;
 
-			case GpuOpCodes.BCE:
+			case GpuOpCodes.CULLFACEENABLE:
 				this.state.culling.enabled = bool1();
 				break;
-			case GpuOpCodes.FFACE:
+			case GpuOpCodes.CULL:
 				this.state.culling.direction = <_state.CullingDirection>params24;
 				break;
 
 			case GpuOpCodes.SFIX: this.state.blending.fixColorSource.setRGB(params24); break;
 			case GpuOpCodes.DFIX: this.state.blending.fixColorDestination.setRGB(params24); break;
 
-			case GpuOpCodes.PSUB:
+			case GpuOpCodes.PATCHDIVISION:
 				this.state.patch.divs = BitUtils.extract(params24, 0, 8);
 				this.state.patch.divt = BitUtils.extract(params24, 8, 8);
 				break;
@@ -752,6 +767,7 @@ class PspGpuListRunner {
 			return DisplayListStatus.Completed;
 		});
 		var result = _peek();
+		//result = Math.floor(Math.random() * 4);
 		console.warn('not implemented gpu list peeking -> ' + result);
 		return result;
 	}
@@ -809,6 +825,8 @@ export class PspGpu implements IPspGpu {
 	drawSync(syncType: _state.SyncType): any {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
+		return this.listRunner.waitAsync();
+
 		switch (syncType) {
 			case _state.SyncType.Peek: return this.listRunner.peek();
 			case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();

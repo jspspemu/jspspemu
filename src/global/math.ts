@@ -309,8 +309,9 @@ class MathVfpu {
 }
 
 class MathFloat {
-	private static floatArray = new Float32Array(1);
-	private static intArray = new Int32Array(MathFloat.floatArray.buffer);
+	private static reinterpretBuffer = new ArrayBuffer(4);
+	private static floatArray = new Float32Array(MathFloat.reinterpretBuffer);
+	private static intArray = new Int32Array(MathFloat.reinterpretBuffer);
 
 	static reinterpretFloatAsInt(floatValue: number) {
 		MathFloat.floatArray[0] = floatValue;

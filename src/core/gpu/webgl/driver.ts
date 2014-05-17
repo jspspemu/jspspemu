@@ -215,8 +215,17 @@ class WebGlPspDrawDriver implements IDrawDriver {
 	}
 
 	private updateCommonState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+		var viewport = this.state.viewport;
+
+		var x = 2048 - viewport.x;
+		var y = 2048 - viewport.y;
+		var width = viewport.width * 2;
+		var height = -viewport.height * 2;
+
+		//debugger;
+
 		var ratio = this.getScaleRatio();
-		this.gl.viewport(this.state.viewPort.x1, this.state.viewPort.y1, this.state.viewPort.width * ratio, this.state.viewPort.height * ratio);
+		this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
 	}
 
 	private updateState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {

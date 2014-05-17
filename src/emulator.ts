@@ -289,8 +289,7 @@ export class Emulator {
 						this.context.symbolLookup = pspElf;
 						var moduleInfo = pspElf.moduleInfo;
 
-						//return;
-						//window['saveAs'](new Blob([this.memory.getPointerDataView(0x08000000, 0x2000000)]), 'after_allocate_and_write_dump.bin');
+						//this.memory.dump(); debugger;
 
 						// "ms0:/PSP/GAME/virtual/EBOOT.PBP"
 						var thread = this.threadManager.create('main', moduleInfo.pc, 10);

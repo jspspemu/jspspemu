@@ -269,13 +269,19 @@ export class Matrix4x3 {
 }
 
 export class ViewPort {
+	x = 2048;
+	y = 2048;
+	z = 0;
+	width = 512;
+	height = 272;
+	depth = 0;
+}
+
+export class Region {
 	x1 = 0;
 	y1 = 0;
 	x2 = 512;
 	y2 = 272;
-
-	get width() { return this.x2 - this.x1; }
-	get height() { return this.y2 - this.y1; }
 }
 
 export class Light {
@@ -514,6 +520,10 @@ export class PatchState {
 	divt = 0;
 }
 
+export class Fog {
+	enabled = false;
+}
+
 export class GpuState {
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
 	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
@@ -532,7 +542,10 @@ export class GpuState {
 	projectionMatrix = new Matrix4x4();
 	viewMatrix = new Matrix4x3();
 	worldMatrix = new Matrix4x3();
-	viewPort = new ViewPort();
+	viewport = new ViewPort();
+	region = new Region();
+	offset = { x: 0, y: 0 };
+	fog = new Fog();
 	clipPlane = new ClipPlane();
 	lightning = new Lightning();
 	alphaTest = new AlphaTest();

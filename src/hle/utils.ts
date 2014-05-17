@@ -65,12 +65,13 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	code += '}';
 
 	var debugSyscalls = false;
+	//var debugSyscalls = true;
 
 	if (debugSyscalls) {
-		code += "var info = 'calling:' + state.thread.name + ':' + nativeFunction.name;";
+		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;";
 		code += "if (DebugOnce(info, 10)) {";
 		code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
-		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('####### args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
+		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
 		code += "}";
 	}
 
@@ -93,7 +94,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	//console.log(code);
-	var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', code);
+	var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
 	nativeFunction.call = (context, state) => {
         func(_this, internalFunc, context, state, nativeFunction);
 	};

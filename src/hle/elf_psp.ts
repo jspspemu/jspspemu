@@ -88,8 +88,7 @@ export class ElfPspModuleExport {
 	]);
 }
 
-export enum ElfPspModuleInfoAtributesEnum // ushort
-{
+export enum ElfPspModuleInfoAtributesEnum {
 	UserMode = 0x0000,
 	KernelMode = 0x100,
 }
@@ -134,6 +133,8 @@ export class PspElfLoader {
 		this.elfDwarfLoader = new ElfDwarfLoader();
 		this.elfDwarfLoader.parseElfLoader(this.elfLoader);
 
+		//this.memory.dump(); debugger;
+
 		//this.elfDwarfLoader.getSymbolAt();
 
 		console.log(this.moduleInfo);
@@ -156,8 +157,10 @@ export class PspElfLoader {
 		this.baseAddress = 0;
 
 		if (this.elfLoader.needsRelocation) {
-			this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(partition => partition.size).reverse().first().low
+			this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(partition => partition.size).reverse().first().low;
 			this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
+			//this.baseAddress = 0x08800000 + 0x4000;
+			
 		}
 
 		var lowest = 0xFFFFFFFF;
@@ -190,6 +193,7 @@ export class PspElfLoader {
 		var RelocSectionIndex = 0;
 		this.elfLoader.sectionHeaders.forEach((sectionHeader) => {
 			//RelocOutput.WriteLine("Section Header: %d : %s".Sprintf(RelocSectionIndex++, SectionHeader.ToString()));
+			//console.info(sprintf('Section Header: '));
 
 			switch (sectionHeader.type) {
 				case ElfSectionHeaderType.Relocation:
@@ -274,10 +278,25 @@ export class PspElfLoader {
         var loadAddress = this.baseAddress;
 
         console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
-        //console.log(moduleInfo);
+		//console.log(moduleInfo);
+
+		this.elfLoader.programHeaders.filter(programHeader => (programHeader.type == 1)).forEach(programHeader => {
+			var fileOffset = programHeader.offset;
+			var memOffset = this.baseAddress + programHeader.virtualAddress;
+			var fileSize = programHeader.fileSize;
+			var memSize = programHeader.memorySize;
+
+			this.elfLoader.stream.sliceWithLength(fileOffset, fileSize).copyTo(this.memory.getPointerStream(memOffset, fileSize));
+			this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
+
+			//this.getSectionHeaderMemoryStream
+			console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
+		});
 
 		this.elfLoader.sectionHeaders.filter(sectionHeader => ((sectionHeader.flags & ElfSectionHeaderFlags.Allocate) != 0)).forEach(sectionHeader => {
 			var low = loadAddress + sectionHeader.address;
+
+			console.info('Section Header: ', sectionHeader, sprintf('LOW:%08X, SIZE:%08X', low, sectionHeader.size));
 
             //console.log(sectionHeader);
             switch (sectionHeader.type) {
