@@ -107,6 +107,7 @@ export class VertexReader {
 
 		this.readOffset = 0;
 
+		//if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
 		this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
 		this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
 		this.createColorJs(indentStringGenerator, this.vertexState.color);
@@ -184,10 +185,12 @@ export class VertexReader {
 				case _state.NumericEnum.Byte:
 					indentStringGenerator.write('output.' + component + ' = ' + this.readInt8());
 					if (normalize) indentStringGenerator.write(' / 127.0');
+					//if (normalize) indentStringGenerator.write(' / 128.0');
 					break;
 				case _state.NumericEnum.Short:
 					indentStringGenerator.write('output.' + component + ' = ' + this.readInt16());
 					if (normalize) indentStringGenerator.write(' / 32767.0');
+					//if (normalize) indentStringGenerator.write(' / 32768.0');
 					break;
 				case _state.NumericEnum.Float:
 					indentStringGenerator.write('output.' + component + ' = ' + this.readFloat32());

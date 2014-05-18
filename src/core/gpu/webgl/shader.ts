@@ -21,6 +21,7 @@ export class ShaderCache {
 		var defines = [];
 		if (vertex.hasColor) defines.push('VERTEX_COLOR 1');
 		if (vertex.hasTexture) defines.push('VERTEX_TEXTURE 1');
+		if (vertex.hasNormal) defines.push('VERTEX_NORMAL 1');
 
 		if (!state.clearing) {
 			if (state.alphaTest.enabled) defines.push('ALPHATEST 1');

@@ -101,9 +101,19 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.state = state;
 	}
 
+	private equationTranslate: number[] = null;
+	private opsConvertTable: number[] = null;
+	private testConvertTable: number[] = null;
+	private testConvertTable_inv: number[] = null;
 	private updateNormalState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
+
+		if (!this.equationTranslate) this.equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
+		if (!this.opsConvertTable) this.opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
+		if (!this.testConvertTable) this.testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
+		if (!this.testConvertTable_inv) this.testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
+
 
 		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
 			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
@@ -138,9 +148,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 				}
 			}
 
-			var equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
 
-			gl.blendEquation(equationTranslate[blending.equation]);
+			gl.blendEquation(this.equationTranslate[blending.equation]);
 			gl.blendFunc(sfactor, dfactor);
 			switch (blending.equation) {
 				case _state.GuBlendingEquation.Abs:
@@ -155,36 +164,20 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
 		}
 
-		var opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
-		var testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
-		var testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
-
 		var stencil = state.stencil;
 		if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
-			gl.stencilFunc(testConvertTable[stencil.func], stencil.funcRef, stencil.funcMask);
-			gl.stencilOp(opsConvertTable[stencil.fail], opsConvertTable[stencil.zfail], opsConvertTable[stencil.zpass]);
+			gl.stencilFunc(this.testConvertTable[stencil.func], stencil.funcRef, stencil.funcMask);
+			gl.stencilOp(this.opsConvertTable[stencil.fail], this.opsConvertTable[stencil.zfail], this.opsConvertTable[stencil.zpass]);
 		}
 
-		//gl.depthRange(1.0 - state.depthTest.rangeNear, 1.0 - state.depthTest.rangeFar);
 		gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
-		//gl.depthRange(0, 1000);
-		//gl.clearDepth(1.0);
-		//gl.clear(gl.DEPTH_BUFFER_BIT);
-		//gl.depthRange(1.0, 0.0);
 		gl.depthMask(state.depthTest.mask == 0);
-		//gl.depthMask(false);
 		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
-			gl.depthFunc(testConvertTable_inv[state.depthTest.func]);
-			//gl.depthFunc(gl.GEQUAL);
-			//gl.depthFunc(gl.LESS);
-			//gl.depthFunc(gl.LEQUAL);
-			//gl.depthFunc(gl.ALWAYS);
+			gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
 		}
 
 		var alphaTest = state.alphaTest;
 		if (alphaTest.enabled) {
-			//console.log(alphaTest.value);
-			//console.log(TestFunctionEnum[alphaTest.func] + '; ' + alphaTest.value + '; ' + alphaTest.mask);
 			program.getUniform('alphaTestFunc').set1i(alphaTest.func);
 			program.getUniform('alphaTestReference').set1i(alphaTest.value);
 			program.getUniform('alphaTestMask').set1i(alphaTest.mask);
@@ -320,6 +313,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 	private positionData = new FastFloat32Buffer();
 	private colorData = new FastFloat32Buffer();
 	private textureData = new FastFloat32Buffer();
+	private normalData = new FastFloat32Buffer();
 	private vertexWeightData1 = new FastFloat32Buffer();
 	private vertexWeightData2 = new FastFloat32Buffer();
 
@@ -332,6 +326,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.positionData.restart();
 		this.colorData.restart();
 		this.textureData.restart();
+		this.normalData.restart();
 
 		this.vertexWeightData1.restart();
 		this.vertexWeightData2.restart();
@@ -347,9 +342,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0.0 :  v.pz);
 
 			if (vertexState.hasColor) this.colorData.push4(v.r, v.g, v.b, v.a);
-			if (vertexState.hasTexture) {
-				this.textureData.push3(v.tx, v.ty, v.tz);
-			}
+			if (vertexState.hasTexture) this.textureData.push3(v.tx, v.ty, v.tz);
+			if (vertexState.hasNormal) this.normalData.push3(v.nx, v.ny, v.nz);
 
 			if (weightCount > 0) {
 				this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
@@ -360,6 +354,39 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		}
 	}
 
+	tempVec = new Float32Array([0, 0, 0])
+	texMat = mat4.create();
+
+	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {
+		if (vertexState.hasTexture) {
+			this.textureHandler.bindTexture(program, this.state);
+		} else {
+			this.textureHandler.unbindTexture(program, this.state);
+		}
+	}
+
+	drawElementsInternal(originalPrimitiveType: _state.PrimitiveType, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
+		var gl = this.gl;
+
+		//console.log(primitiveType);
+		var program = this.cache.getProgram(vertexState, this.state);
+		program.use();
+
+		this.demuxVertices(vertices, count, vertexState, primitiveType);
+		this.updateState(program, vertexState, originalPrimitiveType);
+		this.setProgramParameters(gl, program, vertexState);
+
+		if (this.clearing) {
+			this.textureHandler.unbindTexture(program, this.state);
+			//debugger;
+		} else {
+			this.prepareTexture(gl, program, vertexState);
+		}
+
+		this.drawArraysActual(gl, program, vertexState, primitiveType, count, vertices);
+		this.unsetProgramParameters(gl, program, vertexState);
+	}
+
 	private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {
 		program.getUniform('u_modelViewProjMatrix').setMat4(vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
 
@@ -368,6 +395,10 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			program.getUniform('tfx').set1i(this.state.texture.effect);
 			program.getUniform('tcc').set1i(this.state.texture.colorComponent);
 			program.getAttrib("vTexcoord").setFloats(3, this.textureData.slice());
+		}
+
+		if (vertexState.hasNormal) {
+			program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
 		}
 
 		if (vertexState.weightCount > 0) {
@@ -396,69 +427,29 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			if (vertexState.transform2D) {
 				t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
 			} else {
-				t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
 				t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
+				t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
 			}
 			program.getUniform('u_texMatrix').setMat4(this.texMat);
 		}
 	}
 
-	tempVec = new Float32Array([0, 0, 0])
-	texMat = mat4.create();
-
 	private unsetProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {
 		program.getAttrib("vPosition").disable();
 		if (vertexState.hasTexture) program.getAttrib("vTexcoord").disable();
+		if (vertexState.hasNormal) program.getAttrib("vNormal").disable();
 		if (vertexState.hasColor) program.getAttrib("vColor").disable();
+		if (vertexState.weightCount > 0) program.getAttrib('vertexWeight1').disable();
+		if (vertexState.weightCount > 4) program.getAttrib('vertexWeight2').disable();
 	}
 
-	private drawArraysActual(gl: WebGLRenderingContext, primitiveType: _state.PrimitiveType, count: number) {
-		switch (primitiveType) {
-			case _state.PrimitiveType.Points: gl.drawArrays(gl.POINTS, 0, count); break;
-			case _state.PrimitiveType.Lines:
-			case _state.PrimitiveType.LineStrip:
-				gl.lineWidth(this.getScaleRatio());
-				if (primitiveType == _state.PrimitiveType.Lines) {
-					gl.drawArrays(gl.LINES, 0, count);
-				} else {
-					gl.drawArrays(gl.LINE_STRIP, 0, count);
-				}
-				break;
-			case _state.PrimitiveType.Triangles: gl.drawArrays(gl.TRIANGLES, 0, count); break;
-			case _state.PrimitiveType.TriangleStrip: gl.drawArrays(gl.TRIANGLE_STRIP, 0, count); break;
-			case _state.PrimitiveType.TriangleFan: gl.drawArrays(gl.TRIANGLE_FAN, 0, count); break;
-		}
+	private convertPrimitiveType: number[] = null;
+	private drawArraysActual(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType, count: number, vertices: _state.Vertex[]) {
+		if (!this.convertPrimitiveType) this.convertPrimitiveType = [gl.POINTS, gl.LINES, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
+		gl.drawArrays(this.convertPrimitiveType[primitiveType], 0, count);
+		//if (gl.getError() != gl.NO_ERROR) debugger;
 	}
 
-	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {
-		if (vertexState.hasTexture) {
-			this.textureHandler.bindTexture(program, this.state);
-		} else {
-			this.textureHandler.unbindTexture(program, this.state);
-		}
-	}
-
-	drawElementsInternal(originalPrimitiveType: _state.PrimitiveType, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
-		var gl = this.gl;
-
-		//console.log(primitiveType);
-		var program = this.cache.getProgram(vertexState, this.state);
-		program.use();
-
-		this.demuxVertices(vertices, count, vertexState, primitiveType);
-		this.updateState(program, vertexState, originalPrimitiveType);
-		this.setProgramParameters(gl, program, vertexState);
-
-		if (this.clearing) {
-			this.textureHandler.unbindTexture(program, this.state);
-			//debugger;
-		} else {
-			this.prepareTexture(gl, program, vertexState);
-		}
-
-		this.drawArraysActual(gl, primitiveType, count);
-		this.unsetProgramParameters(gl, program, vertexState);
-	}
 }
 
 enum ClearBufferSet {

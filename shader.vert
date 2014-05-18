@@ -13,6 +13,10 @@ attribute vec4 vPosition;
 	varying vec4 v_Texcoord;
 #endif
 
+#ifdef VERTEX_NORMAL
+	attribute vec4 vNormal;
+#endif
+
 #if (VERTEX_SIKINNING >= 1)
 	uniform mat4 matrixBone0;
 	uniform mat4 matrixBone1;

@@ -347,13 +347,18 @@ export class InstructionAst {
 	vcst(i: Instruction) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); }
 	vhdp(i: Instruction) {
 		var vectorSize = i.ONE_TWO;
-		var st = [];
-		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
-		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
-		st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
-			return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == vectorSize - 1) ? <_ast.ANodeExpr>imm_f(1) : <_ast.ANodeExpr>ast.vector_vs(index)))
-		})));
-		return stms(st);
+		//var st = [];
+		//st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+		//st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+		//st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
+		//	return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? <_ast.ANodeExpr>imm_f(1.0) : <_ast.ANodeExpr>ast.vector_vs(index)))
+		//})));
+		//return stms(st);
+		return this._vset3(i, (_, src, target) => {
+			return this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
+				return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? <_ast.ANodeExpr>imm_f(1.0) : <_ast.ANodeExpr>ast.vector_vs(index)))
+			});
+		}, 1, vectorSize, vectorSize);
 	}
 
 	vmidt(i: Instruction) { return setMatrix(getMatrixRegsVD(i), (c, r) => imm32((c == r) ? 1 : 0)); }
@@ -419,7 +424,7 @@ export class InstructionAst {
 	vzero(i: Instruction) { return this._vset1(i, (i) => imm_f(0)); }
 	vone(i: Instruction) { return this._vset1(i, (i) => imm_f(1)); }
 
-	vmov(i: Instruction) { return this._vset3(i, (i, s, t) => s[i]); }
+	vmov(i: Instruction) { return this._vset3(i, (i, s, t) => s[i]); } // vset3 in order to eat prefixes
 	vrcp(i: Instruction) { return this._vset2(i, (i, s) => binop(imm_f(1.0), '/', s[i])); }
 	vmul(i: Instruction) { return this._vset3(i, (i, s, t) => binop(s[i], '*', t[i])); }
 
@@ -715,6 +720,7 @@ export class InstructionAst {
 			}
 			return sum;
 		}));
+		st.push(call_stm('state.eatPrefixes', []));
 		return stms(st);
 	}
 

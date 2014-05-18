@@ -4474,14 +4474,21 @@ var InstructionAst = (function () {
         return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value));
     };
     InstructionAst.prototype.vhdp = function (i) {
+        var _this = this;
         var vectorSize = i.ONE_TWO;
-        var st = [];
-        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
-        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
-        st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, function (aggregate, index) {
-            return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == vectorSize - 1) ? imm_f(1) : ast.vector_vs(index)));
-        })));
-        return stms(st);
+
+        //var st = [];
+        //st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
+        //st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+        //st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
+        //	return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? <_ast.ANodeExpr>imm_f(1.0) : <_ast.ANodeExpr>ast.vector_vs(index)))
+        //})));
+        //return stms(st);
+        return this._vset3(i, function (_, src, target) {
+            return _this._aggregateV(imm_f(0), vectorSize, function (aggregate, index) {
+                return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? imm_f(1.0) : ast.vector_vs(index)));
+            });
+        }, 1, vectorSize, vectorSize);
     };
 
     InstructionAst.prototype.vmidt = function (i) {
@@ -5149,6 +5156,7 @@ var InstructionAst = (function () {
             }
             return sum;
         }));
+        st.push(call_stm('state.eatPrefixes', []));
         return stms(st);
     };
 
@@ -10390,7 +10398,6 @@ var TextureColorComponent = exports.TextureColorComponent;
     PrimitiveType[PrimitiveType["TriangleStrip"] = 4] = "TriangleStrip";
     PrimitiveType[PrimitiveType["TriangleFan"] = 5] = "TriangleFan";
     PrimitiveType[PrimitiveType["Sprites"] = 6] = "Sprites";
-    PrimitiveType[PrimitiveType["ContinuePreviousPrim"] = 7] = "ContinuePreviousPrim";
 })(exports.PrimitiveType || (exports.PrimitiveType = {}));
 var PrimitiveType = exports.PrimitiveType;
 //# sourceMappingURL=state.js.map
@@ -10507,6 +10514,7 @@ var VertexReader = (function () {
 
         this.readOffset = 0;
 
+        //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
         this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
         this.createColorJs(indentStringGenerator, this.vertexState.color);
@@ -10602,11 +10610,13 @@ var VertexReader = (function () {
                     indentStringGenerator.write('output.' + component + ' = ' + _this.readInt8());
                     if (normalize)
                         indentStringGenerator.write(' / 127.0');
+
                     break;
                 case 2 /* Short */:
                     indentStringGenerator.write('output.' + component + ' = ' + _this.readInt16());
                     if (normalize)
                         indentStringGenerator.write(' / 32767.0');
+
                     break;
                 case 3 /* Float */:
                     indentStringGenerator.write('output.' + component + ' = ' + _this.readFloat32());
@@ -10642,16 +10652,22 @@ var WebGlPspDrawDriver = (function () {
         this.baseShaderVertString = '';
         this.transformMatrix = mat4.create();
         this.transformMatrix2d = mat4.create();
+        this.equationTranslate = null;
+        this.opsConvertTable = null;
+        this.testConvertTable = null;
+        this.testConvertTable_inv = null;
         this.vertexPool = [];
         this.testCount = 20;
         this.positionData = new FastFloat32Buffer();
         this.colorData = new FastFloat32Buffer();
         this.textureData = new FastFloat32Buffer();
+        this.normalData = new FastFloat32Buffer();
         this.vertexWeightData1 = new FastFloat32Buffer();
         this.vertexWeightData2 = new FastFloat32Buffer();
         this.lastBaseAddress = 0;
         this.tempVec = new Float32Array([0, 0, 0]);
         this.texMat = mat4.create();
+        this.convertPrimitiveType = null;
         var webglOptions = {
             alpha: false,
             depth: true,
@@ -10722,6 +10738,15 @@ var WebGlPspDrawDriver = (function () {
         var state = this.state;
         var gl = this.gl;
 
+        if (!this.equationTranslate)
+            this.equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
+        if (!this.opsConvertTable)
+            this.opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
+        if (!this.testConvertTable)
+            this.testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
+        if (!this.testConvertTable_inv)
+            this.testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
+
         if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != 6 /* Sprites */))) {
             gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
         }
@@ -10757,9 +10782,7 @@ var WebGlPspDrawDriver = (function () {
                 }
             }
 
-            var equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD];
-
-            gl.blendEquation(equationTranslate[blending.equation]);
+            gl.blendEquation(this.equationTranslate[blending.equation]);
             gl.blendFunc(sfactor, dfactor);
             switch (blending.equation) {
                 case 5 /* Abs */:
@@ -10780,38 +10803,20 @@ var WebGlPspDrawDriver = (function () {
             gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
         }
 
-        var opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
-        var testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
-        var testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
-
         var stencil = state.stencil;
         if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
-            gl.stencilFunc(testConvertTable[stencil.func], stencil.funcRef, stencil.funcMask);
-            gl.stencilOp(opsConvertTable[stencil.fail], opsConvertTable[stencil.zfail], opsConvertTable[stencil.zpass]);
+            gl.stencilFunc(this.testConvertTable[stencil.func], stencil.funcRef, stencil.funcMask);
+            gl.stencilOp(this.opsConvertTable[stencil.fail], this.opsConvertTable[stencil.zfail], this.opsConvertTable[stencil.zpass]);
         }
 
-        //gl.depthRange(1.0 - state.depthTest.rangeNear, 1.0 - state.depthTest.rangeFar);
         gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
-
-        //gl.depthRange(0, 1000);
-        //gl.clearDepth(1.0);
-        //gl.clear(gl.DEPTH_BUFFER_BIT);
-        //gl.depthRange(1.0, 0.0);
         gl.depthMask(state.depthTest.mask == 0);
-
-        //gl.depthMask(false);
         if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
-            gl.depthFunc(testConvertTable_inv[state.depthTest.func]);
-            //gl.depthFunc(gl.GEQUAL);
-            //gl.depthFunc(gl.LESS);
-            //gl.depthFunc(gl.LEQUAL);
-            //gl.depthFunc(gl.ALWAYS);
+            gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
         }
 
         var alphaTest = state.alphaTest;
         if (alphaTest.enabled) {
-            //console.log(alphaTest.value);
-            //console.log(TestFunctionEnum[alphaTest.func] + '; ' + alphaTest.value + '; ' + alphaTest.mask);
             program.getUniform('alphaTestFunc').set1i(alphaTest.func);
             program.getUniform('alphaTestReference').set1i(alphaTest.value);
             program.getUniform('alphaTestMask').set1i(alphaTest.mask);
@@ -10953,6 +10958,7 @@ var WebGlPspDrawDriver = (function () {
         this.positionData.restart();
         this.colorData.restart();
         this.textureData.restart();
+        this.normalData.restart();
 
         this.vertexWeightData1.restart();
         this.vertexWeightData2.restart();
@@ -10966,9 +10972,10 @@ var WebGlPspDrawDriver = (function () {
 
             if (vertexState.hasColor)
                 this.colorData.push4(v.r, v.g, v.b, v.a);
-            if (vertexState.hasTexture) {
+            if (vertexState.hasTexture)
                 this.textureData.push3(v.tx, v.ty, v.tz);
-            }
+            if (vertexState.hasNormal)
+                this.normalData.push3(v.nx, v.ny, v.nz);
 
             if (weightCount > 0) {
                 this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
@@ -10979,6 +10986,36 @@ var WebGlPspDrawDriver = (function () {
         }
     };
 
+    WebGlPspDrawDriver.prototype.prepareTexture = function (gl, program, vertexState) {
+        if (vertexState.hasTexture) {
+            this.textureHandler.bindTexture(program, this.state);
+        } else {
+            this.textureHandler.unbindTexture(program, this.state);
+        }
+    };
+
+    WebGlPspDrawDriver.prototype.drawElementsInternal = function (originalPrimitiveType, primitiveType, vertices, count, vertexState) {
+        var gl = this.gl;
+
+        //console.log(primitiveType);
+        var program = this.cache.getProgram(vertexState, this.state);
+        program.use();
+
+        this.demuxVertices(vertices, count, vertexState, primitiveType);
+        this.updateState(program, vertexState, originalPrimitiveType);
+        this.setProgramParameters(gl, program, vertexState);
+
+        if (this.clearing) {
+            this.textureHandler.unbindTexture(program, this.state);
+            //debugger;
+        } else {
+            this.prepareTexture(gl, program, vertexState);
+        }
+
+        this.drawArraysActual(gl, program, vertexState, primitiveType, count, vertices);
+        this.unsetProgramParameters(gl, program, vertexState);
+    };
+
     WebGlPspDrawDriver.prototype.setProgramParameters = function (gl, program, vertexState) {
         program.getUniform('u_modelViewProjMatrix').setMat4(vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
 
@@ -10987,6 +11024,10 @@ var WebGlPspDrawDriver = (function () {
             program.getUniform('tfx').set1i(this.state.texture.effect);
             program.getUniform('tcc').set1i(this.state.texture.colorComponent);
             program.getAttrib("vTexcoord").setFloats(3, this.textureData.slice());
+        }
+
+        if (vertexState.hasNormal) {
+            program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
         }
 
         if (vertexState.weightCount > 0) {
@@ -11019,14 +11060,14 @@ var WebGlPspDrawDriver = (function () {
                 t[2] = 1.0;
                 mat4.scale(this.texMat, this.texMat, t);
             } else {
-                t[0] = texture.offsetU;
-                t[1] = texture.offsetV;
-                t[2] = 0.0;
-                mat4.translate(this.texMat, this.texMat, t);
                 t[0] = texture.scaleU;
                 t[1] = texture.scaleV;
                 t[2] = 1.0;
                 mat4.scale(this.texMat, this.texMat, t);
+                t[0] = texture.offsetU;
+                t[1] = texture.offsetV;
+                t[2] = 0.0;
+                mat4.translate(this.texMat, this.texMat, t);
             }
             program.getUniform('u_texMatrix').setMat4(this.texMat);
         }
@@ -11036,64 +11077,21 @@ var WebGlPspDrawDriver = (function () {
         program.getAttrib("vPosition").disable();
         if (vertexState.hasTexture)
             program.getAttrib("vTexcoord").disable();
+        if (vertexState.hasNormal)
+            program.getAttrib("vNormal").disable();
         if (vertexState.hasColor)
             program.getAttrib("vColor").disable();
+        if (vertexState.weightCount > 0)
+            program.getAttrib('vertexWeight1').disable();
+        if (vertexState.weightCount > 4)
+            program.getAttrib('vertexWeight2').disable();
     };
 
-    WebGlPspDrawDriver.prototype.drawArraysActual = function (gl, primitiveType, count) {
-        switch (primitiveType) {
-            case 0 /* Points */:
-                gl.drawArrays(gl.POINTS, 0, count);
-                break;
-            case 1 /* Lines */:
-            case 2 /* LineStrip */:
-                gl.lineWidth(this.getScaleRatio());
-                if (primitiveType == 1 /* Lines */) {
-                    gl.drawArrays(gl.LINES, 0, count);
-                } else {
-                    gl.drawArrays(gl.LINE_STRIP, 0, count);
-                }
-                break;
-            case 3 /* Triangles */:
-                gl.drawArrays(gl.TRIANGLES, 0, count);
-                break;
-            case 4 /* TriangleStrip */:
-                gl.drawArrays(gl.TRIANGLE_STRIP, 0, count);
-                break;
-            case 5 /* TriangleFan */:
-                gl.drawArrays(gl.TRIANGLE_FAN, 0, count);
-                break;
-        }
-    };
-
-    WebGlPspDrawDriver.prototype.prepareTexture = function (gl, program, vertexState) {
-        if (vertexState.hasTexture) {
-            this.textureHandler.bindTexture(program, this.state);
-        } else {
-            this.textureHandler.unbindTexture(program, this.state);
-        }
-    };
-
-    WebGlPspDrawDriver.prototype.drawElementsInternal = function (originalPrimitiveType, primitiveType, vertices, count, vertexState) {
-        var gl = this.gl;
-
-        //console.log(primitiveType);
-        var program = this.cache.getProgram(vertexState, this.state);
-        program.use();
-
-        this.demuxVertices(vertices, count, vertexState, primitiveType);
-        this.updateState(program, vertexState, originalPrimitiveType);
-        this.setProgramParameters(gl, program, vertexState);
-
-        if (this.clearing) {
-            this.textureHandler.unbindTexture(program, this.state);
-            //debugger;
-        } else {
-            this.prepareTexture(gl, program, vertexState);
-        }
-
-        this.drawArraysActual(gl, primitiveType, count);
-        this.unsetProgramParameters(gl, program, vertexState);
+    WebGlPspDrawDriver.prototype.drawArraysActual = function (gl, program, vertexState, primitiveType, count, vertices) {
+        if (!this.convertPrimitiveType)
+            this.convertPrimitiveType = [gl.POINTS, gl.LINES, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
+        gl.drawArrays(this.convertPrimitiveType[primitiveType], 0, count);
+        //if (gl.getError() != gl.NO_ERROR) debugger;
     };
     return WebGlPspDrawDriver;
 })();
@@ -11136,6 +11134,8 @@ var ShaderCache = (function () {
             defines.push('VERTEX_COLOR 1');
         if (vertex.hasTexture)
             defines.push('VERTEX_TEXTURE 1');
+        if (vertex.hasNormal)
+            defines.push('VERTEX_NORMAL 1');
 
         if (!state.clearing) {
             if (state.alphaTest.enabled)
