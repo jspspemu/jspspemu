@@ -13,6 +13,7 @@ export class Texture {
 	private texture: WebGLTexture;
 	recheckTimestamp = undefined;
 	valid = true;
+	validHint = true;
 	swizzled = false;
 	hash1: number;
 	hash2: number;
@@ -131,7 +132,8 @@ export class Texture {
 
 export class TextureHandler {
 	constructor(private memory: Memory, private gl: WebGLRenderingContext) {
-		memory.invalidateDataRange.add((range) => this.invalidatedMemory(range));
+		memory.invalidateDataRange.add((range) => this.invalidatedMemoryRange(range));
+		memory.invalidateDataAll.add(() => this.invalidatedMemoryAll());
 	}
 
 	private texturesByHash2: StringDictionary<Texture> = {};
@@ -143,24 +145,37 @@ export class TextureHandler {
 	//private updatedTextures = new SortedSet<Texture>();
 
 	flush() {
-
+		for (var n = 0; n < this.textures.length; n++) {
+			var texture = this.textures[n];
+			if (!texture.validHint) {
+				texture.valid = false;
+				texture.validHint = true;
+			}
+		}
 	}
 
 	sync() {
 	}
 
-	private invalidatedMemory(range: NumericRange) {
+	private invalidatedMemoryAll(range: NumericRange) {
+		for (var n = 0; n < this.textures.length; n++) {
+			var texture = this.textures[n];
+			texture.validHint = false;
+		}
+	}
+
+	private invalidatedMemoryRange(range: NumericRange) {
 		for (var n = 0; n < this.textures.length; n++) {
 			var texture = this.textures[n];
 			if (texture.address_start >= range.start && texture.address_end <= range.end) {
 				//debugger;
 				//console.info('invalidated texture', range);
-				texture.valid = false;
+				texture.validHint = false;
 			}
 			if (texture.clut_start >= range.start && texture.clut_end <= range.end) {
 				//debugger;
 				//console.info('invalidated texture', range);
-				texture.valid = false;
+				texture.validHint = false;
 			}
 		}
 	}

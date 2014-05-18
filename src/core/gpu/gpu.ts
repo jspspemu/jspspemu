@@ -41,14 +41,13 @@ class PspGpuList {
 	callbackId: number;
 	argsPtr: Stream;
     completed: boolean = false;
-	state: _state.GpuState = new _state.GpuState();
 	status = DisplayListStatus.Paused;
 	private promise: Promise<any>;
 	private promiseResolve: Function;
 	private promiseReject: Function;
 	private errorCount: number = 0;
 
-	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private runner: PspGpuListRunner, private gpu:PspGpu, private cpuExecutor: CpuExecutor) {
+	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private runner: PspGpuListRunner, private gpu: PspGpu, private cpuExecutor: CpuExecutor, public state: _state.GpuState) {
     }
 
     private complete() {
@@ -210,6 +209,10 @@ class PspGpuList {
 				this.state.texture.colorComponent = <_state.TextureColorComponent>BitUtils.extract(params24, 8, 8);
 				this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
 				break;
+
+			case GpuOpCodes.TGENMATRIXNUMBER: this.state.texture.matrix.reset(params24); break;
+			case GpuOpCodes.TGENMATRIXDATA: this.state.texture.matrix.put(float1()); break;
+
 			case GpuOpCodes.TEXOFFSETU: this.state.texture.offsetU = float1(); break;
 			case GpuOpCodes.TEXOFFSETV: this.state.texture.offsetV = float1(); break;
 
@@ -434,10 +437,6 @@ class PspGpuList {
 				vertices2.push(controlPoints[ucount - 1][vcount - 1]);
 				vertices2.push(controlPoints[0][vcount - 1]);
 
-				if (vertexState2.hasTexture) {
-					//debugger;
-				}
-				//debugger;
 				this.drawDriver.drawElements(_state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
 				break;
 
@@ -511,10 +510,14 @@ class PspGpuList {
 	}
 
 	private primCount = 0;
-	//private opcodes = [];
+	//private showOpcodes = true;
+	private showOpcodes = false;
+	private opcodes = [];
 	private finish() {
-		//$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
-		//this.opcodes = [];
+		if (this.showOpcodes) {
+			$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
+			if (this.opcodes.length) this.opcodes = [];
+		}
 		this.primCount = 0;
 	}
 
@@ -535,7 +538,7 @@ class PspGpuList {
 				while (this.hasMoreInstructions) {
 					var instruction = this.memory.readUInt32(this.current);
 					this.current += 4
-					//this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
+					if (this.showOpcodes) this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
 
 					if (this.runInstruction(this.current - 4, instruction)) return;
 				}
@@ -578,11 +581,12 @@ class PspGpuList {
 class PspGpuListRunner {
     private lists: PspGpuList[] = [];
     private freeLists: PspGpuList[] = [];
-    private runningLists: PspGpuList[] = [];
+	private runningLists: PspGpuList[] = [];
+	private state = new _state.GpuState()
 
 	constructor(private memory: Memory, private drawDriver: IDrawDriver, private gpu: PspGpu, private callbackManager: CpuExecutor) {
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager);
+            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }

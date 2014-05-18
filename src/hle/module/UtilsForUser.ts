@@ -69,7 +69,7 @@ export class UtilsForUser {
 	});
 
 	sceKernelDcacheWritebackAll = createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, () => {
-		//this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+		this.context.memory.invalidateDataAll.dispatch();
 		return 0;
 	});
 
@@ -84,7 +84,7 @@ export class UtilsForUser {
 	});
 		
 	sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0xB435DEC5, 150, 'uint', '', this, () => {
-		this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+		this.context.memory.invalidateDataAll.dispatch();
 		return 0;
 	});
 

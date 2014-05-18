@@ -19,6 +19,7 @@ export class Memory {
 	static MAIN_OFFSET = 0x08000000;
 
 	invalidateDataRange = new Signal<NumericRange>();
+	invalidateDataAll = new Signal();
 
 	private static _instance: Memory;
 	static get instance() {

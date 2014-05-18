@@ -142,17 +142,15 @@ export class VertexState {
 	get morphingVertexCount() { return BitUtils.extract(this._value, 18, 2); }
 	get transform2D() { return BitUtils.extractEnum<boolean>(this._value, 23, 1); }
 
-	/*
-	set texture(value: NumericEnum) { this.value = BitUtils.insert(this._value, 0, 2, value); }
-	set color(value: ColorEnum) { this.value = BitUtils.insert(this._value, 2, 3, value); }
-	set normal(value: NumericEnum) { this.value = BitUtils.insert(this._value, 5, 2, value); }
-	set position(value: NumericEnum) { this.value = BitUtils.insert(this._value, 7, 2, value); }
-	set weight(value: NumericEnum) { this.value = BitUtils.insert(this._value, 9, 2, value); }
-	set index(value: IndexEnum) { this.value = BitUtils.insert(this._value, 11, 2, value); }
-	set weightCount(value: number) { this.value = BitUtils.insert(this._value, 14, 3, value); }
-	set morphingVertexCount(value: number) { this.value = BitUtils.insert(this._value, 18, 2, value); }
-	set transform2D(value: boolean) { this.value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0); }
-	*/
+	set texture(value: NumericEnum) { this._value = BitUtils.insert(this._value, 0, 2, value); }
+	set color(value: ColorEnum) { this._value = BitUtils.insert(this._value, 2, 3, value); }
+	set normal(value: NumericEnum) { this._value = BitUtils.insert(this._value, 5, 2, value); }
+	set position(value: NumericEnum) { this._value = BitUtils.insert(this._value, 7, 2, value); }
+	set weight(value: NumericEnum) { this._value = BitUtils.insert(this._value, 9, 2, value); }
+	set index(value: IndexEnum) { this._value = BitUtils.insert(this._value, 11, 2, value); }
+	set weightCount(value: number) { this._value = BitUtils.insert(this._value, 14, 3, value); }
+	set morphingVertexCount(value: number) { this._value = BitUtils.insert(this._value, 18, 2, value); }
+	set transform2D(value: boolean) { this._value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0); }
 
 	get weightSize() { return this.NumericEnumGetSize(this.weight); }
 	get colorSize() { return this.ColorEnumGetSize(this.color); }
@@ -333,10 +331,10 @@ export enum TextureMapMode {
 	GU_ENVIRONMENT_MAP = 2,
 }
 
-
 export class TextureState {
 	enabled = false;
 	swizzled = false;
+	matrix = new Matrix4x4();
 	mipmapShareClut = false;
 	mipmapMaxLevel = 0;
 	filterMinification = TextureFilter.Nearest;

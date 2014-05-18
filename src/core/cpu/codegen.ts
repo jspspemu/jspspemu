@@ -623,7 +623,7 @@ export class InstructionAst {
 	vsgt(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.vsgt', [s[i], t[i]])); }
 	vscmp(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.sign2', [s[i], t[i]])); }
 
-	private _bvtf(i:Instruction, cond: boolean) {
+	private _bvtf(i: Instruction, cond: boolean) {
 		var reg = i.IMM3;
 		var branchExpr = <_ast.ANodeExpr>ast.VCC(reg);
 		if (!cond) branchExpr = unop("!", branchExpr);

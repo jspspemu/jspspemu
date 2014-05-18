@@ -8,6 +8,7 @@ attribute vec4 vPosition;
 #endif
 
 #ifdef VERTEX_TEXTURE
+	uniform mat4 u_texMatrix;
 	attribute vec4 vTexcoord;
 	varying vec4 v_Texcoord;
 #endif
@@ -68,7 +69,7 @@ void main() {
 		v_Color = vColor;
 	#endif
 	#ifdef VERTEX_TEXTURE
-		v_Texcoord = vTexcoord;
+		v_Texcoord = u_texMatrix * vTexcoord;
 	#endif
 
 	vec4 pos = vPosition;

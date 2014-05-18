@@ -336,18 +336,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 			this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0 : v.pz);
 
-			if (vertexState.hasColor) {
-				this.colorData.push4(v.r, v.g, v.b, v.a);
-			}
-
+			if (vertexState.hasColor) this.colorData.push4(v.r, v.g, v.b, v.a);
 			if (vertexState.hasTexture) {
-				var tx = v.tx, ty = v.ty, tz = v.tz;
-				if (vertexState.transform2D) {
-					//this.textureData.push3((tx + 0.5) / (mipmap.bufferWidth), (ty + 0.5) / (mipmap.textureHeight), 0.0);
-					this.textureData.push3(tx / (mipmap.bufferWidth), ty / (mipmap.textureHeight), 0.0);
-				} else {
-					this.textureData.push3(tx * textureState.scaleU, ty * textureState.scaleV, tz);
-				}
+				this.textureData.push3(v.tx, v.ty, v.tz);
 			}
 
 			if (weightCount > 0) {
@@ -386,7 +377,24 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			//console.log(ac.r, ac.g, ac.b, ac.a);
 			program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
 		}
+
+		if (vertexState.hasTexture) {
+			var texture = this.state.texture;
+			var mipmap = texture.mipmaps[0];
+			mat4.identity(this.texMat);
+			var t = this.tempVec;
+			if (vertexState.transform2D) {
+				t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
+			} else {
+				t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
+				t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
+			}
+			program.getUniform('u_texMatrix').setMat4(this.texMat);
+		}
 	}
+
+	tempVec = new Float32Array([0, 0, 0])
+	texMat = mat4.create();
 
 	private unsetProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {
 		program.getAttrib("vPosition").disable();

@@ -921,11 +921,11 @@ var MathFloat = (function () {
     MathFloat.sinv1 = function (value) {
         return Math.sin(value * Math.PI * 0.5);
     };
+    MathFloat.nsinv1 = function (value) {
+        return -Math.sin(value * Math.PI * 0.5);
+    };
     MathFloat.asinv1 = function (value) {
         return Math.asin(value) / (Math.PI * 0.5);
-    };
-    MathFloat.nsinv1 = function (value) {
-        return -Math.sin(0.5 * Math.PI * value);
     };
     MathFloat.exp2 = function (value) {
         return Math.pow(2.0, value);
@@ -8380,19 +8380,22 @@ var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
 
 var PspGpuList = (function () {
-    function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor) {
+    function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor, state) {
         this.id = id;
         this.memory = memory;
         this.drawDriver = drawDriver;
         this.runner = runner;
         this.gpu = gpu;
         this.cpuExecutor = cpuExecutor;
+        this.state = state;
         this.completed = false;
-        this.state = new _state.GpuState();
         this.status = 4 /* Paused */;
         this.errorCount = 0;
         this.callstack = [];
         this.primCount = 0;
+        //private showOpcodes = true;
+        this.showOpcodes = false;
+        this.opcodes = [];
     }
     PspGpuList.prototype.complete = function () {
         this.completed = true;
@@ -8588,6 +8591,14 @@ var PspGpuList = (function () {
                 this.state.texture.colorComponent = BitUtils.extract(params24, 8, 8);
                 this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
                 break;
+
+            case 64 /* TGENMATRIXNUMBER */:
+                this.state.texture.matrix.reset(params24);
+                break;
+            case 65 /* TGENMATRIXDATA */:
+                this.state.texture.matrix.put(float1());
+                break;
+
             case 74 /* TEXOFFSETU */:
                 this.state.texture.offsetU = float1();
                 break;
@@ -8863,11 +8874,6 @@ var PspGpuList = (function () {
                 vertices2.push(controlPoints[ucount - 1][vcount - 1]);
                 vertices2.push(controlPoints[0][vcount - 1]);
 
-                if (vertexState2.hasTexture) {
-                    //debugger;
-                }
-
-                //debugger;
                 this.drawDriver.drawElements(3 /* Triangles */, vertices2, vertices2.length, vertexState2);
                 break;
 
@@ -8947,10 +8953,12 @@ var PspGpuList = (function () {
         return false;
     };
 
-    //private opcodes = [];
     PspGpuList.prototype.finish = function () {
-        //$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
-        //this.opcodes = [];
+        if (this.showOpcodes) {
+            $('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
+            if (this.opcodes.length)
+                this.opcodes = [];
+        }
         this.primCount = 0;
     };
 
@@ -8978,8 +8986,9 @@ var PspGpuList = (function () {
                 while (this.hasMoreInstructions) {
                     var instruction = this.memory.readUInt32(this.current);
                     this.current += 4;
+                    if (this.showOpcodes)
+                        this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
 
-                    //this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
                     if (this.runInstruction(this.current - 4, instruction))
                         return;
                 }
@@ -9031,8 +9040,9 @@ var PspGpuListRunner = (function () {
         this.lists = [];
         this.freeLists = [];
         this.runningLists = [];
+        this.state = new _state.GpuState();
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager);
+            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }
@@ -9635,12 +9645,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this._value, 0, 2);
         },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 0, 2, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "color", {
         get: function () {
             return BitUtils.extractEnum(this._value, 2, 3);
+        },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 2, 3, value);
         },
         enumerable: true,
         configurable: true
@@ -9649,12 +9665,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this._value, 5, 2);
         },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 5, 2, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "position", {
         get: function () {
             return BitUtils.extractEnum(this._value, 7, 2);
+        },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 7, 2, value);
         },
         enumerable: true,
         configurable: true
@@ -9663,12 +9685,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this._value, 9, 2);
         },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 9, 2, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "index", {
         get: function () {
             return BitUtils.extractEnum(this._value, 11, 2);
+        },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 11, 2, value);
         },
         enumerable: true,
         configurable: true
@@ -9677,12 +9705,18 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extract(this._value, 14, 3);
         },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 14, 3, value);
+        },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
         get: function () {
             return BitUtils.extract(this._value, 18, 2);
+        },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 18, 2, value);
         },
         enumerable: true,
         configurable: true
@@ -9691,22 +9725,15 @@ var VertexState = (function () {
         get: function () {
             return BitUtils.extractEnum(this._value, 23, 1);
         },
+        set: function (value) {
+            this._value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0);
+        },
         enumerable: true,
         configurable: true
     });
 
+
     Object.defineProperty(VertexState.prototype, "weightSize", {
-        /*
-        set texture(value: NumericEnum) { this.value = BitUtils.insert(this._value, 0, 2, value); }
-        set color(value: ColorEnum) { this.value = BitUtils.insert(this._value, 2, 3, value); }
-        set normal(value: NumericEnum) { this.value = BitUtils.insert(this._value, 5, 2, value); }
-        set position(value: NumericEnum) { this.value = BitUtils.insert(this._value, 7, 2, value); }
-        set weight(value: NumericEnum) { this.value = BitUtils.insert(this._value, 9, 2, value); }
-        set index(value: IndexEnum) { this.value = BitUtils.insert(this._value, 11, 2, value); }
-        set weightCount(value: number) { this.value = BitUtils.insert(this._value, 14, 3, value); }
-        set morphingVertexCount(value: number) { this.value = BitUtils.insert(this._value, 18, 2, value); }
-        set transform2D(value: boolean) { this.value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0); }
-        */
         get: function () {
             return this.NumericEnumGetSize(this.weight);
         },
@@ -9984,6 +10011,7 @@ var TextureState = (function () {
     function TextureState() {
         this.enabled = false;
         this.swizzled = false;
+        this.matrix = new Matrix4x4();
         this.mipmapShareClut = false;
         this.mipmapMaxLevel = 0;
         this.filterMinification = 0 /* Nearest */;
@@ -10581,6 +10609,8 @@ var WebGlPspDrawDriver = (function () {
         this.vertexWeightData1 = new FastFloat32Buffer();
         this.vertexWeightData2 = new FastFloat32Buffer();
         this.lastBaseAddress = 0;
+        this.tempVec = new Float32Array([0, 0, 0]);
+        this.texMat = mat4.create();
         var webglOptions = {
             //alpha: false,
             //depth: true,
@@ -10884,18 +10914,10 @@ var WebGlPspDrawDriver = (function () {
 
             this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0 : v.pz);
 
-            if (vertexState.hasColor) {
+            if (vertexState.hasColor)
                 this.colorData.push4(v.r, v.g, v.b, v.a);
-            }
-
             if (vertexState.hasTexture) {
-                var tx = v.tx, ty = v.ty, tz = v.tz;
-                if (vertexState.transform2D) {
-                    //this.textureData.push3((tx + 0.5) / (mipmap.bufferWidth), (ty + 0.5) / (mipmap.textureHeight), 0.0);
-                    this.textureData.push3(tx / (mipmap.bufferWidth), ty / (mipmap.textureHeight), 0.0);
-                } else {
-                    this.textureData.push3(tx * textureState.scaleU, ty * textureState.scaleV, tz);
-                }
+                this.textureData.push3(v.tx, v.ty, v.tz);
             }
 
             if (weightCount > 0) {
@@ -10934,6 +10956,29 @@ var WebGlPspDrawDriver = (function () {
 
             //console.log(ac.r, ac.g, ac.b, ac.a);
             program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
+        }
+
+        if (vertexState.hasTexture) {
+            var texture = this.state.texture;
+            var mipmap = texture.mipmaps[0];
+            mat4.identity(this.texMat);
+            var t = this.tempVec;
+            if (vertexState.transform2D) {
+                t[0] = 1.0 / (mipmap.bufferWidth);
+                t[1] = 1.0 / (mipmap.textureHeight);
+                t[2] = 1.0;
+                mat4.scale(this.texMat, this.texMat, t);
+            } else {
+                t[0] = texture.offsetU;
+                t[1] = texture.offsetV;
+                t[2] = 0.0;
+                mat4.translate(this.texMat, this.texMat, t);
+                t[0] = texture.scaleU;
+                t[1] = texture.scaleV;
+                t[2] = 1.0;
+                mat4.scale(this.texMat, this.texMat, t);
+            }
+            program.getUniform('u_texMatrix').setMat4(this.texMat);
         }
     };
 
@@ -11091,6 +11136,7 @@ var Texture = (function () {
         this.gl = gl;
         this.recheckTimestamp = undefined;
         this.valid = true;
+        this.validHint = true;
         this.swizzled = false;
         this.texture = gl.createTexture();
     }
@@ -11205,28 +11251,45 @@ var TextureHandler = (function () {
         this.textures = [];
         this.recheckTimestamp = 0;
         memory.invalidateDataRange.add(function (range) {
-            return _this.invalidatedMemory(range);
+            return _this.invalidatedMemoryRange(range);
+        });
+        memory.invalidateDataAll.add(function () {
+            return _this.invalidatedMemoryAll();
         });
     }
     //private updatedTextures = new SortedSet<Texture>();
     TextureHandler.prototype.flush = function () {
+        for (var n = 0; n < this.textures.length; n++) {
+            var texture = this.textures[n];
+            if (!texture.validHint) {
+                texture.valid = false;
+                texture.validHint = true;
+            }
+        }
     };
 
     TextureHandler.prototype.sync = function () {
     };
 
-    TextureHandler.prototype.invalidatedMemory = function (range) {
+    TextureHandler.prototype.invalidatedMemoryAll = function (range) {
+        for (var n = 0; n < this.textures.length; n++) {
+            var texture = this.textures[n];
+            texture.validHint = false;
+        }
+    };
+
+    TextureHandler.prototype.invalidatedMemoryRange = function (range) {
         for (var n = 0; n < this.textures.length; n++) {
             var texture = this.textures[n];
             if (texture.address_start >= range.start && texture.address_end <= range.end) {
                 //debugger;
                 //console.info('invalidated texture', range);
-                texture.valid = false;
+                texture.validHint = false;
             }
             if (texture.clut_start >= range.start && texture.clut_end <= range.end) {
                 //debugger;
                 //console.info('invalidated texture', range);
-                texture.valid = false;
+                texture.validHint = false;
             }
         }
     };
@@ -12352,6 +12415,7 @@ var Signal = require('../util/Signal');
 var Memory = (function () {
     function Memory() {
         this.invalidateDataRange = new Signal();
+        this.invalidateDataAll = new Signal();
         //this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
         this.buffer = new ArrayBuffer(0xa000000 + 4);
         this.data = new DataView(this.buffer);
@@ -18233,7 +18297,7 @@ var UtilsForUser = (function () {
             return 0;
         });
         this.sceKernelDcacheWritebackAll = createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
-            //this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+            _this.context.memory.invalidateDataAll.dispatch();
             return 0;
         });
         this.sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/uint', this, function (pointer, size) {
@@ -18251,7 +18315,7 @@ var UtilsForUser = (function () {
             return 0;
         });
         this.sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0xB435DEC5, 150, 'uint', '', this, function () {
-            _this.context.memory.invalidateDataRange.dispatch({ start: 0, end: 0xFFFFFFFF });
+            _this.context.memory.invalidateDataAll.dispatch();
             return 0;
         });
         this.sceKernelSetGPO = createNativeFunction(0x6AD345D7, 150, 'uint', 'int', this, function (value) {

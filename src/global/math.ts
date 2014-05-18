@@ -26,6 +26,9 @@ declare var mat4: {
 	copy(out: Float32Array, a: Float32Array): Float32Array;
 	identity(a: Float32Array): Float32Array;
 	multiply(out: Float32Array, a: Float32Array, b: Float32Array): Float32Array;
+	scale(out: Float32Array, a: Float32Array, v: Float32Array): Float32Array;
+	translate(out: Float32Array, a: Float32Array, v: Float32Array): Float32Array;
+	rotate(out: Float32Array, a: Float32Array, v: Float32Array): Float32Array;
 	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
 };
 
@@ -378,8 +381,8 @@ class MathFloat {
 
 	static cosv1(value: number) { return Math.cos(value * Math.PI * 0.5); }
 	static sinv1(value: number) { return Math.sin(value * Math.PI * 0.5); }
+	static nsinv1(value: number) { return -Math.sin(value * Math.PI * 0.5); }
 	static asinv1(value: number) { return Math.asin(value) / (Math.PI * 0.5); }
-	static nsinv1(value: number) { return -Math.sin(0.5 * Math.PI * value); }
 	static exp2(value: number) { return Math.pow(2.0, value); }
 	static rexp2(value: number) { return 1 / Math.pow(2.0, value); }
 	static log2(value: number) { return Math.log2(value); }
