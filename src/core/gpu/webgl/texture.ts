@@ -64,6 +64,7 @@ export class Texture {
 		this.height = height;
 		this._create(() => {
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, <any>data);
+			//gl.generateMipmap(gl.TEXTURE_2D);
 		});
 	}
 
@@ -74,6 +75,7 @@ export class Texture {
 		this.height = canvas.height;
 		this._create(() => {
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
+			//gl.generateMipmap(gl.TEXTURE_2D);
 		});
 	}
 
@@ -157,7 +159,7 @@ export class TextureHandler {
 	sync() {
 	}
 
-	private invalidatedMemoryAll(range: NumericRange) {
+	private invalidatedMemoryAll() {
 		for (var n = 0; n < this.textures.length; n++) {
 			var texture = this.textures[n];
 			texture.validHint = false;

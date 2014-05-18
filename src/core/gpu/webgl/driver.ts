@@ -25,9 +25,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
 		var webglOptions = {
-			//alpha: false,
-			//depth: true,
-			//stencil: true,
+			alpha: false,
+			depth: true,
+			stencil: true,
 			//antialias: false,
 			//premultipliedAlpha: false,
 			preserveDrawingBuffer: true,
@@ -157,6 +157,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 		var opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
 		var testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
+		var testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
 
 		var stencil = state.stencil;
 		if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
@@ -164,7 +165,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.stencilOp(opsConvertTable[stencil.fail], opsConvertTable[stencil.zfail], opsConvertTable[stencil.zpass]);
 		}
 
-		//gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+		//gl.depthRange(1.0 - state.depthTest.rangeNear, 1.0 - state.depthTest.rangeFar);
+		gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
 		//gl.depthRange(0, 1000);
 		//gl.clearDepth(1.0);
 		//gl.clear(gl.DEPTH_BUFFER_BIT);
@@ -172,11 +174,11 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		gl.depthMask(state.depthTest.mask == 0);
 		//gl.depthMask(false);
 		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
-			//gl.depthFunc(testConvertTable[state.depthTest.func]);
+			gl.depthFunc(testConvertTable_inv[state.depthTest.func]);
 			//gl.depthFunc(gl.GEQUAL);
 			//gl.depthFunc(gl.LESS);
 			//gl.depthFunc(gl.LEQUAL);
-			gl.depthFunc(gl.ALWAYS);
+			//gl.depthFunc(gl.ALWAYS);
 		}
 
 		var alphaTest = state.alphaTest;
@@ -222,7 +224,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.enable(gl.DEPTH_TEST);
 			gl.depthFunc(gl.ALWAYS);
 			gl.depthMask(true);
-			gl.depthRange(0, 1);
+			gl.depthRange(1, 1);
 			//debugger;
 		}
 
@@ -330,11 +332,14 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.vertexWeightData2.restart();
 
 		var mipmap = this.state.texture.mipmaps[0];
+
+		//debugger;
+
 		//console.log('demuxVertices: ' + vertices.length + ', ' + count + ', ' + vertexState + ', PrimitiveType=' + primitiveType);
 		for (var n = 0; n < count; n++) {
 			var v = vertices[n];
 
-			this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0 : v.pz);
+			this.positionData.push3(v.px, v.py, v.pz);
 
 			if (vertexState.hasColor) this.colorData.push4(v.r, v.g, v.b, v.a);
 			if (vertexState.hasTexture) {

@@ -10612,9 +10612,9 @@ var WebGlPspDrawDriver = (function () {
         this.tempVec = new Float32Array([0, 0, 0]);
         this.texMat = mat4.create();
         var webglOptions = {
-            //alpha: false,
-            //depth: true,
-            //stencil: true,
+            alpha: false,
+            depth: true,
+            stencil: true,
             //antialias: false,
             //premultipliedAlpha: false,
             preserveDrawingBuffer: true
@@ -10741,6 +10741,7 @@ var WebGlPspDrawDriver = (function () {
 
         var opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
         var testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
+        var testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
 
         var stencil = state.stencil;
         if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
@@ -10748,7 +10749,9 @@ var WebGlPspDrawDriver = (function () {
             gl.stencilOp(opsConvertTable[stencil.fail], opsConvertTable[stencil.zfail], opsConvertTable[stencil.zpass]);
         }
 
-        //gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+        //gl.depthRange(1.0 - state.depthTest.rangeNear, 1.0 - state.depthTest.rangeFar);
+        gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+
         //gl.depthRange(0, 1000);
         //gl.clearDepth(1.0);
         //gl.clear(gl.DEPTH_BUFFER_BIT);
@@ -10757,11 +10760,11 @@ var WebGlPspDrawDriver = (function () {
 
         //gl.depthMask(false);
         if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
-            //gl.depthFunc(testConvertTable[state.depthTest.func]);
+            gl.depthFunc(testConvertTable_inv[state.depthTest.func]);
             //gl.depthFunc(gl.GEQUAL);
             //gl.depthFunc(gl.LESS);
             //gl.depthFunc(gl.LEQUAL);
-            gl.depthFunc(gl.ALWAYS);
+            //gl.depthFunc(gl.ALWAYS);
         }
 
         var alphaTest = state.alphaTest;
@@ -10807,7 +10810,7 @@ var WebGlPspDrawDriver = (function () {
             gl.enable(gl.DEPTH_TEST);
             gl.depthFunc(gl.ALWAYS);
             gl.depthMask(true);
-            gl.depthRange(0, 1);
+            gl.depthRange(1, 1);
             //debugger;
         }
 
@@ -10912,7 +10915,7 @@ var WebGlPspDrawDriver = (function () {
         for (var n = 0; n < count; n++) {
             var v = vertices[n];
 
-            this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0 : v.pz);
+            this.positionData.push3(v.px, v.py, v.pz);
 
             if (vertexState.hasColor)
                 this.colorData.push4(v.r, v.g, v.b, v.a);
@@ -11171,6 +11174,7 @@ var Texture = (function () {
         this.height = height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            //gl.generateMipmap(gl.TEXTURE_2D);
         });
     };
 
@@ -11181,6 +11185,7 @@ var Texture = (function () {
         this.height = canvas.height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+            //gl.generateMipmap(gl.TEXTURE_2D);
         });
     };
 
@@ -11271,7 +11276,7 @@ var TextureHandler = (function () {
     TextureHandler.prototype.sync = function () {
     };
 
-    TextureHandler.prototype.invalidatedMemoryAll = function (range) {
+    TextureHandler.prototype.invalidatedMemoryAll = function () {
         for (var n = 0; n < this.textures.length; n++) {
             var texture = this.textures[n];
             texture.validHint = false;
