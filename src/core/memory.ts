@@ -225,6 +225,20 @@ export class Memory {
 	*/
 
 	hashWordCount(addressAligned: number, count: number) {
+		/*
+		addressAligned >>>= 2;
+		count >>>= 2;
+		count >>>= 1;
+
+		var result = 0;
+		var u32 = this.u32;
+		while (count-- > 0) {
+			result += u32[addressAligned++];
+			result ^= u32[addressAligned++];
+		}
+		return result;
+		*/
+
 		addressAligned >>>= 2;
 		count >>>= 2;
 
@@ -245,7 +259,6 @@ export class Memory {
 
 			result1 = (result1 + v * n) | 0;
 			result2 = ((result2 + v + n) ^ (n << 17)) | 0;
-
 		}
 		return result1 + result2 * Math.pow(2, 24);
 		*/

@@ -1,4 +1,5 @@
 ﻿import _utils = require('../utils');
+import Signal = require('../../util/Signal');
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
@@ -7,11 +8,16 @@ export class sceUmdUser {
 	constructor(private context: _context.EmulatorContext) { }
 
 	callbackIds = <number[]>[];
+	signal = new Signal<number>();
 
 	sceUmdRegisterUMDCallBack = createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, (callbackId: number) => {
 		this.callbackIds.push(callbackId);
-		//this.context.callbackManager.notify(callbackId);
-		//console.warn('Not implemented sceUmdRegisterUMDCallBack');
+		return 0;
+	});
+
+	sceUmdUnRegisterUMDCallBack = createNativeFunction(0xBD2BDE07, 150, 'uint', 'int', this, (callbackId: number) => {
+		if (!this.callbackIds.contains(callbackId)) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
+		this.callbackIds.remove(callbackId);
 		return 0;
 	});
 
@@ -19,30 +25,43 @@ export class sceUmdUser {
 		return UmdCheckMedium.Inserted;
 	});
 
-	sceUmdWaitDriveStat = createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, (pspUmdState: number) => {
-		console.warn('Not implemented sceUmdWaitDriveStat');
+	_sceUmdWaitDriveStat(pspUmdState: number, acceptCallbacks: AcceptCallbacks) {
+		this.context.callbackManager.executePendingWithinThread(this.context.threadManager.current);
 		return 0;
+		/*
+		return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new Promise((resolve, reject) => {
+			var signalCallback = this.signal.add((result) => {
+				this.signal.remove(signalCallback);
+				resolve();
+			});
+		}), AcceptCallbacks.YES);
+		*/
+	}
+
+	sceUmdWaitDriveStat = createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, (pspUmdState: number) => {
+		return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.NO);
 	});
 
 	sceUmdWaitDriveStatCB = createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint', this, (pspUmdState: number, timeout: number) => {
-		console.warn('Not implemented sceUmdWaitDriveStatCB');
-		return 0;
+		return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.YES);
 	});
 
 	private _notify(data: number) {
+		this.signal.dispatch(data);
+
 		this.callbackIds.forEach(callbackId => {
+			//var state = this.context.threadManager.current.state;
 			this.context.callbackManager.notify(callbackId, data);
 		});
 	}
 
 	sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, (mode: number, drive: string) => {
-		console.warn('Not implemented sceUmdActivate', mode, drive);
 		this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
 		return 0;
 	});
 
 	sceUmdDeactivate = createNativeFunction(0xE83742BA, 150, 'uint', 'int/string', this, (mode: number, drive: string) => {
-		console.warn('Not implemented sceUmdDeactivate', mode, drive);
+		this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
 		return 0;
 	});
 

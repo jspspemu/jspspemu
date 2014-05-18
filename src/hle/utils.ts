@@ -57,12 +57,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
         }
     });
 
-	
+	code += 'var error = false;';
 	code += 'try {';
 	code += 'var args = [' + args.join(', ') + '];';
 	code += 'var result = internalFunc.apply(_this, args);';
 	code += '} catch (e) {';
-	code += 'if (e instanceof SceKernelException) { result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
+	code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
 	code += '}';
 
 	//var debugSyscalls = false;
@@ -85,8 +85,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		case 'bool': code += 'state.V0 = result ? 1 : 0;'; break;
 		case 'float': code += 'state.fpr[0] = result;'; break;
 		case 'long':
-			code += 'if (!(result instanceof Integer64)) throw(new Error("Invalid long result. Expecting Integer64."));';
-            code += 'state.V0 = result.low; state.V1 = result.high;'; break;
+			code += 'if (!error) {';
+			code += 'if (!(result instanceof Integer64)) { console.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }';
+			code += 'state.V0 = result.low; state.V1 = result.high;';
+			code += '} else {';
+			code += 'state.V0 = result; state.V1 = 0;';
+			code += '}';
             break;
         default: throw ('Invalid return value "' + retval + '"');
     }

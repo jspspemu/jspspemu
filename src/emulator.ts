@@ -66,7 +66,7 @@ export class Emulator {
 	private memoryManager: MemoryManager;
 	private rtc: PspRtc;
 	private interruptManager: InterruptManager;
-	private fileManager: FileManager;
+	fileManager: FileManager;
 	private audio: PspAudio;
 	private canvas: HTMLCanvasElement;
 	private webgl_canvas: HTMLCanvasElement;
@@ -238,7 +238,9 @@ export class Emulator {
 					return _format_iso.Iso.fromStreamAsync(asyncStream).then(iso => {
 						var isoFs = new IsoVfs(iso);
 						this.fileManager.mount('umd0', isoFs);
+						this.fileManager.mount('umd1', isoFs);
 						this.fileManager.mount('disc0', isoFs);
+						this.fileManager.mount('disc1', isoFs);
 
 						return isoFs.existsAsync('PSP_GAME/PARAM.SFO').then((exists) => {
 							if (!exists) {
@@ -338,9 +340,11 @@ export class Emulator {
 		this.connectToDropbox(localStorage["dropbox"] == 'true');
 	}
 
-	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string) {
+	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string, afterStartCallback: () => void) {
 		this.gameTitle = '';
 		return this.loadAndExecuteAsync(asyncStream, url).then(() => {
+			afterStartCallback();
+
 			//console.error('WAITING!');
 			return this.threadManager.waitExitGameAsync().then(() => {
 				//console.error('STOPPING!');

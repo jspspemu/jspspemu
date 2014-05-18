@@ -4,6 +4,7 @@ import _pixelformat = require('../pixelformat');
 import _instructions = require('./instructions');
 import _state = require('./state');
 import _driver = require('./driver');
+import _vertex = require('./vertex');
 import _cpu = require('../cpu'); _cpu.CpuState;
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 
@@ -31,164 +32,7 @@ export interface IPspGpu {
 	drawSync(syncType: _state.SyncType);
 }
  
-class VertexBuffer {
-	vertices: _state.Vertex[] = [];
-
-    constructor() {
-		for (var n = 0; n < 32768; n++) this.vertices[n] = new _state.Vertex();
-	}
-}
-
-export class VertexReaderFactory {
-    private static cache: NumberDictionary<VertexReader> = {};
-
-	static get(vertexState: _state.VertexState): VertexReader {
-		var cacheId = vertexState.hash;
-        var vertexReader = this.cache[cacheId];
-		if (vertexReader === undefined) vertexReader = this.cache[cacheId] = new VertexReader(vertexState);
-		return vertexReader;
-    }
-}
-
-export class VertexReader {
-	private readOneFunc: (output: _state.Vertex, inputOffset: number, input: DataView, f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array) => void;
-    private readOffset: number = 0;
-    public readCode: string;
-
-	constructor(private vertexState: _state.VertexState) {
-        this.readCode = this.createJs();
-		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
-	}
-
-	readOne(input:DataView, index: number) {
-		var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
-		var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
-		var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-
-		var inputOffset = this.vertexState.size * index;
-		var vertex = new _state.Vertex();
-		this.readOneFunc(vertex, inputOffset, input, f32, s8, s16, s32);
-		return vertex;
-	}
-
-	readCount(output: _state.Vertex[], input: DataView, indices: number[], count: number) {
-		var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
-		var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
-		var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-
-		if (this.vertexState.hasIndex) {
-			for (var n = 0; n < count; n++) {
-				var index = indices[n];
-				this.readOneFunc(output[n], index * this.vertexState.size, input, f32, s8, s16, s32);
-			}
-		} else {
-			var inputOffset = 0;
-			for (var n = 0; n < count; n++) {
-				this.readOneFunc(output[n], inputOffset, input, f32, s8, s16, s32);
-				inputOffset += this.vertexState.size;
-			}
-		}
-    }
-
-    private createJs() {
-        var indentStringGenerator = new _IndentStringGenerator();
-
-        this.readOffset = 0;
-
-		this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
-		this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
-		this.createColorJs(indentStringGenerator, this.vertexState.color);
-		this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
-		this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
-
-        return indentStringGenerator.output;
-	}
-
-	private readInt8() { return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])'; }
-	private readInt16() { return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])'; }
-	private readInt32() { return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; }
-	private readFloat32() { return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; }
-
-	private readUInt8() { return '((' + this.readInt8() + ' & 0xFF) >>> 0)'; }
-	private readUInt16() { return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)'; }
-	private readUInt32() { return '((' + this.readInt16() + ' & 0xFFFFFFFF) >>> 0)'; }
-
-    private createColorJs(indentStringGenerator:_IndentStringGenerator, type: ColorEnum) {
-        if (type == ColorEnum.Void) return;
-
-        switch (type) {
-            case ColorEnum.Color8888:
-                this.align(4);
-				indentStringGenerator.write('output.r = ((' + this.readUInt8() + ') / 255.0);\n');
-				indentStringGenerator.write('output.g = ((' + this.readUInt8() + ') / 255.0);\n');
-				indentStringGenerator.write('output.b = ((' + this.readUInt8() + ') / 255.0);\n');
-				indentStringGenerator.write('output.a = ((' + this.readUInt8() + ') / 255.0);\n');
-                break;
-			case ColorEnum.Color5551:
-				this.align(2);
-				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
-				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
-				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
-				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
-				break;
-			case ColorEnum.Color4444:
-				this.align(2);
-				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 4);\n');
-				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 4, 4);\n');
-				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 8, 4);\n');
-				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 12, 4);\n');
-				break;
-			case ColorEnum.Color5650:
-				this.align(2);
-				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
-				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 6);\n');
-				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 11, 5);\n');
-				indentStringGenerator.write('output.a = 1.0;\n');
-				break;
-            default:
-				throw (new Error("Not implemented color format '" + type + "'"));
-        }
-    }
-
-    private align(count: number) {
-        this.readOffset = MathUtils.nextAligned(this.readOffset, count);
-    }
-
-    private getOffsetAlignAndIncrement(size: number) {
-        this.align(size);
-        var offset = this.readOffset;
-        this.readOffset += size;
-        return offset;
-	}
-
-	private createNumberJs(indentStringGenerator: _IndentStringGenerator, components: string[], type: _state.NumericEnum, normalize: boolean) {
-		if (type == _state.NumericEnum.Void) return;
-
-        components.forEach((component) => {
-            switch (type) {
-				case _state.NumericEnum.Byte:
-					indentStringGenerator.write('output.' + component + ' = ' + this.readInt8());
-                    if (normalize) indentStringGenerator.write(' / 127.0');
-                    break;
-				case _state.NumericEnum.Short:
-					indentStringGenerator.write('output.' + component + ' = ' + this.readInt16());
-                    if (normalize) indentStringGenerator.write(' / 32767.0');
-                    break;
-				case _state.NumericEnum.Float:
-					indentStringGenerator.write('output.' + component + ' = ' + this.readFloat32());
-                    break;
-            }
-            indentStringGenerator.write(';\n');
-        });
-    }
-}
-
-var vertexBuffer = new VertexBuffer();
+var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
 
 class PspGpuList {
@@ -232,15 +76,9 @@ class PspGpuList {
 
 		//console.info('op:', op, GpuOpCodes[op]);
 		switch (op) {
-			case GpuOpCodes.IADDR:
-				this.state.indexAddress = params24;
-				break;
-			case GpuOpCodes.OFFSETADDR:
-				this.state.baseOffset = (params24 << 8);
-				break;
-            case GpuOpCodes.FRAMEBUFPTR:
-                this.state.frameBuffer.lowAddress = params24;
-				break;
+			case GpuOpCodes.IADDR: this.state.indexAddress = params24; break;
+			case GpuOpCodes.OFFSETADDR: this.state.baseOffset = (params24 << 8); break;
+            case GpuOpCodes.FRAMEBUFPTR: this.state.frameBuffer.lowAddress = params24; break;
 
 			case GpuOpCodes.FOGENABLE: this.state.fog.enabled = bool1(); break;
 
@@ -330,7 +168,7 @@ class PspGpuList {
 				break;
 
             case GpuOpCodes.NOP: break;
-            case GpuOpCodes.VERTEXTYPE: this.state.vertex.value = params24; break;
+			case GpuOpCodes.VERTEXTYPE: this.state.vertex.setValue(params24); break;
 			case GpuOpCodes.VADDR: this.state.vertex.address = params24; break;
 			case GpuOpCodes.TMODE:
 				this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
@@ -451,13 +289,6 @@ class PspGpuList {
 				this.state.lighting.ambientLightColor.a = 1;
 				break;
 
-			case GpuOpCodes.ZTST:
-				this.state.depthTest.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8);
-				break;
-
-			case GpuOpCodes.ZTESTENABLE:
-				this.state.depthTest.enabled = (params24 != 0);
-				break;
 
 			case GpuOpCodes.AMBIENTALPHA:
 				this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
@@ -526,10 +357,11 @@ class PspGpuList {
 				this.state.stencil.funcMask = BitUtils.extract(params24, 16, 8);
 				break;
 
-			case GpuOpCodes.ZMSK:
-				this.state.depthTest.mask = BitUtils.extract(params24, 0, 16);
-				break;
-
+			case GpuOpCodes.ZTST: this.state.depthTest.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8); break;
+			case GpuOpCodes.ZTESTENABLE: this.state.depthTest.enabled = (params24 != 0); break;
+			case GpuOpCodes.ZMSK: this.state.depthTest.mask = BitUtils.extract(params24, 0, 16); break;
+			case GpuOpCodes.MINZ: this.state.depthTest.rangeFar = (params24 & 0xFFFF) / 65536; break;
+			case GpuOpCodes.MAXZ: this.state.depthTest.rangeNear = (params24 & 0xFFFF) / 65536; break;
 
 			case GpuOpCodes.MORPHWEIGHT0:
 			case GpuOpCodes.MORPHWEIGHT1:
@@ -548,20 +380,11 @@ class PspGpuList {
                 this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
 				break;
 
-			case GpuOpCodes.COLORTESTENABLE:
-				this.state.colorTest.enabled = bool1();
-				break;
+			case GpuOpCodes.COLORTESTENABLE: this.state.colorTest.enabled = bool1(); break;
+			case GpuOpCodes.DITHERENABLE: this.state.dithering.enabled = bool1(); break;
 
-			case GpuOpCodes.DITHERENABLE:
-				this.state.dithering.enabled = bool1();
-				break;
-
-			case GpuOpCodes.CULLFACEENABLE:
-				this.state.culling.enabled = bool1();
-				break;
-			case GpuOpCodes.CULL:
-				this.state.culling.direction = <_state.CullingDirection>params24;
-				break;
+			case GpuOpCodes.CULLFACEENABLE: this.state.culling.enabled = bool1(); break;
+			case GpuOpCodes.CULL: this.state.culling.direction = <_state.CullingDirection>params24; break;
 
 			case GpuOpCodes.SFIX: this.state.blending.fixColorSource.setRGB(params24); break;
 			case GpuOpCodes.DFIX: this.state.blending.fixColorDestination.setRGB(params24); break;
@@ -577,7 +400,7 @@ class PspGpuList {
 				var divs = this.state.patch.divs;
 				var divt = this.state.patch.divt;
 				var vertexState = this.state.vertex;
-				var vertexReader = VertexReaderFactory.get(vertexState);
+				var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
 				var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
 				var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
@@ -619,6 +442,7 @@ class PspGpuList {
 				break;
 
 			case GpuOpCodes.PRIM:
+				this.primCount++;
 				//if (this.current < this.stall) {
 				//	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
 				//
@@ -627,8 +451,6 @@ class PspGpuList {
 				//	}
 				//}
 
-				//console.log('GPU PRIM');
-
                 var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(params24, 16, 3);
                 var vertexCount = BitUtils.extract(params24, 0, 16);
                 var vertexState = this.state.vertex;
@@ -636,7 +458,7 @@ class PspGpuList {
 				var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
 				var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
 
-				var vertexReader = VertexReaderFactory.get(vertexState);
+				var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
 
 				var indices: any = null;
 				switch (vertexState.index) {
@@ -647,7 +469,8 @@ class PspGpuList {
 				var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
 				var vertices = vertexBuffer.vertices;
-				vertexReader.readCount(vertices, vertexInput, <number[]><any>indices, vertexCount);
+
+				vertexReader.readCount(vertices, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
 
                 this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
 				this.drawDriver.setState(this.state);
@@ -661,6 +484,7 @@ class PspGpuList {
 				break;
 
 			case GpuOpCodes.FINISH:
+				this.finish();
 				var callback = this.gpu.callbacks.get(this.callbackId);
 				if (callback && callback.cpuState && callback.finishFunction) {
 					this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
@@ -670,11 +494,7 @@ class PspGpuList {
 				console.warn('Not implemented: GPU SIGNAL');
 				break;
 
-			case GpuOpCodes.END:
-					
-                this.complete();
-                return true;
-                break;
+			case GpuOpCodes.END: this.complete(); return true; break;
 
             default:
 				this.errorCount++;
@@ -688,6 +508,14 @@ class PspGpuList {
         }
 
         return false;
+	}
+
+	private primCount = 0;
+	//private opcodes = [];
+	private finish() {
+		//$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
+		//this.opcodes = [];
+		this.primCount = 0;
 	}
 
 	private get isStalled() {
@@ -707,6 +535,8 @@ class PspGpuList {
 				while (this.hasMoreInstructions) {
 					var instruction = this.memory.readUInt32(this.current);
 					this.current += 4
+					//this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
+
 					if (this.runInstruction(this.current - 4, instruction)) return;
 				}
 				this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;

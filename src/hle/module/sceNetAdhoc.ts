@@ -48,9 +48,10 @@ export class sceNetAdhoc {
 	});
 
 	/** Get the status of all PDP objects */
-	sceNetAdhocGetPdpStat = createNativeFunction(0x7F27BB5E, 150, 'int', 'int/int', this, (size: Stream, pdpStatStruct: Stream) => {
-		throw (new Error("Not implemented sceNetAdhocGetPdpStat"));
-		return -1;
+	sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, (size: Stream, pdpStatStruct: Stream) => {
+		size.writeInt32(0);
+		//throw (new Error("Not implemented sceNetAdhocGetPdpStat"));
+		return 0;
 	});
 
 	/** Create own game object type data. */

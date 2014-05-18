@@ -121,7 +121,13 @@ class UidCollection<T>
 
     get(id: number) {
         return this.items[id];
-    }
+	}
+
+	list() {
+		var out = <T[]>[];
+		for (var key in this.items) out.push(this.items[key]);
+		return out;
+	}
 
     remove(id: number) {
         delete this.items[id];

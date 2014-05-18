@@ -1,5 +1,6 @@
 uniform mat4 u_modelViewProjMatrix;
-attribute vec3 vPosition;
+
+attribute vec4 vPosition;
 
 #ifdef VERTEX_COLOR
 	attribute vec4 vColor;
@@ -43,7 +44,8 @@ attribute vec3 vPosition;
 		if (index == 4) return vertexWeight2.x;
 		if (index == 5) return vertexWeight2.y;
 		if (index == 6) return vertexWeight2.z;
-		return vertexWeight2.w;
+		if (index == 7) return vertexWeight2.w;
+		return 0.0;
 	}
 
 	vec4 performSkinning(vec4 vertexIn) {
@@ -69,9 +71,10 @@ void main() {
 		v_Texcoord = vTexcoord;
 	#endif
 
-	vec4 pos = vec4(vPosition, 1.0);
+	vec4 pos = vPosition;
 	#if (VERTEX_SIKINNING >= 1)
 		pos = performSkinning(pos);
 	#endif
+
 	gl_Position = u_modelViewProjMatrix * pos;
 }

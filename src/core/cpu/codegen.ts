@@ -212,24 +212,24 @@ function address_RS_IMM14(i: Instruction, offset: number = 0) {
 
 function setMatrix(leftList: number[], generator: (column: number, row: number, index?:number) => _ast.ANodeExpr) {
 	var side = Math.sqrt(leftList.length);
-	return stm(call('state.vfpuStore', [
+	return call_stm('state.vfpuStore', [
 		ast.array(leftList.map(item => imm32(item))),
 		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(Math.floor(index % side), Math.floor(index / side), index)))
-	]));
+	]);
 }
 
 function setVector(leftList: number[], generator: (index: number) => _ast.ANodeExpr) {
-	return stm(call('state.vfpuStore', [
+	return call_stm('state.vfpuStore', [
 		ast.array(leftList.map(item => imm32(item))),
 		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(index)))
-	]));
+	]);
 }
 
 function setVector_i(leftList: number[], generator: (index: number) => _ast.ANodeExpr) {
-	return stm(call('state.vfpuStore_i', [
+	return call_stm('state.vfpuStore_i', [
 		ast.array(leftList.map(item => imm32(item))),
 		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(index)))
-	]));
+	]);
 }
 
 /*
@@ -352,9 +352,9 @@ export class InstructionAst {
 	}
 
 	// Prefixes
-	vpfxt(i: Instruction) { return stm(call('state.setVpfxt', [imm32(i.data)])); }
-	vpfxs(i: Instruction) { return stm(call('state.setVpfxs', [imm32(i.data)])); }
-	vpfxd(i: Instruction) { return stm(call('state.setVpfxd', [imm32(i.data)])); }
+	vpfxt(i: Instruction) { return call_stm('state.setVpfxt', [imm32(i.data)]); }
+	vpfxs(i: Instruction) { return call_stm('state.setVpfxs', [imm32(i.data)]); }
+	vpfxd(i: Instruction) { return call_stm('state.setVpfxd', [imm32(i.data)]); }
 
 	// Memory read/write
 
@@ -362,15 +362,15 @@ export class InstructionAst {
 	"sv.s"(i: Instruction) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); }
 
 	"lv.q"(i: Instruction) { return setItems(readVector(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
-	"lvl.q"(i: Instruction) { return stm(call('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
-	"lvr.q"(i: Instruction) { return stm(call('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
+	"lvl.q"(i: Instruction) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
+	"lvr.q"(i: Instruction) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
 	"sv.q"(i: Instruction) { return setMemoryVector(address_RS_IMM14(i), readVector(i.VT5_1, VectorSize.Quad)); }
-	"svl.q"(i: Instruction) { return stm(call('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
-	"svr.q"(i: Instruction) { return stm(call('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))])); }
+	"svl.q"(i: Instruction) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
+	"svr.q"(i: Instruction) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
 
 	// Constants
 	// @TODO: d-prefix in vt register
-	viim(i: Instruction) { return stm(assign(vfpr(i.VT), imm32(i.imm16))); }
+	viim(i: Instruction) { return assign_stm(vfpr(i.VT), imm32(i.imm16)); }
 	vfim(i: Instruction) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); }
 	vcst(i: Instruction) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); }
 	vhdp(i: Instruction) {
@@ -664,8 +664,8 @@ export class InstructionAst {
 	// @TODO:
 	//vwbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
 	//vsbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
-	vwbn(i: Instruction) { return ast.stm(); }
-	vsbn(i: Instruction) { return ast.stm(); }
+	//vwbn(i: Instruction) { return ast.stm(); }
+	//vsbn(i: Instruction) { return ast.stm(); }
 
 	vabs(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.abs', [src[i]])); }
 	vocp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.ocp', [src[i]])); }

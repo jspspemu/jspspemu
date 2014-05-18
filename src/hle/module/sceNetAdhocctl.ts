@@ -28,13 +28,27 @@ export class sceNetAdhocctl {
 		return 0;
 	});
 
+	private handlers = new UidCollection<HandlerCallback>(1);
+
+	sceNetAdhocctlAddHandler = createNativeFunction(0x20B317A0, 150, 'int', 'int/int', this, (callback: number, parameter: number) => {
+		return this.handlers.allocate(new HandlerCallback(callback, parameter));
+	});
+
+	sceNetAdhocctlGetState = createNativeFunction(0x75ECD386, 150, 'int', 'void*', this, (stateOut: Stream) => {
+		stateOut.writeInt32(this.currentState);
+		return 0;
+	});
+
 	private _notifyAdhocctlHandler(event: Event, error = <SceKernelErrors>0) {
-		//Console.Error.WriteLine("_notifyAdhocctlHandler:");
-		//foreach (var Handler in InjectContext.GetInstance<HleUidPoolManager>().List<AdhocctlHandler>())
-		//{
-		//Console.Error.WriteLine("_notifyAdhocctlHandler: {0:X8}: {1}: {2}, {3}", Handler.callback, @event, Error, Handler.parameter);
-		//HleInterop.ExecuteFunctionLater(Handler.callback, (uint)@event, (uint) Error, Handler.parameter);
-		//}
+		this.handlers.list().forEach(callback => {
+			var state = this.context.threadManager.current.state;
+			this.context.interop.execute(state, callback.callback, [event, error, callback.argument]);
+		});
+	}
+}
+
+class HandlerCallback {
+	constructor(public callback: number, public argument: number) {
 	}
 }
 

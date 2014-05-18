@@ -122,18 +122,21 @@ export class Thread {
 	}
 
 	accumulatedMicroseconds = 0;
-	delayMicrosecondsAsync(delayMicroseconds: number) {
+	delayMicrosecondsAsync(delayMicroseconds: number, allowCompensating = false) {
 		//console.error(delayMicroseconds, this.accumulatedMicroseconds);
 
-		var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
-		delayMicroseconds -= subtractAccumulatedMicroseconds;
-		this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
+		if (allowCompensating) {
+			//debugger;
+			var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
+			delayMicroseconds -= subtractAccumulatedMicroseconds;
+			this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
+		}
 
 		//console.error(delayMicroseconds, this.accumulatedMicroseconds, subtractAccumulatedMicroseconds);
 
 		if (delayMicroseconds <= 0.00001) {
 			//console.error('none!');
-			return Promise.resolve(0);
+			//return Promise.resolve(0);
 		}
 
 		var start = performance.now();
@@ -315,7 +318,7 @@ export class ThreadManager {
 					runningThreadCount++;
 					runningPriority = Math.min(runningPriority, thread.priority);
 					if (doCompensate) {
-						thread.accumulatedMicroseconds += microsecondsToCompensate * 0.5;
+						thread.accumulatedMicroseconds += microsecondsToCompensate;
 						doCompensate = false;
 					}
 				}

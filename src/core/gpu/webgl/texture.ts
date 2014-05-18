@@ -16,9 +16,15 @@ export class Texture {
 	swizzled = false;
 	hash1: number;
 	hash2: number;
-	private address: number;
-	private pixelFormat: PixelFormat;
-	private clutFormat: PixelFormat;
+
+	address_start: number;
+	address_end: number
+
+	clut_start: number;
+	clut_end: number
+
+	pixelFormat: PixelFormat;
+	clutFormat: PixelFormat;
 	width: number;
 	height: number;
 
@@ -29,11 +35,15 @@ export class Texture {
 	setInfo(state: _state.GpuState) {
 		var texture = state.texture;
 		var mipmap = texture.mipmaps[0];
+		var clut = texture.clut;
 
 		this.swizzled = texture.swizzled;
-		this.address = mipmap.address;
+		this.address_start = mipmap.address;
+		this.address_end = mipmap.address + PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.bufferWidth * mipmap.textureHeight);
 		this.pixelFormat = texture.pixelFormat;
-		this.clutFormat = texture.clut.pixelFormat;
+		this.clutFormat = clut.pixelFormat;
+		this.clut_start = clut.adress;
+		this.clut_end = clut.adress + PixelConverter.getSizeInBytes(texture.clut.pixelFormat, clut.numberOfColors);
 	}
 
 	private _create(callbackTex2D: () => void) {
@@ -110,7 +120,7 @@ export class Texture {
 
 	toString() {
 		var out = '';
-		out += 'Texture(address = ' + this.address + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + ', swizzled = ' + this.swizzled;
+		out += 'Texture(address = ' + this.address_start + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + ', swizzled = ' + this.swizzled;
 		if (PixelFormatUtils.hasClut(this.pixelFormat)) {
 			out += ', clutFormat=' + this.clutFormat;
 		}
@@ -127,65 +137,38 @@ export class TextureHandler {
 	private texturesByHash2: StringDictionary<Texture> = {};
 	private texturesByHash1: StringDictionary<Texture> = {};
 	private texturesByAddress: NumberDictionary<Texture> = {};
+	private textures = <Texture[]>[];
 	private recheckTimestamp: number = 0;
 	private lastTexture: Texture;
 	//private updatedTextures = new SortedSet<Texture>();
 
-	private invalidatedMemoryFlag: boolean = true;
-
 	flush() {
-		if (this.lastTexture) {
-			//this.lastTexture.valid = false;
-		}
-		//this.invalidatedMemory({ start: 0, end : 0xFFFFFFFF });
-		//this.recheckTimestamp = performance.now();
 
-		/*
-		this.updatedTextures.forEach((texture) => {
-			texture.valid = false;
-		});
-		this.updatedTextures = new SortedSet<Texture>(); 
-		*/
-		if (this.invalidatedMemoryFlag) {
-			this.invalidatedMemoryFlag = false;
-			this._invalidatedMemory();
-		}
 	}
 
 	sync() {
-		// sceGuCopyImage
-
-		//this.recheckTimestamp = performance.now();
-	}
-
-	private _invalidatedMemory() {
-		// should invalidate just  the right textures
-		for (var hash1 in this.texturesByHash1) {
-			var texture1 = this.texturesByHash1[hash1];
-			texture1.valid = false;
-		}
-
-		for (var hash2 in this.texturesByHash2) {
-			var texture2 = this.texturesByHash2[hash2];
-			texture2.valid = false;
-		}
 	}
 
 	private invalidatedMemory(range: NumericRange) {
-		this.invalidatedMemoryFlag = true;
-		//this._invalidatedMemory();
-
-
-		//this._invalidatedMemory();
-
-		//this.recheckTimestamp = performance.now();
-		//console.warn('invalidatedMemory: ' + JSON.stringify(range));
+		for (var n = 0; n < this.textures.length; n++) {
+			var texture = this.textures[n];
+			if (texture.address_start >= range.start && texture.address_end <= range.end) {
+				//debugger;
+				//console.info('invalidated texture', range);
+				texture.valid = false;
+			}
+			if (texture.clut_start >= range.start && texture.clut_end <= range.end) {
+				//debugger;
+				//console.info('invalidated texture', range);
+				texture.valid = false;
+			}
+		}
 	}
 
 	private mustRecheckSlowHash(texture: Texture) {
 		//return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
-		//return !texture || !texture.valid;
-		return !texture;
+		return !texture || !texture.valid;
+		//return !texture;
 	}
 
 	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState) {
@@ -210,7 +193,8 @@ export class TextureHandler {
 			//if (!texture || !texture.valid) {
 			if (!texture) {
 				if (!this.texturesByAddress[mipmap.address]) {
-					this.texturesByAddress[mipmap.address] = new Texture(gl);
+					this.texturesByAddress[mipmap.address] = texture = new Texture(gl);
+					this.textures.push(texture);
 					console.warn('New texture allocated!', mipmap, state.texture);
 				}
 

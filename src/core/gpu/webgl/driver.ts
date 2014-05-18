@@ -25,14 +25,14 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
 		var webglOptions = {
-			alpha: false,
-			depth: true,
-			stencil: true,
-			antialias: false,
-			premultipliedAlpha: false,
+			//alpha: false,
+			//depth: true,
+			//stencil: true,
+			//antialias: false,
+			//premultipliedAlpha: false,
 			preserveDrawingBuffer: true,
-			preferLowPowerToHighPerformance: false,
-			failIfMajorPerformanceCaveat: false,
+			//preferLowPowerToHighPerformance: false,
+			//failIfMajorPerformanceCaveat: false,
 		};
 
 		this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
@@ -155,15 +155,29 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
 		}
 
+		var opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
+		var testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
+
 		var stencil = state.stencil;
 		if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
-			var opsConvert = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
-			var funcConvert = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
-			gl.stencilFunc(funcConvert[stencil.func], stencil.funcRef, stencil.funcMask);
-			gl.stencilOp(opsConvert[stencil.fail], opsConvert[stencil.zfail], opsConvert[stencil.zpass]);
+			gl.stencilFunc(testConvertTable[stencil.func], stencil.funcRef, stencil.funcMask);
+			gl.stencilOp(opsConvertTable[stencil.fail], opsConvertTable[stencil.zfail], opsConvertTable[stencil.zpass]);
 		}
 
-		gl.disable(gl.DEPTH_TEST);
+		//gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+		//gl.depthRange(0, 1000);
+		//gl.clearDepth(1.0);
+		//gl.clear(gl.DEPTH_BUFFER_BIT);
+		//gl.depthRange(1.0, 0.0);
+		gl.depthMask(state.depthTest.mask == 0);
+		//gl.depthMask(false);
+		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
+			//gl.depthFunc(testConvertTable[state.depthTest.func]);
+			//gl.depthFunc(gl.GEQUAL);
+			//gl.depthFunc(gl.LESS);
+			//gl.depthFunc(gl.LEQUAL);
+			gl.depthFunc(gl.ALWAYS);
+		}
 
 		var alphaTest = state.alphaTest;
 		if (alphaTest.enabled) {
@@ -208,7 +222,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.enable(gl.DEPTH_TEST);
 			gl.depthFunc(gl.ALWAYS);
 			gl.depthMask(true);
-			gl.depthRange(0, 0);
+			gl.depthRange(0, 1);
+			//debugger;
 		}
 
 		gl.colorMask(ccolorMask, ccolorMask, ccolorMask, calphaMask);
@@ -216,11 +231,12 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	private updateCommonState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var viewport = this.state.viewport;
+		//var region = this.state.region;
 
 		var x = 2048 - viewport.x;
 		var y = 2048 - viewport.y;
-		var width = viewport.width * 2;
-		var height = -viewport.height * 2;
+		var width = Math.abs(viewport.width * 2);
+		var height = Math.abs(-viewport.height * 2);
 
 		//debugger;
 
@@ -318,7 +334,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		for (var n = 0; n < count; n++) {
 			var v = vertices[n];
 
-			this.positionData.push3(v.px, v.py, v.pz);
+			this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0 : v.pz);
 
 			if (vertexState.hasColor) {
 				this.colorData.push4(v.r, v.g, v.b, v.a);
@@ -343,11 +359,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		}
 	}
 
-	private usedMatrix: Float32Array;
-
 	private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {
-		this.usedMatrix = vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix;
-		program.getUniform('u_modelViewProjMatrix').setMat4(this.usedMatrix);
+		program.getUniform('u_modelViewProjMatrix').setMat4(vertexState.transform2D ? this.transformMatrix2d : this.transformMatrix);
 
 		program.getAttrib("vPosition").setFloats(3, this.positionData.slice());
 		if (vertexState.hasTexture) {
@@ -371,7 +384,6 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		} else {
 			var ac = this.state.ambientModelColor;
 			//console.log(ac.r, ac.g, ac.b, ac.a);
-
 			program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
 		}
 	}
@@ -414,18 +426,14 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		//console.log(primitiveType);
 		var program = this.cache.getProgram(vertexState, this.state);
 		program.use();
-		this.demuxVertices(vertices, count, vertexState, primitiveType);
 
+		this.demuxVertices(vertices, count, vertexState, primitiveType);
 		this.updateState(program, vertexState, originalPrimitiveType);
 		this.setProgramParameters(gl, program, vertexState);
 
 		if (this.clearing) {
 			this.textureHandler.unbindTexture(program, this.state);
-			/*
-			gl.clearColor(0.5, 0, 0, 1);
-			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-			return;
-			*/
+			//debugger;
 		} else {
 			this.prepareTexture(gl, program, vertexState);
 		}

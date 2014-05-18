@@ -10,7 +10,7 @@ import PixelFormat = pixelformat.PixelFormat;
 import PixelConverter = pixelformat.PixelConverter;
 
 export interface ThreadWaiter {
-	delayMicrosecondsAsync(delayMicroseconds: number): Promise<number>;
+	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): Promise<number>;
 }
 
 export interface IPspDisplay {
@@ -53,11 +53,11 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	}
 
 	waitVblankAsync(waiter: ThreadWaiter) {
-		return waiter.delayMicrosecondsAsync(20000);
+		return waiter.delayMicrosecondsAsync(20000, true);
 	}
 
 	waitVblankStartAsync(waiter: ThreadWaiter) {
-		return waiter.delayMicrosecondsAsync(20000);
+		return waiter.delayMicrosecondsAsync(20000, true);
 	}
 
 	setEnabledDisplay(enable: boolean) {
@@ -198,13 +198,13 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		this.updateTime();
 		if (!this.mustWaitVBlank) return Promise.resolve(0);
 		if (this.checkVblankThrottle()) return Promise.resolve(0);
-		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000);
+		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000, true);
 	}
 
 	waitVblankStartAsync(waiter: ThreadWaiter) {
 		this.updateTime();
 		if (!this.mustWaitVBlank) return Promise.resolve(0);
 		if (this.checkVblankThrottle()) return Promise.resolve(0);
-		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000);
+		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
 	}
 }

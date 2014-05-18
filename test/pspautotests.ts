@@ -1,4 +1,5 @@
 ﻿import _emulator = require('../src/emulator');
+import _vfs = require('../src/hle/vfs');
 
 import Emulator = _emulator.Emulator;
 
@@ -203,6 +204,7 @@ describe('pspautotests', function () {
 						var emulator = new Emulator();
 						var file_base = '../pspautotests/tests/' + testGroupName + '/' + testName;
 						var file_prx = file_base + '.prx';
+						//var file_prx = file_base + '.iso';
 						var file_expected = file_base + '.expected';
 
 						if (!groupCollapsed) console.groupEnd();
@@ -215,7 +217,11 @@ describe('pspautotests', function () {
 
 								var string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
 
-								return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx).then(() => {
+								return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx, () => {
+									var mount = new _vfs.MemoryVfs();
+									emulator.fileManager.mount('disc0', mount);
+									emulator.fileManager.mount('umd0', mount);
+								}).then(() => {
 									groupCollapsed = true;
 									console.groupEnd();
 									compareOutput(testName, emulator.emulatorVfs.output, string_expected);

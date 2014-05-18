@@ -96,9 +96,9 @@ export class VertexState {
 		return that;
 	}
 
-	get value() { return this._value; }
+	getValue() { return this._value; }
 
-	set value(value: number) {
+	setValue(value: number) {
 		this._value = value;
 		this.size = this.getVertexSize();
 	}
@@ -106,7 +106,8 @@ export class VertexState {
 	//getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
 
 	get hash() {
-		return this.value + (this.textureComponentCount * Math.pow(2, 32));
+		return this._value + (this.textureComponentCount * Math.pow(2, 24));
+		//return [this.address, this._value, this.reversedNormal, this.normalCount, this.textureComponentCount, this.size].join(':')
 	}
 
 	toString() {
@@ -131,25 +132,27 @@ export class VertexState {
 	get hasWeight() { return this.weight != NumericEnum.Void; }
 	get hasIndex() { return this.index != IndexEnum.Void; }
 
-	get texture() { return BitUtils.extractEnum<NumericEnum>(this.value, 0, 2); }
-	get color() { return BitUtils.extractEnum<ColorEnum>(this.value, 2, 3); }
-	get normal() { return BitUtils.extractEnum<NumericEnum>(this.value, 5, 2); }
-	get position() { return BitUtils.extractEnum<NumericEnum>(this.value, 7, 2); }
-	get weight() { return BitUtils.extractEnum<NumericEnum>(this.value, 9, 2); }
-	get index() { return BitUtils.extractEnum<IndexEnum>(this.value, 11, 2); }
-	get weightCount() { return BitUtils.extract(this.value, 14, 3); }
-	get morphingVertexCount() { return BitUtils.extract(this.value, 18, 2); }
-	get transform2D() { return BitUtils.extractEnum<boolean>(this.value, 23, 1); }
+	get texture() { return BitUtils.extractEnum<NumericEnum>(this._value, 0, 2); }
+	get color() { return BitUtils.extractEnum<ColorEnum>(this._value, 2, 3); }
+	get normal() { return BitUtils.extractEnum<NumericEnum>(this._value, 5, 2); }
+	get position() { return BitUtils.extractEnum<NumericEnum>(this._value, 7, 2); }
+	get weight() { return BitUtils.extractEnum<NumericEnum>(this._value, 9, 2); }
+	get index() { return BitUtils.extractEnum<IndexEnum>(this._value, 11, 2); }
+	get weightCount() { return BitUtils.extract(this._value, 14, 3); }
+	get morphingVertexCount() { return BitUtils.extract(this._value, 18, 2); }
+	get transform2D() { return BitUtils.extractEnum<boolean>(this._value, 23, 1); }
 
-	set texture(value: NumericEnum) { this.value = BitUtils.insert(this.value, 0, 2, value); }
-	set color(value: ColorEnum) { this.value = BitUtils.insert(this.value, 2, 3, value); }
-	set normal(value: NumericEnum) { this.value = BitUtils.insert(this.value, 5, 2, value); }
-	set position(value: NumericEnum) { this.value = BitUtils.insert(this.value, 7, 2, value); }
-	set weight(value: NumericEnum) { this.value = BitUtils.insert(this.value, 9, 2, value); }
-	set index(value: IndexEnum) { this.value = BitUtils.insert(this.value, 11, 2, value); }
-	set weightCount(value: number) { this.value = BitUtils.insert(this.value, 14, 3, value); }
-	set morphingVertexCount(value: number) { this.value = BitUtils.insert(this.value, 18, 2, value); }
-	set transform2D(value: boolean) { this.value = BitUtils.insert(this.value, 23, 1, value ? 1 : 0); }
+	/*
+	set texture(value: NumericEnum) { this.value = BitUtils.insert(this._value, 0, 2, value); }
+	set color(value: ColorEnum) { this.value = BitUtils.insert(this._value, 2, 3, value); }
+	set normal(value: NumericEnum) { this.value = BitUtils.insert(this._value, 5, 2, value); }
+	set position(value: NumericEnum) { this.value = BitUtils.insert(this._value, 7, 2, value); }
+	set weight(value: NumericEnum) { this.value = BitUtils.insert(this._value, 9, 2, value); }
+	set index(value: IndexEnum) { this.value = BitUtils.insert(this._value, 11, 2, value); }
+	set weightCount(value: number) { this.value = BitUtils.insert(this._value, 14, 3, value); }
+	set morphingVertexCount(value: number) { this.value = BitUtils.insert(this._value, 18, 2, value); }
+	set transform2D(value: boolean) { this.value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0); }
+	*/
 
 	get weightSize() { return this.NumericEnumGetSize(this.weight); }
 	get colorSize() { return this.ColorEnumGetSize(this.color); }
@@ -272,8 +275,8 @@ export class ViewPort {
 	x = 2048;
 	y = 2048;
 	z = 0;
-	width = 512;
-	height = 272;
+	width = 256;
+	height = 136;
 	depth = 0;
 }
 
@@ -398,6 +401,8 @@ export class DepthTestState {
 	enabled = false;
 	func = TestFunctionEnum.Always;
 	mask = 0;
+	rangeFar = 1;
+	rangeNear = 0;
 }
 
 export enum ShadingModelEnum {

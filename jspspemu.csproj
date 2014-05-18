@@ -60,6 +60,7 @@
     <TypeScriptCompile Include="src\core\gpu.ts" />
     <TypeScriptCompile Include="src\core\gpu\driver.ts" />
     <TypeScriptCompile Include="src\core\gpu\instructions.ts" />
+    <TypeScriptCompile Include="src\core\gpu\vertex.ts" />
     <TypeScriptCompile Include="src\core\gpu\webgl\driver.ts" />
     <TypeScriptCompile Include="src\core\gpu\state.ts" />
     <TypeScriptCompile Include="src\core\gpu\webgl\shader.ts" />

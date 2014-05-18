@@ -1,5 +1,5 @@
 ﻿import _state = require('../src/core/gpu/state');
-import _gpu = require('../src/core/gpu/gpu');
+import _gpu = require('../src/core/gpu');
 
 describe('gpu', () => {
     describe('vertex reading', () => {
@@ -18,7 +18,7 @@ describe('gpu', () => {
 			vertexState.transform2D = true;
 			vertexState.textureComponentCount = 2;
 
-			var vertexReader = _gpu.VertexReaderFactory.get(vertexState);
+			var vertexReader = _gpu.VertexReaderFactory.get(vertexState)
 
             var vertexInput = new DataView(new ArrayBuffer(128));
             vertexInput.setInt16(0, 100, true);
@@ -34,7 +34,7 @@ describe('gpu', () => {
 
             //console.log(vertexReader.readCode);
 
-            vertexReader.readCount([vertex1, vertex2], vertexInput, null, 2);
+            vertexReader.readCount([vertex1, vertex2], vertexInput, null, 2, vertexState.hasIndex);
 
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
