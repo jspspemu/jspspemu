@@ -218,9 +218,10 @@ class BitUtils {
 	}
 
 	static seh(x: number) {
-		x = x & 0xFFFF;
-		if (x & 0x8000) x = 0xFFFF0000 | x;
-		return x;
+		//x = x & 0xFFFF;
+		//if (x & 0x8000) x = 0xFFFF0000 | x;
+		//return x;
+		return (((x & 0xFFFF) << 16) >> 16);
 	}
 
 	static wsbh(v: number) {
@@ -300,15 +301,36 @@ class MathVfpu {
 		if ((index % 2) == 0) value <<= 16;
 		return value & 0xFFFF0000;
 	}
-	static vi2f(value: number, count: number) { return MathFloat.scalb(MathFloat.reinterpretFloatAsInt(value), count); }
-	static vi2uc() { return 0; }
+	static vi2f(value: number, count: number) {
+		return MathFloat.scalb(value, count);
+	}
+	static vi2uc() {
+		debugger;
+		return 0;
+	}
 
-	static vf2id() { return 0; }
-	static vf2in() { return 0; }
-	static vf2iz() { return 0; }
-	static vf2iu() { return 0; }
-	static vf2h() { return 0; }
-	static vh2f() { return 0; }
+	static vf2id(value: number, count: number) {
+		return Math.floor(MathFloat.scalb(value, count));
+	}
+	static vf2in(value: number, count: number) {
+		return Math.round(MathFloat.scalb(value, count));
+	}
+	static vf2iu(value: number, count: number) {
+		return Math.ceil(MathFloat.scalb(value, count));
+	}
+	static vf2iz(Value: number, count: number) {
+		var ScalabValue = MathFloat.scalb(Value, count);
+		var DoubleValue = (Value >= 0) ? MathFloat.floor(ScalabValue) : MathFloat.ceil(ScalabValue);
+		return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
+	}
+	static vf2h() {
+		//debugger;
+		return 0;
+	}
+	static vh2f() {
+		//debugger;
+		return 0;
+	}
 }
 
 class MathFloat {

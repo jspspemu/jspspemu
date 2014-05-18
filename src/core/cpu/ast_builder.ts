@@ -122,7 +122,14 @@ export class ANodeExprI32 extends ANodeExpr {
 
 export class ANodeExprFloat extends ANodeExpr {
 	constructor(public value: number) { super(); }
-	toJs() { return String(this.value); }
+	toJs() {
+		var rfloat = MathFloat.reinterpretFloatAsInt(this.value);
+		if (rfloat & 0x80000000) {
+			return '-' + MathFloat.reinterpretIntAsFloat(rfloat & 0x7FFFFFFF);
+		} else {
+			return String(this.value);
+		}
+	}
 }
 
 export class ANodeExprU32 extends ANodeExpr {

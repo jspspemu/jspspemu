@@ -467,6 +467,12 @@ class PspGpuList {
 				
 				var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
+				if (this.state.vertex.address) {
+					if (!vertexState.hasIndex) {
+						this.state.vertex.address += vertexState.size * vertexCount;
+					}
+				}
+
 				var vertices = vertexBuffer.vertices;
 
 				vertexReader.readCount(vertices, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);

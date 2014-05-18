@@ -138,7 +138,7 @@ export class CpuState {
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
 	vfpr_i: Float32Array = new Int32Array(this.vfpr_Buffer);
-	vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
 	setVfrCc(index: number, value: boolean) {
 		if (value) {
 			this.vfprc[VFPU_CTRL.CC] |= (1 << index);
