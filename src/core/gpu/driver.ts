@@ -1,10 +1,8 @@
-﻿import state = require('./state');
+﻿import _state = require('./state');
 
 
 export interface IDrawDriver {
-	setClearMode(clearing: boolean, clearFlags: number);
-	setState(state: any);
-	setMatrices(projectionMatrix: state.Matrix4x4, viewMatrix: state.Matrix4x3, worldMatrix: state.Matrix4x3);
+	initAsync(): Promise<any>;
 
 	/**
 	 * Flush texture page-cache.
@@ -18,7 +16,6 @@ export interface IDrawDriver {
 	 * 
 	 * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
 	 */
-	textureSync(state: any);
-	drawElements(primitiveType: state.PrimitiveType, vertices: state.Vertex[], count: number, vertexState: state.VertexState);
-	initAsync(): Promise<any>;
+	textureSync(state: _state.GpuState);
+	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState);
 }

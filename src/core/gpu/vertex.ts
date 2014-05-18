@@ -3,10 +3,42 @@ import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 import ColorEnum = _state.ColorEnum;
 
 export class VertexBuffer {
+	offset = 0;
 	vertices: _state.Vertex[] = [];
 
 	constructor() {
-		for (var n = 0; n < 32768; n++) this.vertices[n] = new _state.Vertex();
+	}
+
+	reset() {
+		this.offset = 0;
+	}
+
+	take(count: number) {
+		var result = this.offset;
+		this.offset += count;
+		return result;
+	}
+
+	private triangleStripOffset = 0;
+
+	startDegenerateTriangleStrip() {
+		this.triangleStripOffset = this.ensureAndTake(2);
+	}
+
+	endDegenerateTriangleStrip() {
+		var offset = this.triangleStripOffset;
+		this.vertices[offset + 0].copyFrom(this.vertices[offset - 1]);
+		this.vertices[offset + 1].copyFrom(this.vertices[offset + 2]);
+	}
+
+	ensure(count: number) {
+		count += this.offset;
+		while (this.vertices.length < count) this.vertices.push(new _state.Vertex());
+	}
+
+	ensureAndTake(count: number) {
+		this.ensure(count);
+		return this.take(count);
 	}
 }
 
@@ -22,13 +54,13 @@ export class VertexReaderFactory {
 }
 
 export class VertexReader {
-	private readOneFunc: (output: _state.Vertex, inputOffset: number, input: DataView, f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array) => void;
+	private readOneFunc: (output: _state.Vertex, inputOffset: number, f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array) => void;
 	private readOffset: number = 0;
 	public readCode: string;
 
 	constructor(public vertexState: _state.VertexState) {
 		this.readCode = this.createJs();
-		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
+		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', this.readCode));
 	}
 
 	private oneOuput = [new _state.Vertex()];
@@ -36,28 +68,35 @@ export class VertexReader {
 	readOne(input: DataView, index: number) {
 		this.oneIndices[0] = index;
 		this.oneOuput[0] = new _state.Vertex();
-		this.readCount(this.oneOuput, input, this.oneIndices, 1, true);
+		this.readCount(this.oneOuput, 0, input, this.oneIndices, 1, true);
 		return this.oneOuput[0];
 	}
 
-	readCount(output: _state.Vertex[], input: DataView, indices: number[], count: number, hasIndex: boolean) {
-		var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
-		var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
-		var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-		var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+	input2 = new Uint8Array(1 * 1024 * 1024);
+	s8 = new Int8Array(this.input2.buffer);
+	s16 = new Int16Array(this.input2.buffer);
+	s32 = new Int32Array(this.input2.buffer);
+	f32 = new Float32Array(this.input2.buffer);
+	readCount(output: _state.Vertex[], verticesOffset: number, input: DataView, indices: number[], count: number, hasIndex: boolean) {
+		if (hasIndex) {
+			var maxDatacount = 0;
+			for (var n = 0; n < count; n++) maxDatacount = Math.max(maxDatacount, indices[n] + 1);
+		} else {
+			maxDatacount = count;
+		}
+		maxDatacount *= this.vertexState.size;
+
+		this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
 
 		if (hasIndex) {
 			for (var n = 0; n < count; n++) {
 				var index = indices[n];
-				this.readOneFunc(output[n], index * this.vertexState.size, input, f32, s8, s16, s32);
+				this.readOneFunc(output[verticesOffset + n], index * this.vertexState.size, this.f32, this.s8, this.s16, this.s32);
 			}
 		} else {
 			var inputOffset = 0;
 			for (var n = 0; n < count; n++) {
-				this.readOneFunc(output[n], inputOffset, input, f32, s8, s16, s32);
-				if (input.byteOffset == 143741088) {
-					console.log('readCount', input.buffer, input.byteOffset, input.byteLength, this.vertexState, inputOffset, hasIndex, n, output[n]);
-				}
+				this.readOneFunc(output[verticesOffset + n], inputOffset, this.f32, this.s8, this.s16, this.s32);
 				inputOffset += this.vertexState.size;
 			}
 		}

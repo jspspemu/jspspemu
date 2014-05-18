@@ -304,19 +304,23 @@ class MathVfpu {
 	static vi2f(value: number, count: number) {
 		return MathFloat.scalb(value, count);
 	}
-	static vi2uc() {
-		debugger;
-		return 0;
+	static vi2uc(x: number, y: number, z: number, w: number) {
+		return (0
+			| ((x < 0) ? 0 : ((x >> 23) << 0))
+			| ((y < 0) ? 0 : ((y >> 23) << 8))
+			| ((z < 0) ? 0 : ((z >> 23) << 16))
+			| ((w < 0) ? 0 : ((w >> 23) << 24))
+		);
 	}
 
 	static vf2id(value: number, count: number) {
-		return Math.floor(MathFloat.scalb(value, count));
+		return MathFloat.floor(MathFloat.scalb(value, count));
 	}
 	static vf2in(value: number, count: number) {
-		return Math.round(MathFloat.scalb(value, count));
+		return MathFloat.rint(MathFloat.scalb(value, count));
 	}
 	static vf2iu(value: number, count: number) {
-		return Math.ceil(MathFloat.scalb(value, count));
+		return MathFloat.ceil(MathFloat.scalb(value, count));
 	}
 	static vf2iz(Value: number, count: number) {
 		var ScalabValue = MathFloat.scalb(Value, count);

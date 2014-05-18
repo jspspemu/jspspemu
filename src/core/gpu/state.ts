@@ -609,6 +609,5 @@ export enum PrimitiveType {
 	TriangleStrip = 4,
 	TriangleFan = 5,
 	Sprites = 6,
-	ContinuePreviousPrim = 7,
 }
 

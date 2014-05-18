@@ -259,7 +259,12 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		return this.canvas.width / 480;
 	}
 
-	drawElements(primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
+	drawElements(state: GpuState, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
+		if (count == 0) return;
+
+		this.setState(state);
+		this.setClearMode(state.clearing, state.clearFlags);
+		this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
 		this.display.setEnabledDisplay(false);
 
 		if (primitiveType == _state.PrimitiveType.Sprites) {
@@ -339,7 +344,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		for (var n = 0; n < count; n++) {
 			var v = vertices[n];
 
-			this.positionData.push3(v.px, v.py, v.pz);
+			this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0.0 :  v.pz);
 
 			if (vertexState.hasColor) this.colorData.push4(v.r, v.g, v.b, v.a);
 			if (vertexState.hasTexture) {

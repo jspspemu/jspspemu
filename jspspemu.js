@@ -794,19 +794,18 @@ var MathVfpu = (function () {
     MathVfpu.vi2f = function (value, count) {
         return MathFloat.scalb(value, count);
     };
-    MathVfpu.vi2uc = function () {
-        debugger;
-        return 0;
+    MathVfpu.vi2uc = function (x, y, z, w) {
+        return (0 | ((x < 0) ? 0 : ((x >> 23) << 0)) | ((y < 0) ? 0 : ((y >> 23) << 8)) | ((z < 0) ? 0 : ((z >> 23) << 16)) | ((w < 0) ? 0 : ((w >> 23) << 24)));
     };
 
     MathVfpu.vf2id = function (value, count) {
-        return Math.floor(MathFloat.scalb(value, count));
+        return MathFloat.floor(MathFloat.scalb(value, count));
     };
     MathVfpu.vf2in = function (value, count) {
-        return Math.round(MathFloat.scalb(value, count));
+        return MathFloat.rint(MathFloat.scalb(value, count));
     };
     MathVfpu.vf2iu = function (value, count) {
-        return Math.ceil(MathFloat.scalb(value, count));
+        return MathFloat.ceil(MathFloat.scalb(value, count));
     };
     MathVfpu.vf2iz = function (Value, count) {
         var ScalabValue = MathFloat.scalb(Value, count);
@@ -4804,7 +4803,6 @@ var InstructionAst = (function () {
             return call('MathVfpu.vuc2i', [imm32(index), src[0]]);
         }, 0, 1, 'int', 'int');
     };
-
     InstructionAst.prototype.vs2i = function (i) {
         return this._vset2(i, function (index, src) {
             return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]);
@@ -4817,10 +4815,9 @@ var InstructionAst = (function () {
     };
     InstructionAst.prototype.vi2uc = function (i) {
         return this._vset2(i, function (index, src) {
-            return call('MathVfpu.vi2uc', [imm32(index), src[index]]);
-        }, 0, 0, 'int', 'float');
+            return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]);
+        }, 1, 4, 'int', 'int');
     };
-
     InstructionAst.prototype.vf2id = function (i) {
         return this._vset2(i, function (index, src) {
             return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]);
@@ -8373,6 +8370,7 @@ var PspGpuList = (function () {
         this.status = 4 /* Paused */;
         this.errorCount = 0;
         this.callstack = [];
+        this.batchPrimCount = 0;
         this.primCount = 0;
         //private showOpcodes = true;
         this.showOpcodes = false;
@@ -8785,7 +8783,6 @@ var PspGpuList = (function () {
             case 211 /* CLEAR */:
                 this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
                 this.state.clearFlags = BitUtils.extract(params24, 8, 8);
-                this.drawDriver.setClearMode(this.state.clearing, this.state.clearFlags);
                 break;
 
             case 39 /* COLORTESTENABLE */:
@@ -8855,10 +8852,13 @@ var PspGpuList = (function () {
                 vertices2.push(controlPoints[ucount - 1][vcount - 1]);
                 vertices2.push(controlPoints[0][vcount - 1]);
 
-                this.drawDriver.drawElements(3 /* Triangles */, vertices2, vertices2.length, vertexState2);
+                this.drawDriver.drawElements(_state, 3 /* Triangles */, vertices2, vertices2.length, vertexState2);
                 break;
 
             case 4 /* PRIM */:
+                var primitiveType = BitUtils.extractEnum(params24, 16, 3);
+                var vertexCount = BitUtils.extract(params24, 0, 16);
+
                 this.primCount++;
 
                 //if (this.current < this.stall) {
@@ -8868,45 +8868,61 @@ var PspGpuList = (function () {
                 //		console.log('PRIM_BATCH!');
                 //	}
                 //}
-                var primitiveType = BitUtils.extractEnum(params24, 16, 3);
-                var vertexCount = BitUtils.extract(params24, 0, 16);
-                var vertexState = this.state.vertex;
-                var vertexSize = this.state.vertex.size;
-                var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
-                var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
+                if (vertexCount > 0) {
+                    var vertexState = this.state.vertex;
+                    var vertexSize = this.state.vertex.size;
+                    var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+                    var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
 
-                var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
+                    var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
 
-                var indices = null;
-                switch (vertexState.index) {
-                    case 1 /* Byte */:
-                        indices = this.memory.getU8Array(indicesAddress);
-                        break;
-                    case 2 /* Short */:
-                        indices = this.memory.getU16Array(indicesAddress);
-                        break;
-                }
-
-                var vertexInput = this.memory.getPointerDataView(vertexAddress);
-
-                if (this.state.vertex.address) {
-                    if (!vertexState.hasIndex) {
-                        this.state.vertex.address += vertexState.size * vertexCount;
+                    var indices = null;
+                    switch (vertexState.index) {
+                        case 1 /* Byte */:
+                            indices = this.memory.getU8Array(indicesAddress);
+                            break;
+                        case 2 /* Short */:
+                            indices = this.memory.getU16Array(indicesAddress);
+                            break;
                     }
+
+                    var vertexInput = this.memory.getPointerDataView(vertexAddress);
+
+                    if (this.state.vertex.address) {
+                        if (!vertexState.hasIndex) {
+                            this.state.vertex.address += vertexState.size * vertexCount;
+                        }
+                    }
+
+                    var doDegenerate = false;
+
+                    if (this.batchPrimCount > 0) {
+                        switch (primitiveType) {
+                            case 4 /* TriangleStrip */:
+                            case 2 /* LineStrip */:
+                            case 5 /* TriangleFan */:
+                                vertexBuffer.startDegenerateTriangleStrip();
+                                doDegenerate = true;
+                                break;
+                        }
+                    }
+
+                    var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
+                    vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, indices, vertexCount, vertexState.hasIndex);
+
+                    if (doDegenerate)
+                        vertexBuffer.endDegenerateTriangleStrip();
                 }
 
-                var vertices = vertexBuffer.vertices;
-
-                vertexReader.readCount(vertices, vertexInput, indices, vertexCount, vertexState.hasIndex);
-
-                this.drawDriver.setMatrices(this.state.projectionMatrix, this.state.viewMatrix, this.state.worldMatrix);
-                this.drawDriver.setState(this.state);
-
-                if (this.errorCount < 400) {
-                    //console.log('PRIM:' + primitiveType + ' : ' + vertexCount + ':' + vertexState.hasIndex);
+                // Continuation
+                var nextInstruction = this.memory.readUInt32(this.current);
+                if (!vertexState.hasIndex && (this.hasMoreInstructions) && ((nextInstruction >>> 24) == 4 /* PRIM */) && ((nextInstruction >>> 16) & 7) == primitiveType) {
+                    this.batchPrimCount++;
+                } else {
+                    this.batchPrimCount = 0;
+                    this.drawDriver.drawElements(this.state, primitiveType, vertexBuffer.vertices, vertexBuffer.offset, vertexState);
+                    vertexBuffer.reset();
                 }
-
-                this.drawDriver.drawElements(primitiveType, vertices, vertexCount, vertexState);
 
                 break;
 
@@ -10386,10 +10402,40 @@ var ColorEnum = _state.ColorEnum;
 
 var VertexBuffer = (function () {
     function VertexBuffer() {
+        this.offset = 0;
         this.vertices = [];
-        for (var n = 0; n < 32768; n++)
-            this.vertices[n] = new _state.Vertex();
+        this.triangleStripOffset = 0;
     }
+    VertexBuffer.prototype.reset = function () {
+        this.offset = 0;
+    };
+
+    VertexBuffer.prototype.take = function (count) {
+        var result = this.offset;
+        this.offset += count;
+        return result;
+    };
+
+    VertexBuffer.prototype.startDegenerateTriangleStrip = function () {
+        this.triangleStripOffset = this.ensureAndTake(2);
+    };
+
+    VertexBuffer.prototype.endDegenerateTriangleStrip = function () {
+        var offset = this.triangleStripOffset;
+        this.vertices[offset + 0].copyFrom(this.vertices[offset - 1]);
+        this.vertices[offset + 1].copyFrom(this.vertices[offset + 2]);
+    };
+
+    VertexBuffer.prototype.ensure = function (count) {
+        count += this.offset;
+        while (this.vertices.length < count)
+            this.vertices.push(new _state.Vertex());
+    };
+
+    VertexBuffer.prototype.ensureAndTake = function (count) {
+        this.ensure(count);
+        return this.take(count);
+    };
     return VertexBuffer;
 })();
 exports.VertexBuffer = VertexBuffer;
@@ -10415,34 +10461,42 @@ var VertexReader = (function () {
         this.readOffset = 0;
         this.oneOuput = [new _state.Vertex()];
         this.oneIndices = [0];
+        this.input2 = new Uint8Array(1 * 1024 * 1024);
+        this.s8 = new Int8Array(this.input2.buffer);
+        this.s16 = new Int16Array(this.input2.buffer);
+        this.s32 = new Int32Array(this.input2.buffer);
+        this.f32 = new Float32Array(this.input2.buffer);
         this.readCode = this.createJs();
-        this.readOneFunc = (new Function('output', 'inputOffset', 'input', 'f32', 's8', 's16', 's32', this.readCode));
+        this.readOneFunc = (new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', this.readCode));
     }
     VertexReader.prototype.readOne = function (input, index) {
         this.oneIndices[0] = index;
         this.oneOuput[0] = new _state.Vertex();
-        this.readCount(this.oneOuput, input, this.oneIndices, 1, true);
+        this.readCount(this.oneOuput, 0, input, this.oneIndices, 1, true);
         return this.oneOuput[0];
     };
 
-    VertexReader.prototype.readCount = function (output, input, indices, count, hasIndex) {
-        var s8 = new Int8Array(input.buffer, input.byteOffset, input.byteLength);
-        var s16 = new Int16Array(input.buffer, input.byteOffset, input.byteLength / 2);
-        var s32 = new Int32Array(input.buffer, input.byteOffset, input.byteLength / 4);
-        var f32 = new Float32Array(input.buffer, input.byteOffset, input.byteLength / 4);
+    VertexReader.prototype.readCount = function (output, verticesOffset, input, indices, count, hasIndex) {
+        if (hasIndex) {
+            var maxDatacount = 0;
+            for (var n = 0; n < count; n++)
+                maxDatacount = Math.max(maxDatacount, indices[n] + 1);
+        } else {
+            maxDatacount = count;
+        }
+        maxDatacount *= this.vertexState.size;
+
+        this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
 
         if (hasIndex) {
             for (var n = 0; n < count; n++) {
                 var index = indices[n];
-                this.readOneFunc(output[n], index * this.vertexState.size, input, f32, s8, s16, s32);
+                this.readOneFunc(output[verticesOffset + n], index * this.vertexState.size, this.f32, this.s8, this.s16, this.s32);
             }
         } else {
             var inputOffset = 0;
             for (var n = 0; n < count; n++) {
-                this.readOneFunc(output[n], inputOffset, input, f32, s8, s16, s32);
-                if (input.byteOffset == 143741088) {
-                    console.log('readCount', input.buffer, input.byteOffset, input.byteLength, this.vertexState, inputOffset, hasIndex, n, output[n]);
-                }
+                this.readOneFunc(output[verticesOffset + n], inputOffset, this.f32, this.s8, this.s16, this.s32);
                 inputOffset += this.vertexState.size;
             }
         }
@@ -10831,7 +10885,13 @@ var WebGlPspDrawDriver = (function () {
         return this.canvas.width / 480;
     };
 
-    WebGlPspDrawDriver.prototype.drawElements = function (primitiveType, vertices, count, vertexState) {
+    WebGlPspDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
+        if (count == 0)
+            return;
+
+        this.setState(state);
+        this.setClearMode(state.clearing, state.clearFlags);
+        this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
         this.display.setEnabledDisplay(false);
 
         if (primitiveType == 6 /* Sprites */) {
@@ -10902,7 +10962,7 @@ var WebGlPspDrawDriver = (function () {
         for (var n = 0; n < count; n++) {
             var v = vertices[n];
 
-            this.positionData.push3(v.px, v.py, v.pz);
+            this.positionData.push3(v.px, v.py, vertexState.transform2D ? 0.0 : v.pz);
 
             if (vertexState.hasColor)
                 this.colorData.push4(v.r, v.g, v.b, v.a);

@@ -553,11 +553,9 @@ export class InstructionAst {
 
 	vc2i(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vc2i', [imm32(index), src[0]]), 0, 1, 'int', 'int'); }
 	vuc2i(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vuc2i', [imm32(index), src[0]]), 0, 1, 'int', 'int'); }
-
 	vs2i(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]), i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int'); }
 	vi2f(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]), 0, 0, 'float', 'int'); }
-	vi2uc(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vi2uc', [imm32(index), src[index]]), 0, 0, 'int', 'float'); }
-
+	vi2uc(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]), 1, 4, 'int', 'int'); }
 	vf2id(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
 	vf2in(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
 	vf2iu(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
