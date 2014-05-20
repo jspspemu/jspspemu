@@ -306,10 +306,10 @@ class MathVfpu {
 	}
 	static vi2uc(x: number, y: number, z: number, w: number) {
 		return (0
-			| ((x < 0) ? 0 : ((x >> 23) << 0))
-			| ((y < 0) ? 0 : ((y >> 23) << 8))
-			| ((z < 0) ? 0 : ((z >> 23) << 16))
-			| ((w < 0) ? 0 : ((w >> 23) << 24))
+			| ((x < 0) ? 0 : ((x >>> 23) << 0))
+			| ((y < 0) ? 0 : ((y >>> 23) << 8))
+			| ((z < 0) ? 0 : ((z >>> 23) << 16))
+			| ((w < 0) ? 0 : ((w >>> 23) << 24))
 		);
 	}
 
@@ -370,8 +370,8 @@ class MathFloat {
 	}
 	static ocp(value: number) { return 1 - value; }
 	static nrcp(value: number) { return -(1 / value); }
-	static sat0(value: number) { return MathUtils.clamp(value, 0, 1); }
-	static sat1(value: number) { return MathUtils.clamp(value, -1, 1); }
+	static sat0(value: number) { return MathUtils.clamp(value, 0, +1); }
+	static sat1(value: number) { return MathUtils.clamp(value, -1, +1); }
 	static rsq(value: number) { return 1 / Math.sqrt(value); }
 	static sqrt(value: number) { return Math.sqrt(value); }
 
@@ -412,7 +412,7 @@ class MathFloat {
 	static exp2(value: number) { return Math.pow(2.0, value); }
 	static rexp2(value: number) { return 1 / Math.pow(2.0, value); }
 	static log2(value: number) { return Math.log2(value); }
-	static sign(value: number) { return value ? ((value < 0) ? -1 : 1) : 0; }
+	static sign(value: number) { return Math.sign(value); }
 
 	static sign2(left: number, right: number) { var a = left - right; return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0)); }
 

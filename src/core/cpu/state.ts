@@ -43,21 +43,29 @@ class VfpuPrefixBase {
 
 
 class VfpuPrefixRead extends VfpuPrefixBase {
-	private getSourceIndex(i: number) { return BitUtils.extract(this._info, 0 + i * 2, 2); }
-	private getSourceAbsolute(i: number) { return BitUtils.extractBool(this._info, 8 + i * 1); }
-	private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
-	private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
+	//private getSourceIndex(i: number) { return BitUtils.extract(this._info, 0 + i * 2, 2); }
+	//private getSourceAbsolute(i: number) { return BitUtils.extractBool(this._info, 8 + i * 1); }
+	//private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
+	//private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
 
 	transformValues(input: number[], output: any) {
 		this._readInfo();
+		var info = this._info;
+
 		if (!this.enabled) {
 			for (var n = 0; n < input.length; n++) output[n] = input[n];
 		} else {
 			for (var n = 0; n < input.length; n++) {
-				var sourceIndex = this.getSourceIndex(n);
-				var sourceConstant = this.getSourceConstant(n);
-				var sourceAbsolute = this.getSourceAbsolute(n);
-				var sourceNegate = this.getSourceNegate(n);
+				//var sourceIndex = this.getSourceIndex(n);
+				//var sourceAbsolute = this.getSourceAbsolute(n);
+				//var sourceConstant = this.getSourceConstant(n);
+				//var sourceNegate = this.getSourceNegate(n);
+
+				var sourceIndex = (info >> (0 + n * 2)) & 3;
+				var sourceAbsolute = (info >> (8 + n * 1)) & 1;
+				var sourceConstant = (info >> (12 + n * 1)) & 1;
+				var sourceNegate = (info >> (16 + n * 1)) & 1;
+
 				var value;
 				if (sourceConstant) {
 					switch (sourceIndex) {
@@ -81,26 +89,29 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 }
 
 class VfpuPrefixWrite extends VfpuPrefixBase {
-	getDestinationSaturation(i: number) { return (this._info >> (0 + i * 2)) & 3; }
-	getDestinationMask(i: number) { return (this._info >> (8 + i * 1)) & 1; }
+	//getDestinationSaturation(i: number) { return (this._info >> (0 + i * 2)) & 3; }
+	//getDestinationMask(i: number) { return (this._info >> (8 + i * 1)) & 1; }
 
 	storeTransformedValues(vfpr: any, indices: number[], values: number[]) {
 		this._readInfo();
+		var info = this._info;
 
 		if (!this.enabled) {
 			for (var n = 0; n < indices.length; n++)  vfpr[indices[n]] = values[n];
 		} else {
 			//debugger;
 			for (var n = 0; n < indices.length; n++) {
-				var destinationMask = this.getDestinationMask(n);
-				var destinationSaturation = this.getDestinationSaturation(n);
+				//var destinationSaturation = this.getDestinationSaturation(n);
+				//var destinationMask = this.getDestinationMask(n);
+				var destinationSaturation = (info >> (0 + n * 2)) & 3;
+				var destinationMask = (info >> (8 + n * 1)) & 1;
 				if (destinationMask) {
 					// Masked. No write value.
 				} else {
 					var value = values[n];
 					switch (destinationSaturation) {
-						case 1: value = MathUtils.clamp(value, 0, 1); break;
-						case 3: value = MathUtils.clamp(value, -1, 1); break;
+						case 1: value = MathFloat.sat0(value); break;
+						case 3: value = MathFloat.sat1(value); break;
 						default: break;
 					}
 					vfpr[indices[n]] = value;

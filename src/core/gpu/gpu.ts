@@ -342,7 +342,11 @@ class PspGpuList {
             case GpuOpCodes.WORLDMATRIXNUMBER: this.state.worldMatrix.reset(params24); break;
 			case GpuOpCodes.WORLDMATRIXDATA: this.state.worldMatrix.put(float1()); break;
 
-			case GpuOpCodes.BONEMATRIXNUMBER: this.state.skinning.currentBoneIndex = params24; break;
+			case GpuOpCodes.BONEMATRIXNUMBER:
+				//console.log(sprintf('PC:%08X', this.current - 4));
+				//debugger;
+				this.state.skinning.currentBoneIndex = params24;
+				break;
 			case GpuOpCodes.BONEMATRIXDATA: this.state.skinning.write(float1()); break;
 
 			case GpuOpCodes.STENCILTESTENABLE:
@@ -455,8 +459,8 @@ class PspGpuList {
 
 				if (vertexCount > 0) {
 					var vertexState = this.state.vertex;
-					var vertexSize = this.state.vertex.size;
-					var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+					var vertexSize = vertexState.size;
+					var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
 					var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
 
 					var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
@@ -467,11 +471,16 @@ class PspGpuList {
 						case _state.IndexEnum.Short: indices = this.memory.getU16Array(indicesAddress); break;
 					}
 
+					if (vertexState.realWeightCount > 0) {
+						//console.log(vertexState);
+						debugger;
+					}
+
 					var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
-					if (this.state.vertex.address) {
+					if (vertexState.address) {
 						if (!vertexState.hasIndex) {
-							this.state.vertex.address += vertexState.size * vertexCount;
+							vertexState.address += vertexState.size * vertexCount;
 						}
 					}
 

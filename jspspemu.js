@@ -795,7 +795,7 @@ var MathVfpu = (function () {
         return MathFloat.scalb(value, count);
     };
     MathVfpu.vi2uc = function (x, y, z, w) {
-        return (0 | ((x < 0) ? 0 : ((x >> 23) << 0)) | ((y < 0) ? 0 : ((y >> 23) << 8)) | ((z < 0) ? 0 : ((z >> 23) << 16)) | ((w < 0) ? 0 : ((w >> 23) << 24)));
+        return (0 | ((x < 0) ? 0 : ((x >>> 23) << 0)) | ((y < 0) ? 0 : ((y >>> 23) << 8)) | ((z < 0) ? 0 : ((z >>> 23) << 16)) | ((w < 0) ? 0 : ((w >>> 23) << 24)));
     };
 
     MathVfpu.vf2id = function (value, count) {
@@ -871,10 +871,10 @@ var MathFloat = (function () {
         return -(1 / value);
     };
     MathFloat.sat0 = function (value) {
-        return MathUtils.clamp(value, 0, 1);
+        return MathUtils.clamp(value, 0, +1);
     };
     MathFloat.sat1 = function (value) {
-        return MathUtils.clamp(value, -1, 1);
+        return MathUtils.clamp(value, -1, +1);
     };
     MathFloat.rsq = function (value) {
         return 1 / Math.sqrt(value);
@@ -941,7 +941,7 @@ var MathFloat = (function () {
         return Math.log2(value);
     };
     MathFloat.sign = function (value) {
-        return value ? ((value < 0) ? -1 : 1) : 0;
+        return Math.sign(value);
     };
 
     MathFloat.sign2 = function (left, right) {
@@ -4359,6 +4359,7 @@ var InstructionAst = (function () {
                 return generate(index);
             }))
         ]));
+        st.push(call_stm('state.eatPrefixes', []));
         return stms(st);
     };
 
@@ -4384,6 +4385,7 @@ var InstructionAst = (function () {
                 return generate(index, src);
             }))
         ]));
+        st.push(call_stm('state.eatPrefixes', []));
 
         //st.push(setVector(dest, index => generate(index, src)));
         return stms(st);
@@ -4411,6 +4413,7 @@ var InstructionAst = (function () {
                 return generate(index, src, target);
             }))
         ]));
+        st.push(call_stm('state.eatPrefixes', []));
 
         //st.push(setVector(dest, index => generate(index, src, target)));
         return stms(st);
@@ -4476,14 +4479,6 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vhdp = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
-
-        //var st = [];
-        //st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
-        //st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
-        //st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
-        //	return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? <_ast.ANodeExpr>imm_f(1.0) : <_ast.ANodeExpr>ast.vector_vs(index)))
-        //})));
-        //return stms(st);
         return this._vset3(i, function (_, src, target) {
             return _this._aggregateV(imm_f(0), vectorSize, function (aggregate, index) {
                 return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? imm_f(1.0) : ast.vector_vs(index)));
@@ -4530,22 +4525,17 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype._vhtfm_x = function (i, vectorSize) {
+        var _this = this;
         var srcMat = readMatrix(i.VS, vectorSize);
-
-        var aggregateds = [];
-        for (var n = 0; n < vectorSize; n++) {
-            aggregateds[n] = imm_f(0);
-            for (var m = 0; m < vectorSize; m++) {
-                aggregateds[n] = binop(aggregateds[n], '+', binop(srcMat[n * vectorSize + m], '*', ((m == vectorSize - 1) ? imm_f(1) : ast.vector_vt(m))));
-            }
-        }
 
         var st = [];
         st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
         st.push(call_stm('state.storeVd_prefixed', [
             ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
-            ast.array(xrange(0, vectorSize).map(function (index) {
-                return aggregateds[index];
+            ast.array(xrange(0, vectorSize).map(function (n) {
+                return _this._aggregateV(imm_f(0), vectorSize, function (aggregated, m) {
+                    return binop(aggregated, '+', binop(srcMat[n * vectorSize + m], '*', ((m == vectorSize - 1) ? imm_f(1) : ast.vector_vt(m))));
+                });
             }))
         ]));
         return stms(st);
@@ -4747,22 +4737,22 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype.vfad = function (i) {
+        var _this = this;
         var vectorSize = i.ONE_TWO;
-        var st = [];
-        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
-        st.push(assign_stm(vfpr(i.VD), this._aggregateV(imm_f(0), vectorSize, function (value, index) {
-            return binop(value, '+', ast.vector_vs(index));
-        })));
-        return stms(st);
+        return this._vset2(i, function () {
+            return _this._aggregateV(imm_f(0), vectorSize, function (value, index) {
+                return binop(value, '+', ast.vector_vs(index));
+            });
+        }, 1, vectorSize);
     };
     InstructionAst.prototype.vavg = function (i) {
+        var _this = this;
         var vectorSize = i.ONE_TWO;
-        var st = [];
-        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, vectorSize))]));
-        st.push(assign_stm(vfpr(i.VD), binop(this._aggregateV(imm_f(0), vectorSize, function (value, index) {
-            return binop(value, '+', ast.vector_vs(index));
-        }), '/', imm_f(vectorSize))));
-        return stms(st);
+        return this._vset2(i, function () {
+            return binop(_this._aggregateV(imm_f(0), vectorSize, function (value, index) {
+                return binop(value, '+', ast.vector_vs(index));
+            }), '/', imm_f(vectorSize));
+        }, 1, vectorSize);
     };
 
     InstructionAst.prototype.vidt = function (i) {
@@ -4858,11 +4848,9 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype.vdet = function (i) {
-        var st = [];
-        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, 2))]));
-        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, 2))]));
-        st.push(assign_stm(vfpr(i.VD), binop(binop(ast.vector_vs(0), '*', ast.vector_vt(1)), '-', binop(ast.vector_vs(1), '*', ast.vector_vt(0)))));
-        return stms(st);
+        return this._vset3(i, function (i, s, t) {
+            return binop(binop(s[0], '*', t[1]), '-', binop(s[1], '*', t[0]));
+        }, 1, 2, 2);
     };
 
     InstructionAst.prototype.vqmul = function (i) {
@@ -5084,8 +5072,8 @@ var InstructionAst = (function () {
         });
     };
     InstructionAst.prototype.vscl = function (i) {
-        return this._vset3(i, function (index, src, target) {
-            return binop(src[index], '*', target[0]);
+        return this._vset3(i, function (i, src, target) {
+            return binop(src[i], '*', target[0]);
         }, 0, 0, 1);
     };
     InstructionAst.prototype.vdot = function (i) {
@@ -5098,41 +5086,31 @@ var InstructionAst = (function () {
         }, 1, vectorSize, vectorSize);
     };
     InstructionAst.prototype.vrot = function (i) {
+        var vectorSize = i.ONE_TWO;
         var imm5 = i.IMM5;
-        var CosIndex = BitUtils.extract(imm5, 0, 2);
-        var SinIndex = BitUtils.extract(imm5, 2, 2);
-        var NegateSin = BitUtils.extractBool(imm5, 4);
+        var cosIndex = BitUtils.extract(imm5, 0, 2);
+        var sinIndex = BitUtils.extract(imm5, 2, 2);
+        var negateSin = BitUtils.extractBool(imm5, 4);
 
-        //var Dest = VEC_VD;
-        //var Src = CEL_VS;
         var dest = getVectorRegs(i.VD, i.ONE_TWO);
 
-        var Sine = call('MathFloat.sinv1', [ast.vector_vs(0)]);
-        var Cosine = call('MathFloat.cosv1', [ast.vector_vs(0)]);
+        return this._vset2(i, function (i, s) {
+            var sine = call('MathFloat.sinv1', [s[0]]);
+            var cosine = call('MathFloat.cosv1', [s[0]]);
+            if (negateSin)
+                sine = unop('-', sine);
 
-        // @TODO: WHY!?
-        if (NegateSin)
-            Sine = unop('-', Sine);
-
-        //Console.WriteLine("{0},{1},{2}", CosIndex, SinIndex, NegateSin);
-        var st = [];
-
-        //st.push(ast.debugger('vrot'));
-        st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, 1))]));
-        st.push(setVector(dest, function (Index) {
-            if (Index == CosIndex)
-                return Cosine;
-            if (Index == SinIndex)
-                return Sine;
-            return (SinIndex == CosIndex) ? Sine : imm32(0);
-        }));
-
-        return stms(st);
+            if (i == cosIndex)
+                return cosine;
+            if (i == sinIndex)
+                return sine;
+            return (sinIndex == cosIndex) ? sine : imm32(0);
+        }, vectorSize, 1);
     };
     InstructionAst.prototype.vmmov = function (i) {
-        var VectorSize = i.ONE_TWO;
-        var dest = getMatrixRegs(i.VD, VectorSize);
-        var src = readMatrix(i.VS, VectorSize);
+        var vectorSize = i.ONE_TWO;
+        var dest = getMatrixRegs(i.VD, vectorSize);
+        var src = readMatrix(i.VS, vectorSize);
 
         //var target = readMatrix(i.VT, i.ONE_TWO);
         return setMatrix(dest, function (column, row, index) {
@@ -7110,30 +7088,28 @@ var VfpuPrefixRead = (function (_super) {
     function VfpuPrefixRead() {
         _super.apply(this, arguments);
     }
-    VfpuPrefixRead.prototype.getSourceIndex = function (i) {
-        return BitUtils.extract(this._info, 0 + i * 2, 2);
-    };
-    VfpuPrefixRead.prototype.getSourceAbsolute = function (i) {
-        return BitUtils.extractBool(this._info, 8 + i * 1);
-    };
-    VfpuPrefixRead.prototype.getSourceConstant = function (i) {
-        return BitUtils.extractBool(this._info, 12 + i * 1);
-    };
-    VfpuPrefixRead.prototype.getSourceNegate = function (i) {
-        return BitUtils.extractBool(this._info, 16 + i * 1);
-    };
-
+    //private getSourceIndex(i: number) { return BitUtils.extract(this._info, 0 + i * 2, 2); }
+    //private getSourceAbsolute(i: number) { return BitUtils.extractBool(this._info, 8 + i * 1); }
+    //private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
+    //private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
     VfpuPrefixRead.prototype.transformValues = function (input, output) {
         this._readInfo();
+        var info = this._info;
+
         if (!this.enabled) {
             for (var n = 0; n < input.length; n++)
                 output[n] = input[n];
         } else {
             for (var n = 0; n < input.length; n++) {
-                var sourceIndex = this.getSourceIndex(n);
-                var sourceConstant = this.getSourceConstant(n);
-                var sourceAbsolute = this.getSourceAbsolute(n);
-                var sourceNegate = this.getSourceNegate(n);
+                //var sourceIndex = this.getSourceIndex(n);
+                //var sourceAbsolute = this.getSourceAbsolute(n);
+                //var sourceConstant = this.getSourceConstant(n);
+                //var sourceNegate = this.getSourceNegate(n);
+                var sourceIndex = (info >> (0 + n * 2)) & 3;
+                var sourceAbsolute = (info >> (8 + n * 1)) & 1;
+                var sourceConstant = (info >> (12 + n * 1)) & 1;
+                var sourceNegate = (info >> (16 + n * 1)) & 1;
+
                 var value;
                 if (sourceConstant) {
                     switch (sourceIndex) {
@@ -7174,33 +7150,31 @@ var VfpuPrefixWrite = (function (_super) {
     function VfpuPrefixWrite() {
         _super.apply(this, arguments);
     }
-    VfpuPrefixWrite.prototype.getDestinationSaturation = function (i) {
-        return (this._info >> (0 + i * 2)) & 3;
-    };
-    VfpuPrefixWrite.prototype.getDestinationMask = function (i) {
-        return (this._info >> (8 + i * 1)) & 1;
-    };
-
+    //getDestinationSaturation(i: number) { return (this._info >> (0 + i * 2)) & 3; }
+    //getDestinationMask(i: number) { return (this._info >> (8 + i * 1)) & 1; }
     VfpuPrefixWrite.prototype.storeTransformedValues = function (vfpr, indices, values) {
         this._readInfo();
+        var info = this._info;
 
         if (!this.enabled) {
             for (var n = 0; n < indices.length; n++)
                 vfpr[indices[n]] = values[n];
         } else {
             for (var n = 0; n < indices.length; n++) {
-                var destinationMask = this.getDestinationMask(n);
-                var destinationSaturation = this.getDestinationSaturation(n);
+                //var destinationSaturation = this.getDestinationSaturation(n);
+                //var destinationMask = this.getDestinationMask(n);
+                var destinationSaturation = (info >> (0 + n * 2)) & 3;
+                var destinationMask = (info >> (8 + n * 1)) & 1;
                 if (destinationMask) {
                     // Masked. No write value.
                 } else {
                     var value = values[n];
                     switch (destinationSaturation) {
                         case 1:
-                            value = MathUtils.clamp(value, 0, 1);
+                            value = MathFloat.sat0(value);
                             break;
                         case 3:
-                            value = MathUtils.clamp(value, -1, 1);
+                            value = MathFloat.sat1(value);
                             break;
                         default:
                             break;
@@ -8740,6 +8714,8 @@ var PspGpuList = (function () {
                 break;
 
             case 42 /* BONEMATRIXNUMBER */:
+                //console.log(sprintf('PC:%08X', this.current - 4));
+                //debugger;
                 this.state.skinning.currentBoneIndex = params24;
                 break;
             case 43 /* BONEMATRIXDATA */:
@@ -8878,8 +8854,8 @@ var PspGpuList = (function () {
                 //}
                 if (vertexCount > 0) {
                     var vertexState = this.state.vertex;
-                    var vertexSize = this.state.vertex.size;
-                    var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+                    var vertexSize = vertexState.size;
+                    var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
                     var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
 
                     var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
@@ -8894,11 +8870,15 @@ var PspGpuList = (function () {
                             break;
                     }
 
+                    if (vertexState.realWeightCount > 0) {
+                        debugger;
+                    }
+
                     var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
-                    if (this.state.vertex.address) {
+                    if (vertexState.address) {
                         if (!vertexState.hasIndex) {
-                            this.state.vertex.address += vertexState.size * vertexCount;
+                            vertexState.address += vertexState.size * vertexCount;
                         }
                     }
 
@@ -9922,7 +9902,12 @@ var Matrix4x3 = (function () {
     Matrix4x3.prototype.reset = function (startIndex) {
         this.index = startIndex;
     };
-    Matrix4x3.indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
+    Matrix4x3.indices = new Int32Array([
+        0, 1, 2,
+        4, 5, 6,
+        8, 9, 10,
+        12, 13, 14
+    ]);
     return Matrix4x3;
 })();
 exports.Matrix4x3 = Matrix4x3;
@@ -10247,8 +10232,10 @@ var SkinningState = (function () {
     function SkinningState() {
         this.currentBoneIndex = 0;
         this.boneMatrices = [new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3()];
+        this.linear = new Float32Array(128);
     }
     SkinningState.prototype.write = function (value) {
+        this.linear[this.currentBoneIndex] = value;
         this.boneMatrices[ToInt32(this.currentBoneIndex / 12)].putAt(this.currentBoneIndex % 12, value);
         this.currentBoneIndex++;
     };
@@ -10514,11 +10501,11 @@ var VertexReader = (function () {
 
         this.readOffset = 0;
 
-        this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
-        this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
+        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
+        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
         this.createColorJs(indentStringGenerator, this.vertexState.color);
-        this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
-        this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
+        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
+        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
 
         //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         return indentStringGenerator.output;
@@ -10599,7 +10586,7 @@ var VertexReader = (function () {
         return offset;
     };
 
-    VertexReader.prototype.createNumberJs = function (indentStringGenerator, components, type, normalize) {
+    VertexReader.prototype.createNumberJs = function (scales, indentStringGenerator, components, type, normalize) {
         var _this = this;
         if (type == 0 /* Void */)
             return;
@@ -10609,14 +10596,12 @@ var VertexReader = (function () {
                 case 1 /* Byte */:
                     indentStringGenerator.write('output.' + component + ' = ' + _this.readInt8());
                     if (normalize)
-                        indentStringGenerator.write(' / 127.0');
-
+                        indentStringGenerator.write(' / ' + scales[0]);
                     break;
                 case 2 /* Short */:
                     indentStringGenerator.write('output.' + component + ' = ' + _this.readInt16());
                     if (normalize)
-                        indentStringGenerator.write(' / 32767.0');
-
+                        indentStringGenerator.write(' / ' + scales[1]);
                     break;
                 case 3 /* Float */:
                     indentStringGenerator.write('output.' + component + ' = ' + _this.readFloat32());
@@ -11233,7 +11218,7 @@ var Texture = (function () {
         this.height = canvas.height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-            //gl.generateMipmap(gl.TEXTURE_2D);
+            //ssssddwisgl.generateMipmap(gl.TEXTURE_2D);
         });
     };
 
@@ -24721,6 +24706,7 @@ describe('zip', function () {
 "test/gpuTest": function(module, exports, require) {
 var _state = require('../src/core/gpu/state');
 var _gpu = require('../src/core/gpu');
+var VertexReaderFactory = _gpu.VertexReaderFactory;
 
 describe('gpu', function () {
     describe('vertex reading', function () {
@@ -24739,7 +24725,7 @@ describe('gpu', function () {
             vertexState.transform2D = true;
             vertexState.textureComponentCount = 2;
 
-            var vertexReader = _gpu.VertexReaderFactory.get(vertexState);
+            var vertexReader = VertexReaderFactory.get(vertexState);
 
             var vertexInput = new DataView(new ArrayBuffer(128));
             vertexInput.setInt16(0, 100, true);
@@ -24754,7 +24740,7 @@ describe('gpu', function () {
             var vertex2 = new _state.Vertex();
 
             //console.log(vertexReader.readCode);
-            vertexReader.readCount([vertex1, vertex2], vertexInput, null, 2, vertexState.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vertexInput, null, 2, vertexState.hasIndex);
 
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
