@@ -27,7 +27,7 @@ export class ShaderCache {
 			if (state.alphaTest.enabled) defines.push('ALPHATEST 1');
 		}
 
-		defines.push('VERTEX_SIKINNING ' + vertex.weightCount);
+		defines.push('VERTEX_SKINNING ' + vertex.realWeightCount);
 
 		var preppend = defines.map(item => '#define ' + item + '').join("\n");
 

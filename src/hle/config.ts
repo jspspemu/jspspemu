@@ -10,7 +10,8 @@ export class Config {
 	}
 
 	private detectLanguage() {
-		switch (navigator.language) {
+		// en_US
+		switch (navigator.language.split(/[_\-]/g)[0]) {
 			case 'ja': return PspLanguages.JAPANESE;
 			case 'en': return PspLanguages.ENGLISH;
 			case 'fr': return PspLanguages.FRENCH;
@@ -24,7 +25,7 @@ export class Config {
 			// @TODO which value have navigators for chinese?
 			case 'zh': return PspLanguages.TRADITIONAL_CHINESE;
 			case 'zh2': return PspLanguages.SIMPLIFIED_CHINESE;
-			default: return PspLanguages.FRENCH;
+			default: return PspLanguages.ENGLISH;
 		}
 	}
 }

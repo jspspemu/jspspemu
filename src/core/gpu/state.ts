@@ -119,7 +119,7 @@ export class VertexState {
 			position: this.position,
 			weight: this.weight,
 			index: this.index,
-			weightCount: this.weightCount,
+			realWeightCount: this.realWeightCount,
 			morphingVertexCount: this.morphingVertexCount,
 			transform2D: this.transform2D,
 		}) + ')';
@@ -194,7 +194,7 @@ export class VertexState {
 	}
 
 	get realWeightCount() {
-		return this.weightCount + 1;
+		return this.hasWeight ? (this.weightCount + 1) : 0;
 	}
 
 	get realMorphingVertexCount() {

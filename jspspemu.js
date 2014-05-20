@@ -9603,7 +9603,7 @@ var VertexState = (function () {
             position: this.position,
             weight: this.weight,
             index: this.index,
-            weightCount: this.weightCount,
+            realWeightCount: this.realWeightCount,
             morphingVertexCount: this.morphingVertexCount,
             transform2D: this.transform2D
         }) + ')';
@@ -9831,7 +9831,7 @@ var VertexState = (function () {
 
     Object.defineProperty(VertexState.prototype, "realWeightCount", {
         get: function () {
-            return this.weightCount + 1;
+            return this.hasWeight ? (this.weightCount + 1) : 0;
         },
         enumerable: true,
         configurable: true
@@ -10514,13 +10514,13 @@ var VertexReader = (function () {
 
         this.readOffset = 0;
 
-        //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         this.createNumberJs(indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
         this.createNumberJs(indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
         this.createColorJs(indentStringGenerator, this.vertexState.color);
         this.createNumberJs(indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
         this.createNumberJs(indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
 
+        //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         return indentStringGenerator.output;
     };
 
@@ -10953,7 +10953,7 @@ var WebGlPspDrawDriver = (function () {
 
     WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType) {
         var textureState = this.state.texture;
-        var weightCount = vertexState.weightCount;
+        var weightCount = vertexState.realWeightCount;
 
         this.positionData.restart();
         this.colorData.restart();
@@ -10977,9 +10977,9 @@ var WebGlPspDrawDriver = (function () {
             if (vertexState.hasNormal)
                 this.normalData.push3(v.nx, v.ny, v.nz);
 
-            if (weightCount > 0) {
+            if (weightCount >= 1) {
                 this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
-                if (weightCount > 4) {
+                if (weightCount >= 4) {
                     this.vertexWeightData2.push4(v.w4, v.w5, v.w6, v.w7);
                 }
             }
@@ -11030,12 +11030,13 @@ var WebGlPspDrawDriver = (function () {
             program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
         }
 
-        if (vertexState.weightCount > 0) {
+        if (vertexState.realWeightCount >= 1) {
+            //debugger;
             program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
-            if (vertexState.weightCount > 4) {
+            if (vertexState.realWeightCount >= 4) {
                 program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
             }
-            for (var n = 0; n < vertexState.weightCount; n++) {
+            for (var n = 0; n < vertexState.realWeightCount; n++) {
                 program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
             }
         }
@@ -11081,9 +11082,9 @@ var WebGlPspDrawDriver = (function () {
             program.getAttrib("vNormal").disable();
         if (vertexState.hasColor)
             program.getAttrib("vColor").disable();
-        if (vertexState.weightCount > 0)
+        if (vertexState.realWeightCount >= 1)
             program.getAttrib('vertexWeight1').disable();
-        if (vertexState.weightCount > 4)
+        if (vertexState.realWeightCount >= 4)
             program.getAttrib('vertexWeight2').disable();
     };
 
@@ -11142,7 +11143,7 @@ var ShaderCache = (function () {
                 defines.push('ALPHATEST 1');
         }
 
-        defines.push('VERTEX_SIKINNING ' + vertex.weightCount);
+        defines.push('VERTEX_SKINNING ' + vertex.realWeightCount);
 
         var preppend = defines.map(function (item) {
             return '#define ' + item + '';
@@ -11239,12 +11240,17 @@ var Texture = (function () {
     Texture.prototype.bind = function (textureUnit, min, mag, wraps, wrapt) {
         var gl = this.gl;
 
+        // @TODO: Fixme!
+        wraps = gl.REPEAT;
+        wrapt = gl.REPEAT;
+
         gl.activeTexture(gl.TEXTURE0 + textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag);
-        if (!MathUtils.isPowerOfTwo(this.width) || !MathUtils.isPowerOfTwo(this.height))
+        if (!MathUtils.isPowerOfTwo(this.width) || !MathUtils.isPowerOfTwo(this.height)) {
             wraps = wrapt = gl.CLAMP_TO_EDGE;
+        }
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wraps);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
     };
@@ -15890,7 +15896,7 @@ var Config = (function () {
         this.language = this.detectLanguage();
     }
     Config.prototype.detectLanguage = function () {
-        switch (navigator.language) {
+        switch (navigator.language.split(/[_\-]/g)[0]) {
             case 'ja':
                 return 0 /* JAPANESE */;
             case 'en':
@@ -15917,7 +15923,7 @@ var Config = (function () {
             case 'zh2':
                 return 11 /* SIMPLIFIED_CHINESE */;
             default:
-                return 2 /* FRENCH */;
+                return 1 /* ENGLISH */;
         }
     };
     return Config;

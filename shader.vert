@@ -17,7 +17,7 @@ attribute vec4 vPosition;
 	attribute vec4 vNormal;
 #endif
 
-#if (VERTEX_SIKINNING >= 1)
+#if (VERTEX_SKINNING >= 1)
 	uniform mat4 matrixBone0;
 	uniform mat4 matrixBone1;
 	uniform mat4 matrixBone2;
@@ -57,8 +57,8 @@ attribute vec4 vPosition;
 		vec4 vertexOut = vec4(0.0, 0.0, 0.0, 0.0);
 	
 		float totalWeight = 0.0;
-		for (int n = 0; n < VERTEX_SIKINNING; n++) totalWeight += getVertexWeight(n);
-		for (int n = 0; n < VERTEX_SIKINNING; n++) vertexOut += (getMatrixBone(n) * (getVertexWeight(n) / totalWeight)) * vertexIn;
+		for (int n = 0; n < VERTEX_SKINNING; n++) totalWeight += abs(getVertexWeight(n));
+		for (int n = 0; n < VERTEX_SKINNING; n++) vertexOut += (getMatrixBone(n) * abs(getVertexWeight(n)) / totalWeight) * vertexIn;
 
 		return vertexOut;
 	}
@@ -77,7 +77,7 @@ void main() {
 	#endif
 
 	vec4 pos = vPosition;
-	#if (VERTEX_SIKINNING >= 1)
+	#if (VERTEX_SKINNING >= 1)
 		pos = performSkinning(pos);
 	#endif
 

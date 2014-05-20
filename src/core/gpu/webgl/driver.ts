@@ -114,7 +114,6 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		if (!this.testConvertTable) this.testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
 		if (!this.testConvertTable_inv) this.testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
 
-
 		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
 			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 		}
@@ -321,7 +320,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	private demuxVertices(vertices: _state.Vertex[], count: number, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var textureState = this.state.texture;
-		var weightCount = vertexState.weightCount;
+		var weightCount = vertexState.realWeightCount;
 
 		this.positionData.restart();
 		this.colorData.restart();
@@ -345,9 +344,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			if (vertexState.hasTexture) this.textureData.push3(v.tx, v.ty, v.tz);
 			if (vertexState.hasNormal) this.normalData.push3(v.nx, v.ny, v.nz);
 
-			if (weightCount > 0) {
+			if (weightCount >= 1) {
 				this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
-				if (weightCount > 4) {
+				if (weightCount >= 4) {
 					this.vertexWeightData2.push4(v.w4, v.w5, v.w6, v.w7);
 				}
 			}
@@ -401,12 +400,13 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
 		}
 
-		if (vertexState.weightCount > 0) {
+		if (vertexState.realWeightCount >= 1) {
+			//debugger;
 			program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
-			if (vertexState.weightCount > 4) {
+			if (vertexState.realWeightCount >= 4) {
 				program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
 			}
-			for (var n = 0; n < vertexState.weightCount; n++) {
+			for (var n = 0; n < vertexState.realWeightCount; n++) {
 				program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
 			}
 		}
@@ -439,8 +439,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		if (vertexState.hasTexture) program.getAttrib("vTexcoord").disable();
 		if (vertexState.hasNormal) program.getAttrib("vNormal").disable();
 		if (vertexState.hasColor) program.getAttrib("vColor").disable();
-		if (vertexState.weightCount > 0) program.getAttrib('vertexWeight1').disable();
-		if (vertexState.weightCount > 4) program.getAttrib('vertexWeight2').disable();
+		if (vertexState.realWeightCount >= 1) program.getAttrib('vertexWeight1').disable();
+		if (vertexState.realWeightCount >= 4) program.getAttrib('vertexWeight2').disable();
 	}
 
 	private convertPrimitiveType: number[] = null;
