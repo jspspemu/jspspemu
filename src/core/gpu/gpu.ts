@@ -342,11 +342,7 @@ class PspGpuList {
             case GpuOpCodes.WORLDMATRIXNUMBER: this.state.worldMatrix.reset(params24); break;
 			case GpuOpCodes.WORLDMATRIXDATA: this.state.worldMatrix.put(float1()); break;
 
-			case GpuOpCodes.BONEMATRIXNUMBER:
-				//console.log(sprintf('PC:%08X', this.current - 4));
-				//debugger;
-				this.state.skinning.currentBoneIndex = params24;
-				break;
+			case GpuOpCodes.BONEMATRIXNUMBER: this.state.skinning.currentBoneIndex = params24; break;
 			case GpuOpCodes.BONEMATRIXDATA: this.state.skinning.write(float1()); break;
 
 			case GpuOpCodes.STENCILTESTENABLE:
@@ -471,10 +467,7 @@ class PspGpuList {
 						case _state.IndexEnum.Short: indices = this.memory.getU16Array(indicesAddress); break;
 					}
 
-					if (vertexState.realWeightCount > 0) {
-						//console.log(vertexState);
-						debugger;
-					}
+					//if (vertexState.realWeightCount > 0) debugger;
 
 					var vertexInput = this.memory.getPointerDataView(vertexAddress);
 

@@ -38,6 +38,8 @@ export class Memory {
 		this.s32 = new Int32Array(this.buffer);
 		this.u32 = new Uint32Array(this.buffer);
 		this.f32 = new Float32Array(this.buffer);
+
+		this._updateWriteFunctions();
 	}
 
 	reset() {
@@ -111,24 +113,86 @@ export class Memory {
 		return this.getPointerU16Array(address & Memory.MASK, size);
 	}
 
+	private writeBreakpoints = <{ address: number; action: (address: number) => void; }[]>[]
 
-	writeInt8(address: number, value: number) { this.u8[(address & Memory.MASK) >> 0] = value; }
+	_updateWriteFunctions() {
+		if (this.writeBreakpoints.length > 0) {
+			this.writeInt8 = this._writeInt8_break;
+			this.writeInt16 = this._writeInt16_break;
+			this.writeInt32 = this._writeInt32_break;
+			this.writeFloat32 = this._writeFloat32_break;
+		} else {
+			this.writeInt8 = this._writeInt8;
+			this.writeInt16 = this._writeInt16;
+			this.writeInt32 = this._writeInt32;
+			this.writeFloat32 = this._writeFloat32;
+		}
+	}
+
+	addWatch4(address: number) {
+		this.addWriteAction(address, (address: number) => {
+			console.log(sprintf('Watch:0x%08X <- 0x%08X', address, this.readUInt32(address)));
+		});
+	}
+
+	addBreakpointOnValue(address: number, value: number) {
+		//Watch: 0x0951044C < - 0x2A000000 
+
+		this.addWriteAction(address, (actualAddress: number) => {
+			var actualValue: number = this.readUInt32(address);
+
+			console.log(sprintf('TryBreakpoint:0x%08X <- 0x%08X | 0x%08X (%d)', address, actualValue, value, (actualValue == value)));
+
+			if (actualValue == value) {
+				debugger;
+			}
+		});
+	}
+
+	addWriteAction(address: number, action: (address: number) => void) {
+		this.writeBreakpoints.push({ address: address, action: action });
+
+		this._updateWriteFunctions();
+	}
+
+	_checkWriteBreakpoints(start: number, end:number) {
+		start &= Memory.MASK;
+		end &= Memory.MASK;
+		for (var n = 0; n < this.writeBreakpoints.length; n++) {
+			var writeBreakpoint = this.writeBreakpoints[n];
+			var addressCheck = writeBreakpoint.address & Memory.MASK;
+			if (addressCheck >= start && addressCheck < end) {
+				writeBreakpoint.action(writeBreakpoint.address);
+			}
+		}
+	}
+
+	private _writeInt8(address: number, value: number) { this.u8[(address & Memory.MASK) >> 0] = value; }
+	private _writeInt16(address: number, value: number) { this.u16[(address & Memory.MASK) >> 1] = value; }
+	private _writeInt32(address: number, value: number) { this.u32[(address & Memory.MASK) >> 2] = value; }
+	private _writeFloat32(address: number, value: number) { this.f32[(address & Memory.MASK) >> 2] = value; }
+
+	private _writeInt8_break(address: number, value: number) { this._writeInt8(address, value); this._checkWriteBreakpoints(address, address + 1); }
+	private _writeInt16_break(address: number, value: number) { this._writeInt16(address, value); this._checkWriteBreakpoints(address, address + 2); }
+	private _writeInt32_break(address: number, value: number) { this._writeInt32(address, value); this._checkWriteBreakpoints(address, address + 4); }
+	private _writeFloat32_break(address: number, value: number) { this._writeFloat32(address, value); this._checkWriteBreakpoints(address, address + 4); }
+
+	writeInt8(address: number, value: number) { this._writeInt8(address, value); }
+	writeInt16(address: number, value: number) { this._writeInt16(address, value); }
+	writeInt32(address: number, value: number) { this._writeInt32(address, value); }
+	writeFloat32(address: number, value: number) { this._writeFloat32(address, value); }
+
 	readInt8(address: number) { return this.s8[(address & Memory.MASK) >> 0]; }
 	readUInt8(address: number) { return this.u8[(address & Memory.MASK) >> 0]; }
-
-	writeInt16(address: number, value: number) { this.u16[(address & Memory.MASK) >> 1] = value; }
 	readInt16(address: number) { return this.s16[(address & Memory.MASK) >> 1]; }
 	readUInt16(address: number) { return this.u16[(address & Memory.MASK) >> 1]; }
-
-	writeInt32(address: number, value: number) { this.u32[(address & Memory.MASK) >> 2] = value; }
 	readInt32(address: number) { return this.s32[(address & Memory.MASK) >> 2]; }
 	readUInt32(address: number) { return this.u32[(address & Memory.MASK) >> 2]; }
-
-	writeFloat32(address: number, value: number) { this.f32[(address & Memory.MASK) >> 2] = value; }
 	readFloat32(address: number) { return this.f32[(address & Memory.MASK) >> 2]; }
 
 	writeBytes(address: number, data: ArrayBuffer) {
 		Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
+		this._checkWriteBreakpoints(address, address + data.byteLength);
 	}
 
 	readArrayBuffer(address: number, length: number) {
@@ -144,6 +208,8 @@ export class Memory {
 		while (stream.available > 0) {
 			this.writeInt8(address++, stream.readUInt8());
 		}
+
+		this._checkWriteBreakpoints(address, address + stream.length);
 	}
 
 	readStringz(address: number) {
@@ -167,9 +233,11 @@ export class Memory {
 
 	copy(from: number, to: number, length: number) {
 		this.u8.set(new Uint8Array(this.buffer, from & Memory.MASK, length), to & Memory.MASK);
+		this._checkWriteBreakpoints(to, to + length);
 	}
 
 	memset(address: number, value: number, length: number) {
+
 		address &= Memory.MASK;
 
 		var start = address;
@@ -178,6 +246,8 @@ export class Memory {
 
 		// @TODO: change with fill
 		while (address < end) this.u8[address++] = value8;
+
+		this._checkWriteBreakpoints(address, address + length);
 
 		/*
 		var value16 = value8 | (value8 << 8);

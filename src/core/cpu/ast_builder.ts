@@ -166,7 +166,13 @@ export class ANodeExprArray extends ANodeExpr {
 }
 
 export class ANodeExprCall extends ANodeExpr {
-	constructor(public name: string, public _arguments: ANodeExpr[]) { super(); }
+	constructor(public name: string, public _arguments: ANodeExpr[]) {
+		super();
+		if (!_arguments) debugger;
+		this._arguments.forEach(argument => {
+			if (!argument || !(argument instanceof ANodeExpr)) debugger;
+		});
+	}
 	toJs() { return this.name + '(' + this._arguments.map((argument) => argument.toJs()).join(', ') + ')'; }
 }
 

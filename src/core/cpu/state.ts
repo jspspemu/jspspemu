@@ -97,7 +97,9 @@ class VfpuPrefixWrite extends VfpuPrefixBase {
 		var info = this._info;
 
 		if (!this.enabled) {
-			for (var n = 0; n < indices.length; n++)  vfpr[indices[n]] = values[n];
+			for (var n = 0; n < indices.length; n++) {
+				vfpr[indices[n]] = values[n];
+			}
 		} else {
 			//debugger;
 			for (var n = 0; n < indices.length; n++) {

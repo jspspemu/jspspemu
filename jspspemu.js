@@ -3743,6 +3743,12 @@ var ANodeExprCall = (function (_super) {
         _super.call(this);
         this.name = name;
         this._arguments = _arguments;
+        if (!_arguments)
+            debugger;
+        this._arguments.forEach(function (argument) {
+            if (!argument || !(argument instanceof ANodeExpr))
+                debugger;
+        });
     }
     ANodeExprCall.prototype.toJs = function () {
         return this.name + '(' + this._arguments.map(function (argument) {
@@ -4503,24 +4509,21 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype._vtfm_x = function (i, vectorSize) {
+        var _this = this;
         var srcMat = readMatrix(i.VS, vectorSize);
-
-        var aggregateds = [];
-        for (var n = 0; n < vectorSize; n++) {
-            aggregateds[n] = imm_f(0);
-            for (var m = 0; m < vectorSize; m++) {
-                aggregateds[n] = binop(aggregateds[n], '+', binop(srcMat[n * vectorSize + m], '*', ast.vector_vt(m)));
-            }
-        }
 
         var st = [];
         st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
         st.push(call_stm('state.storeVd_prefixed', [
             ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
-            ast.array(xrange(0, vectorSize).map(function (index) {
-                return aggregateds[index];
+            ast.array(xrange(0, vectorSize).map(function (n) {
+                return _this._aggregateV(imm_f(0), vectorSize, function (aggregated, m) {
+                    return binop(aggregated, '+', binop(srcMat[n * vectorSize + m], '*', ast.vector_vt(m)));
+                });
             }))
         ]));
+
+        //if (vectorSize == 3) st.push(ast.debugger());
         return stms(st);
     };
 
@@ -4642,9 +4645,9 @@ var InstructionAst = (function () {
                 case 3:
                     return call('MathFloat.max', [src[2], src[3]]);
                 default:
-                    throw (new Error("vbfy1: Invalid operation"));
+                    throw (new Error("vsrt1: Invalid operation"));
             }
-        });
+        }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt2 = function (i) {
         return this._vset2(i, function (i, src) {
@@ -4658,9 +4661,9 @@ var InstructionAst = (function () {
                 case 3:
                     return call('MathFloat.max', [src[0], src[3]]);
                 default:
-                    throw (new Error("vbfy2: Invalid operation"));
+                    throw (new Error("vsrt2: Invalid operation"));
             }
-        });
+        }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt3 = function (i) {
         return this._vset2(i, function (i, src) {
@@ -4674,9 +4677,9 @@ var InstructionAst = (function () {
                 case 3:
                     return call('MathFloat.min', [src[2], src[3]]);
                 default:
-                    throw (new Error("vbfy3: Invalid operation"));
+                    throw (new Error("vsrt3: Invalid operation"));
             }
-        });
+        }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt4 = function (i) {
         return this._vset2(i, function (i, src) {
@@ -4690,9 +4693,9 @@ var InstructionAst = (function () {
                 case 3:
                     return call('MathFloat.min', [src[0], src[3]]);
                 default:
-                    throw (new Error("vbfy4: Invalid operation"));
+                    throw (new Error("vsrt4: Invalid operation"));
             }
-        });
+        }, i.ONE_TWO, 4);
     };
 
     InstructionAst.prototype.vrnds = function (i) {
@@ -4902,17 +4905,21 @@ var InstructionAst = (function () {
         return this._branch(i, branchExpr);
     };
 
+    // @TODO: Fixme!
+    //bvf(i: Instruction) { return this._bvtf(i, false); }
+    //bvt(i: Instruction) { return this._bvtf(i, true); }
     InstructionAst.prototype.bvf = function (i) {
-        return this._bvtf(i, false);
-    };
-    InstructionAst.prototype.bvfl = function (i) {
-        return this._bvtf(i, false);
+        return this._bvtf(i, true);
     };
     InstructionAst.prototype.bvt = function (i) {
-        return this._bvtf(i, true);
+        return this._bvtf(i, false);
+    };
+
+    InstructionAst.prototype.bvfl = function (i) {
+        return this.bvf(i);
     };
     InstructionAst.prototype.bvtl = function (i) {
-        return this._bvtf(i, true);
+        return this.bvt(i);
     };
 
     InstructionAst.prototype.mtv = function (i) {
@@ -5031,9 +5038,12 @@ var InstructionAst = (function () {
         });
     };
     InstructionAst.prototype.vasin = function (i) {
-        return this._vset2(i, function (i, src) {
-            return call('MathFloat.asinv1', [src[i]]);
-        });
+        //return this._vset2(i, (i, src) => call('MathFloat.asinv1', [src[i]]));
+        return stms([
+            this._vset2(i, function (i, src) {
+                return call('MathFloat.asinv1', [src[i]]);
+            })
+        ]);
     };
     InstructionAst.prototype.vnsin = function (i) {
         return this._vset2(i, function (i, src) {
@@ -7157,8 +7167,9 @@ var VfpuPrefixWrite = (function (_super) {
         var info = this._info;
 
         if (!this.enabled) {
-            for (var n = 0; n < indices.length; n++)
+            for (var n = 0; n < indices.length; n++) {
                 vfpr[indices[n]] = values[n];
+            }
         } else {
             for (var n = 0; n < indices.length; n++) {
                 //var destinationSaturation = this.getDestinationSaturation(n);
@@ -8714,8 +8725,6 @@ var PspGpuList = (function () {
                 break;
 
             case 42 /* BONEMATRIXNUMBER */:
-                //console.log(sprintf('PC:%08X', this.current - 4));
-                //debugger;
                 this.state.skinning.currentBoneIndex = params24;
                 break;
             case 43 /* BONEMATRIXDATA */:
@@ -8870,10 +8879,7 @@ var PspGpuList = (function () {
                             break;
                     }
 
-                    if (vertexState.realWeightCount > 0) {
-                        debugger;
-                    }
-
+                    //if (vertexState.realWeightCount > 0) debugger;
                     var vertexInput = this.memory.getPointerDataView(vertexAddress);
 
                     if (vertexState.address) {
@@ -10501,11 +10507,14 @@ var VertexReader = (function () {
 
         this.readOffset = 0;
 
-        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
-        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
+        var normalize = !this.vertexState.transform2D;
+        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
+        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
+
+        //this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, false);
         this.createColorJs(indentStringGenerator, this.vertexState.color);
-        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
-        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
+        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
+        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
 
         //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         return indentStringGenerator.output;
@@ -12459,6 +12468,7 @@ var Memory = (function () {
     function Memory() {
         this.invalidateDataRange = new Signal();
         this.invalidateDataAll = new Signal();
+        this.writeBreakpoints = [];
         //this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
         this.buffer = new ArrayBuffer(0xa000000 + 4);
         this.data = new DataView(this.buffer);
@@ -12469,6 +12479,8 @@ var Memory = (function () {
         this.s32 = new Int32Array(this.buffer);
         this.u32 = new Uint32Array(this.buffer);
         this.f32 = new Float32Array(this.buffer);
+
+        this._updateWriteFunctions();
     }
     Object.defineProperty(Memory, "instance", {
         get: function () {
@@ -12575,18 +12587,107 @@ var Memory = (function () {
         return this.getPointerU16Array(address & Memory.MASK, size);
     };
 
-    Memory.prototype.writeInt8 = function (address, value) {
+    Memory.prototype._updateWriteFunctions = function () {
+        if (this.writeBreakpoints.length > 0) {
+            this.writeInt8 = this._writeInt8_break;
+            this.writeInt16 = this._writeInt16_break;
+            this.writeInt32 = this._writeInt32_break;
+            this.writeFloat32 = this._writeFloat32_break;
+        } else {
+            this.writeInt8 = this._writeInt8;
+            this.writeInt16 = this._writeInt16;
+            this.writeInt32 = this._writeInt32;
+            this.writeFloat32 = this._writeFloat32;
+        }
+    };
+
+    Memory.prototype.addWatch4 = function (address) {
+        var _this = this;
+        this.addWriteAction(address, function (address) {
+            console.log(sprintf('Watch:0x%08X <- 0x%08X', address, _this.readUInt32(address)));
+        });
+    };
+
+    Memory.prototype.addBreakpointOnValue = function (address, value) {
+        //Watch: 0x0951044C < - 0x2A000000
+        var _this = this;
+        this.addWriteAction(address, function (actualAddress) {
+            var actualValue = _this.readUInt32(address);
+
+            console.log(sprintf('TryBreakpoint:0x%08X <- 0x%08X | 0x%08X (%d)', address, actualValue, value, (actualValue == value)));
+
+            if (actualValue == value) {
+                debugger;
+            }
+        });
+    };
+
+    Memory.prototype.addWriteAction = function (address, action) {
+        this.writeBreakpoints.push({ address: address, action: action });
+
+        this._updateWriteFunctions();
+    };
+
+    Memory.prototype._checkWriteBreakpoints = function (start, end) {
+        start &= Memory.MASK;
+        end &= Memory.MASK;
+        for (var n = 0; n < this.writeBreakpoints.length; n++) {
+            var writeBreakpoint = this.writeBreakpoints[n];
+            var addressCheck = writeBreakpoint.address & Memory.MASK;
+            if (addressCheck >= start && addressCheck < end) {
+                writeBreakpoint.action(writeBreakpoint.address);
+            }
+        }
+    };
+
+    Memory.prototype._writeInt8 = function (address, value) {
         this.u8[(address & Memory.MASK) >> 0] = value;
     };
+    Memory.prototype._writeInt16 = function (address, value) {
+        this.u16[(address & Memory.MASK) >> 1] = value;
+    };
+    Memory.prototype._writeInt32 = function (address, value) {
+        this.u32[(address & Memory.MASK) >> 2] = value;
+    };
+    Memory.prototype._writeFloat32 = function (address, value) {
+        this.f32[(address & Memory.MASK) >> 2] = value;
+    };
+
+    Memory.prototype._writeInt8_break = function (address, value) {
+        this._writeInt8(address, value);
+        this._checkWriteBreakpoints(address, address + 1);
+    };
+    Memory.prototype._writeInt16_break = function (address, value) {
+        this._writeInt16(address, value);
+        this._checkWriteBreakpoints(address, address + 2);
+    };
+    Memory.prototype._writeInt32_break = function (address, value) {
+        this._writeInt32(address, value);
+        this._checkWriteBreakpoints(address, address + 4);
+    };
+    Memory.prototype._writeFloat32_break = function (address, value) {
+        this._writeFloat32(address, value);
+        this._checkWriteBreakpoints(address, address + 4);
+    };
+
+    Memory.prototype.writeInt8 = function (address, value) {
+        this._writeInt8(address, value);
+    };
+    Memory.prototype.writeInt16 = function (address, value) {
+        this._writeInt16(address, value);
+    };
+    Memory.prototype.writeInt32 = function (address, value) {
+        this._writeInt32(address, value);
+    };
+    Memory.prototype.writeFloat32 = function (address, value) {
+        this._writeFloat32(address, value);
+    };
+
     Memory.prototype.readInt8 = function (address) {
         return this.s8[(address & Memory.MASK) >> 0];
     };
     Memory.prototype.readUInt8 = function (address) {
         return this.u8[(address & Memory.MASK) >> 0];
-    };
-
-    Memory.prototype.writeInt16 = function (address, value) {
-        this.u16[(address & Memory.MASK) >> 1] = value;
     };
     Memory.prototype.readInt16 = function (address) {
         return this.s16[(address & Memory.MASK) >> 1];
@@ -12594,19 +12695,11 @@ var Memory = (function () {
     Memory.prototype.readUInt16 = function (address) {
         return this.u16[(address & Memory.MASK) >> 1];
     };
-
-    Memory.prototype.writeInt32 = function (address, value) {
-        this.u32[(address & Memory.MASK) >> 2] = value;
-    };
     Memory.prototype.readInt32 = function (address) {
         return this.s32[(address & Memory.MASK) >> 2];
     };
     Memory.prototype.readUInt32 = function (address) {
         return this.u32[(address & Memory.MASK) >> 2];
-    };
-
-    Memory.prototype.writeFloat32 = function (address, value) {
-        this.f32[(address & Memory.MASK) >> 2] = value;
     };
     Memory.prototype.readFloat32 = function (address) {
         return this.f32[(address & Memory.MASK) >> 2];
@@ -12614,6 +12707,7 @@ var Memory = (function () {
 
     Memory.prototype.writeBytes = function (address, data) {
         Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
+        this._checkWriteBreakpoints(address, address + data.byteLength);
     };
 
     Memory.prototype.readArrayBuffer = function (address, length) {
@@ -12629,6 +12723,8 @@ var Memory = (function () {
         while (stream.available > 0) {
             this.writeInt8(address++, stream.readUInt8());
         }
+
+        this._checkWriteBreakpoints(address, address + stream.length);
     };
 
     Memory.prototype.readStringz = function (address) {
@@ -12654,6 +12750,7 @@ var Memory = (function () {
 
     Memory.prototype.copy = function (from, to, length) {
         this.u8.set(new Uint8Array(this.buffer, from & Memory.MASK, length), to & Memory.MASK);
+        this._checkWriteBreakpoints(to, to + length);
     };
 
     Memory.prototype.memset = function (address, value, length) {
@@ -12665,6 +12762,8 @@ var Memory = (function () {
 
         while (address < end)
             this.u8[address++] = value8;
+
+        this._checkWriteBreakpoints(address, address + length);
         /*
         var value16 = value8 | (value8 << 8);
         var value32 = value16 | (value16 << 16);

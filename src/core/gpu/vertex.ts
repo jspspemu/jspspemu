@@ -107,11 +107,13 @@ export class VertexReader {
 
 		this.readOffset = 0;
 
-		this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, !this.vertexState.transform2D);
-		this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, !this.vertexState.transform2D);
+		var normalize = !this.vertexState.transform2D;
+		this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
+		this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
+		//this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, false);
 		this.createColorJs(indentStringGenerator, this.vertexState.color);
-		this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, !this.vertexState.transform2D);
-		this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, !this.vertexState.transform2D);
+		this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
+		this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
 		//if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
 
 		return indentStringGenerator.output;

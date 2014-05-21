@@ -365,21 +365,15 @@ export class InstructionAst {
 	_vtfm_x(i: Instruction, vectorSize: number) {
 		var srcMat = readMatrix(i.VS, vectorSize);
 
-		var aggregateds = [];
-		for (var n = 0; n < vectorSize; n++) {
-			aggregateds[n] = imm_f(0);
-			for (var m = 0; m < vectorSize; m++) {
-				aggregateds[n] = binop(aggregateds[n], '+', binop(srcMat[n * vectorSize + m], '*', ast.vector_vt(m)));
-			}
-		}
-
 		var st = [];
 		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
-			ast.array(xrange(0, vectorSize).map(index => aggregateds[index])),
-			//ast.array(xrange(0, vectorSize).map(index => imm_f(0))),
+			ast.array(xrange(0, vectorSize).map(n => {
+				return this._aggregateV(imm_f(0), vectorSize, (aggregated, m) => binop(aggregated, '+', binop(srcMat[n * vectorSize + m], '*', <_ast.ANodeExpr>ast.vector_vt(m))));
+			})),
 		]));
+		//if (vectorSize == 3) st.push(ast.debugger());
 		return stms(st);
 	}
 
@@ -448,9 +442,9 @@ export class InstructionAst {
 				case 1: return call('MathFloat.max', [src[0], src[1]]);
 				case 2: return call('MathFloat.min', [src[2], src[3]]);
 				case 3: return call('MathFloat.max', [src[2], src[3]]);
-				default: throw (new Error("vbfy1: Invalid operation"));
+				default: throw (new Error("vsrt1: Invalid operation"));
 			}
-		});
+		}, i.ONE_TWO, 4);
 	}
 	vsrt2(i: Instruction) {
 		return this._vset2(i, (i, src) => {
@@ -459,9 +453,9 @@ export class InstructionAst {
 				case 1: return call('MathFloat.min', [src[1], src[2]]);
 				case 2: return call('MathFloat.max', [src[1], src[2]]);
 				case 3: return call('MathFloat.max', [src[0], src[3]]);
-				default: throw (new Error("vbfy2: Invalid operation"));
+				default: throw (new Error("vsrt2: Invalid operation"));
 			}
-		});
+		}, i.ONE_TWO, 4);
 	}
 	vsrt3(i: Instruction) {
 		return this._vset2(i, (i, src) => {
@@ -470,9 +464,9 @@ export class InstructionAst {
 				case 1: return call('MathFloat.min', [src[0], src[1]]);
 				case 2: return call('MathFloat.max', [src[2], src[3]]);
 				case 3: return call('MathFloat.min', [src[2], src[3]]);
-				default: throw (new Error("vbfy3: Invalid operation"));
+				default: throw (new Error("vsrt3: Invalid operation"));
 			}
-		});
+		}, i.ONE_TWO, 4);
 	}
 	vsrt4(i: Instruction) {
 		return this._vset2(i, (i, src) => {
@@ -481,9 +475,9 @@ export class InstructionAst {
 				case 1: return call('MathFloat.max', [src[1], src[2]]);
 				case 2: return call('MathFloat.min', [src[1], src[2]]);
 				case 3: return call('MathFloat.min', [src[0], src[3]]);
-				default: throw (new Error("vbfy4: Invalid operation"));
+				default: throw (new Error("vsrt4: Invalid operation"));
 			}
-		});
+		}, i.ONE_TWO, 4);
 	}
 
 	vrnds(i: Instruction) { return call_stm('state.vrnds', []); }
@@ -588,10 +582,14 @@ export class InstructionAst {
 		return this._branch(i, branchExpr);
 	}
 	
-	bvf(i: Instruction) { return this._bvtf(i, false); }
-	bvfl(i: Instruction) { return this._bvtf(i, false); }
-	bvt(i: Instruction) { return this._bvtf(i, true); }
-	bvtl(i: Instruction) { return this._bvtf(i, true); }
+	// @TODO: Fixme!
+	//bvf(i: Instruction) { return this._bvtf(i, false); }
+	//bvt(i: Instruction) { return this._bvtf(i, true); }
+	bvf(i: Instruction) { return this._bvtf(i, true); }
+	bvt(i: Instruction) { return this._bvtf(i, false); }
+
+	bvfl(i: Instruction) { return this.bvf(i); }
+	bvtl(i: Instruction) { return this.bvt(i); }
 
 	mtv(i: Instruction) { return this._vset1(i, (_) => gpr(i.rt), 1, 'int'); }
 	mfv(i: Instruction) { return assign_stm(gpr(i.rt), vfpr_i(i.VD)); }
@@ -638,7 +636,13 @@ export class InstructionAst {
 	vrexp2(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.rexp2', [src[i]])); }
 	vlog2(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.log2', [src[i]])); }
 	vsqrt(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.sqrt', [src[i]])); }
-	vasin(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.asinv1', [src[i]])); }
+	vasin(i: Instruction) {
+		//return this._vset2(i, (i, src) => call('MathFloat.asinv1', [src[i]]));
+		return stms([
+			this._vset2(i, (i, src) => call('MathFloat.asinv1', [src[i]])),
+			//ast.debugger()
+		]);
+	}
 	vnsin(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.nsinv1', [src[i]])); }
 	vnrcp(i: Instruction) { return this._vset2(i, (i, src) => call('MathFloat.nrcp', [src[i]])); }
 
