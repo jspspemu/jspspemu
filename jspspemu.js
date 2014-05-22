@@ -8346,6 +8346,8 @@ exports.VertexReaderFactory = VertexReaderFactory;
 //# sourceMappingURL=driver.js.map
 },
 "src/core/gpu/gpu": function(module, exports, require) {
+var _memory = require('../memory');
+
 var _instructions = require('./instructions');
 var _state = require('./state');
 
@@ -8355,6 +8357,8 @@ _cpu.CpuState;
 
 var DisplayListStatus = _state.DisplayListStatus;
 var CpuState = _cpu.CpuState;
+
+var Memory = _memory.Memory;
 
 var GpuOpCodes = _instructions.GpuOpCodes;
 var WebGlPspDrawDriver = require('./webgl/driver');
@@ -8425,8 +8429,8 @@ var PspGpuExecutor = (function () {
         this.list.jumpRelativeOffset(p & ~3);
     };
     PspGpuExecutor.prototype.CALL = function (p, current) {
-        this.list.callstack.push(current + 4);
-        this.list.callstack.push(this.state.baseOffset);
+        this.list.callstack.push((current << 2) + 4);
+        this.list.callstack.push(((this.state.baseOffset >>> 2) & Memory.MASK));
         this.list.jumpRelativeOffset(p & ~3);
     };
     PspGpuExecutor.prototype.RET = function (p) {
@@ -9702,11 +9706,11 @@ var PspGpuList = (function () {
     };
 
     PspGpuList.prototype.jumpRelativeOffset = function (offset) {
-        this.current = this.state.baseAddress + offset;
+        this.current4 = (((this.state.baseAddress + offset) >> 2) & Memory.MASK);
     };
 
     PspGpuList.prototype.jumpAbsolute = function (address) {
-        this.current = address;
+        this.current4 = ((address >>> 2) & Memory.MASK);
     };
 
     PspGpuList.prototype.finishPrimBatch = function () {
@@ -9729,7 +9733,7 @@ var PspGpuList = (function () {
 
     Object.defineProperty(PspGpuList.prototype, "isStalled", {
         get: function () {
-            return ((this.stall != 0) && (this.current >= this.stall));
+            return ((this.stall4 != 0) && (this.current4 >= this.stall4));
         },
         enumerable: true,
         configurable: true
@@ -9747,17 +9751,16 @@ var PspGpuList = (function () {
     PspGpuList.prototype.runUntilStallInner = function () {
         var u32 = this.memory.u32;
 
-        while (!this.completed && ((this.stall == 0) || (this.current < this.stall))) {
-            var instructionPC = this.current;
-            var instruction = this.memory.readUInt32(instructionPC);
-            this.current += 4;
+        while (!this.completed && ((this.stall4 == 0) || (this.current4 < this.stall4))) {
+            var instructionPC4 = this.current4++;
+            var instruction = u32[instructionPC4];
 
             var op = (instruction >>> 24);
             var params24 = (instruction & 0x00FFFFFF);
 
             if (this.showOpcodes)
                 this.opcodes.push(GpuOpCodes[op]);
-            if (this.executor.table[op](params24, instructionPC))
+            if (this.executor.table[op](params24, instructionPC4))
                 return;
         }
         this.status = (this.isStalled) ? 3 /* Stalling */ : 0 /* Completed */;
@@ -9784,7 +9787,7 @@ var PspGpuList = (function () {
     };
 
     PspGpuList.prototype.updateStall = function (stall) {
-        this.stall = stall;
+        this.stall4 = ((stall >>> 2) & Memory.MASK);
         this.enqueueRunUntilStall();
     };
 
@@ -9909,8 +9912,8 @@ var PspGpu = (function () {
 
     PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
         var list = this.listRunner.allocate();
-        list.current = start;
-        list.stall = stall;
+        list.current4 = ((start >>> 2) & Memory.MASK);
+        list.stall4 = stall;
         list.callbackId = callbackId;
         list.argsPtr = argsPtr;
         list.start();

@@ -74,8 +74,8 @@ class PspGpuExecutor {
 		this.list.jumpRelativeOffset(p & ~3);
 	}
 	CALL(p: number, current: number) {
-		this.list.callstack.push(current + 4);
-		this.list.callstack.push(this.state.baseOffset);
+		this.list.callstack.push((current << 2) + 4);
+		this.list.callstack.push(((this.state.baseOffset >>> 2) & Memory.MASK));
 		this.list.jumpRelativeOffset(p & ~3);
 	}
 	RET(p: number) {
@@ -938,8 +938,8 @@ class PspGpuExecutor {
 }
 
 class PspGpuList {
-    current: number;
-    stall: number;
+    current4: number;
+    stall4: number;
 	callbackId: number;
 	argsPtr: Stream;
     completed: boolean = false;
@@ -959,11 +959,11 @@ class PspGpuList {
     }
 
     jumpRelativeOffset(offset:number) {
-        this.current = this.state.baseAddress + offset;
+		this.current4 = (((this.state.baseAddress + offset) >> 2) & Memory.MASK);
 	}
 
 	jumpAbsolute(address: number) {
-		this.current = address;
+		this.current4 = ((address >>> 2) & Memory.MASK);
 	}
 
 	callstack = <number[]>[];
@@ -992,7 +992,7 @@ class PspGpuList {
 	}
 
 	private get isStalled() {
-		return ((this.stall != 0) && (this.current >= this.stall));
+		return ((this.stall4 != 0) && (this.current4 >= this.stall4));
 	}
 
 
@@ -1003,17 +1003,17 @@ class PspGpuList {
 
 	private runUntilStallInner() {
 		var u32 = this.memory.u32;
+
 		//while (this.hasMoreInstructions) {
-		while (!this.completed && ((this.stall == 0) || (this.current < this.stall))) {
-			var instructionPC = this.current;
-			var instruction = this.memory.readUInt32(instructionPC);
-			this.current += 4;
+		while (!this.completed && ((this.stall4 == 0) || (this.current4 < this.stall4))) {
+			var instructionPC4 = this.current4++;
+			var instruction = u32[instructionPC4];
 
 			var op = (instruction >>> 24);
 			var params24 = (instruction & 0x00FFFFFF);
 
 			if (this.showOpcodes) this.opcodes.push(GpuOpCodes[op]);
-			if (this.executor.table[op](params24, instructionPC)) return;
+			if (this.executor.table[op](params24, instructionPC4)) return;
 		}
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}
@@ -1038,7 +1038,7 @@ class PspGpuList {
     }
 
     updateStall(stall: number) {
-        this.stall = stall;
+        this.stall4 =(( stall >>> 2) & Memory.MASK);
         this.enqueueRunUntilStall();
     }
 
@@ -1142,8 +1142,8 @@ export class PspGpu implements IPspGpu {
         
 	listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {
         var list = this.listRunner.allocate();
-        list.current = start;
-        list.stall = stall;
+        list.current4 = ((start >>> 2) & Memory.MASK);
+        list.stall4 = stall;
 		list.callbackId = callbackId;
 		list.argsPtr = argsPtr;
         list.start();
