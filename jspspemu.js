@@ -4954,8 +4954,8 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vcmp = function (i) {
         return call_stm('state.vcmp', [
             imm32(i.IMM4),
-            ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO)),
-            ast.arrayNumbers(getVectorRegs(i.VT, i.ONE_TWO))
+            ast.array(readVector(i.VS, i.ONE_TWO)),
+            ast.array(readVector(i.VT, i.ONE_TWO))
         ]);
     };
 
@@ -7314,15 +7314,10 @@ var CpuState = (function () {
         return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
     };
 
-    CpuState.prototype.vcmp = function (cond, vsRegs, vtRegs) {
-        var _this = this;
-        var vectorSize = vsRegs.length;
-        this.loadVs_prefixed(vsRegs.map(function (reg) {
-            return _this.vfpr[reg];
-        }));
-        this.loadVt_prefixed(vtRegs.map(function (reg) {
-            return _this.vfpr[reg];
-        }));
+    CpuState.prototype.vcmp = function (cond, vsValues, vtValues) {
+        var vectorSize = vsValues.length;
+        this.loadVs_prefixed(vsValues);
+        this.loadVt_prefixed(vtValues);
         var s = this.vector_vs;
         var t = this.vector_vt;
 
@@ -8575,17 +8570,26 @@ var PspGpuList = (function () {
                 this.state.texture.wrapU = BitUtils.extractEnum(params24, 0, 8);
                 this.state.texture.wrapV = BitUtils.extractEnum(params24, 8, 8);
                 break;
-
             case 30 /* TEXTUREMAPENABLE */:
                 this.state.texture.enabled = (params24 != 0);
                 break;
-
             case 192 /* TMAP */:
                 this.state.texture.textureMapMode = BitUtils.extractEnum(params24, 0, 8);
                 this.state.texture.textureProjectionMapMode = BitUtils.extractEnum(params24, 8, 8);
-                this.state.vertex.normalCount = this.state.texture.getTextureComponentsCount();
+                this.state.vertex.textureComponentCount = this.state.texture.getTextureComponentsCount();
                 break;
-
+            case 81 /* REVERSENORMAL */:
+                this.state.vertex.reversedNormal = bool1();
+                break;
+            case 38 /* PATCHCULLENABLE */:
+                this.state.patchCullingState.enabled = bool1();
+                break;
+            case 56 /* PATCHFACING */:
+                this.state.patchCullingState.faceFlag = bool1();
+                break;
+            case 37 /* ANTIALIASENABLE */:
+                this.state.lineSmoothState.enabled = bool1();
+                break;
             case 193 /* TEXTURE_ENV_MAP_MATRIX */:
                 this.state.texture.shadeU = BitUtils.extract(params24, 0, 2);
                 this.state.texture.shadeV = BitUtils.extract(params24, 8, 2);
@@ -8681,6 +8685,10 @@ var PspGpuList = (function () {
                 mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
                 break;
 
+            case 91 /* MATERIALSPECULARCOEF */:
+                this.state.lightning.specularPower = float1();
+                break;
+
             case 85 /* MATERIALAMBIENT */:
                 //printf("%08X: %08X", current, instruction);
                 //printf("GpuOpCodes.AMC: Params24: %08X", params24);
@@ -8697,16 +8705,17 @@ var PspGpuList = (function () {
 
             case 92 /* AMBIENTCOLOR */:
                 //printf("%08X: %08X", current, instruction);
-                this.state.lighting.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-                this.state.lighting.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-                this.state.lighting.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-                this.state.lighting.ambientLightColor.a = 1;
+                this.state.lightning.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+                this.state.lightning.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+                this.state.lightning.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+                this.state.lightning.ambientLightColor.a = 1;
                 break;
-
             case 93 /* AMBIENTALPHA */:
-                this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
+                this.state.lightning.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
                 break;
-
+            case 40 /* LOGICOPENABLE */:
+                this.state.logicOp.enabled = bool1();
+                break;
             case 86 /* MATERIALDIFFUSE */:
                 //printf("AMC:%08X", params24);
                 this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
@@ -9602,7 +9611,6 @@ var VertexState = (function () {
         this.address = 0;
         this._value = 0;
         this.reversedNormal = false;
-        this.normalCount = 2;
         this.textureComponentCount = 2;
     }
     VertexState.prototype.clone = function () {
@@ -9610,7 +9618,6 @@ var VertexState = (function () {
         that.address = this.address;
         that._value = this._value;
         that.reversedNormal = this.reversedNormal;
-        that.normalCount = this.normalCount;
         that.textureComponentCount = this.textureComponentCount;
         that.size = this.size;
         return that;
@@ -9629,7 +9636,6 @@ var VertexState = (function () {
         //getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
         get: function () {
             return this._value + (this.textureComponentCount * Math.pow(2, 24));
-            //return [this.address, this._value, this.reversedNormal, this.normalCount, this.textureComponentCount, this.size].join(':')
         },
         enumerable: true,
         configurable: true
@@ -9775,7 +9781,7 @@ var VertexState = (function () {
     });
     Object.defineProperty(VertexState.prototype, "transform2D", {
         get: function () {
-            return BitUtils.extractEnum(this._value, 23, 1);
+            return BitUtils.extractBool(this._value, 23);
         },
         set: function (value) {
             this._value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0);
@@ -10009,6 +10015,8 @@ var Lightning = (function () {
     function Lightning() {
         this.enabled = false;
         this.lights = [new Light(), new Light(), new Light(), new Light()];
+        this.specularPower = 1;
+        this.ambientLightColor = new ColorState();
     }
     return Lightning;
 })();
@@ -10094,6 +10102,7 @@ var TextureState = (function () {
     TextureState.prototype.getTextureComponentsCount = function () {
         switch (this.textureMapMode) {
             default:
+                throw (new Error("Invalid textureMapMode"));
             case 0 /* GU_TEXTURE_COORDS */:
                 return 2;
             case 1 /* GU_TEXTURE_MATRIX */:
@@ -10126,14 +10135,6 @@ var CullingState = (function () {
     return CullingState;
 })();
 exports.CullingState = CullingState;
-
-var LightingState = (function () {
-    function LightingState() {
-        this.ambientLightColor = new ColorState();
-    }
-    return LightingState;
-})();
-exports.LightingState = LightingState;
 
 (function (TestFunctionEnum) {
     TestFunctionEnum[TestFunctionEnum["Never"] = 0] = "Never";
@@ -10345,6 +10346,31 @@ var Fog = (function () {
 })();
 exports.Fog = Fog;
 
+var LogicOp = (function () {
+    function LogicOp() {
+        this.enabled = false;
+    }
+    return LogicOp;
+})();
+exports.LogicOp = LogicOp;
+
+var LineSmoothState = (function () {
+    function LineSmoothState() {
+        this.enabled = false;
+    }
+    return LineSmoothState;
+})();
+exports.LineSmoothState = LineSmoothState;
+
+var PatchCullingState = (function () {
+    function PatchCullingState() {
+        this.enabled = false;
+        this.faceFlag = false;
+    }
+    return PatchCullingState;
+})();
+exports.PatchCullingState = PatchCullingState;
+
 var GpuState = (function () {
     function GpuState() {
         this.clearing = false;
@@ -10366,13 +10392,15 @@ var GpuState = (function () {
         this.offset = { x: 0, y: 0 };
         this.fog = new Fog();
         this.clipPlane = new ClipPlane();
+        this.logicOp = new LogicOp();
         this.lightning = new Lightning();
         this.alphaTest = new AlphaTest();
         this.blending = new Blending();
         this.patch = new PatchState();
         this.texture = new TextureState();
+        this.lineSmoothState = new LineSmoothState();
+        this.patchCullingState = new PatchCullingState();
         this.ambientModelColor = new ColorState();
-        this.lighting = new LightingState();
         this.diffuseModelColor = new ColorState();
         this.specularModelColor = new ColorState();
         this.culling = new CullingState();
@@ -10543,6 +10571,7 @@ var VertexReader = (function () {
 
         this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
 
+        //debugger;
         if (hasIndex) {
             for (var n = 0; n < count; n++) {
                 var index = indices[n];
@@ -10563,13 +10592,12 @@ var VertexReader = (function () {
         this.readOffset = 0;
 
         var normalize = !this.vertexState.transform2D;
-        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
-        this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
+        this.createNumberJs([1, 0x80, 0x8000, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
+        this.createNumberJs([1, 0x80, 0x8000, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
 
-        //this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, false);
         this.createColorJs(indentStringGenerator, this.vertexState.color);
-        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
-        this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+        this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
+        this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
 
         //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         return indentStringGenerator.output;
@@ -10595,48 +10623,49 @@ var VertexReader = (function () {
         return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)';
     };
     VertexReader.prototype.readUInt32 = function () {
-        return '((' + this.readInt16() + ' & 0xFFFFFFFF) >>> 0)';
+        return '((' + this.readInt32() + ' & 0xFFFFFFFF) >>> 0)';
     };
 
     VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
         if (type == 0 /* Void */)
             return;
 
+        var alignment = 4;
+        var sizes = [8, 8, 8, 8];
+        var components = ['r', 'g', 'b', 'a'];
+
         switch (type) {
             case 7 /* Color8888 */:
-                this.align(4);
-                indentStringGenerator.write('output.r = ((' + this.readUInt8() + ') / 255.0);\n');
-                indentStringGenerator.write('output.g = ((' + this.readUInt8() + ') / 255.0);\n');
-                indentStringGenerator.write('output.b = ((' + this.readUInt8() + ') / 255.0);\n');
-                indentStringGenerator.write('output.a = ((' + this.readUInt8() + ') / 255.0);\n');
+                alignment = 4;
+                sizes = [8, 8, 8, 8];
                 break;
             case 5 /* Color5551 */:
-                this.align(2);
-                indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-                indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
-                indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
-                indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
-                indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
+                alignment = 2;
+                sizes = [5, 5, 5, 1];
                 break;
             case 6 /* Color4444 */:
-                this.align(2);
-                indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-                indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 4);\n');
-                indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 4, 4);\n');
-                indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 8, 4);\n');
-                indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 12, 4);\n');
+                alignment = 2;
+                sizes = [4, 4, 4, 4];
                 break;
             case 4 /* Color5650 */:
-                this.align(2);
-                indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-                indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
-                indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 6);\n');
-                indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 11, 5);\n');
-                indentStringGenerator.write('output.a = 1.0;\n');
+                alignment = 2;
+                sizes = [5, 6, 5, 0];
                 break;
             default:
                 throw (new Error("Not implemented color format '" + type + "'"));
         }
+
+        this.align(alignment);
+        indentStringGenerator.write('var temp = (' + ((alignment == 2) ? this.readUInt16() : this.readUInt32()) + ');\n');
+        var offset = 0;
+        for (var n = 0; n < 4; n++) {
+            var size = sizes[n], component = components[n];
+            indentStringGenerator.write('output.' + component + ' = ');
+            indentStringGenerator.write((size != 0) ? ('(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : '1.0');
+            indentStringGenerator.write('\n');
+            offset += size;
+        }
+        //indentStringGenerator.write('debugger;\n');
     };
 
     VertexReader.prototype.align = function (count) {
@@ -10650,7 +10679,7 @@ var VertexReader = (function () {
         return offset;
     };
 
-    VertexReader.prototype.createNumberJs = function (scales, indentStringGenerator, components, type, normalize) {
+    VertexReader.prototype.createNumberJs = function (scales, signed, indentStringGenerator, components, type, normalize) {
         var _this = this;
         if (type == 0 /* Void */)
             return;
@@ -10658,19 +10687,17 @@ var VertexReader = (function () {
         components.forEach(function (component) {
             switch (type) {
                 case 1 /* Byte */:
-                    indentStringGenerator.write('output.' + component + ' = ' + _this.readInt8());
-                    if (normalize)
-                        indentStringGenerator.write(' / ' + scales[0]);
+                    indentStringGenerator.write('output.' + component + ' = ' + (signed ? _this.readInt8() : _this.readUInt8()));
                     break;
                 case 2 /* Short */:
-                    indentStringGenerator.write('output.' + component + ' = ' + _this.readInt16());
-                    if (normalize)
-                        indentStringGenerator.write(' / ' + scales[1]);
+                    indentStringGenerator.write('output.' + component + ' = ' + (signed ? _this.readInt16() : _this.readUInt16()));
                     break;
                 case 3 /* Float */:
-                    indentStringGenerator.write('output.' + component + ' = ' + _this.readFloat32());
+                    indentStringGenerator.write('output.' + component + ' = ' + (_this.readFloat32()));
                     break;
             }
+            if (normalize && (scales[type] != 1))
+                indentStringGenerator.write(' * ' + (1 / scales[type]));
             indentStringGenerator.write(';\n');
         });
     };
@@ -10864,6 +10891,8 @@ var WebGlPspDrawDriver = (function () {
         }
 
         gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+
+        //gl.depthRange(0, 1);
         gl.depthMask(state.depthTest.mask == 0);
         if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
             gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
@@ -11013,7 +11042,7 @@ var WebGlPspDrawDriver = (function () {
         this.drawElementsInternal(6 /* Sprites */, 3 /* Triangles */, this.vertexPool2, outCount, vertexState);
     };
 
-    WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType) {
+    WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType, originalPrimitiveType) {
         var textureState = this.state.texture;
         var weightCount = vertexState.realWeightCount;
 
@@ -11063,7 +11092,7 @@ var WebGlPspDrawDriver = (function () {
         var program = this.cache.getProgram(vertexState, this.state);
         program.use();
 
-        this.demuxVertices(vertices, count, vertexState, primitiveType);
+        this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
         this.updateState(program, vertexState, originalPrimitiveType);
         this.setProgramParameters(gl, program, vertexState);
 
@@ -11123,14 +11152,21 @@ var WebGlPspDrawDriver = (function () {
                 t[2] = 1.0;
                 mat4.scale(this.texMat, this.texMat, t);
             } else {
-                t[0] = texture.scaleU;
-                t[1] = texture.scaleV;
-                t[2] = 1.0;
-                mat4.scale(this.texMat, this.texMat, t);
-                t[0] = texture.offsetU;
-                t[1] = texture.offsetV;
-                t[2] = 0.0;
-                mat4.translate(this.texMat, this.texMat, t);
+                switch (texture.textureMapMode) {
+                    case 0 /* GU_TEXTURE_COORDS */:
+                        t[0] = texture.offsetU;
+                        t[1] = texture.offsetV;
+                        t[2] = 0.0;
+                        mat4.translate(this.texMat, this.texMat, t);
+                        t[0] = texture.scaleU;
+                        t[1] = texture.scaleV;
+                        t[2] = 1.0;
+                        mat4.scale(this.texMat, this.texMat, t);
+
+                        break;
+                    default:
+                        break;
+                }
             }
             program.getUniform('u_texMatrix').setMat4(this.texMat);
         }
@@ -11301,10 +11337,6 @@ var Texture = (function () {
 
     Texture.prototype.bind = function (textureUnit, min, mag, wraps, wrapt) {
         var gl = this.gl;
-
-        // @TODO: Fixme!
-        wraps = gl.REPEAT;
-        wrapt = gl.REPEAT;
 
         gl.activeTexture(gl.TEXTURE0 + textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);

@@ -88,6 +88,8 @@ export class VertexReader {
 
 		this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
 
+		//debugger;
+
 		if (hasIndex) {
 			for (var n = 0; n < count; n++) {
 				var index = indices[n];
@@ -108,12 +110,12 @@ export class VertexReader {
 		this.readOffset = 0;
 
 		var normalize = !this.vertexState.transform2D;
-		this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
-		this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
-		//this.createNumberJs([0x80, 0x8000], indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, false);
+		this.createNumberJs([1, 0x80, 0x8000, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
+		this.createNumberJs([1, 0x80, 0x8000, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
+
 		this.createColorJs(indentStringGenerator, this.vertexState.color);
-		this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
-		this.createNumberJs([0x7F, 0x7FFF], indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
+		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
 		//if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
 
 		return indentStringGenerator.output;
@@ -126,46 +128,34 @@ export class VertexReader {
 
 	private readUInt8() { return '((' + this.readInt8() + ' & 0xFF) >>> 0)'; }
 	private readUInt16() { return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)'; }
-	private readUInt32() { return '((' + this.readInt16() + ' & 0xFFFFFFFF) >>> 0)'; }
+	private readUInt32() { return '((' + this.readInt32() + ' & 0xFFFFFFFF) >>> 0)'; }
 
 	private createColorJs(indentStringGenerator: _IndentStringGenerator, type: ColorEnum) {
 		if (type == ColorEnum.Void) return;
 
+		var alignment = 4;
+		var sizes = [8, 8, 8, 8];
+		var components = ['r', 'g', 'b', 'a'];
+
 		switch (type) {
-			case ColorEnum.Color8888:
-				this.align(4);
-				indentStringGenerator.write('output.r = ((' + this.readUInt8() + ') / 255.0);\n');
-				indentStringGenerator.write('output.g = ((' + this.readUInt8() + ') / 255.0);\n');
-				indentStringGenerator.write('output.b = ((' + this.readUInt8() + ') / 255.0);\n');
-				indentStringGenerator.write('output.a = ((' + this.readUInt8() + ') / 255.0);\n');
-				break;
-			case ColorEnum.Color5551:
-				this.align(2);
-				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
-				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 5);\n');
-				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 10, 5);\n');
-				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 15, 1);\n');
-				break;
-			case ColorEnum.Color4444:
-				this.align(2);
-				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 4);\n');
-				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 4, 4);\n');
-				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 8, 4);\n');
-				indentStringGenerator.write('output.a = BitUtils.extractScale1f(temp, 12, 4);\n');
-				break;
-			case ColorEnum.Color5650:
-				this.align(2);
-				indentStringGenerator.write('var temp = (' + this.readUInt16() + ');\n');
-				indentStringGenerator.write('output.r = BitUtils.extractScale1f(temp, 0, 5);\n');
-				indentStringGenerator.write('output.g = BitUtils.extractScale1f(temp, 5, 6);\n');
-				indentStringGenerator.write('output.b = BitUtils.extractScale1f(temp, 11, 5);\n');
-				indentStringGenerator.write('output.a = 1.0;\n');
-				break;
-			default:
-				throw (new Error("Not implemented color format '" + type + "'"));
+			case ColorEnum.Color8888: alignment = 4; sizes = [8, 8, 8, 8]; break;
+			case ColorEnum.Color5551: alignment = 2; sizes = [5, 5, 5, 1]; break;
+			case ColorEnum.Color4444: alignment = 2; sizes = [4, 4, 4, 4]; break;
+			case ColorEnum.Color5650: alignment = 2; sizes = [5, 6, 5, 0]; break;
+			default: throw (new Error("Not implemented color format '" + type + "'"));
 		}
+
+		this.align(alignment);
+		indentStringGenerator.write('var temp = (' + ((alignment == 2) ? this.readUInt16() : this.readUInt32()) + ');\n');
+		var offset = 0;
+		for (var n = 0; n < 4; n++) {
+			var size = sizes[n], component = components[n];
+			indentStringGenerator.write('output.' + component + ' = ');
+			indentStringGenerator.write((size != 0) ? ('(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : '1.0');
+			indentStringGenerator.write('\n');
+			offset += size;
+		}
+		//indentStringGenerator.write('debugger;\n');
 	}
 
 	private align(count: number) {
@@ -179,23 +169,16 @@ export class VertexReader {
 		return offset;
 	}
 
-	private createNumberJs(scales: number[], indentStringGenerator: _IndentStringGenerator, components: string[], type: _state.NumericEnum, normalize: boolean) {
+	private createNumberJs(scales: number[], signed:boolean, indentStringGenerator: _IndentStringGenerator, components: string[], type: _state.NumericEnum, normalize: boolean) {
 		if (type == _state.NumericEnum.Void) return;
 
 		components.forEach((component) => {
 			switch (type) {
-				case _state.NumericEnum.Byte:
-					indentStringGenerator.write('output.' + component + ' = ' + this.readInt8());
-					if (normalize) indentStringGenerator.write(' / ' + scales[0]);
-					break;
-				case _state.NumericEnum.Short:
-					indentStringGenerator.write('output.' + component + ' = ' + this.readInt16());
-					if (normalize) indentStringGenerator.write(' / ' + scales[1]);
-					break;
-				case _state.NumericEnum.Float:
-					indentStringGenerator.write('output.' + component + ' = ' + this.readFloat32());
-					break;
+				case _state.NumericEnum.Byte: indentStringGenerator.write('output.' + component + ' = ' + (signed ? this.readInt8() : this.readUInt8())); break;
+				case _state.NumericEnum.Short: indentStringGenerator.write('output.' + component + ' = ' + (signed ? this.readInt16() : this.readUInt16())); break;
+				case _state.NumericEnum.Float: indentStringGenerator.write('output.' + component + ' = ' + (this.readFloat32())); break;
 			}
+			if (normalize && (scales[type] != 1)) indentStringGenerator.write(' * ' + (1 / scales[type]));
 			indentStringGenerator.write(';\n');
 		});
 	}

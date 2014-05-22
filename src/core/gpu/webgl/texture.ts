@@ -82,10 +82,6 @@ export class Texture {
 	bind(textureUnit: number, min: number, mag: number, wraps: number, wrapt: number) {
 		var gl = this.gl;
 
-		// @TODO: Fixme!
-		wraps = gl.REPEAT;
-		wrapt = gl.REPEAT;
-
 		gl.activeTexture(gl.TEXTURE0 + textureUnit);
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);

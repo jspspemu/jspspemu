@@ -86,7 +86,6 @@ export class VertexState {
 	address = 0;
 	private _value = 0;
 	reversedNormal = false;
-	normalCount = 2;
 	textureComponentCount = 2;
 	size: number;
 
@@ -95,7 +94,6 @@ export class VertexState {
 		that.address = this.address;
 		that._value = this._value;
 		that.reversedNormal = this.reversedNormal;
-		that.normalCount = this.normalCount;
 		that.textureComponentCount = this.textureComponentCount;
 		that.size = this.size;
 		return that;
@@ -112,7 +110,6 @@ export class VertexState {
 
 	get hash() {
 		return this._value + (this.textureComponentCount * Math.pow(2, 24));
-		//return [this.address, this._value, this.reversedNormal, this.normalCount, this.textureComponentCount, this.size].join(':')
 	}
 
 	toString() {
@@ -145,7 +142,7 @@ export class VertexState {
 	get index() { return BitUtils.extractEnum<IndexEnum>(this._value, 11, 2); }
 	get weightCount() { return BitUtils.extract(this._value, 14, 3); }
 	get morphingVertexCount() { return BitUtils.extract(this._value, 18, 2); }
-	get transform2D() { return BitUtils.extractEnum<boolean>(this._value, 23, 1); }
+	get transform2D() { return BitUtils.extractBool(this._value, 23); }
 
 	set texture(value: NumericEnum) { this._value = BitUtils.insert(this._value, 0, 2, value); }
 	set color(value: ColorEnum) { this._value = BitUtils.insert(this._value, 2, 3, value); }
@@ -302,6 +299,8 @@ export class Light {
 export class Lightning {
 	enabled = false;
 	lights = [new Light(), new Light(), new Light(), new Light()];
+	specularPower = 1;
+	ambientLightColor = new ColorState();
 }
 
 export class MipmapState {
@@ -369,7 +368,7 @@ export class TextureState {
 
 	getTextureComponentsCount() {
 		switch (this.textureMapMode) {
-			default:
+			default: throw(new Error("Invalid textureMapMode"));
 			case TextureMapMode.GU_TEXTURE_COORDS: return 2;
 			case TextureMapMode.GU_TEXTURE_MATRIX:
 				switch (this.textureProjectionMapMode) {
@@ -388,10 +387,6 @@ export class TextureState {
 export class CullingState {
 	enabled = false;
 	direction = CullingDirection.ClockWise;
-}
-
-export class LightingState {
-	ambientLightColor = new ColorState();
 }
 
 export enum TestFunctionEnum {
@@ -539,6 +534,19 @@ export class Fog {
 	enabled = false;
 }
 
+export class LogicOp {
+	enabled = false;
+}
+
+export class LineSmoothState {
+	enabled = false;
+}
+
+export class PatchCullingState {
+	enabled = false;
+	faceFlag = false;
+}
+
 export class GpuState {
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
 	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
@@ -562,13 +570,15 @@ export class GpuState {
 	offset = { x: 0, y: 0 };
 	fog = new Fog();
 	clipPlane = new ClipPlane();
+	logicOp = new LogicOp();
 	lightning = new Lightning();
 	alphaTest = new AlphaTest();
 	blending = new Blending();
 	patch = new PatchState();
 	texture = new TextureState();
+	lineSmoothState = new LineSmoothState();
+	patchCullingState = new PatchCullingState();
 	ambientModelColor = new ColorState();
-	lighting = new LightingState();
 	diffuseModelColor = new ColorState();
 	specularModelColor = new ColorState();
 	culling = new CullingState();

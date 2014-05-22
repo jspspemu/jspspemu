@@ -609,8 +609,8 @@ export class InstructionAst {
 	vcmp(i: Instruction) {
 		return call_stm('state.vcmp', [
 			imm32(i.IMM4),
-			ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO)),
-			ast.arrayNumbers(getVectorRegs(i.VT, i.ONE_TWO))
+			ast.array(readVector(i.VS, i.ONE_TWO)),
+			ast.array(readVector(i.VT, i.ONE_TWO))
 		]);
 	}
 

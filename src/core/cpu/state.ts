@@ -176,10 +176,10 @@ export class CpuState {
 		return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
 	}
 
-	vcmp(cond: VCondition, vsRegs: number[], vtRegs: number[]) {
-		var vectorSize = vsRegs.length;
-		this.loadVs_prefixed(vsRegs.map(reg => this.vfpr[reg]));
-		this.loadVt_prefixed(vtRegs.map(reg => this.vfpr[reg]));
+	vcmp(cond: VCondition, vsValues: number[], vtValues: number[]) {
+		var vectorSize = vsValues.length;
+		this.loadVs_prefixed(vsValues);
+		this.loadVt_prefixed(vtValues);
 		var s = this.vector_vs;
 		var t = this.vector_vt;
 

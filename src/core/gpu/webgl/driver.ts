@@ -174,6 +174,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		}
 
 		gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+		//gl.depthRange(0, 1);
 		gl.depthMask(state.depthTest.mask == 0);
 		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
 			gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
@@ -330,7 +331,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	private lastBaseAddress = 0;
 
-	private demuxVertices(vertices: _state.Vertex[], count: number, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+	private demuxVertices(vertices: _state.Vertex[], count: number, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType, originalPrimitiveType: _state.PrimitiveType) {
 		var textureState = this.state.texture;
 		var weightCount = vertexState.realWeightCount;
 
@@ -383,7 +384,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		var program = this.cache.getProgram(vertexState, this.state);
 		program.use();
 
-		this.demuxVertices(vertices, count, vertexState, primitiveType);
+		this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
 		this.updateState(program, vertexState, originalPrimitiveType);
 		this.setProgramParameters(gl, program, vertexState);
 
@@ -439,8 +440,20 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			if (vertexState.transform2D) {
 				t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
 			} else {
-				t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
-				t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
+				switch (texture.textureMapMode) {
+					case _state.TextureMapMode.GU_TEXTURE_COORDS:
+						t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
+						t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
+
+						//switch (vertexState.textureSize) {
+						//	case 1: t[0] = 0x80; t[1] = 0x80; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
+						//	case 2: t[0] = 0x8000; t[1] = 0x8000; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
+						//}
+						break;
+					default:
+						break;
+				}
+
 			}
 			program.getUniform('u_texMatrix').setMat4(this.texMat);
 		}

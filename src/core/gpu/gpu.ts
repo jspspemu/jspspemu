@@ -223,17 +223,18 @@ class PspGpuList {
 				this.state.texture.wrapU = BitUtils.extractEnum<_state.WrapMode>(params24, 0, 8);
 				this.state.texture.wrapV = BitUtils.extractEnum<_state.WrapMode>(params24, 8, 8);
 				break;
-
 			case GpuOpCodes.TEXTUREMAPENABLE:
 				this.state.texture.enabled = (params24 != 0);
 				break;
-
 			case GpuOpCodes.TMAP:
 				this.state.texture.textureMapMode = BitUtils.extractEnum<_state.TextureMapMode>(params24, 0, 8);
 				this.state.texture.textureProjectionMapMode = BitUtils.extractEnum<_state.TextureProjectionMapMode>(params24, 8, 8);
-				this.state.vertex.normalCount = this.state.texture.getTextureComponentsCount();
+				this.state.vertex.textureComponentCount = this.state.texture.getTextureComponentsCount();
 				break;
-
+			case GpuOpCodes.REVERSENORMAL: this.state.vertex.reversedNormal = bool1(); break;
+			case GpuOpCodes.PATCHCULLENABLE: this.state.patchCullingState.enabled = bool1(); break;
+			case GpuOpCodes.PATCHFACING: this.state.patchCullingState.faceFlag = bool1(); break;
+			case GpuOpCodes.ANTIALIASENABLE: this.state.lineSmoothState.enabled = bool1(); break;
 			case GpuOpCodes.TEXTURE_ENV_MAP_MATRIX:
 				this.state.texture.shadeU = BitUtils.extract(params24, 0, 2);
 				this.state.texture.shadeV = BitUtils.extract(params24, 8, 2);
@@ -311,6 +312,10 @@ class PspGpuList {
 				mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
 				break;
 
+			case GpuOpCodes.MATERIALSPECULARCOEF:
+				this.state.lightning.specularPower = float1();
+				break;
+
 			case GpuOpCodes.MATERIALAMBIENT:
 				//printf("%08X: %08X", current, instruction);
 				//printf("GpuOpCodes.AMC: Params24: %08X", params24);
@@ -327,17 +332,17 @@ class PspGpuList {
 
 			case GpuOpCodes.AMBIENTCOLOR:
 				//printf("%08X: %08X", current, instruction);
-				this.state.lighting.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-				this.state.lighting.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-				this.state.lighting.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-				this.state.lighting.ambientLightColor.a = 1;
+				this.state.lightning.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
+				this.state.lightning.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
+				this.state.lightning.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
+				this.state.lightning.ambientLightColor.a = 1;
 				break;
-
-
 			case GpuOpCodes.AMBIENTALPHA:
-				this.state.lighting.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
+				this.state.lightning.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
 				break;
-
+			case GpuOpCodes.LOGICOPENABLE:
+				this.state.logicOp.enabled = bool1();
+				break;
 			case GpuOpCodes.MATERIALDIFFUSE:
 				//printf("AMC:%08X", params24);
 
@@ -353,6 +358,7 @@ class PspGpuList {
 				this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
 				this.state.specularModelColor.a = 1;
 				break;
+			
 
 			case GpuOpCodes.CLUTADDR:
 				this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
