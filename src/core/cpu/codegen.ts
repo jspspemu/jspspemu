@@ -582,11 +582,8 @@ export class InstructionAst {
 		return this._branch(i, branchExpr);
 	}
 	
-	// @TODO: Fixme!
-	//bvf(i: Instruction) { return this._bvtf(i, false); }
-	//bvt(i: Instruction) { return this._bvtf(i, true); }
-	bvf(i: Instruction) { return this._bvtf(i, true); }
-	bvt(i: Instruction) { return this._bvtf(i, false); }
+	bvf(i: Instruction) { return this._bvtf(i, false); }
+	bvt(i: Instruction) { return this._bvtf(i, true); }
 
 	bvfl(i: Instruction) { return this.bvf(i); }
 	bvtl(i: Instruction) { return this.bvt(i); }

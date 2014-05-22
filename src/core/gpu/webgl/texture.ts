@@ -151,6 +151,7 @@ export class TextureHandler {
 	private recheckTimestamp: number = 0;
 	private lastTexture: Texture;
 	//private updatedTextures = new SortedSet<Texture>();
+	private invalidatedAll = false;
 
 	flush() {
 		for (var n = 0; n < this.textures.length; n++) {
@@ -165,11 +166,17 @@ export class TextureHandler {
 	sync() {
 	}
 
+	end() {
+		if (!this.invalidatedAll) return;
+		this.invalidatedAll = false;
+		//for (var n = 0; n < this.textures.length; n++) {
+		//	var texture = this.textures[n];
+		//	texture.validHint = false;
+		//}
+	}
+
 	private invalidatedMemoryAll() {
-		for (var n = 0; n < this.textures.length; n++) {
-			var texture = this.textures[n];
-			//texture.validHint = false;
-		}
+		this.invalidatedAll = true;
 	}
 
 	private invalidatedMemoryRange(range: NumericRange) {

@@ -3,19 +3,19 @@ import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 import ColorEnum = _state.ColorEnum;
 
 export class VertexBuffer {
-	offset = 0;
+	offsetLength = 0;
 	vertices: _state.Vertex[] = [];
 
 	constructor() {
 	}
 
 	reset() {
-		this.offset = 0;
+		this.offsetLength = 0;
 	}
 
 	take(count: number) {
-		var result = this.offset;
-		this.offset += count;
+		var result = this.offsetLength;
+		this.offsetLength += count;
 		return result;
 	}
 
@@ -32,7 +32,7 @@ export class VertexBuffer {
 	}
 
 	ensure(count: number) {
-		count += this.offset;
+		count += this.offsetLength;
 		while (this.vertices.length < count) this.vertices.push(new _state.Vertex());
 	}
 

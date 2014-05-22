@@ -109,6 +109,12 @@ export class FunctionGenerator {
 
 			if (di.type.isJumpOrBranch) {
 				var di2 = this.decodeInstruction(PC + 4);
+				if (di2.type.isJumpOrBranch) {
+					stms.add(ast.debugger());
+					console.error("branch in delayed slot!");
+					//debugger;
+				}
+
 				var isBranch = di.type.isBranch;
 				var isCall = di.type.isCall;
 				var jumpAddress = 0;

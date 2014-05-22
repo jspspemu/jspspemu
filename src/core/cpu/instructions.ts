@@ -678,7 +678,7 @@ export class Instruction {
 	
 	get IMM8() { return this.extract(16, 8); } set IMM8(value:number) { this.insert(16, 8, value); }
 	get IMM5() { return this.extract(16, 5); } set IMM5(value:number) { this.insert(16, 5, value); }
-	get IMM3() { return this.extract(16, 3); } set IMM3(value:number) { this.insert(16, 3, value); }
+	get IMM3() { return this.extract(18, 3); } set IMM3(value: number) { this.insert(18, 3, value); }
 	get IMM7() { return this.extract(0, 7); } set IMM7(value:number) { this.insert(0, 7, value); }
 	get IMM4() { return this.extract(0, 4); } set IMM4(value:number) { this.insert(0, 4, value); }
 	get VT1() { return this.extract(0, 1); } set VT1(value:number) { this.insert(0, 1, value); }

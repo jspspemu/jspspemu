@@ -72,6 +72,10 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		//console.log('clearing: ' + clearing + '; ' + flags);
 	}
 
+	end() {
+		this.textureHandler.end();
+	}
+
 	projectionMatrix: Matrix4x4;
 	viewMatrix: Matrix4x3;
 	worldMatrix: Matrix4x3;
@@ -275,26 +279,29 @@ class WebGlPspDrawDriver implements IDrawDriver {
 	}
 
 	private vertexPool = <_state.Vertex[]>[];
+	private vertexPool2 = <_state.Vertex[]>[];
 
 	private drawSprites(vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
 		var vertexPool = this.vertexPool;
 
 		while (vertexPool.length < count * 2) vertexPool.push(new _state.Vertex());
 
-		var vertexCount = 0;
-		var vertices2 = [];
+		var inCount = 0;
+		//var vertices2 = [];
+		this.vertexPool2.length = Math.max(this.vertexPool2.length, count * 3);
+		var outCount = 0;
 
 		for (var n = 0; n < count; n += 2) {
-			var tl = vertexPool[vertexCount++].copyFrom(vertices[n + 0]);
-			var br = vertexPool[vertexCount++].copyFrom(vertices[n + 1]);
+			var tl = vertexPool[inCount++].copyFromBasic(vertices[n + 0]);
+			var br = vertexPool[inCount++].copyFromBasic(vertices[n + 1]);
 
 			tl.r = br.r;
 			tl.g = br.g;
 			tl.b = br.b;
 			tl.a = br.a;
 
-			var vtr = vertexPool[vertexCount++].copyFrom(tl);
-			var vbl = vertexPool[vertexCount++].copyFrom(br);
+			var vtr = vertexPool[inCount++].copyFromBasic(tl);
+			var vbl = vertexPool[inCount++].copyFromBasic(br);
 
 			vtr.px = br.px; vtr.py = tl.py;
 			vtr.tx = br.tx; vtr.ty = tl.ty;
@@ -302,10 +309,15 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			vbl.px = tl.px; vbl.py = br.py;
 			vbl.tx = tl.tx; vbl.ty = br.ty;
 
-			vertices2.push(tl, vtr, vbl);
-			vertices2.push(vtr, br, vbl);
+			this.vertexPool2[outCount++] = tl;
+			this.vertexPool2[outCount++] = vtr;
+			this.vertexPool2[outCount++] = vbl;
+
+			this.vertexPool2[outCount++] = vtr;
+			this.vertexPool2[outCount++] = br;
+			this.vertexPool2[outCount++] = vbl;
 		}
-		this.drawElementsInternal(_state.PrimitiveType.Sprites, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState);
+		this.drawElementsInternal(_state.PrimitiveType.Sprites, _state.PrimitiveType.Triangles, this.vertexPool2, outCount, vertexState);
 	}
 
 	private testCount = 20;

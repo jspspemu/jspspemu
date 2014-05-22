@@ -38,7 +38,7 @@ var singleCallTest = false;
 class PspGpuExecutor {
 	private list: PspGpuList;
 	private state: _state.GpuState;
-	table: NumberDictionary<Function> = {};
+	table: Function[];
 
 	setList(list: PspGpuList) {
 		this.list = list;
@@ -46,8 +46,11 @@ class PspGpuExecutor {
 	}
 
 	constructor() {
-		for (var key in GpuOpCodes) {
-			if (this[key]) this.table[GpuOpCodes[key]] = this[key].bind(this);
+		this.table = new Array(0x100);
+		for (var n = 0; n < 0x100; n++) {
+			this.table[n] = null;
+			var func = this[GpuOpCodes[n]];
+			if (func) this.table[n] = func.bind(this);
 		}
 	}
 
@@ -91,6 +94,7 @@ class PspGpuExecutor {
 		console.warn('Not implemented: GPU SIGNAL');
 	}
 	END(params24: number) {
+		this.list.gpu.driver.end();
 		this.list.complete();
 		this.list.finishPrimBatch();
 		return true;
@@ -480,58 +484,63 @@ class PspGpuList {
 				var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(params24, 16, 3);
 				var vertexCount = BitUtils.extract(params24, 0, 16);
 
-				if (this.primBatchPrimitiveType != primitiveType) {
-					this.finishPrimBatch();
-				}
+				if (this.primBatchPrimitiveType != primitiveType) this.finishPrimBatch();
+				if (vertexCount <= 0) return false;
 
 				this.primBatchPrimitiveType = primitiveType;
 
 				this.primCount++;
 
-				if (vertexCount > 0) {
-					var vertexState = this.state.vertex;
-					var vertexSize = vertexState.size;
-					var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
-					var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
+				var vertexState = this.state.vertex;
+				var vertexSize = vertexState.size;
+				var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
+				var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
 
-					var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
+				var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
 
-					var indices: any = null;
-					switch (vertexState.index) {
-						case _state.IndexEnum.Byte: indices = this.memory.getU8Array(indicesAddress); break;
-						case _state.IndexEnum.Short: indices = this.memory.getU16Array(indicesAddress); break;
-					}
-
-					//if (vertexState.realWeightCount > 0) debugger;
-
-					var vertexInput = this.memory.getPointerDataView(vertexAddress);
-
-					if (vertexState.address) {
-						if (!vertexState.hasIndex) {
-							vertexState.address += vertexState.size * vertexCount;
-						}
-					}
-
-					var doDegenerate = false;
-
-					if (this.batchPrimCount > 0) {
-						switch (primitiveType) {
-							case _state.PrimitiveType.TriangleStrip:
-							case _state.PrimitiveType.LineStrip:
-							case _state.PrimitiveType.TriangleFan:
-								vertexBuffer.startDegenerateTriangleStrip();
-								doDegenerate = true;
-								break;
-						}
-					}
-
-					var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
-					vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
-
-					if (doDegenerate) vertexBuffer.endDegenerateTriangleStrip();
+				var indices: any = null;
+				switch (vertexState.index) {
+					case _state.IndexEnum.Byte: indices = this.memory.getU8Array(indicesAddress); break;
+					case _state.IndexEnum.Short: indices = this.memory.getU16Array(indicesAddress); break;
 				}
 
-				this.batchPrimCount++;
+				//if (vertexState.realWeightCount > 0) debugger;
+
+				var vertexInput = this.memory.getPointerDataView(vertexAddress);
+
+				if (vertexState.address) {
+					if (!vertexState.hasIndex) {
+						vertexState.address += vertexState.size * vertexCount;
+					}
+				}
+
+				var drawType = PrimDrawType.SINGLE_DRAW;
+
+				switch (primitiveType) {
+					case _state.PrimitiveType.Lines:
+					case _state.PrimitiveType.Points:
+					case _state.PrimitiveType.Triangles:
+					case _state.PrimitiveType.Sprites:
+						drawType = PrimDrawType.BATCH_DRAW;
+						break;
+					case _state.PrimitiveType.TriangleStrip:
+					case _state.PrimitiveType.LineStrip:
+						drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
+						break;
+				}
+
+				if ((this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.startDegenerateTriangleStrip();
+				{
+					var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
+					vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
+				}
+				if ((this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.endDegenerateTriangleStrip();
+
+				if (drawType == PrimDrawType.SINGLE_DRAW) {
+					this.finishPrimBatch();
+				} else {
+					this.batchPrimCount++;
+				}
 
 				break;
 
@@ -552,9 +561,9 @@ class PspGpuList {
 	private primBatchPrimitiveType:number = -1;
 
 	finishPrimBatch() {
-		if (vertexBuffer.offset == 0) return;
+		if (vertexBuffer.offsetLength == 0) return;
 		this.batchPrimCount = 0;
-		this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offset, this.state.vertex);
+		this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.state.vertex);
 		vertexBuffer.reset();
 		this.primBatchPrimitiveType = -1;
 	}
@@ -637,6 +646,12 @@ class PspGpuList {
     waitAsync() {
         return this.promise;
     }
+}
+
+enum PrimDrawType {
+	SINGLE_DRAW = 0,
+	BATCH_DRAW = 1,
+	BATCH_DRAW_DEGENERATE = 2,
 }
 
 class PspGpuListRunner {

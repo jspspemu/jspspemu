@@ -2,6 +2,8 @@
 
 
 export interface IDrawDriver {
+	end(): void;
+
 	initAsync(): Promise<any>;
 
 	/**
