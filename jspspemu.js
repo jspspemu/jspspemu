@@ -8350,11 +8350,82 @@ var WebGlPspDrawDriver = require('./webgl/driver');
 var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
 
+var PspGpuExecutor = (function () {
+    function PspGpuExecutor() {
+        this.table = {};
+        for (var key in GpuOpCodes) {
+            if (this[key])
+                this.table[GpuOpCodes[key]] = this[key].bind(this);
+        }
+    }
+    PspGpuExecutor.prototype.setList = function (list) {
+        this.list = list;
+        this.state = list.state;
+    };
+
+    PspGpuExecutor.prototype.NOP = function (params24) {
+    };
+    PspGpuExecutor.prototype.IADDR = function (params24) {
+        this.state.indexAddress = params24;
+    };
+    PspGpuExecutor.prototype.OFFSETADDR = function (params24) {
+        this.state.baseOffset = (params24 << 8);
+    };
+    PspGpuExecutor.prototype.FRAMEBUFPTR = function (params24) {
+        this.state.frameBuffer.lowAddress = params24;
+    };
+    PspGpuExecutor.prototype.BASE = function (params24) {
+        this.state.baseAddress = ((params24 << 8) & 0xff000000);
+    };
+    PspGpuExecutor.prototype.JUMP = function (params24) {
+        this.list.jumpRelativeOffset(params24 & ~3);
+    };
+    PspGpuExecutor.prototype.CALL = function (params24, current) {
+        this.list.callstack.push(current + 4);
+        this.list.callstack.push(this.state.baseOffset);
+        this.list.jumpRelativeOffset(params24 & ~3);
+    };
+    PspGpuExecutor.prototype.RET = function (params24) {
+        if (this.list.callstack.length > 0) {
+            this.list.state.baseOffset = this.list.callstack.pop();
+            this.list.jumpAbsolute(this.list.callstack.pop());
+        } else {
+            console.info('gpu callstack empty');
+        }
+    };
+    PspGpuExecutor.prototype.VERTEXTYPE = function (params24) {
+        if (this.list.state.vertex.getValue() == params24)
+            return;
+        this.list.finishPrimBatch();
+        this.list.state.vertex.setValue(params24);
+    };
+    PspGpuExecutor.prototype.VADDR = function (params24) {
+        this.list.state.vertex.address = params24;
+    };
+    PspGpuExecutor.prototype.FINISH = function (params24) {
+        this.list.finish();
+        var callback = this.list.gpu.callbacks.get(this.list.callbackId);
+        if (callback && callback.cpuState && callback.finishFunction) {
+            this.list.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+        }
+    };
+    PspGpuExecutor.prototype.SIGNAL = function (params24) {
+        console.warn('Not implemented: GPU SIGNAL');
+    };
+    PspGpuExecutor.prototype.END = function (params24) {
+        this.list.complete();
+        this.list.finishPrimBatch();
+        return true;
+    };
+    return PspGpuExecutor;
+})();
+
 var PspGpuList = (function () {
-    function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor, state) {
+    function PspGpuList(id, memory, drawDriver, executor, runner, gpu, cpuExecutor, state) {
         this.id = id;
         this.memory = memory;
         this.drawDriver = drawDriver;
+        this.executor = executor;
         this.runner = runner;
         this.gpu = gpu;
         this.cpuExecutor = cpuExecutor;
@@ -8363,6 +8434,7 @@ var PspGpuList = (function () {
         this.status = 4 /* Paused */;
         this.errorCount = 0;
         this.callstack = [];
+        this.primBatchPrimitiveType = -1;
         this.batchPrimCount = 0;
         this.primCount = 0;
         //private showOpcodes = true;
@@ -8383,11 +8455,8 @@ var PspGpuList = (function () {
         this.current = address;
     };
 
-    PspGpuList.prototype.runInstruction = function (current, instruction) {
+    PspGpuList.prototype.runInstruction = function (current, instruction, op, params24) {
         var _this = this;
-        var op = instruction >>> 24;
-        var params24 = instruction & 0xFFFFFF;
-
         function bool1() {
             return params24 != 0;
         }
@@ -8395,17 +8464,10 @@ var PspGpuList = (function () {
             return MathFloat.reinterpretIntAsFloat(params24 << 8);
         }
 
-        switch (op) {
-            case 2 /* IADDR */:
-                this.state.indexAddress = params24;
-                break;
-            case 19 /* OFFSETADDR */:
-                this.state.baseOffset = (params24 << 8);
-                break;
-            case 156 /* FRAMEBUFPTR */:
-                this.state.frameBuffer.lowAddress = params24;
-                break;
+        if (op != 4 /* PRIM */)
+            this.finishPrimBatch();
 
+        switch (op) {
             case 31 /* FOGENABLE */:
                 this.state.fog.enabled = bool1();
                 break;
@@ -8493,35 +8555,6 @@ var PspGpuList = (function () {
             case 26 /* LIGHTENABLE2 */:
             case 27 /* LIGHTENABLE3 */:
                 this.state.lightning.lights[op - 24 /* LIGHTENABLE0 */].enabled = params24 != 0;
-                break;
-            case 16 /* BASE */:
-                this.state.baseAddress = ((params24 << 8) & 0xff000000);
-                break;
-            case 8 /* JUMP */:
-                this.jumpRelativeOffset(params24 & ~3);
-                break;
-            case 10 /* CALL */:
-                this.callstack.push(current + 4);
-                this.callstack.push(this.state.baseOffset);
-                this.jumpRelativeOffset(params24 & ~3);
-
-                break;
-            case 11 /* RET */:
-                if (this.callstack.length > 0) {
-                    this.state.baseOffset = this.callstack.pop();
-                    this.jumpAbsolute(this.callstack.pop());
-                } else {
-                    console.info('gpu callstack empty');
-                }
-                break;
-
-            case 0 /* NOP */:
-                break;
-            case 18 /* VERTEXTYPE */:
-                this.state.vertex.setValue(params24);
-                break;
-            case 1 /* VADDR */:
-                this.state.vertex.address = params24;
                 break;
             case 194 /* TMODE */:
                 this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
@@ -8852,15 +8885,14 @@ var PspGpuList = (function () {
                 var primitiveType = BitUtils.extractEnum(params24, 16, 3);
                 var vertexCount = BitUtils.extract(params24, 0, 16);
 
+                if (this.primBatchPrimitiveType != primitiveType) {
+                    this.finishPrimBatch();
+                }
+
+                this.primBatchPrimitiveType = primitiveType;
+
                 this.primCount++;
 
-                //if (this.current < this.stall) {
-                //	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
-                //
-                //	if (nextOp == GpuOpCodes.PRIM) {
-                //		console.log('PRIM_BATCH!');
-                //	}
-                //}
                 if (vertexCount > 0) {
                     var vertexState = this.state.vertex;
                     var vertexSize = vertexState.size;
@@ -8908,32 +8940,8 @@ var PspGpuList = (function () {
                         vertexBuffer.endDegenerateTriangleStrip();
                 }
 
-                // Continuation
-                var nextInstruction = this.memory.readUInt32(this.current);
-                if (!vertexState.hasIndex && (this.hasMoreInstructions) && ((nextInstruction >>> 24) == 4 /* PRIM */) && ((nextInstruction >>> 16) & 7) == primitiveType) {
-                    this.batchPrimCount++;
-                } else {
-                    this.batchPrimCount = 0;
-                    this.drawDriver.drawElements(this.state, primitiveType, vertexBuffer.vertices, vertexBuffer.offset, vertexState);
-                    vertexBuffer.reset();
-                }
+                this.batchPrimCount++;
 
-                break;
-
-            case 15 /* FINISH */:
-                this.finish();
-                var callback = this.gpu.callbacks.get(this.callbackId);
-                if (callback && callback.cpuState && callback.finishFunction) {
-                    this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
-                }
-                break;
-            case 14 /* SIGNAL */:
-                console.warn('Not implemented: GPU SIGNAL');
-                break;
-
-            case 12 /* END */:
-                this.complete();
-                return true;
                 break;
 
             default:
@@ -8948,6 +8956,15 @@ var PspGpuList = (function () {
         }
 
         return false;
+    };
+
+    PspGpuList.prototype.finishPrimBatch = function () {
+        if (vertexBuffer.offset == 0)
+            return;
+        this.batchPrimCount = 0;
+        this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offset, this.state.vertex);
+        vertexBuffer.reset();
+        this.primBatchPrimitiveType = -1;
     };
 
     PspGpuList.prototype.finish = function () {
@@ -8978,16 +8995,27 @@ var PspGpuList = (function () {
 
     PspGpuList.prototype.runUntilStall = function () {
         this.status = 2 /* Drawing */;
+        this.executor.setList(this);
         while (this.hasMoreInstructions) {
             try  {
                 while (this.hasMoreInstructions) {
-                    var instruction = this.memory.readUInt32(this.current);
+                    var instructionPC = this.current;
+                    var instruction = this.memory.readUInt32(instructionPC);
                     this.current += 4;
                     if (this.showOpcodes)
                         this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
 
-                    if (this.runInstruction(this.current - 4, instruction))
-                        return;
+                    var op = (instruction >>> 24);
+                    var params24 = (instruction & 0x00FFFFFF);
+
+                    var func1 = this.executor.table[op];
+                    if (func1) {
+                        if (func1(params24, instructionPC))
+                            return;
+                    } else {
+                        if (this.runInstruction(instructionPC, instruction, op, params24))
+                            return;
+                    }
                 }
                 this.status = (this.isStalled) ? 3 /* Stalling */ : 0 /* Completed */;
             } catch (e) {
@@ -9038,8 +9066,9 @@ var PspGpuListRunner = (function () {
         this.freeLists = [];
         this.runningLists = [];
         this.state = new _state.GpuState();
+        this.executor = new PspGpuExecutor();
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager, this.state);
+            var list = new PspGpuList(n, memory, drawDriver, this.executor, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }

@@ -35,6 +35,68 @@ export interface IPspGpu {
 var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
 
+class PspGpuExecutor {
+	private list: PspGpuList;
+	private state: _state.GpuState;
+	table: NumberDictionary<Function> = {};
+
+	setList(list: PspGpuList) {
+		this.list = list;
+		this.state = list.state;
+	}
+
+	constructor() {
+		for (var key in GpuOpCodes) {
+			if (this[key]) this.table[GpuOpCodes[key]] = this[key].bind(this);
+		}
+	}
+
+	NOP(params24: number) { }
+	IADDR(params24: number) { this.state.indexAddress = params24; }
+	OFFSETADDR(params24: number) { this.state.baseOffset = (params24 << 8); }
+	FRAMEBUFPTR(params24: number) { this.state.frameBuffer.lowAddress = params24; }
+	BASE(params24: number) { this.state.baseAddress = ((params24 << 8) & 0xff000000); }
+	JUMP(params24: number) {
+		this.list.jumpRelativeOffset(params24 & ~3);
+	}
+	CALL(params24: number, current: number) {
+		this.list.callstack.push(current + 4);
+		this.list.callstack.push(this.state.baseOffset);
+		this.list.jumpRelativeOffset(params24 & ~3);
+	}
+	RET(params24: number) {
+		if (this.list.callstack.length > 0) {
+			this.list.state.baseOffset = this.list.callstack.pop();
+			this.list.jumpAbsolute(this.list.callstack.pop());
+		} else {
+			console.info('gpu callstack empty');
+		}
+	}
+	VERTEXTYPE(params24: number) {
+		if (this.list.state.vertex.getValue() == params24) return;
+		this.list.finishPrimBatch();
+		this.list.state.vertex.setValue(params24);
+	}
+	VADDR(params24: number) {
+		this.list.state.vertex.address = params24;
+	}
+	FINISH(params24: number) {
+		this.list.finish();
+		var callback = this.list.gpu.callbacks.get(this.list.callbackId);
+		if (callback && callback.cpuState && callback.finishFunction) {
+			this.list.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+		}
+	}
+	SIGNAL(params24: number) {
+		console.warn('Not implemented: GPU SIGNAL');
+	}
+	END(params24: number) {
+		this.list.complete();
+		this.list.finishPrimBatch();
+		return true;
+	}
+}
+
 class PspGpuList {
     current: number;
     stall: number;
@@ -47,38 +109,33 @@ class PspGpuList {
 	private promiseReject: Function;
 	private errorCount: number = 0;
 
-	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private runner: PspGpuListRunner, private gpu: PspGpu, private cpuExecutor: CpuExecutor, public state: _state.GpuState) {
+	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private executor: PspGpuExecutor, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
     }
 
-    private complete() {
+    complete() {
         this.completed = true;
 		this.runner.deallocate(this);
 		this.promiseResolve(0);
     }
 
-    private jumpRelativeOffset(offset:number) {
+    jumpRelativeOffset(offset:number) {
         this.current = this.state.baseAddress + offset;
 	}
 
-	private jumpAbsolute(address: number) {
+	jumpAbsolute(address: number) {
 		this.current = address;
 	}
 
-	private callstack = <number[]>[];
+	callstack = <number[]>[];
 
-    private runInstruction(current: number, instruction: number) {
-        var op: GpuOpCodes = instruction >>> 24;
-		var params24: number = instruction & 0xFFFFFF;
-
+    private runInstruction(current: number, instruction: number, op: number, params24: number) {
 		function bool1() { return params24 != 0; }
 		function float1() { return MathFloat.reinterpretIntAsFloat(params24 << 8); }
 
+		if (op != GpuOpCodes.PRIM) this.finishPrimBatch();
+
 		//console.info('op:', op, GpuOpCodes[op]);
 		switch (op) {
-			case GpuOpCodes.IADDR: this.state.indexAddress = params24; break;
-			case GpuOpCodes.OFFSETADDR: this.state.baseOffset = (params24 << 8); break;
-            case GpuOpCodes.FRAMEBUFPTR: this.state.frameBuffer.lowAddress = params24; break;
-
 			case GpuOpCodes.FOGENABLE: this.state.fog.enabled = bool1(); break;
 
 			case GpuOpCodes.VIEWPORTX1: this.state.viewport.width = float1(); break;
@@ -149,26 +206,6 @@ class PspGpuList {
 			case GpuOpCodes.LIGHTENABLE3:
 				this.state.lightning.lights[op - GpuOpCodes.LIGHTENABLE0].enabled = params24 != 0;
 				break;
-            case GpuOpCodes.BASE: this.state.baseAddress = ((params24 << 8) & 0xff000000); break;
-			case GpuOpCodes.JUMP: this.jumpRelativeOffset(params24 & ~3); break;
-			case GpuOpCodes.CALL:
-				this.callstack.push(current + 4);
-				this.callstack.push(this.state.baseOffset);
-				this.jumpRelativeOffset(params24 & ~3);
-
-				break;
-			case GpuOpCodes.RET:
-				if (this.callstack.length > 0) {
-					this.state.baseOffset = this.callstack.pop();
-					this.jumpAbsolute(this.callstack.pop());
-				} else {
-					console.info('gpu callstack empty');
-				}
-				break;
-
-            case GpuOpCodes.NOP: break;
-			case GpuOpCodes.VERTEXTYPE: this.state.vertex.setValue(params24); break;
-			case GpuOpCodes.VADDR: this.state.vertex.address = params24; break;
 			case GpuOpCodes.TMODE:
 				this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
 				this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
@@ -443,15 +480,13 @@ class PspGpuList {
 				var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(params24, 16, 3);
 				var vertexCount = BitUtils.extract(params24, 0, 16);
 
-				this.primCount++;
+				if (this.primBatchPrimitiveType != primitiveType) {
+					this.finishPrimBatch();
+				}
 
-				//if (this.current < this.stall) {
-				//	var nextOp: GpuOpCodes = (this.memory.readUInt32(this.current) >>> 24);
-				//
-				//	if (nextOp == GpuOpCodes.PRIM) {
-				//		console.log('PRIM_BATCH!');
-				//	}
-				//}
+				this.primBatchPrimitiveType = primitiveType;
+
+				this.primCount++;
 
 				if (vertexCount > 0) {
 					var vertexState = this.state.vertex;
@@ -496,29 +531,9 @@ class PspGpuList {
 					if (doDegenerate) vertexBuffer.endDegenerateTriangleStrip();
 				}
 
-				// Continuation
-				var nextInstruction = this.memory.readUInt32(this.current);
-				if (!vertexState.hasIndex && (this.hasMoreInstructions) && ((nextInstruction >>> 24) == GpuOpCodes.PRIM) && ((nextInstruction >>> 16) & 7) == primitiveType) {
-					this.batchPrimCount++;
-				} else {
-					this.batchPrimCount = 0;
-					this.drawDriver.drawElements(this.state, primitiveType, vertexBuffer.vertices, vertexBuffer.offset, vertexState); vertexBuffer.reset();
-				}
+				this.batchPrimCount++;
 
 				break;
-
-			case GpuOpCodes.FINISH:
-				this.finish();
-				var callback = this.gpu.callbacks.get(this.callbackId);
-				if (callback && callback.cpuState && callback.finishFunction) {
-					this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
-				}
-                break;
-			case GpuOpCodes.SIGNAL:
-				console.warn('Not implemented: GPU SIGNAL');
-				break;
-
-			case GpuOpCodes.END: this.complete(); return true; break;
 
             default:
 				this.errorCount++;
@@ -534,12 +549,22 @@ class PspGpuList {
         return false;
 	}
 
+	private primBatchPrimitiveType:number = -1;
+
+	finishPrimBatch() {
+		if (vertexBuffer.offset == 0) return;
+		this.batchPrimCount = 0;
+		this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offset, this.state.vertex);
+		vertexBuffer.reset();
+		this.primBatchPrimitiveType = -1;
+	}
+
 	private batchPrimCount = 0;
 	private primCount = 0;
 	//private showOpcodes = true;
 	private showOpcodes = false;
 	private opcodes = [];
-	private finish() {
+	finish() {
 		if (this.showOpcodes) {
 			$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
 			if (this.opcodes.length) this.opcodes = [];
@@ -559,14 +584,24 @@ class PspGpuList {
 
 	private runUntilStall() {
 		this.status = DisplayListStatus.Drawing;
+		this.executor.setList(this);
 		while (this.hasMoreInstructions) {
 			try {
 				while (this.hasMoreInstructions) {
-					var instruction = this.memory.readUInt32(this.current);
+					var instructionPC = this.current;
+					var instruction = this.memory.readUInt32(instructionPC);
 					this.current += 4
 					if (this.showOpcodes) this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
 
-					if (this.runInstruction(this.current - 4, instruction)) return;
+					var op = (instruction >>> 24);
+					var params24 = (instruction & 0x00FFFFFF);
+
+					var func1 = this.executor.table[op];
+					if (func1) {
+						if (func1(params24, instructionPC)) return;
+					} else {
+						if (this.runInstruction(instructionPC, instruction, op, params24)) return;
+					}
 				}
 				this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 			} catch (e) {
@@ -609,10 +644,11 @@ class PspGpuListRunner {
     private freeLists: PspGpuList[] = [];
 	private runningLists: PspGpuList[] = [];
 	private state = new _state.GpuState()
+	private executor = new PspGpuExecutor()
 
 	constructor(private memory: Memory, private drawDriver: IDrawDriver, private gpu: PspGpu, private callbackManager: CpuExecutor) {
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager, this.state);
+			var list = new PspGpuList(n, memory, drawDriver, this.executor, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }
