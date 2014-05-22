@@ -23,6 +23,8 @@ export enum DisplayListStatus {
 }
 
 export class GpuFrameBufferState {
+	_widthHighAddress = -1;
+
 	lowAddress = 0;
 	highAddress = 0;
 	width = 0;
@@ -286,6 +288,8 @@ export class ViewPort {
 }
 
 export class Region {
+	_xy1 = -1;
+	_xy2 = -1;
 	x1 = 0;
 	y1 = 0;
 	x2 = 512;
@@ -293,6 +297,11 @@ export class Region {
 }
 
 export class Light {
+	_type = -1;
+	_specularColor = -1;
+	_diffuseColor = -1;
+	_ambientColor = -1;
+
 	enabled = false;
 	kind = LightModelEnum.SingleColor;
 	type = LightTypeEnum.Directional;
@@ -313,6 +322,8 @@ export enum LightTypeEnum { Directional = 0, PointLight = 1, SpotLight = 2 }
 export enum LightModelEnum { SingleColor = 0, SeparateSpecularColor = 1 }
 
 export class Lightning {
+	_ambientLightColor = -1;
+	_ambientLightColorAlpha = -1;
 	enabled = false;
 	lights = [new Light(), new Light(), new Light(), new Light()];
 	specularPower = 1;
@@ -362,6 +373,9 @@ export class TextureState {
 	tflt = -1;
 	twrap = -1;
 	tmap = -1;
+	_envColor = -1;
+	_tfunc = -1;
+	_shadeUV = -1;
 
 	enabled = false;
 	swizzled = false;
@@ -488,15 +502,19 @@ export class Color {
 }
 
 export class Blending {
+	_alpha = -1;
 	enabled = false;
 	functionSource = GuBlendingFactor.GU_SRC_ALPHA;
 	functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
 	equation = GuBlendingEquation.Add;
+	_fixColorSourceWord = -1;
+	_fixColorDestinationWord = -1;
 	fixColorSource: Color = new Color();
 	fixColorDestination: Color = new Color();
 }
 
 export class AlphaTest {
+	_atst = -1;
 	enabled = false;
 	value = 0;
 	mask = 0xFF;
@@ -514,6 +532,8 @@ export class Rectangle {
 export class ClipPlane {
 	enabled = true;
 	scissor = new Rectangle(0, 0, 512, 272);
+	_scissorLeftTop = -1;
+	_scissorRightBottom = -1;
 }
 
 export class SkinningState {
@@ -538,6 +558,9 @@ export enum StencilOperationEnum {
 }
 
 export class StencilState {
+	stst = -1;
+	sop = -1;
+
 	enabled = false;
 	fail = StencilOperationEnum.Keep;
 	zpass = StencilOperationEnum.Keep;
@@ -548,6 +571,7 @@ export class StencilState {
 }
 
 export class PatchState {
+	_divst = -1;
 	divs = 0;
 	divt = 0;
 }
@@ -572,6 +596,13 @@ export class PatchCullingState {
 export class GpuState {
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
 	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
+
+	_clearingWord = -1;
+	_ambientModelColor = -1;
+	_ambientModelColorAlpha = -1;
+	_ambientLightColorAlpha = -1;
+	_diffuseModelColor = -1;
+	_specularModelColor = -1;
 
 	clearing = false;
 	clearFlags = 0;

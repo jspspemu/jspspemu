@@ -36,7 +36,14 @@ var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
 
 function bool1(p: number) { return p != 0; }
+function param1(p: number, offset: number) { return (p >> offset) & 0x1; }
+function param2(p: number, offset: number) { return (p >> offset) & 0x3; }
+function param3(p: number, offset: number) { return (p >> offset) & 0x7; }
+function param4(p: number, offset: number) { return (p >> offset) & 0xF; }
+function param5(p: number, offset: number) { return (p >> offset) & 0x1F; }
 function param8(p: number, offset: number) { return (p >> offset) & 0xFF; }
+function param10(p: number, offset: number) { return (p >> offset) & 0x3FF; }
+function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
 function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
 class PspGpuExecutor {
@@ -54,7 +61,7 @@ class PspGpuExecutor {
 		for (var n = 0; n < 0x100; n++) {
 			this.table[n] = null;
 			var func = this[GpuOpCodes[n]];
-			if (func) this.table[n] = func.bind(this);
+			this.table[n] = func ? func.bind(this) : this.UNKNOWN.bind(this);
 		}
 	}
 
@@ -104,6 +111,44 @@ class PspGpuExecutor {
 		return true;
 	}
 
+	PROJMATRIXNUMBER(p: number) { this.state.projectionMatrix.reset(p); }
+	PROJMATRIXDATA(p: number) { this.invalidatePrim(); this.state.projectionMatrix.put(float1(p)); }
+
+	VIEWMATRIXNUMBER(p: number) { this.state.viewMatrix.reset(p); }
+	VIEWMATRIXDATA(p: number) { this.invalidatePrim(); this.state.viewMatrix.put(float1(p)); }
+
+	WORLDMATRIXNUMBER(p: number) { this.state.worldMatrix.reset(p); }
+	WORLDMATRIXDATA(p: number) { this.invalidatePrim(); this.state.worldMatrix.put(float1(p)); }
+
+	BONEMATRIXNUMBER(p: number) { this.state.skinning.currentBoneIndex = p; }
+	BONEMATRIXDATA(p: number) { this.invalidatePrim(); this.state.skinning.write(float1(p)); }
+
+	TEXOFFSETU(p: number) {
+		var v = float1(p);
+		if (this.state.texture.offsetU == v) return;
+		this.invalidatePrim();
+		this.state.texture.offsetU = v;
+	}
+	TEXOFFSETV(p: number) {
+		var v = float1(p);
+		if (this.state.texture.offsetV == v) return;
+		this.invalidatePrim();
+		this.state.texture.offsetV = float1(p);
+	}
+
+	TEXSCALEU(p: number) {
+		var v = float1(p);
+		if (this.state.texture.scaleU == v) return;
+		this.invalidatePrim();
+		this.state.texture.scaleU = float1(p);
+	}
+	TEXSCALEV(p: number) {
+		var v = float1(p);
+		if (this.state.texture.scaleV == v) return;
+		this.invalidatePrim();
+		this.state.texture.scaleV = float1(p);
+	}
+
 	private invalidatePrim() {
 		this.list.finishPrimBatch();
 	}
@@ -114,9 +159,46 @@ class PspGpuExecutor {
 	VIEWPORTY1(p: number) { if (this.state.viewport.height != float1(p)) { this.invalidatePrim(); this.state.viewport.height = float1(p); } }
 	VIEWPORTZ1(p: number) { if (this.state.viewport.depth != float1(p)) { this.invalidatePrim(); this.state.viewport.depth = float1(p); } }
 
-	VIEWPORTX2(p: number) { if (this.state.viewport.x != float1(p)) { this.invalidatePrim(); this.state.viewport.x = float1(p); } }
-	VIEWPORTY2(p: number) { if (this.state.viewport.y != float1(p)) { this.invalidatePrim(); this.state.viewport.y = float1(p); } }
-	VIEWPORTZ2(p: number) { if (this.state.viewport.z != float1(p)) { this.invalidatePrim(); this.state.viewport.z = float1(p); } }
+	VIEWPORTX2(p: number) { if (this.state.viewport.x == float1(p)) return; this.invalidatePrim(); this.state.viewport.x = float1(p); }
+	VIEWPORTY2(p: number) { if (this.state.viewport.y == float1(p)) return; this.invalidatePrim(); this.state.viewport.y = float1(p); }
+	VIEWPORTZ2(p: number) { if (this.state.viewport.z == float1(p)) return; this.invalidatePrim(); this.state.viewport.z = float1(p); }
+
+	OFFSETX(p: number) { if (this.state.offset.x == param4(p, 0)) return; this.invalidatePrim(); this.state.offset.x = param4(p, 0); }
+	OFFSETY(p: number) { if (this.state.offset.y == param4(p, 0)) return; this.invalidatePrim(); this.state.offset.y = param4(p, 0); }
+	REGION1(p: number) {
+		if (this.state.region._xy1 == p) return;
+		this.invalidatePrim();
+		this.state.region._xy1 = p;
+		this.state.region.x1 = param10(p, 0);
+		this.state.region.y1 = param10(p, 10);
+	}
+	REGION2(p: number) {
+		if (this.state.region._xy2 == p) return;
+		this.invalidatePrim();
+		this.state.region._xy2 = p;
+		this.state.region.x2 = param10(p, 0);
+		this.state.region.y2 = param10(p, 10);
+	}
+	CLIPENABLE(p: number) {
+		if (this.state.clipPlane.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.clipPlane.enabled = bool1(p);
+	}
+	SCISSOR1(p: number) {
+		if (this.state.clipPlane._scissorLeftTop == p) return;
+		this.invalidatePrim();
+		this.state.clipPlane._scissorLeftTop = p;
+		this.state.clipPlane.scissor.left = param10(p, 0);
+		this.state.clipPlane.scissor.top = param10(p, 10);
+	}
+
+	SCISSOR2(p: number) {
+		if (this.state.clipPlane._scissorRightBottom == p) return;
+		this.invalidatePrim();
+		this.state.clipPlane._scissorRightBottom = p;
+		this.state.clipPlane.scissor.right = param10(p, 0);
+		this.state.clipPlane.scissor.bottom = param10(p, 10);
+	}
 
 	TMODE(p: number) {
 		if (this.state.texture.tmode == p) return;
@@ -159,9 +241,9 @@ class PspGpuExecutor {
 		var mipMap = this.state.texture.mipmaps[index];
 		if (mipMap.tsizeValue == p) return;
 		this.invalidatePrim();
-		var widthExp = BitUtils.extract(p, 0, 4);
-		var heightExp = BitUtils.extract(p, 8, 4);
-		var unknownFlag = (BitUtils.extract(p, 15, 1) != 0);
+		var widthExp = param4(p, 0);
+		var heightExp = param4(p, 8);
+		var unknownFlag = param1(p, 15);
 		widthExp = Math.min(widthExp, 9);
 		heightExp = Math.min(heightExp, 9);
 		mipMap.tsizeValue = p;
@@ -179,12 +261,291 @@ class PspGpuExecutor {
 
 	TEXBUFWIDTH_(p: number, index: number) {
 		var mipMap = this.state.texture.mipmaps[index];
-		var bufferWidth = BitUtils.extract(p, 0, 16);
-		var address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(p, 16, 8) << 24) & 0xFF000000);
+		var bufferWidth = param16(p, 0);
+		var address = (mipMap.address & 0x00FFFFFF) | ((param8(p, 16) << 24) & 0xFF000000);
 		if ((mipMap.bufferWidth == bufferWidth) && (mipMap.address == address)) return;
 		this.invalidatePrim();
 		mipMap.bufferWidth = bufferWidth;
 		mipMap.address = address;
+	}
+
+	SOP(p: number) {
+		if (this.state.stencil.sop == p) return;
+		this.invalidatePrim();
+		this.state.stencil.sop = p;
+		this.state.stencil.fail = <_state.StencilOperationEnum>param8(p, 0);
+		this.state.stencil.zfail = <_state.StencilOperationEnum>param8(p, 8);
+		this.state.stencil.zpass = <_state.StencilOperationEnum>param8(p, 16);
+	}
+
+
+	STST(p: number) {
+		if (this.state.stencil.stst == p) return;
+		this.invalidatePrim();
+		this.state.stencil.stst = p;
+		this.state.stencil.func = <_state.TestFunctionEnum>param8(p, 0);
+		this.state.stencil.funcRef = param8(p, 8);
+		this.state.stencil.funcMask = param8(p, 16);
+	}
+
+	ZTST(p: number) {
+		var v = <_state.TestFunctionEnum>param8(p, 0);
+		if (this.state.depthTest.func == v) return;
+		this.invalidatePrim();
+		this.state.depthTest.func = v;
+	}
+
+	ZTESTENABLE(p: number) {
+		var v = bool1(p);
+		if (this.state.depthTest.enabled == v) return;
+		this.invalidatePrim();
+		this.state.depthTest.enabled = v;
+	}
+
+	ZMSK(p: number) {
+		var v = param16(p, 0);
+		if (this.state.depthTest.mask == v) return;
+		this.invalidatePrim();
+		this.state.depthTest.mask = v;
+	}
+
+	MINZ(p: number) {
+		var v = (p & 0xFFFF) / 65536;
+		if (this.state.depthTest.rangeFar == v) return;
+		this.invalidatePrim();
+		this.state.depthTest.rangeFar = v;
+	}
+
+	MAXZ(p: number) {
+		var v = (p & 0xFFFF) / 65536;
+		if (this.state.depthTest.rangeNear == v) return;
+		this.invalidatePrim();
+		this.state.depthTest.rangeNear = v;
+	}
+
+	FRAMEBUFWIDTH(p: number) {
+		if (this.state.frameBuffer._widthHighAddress == p) return;
+		this.invalidatePrim();
+		this.state.frameBuffer._widthHighAddress = p;
+		this.state.frameBuffer.width = param16(p, 0);
+		this.state.frameBuffer.highAddress = param8(p, 16);
+	}
+	SHADEMODE(p: number) {
+		if (this.state.shadeModel == <_state.ShadingModelEnum>param16(p, 0)) return;
+		this.invalidatePrim();
+		this.state.shadeModel = <_state.ShadingModelEnum>param16(p, 0);
+	}
+
+	LIGHTINGENABLE(p: number) {
+		if (this.state.lightning.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.lightning.enabled = bool1(p);
+	}
+
+	ALPHATESTENABLE(p: number) {
+		if (this.state.alphaTest.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.alphaTest.enabled = bool1(p);
+	}
+
+	ATST(p: number) {
+		if (this.state.alphaTest._atst == p) return;
+		this.invalidatePrim();
+		this.state.alphaTest._atst = p;
+		this.state.alphaTest.func = <_state.TestFunctionEnum>param8(p, 0);
+		this.state.alphaTest.value = param8(p, 8);
+		this.state.alphaTest.mask = param8(p, 16);
+	}
+
+	ALPHABLENDENABLE(p: number) {
+		if (this.state.blending.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.blending.enabled = bool1(p);
+	}
+
+	ALPHA(p: number) {
+		if (this.state.blending._alpha == p) return;
+		this.invalidatePrim();
+		this.state.blending._alpha = p;
+		this.state.blending.functionSource = <_state.GuBlendingFactor>param4(p, 0);
+		this.state.blending.functionDestination = < _state.GuBlendingFactor > param4(p, 4);
+		this.state.blending.equation = <_state.GuBlendingEquation > param4(p, 8);
+	}
+
+	REVERSENORMAL(p: number) {
+		if (this.state.vertex.reversedNormal == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.vertex.reversedNormal = bool1(p);
+	}
+
+	PATCHCULLENABLE(p: number) {
+		if (this.state.patchCullingState.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.patchCullingState.enabled = bool1(p);
+	}
+	PATCHFACING(p: number) {
+		if (this.state.patchCullingState.faceFlag == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.patchCullingState.faceFlag = bool1(p);
+	}
+
+	ANTIALIASENABLE(p: number) {
+		if (this.state.lineSmoothState.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.lineSmoothState.enabled = bool1(p);
+	}
+
+	TEXTURE_ENV_MAP_MATRIX(p: number) {
+		if (this.state.texture._shadeUV == p) return;
+		this.invalidatePrim();
+		this.state.texture._shadeUV = p;
+		this.state.texture.shadeU = param2(p, 0);
+		this.state.texture.shadeV = param2(p, 8);
+	}
+
+	TEC(p: number) {
+		if (this.state.texture._envColor == p) return;
+		this.invalidatePrim();
+		this.state.texture._envColor = p;
+		this.state.texture.envColor.r = BitUtils.extractScalei(p, 0, 8, 1);
+		this.state.texture.envColor.g = BitUtils.extractScalei(p, 8, 8, 1);
+		this.state.texture.envColor.b = BitUtils.extractScalei(p, 16, 8, 1);
+	}
+
+	TFUNC(p: number) {
+		if (this.state.texture._tfunc == p) return;
+		this.invalidatePrim();
+		this.state.texture._tfunc = p;
+		this.state.texture.effect = <_state.TextureEffect>param8(p, 0);
+		this.state.texture.colorComponent = <_state.TextureColorComponent>param8(p, 8);
+		this.state.texture.fragment2X = (param8(p, 16) != 0);
+	}
+
+	TGENMATRIXNUMBER(p: number) { this.state.texture.matrix.reset(p); }
+	TGENMATRIXDATA(p: number) { this.invalidatePrim(); this.state.texture.matrix.put(float1(p)); }
+
+	TFLUSH(p: number) {
+		this.invalidatePrim();
+		this.list.drawDriver.textureFlush(this.state);
+	}
+	TSYNC(p: number) {
+		//this.invalidatePrim();
+		this.list.drawDriver.textureSync(this.state);
+	}
+	TPSM(p: number) {
+		if (this.state.texture.pixelFormat == <PixelFormat>param4(p, 0)) return;
+		this.invalidatePrim();
+		this.state.texture.pixelFormat = <PixelFormat>param4(p, 0);
+	}
+	PSM(p: number) {
+		if (this.state.drawPixelFormat == <PixelFormat>param4(p, 0)) return;
+		this.invalidatePrim();
+		this.state.drawPixelFormat = <PixelFormat>param4(p, 0);
+	}
+
+	MATERIALSPECULARCOEF(p: number) {
+		var v = float1(p);
+		if (this.state.lightning.specularPower == v) return;
+		this.invalidatePrim();
+		this.state.lightning.specularPower = v;
+	}
+
+	MATERIALAMBIENT(p: number) {
+		if (this.state._ambientModelColor == p) return;
+		this.invalidatePrim();
+		this.state._ambientModelColor = p;
+		this.state.ambientModelColor.r = BitUtils.extractScalef(p, 0, 8, 1);
+		this.state.ambientModelColor.g = BitUtils.extractScalef(p, 8, 8, 1);
+		this.state.ambientModelColor.b = BitUtils.extractScalef(p, 16, 8, 1);
+		this.state.ambientModelColor.a = 1;
+	}
+
+	MATERIALALPHA(p: number) {
+		if (this.state._ambientModelColorAlpha == p) return;
+		this.invalidatePrim();
+		this.state._ambientModelColorAlpha = p;
+		this.state.ambientModelColor.a = BitUtils.extractScalef(p, 0, 8, 1);
+	}
+
+	AMBIENTCOLOR(p: number) {
+		if (this.state.lightning._ambientLightColor == p) return;
+		this.invalidatePrim();
+		this.state.lightning._ambientLightColor = p;
+		this.state.lightning.ambientLightColor.r = BitUtils.extractScalef(p, 0, 8, 1);
+		this.state.lightning.ambientLightColor.g = BitUtils.extractScalef(p, 8, 8, 1);
+		this.state.lightning.ambientLightColor.b = BitUtils.extractScalef(p, 16, 8, 1);
+		this.state.lightning.ambientLightColor.a = 1;
+	}
+
+	AMBIENTALPHA(p: number) {
+		if (this.state.lightning._ambientLightColorAlpha == p) return;
+		this.invalidatePrim();
+		this.state.lightning._ambientLightColorAlpha = p;
+		this.state.lightning.ambientLightColor.a = BitUtils.extractScalef(p, 0, 8, 1);
+	}
+
+	LOGICOPENABLE(p: number) {
+		if (this.state.logicOp.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.logicOp.enabled = bool1(p);
+	}
+
+	MATERIALDIFFUSE(p: number) {
+		if (this.state._diffuseModelColor == p) return;
+		this.invalidatePrim();
+		this.state._diffuseModelColor = p;
+		this.state.diffuseModelColor.r = BitUtils.extractScalef(p, 0, 8, 1);
+		this.state.diffuseModelColor.g = BitUtils.extractScalef(p, 8, 8, 1);
+		this.state.diffuseModelColor.b = BitUtils.extractScalef(p, 16, 8, 1);
+		this.state.diffuseModelColor.a = 1;
+	}
+
+	MATERIALSPECULAR(p: number) {
+		if (this.state._specularModelColor == p) return;
+		this.invalidatePrim();
+		this.state._specularModelColor = p;
+
+		this.state.specularModelColor.r = BitUtils.extractScalef(p, 0, 8, 1);
+		this.state.specularModelColor.g = BitUtils.extractScalef(p, 8, 8, 1);
+		this.state.specularModelColor.b = BitUtils.extractScalef(p, 16, 8, 1);
+		this.state.specularModelColor.a = 1;
+	}
+
+	CLUTADDR(p: number) {
+		var v = (this.state.texture.clut.adress & 0xFF000000) | ((p << 0) & 0x00FFFFFF);
+		if (this.state.texture.clut.adress == v) return;
+		this.invalidatePrim();
+		this.state.texture.clut.adress = v;
+	}
+
+	CLUTADDRUPPER(p: number) {
+		var v = (this.state.texture.clut.adress & 0x00FFFFFF) | ((p << 8) & 0xFF000000);
+		if (this.state.texture.clut.adress == v) return;
+		this.invalidatePrim();
+		this.state.texture.clut.adress = v;
+	}
+
+	CLOAD(p: number) {
+		var v = param8(p, 0) * 8;
+		if (this.state.texture.clut.numberOfColors == v) return;
+		this.invalidatePrim();
+		this.state.texture.clut.numberOfColors = v;
+	}
+
+	CMODE(p: number) {
+		if (this.state.texture.clut.info == p) return;
+		this.invalidatePrim();
+		this.state.texture.clut.info = p;
+		this.state.texture.clut.pixelFormat = <PixelFormat>param2(p, 0);
+		this.state.texture.clut.shift = param5(p, 2);
+		this.state.texture.clut.mask = param8(p, 8);
+		this.state.texture.clut.start = param5(p, 16);
+	}
+
+	STENCILTESTENABLE(p: number) {
+		if (this.state.stencil.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.stencil.enabled = bool1(p);
 	}
 
 	TSIZE0(p: number) { this.TSIZE_(p, 0); }
@@ -230,9 +591,68 @@ class PspGpuExecutor {
 	MORPHWEIGHT6(p: number) { return this.MORPHWEIGHT_(p, 6); }
 	MORPHWEIGHT7(p: number) { return this.MORPHWEIGHT_(p, 7); }
 
+	CLEAR(p: number) {
+		if (this.state._clearingWord == p) return;
+		this.invalidatePrim();
+		this.state._clearingWord = p;
+		this.state.clearing = (param1(p, 0) != 0);
+		this.state.clearFlags = param8(p, 8);
+	}
+
+	COLORTESTENABLE(p: number) {
+		if (this.state.colorTest.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.colorTest.enabled = bool1(p);
+	}
+
+	DITHERENABLE(p: number) {
+		if (this.state.dithering.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.dithering.enabled = bool1(p);
+	}
+
+	CULLFACEENABLE(p: number) {
+		if (this.state.culling.enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.state.culling.enabled = bool1(p);
+	}
+
+	CULL(p: number) {
+		if (this.state.culling.direction == <_state.CullingDirection>p) return;
+		this.invalidatePrim();
+		this.state.culling.direction = <_state.CullingDirection>p;
+	}
+
+	SFIX(p: number) {
+		if (this.state.blending._fixColorSourceWord == p) return;
+		this.invalidatePrim();
+		this.state.blending._fixColorSourceWord = p;
+		this.state.blending.fixColorSource.setRGB(p);
+	}
+
+	DFIX(p: number) {
+		if (this.state.blending._fixColorDestinationWord == p) return;
+		this.invalidatePrim();
+		this.state.blending._fixColorDestinationWord = p;
+		this.state.blending.fixColorDestination.setRGB(p);
+	}
+
+	UNKNOWN(p: number, current: number, op: number) {
+		this.invalidatePrim();
+		this.list.errorCount++;
+		if (this.list.errorCount >= 400) {
+			if (this.list.errorCount == 400) {
+				console.error(sprintf('Stop showing gpu errors'));
+			}
+		} else {
+			console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+		}
+
+	}
+
 	PRIM(p: number) {
-		var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(p, 16, 3);
-		var vertexCount = BitUtils.extract(p, 0, 16);
+		var primitiveType = <_state.PrimitiveType>param3(p, 16);
+		var vertexCount = param16(p, 0);
 		var list = this.list;
 
 		if (list.primBatchPrimitiveType != primitiveType) list.finishPrimBatch();
@@ -294,6 +714,227 @@ class PspGpuExecutor {
 		}
 	}
 
+	PATCHDIVISION(p: number) {
+		if (this.state.patch._divst == p) return;
+		this.invalidatePrim();
+		this.state.patch._divst = p;
+		this.state.patch.divs = param8(p, 0);
+		this.state.patch.divt = param8(p, 8);
+	}
+
+	BEZIER(p: number) {
+		this.invalidatePrim();
+
+		var ucount = param8(p, 0);
+		var vcount = param8(p, 8);
+		var divs = this.state.patch.divs;
+		var divt = this.state.patch.divt;
+		var vertexState = this.state.vertex;
+		var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
+		var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
+		var vertexInput = this.list.memory.getPointerDataView(vertexAddress);
+
+		var vertexState2 = vertexState.clone();
+		vertexState2.texture = _state.NumericEnum.Float;
+
+		var getBezierControlPoints = (ucount: number, vcount: number) => {
+			var controlPoints = ArrayUtils.create2D<_state.Vertex>(ucount, vcount);
+
+			var mipmap = this.state.texture.mipmaps[0];
+			var scale = mipmap.textureWidth / mipmap.bufferWidth;
+			for (var u = 0; u < ucount; u++) {
+				for (var v = 0; v < vcount; v++) {
+					var vertex = vertexReader.readOne(vertexInput, v * ucount + u);;
+					controlPoints[u][v] = vertex;
+					vertex.tx = (u / (ucount - 1)) * scale;
+					vertex.ty = (v / (vcount - 1));
+					//Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
+				}
+			}
+			return controlPoints;
+		};
+
+		var controlPoints = getBezierControlPoints(ucount, vcount);
+		var vertices2 = [];
+		vertices2.push(controlPoints[0][0]);
+		vertices2.push(controlPoints[ucount - 1][0]);
+		vertices2.push(controlPoints[0][vcount - 1]);
+
+		vertices2.push(controlPoints[ucount - 1][0]);
+		vertices2.push(controlPoints[ucount - 1][vcount - 1]);
+		vertices2.push(controlPoints[0][vcount - 1]);
+
+		this.list.drawDriver.drawElements(_state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
+	}
+
+	light(index: number) {
+		return this.state.lightning.lights[index];
+	}
+
+	LIGHTENABLE_(p: number, index: number) {
+		if (this.light(index).enabled == bool1(p)) return;
+		this.invalidatePrim();
+		this.light(index).enabled = bool1(p);
+	}
+
+	LIGHTTYPE_(p: number, index: number) {
+		var light = this.light(index);
+		if (light._type == p) return;
+		this.invalidatePrim();
+		light._type = p;
+		var kind = param8(p, 0);
+		var type = param8(p, 0);
+		light.kind = kind;
+		light.type = type;
+		switch (light.type) {
+			case _state.LightTypeEnum.Directional: light.pw = 0; break;
+			case _state.LightTypeEnum.PointLight: light.pw = 1; light.cutoff = 180; break;
+			case _state.LightTypeEnum.SpotLight: light.pw = 1; break;
+		}
+	}
+
+	LCA_(p: number, index: number) {
+		var v = float1(p);
+		if (this.light(index).constantAttenuation == v) return;
+		this.invalidatePrim();
+		this.light(index).constantAttenuation = v;
+	}
+
+	LLA_(p: number, index: number) {
+		var v = float1(p);
+		if (this.light(index).linearAttenuation == v) return;
+		this.invalidatePrim();
+		this.light(index).linearAttenuation = v;
+	}
+
+	LQA_(p: number, index: number) {
+		var v = float1(p);
+		if (this.light(index).quadraticAttenuation == v) return;
+		this.invalidatePrim();
+		this.light(index).quadraticAttenuation = v;
+	}
+
+	SPOTEXP_(p: number, index: number) {
+		var v = float1(p);
+		if (this.light(index).spotExponent == v) return;
+		this.invalidatePrim();
+		this.light(index).spotExponent = v;
+	}
+	SPOTCUT_(p: number, index: number) {
+		var v = float1(p);
+		if (this.light(index).spotCutoff == v) return;
+		this.invalidatePrim();
+		this.light(index).spotCutoff = v;
+	}
+
+	LXP_(p: number, index: number) { var v = float1(p); if (this.light(index).px == float1(p)) return; this.invalidatePrim(); this.light(index).px = float1(p); }
+	LYP_(p: number, index: number) { var v = float1(p); if (this.light(index).py == float1(p)) return; this.invalidatePrim(); this.light(index).py = float1(p); }
+	LZP_(p: number, index: number) { var v = float1(p); if (this.light(index).pz == float1(p)) return; this.invalidatePrim(); this.light(index).pz = float1(p); }
+
+	LXD_(p: number, index: number) { var v = float1(p); if (this.light(index).dx == float1(p)) return; this.invalidatePrim(); this.light(index).dx = float1(p); }
+	LYD_(p: number, index: number) { var v = float1(p); if (this.light(index).dy == float1(p)) return; this.invalidatePrim(); this.light(index).dy = float1(p); }
+	LZD_(p: number, index: number) { var v = float1(p); if (this.light(index).dz == float1(p)) return; this.invalidatePrim(); this.light(index).dz = float1(p); }
+
+	LIGHTENABLE0(p: number) { this.LIGHTENABLE_(p, 0); }
+	LIGHTENABLE1(p: number) { this.LIGHTENABLE_(p, 1); }
+	LIGHTENABLE2(p: number) { this.LIGHTENABLE_(p, 2); }
+	LIGHTENABLE3(p: number) { this.LIGHTENABLE_(p, 3); }
+
+	LIGHTTYPE0(p: number) { this.LIGHTTYPE_(p, 0); }
+	LIGHTTYPE1(p: number) { this.LIGHTTYPE_(p, 1); }
+	LIGHTTYPE2(p: number) { this.LIGHTTYPE_(p, 2); }
+	LIGHTTYPE3(p: number) { this.LIGHTTYPE_(p, 3); }
+
+	LCA0(p: number) { this.LCA_(p, 0); }
+	LCA1(p: number) { this.LCA_(p, 1); }
+	LCA2(p: number) { this.LCA_(p, 2); }
+	LCA3(p: number) { this.LCA_(p, 3); }
+
+	LLA0(p: number) { this.LLA_(p, 0); }
+	LLA1(p: number) { this.LLA_(p, 1); }
+	LLA2(p: number) { this.LLA_(p, 2); }
+	LLA3(p: number) { this.LLA_(p, 3); }
+
+	LQA0(p: number) { this.LQA_(p, 0); }
+	LQA1(p: number) { this.LQA_(p, 1); }
+	LQA2(p: number) { this.LQA_(p, 2); }
+	LQA3(p: number) { this.LQA_(p, 3); }
+
+	SPOTEXP0(p: number) { this.SPOTEXP_(p, 0); }
+	SPOTEXP1(p: number) { this.SPOTEXP_(p, 1); }
+	SPOTEXP2(p: number) { this.SPOTEXP_(p, 2); }
+	SPOTEXP3(p: number) { this.SPOTEXP_(p, 3); }
+
+	SPOTCUT0(p: number) { this.SPOTCUT_(p, 0); }
+	SPOTCUT1(p: number) { this.SPOTCUT_(p, 1); }
+	SPOTCUT2(p: number) { this.SPOTCUT_(p, 2); }
+	SPOTCUT3(p: number) { this.SPOTCUT_(p, 3); }
+
+	LXP0(p: number) { this.LXP_(p, 0); }
+	LXP1(p: number) { this.LXP_(p, 1); }
+	LXP2(p: number) { this.LXP_(p, 2); }
+	LXP3(p: number) { this.LXP_(p, 3); }
+
+	LYP0(p: number) { this.LYP_(p, 0); }
+	LYP1(p: number) { this.LYP_(p, 1); }
+	LYP2(p: number) { this.LYP_(p, 2); }
+	LYP3(p: number) { this.LYP_(p, 3); }
+
+	LZP0(p: number) { this.LZP_(p, 0); }
+	LZP1(p: number) { this.LZP_(p, 1); }
+	LZP2(p: number) { this.LZP_(p, 2); }
+	LZP3(p: number) { this.LZP_(p, 3); }
+
+	LXD0(p: number) { this.LXD_(p, 0); }
+	LXD1(p: number) { this.LXD_(p, 1); }
+	LXD2(p: number) { this.LXD_(p, 2); }
+	LXD3(p: number) { this.LXD_(p, 3); }
+
+	LYD0(p: number) { this.LYD_(p, 0); }
+	LYD1(p: number) { this.LYD_(p, 1); }
+	LYD2(p: number) { this.LYD_(p, 2); }
+	LYD3(p: number) { this.LYD_(p, 3); }
+
+	LZD0(p: number) { this.LZD_(p, 0); }
+	LZD1(p: number) { this.LZD_(p, 1); }
+	LZD2(p: number) { this.LZD_(p, 2); }
+	LZD3(p: number) { this.LZD_(p, 3); }
+
+	ALC_(p: number, index: number) {
+		if (this.light(index)._ambientColor == p) return;
+		this.invalidatePrim();
+		this.light(index)._ambientColor = p;
+		this.light(index).ambientColor.setRGB(p);
+	}
+
+	DLC_(p: number, index: number) {
+		if (this.light(index)._diffuseColor == p) return;
+		this.invalidatePrim();
+		this.light(index)._diffuseColor = p;
+		this.light(index).diffuseColor.setRGB(p);
+	}
+
+	SLC_(p: number, index: number) {
+		if (this.light(index)._specularColor == p) return;
+		this.invalidatePrim();
+		this.light(index)._specularColor = p;
+		this.light(index).specularColor.setRGB(p);
+	}
+
+	ALC0(p: number) { this.ALC_(p, 0); }
+	ALC1(p: number) { this.ALC_(p, 1); }
+	ALC2(p: number) { this.ALC_(p, 2); }
+	ALC3(p: number) { this.ALC_(p, 3); }
+														
+	DLC0(p: number) { this.DLC_(p, 0); }
+	DLC1(p: number) { this.DLC_(p, 1); }
+	DLC2(p: number) { this.DLC_(p, 2); }
+	DLC3(p: number) { this.DLC_(p, 3); }
+	
+	SLC0(p: number) { this.SLC_(p, 0); }
+	SLC1(p: number) { this.SLC_(p, 1); }
+	SLC2(p: number) { this.SLC_(p, 2); }
+	SLC3(p: number) { this.SLC_(p, 3); }
 }
 
 class PspGpuList {
@@ -306,9 +947,9 @@ class PspGpuList {
 	private promise: Promise<any>;
 	private promiseResolve: Function;
 	private promiseReject: Function;
-	private errorCount: number = 0;
+	errorCount: number = 0;
 
-	constructor(public id: number, public memory: Memory, private drawDriver: IDrawDriver, private executor: PspGpuExecutor, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
+	constructor(public id: number, public memory: Memory, public drawDriver: IDrawDriver, private executor: PspGpuExecutor, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
     }
 
     complete() {
@@ -326,379 +967,6 @@ class PspGpuList {
 	}
 
 	callstack = <number[]>[];
-
-    private runInstruction(current: number, instruction: number, op: number, params24: number) {
-		function bool1() { return params24 != 0; }
-		function float1() { return MathFloat.reinterpretIntAsFloat(params24 << 8); }
-
-		if (op != GpuOpCodes.PRIM) this.finishPrimBatch();
-
-		//console.info('op:', op, GpuOpCodes[op]);
-		switch (op) {
-			case GpuOpCodes.OFFSETX: this.state.offset.x = params24 & 0xF; break;
-			case GpuOpCodes.OFFSETY: this.state.offset.y = params24 & 0xF; break;
-
-			case GpuOpCodes.REGION1:
-				this.state.region.x1 = BitUtils.extract(params24, 0, 10);
-				this.state.region.y1 = BitUtils.extract(params24, 10, 10);
-				break;
-			case GpuOpCodes.REGION2:
-				this.state.region.x2 = BitUtils.extract(params24, 0, 10);
-				this.state.region.y2 = BitUtils.extract(params24, 10, 10);
-				break;
-			case GpuOpCodes.CLIPENABLE:
-				this.state.clipPlane.enabled = (params24 != 0);
-				break;
-			case GpuOpCodes.SCISSOR1:
-				this.state.clipPlane.scissor.left = BitUtils.extract(params24, 0, 10);
-				this.state.clipPlane.scissor.top = BitUtils.extract(params24, 10, 10);
-				break;
-			case GpuOpCodes.SCISSOR2:
-				this.state.clipPlane.scissor.right = BitUtils.extract(params24, 0, 10);
-				this.state.clipPlane.scissor.bottom = BitUtils.extract(params24, 10, 10);
-				break;
-
-            case GpuOpCodes.FRAMEBUFWIDTH:
-                this.state.frameBuffer.highAddress = BitUtils.extract(params24, 16, 8);
-                this.state.frameBuffer.width = BitUtils.extract(params24, 0, 16);
-				break;
-			case GpuOpCodes.SHADEMODE:
-				this.state.shadeModel = BitUtils.extractEnum<_state.ShadingModelEnum>(params24, 0, 16)
-				break;
-
-			case GpuOpCodes.LIGHTINGENABLE:
-				this.state.lightning.enabled = (params24 != 0);
-				break;
-
-			case GpuOpCodes.ALPHATESTENABLE:
-				this.state.alphaTest.enabled = (params24 != 0);
-				break;
-
-			case GpuOpCodes.ATST:
-				this.state.alphaTest.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8);
-				this.state.alphaTest.value = BitUtils.extract(params24, 8, 8);
-				this.state.alphaTest.mask = BitUtils.extract(params24, 16, 8);
-				break;
-
-			case GpuOpCodes.ALPHABLENDENABLE:
-				this.state.blending.enabled = (params24 != 0);
-				break;
-			case GpuOpCodes.ALPHA:
-				this.state.blending.functionSource = BitUtils.extractEnum<_state.GuBlendingFactor>(params24, 0, 4);
-				this.state.blending.functionDestination = BitUtils.extractEnum<_state.GuBlendingFactor>(params24, 4, 4);
-				this.state.blending.equation = BitUtils.extractEnum<_state.GuBlendingEquation>(params24, 8, 4);
-				break;
-
-			case GpuOpCodes.REVERSENORMAL: this.state.vertex.reversedNormal = bool1(); break;
-			case GpuOpCodes.PATCHCULLENABLE: this.state.patchCullingState.enabled = bool1(); break;
-			case GpuOpCodes.PATCHFACING: this.state.patchCullingState.faceFlag = bool1(); break;
-			case GpuOpCodes.ANTIALIASENABLE: this.state.lineSmoothState.enabled = bool1(); break;
-			case GpuOpCodes.TEXTURE_ENV_MAP_MATRIX:
-				this.state.texture.shadeU = BitUtils.extract(params24, 0, 2);
-				this.state.texture.shadeV = BitUtils.extract(params24, 8, 2);
-				break;
-
-			case GpuOpCodes.TEC:
-				this.state.texture.envColor.r = BitUtils.extractScalei(params24, 0, 8, 1);
-				this.state.texture.envColor.g = BitUtils.extractScalei(params24, 8, 8, 1);
-				this.state.texture.envColor.b = BitUtils.extractScalei(params24, 16, 8, 1);
-				break;
-
-			case GpuOpCodes.TFUNC:
-				this.state.texture.effect = <_state.TextureEffect>BitUtils.extract(params24, 0, 8);
-				this.state.texture.colorComponent = <_state.TextureColorComponent>BitUtils.extract(params24, 8, 8);
-				this.state.texture.fragment2X = (BitUtils.extract(params24, 16, 8) != 0);
-				break;
-
-			case GpuOpCodes.TGENMATRIXNUMBER: this.state.texture.matrix.reset(params24); break;
-			case GpuOpCodes.TGENMATRIXDATA: this.state.texture.matrix.put(float1()); break;
-
-			case GpuOpCodes.TEXOFFSETU: this.state.texture.offsetU = float1(); break;
-			case GpuOpCodes.TEXOFFSETV: this.state.texture.offsetV = float1(); break;
-
-			case GpuOpCodes.TEXSCALEU: this.state.texture.scaleU = float1(); break;
-			case GpuOpCodes.TEXSCALEV: this.state.texture.scaleV = float1(); break;
-
-			case GpuOpCodes.TFLUSH: this.drawDriver.textureFlush(this.state); break;
-			case GpuOpCodes.TSYNC: this.drawDriver.textureSync(this.state); break;
-			case GpuOpCodes.TPSM: this.state.texture.pixelFormat = <PixelFormat>BitUtils.extract(params24, 0, 4); break;
-			case GpuOpCodes.PSM:
-				this.state.drawPixelFormat = <PixelFormat>BitUtils.extract(params24, 0, 4);
-				break;
-
-		
-			case GpuOpCodes.MATERIALSPECULARCOEF:
-				this.state.lightning.specularPower = float1();
-				break;
-
-			case GpuOpCodes.MATERIALAMBIENT:
-				//printf("%08X: %08X", current, instruction);
-				//printf("GpuOpCodes.AMC: Params24: %08X", params24);
-				this.state.ambientModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-				this.state.ambientModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-				this.state.ambientModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-				this.state.ambientModelColor.a = 1;
-				break;
-
-			case GpuOpCodes.MATERIALALPHA:
-				//printf("GpuOpCodes.AMA: Params24: %08X", params24);
-				this.state.ambientModelColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
-				break;
-
-			case GpuOpCodes.AMBIENTCOLOR:
-				//printf("%08X: %08X", current, instruction);
-				this.state.lightning.ambientLightColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-				this.state.lightning.ambientLightColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-				this.state.lightning.ambientLightColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-				this.state.lightning.ambientLightColor.a = 1;
-				break;
-			case GpuOpCodes.AMBIENTALPHA:
-				this.state.lightning.ambientLightColor.a = BitUtils.extractScalef(params24, 0, 8, 1);
-				break;
-			case GpuOpCodes.LOGICOPENABLE:
-				this.state.logicOp.enabled = bool1();
-				break;
-			case GpuOpCodes.MATERIALDIFFUSE:
-				//printf("AMC:%08X", params24);
-
-				this.state.diffuseModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-				this.state.diffuseModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-				this.state.diffuseModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-				this.state.diffuseModelColor.a = 1;
-				break;
-
-			case GpuOpCodes.MATERIALSPECULAR:
-				this.state.specularModelColor.r = BitUtils.extractScalef(params24, 0, 8, 1);
-				this.state.specularModelColor.g = BitUtils.extractScalef(params24, 8, 8, 1);
-				this.state.specularModelColor.b = BitUtils.extractScalef(params24, 16, 8, 1);
-				this.state.specularModelColor.a = 1;
-				break;
-			
-
-			case GpuOpCodes.CLUTADDR:
-				this.state.texture.clut.adress = (this.state.texture.clut.adress & 0xFF000000) | ((params24 << 0) & 0x00FFFFFF);
-				break;
-
-			case GpuOpCodes.CLUTADDRUPPER:
-				this.state.texture.clut.adress = (this.state.texture.clut.adress & 0x00FFFFFF) | ((params24 << 8) & 0xFF000000);
-				break;
-
-			case GpuOpCodes.CLOAD:
-				this.state.texture.clut.numberOfColors = BitUtils.extract(params24, 0, 8) * 8;
-				break;
-
-			case GpuOpCodes.CMODE:
-				this.state.texture.clut.info = params24;
-				this.state.texture.clut.pixelFormat = <PixelFormat>BitUtils.extract(params24, 0, 2);
-				this.state.texture.clut.shift = BitUtils.extract(params24, 2, 5);
-				this.state.texture.clut.mask = BitUtils.extract(params24, 8, 8);
-				this.state.texture.clut.start = BitUtils.extract(params24, 16, 5);
-				break;
-
-            case GpuOpCodes.PROJMATRIXNUMBER: this.state.projectionMatrix.reset(params24); break;
-			case GpuOpCodes.PROJMATRIXDATA: this.state.projectionMatrix.put(float1()); break;
-
-            case GpuOpCodes.VIEWMATRIXNUMBER: this.state.viewMatrix.reset(params24); break;
-			case GpuOpCodes.VIEWMATRIXDATA: this.state.viewMatrix.put(float1()); break;
-
-            case GpuOpCodes.WORLDMATRIXNUMBER: this.state.worldMatrix.reset(params24); break;
-			case GpuOpCodes.WORLDMATRIXDATA: this.state.worldMatrix.put(float1()); break;
-
-			case GpuOpCodes.BONEMATRIXNUMBER: this.state.skinning.currentBoneIndex = params24; break;
-			case GpuOpCodes.BONEMATRIXDATA: this.state.skinning.write(float1()); break;
-
-			case GpuOpCodes.STENCILTESTENABLE:
-				this.state.stencil.enabled = bool1();
-				break;
-
-			case GpuOpCodes.SOP:
-				this.state.stencil.fail = BitUtils.extractEnum<_state.StencilOperationEnum>(params24, 0, 8);
-				this.state.stencil.zfail = BitUtils.extractEnum<_state.StencilOperationEnum>(params24, 8, 8);
-				this.state.stencil.zpass = BitUtils.extractEnum<_state.StencilOperationEnum>(params24, 16, 8);
-				break;
-			case GpuOpCodes.STST:
-				this.state.stencil.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8);
-				this.state.stencil.funcRef = BitUtils.extract(params24, 8, 8);
-				this.state.stencil.funcMask = BitUtils.extract(params24, 16, 8);
-				break;
-
-			case GpuOpCodes.ZTST: this.state.depthTest.func = BitUtils.extractEnum<_state.TestFunctionEnum>(params24, 0, 8); break;
-			case GpuOpCodes.ZTESTENABLE: this.state.depthTest.enabled = (params24 != 0); break;
-			case GpuOpCodes.ZMSK: this.state.depthTest.mask = BitUtils.extract(params24, 0, 16); break;
-			case GpuOpCodes.MINZ: this.state.depthTest.rangeFar = (params24 & 0xFFFF) / 65536; break;
-			case GpuOpCodes.MAXZ: this.state.depthTest.rangeNear = (params24 & 0xFFFF) / 65536; break;
-
-			/*
-			case GpuOpCodes.LIGHTENABLE0: this.state.lightning.lights[0].enabled = bool1(); break;
-			case GpuOpCodes.LIGHTENABLE1: this.state.lightning.lights[1].enabled = bool1(); break;
-			case GpuOpCodes.LIGHTENABLE2: this.state.lightning.lights[2].enabled = bool1(); break;
-			case GpuOpCodes.LIGHTENABLE3: this.state.lightning.lights[3].enabled = bool1(); break;
-
-			case GpuOpCodes.LIGHTTYPE0:
-			case GpuOpCodes.LIGHTTYPE1:
-			case GpuOpCodes.LIGHTTYPE2:
-			case GpuOpCodes.LIGHTTYPE3:
-				var light = this.state.lightning.lights[op - GpuOpCodes.LIGHTTYPE0];
-				var kind = BitUtils.extract(params24, 0, 8);
-				var type = BitUtils.extract(params24, 0, 8);
-				light.kind = kind;
-				light.type = type;
-				switch (light.type) {
-					case _state.LightTypeEnum.Directional: light.pw = 0; break;
-					case _state.LightTypeEnum.PointLight: light.pw = 1; light.cutoff = 180; break;
-					case _state.LightTypeEnum.SpotLight: light.pw = 1; break;
-				}
-				
-				break;
-
-			case GpuOpCodes.LCA0: this.state.lightning.lights[0].constantAttenuation = float1(); break;
-			case GpuOpCodes.LCA1: this.state.lightning.lights[1].constantAttenuation = float1(); break;
-			case GpuOpCodes.LCA2: this.state.lightning.lights[2].constantAttenuation = float1(); break;
-			case GpuOpCodes.LCA3: this.state.lightning.lights[3].constantAttenuation = float1(); break;
-
-			case GpuOpCodes.LLA0: this.state.lightning.lights[0].linearAttenuation = float1(); break;
-			case GpuOpCodes.LLA1: this.state.lightning.lights[1].linearAttenuation = float1(); break;
-			case GpuOpCodes.LLA2: this.state.lightning.lights[2].linearAttenuation = float1(); break;
-			case GpuOpCodes.LLA3: this.state.lightning.lights[3].linearAttenuation = float1(); break;
-
-			case GpuOpCodes.LQA0: this.state.lightning.lights[0].quadraticAttenuation = float1(); break;
-			case GpuOpCodes.LQA1: this.state.lightning.lights[1].quadraticAttenuation = float1(); break;
-			case GpuOpCodes.LQA2: this.state.lightning.lights[2].quadraticAttenuation = float1(); break;
-			case GpuOpCodes.LQA3: this.state.lightning.lights[3].quadraticAttenuation = float1(); break;
-
-			case GpuOpCodes.ALC0: this.state.lightning.lights[0].ambientColor.setRGB(params24); break;
-			case GpuOpCodes.ALC1: this.state.lightning.lights[1].ambientColor.setRGB(params24); break;
-			case GpuOpCodes.ALC2: this.state.lightning.lights[2].ambientColor.setRGB(params24); break;
-			case GpuOpCodes.ALC3: this.state.lightning.lights[3].ambientColor.setRGB(params24); break;
-																			  		
-			case GpuOpCodes.DLC0: this.state.lightning.lights[0].diffuseColor.setRGB(params24); break;
-			case GpuOpCodes.DLC1: this.state.lightning.lights[1].diffuseColor.setRGB(params24); break;
-			case GpuOpCodes.DLC2: this.state.lightning.lights[2].diffuseColor.setRGB(params24); break;
-			case GpuOpCodes.DLC3: this.state.lightning.lights[3].diffuseColor.setRGB(params24); break;
-																			  		
-			case GpuOpCodes.SLC0: this.state.lightning.lights[0].specularColor.setRGB(params24); break;
-			case GpuOpCodes.SLC1: this.state.lightning.lights[1].specularColor.setRGB(params24); break;
-			case GpuOpCodes.SLC2: this.state.lightning.lights[2].specularColor.setRGB(params24); break;
-			case GpuOpCodes.SLC3: this.state.lightning.lights[3].specularColor.setRGB(params24); break;
-
-			case GpuOpCodes.SPOTEXP0: this.state.lightning.lights[0].spotExponent = float1(); break;
-			case GpuOpCodes.SPOTEXP1: this.state.lightning.lights[1].spotExponent = float1(); break;
-			case GpuOpCodes.SPOTEXP2: this.state.lightning.lights[2].spotExponent = float1(); break;
-			case GpuOpCodes.SPOTEXP3: this.state.lightning.lights[3].spotExponent = float1(); break;
-
-			case GpuOpCodes.SPOTCUT0: this.state.lightning.lights[0].spotCutoff = float1(); break;
-			case GpuOpCodes.SPOTCUT1: this.state.lightning.lights[1].spotCutoff = float1(); break;
-			case GpuOpCodes.SPOTCUT2: this.state.lightning.lights[2].spotCutoff = float1(); break;
-			case GpuOpCodes.SPOTCUT3: this.state.lightning.lights[3].spotCutoff = float1(); break;
-
-			case GpuOpCodes.LXP0: this.state.lightning.lights[0].px = float1(); break;
-			case GpuOpCodes.LYP0: this.state.lightning.lights[0].py = float1(); break;
-			case GpuOpCodes.LZP0: this.state.lightning.lights[0].pz = float1(); break; 
-
-			case GpuOpCodes.LXP1: this.state.lightning.lights[1].px = float1(); break;
-			case GpuOpCodes.LYP1: this.state.lightning.lights[1].py = float1(); break;
-			case GpuOpCodes.LZP1: this.state.lightning.lights[1].pz = float1(); break; 
-
-			case GpuOpCodes.LXP2: this.state.lightning.lights[2].px = float1(); break;
-			case GpuOpCodes.LYP2: this.state.lightning.lights[2].py = float1(); break;
-			case GpuOpCodes.LZP2: this.state.lightning.lights[2].pz = float1(); break; 
-
-			case GpuOpCodes.LXP3: this.state.lightning.lights[3].px = float1(); break;
-			case GpuOpCodes.LYP3: this.state.lightning.lights[3].py = float1(); break;
-			case GpuOpCodes.LZP3: this.state.lightning.lights[3].pz = float1(); break; 
-
-			case GpuOpCodes.LXD0: this.state.lightning.lights[0].dx = float1(); break;
-			case GpuOpCodes.LYD0: this.state.lightning.lights[0].dy = float1(); break;
-			case GpuOpCodes.LZD0: this.state.lightning.lights[0].dz = float1(); break;
-							  									 
-			case GpuOpCodes.LXD1: this.state.lightning.lights[1].dx = float1(); break;
-			case GpuOpCodes.LYD1: this.state.lightning.lights[1].dy = float1(); break;
-			case GpuOpCodes.LZD1: this.state.lightning.lights[1].dz = float1(); break;
-							  									 
-			case GpuOpCodes.LXD2: this.state.lightning.lights[2].dx = float1(); break;
-			case GpuOpCodes.LYD2: this.state.lightning.lights[2].dy = float1(); break;
-			case GpuOpCodes.LZD2: this.state.lightning.lights[2].dz = float1(); break;
-							  									 
-			case GpuOpCodes.LXD3: this.state.lightning.lights[3].dx = float1(); break;
-			case GpuOpCodes.LYD3: this.state.lightning.lights[3].dy = float1(); break;
-			case GpuOpCodes.LZD3: this.state.lightning.lights[3].dz = float1(); break; 
-			*/
-
-            case GpuOpCodes.CLEAR:
-                this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
-                this.state.clearFlags = BitUtils.extract(params24, 8, 8);
-				break;
-
-			case GpuOpCodes.COLORTESTENABLE: this.state.colorTest.enabled = bool1(); break;
-			case GpuOpCodes.DITHERENABLE: this.state.dithering.enabled = bool1(); break;
-
-			case GpuOpCodes.CULLFACEENABLE: this.state.culling.enabled = bool1(); break;
-			case GpuOpCodes.CULL: this.state.culling.direction = <_state.CullingDirection>params24; break;
-
-			case GpuOpCodes.SFIX: this.state.blending.fixColorSource.setRGB(params24); break;
-			case GpuOpCodes.DFIX: this.state.blending.fixColorDestination.setRGB(params24); break;
-
-			case GpuOpCodes.PATCHDIVISION:
-				this.state.patch.divs = BitUtils.extract(params24, 0, 8);
-				this.state.patch.divt = BitUtils.extract(params24, 8, 8);
-				break;
-
-			case GpuOpCodes.BEZIER:
-				var ucount = BitUtils.extract(params24, 0, 8);
-				var vcount = BitUtils.extract(params24, 8, 8);
-				var divs = this.state.patch.divs;
-				var divt = this.state.patch.divt;
-				var vertexState = this.state.vertex;
-				var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
-				var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
-				var vertexInput = this.memory.getPointerDataView(vertexAddress);
-
-				var vertexState2 = vertexState.clone();
-				vertexState2.texture = _state.NumericEnum.Float;
-
-				var getBezierControlPoints = (ucount: number, vcount: number) => {
-					var controlPoints = ArrayUtils.create2D<_state.Vertex>(ucount, vcount);
-
-					var mipmap = this.state.texture.mipmaps[0];
-					var scale = mipmap.textureWidth / mipmap.bufferWidth;
-					for (var u = 0; u < ucount; u++) {
-						for (var v = 0; v < vcount; v++) {
-							var vertex = vertexReader.readOne(vertexInput, v * ucount + u);;
-							controlPoints[u][v] = vertex;
-							vertex.tx = (u / (ucount - 1)) * scale;
-							vertex.ty = (v / (vcount - 1));
-							//Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
-						}
-					}
-					return controlPoints;
-				};
-
-				var controlPoints = getBezierControlPoints(ucount, vcount);
-				var vertices2 = [];
-				vertices2.push(controlPoints[0][0]);
-				vertices2.push(controlPoints[ucount - 1][0]);
-				vertices2.push(controlPoints[0][vcount - 1]);
-
-				vertices2.push(controlPoints[ucount - 1][0]);
-				vertices2.push(controlPoints[ucount - 1][vcount - 1]);
-				vertices2.push(controlPoints[0][vcount - 1]);
-
-				this.drawDriver.drawElements(_state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
-				break;
-
-            default:
-				this.errorCount++;
-				if (this.errorCount >= 400) {
-					if (this.errorCount == 400) {
-						console.error(sprintf('Stop showing gpu errors'));
-					}
-				} else {
-					console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
-				}
-        }
-
-        return false;
-	}
 
 	primBatchPrimitiveType:number = -1;
 
@@ -734,21 +1002,18 @@ class PspGpuList {
 	}
 
 	private runUntilStallInner() {
-		while (this.hasMoreInstructions) {
+		var u32 = this.memory.u32;
+		//while (this.hasMoreInstructions) {
+		while (!this.completed && ((this.stall == 0) || (this.current < this.stall))) {
 			var instructionPC = this.current;
 			var instruction = this.memory.readUInt32(instructionPC);
 			this.current += 4;
-			if (this.showOpcodes) this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
 
 			var op = (instruction >>> 24);
 			var params24 = (instruction & 0x00FFFFFF);
 
-			var func1 = this.executor.table[op];
-			if (func1) {
-				if (func1(params24, instructionPC)) return;
-			} else {
-				if (this.runInstruction(instructionPC, instruction, op, params24)) return;
-			}
+			if (this.showOpcodes) this.opcodes.push(GpuOpCodes[op]);
+			if (this.executor.table[op](params24, instructionPC)) return;
 		}
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}
