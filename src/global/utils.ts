@@ -376,9 +376,10 @@ function setToString(Enum: any, value: number) {
 }
 
 enum AcceptCallbacks { NO = 0, YES = 1 }
+enum Compensate { NO = 0, YES = 1 }
 
 class WaitingThreadInfo<T> {
-	public constructor(public name: string, public object: any, public promise: Promise<T>, public callbacks: AcceptCallbacks) {
+	public constructor(public name: string, public object: any, public promise: Promise<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
 	}
 }
 

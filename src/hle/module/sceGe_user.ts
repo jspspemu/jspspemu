@@ -45,8 +45,13 @@ export class sceGe_user {
         return this.context.gpu.updateStallAddr(displayListId, stall);
     });
 
-	sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: _gpu.SyncType):any => {
-		return this.context.gpu.drawSync(syncType);
+	sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: _gpu.SyncType): any => {
+		var result = this.context.gpu.drawSync(syncType);
+		if (result instanceof Promise) {
+			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <Promise<any>>result, AcceptCallbacks.NO, Compensate.YES);
+		} else {
+			return result;
+		}
 	});
 
 	sceGeContinue = createNativeFunction(0x4C06E472, 150, 'uint', '', this, () => {

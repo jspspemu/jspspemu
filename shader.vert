@@ -30,7 +30,7 @@ attribute vec4 vPosition;
 	attribute vec4 vertexWeight1;
 	attribute vec4 vertexWeight2;
 
-	mat4 _getMatrixBone(int index) {
+	mat4 getMatrixBone(int index) {
 		if (index == 0) return matrixBone0;
 		if (index == 1) return matrixBone1;
 		if (index == 2) return matrixBone2;
@@ -42,7 +42,7 @@ attribute vec4 vPosition;
 	}
 
 	
-	float _getVertexWeight(int index) {
+	float getVertexWeight(int index) {
 		if (index == 0) return vertexWeight1.x;
 		if (index == 1) return vertexWeight1.y;
 		if (index == 2) return vertexWeight1.z;
@@ -54,20 +54,11 @@ attribute vec4 vPosition;
 		return 0.0;
 	}
 
-	mat4 getMatrixBone(int index) {
-		return _getMatrixBone(index);
-	}
-
-	float getVertexWeight(int index) {
-		//return transpose(_getVertexWeight(index));
-		return _getVertexWeight(index);
-	}
-
 	vec4 performSkinning(vec4 vertexIn) {
 		vec4 vertexOut = vec4(0.0, 0.0, 0.0, 0.0);
 	
-		float totalWeight = 0.0; for (int n = 0; n < VERTEX_SKINNING; n++) totalWeight += (getVertexWeight(n));
-		//float totalWeight = 1.0;
+		float totalWeight = 0.0;
+		for (int n = 0; n < VERTEX_SKINNING; n++) totalWeight += (getVertexWeight(n));
 		for (int n = 0; n < VERTEX_SKINNING; n++) vertexOut += (getMatrixBone(n) * (getVertexWeight(n)) / totalWeight) * vertexIn;
 
 		return vertexOut;

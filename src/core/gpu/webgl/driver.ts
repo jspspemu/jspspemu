@@ -221,7 +221,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.enable(gl.DEPTH_TEST);
 			gl.depthFunc(gl.ALWAYS);
 			gl.depthMask(true);
-			gl.depthRange(1, 1);
+			gl.depthRange(state.depthTest.rangeNear, state.depthTest.rangeNear);
 			//debugger;
 		}
 

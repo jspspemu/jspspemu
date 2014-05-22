@@ -26,6 +26,7 @@ export class MemoryVfs extends Vfs {
 		if (!file) {
 			var error = new Error(sprintf("MemoryVfs: Can't find '%s'", path));
 			console.error(error);
+			console.error(error['stack']);
 			return Promise.reject(error);
 		} else {
 			return Promise.resolve(file);

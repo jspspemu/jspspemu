@@ -161,17 +161,22 @@ export class Thread {
 		this.waitingName = info.name;
 		this.waitingObject = info.object;
 		this.acceptingCallbacks = (info.callbacks == AcceptCallbacks.YES);
-		this._suspendUntilPromiseDone(info.promise);
+		this._suspendUntilPromiseDone(info.promise, info.compensate);
 	}
 
 	suspendUntilPromiseDone(promise: Promise<any>, info:NativeFunction) {
 		//this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
 		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
 		this.waitingObject = info;
-		this._suspendUntilPromiseDone(promise);
+		this._suspendUntilPromiseDone(promise, Compensate.NO);
 	}
 
-	_suspendUntilPromiseDone(promise: Promise<any>) {
+	_suspendUntilPromiseDone(promise: Promise<any>, compensate: Compensate) {
+
+		if (compensate == Compensate.YES) {
+			var startTime = performance.now();
+		}
+
 		this.waitingPromise = promise;
 
 		this.suspend();
@@ -184,7 +189,12 @@ export class Thread {
 			this.waitingObject = null;
 			this.acceptingCallbacks = false;
 			if (result !== undefined) this.state.V0 = result;
-				
+
+			if (compensate == Compensate.YES) {
+				var endTime = performance.now();
+				this.accumulatedMicroseconds += (endTime - startTime) * 1000;
+			}
+
 			//console.error('resumed ' + this.name);
             this.resume();
         });
@@ -288,9 +298,6 @@ export class ThreadManager {
 	eventOcurredCallback() {
 		if (!this.running) return;
 
-		//var doCompensate = true;
-		var doCompensate = false; // TOOD: fix compensating gpu
-
 		var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
 		//console.log('delayedTime', timeMsToCompensate);
 
@@ -317,10 +324,6 @@ export class ThreadManager {
 				if (thread.running) {
 					runningThreadCount++;
 					runningPriority = Math.min(runningPriority, thread.priority);
-					if (doCompensate) {
-						thread.accumulatedMicroseconds += microsecondsToCompensate;
-						doCompensate = false;
-					}
 				}
 			});
 

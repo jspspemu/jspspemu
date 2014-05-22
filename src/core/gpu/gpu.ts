@@ -35,6 +35,10 @@ export interface IPspGpu {
 var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
 
+function bool1(p: number) { return p != 0; }
+function param8(p: number, offset: number) { return (p >> offset) & 0xFF; }
+function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
+
 class PspGpuExecutor {
 	private list: PspGpuList;
 	private state: _state.GpuState;
@@ -54,20 +58,20 @@ class PspGpuExecutor {
 		}
 	}
 
-	NOP(params24: number) { }
-	IADDR(params24: number) { this.state.indexAddress = params24; }
-	OFFSETADDR(params24: number) { this.state.baseOffset = (params24 << 8); }
-	FRAMEBUFPTR(params24: number) { this.state.frameBuffer.lowAddress = params24; }
-	BASE(params24: number) { this.state.baseAddress = ((params24 << 8) & 0xff000000); }
-	JUMP(params24: number) {
-		this.list.jumpRelativeOffset(params24 & ~3);
+	NOP(p: number) { }
+	IADDR(p: number) { this.state.indexAddress = p; }
+	OFFSETADDR(p: number) { this.state.baseOffset = (p << 8); }
+	FRAMEBUFPTR(p: number) { this.state.frameBuffer.lowAddress = p; }
+	BASE(p: number) { this.state.baseAddress = ((p << 8) & 0xff000000); }
+	JUMP(p: number) {
+		this.list.jumpRelativeOffset(p & ~3);
 	}
-	CALL(params24: number, current: number) {
+	CALL(p: number, current: number) {
 		this.list.callstack.push(current + 4);
 		this.list.callstack.push(this.state.baseOffset);
-		this.list.jumpRelativeOffset(params24 & ~3);
+		this.list.jumpRelativeOffset(p & ~3);
 	}
-	RET(params24: number) {
+	RET(p: number) {
 		if (this.list.callstack.length > 0) {
 			this.list.state.baseOffset = this.list.callstack.pop();
 			this.list.jumpAbsolute(this.list.callstack.pop());
@@ -75,30 +79,221 @@ class PspGpuExecutor {
 			console.info('gpu callstack empty');
 		}
 	}
-	VERTEXTYPE(params24: number) {
-		if (this.list.state.vertex.getValue() == params24) return;
+	VERTEXTYPE(p: number) {
+		if (this.list.state.vertex.getValue() == p) return;
 		this.list.finishPrimBatch();
-		this.list.state.vertex.setValue(params24);
+		this.list.state.vertex.setValue(p);
 	}
-	VADDR(params24: number) {
-		this.list.state.vertex.address = params24;
+	VADDR(p: number) {
+		this.list.state.vertex.address = p;
 	}
-	FINISH(params24: number) {
+	FINISH(p: number) {
 		this.list.finish();
 		var callback = this.list.gpu.callbacks.get(this.list.callbackId);
 		if (callback && callback.cpuState && callback.finishFunction) {
-			this.list.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [params24, callback.finishArgument]);
+			this.list.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [p, callback.finishArgument]);
 		}
 	}
-	SIGNAL(params24: number) {
+	SIGNAL(p: number) {
 		console.warn('Not implemented: GPU SIGNAL');
 	}
-	END(params24: number) {
+	END(p: number) {
+		this.invalidatePrim();
 		this.list.gpu.driver.end();
 		this.list.complete();
-		this.list.finishPrimBatch();
 		return true;
 	}
+
+	private invalidatePrim() {
+		this.list.finishPrimBatch();
+	}
+
+	FOGENABLE(p: number) { if (this.state.fog.enabled != bool1(p)) { this.invalidatePrim(); this.state.fog.enabled = bool1(p); } }
+
+	VIEWPORTX1(p: number) { if (this.state.viewport.width != float1(p)) { this.invalidatePrim(); this.state.viewport.width = float1(p); } }
+	VIEWPORTY1(p: number) { if (this.state.viewport.height != float1(p)) { this.invalidatePrim(); this.state.viewport.height = float1(p); } }
+	VIEWPORTZ1(p: number) { if (this.state.viewport.depth != float1(p)) { this.invalidatePrim(); this.state.viewport.depth = float1(p); } }
+
+	VIEWPORTX2(p: number) { if (this.state.viewport.x != float1(p)) { this.invalidatePrim(); this.state.viewport.x = float1(p); } }
+	VIEWPORTY2(p: number) { if (this.state.viewport.y != float1(p)) { this.invalidatePrim(); this.state.viewport.y = float1(p); } }
+	VIEWPORTZ2(p: number) { if (this.state.viewport.z != float1(p)) { this.invalidatePrim(); this.state.viewport.z = float1(p); } }
+
+	TMODE(p: number) {
+		if (this.state.texture.tmode == p) return;
+		this.invalidatePrim();
+		this.state.texture.tmode = p;
+		this.state.texture.swizzled = param8(p, 0) != 0;
+		this.state.texture.mipmapShareClut = param8(p, 8) != 0;
+		this.state.texture.mipmapMaxLevel = param8(p, 16);
+	}
+	TFLT(p: number) {
+		if (this.state.texture.tflt == p) return;
+		this.invalidatePrim();
+		this.state.texture.tflt = p;
+		this.state.texture.filterMinification = <_state.TextureFilter>param8(p, 0);
+		this.state.texture.filterMagnification = <_state.TextureFilter>param8(p, 8);
+	}
+	TWRAP(p: number) {
+		if (this.state.texture.twrap == p) return;
+		this.invalidatePrim();
+		this.state.texture.twrap = p;
+		this.state.texture.wrapU = <_state.WrapMode>param8(p, 0);
+		this.state.texture.wrapV = <_state.WrapMode>param8(p, 8);
+	}
+	TEXTUREMAPENABLE(p: number) {
+		var v = bool1(p)
+		if (this.state.texture.enabled == v) return;
+		this.invalidatePrim();
+		this.state.texture.enabled = v;
+	}
+	TMAP(p: number) {
+		if (this.state.texture.tmap == p) return;
+		this.invalidatePrim();
+		this.state.texture.tmap = p;
+		this.state.texture.textureMapMode = <_state.TextureMapMode>param8(p, 0);
+		this.state.texture.textureProjectionMapMode = <_state.TextureProjectionMapMode>param8(p, 8);
+		this.state.vertex.textureComponentCount = this.state.texture.getTextureComponentsCount();
+	}
+
+	TSIZE_(p: number, index: number) {
+		var mipMap = this.state.texture.mipmaps[index];
+		if (mipMap.tsizeValue == p) return;
+		this.invalidatePrim();
+		var widthExp = BitUtils.extract(p, 0, 4);
+		var heightExp = BitUtils.extract(p, 8, 4);
+		var unknownFlag = (BitUtils.extract(p, 15, 1) != 0);
+		widthExp = Math.min(widthExp, 9);
+		heightExp = Math.min(heightExp, 9);
+		mipMap.tsizeValue = p;
+		mipMap.textureWidth = 1 << widthExp;
+		mipMap.textureHeight = 1 << heightExp;
+	}
+
+	TEXADDR_(p: number, index: number) {
+		var mipMap = this.state.texture.mipmaps[index];
+		var address = (mipMap.address & 0xFF000000) | (p & 0x00FFFFFF);
+		if (mipMap.address == address) return;
+		this.invalidatePrim();
+		mipMap.address = address;
+	}
+
+	TEXBUFWIDTH_(p: number, index: number) {
+		var mipMap = this.state.texture.mipmaps[index];
+		var bufferWidth = BitUtils.extract(p, 0, 16);
+		var address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(p, 16, 8) << 24) & 0xFF000000);
+		if ((mipMap.bufferWidth == bufferWidth) && (mipMap.address == address)) return;
+		this.invalidatePrim();
+		mipMap.bufferWidth = bufferWidth;
+		mipMap.address = address;
+	}
+
+	TSIZE0(p: number) { this.TSIZE_(p, 0); }
+	TSIZE1(p: number) { this.TSIZE_(p, 1); }
+	TSIZE2(p: number) { this.TSIZE_(p, 2); }
+	TSIZE3(p: number) { this.TSIZE_(p, 3); }
+	TSIZE4(p: number) { this.TSIZE_(p, 4); }
+	TSIZE5(p: number) { this.TSIZE_(p, 5); }
+	TSIZE6(p: number) { this.TSIZE_(p, 6); }
+	TSIZE7(p: number) { this.TSIZE_(p, 7); }
+
+	TEXADDR0(p: number) { this.TEXADDR_(p, 0); }
+	TEXADDR1(p: number) { this.TEXADDR_(p, 1); }
+	TEXADDR2(p: number) { this.TEXADDR_(p, 2); }
+	TEXADDR3(p: number) { this.TEXADDR_(p, 3); }
+	TEXADDR4(p: number) { this.TEXADDR_(p, 4); }
+	TEXADDR5(p: number) { this.TEXADDR_(p, 5); }
+	TEXADDR6(p: number) { this.TEXADDR_(p, 6); }
+	TEXADDR7(p: number) { this.TEXADDR_(p, 7); }
+
+	TEXBUFWIDTH0(p: number) { return this.TEXBUFWIDTH_(p, 0); }
+	TEXBUFWIDTH1(p: number) { return this.TEXBUFWIDTH_(p, 1); }
+	TEXBUFWIDTH2(p: number) { return this.TEXBUFWIDTH_(p, 2); }
+	TEXBUFWIDTH3(p: number) { return this.TEXBUFWIDTH_(p, 3); }
+	TEXBUFWIDTH4(p: number) { return this.TEXBUFWIDTH_(p, 4); }
+	TEXBUFWIDTH5(p: number) { return this.TEXBUFWIDTH_(p, 5); }
+	TEXBUFWIDTH6(p: number) { return this.TEXBUFWIDTH_(p, 6); }
+	TEXBUFWIDTH7(p: number) { return this.TEXBUFWIDTH_(p, 7); }
+
+	MORPHWEIGHT_(p: number, index: number) {
+		var morphWeight = float1(p);
+		if (this.state.morphWeights[index] == morphWeight) return;
+		this.invalidatePrim();
+		this.state.morphWeights[index] = morphWeight;
+	}
+
+	MORPHWEIGHT0(p: number) { return this.MORPHWEIGHT_(p, 0); }
+	MORPHWEIGHT1(p: number) { return this.MORPHWEIGHT_(p, 1); }
+	MORPHWEIGHT2(p: number) { return this.MORPHWEIGHT_(p, 2); }
+	MORPHWEIGHT3(p: number) { return this.MORPHWEIGHT_(p, 3); }
+	MORPHWEIGHT4(p: number) { return this.MORPHWEIGHT_(p, 4); }
+	MORPHWEIGHT5(p: number) { return this.MORPHWEIGHT_(p, 5); }
+	MORPHWEIGHT6(p: number) { return this.MORPHWEIGHT_(p, 6); }
+	MORPHWEIGHT7(p: number) { return this.MORPHWEIGHT_(p, 7); }
+
+	PRIM(p: number) {
+		var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(p, 16, 3);
+		var vertexCount = BitUtils.extract(p, 0, 16);
+		var list = this.list;
+
+		if (list.primBatchPrimitiveType != primitiveType) list.finishPrimBatch();
+		if (vertexCount <= 0) return false;
+
+		list.primBatchPrimitiveType = primitiveType;
+
+		list.primCount++;
+
+		var vertexState = this.state.vertex;
+		var vertexSize = vertexState.size;
+		var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
+		var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
+
+		var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
+
+		var indices: any = null;
+		switch (vertexState.index) {
+			case _state.IndexEnum.Byte: indices = list.memory.getU8Array(indicesAddress); break;
+			case _state.IndexEnum.Short: indices = list.memory.getU16Array(indicesAddress); break;
+		}
+
+		//if (vertexState.realWeightCount > 0) debugger;
+
+		var vertexInput = list.memory.getPointerDataView(vertexAddress);
+
+		if (vertexState.address) {
+			if (!vertexState.hasIndex) {
+				vertexState.address += vertexState.size * vertexCount;
+			}
+		}
+
+		var drawType = PrimDrawType.SINGLE_DRAW;
+
+		switch (primitiveType) {
+			case _state.PrimitiveType.Lines:
+			case _state.PrimitiveType.Points:
+			case _state.PrimitiveType.Triangles:
+			case _state.PrimitiveType.Sprites:
+				drawType = PrimDrawType.BATCH_DRAW;
+				break;
+			case _state.PrimitiveType.TriangleStrip:
+			case _state.PrimitiveType.LineStrip:
+				drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
+				break;
+		}
+
+		if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.startDegenerateTriangleStrip();
+		{
+			var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
+			vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
+		}
+		if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.endDegenerateTriangleStrip();
+
+		if (drawType == PrimDrawType.SINGLE_DRAW) {
+			list.finishPrimBatch();
+		} else {
+			list.batchPrimCount++;
+		}
+	}
+
 }
 
 class PspGpuList {
@@ -113,7 +308,7 @@ class PspGpuList {
 	private promiseReject: Function;
 	private errorCount: number = 0;
 
-	constructor(public id: number, private memory: Memory, private drawDriver: IDrawDriver, private executor: PspGpuExecutor, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
+	constructor(public id: number, public memory: Memory, private drawDriver: IDrawDriver, private executor: PspGpuExecutor, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
     }
 
     complete() {
@@ -140,16 +335,6 @@ class PspGpuList {
 
 		//console.info('op:', op, GpuOpCodes[op]);
 		switch (op) {
-			case GpuOpCodes.FOGENABLE: this.state.fog.enabled = bool1(); break;
-
-			case GpuOpCodes.VIEWPORTX1: this.state.viewport.width = float1(); break;
-			case GpuOpCodes.VIEWPORTY1: this.state.viewport.height = float1(); break;
-			case GpuOpCodes.VIEWPORTZ1: this.state.viewport.depth = float1(); break;
-
-			case GpuOpCodes.VIEWPORTX2: this.state.viewport.x = float1(); break;
-			case GpuOpCodes.VIEWPORTY2: this.state.viewport.y = float1(); break;
-			case GpuOpCodes.VIEWPORTZ2: this.state.viewport.z = float1(); break;
-
 			case GpuOpCodes.OFFSETX: this.state.offset.x = params24 & 0xF; break;
 			case GpuOpCodes.OFFSETY: this.state.offset.y = params24 & 0xF; break;
 
@@ -204,33 +389,6 @@ class PspGpuList {
 				this.state.blending.equation = BitUtils.extractEnum<_state.GuBlendingEquation>(params24, 8, 4);
 				break;
 
-			case GpuOpCodes.LIGHTENABLE0: 
-			case GpuOpCodes.LIGHTENABLE1: 
-			case GpuOpCodes.LIGHTENABLE2: 
-			case GpuOpCodes.LIGHTENABLE3:
-				this.state.lightning.lights[op - GpuOpCodes.LIGHTENABLE0].enabled = params24 != 0;
-				break;
-			case GpuOpCodes.TMODE:
-				this.state.texture.swizzled = BitUtils.extract(params24, 0, 8) != 0;
-				this.state.texture.mipmapShareClut = BitUtils.extract(params24, 8, 8) != 0;
-				this.state.texture.mipmapMaxLevel = BitUtils.extract(params24, 16, 8);
-				break;
-			case GpuOpCodes.TFLT:
-				this.state.texture.filterMinification = BitUtils.extractEnum<_state.TextureFilter>(params24, 0, 8);
-				this.state.texture.filterMagnification = BitUtils.extractEnum<_state.TextureFilter>(params24, 8, 8);
-				break;
-			case GpuOpCodes.TWRAP:
-				this.state.texture.wrapU = BitUtils.extractEnum<_state.WrapMode>(params24, 0, 8);
-				this.state.texture.wrapV = BitUtils.extractEnum<_state.WrapMode>(params24, 8, 8);
-				break;
-			case GpuOpCodes.TEXTUREMAPENABLE:
-				this.state.texture.enabled = (params24 != 0);
-				break;
-			case GpuOpCodes.TMAP:
-				this.state.texture.textureMapMode = BitUtils.extractEnum<_state.TextureMapMode>(params24, 0, 8);
-				this.state.texture.textureProjectionMapMode = BitUtils.extractEnum<_state.TextureProjectionMapMode>(params24, 8, 8);
-				this.state.vertex.textureComponentCount = this.state.texture.getTextureComponentsCount();
-				break;
 			case GpuOpCodes.REVERSENORMAL: this.state.vertex.reversedNormal = bool1(); break;
 			case GpuOpCodes.PATCHCULLENABLE: this.state.patchCullingState.enabled = bool1(); break;
 			case GpuOpCodes.PATCHFACING: this.state.patchCullingState.faceFlag = bool1(); break;
@@ -268,50 +426,7 @@ class PspGpuList {
 				this.state.drawPixelFormat = <PixelFormat>BitUtils.extract(params24, 0, 4);
 				break;
 
-			case GpuOpCodes.TSIZE0:
-			case GpuOpCodes.TSIZE1:
-			case GpuOpCodes.TSIZE2:
-			case GpuOpCodes.TSIZE3:
-			case GpuOpCodes.TSIZE4:
-			case GpuOpCodes.TSIZE5:
-			case GpuOpCodes.TSIZE6:
-			case GpuOpCodes.TSIZE7:
-				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TSIZE0];
-				var WidthExp = BitUtils.extract(params24, 0, 4);
-				var HeightExp = BitUtils.extract(params24, 8, 4);
-				var UnknownFlag = (BitUtils.extract(params24, 15, 1) != 0);
-				WidthExp = Math.min(WidthExp, 9);
-				HeightExp = Math.min(HeightExp, 9);
-				mipMap.textureWidth = 1 << WidthExp;
-				mipMap.textureHeight = 1 << HeightExp;
-
-				break;
-
-			case GpuOpCodes.TEXADDR0:
-			case GpuOpCodes.TEXADDR1:
-			case GpuOpCodes.TEXADDR2:
-			case GpuOpCodes.TEXADDR3:
-			case GpuOpCodes.TEXADDR4:
-			case GpuOpCodes.TEXADDR5:
-			case GpuOpCodes.TEXADDR6:
-			case GpuOpCodes.TEXADDR7:
-				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TEXADDR0];
-				mipMap.address = (mipMap.address & 0xFF000000) | (params24 & 0x00FFFFFF);
-				break;
-
-			case GpuOpCodes.TEXBUFWIDTH0:
-			case GpuOpCodes.TEXBUFWIDTH1:
-			case GpuOpCodes.TEXBUFWIDTH2:
-			case GpuOpCodes.TEXBUFWIDTH3:
-			case GpuOpCodes.TEXBUFWIDTH4:
-			case GpuOpCodes.TEXBUFWIDTH5:
-			case GpuOpCodes.TEXBUFWIDTH6:
-			case GpuOpCodes.TEXBUFWIDTH7:
-				var mipMap = this.state.texture.mipmaps[op - GpuOpCodes.TEXBUFWIDTH0];
-				mipMap.bufferWidth = BitUtils.extract(params24, 0, 16);
-				mipMap.address = (mipMap.address & 0x00FFFFFF) | ((BitUtils.extract(params24, 16, 8) << 24) & 0xFF000000);
-				break;
-
+		
 			case GpuOpCodes.MATERIALSPECULARCOEF:
 				this.state.lightning.specularPower = float1();
 				break;
@@ -413,16 +528,101 @@ class PspGpuList {
 			case GpuOpCodes.MINZ: this.state.depthTest.rangeFar = (params24 & 0xFFFF) / 65536; break;
 			case GpuOpCodes.MAXZ: this.state.depthTest.rangeNear = (params24 & 0xFFFF) / 65536; break;
 
-			case GpuOpCodes.MORPHWEIGHT0:
-			case GpuOpCodes.MORPHWEIGHT1:
-			case GpuOpCodes.MORPHWEIGHT2:
-			case GpuOpCodes.MORPHWEIGHT3:
-			case GpuOpCodes.MORPHWEIGHT4:
-			case GpuOpCodes.MORPHWEIGHT5:
-			case GpuOpCodes.MORPHWEIGHT6:
-			case GpuOpCodes.MORPHWEIGHT7:
-				this.state.morphWeights[op - GpuOpCodes.MORPHWEIGHT0] = MathFloat.reinterpretIntAsFloat(params24 << 8);
+			/*
+			case GpuOpCodes.LIGHTENABLE0: this.state.lightning.lights[0].enabled = bool1(); break;
+			case GpuOpCodes.LIGHTENABLE1: this.state.lightning.lights[1].enabled = bool1(); break;
+			case GpuOpCodes.LIGHTENABLE2: this.state.lightning.lights[2].enabled = bool1(); break;
+			case GpuOpCodes.LIGHTENABLE3: this.state.lightning.lights[3].enabled = bool1(); break;
+
+			case GpuOpCodes.LIGHTTYPE0:
+			case GpuOpCodes.LIGHTTYPE1:
+			case GpuOpCodes.LIGHTTYPE2:
+			case GpuOpCodes.LIGHTTYPE3:
+				var light = this.state.lightning.lights[op - GpuOpCodes.LIGHTTYPE0];
+				var kind = BitUtils.extract(params24, 0, 8);
+				var type = BitUtils.extract(params24, 0, 8);
+				light.kind = kind;
+				light.type = type;
+				switch (light.type) {
+					case _state.LightTypeEnum.Directional: light.pw = 0; break;
+					case _state.LightTypeEnum.PointLight: light.pw = 1; light.cutoff = 180; break;
+					case _state.LightTypeEnum.SpotLight: light.pw = 1; break;
+				}
+				
 				break;
+
+			case GpuOpCodes.LCA0: this.state.lightning.lights[0].constantAttenuation = float1(); break;
+			case GpuOpCodes.LCA1: this.state.lightning.lights[1].constantAttenuation = float1(); break;
+			case GpuOpCodes.LCA2: this.state.lightning.lights[2].constantAttenuation = float1(); break;
+			case GpuOpCodes.LCA3: this.state.lightning.lights[3].constantAttenuation = float1(); break;
+
+			case GpuOpCodes.LLA0: this.state.lightning.lights[0].linearAttenuation = float1(); break;
+			case GpuOpCodes.LLA1: this.state.lightning.lights[1].linearAttenuation = float1(); break;
+			case GpuOpCodes.LLA2: this.state.lightning.lights[2].linearAttenuation = float1(); break;
+			case GpuOpCodes.LLA3: this.state.lightning.lights[3].linearAttenuation = float1(); break;
+
+			case GpuOpCodes.LQA0: this.state.lightning.lights[0].quadraticAttenuation = float1(); break;
+			case GpuOpCodes.LQA1: this.state.lightning.lights[1].quadraticAttenuation = float1(); break;
+			case GpuOpCodes.LQA2: this.state.lightning.lights[2].quadraticAttenuation = float1(); break;
+			case GpuOpCodes.LQA3: this.state.lightning.lights[3].quadraticAttenuation = float1(); break;
+
+			case GpuOpCodes.ALC0: this.state.lightning.lights[0].ambientColor.setRGB(params24); break;
+			case GpuOpCodes.ALC1: this.state.lightning.lights[1].ambientColor.setRGB(params24); break;
+			case GpuOpCodes.ALC2: this.state.lightning.lights[2].ambientColor.setRGB(params24); break;
+			case GpuOpCodes.ALC3: this.state.lightning.lights[3].ambientColor.setRGB(params24); break;
+																			  		
+			case GpuOpCodes.DLC0: this.state.lightning.lights[0].diffuseColor.setRGB(params24); break;
+			case GpuOpCodes.DLC1: this.state.lightning.lights[1].diffuseColor.setRGB(params24); break;
+			case GpuOpCodes.DLC2: this.state.lightning.lights[2].diffuseColor.setRGB(params24); break;
+			case GpuOpCodes.DLC3: this.state.lightning.lights[3].diffuseColor.setRGB(params24); break;
+																			  		
+			case GpuOpCodes.SLC0: this.state.lightning.lights[0].specularColor.setRGB(params24); break;
+			case GpuOpCodes.SLC1: this.state.lightning.lights[1].specularColor.setRGB(params24); break;
+			case GpuOpCodes.SLC2: this.state.lightning.lights[2].specularColor.setRGB(params24); break;
+			case GpuOpCodes.SLC3: this.state.lightning.lights[3].specularColor.setRGB(params24); break;
+
+			case GpuOpCodes.SPOTEXP0: this.state.lightning.lights[0].spotExponent = float1(); break;
+			case GpuOpCodes.SPOTEXP1: this.state.lightning.lights[1].spotExponent = float1(); break;
+			case GpuOpCodes.SPOTEXP2: this.state.lightning.lights[2].spotExponent = float1(); break;
+			case GpuOpCodes.SPOTEXP3: this.state.lightning.lights[3].spotExponent = float1(); break;
+
+			case GpuOpCodes.SPOTCUT0: this.state.lightning.lights[0].spotCutoff = float1(); break;
+			case GpuOpCodes.SPOTCUT1: this.state.lightning.lights[1].spotCutoff = float1(); break;
+			case GpuOpCodes.SPOTCUT2: this.state.lightning.lights[2].spotCutoff = float1(); break;
+			case GpuOpCodes.SPOTCUT3: this.state.lightning.lights[3].spotCutoff = float1(); break;
+
+			case GpuOpCodes.LXP0: this.state.lightning.lights[0].px = float1(); break;
+			case GpuOpCodes.LYP0: this.state.lightning.lights[0].py = float1(); break;
+			case GpuOpCodes.LZP0: this.state.lightning.lights[0].pz = float1(); break; 
+
+			case GpuOpCodes.LXP1: this.state.lightning.lights[1].px = float1(); break;
+			case GpuOpCodes.LYP1: this.state.lightning.lights[1].py = float1(); break;
+			case GpuOpCodes.LZP1: this.state.lightning.lights[1].pz = float1(); break; 
+
+			case GpuOpCodes.LXP2: this.state.lightning.lights[2].px = float1(); break;
+			case GpuOpCodes.LYP2: this.state.lightning.lights[2].py = float1(); break;
+			case GpuOpCodes.LZP2: this.state.lightning.lights[2].pz = float1(); break; 
+
+			case GpuOpCodes.LXP3: this.state.lightning.lights[3].px = float1(); break;
+			case GpuOpCodes.LYP3: this.state.lightning.lights[3].py = float1(); break;
+			case GpuOpCodes.LZP3: this.state.lightning.lights[3].pz = float1(); break; 
+
+			case GpuOpCodes.LXD0: this.state.lightning.lights[0].dx = float1(); break;
+			case GpuOpCodes.LYD0: this.state.lightning.lights[0].dy = float1(); break;
+			case GpuOpCodes.LZD0: this.state.lightning.lights[0].dz = float1(); break;
+							  									 
+			case GpuOpCodes.LXD1: this.state.lightning.lights[1].dx = float1(); break;
+			case GpuOpCodes.LYD1: this.state.lightning.lights[1].dy = float1(); break;
+			case GpuOpCodes.LZD1: this.state.lightning.lights[1].dz = float1(); break;
+							  									 
+			case GpuOpCodes.LXD2: this.state.lightning.lights[2].dx = float1(); break;
+			case GpuOpCodes.LYD2: this.state.lightning.lights[2].dy = float1(); break;
+			case GpuOpCodes.LZD2: this.state.lightning.lights[2].dz = float1(); break;
+							  									 
+			case GpuOpCodes.LXD3: this.state.lightning.lights[3].dx = float1(); break;
+			case GpuOpCodes.LYD3: this.state.lightning.lights[3].dy = float1(); break;
+			case GpuOpCodes.LZD3: this.state.lightning.lights[3].dz = float1(); break; 
+			*/
 
             case GpuOpCodes.CLEAR:
                 this.state.clearing = (BitUtils.extract(params24, 0, 1) != 0);
@@ -486,70 +686,6 @@ class PspGpuList {
 				this.drawDriver.drawElements(_state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
 				break;
 
-			case GpuOpCodes.PRIM:
-				var primitiveType = BitUtils.extractEnum<_state.PrimitiveType>(params24, 16, 3);
-				var vertexCount = BitUtils.extract(params24, 0, 16);
-
-				if (this.primBatchPrimitiveType != primitiveType) this.finishPrimBatch();
-				if (vertexCount <= 0) return false;
-
-				this.primBatchPrimitiveType = primitiveType;
-
-				this.primCount++;
-
-				var vertexState = this.state.vertex;
-				var vertexSize = vertexState.size;
-				var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
-				var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
-
-				var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
-
-				var indices: any = null;
-				switch (vertexState.index) {
-					case _state.IndexEnum.Byte: indices = this.memory.getU8Array(indicesAddress); break;
-					case _state.IndexEnum.Short: indices = this.memory.getU16Array(indicesAddress); break;
-				}
-
-				//if (vertexState.realWeightCount > 0) debugger;
-
-				var vertexInput = this.memory.getPointerDataView(vertexAddress);
-
-				if (vertexState.address) {
-					if (!vertexState.hasIndex) {
-						vertexState.address += vertexState.size * vertexCount;
-					}
-				}
-
-				var drawType = PrimDrawType.SINGLE_DRAW;
-
-				switch (primitiveType) {
-					case _state.PrimitiveType.Lines:
-					case _state.PrimitiveType.Points:
-					case _state.PrimitiveType.Triangles:
-					case _state.PrimitiveType.Sprites:
-						drawType = PrimDrawType.BATCH_DRAW;
-						break;
-					case _state.PrimitiveType.TriangleStrip:
-					case _state.PrimitiveType.LineStrip:
-						drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
-						break;
-				}
-
-				if ((this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.startDegenerateTriangleStrip();
-				{
-					var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
-					vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
-				}
-				if ((this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.endDegenerateTriangleStrip();
-
-				if (drawType == PrimDrawType.SINGLE_DRAW) {
-					this.finishPrimBatch();
-				} else {
-					this.batchPrimCount++;
-				}
-
-				break;
-
             default:
 				this.errorCount++;
 				if (this.errorCount >= 400) {
@@ -564,7 +700,7 @@ class PspGpuList {
         return false;
 	}
 
-	private primBatchPrimitiveType:number = -1;
+	primBatchPrimitiveType:number = -1;
 
 	finishPrimBatch() {
 		if (vertexBuffer.offsetLength == 0) return;
@@ -574,8 +710,8 @@ class PspGpuList {
 		this.primBatchPrimitiveType = -1;
 	}
 
-	private batchPrimCount = 0;
-	private primCount = 0;
+	batchPrimCount = 0;
+	primCount = 0;
 	//private showOpcodes = true;
 	private showOpcodes = false;
 	private opcodes = [];
@@ -595,30 +731,34 @@ class PspGpuList {
     private get hasMoreInstructions() {
 		return !this.completed && !this.isStalled;
 		//return !this.completed && ((this.stall == 0) || (this.current < this.stall));
-    }
+	}
+
+	private runUntilStallInner() {
+		while (this.hasMoreInstructions) {
+			var instructionPC = this.current;
+			var instruction = this.memory.readUInt32(instructionPC);
+			this.current += 4;
+			if (this.showOpcodes) this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
+
+			var op = (instruction >>> 24);
+			var params24 = (instruction & 0x00FFFFFF);
+
+			var func1 = this.executor.table[op];
+			if (func1) {
+				if (func1(params24, instructionPC)) return;
+			} else {
+				if (this.runInstruction(instructionPC, instruction, op, params24)) return;
+			}
+		}
+		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
+	}
 
 	private runUntilStall() {
 		this.status = DisplayListStatus.Drawing;
 		this.executor.setList(this);
 		while (this.hasMoreInstructions) {
 			try {
-				while (this.hasMoreInstructions) {
-					var instructionPC = this.current;
-					var instruction = this.memory.readUInt32(instructionPC);
-					this.current += 4
-					if (this.showOpcodes) this.opcodes.push(GpuOpCodes[((instruction >> 24) & 0xFF)]);
-
-					var op = (instruction >>> 24);
-					var params24 = (instruction & 0x00FFFFFF);
-
-					var func1 = this.executor.table[op];
-					if (func1) {
-						if (func1(params24, instructionPC)) return;
-					} else {
-						if (this.runInstruction(instructionPC, instruction, op, params24)) return;
-					}
-				}
-				this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
+				this.runUntilStallInner();
 			} catch (e) {
 				console.log(e);
 				console.log(e['stack']);

@@ -88,12 +88,12 @@ export class sceSasCore {
 		return 0;
 	});
 
-	__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, data: Stream, loopCount: number) => {
+	__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, data: Stream, loop: number) => {
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		if (data == null) {
 			voice.unsetSource();
 		} else {
-			voice.setPCM(data, loopCount);
+			voice.setPCM(data, loop);
 		}
 		return 0;
 	});
@@ -210,7 +210,6 @@ export class sceSasCore {
 		effectLeftVol = Math.abs(effectLeftVol);
 		effectRightVol = Math.abs(effectRightVol);
 
-
 		if (leftVolume > PSP_SAS_VOL_MAX || rightVolume > PSP_SAS_VOL_MAX || effectLeftVol > PSP_SAS_VOL_MAX || effectRightVol > PSP_SAS_VOL_MAX) {
 			throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOLUME_VAL));
 		}
@@ -279,8 +278,10 @@ class SasCore {
 		this.voices.forEach((voice) => {
 			if (!voice.onAndPlaying) return;
 
-			//Console.WriteLine("Voice.Pitch: {0}", Voice.Pitch);
-			//for (int n = 0, Pos = 0; n < NumberOfSamples; n++, Pos += Voice.Pitch)
+			//var sampleLeftSum = 0, sampleRightSum = 0;
+			//var sampleLeftMax = 0, sampleRightMax = 0;
+			//var sampleCount = 0;
+
 			var pos = 0;
 			while (true) {
 				if ((voice.source != null) && (voice.source.hasMore)) {
@@ -291,6 +292,13 @@ class SasCore {
 					var sample = voice.source.getNextSample();
 
 					for (var m = prevPosDiv + 1; m <= posDiv; m++) {
+						//sampleLeftSum += voice.leftVolume;
+						//sampleRightSum += voice.rightVolume;
+						//
+						//sampleLeftMax = Math.max(sampleLeftMax, Math.abs(voice.leftVolume));
+						//sampleRightMax = Math.max(sampleRightMax, Math.abs(voice.rightVolume));
+						//
+						//sampleCount++;
 						this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
 					}
 
@@ -364,10 +372,12 @@ class Voice {
 
 	setAdpcm(stream: Stream, loopCount: number) {
 		this.source = new VagSoundSource(stream, loopCount);
+		this.source.reset();
 	}
 
 	setPCM(stream: Stream, loopCount: number) {
 		this.source = new PcmSoundSource(stream, loopCount);
+		this.source.reset();
 	}
 }
 

@@ -294,7 +294,23 @@ export class Region {
 
 export class Light {
 	enabled = false;
+	kind = LightModelEnum.SingleColor;
+	type = LightTypeEnum.Directional;
+	cutoff = 0;
+	px = 0; py = 0; pz = 0; pw = 1;
+	dx = 0; dy = 0; dz = 0; dw = 1;
+	spotExponent = 0;
+	spotCutoff = 0;
+	constantAttenuation = 0;
+	linearAttenuation = 0;
+	quadraticAttenuation = 0;
+	ambientColor = new Color();
+	diffuseColor = new Color();
+	specularColor = new Color();
 }
+
+export enum LightTypeEnum { Directional = 0, PointLight = 1, SpotLight = 2 }
+export enum LightModelEnum { SingleColor = 0, SeparateSpecularColor = 1 }
 
 export class Lightning {
 	enabled = false;
@@ -304,6 +320,7 @@ export class Lightning {
 }
 
 export class MipmapState {
+	tsizeValue = -1;
 	address = 0;
 	bufferWidth = 0;
 	textureWidth = 0;
@@ -341,6 +358,11 @@ export enum TextureMapMode {
 }
 
 export class TextureState {
+	tmode = -1;
+	tflt = -1;
+	twrap = -1;
+	tmap = -1;
+
 	enabled = false;
 	swizzled = false;
 	matrix = new Matrix4x4();

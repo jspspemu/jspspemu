@@ -316,6 +316,7 @@ export class InstructionAst {
 		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, srcSize);
 		var target = [ast.vector_vt(0), ast.vector_vt(1), ast.vector_vt(2), ast.vector_vt(3)].slice(0, targetSize);
 		var st = [];
+		//st.push(ast.assign(vfpr(dest[0]), generate(0, src, target)));
 		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, srcSize))]));
 		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, targetSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [

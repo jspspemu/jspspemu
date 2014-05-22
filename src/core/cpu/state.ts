@@ -296,10 +296,14 @@ export class CpuState {
 		this.storeVdRegs(regs);
 	}
 
+	storeVdRegsWithPrefix1(regs: number[]) {
+		this.vpfxd.storeTransformedValues(this.vfpr, regs, this.vector_vd);
+		this.vpfxd.eat();
+		this.storeVdRegs(regs);
+	}
+
 	storeVdRegs(regs: number[]) {
-		for (var n = 0; n < regs.length; n++) {
-			this.vfpr[regs[n]] = this.vector_vd[n];
-		}
+		for (var n = 0; n < regs.length; n++) this.vfpr[regs[n]] = this.vector_vd[n];
 	}
 
 	loadVs_prefixed(values: number[]) {
@@ -314,12 +318,12 @@ export class CpuState {
 
 	storeVd_prefixed(indices: number[], values: number[]) {
 		this.vpfxd.storeTransformedValues(this.vfpr, indices, values);
-		this.vpfxd.enabled = false;
+		this.vpfxd.eat();
 	}
 
 	storeVd_prefixed_i(indices: number[], values: number[]) {
 		this.vpfxd.storeTransformedValues(this.vfpr_i, indices, values);
-		this.vpfxd.enabled = false;
+		this.vpfxd.eat();
 	}
 
 	_vt4444_step(i0: number, i1: number) {
