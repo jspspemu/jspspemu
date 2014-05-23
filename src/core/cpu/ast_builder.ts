@@ -75,6 +75,11 @@ export class ANodeStmExpr extends ANodeStm {
 	toJs() { return this.expr.toJs() + ';'; }
 }
 
+export class ANodeAllocVarStm extends ANodeStm {
+	constructor(public name: string, public initialValue: ANodeExpr) { super(); }
+	toJs() { return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';'; }
+}
+
 export class ANodeExpr extends ANode {
 
 }
@@ -205,6 +210,7 @@ export class AstBuilder {
 	_return() { return new ANodeStmReturn(); }
 	raw_stm(content: string) { return new ANodeStmRaw(content); }
 	raw(content: string) { return new ANodeExprLValueVar(content); }
+	allocVar(name: string, initialValue: ANodeExpr) { return new ANodeAllocVarStm(name, initialValue); }
 }
 
 export class MipsAstBuilder extends AstBuilder {

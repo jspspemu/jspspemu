@@ -31,7 +31,11 @@ class PspInstructionStm extends ast_builder.ANodeStm {
 export class FunctionGenerator {
 	private instructions: Instructions = Instructions.instance;
 	private instructionAst = new InstructionAst();
+	//private instructionGenerartorsByName = <StringDictionary<Function>>{ };
 	private instructionUsageCount: StringDictionary<number> = {};
+
+	constructor(public memory: Memory) {
+	}
 
 	getInstructionUsageCount(): InstructionUsage[] {
 		var items: InstructionUsage[] = [];
@@ -41,9 +45,6 @@ export class FunctionGenerator {
 		}
 		items.sort((a, b) => compareNumbers(a.count, b.count)).reverse();
 		return items;
-	}
-
-	constructor(public memory: Memory) {
 	}
 
 	private decodeInstruction(address: number) {
@@ -56,12 +57,12 @@ export class FunctionGenerator {
 		return this.instructions.findByData(i.data, i.PC);
 	}
 
-	private generateInstructionAstNode(di: DecodedInstruction): ast_builder.ANodeStm {
+	private generateInstructionAstNode(di: DecodedInstruction, PC: number): ast_builder.ANodeStm {
 		var instruction = di.instruction;
 		var instructionType = di.type;
 		var func: Function = this.instructionAst[instructionType.name];
 		if (func === undefined) throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
-		return func.call(this.instructionAst, instruction);
+		return func.call(this.instructionAst, instruction, PC);
 	}
 
 	create(address: number) {
@@ -71,6 +72,8 @@ export class FunctionGenerator {
 		if (address == 0x00000000) {
 			throw (new Error("Trying to execute 0x00000000"));
 		}
+
+		this.instructionAst.reset();
 
 		var ast = new MipsAstBuilder();
 
@@ -82,7 +85,7 @@ export class FunctionGenerator {
 
 		var emitInstruction = () => {
 			var di = this.decodeInstruction(PC);
-			var result = new PspInstructionStm(PC, this.generateInstructionAstNode(di), di);
+			var result = new PspInstructionStm(PC, this.generateInstructionAstNode(di, PC), di);
 			PC += 4;
 			return result;
 		};

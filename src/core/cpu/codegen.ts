@@ -174,12 +174,16 @@ function getMatrixRegs(matrixReg: number, N: MatrixSize) {
 	return regs;
 }
 
-function readVector(vectorReg: number, N: VectorSize) {
+function readVector_f(vectorReg: number, N: VectorSize) {
 	return getVectorRegs(vectorReg, N).map(index => vfpr(index));
 }
 
 function readVector_i(vectorReg: number, N: VectorSize) {
 	return getVectorRegs(vectorReg, N).map(index => vfpr_i(index));
+}
+
+function readVector_type(vectorReg: number, N: VectorSize, type: string) {
+	return (type == 'float') ? readVector_f(vectorReg, N) : readVector_i(vectorReg, N);
 }
 
 function readMatrix(vectorReg: number, N: MatrixSize) {
@@ -267,81 +271,208 @@ function getMatrixRegsVD(i: Instruction) {
 	return getMatrixRegs(i.VD, i.ONE_TWO);
 }
 
+class VfpuPrefixes {
+	static transformRead(n: number, info: number, values: _ast.ANodeExpr[]) {
+		var sourceIndex = (info >> (0 + n * 2)) & 3;
+		var sourceAbsolute = (info >> (8 + n * 1)) & 1;
+		var sourceConstant = (info >> (12 + n * 1)) & 1;
+		var sourceNegate = (info >> (16 + n * 1)) & 1;
+
+		var value: _ast.ANodeExpr;
+		if (sourceConstant) {
+			switch (sourceIndex) {
+				case 0: value = imm_f(sourceAbsolute ? (3) : (0)); break;
+				case 1: value = imm_f(sourceAbsolute ? (1 / 3) : (1)); break;
+				case 2: value = imm_f(sourceAbsolute ? (1 / 4) : (2)); break;
+				case 3: value = imm_f(sourceAbsolute ? (1 / 6) : (1 / 2)); break;
+				default: throw (new Error("Invalid operation")); break;
+			}
+		} else {
+			value = values[n];
+			if (sourceAbsolute) value = call('Math.abs', [value]);
+		}
+
+		if (sourceNegate) value = call('MathFloat.neg', [value]);
+		return value;
+	}
+
+	static transformStore(n: number, info: number, left: _ast.ANodeExprLValue, value: _ast.ANodeExpr) {
+		var destinationSaturation = (info >> (0 + n * 2)) & 3;
+		var destinationMask = (info >> (8 + n * 1)) & 1;
+		if (destinationMask) {
+			return ast.stm(); // Masked. No write value.
+		} else {
+			var value = value;
+			switch (destinationSaturation) {
+				case 1: value = call('MathFloat.sat0', [value]); break;
+				case 3: value = call('MathFloat.sat1', [value]); break;
+				default: break;
+			}
+			return assign_stm(left, value);
+		}
+	}
+}
+
+class PrefixPrediction {
+	static DEFAULT_LOAD_VALUE = 0xDC0000E4;
+	static DEFAULT_STORE_VALUE = 0x00000000;
+
+	constructor(private default_value: number) {
+	}
+
+	known = true;
+	value = this.default_value;
+
+	reset() {
+		this.set(this.default_value);
+	}
+
+	eat() {
+		this.set(this.default_value);
+	}
+
+	set(value: number) {
+		this.known = true;
+		this.value = value;
+	}
+
+	setUnknown() {
+		this.known = false;
+		this.value = this.default_value;
+	}
+}
+
 export class InstructionAst {
 	constructor() {
 		ast = new _ast.MipsAstBuilder();
 	}
 
+	private _vpfxs = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);
+	private _vpfxt = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);
+	private _vpfxd = new PrefixPrediction(PrefixPrediction.DEFAULT_STORE_VALUE);
+
+	reset() {
+		this.eatPrefixes();
+	}
+
+	eatPrefixes() {
+		this._vpfxs.reset();
+		this._vpfxt.reset();
+		this._vpfxd.reset();
+	}
+
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
 	private _vset1(i: Instruction, generate: (index: number) => _ast.ANodeExpr, destSize: number = 0, destType = 'float') {
-		if (destSize <= 0) destSize = i.ONE_TWO;
-
-		var dest = getVectorRegs(i.VD, destSize);
-
 		var st = [];
-		st.push(call_stm((destType == 'float') ? 'state.storeVd_prefixed' : 'state.storeVd_prefixed_i', [
-			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index))),
-		]));
-		st.push(call_stm('state.eatPrefixes', []));
+		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index));
 		return stms(st);
 	}
 
 	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize: number = 0, srcSize: number = 0, destType = 'float', srcType = 'float') {
-		if (destSize <= 0) destSize = i.ONE_TWO;
-		if (srcSize <= 0) srcSize = i.ONE_TWO;
-
-		var dest = getVectorRegs(i.VD, destSize);
-		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, srcSize);
-
 		var st = [];
-		var src2 = (srcType == 'float') ? readVector(i.VS, srcSize) : readVector_i(i.VS, srcSize);
-		st.push(call_stm('state.loadVs_prefixed', [ast.array(src2)]));
-		st.push(call_stm((destType == 'float') ? 'state.storeVd_prefixed' : 'state.storeVd_prefixed_i', [
-			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index, src))),
-		]));
-		st.push(call_stm('state.eatPrefixes', []));
-
-		//st.push(setVector(dest, index => generate(index, src)));
+		var src = this._vset_readVS(st, i, srcType, srcSize);
+		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src));
 		return stms(st);
 	}
 
-	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0, targetSize = 0) {
-		if (destSize <= 0) destSize = i.ONE_TWO;
-		if (srcSize <= 0) srcSize = i.ONE_TWO;
-		if (targetSize <= 0) targetSize = i.ONE_TWO;
-		var dest = getVectorRegs(i.VD, destSize);
-		var src = [ast.vector_vs(0), ast.vector_vs(1), ast.vector_vs(2), ast.vector_vs(3)].slice(0, srcSize);
-		var target = [ast.vector_vt(0), ast.vector_vt(1), ast.vector_vt(2), ast.vector_vt(3)].slice(0, targetSize);
+	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0, targetSize = 0, destType = 'float', srcType = 'float', targetType = 'float') {
 		var st = [];
-		//st.push(ast.assign(vfpr(dest[0]), generate(0, src, target)));
-		st.push(call_stm('state.loadVs_prefixed', [ast.array(readVector(i.VS, srcSize))]));
-		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, targetSize))]));
-		st.push(call_stm('state.storeVd_prefixed', [
-			ast.arrayNumbers(dest),
-			ast.array(ArrayUtils.range(0, destSize).map(index => generate(index, src, target))),
-		]));
-		st.push(call_stm('state.eatPrefixes', []));
-		//st.push(setVector(dest, index => generate(index, src, target)));
+		var src = this._vset_readVS(st, i, srcType, srcSize);
+		var target = this._vset_readVT(st, i, targetType, targetSize);
+		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src, target));
 		return stms(st);
+	}
+
+	private _vset_readVS(st: _ast.ANodeStm[], i: Instruction, type: string, size: number) {
+		if (size <= 0) size = i.ONE_TWO;
+		var regs = readVector_type(i.VS, size, type);
+		var prefix = this._vpfxs;
+		//if (prefix.known) {
+		//	var out = [];
+		//	for (var n = 0; n < size; n++) {
+		//		var vname = 's' + n;
+		//		out.push(ast.raw(vname));
+		//		st.push(ast.allocVar(vname, VfpuPrefixes.transformRead(n, prefix.value, regs)));
+		//	}
+		//	if (prefix.value != 0) st.push(ast.debugger());
+		//	return out;
+		//	//for (var n = 0; n < size; n++) st.push(assign_stm(ast.vector_vs(n), VfpuPrefixes.transformRead(n, prefix.value, regs[n])));
+		//} else
+		{
+			st.push(call_stm('state.loadVs_prefixed', [ast.array(regs)]));
+		}
+		return xrange(0, size).map(index => ast.vector_vs(index));
+	}
+
+	private _vset_readVT(st: _ast.ANodeStm[], i: Instruction, type: string, size: number) {
+		if (size <= 0) size = i.ONE_TWO;
+		var regs = readVector_type(i.VT, size, type);
+		var prefix = this._vpfxt;
+		//if (prefix.known) {
+		//	for (var n = 0; n < size; n++) st.push(ast.allocVar('t' + n, VfpuPrefixes.transformRead(n, prefix.value, regs)));
+		//	st.push(ast.debugger(sprintf('prefix.value=%08X', prefix.value)));
+		//	return xrange(0, size).map(index => ast.raw('t' + index));
+		//	//for (var n = 0; n < size; n++) st.push(assign_stm(ast.vector_vt(n), VfpuPrefixes.transformRead(n, prefix.value, regs[n])));
+		//} else
+		{
+			st.push(call_stm('state.loadVt_prefixed', [ast.array(regs)]));
+		}
+		return xrange(0, size).map(index => ast.vector_vt(index));
+	}
+
+	private _vset_storeVD(st: _ast.ANodeStm[], i: Instruction, type:string, size: number, generate: (index: number) => _ast.ANodeExpr) {
+		if (size <= 0) size = i.ONE_TWO;
+		var dest_regs = getVectorRegs(i.VD, size);
+		//if (this._vpfxd.known) {
+		//	for (var n = 0; n < size; n++) {
+		//		var dest_reg = dest_regs[n];
+		//		st.push(VfpuPrefixes.transformStore(n, this._vpfxd.value, (type == 'float') ? vfpr(dest_reg) : vfpr_i(dest_reg), generate(n)));
+		//	}
+		//} else
+		{
+			st.push(call_stm((type == 'float') ? 'state.storeVd_prefixed' : 'state.storeVd_prefixed_i', [
+				ast.arrayNumbers(dest_regs),
+				ast.array(xrange(0, size).map(n => generate(n))),
+			]));
+		}
+		st.push(call_stm('state.eatPrefixes', []));
+		//st.push(ast.debugger());
+		this.eatPrefixes();
 	}
 
 	// Prefixes
-	vpfxt(i: Instruction) { return call_stm('state.setVpfxt', [imm32(i.data)]); }
-	vpfxs(i: Instruction) { return call_stm('state.setVpfxs', [imm32(i.data)]); }
-	vpfxd(i: Instruction) { return call_stm('state.setVpfxd', [imm32(i.data)]); }
+	vpfxs(i: Instruction) {
+		this._vpfxs.set(i.data);
+		return stms([
+			call_stm('state.setVpfxs', [imm32(i.data)]),
+			//ast.debugger(),
+		]);
+	}
+	vpfxt(i: Instruction) {
+		this._vpfxt.set(i.data);
+		return stms([
+			call_stm('state.setVpfxt', [imm32(i.data)]),
+			//ast.debugger(),
+		]);
+	}
+	vpfxd(i: Instruction) {
+		this._vpfxd.set(i.data);
+		return stms([
+			call_stm('state.setVpfxd', [imm32(i.data)]),
+			//ast.debugger(),
+		]);
+	}
 
 	// Memory read/write
 
 	"lv.s"(i: Instruction) { return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)])); }
 	"sv.s"(i: Instruction) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); }
 
-	"lv.q"(i: Instruction) { return setItems(readVector(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
+	"lv.q"(i: Instruction) { return setItems(readVector_f(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
 	"lvl.q"(i: Instruction) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
 	"lvr.q"(i: Instruction) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
-	"sv.q"(i: Instruction) { return setMemoryVector(address_RS_IMM14(i), readVector(i.VT5_1, VectorSize.Quad)); }
+	"sv.q"(i: Instruction) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, VectorSize.Quad)); }
 	"svl.q"(i: Instruction) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
 	"svr.q"(i: Instruction) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
 
@@ -354,7 +485,7 @@ export class InstructionAst {
 		var vectorSize = i.ONE_TWO;
 		return this._vset3(i, (_, src, target) => {
 			return this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
-				return binop(aggregate, '+', binop(ast.vector_vt(index), '*', (index == (vectorSize - 1)) ? <_ast.ANodeExpr>imm_f(1.0) : <_ast.ANodeExpr>ast.vector_vs(index)))
+				return binop(aggregate, '+', binop(target[index], '*', (index == (vectorSize - 1)) ? <_ast.ANodeExpr>imm_f(1.0) : src[index]))
 			});
 		}, 1, vectorSize, vectorSize);
 	}
@@ -367,7 +498,7 @@ export class InstructionAst {
 		var srcMat = readMatrix(i.VS, vectorSize);
 
 		var st = [];
-		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
 			ast.array(xrange(0, vectorSize).map(n => {
@@ -382,7 +513,7 @@ export class InstructionAst {
 		var srcMat = readMatrix(i.VS, vectorSize);
 
 		var st = [];
-		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector(i.VT, vectorSize))]));
+		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
 			ast.array(xrange(0, vectorSize).map(n => {
@@ -435,6 +566,18 @@ export class InstructionAst {
 				default: throw (new Error("vbfy1: Invalid operation"));
 			}
 		});
+	}
+	vsocp(i: Instruction) {
+		var vectorSize = i.ONE_TWO;
+		return this._vset2(i, (index, src) => {
+			switch (index) {
+				case 0: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
+				case 1: return ast.call('MathFloat.sat0', [src[0]]);
+				case 2: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
+				case 3: return ast.call('MathFloat.sat0', [src[1]]);
+				default: throw (new Error("vsocp: " + index));
+			}
+		}, vectorSize * 2, vectorSize);
 	}
 	vsrt1(i: Instruction) {
 		return this._vset2(i, (i, src) => {
@@ -504,14 +647,14 @@ export class InstructionAst {
 
 	vfad(i: Instruction) {
 		var vectorSize = i.ONE_TWO;
-		return this._vset2(i, () => {
-			return this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', ast.vector_vs(index)));
+		return this._vset2(i, (i, src) => {
+			return this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', src[index]));
 		}, 1, vectorSize);
 	}
 	vavg(i: Instruction) {
 		var vectorSize = i.ONE_TWO;
-		return this._vset2(i, () => {
-			return binop(this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', ast.vector_vs(index))), '/', imm_f(vectorSize));
+		return this._vset2(i, (i, src) => {
+			return binop(this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', src[index])), '/', imm_f(vectorSize));
 		}, 1, vectorSize);
 	}
 
@@ -592,8 +735,17 @@ export class InstructionAst {
 	mtv(i: Instruction) { return this._vset1(i, (_) => gpr(i.rt), 1, 'int'); }
 	mfv(i: Instruction) { return assign_stm(gpr(i.rt), vfpr_i(i.VD)); }
 
-	mtvc(i: Instruction) { return assign_stm(vfprc(i.IMM7), gpr(i.rt)); }
-	mfvc(i: Instruction) { return assign_stm(gpr(i.rt), vfprc(i.IMM7)); }
+	mtvc(i: Instruction) {
+		switch (i.IMM7) {
+			case 0: this._vpfxs.setUnknown(); break;
+			case 1: this._vpfxt.setUnknown(); break;
+			case 2: this._vpfxd.setUnknown(); break;
+		}
+		return assign_stm(vfprc(i.IMM7), gpr(i.rt));
+	}
+	mfvc(i: Instruction) {
+		return assign_stm(gpr(i.rt), vfprc(i.IMM7));
+	}
 
 	private _vcmovtf(i: Instruction, True: boolean) {
 		return call_stm('state.vcmovtf', [
@@ -610,8 +762,8 @@ export class InstructionAst {
 	vcmp(i: Instruction) {
 		return call_stm('state.vcmp', [
 			imm32(i.IMM4),
-			ast.array(readVector(i.VS, i.ONE_TWO)),
-			ast.array(readVector(i.VT, i.ONE_TWO))
+			ast.array(readVector_f(i.VS, i.ONE_TWO)),
+			ast.array(readVector_f(i.VT, i.ONE_TWO))
 		]);
 	}
 
@@ -653,7 +805,7 @@ export class InstructionAst {
 	vdot(i: Instruction) {
 		var vectorSize = i.ONE_TWO;
 		return this._vset3(i, (i, s, t) => {
-			return this._aggregateV(imm_f(0), vectorSize, (sum, n) => binop(sum, '+', binop(ast.vector_vs(n), '*', ast.vector_vt(n))));
+			return this._aggregateV(imm_f(0), vectorSize, (sum, n) => binop(sum, '+', binop(s[n], '*', t[n])));
 		}, 1, vectorSize, vectorSize);
 	}
 	vrot(i: Instruction) {

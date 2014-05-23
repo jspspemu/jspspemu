@@ -420,6 +420,12 @@ class MathFloat {
 	static vsle(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a <= b) ? 1 : 0; }
 	static vsgt(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a > b) ? 1 : 0; }
 	static vsge(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a >= b) ? 1 : 0; }
+
+	static clamp(v: number, min: number, max: number) {
+		if (v < min) return min;
+		if (v > max) return max;
+		return v;
+	}
 }
 
 function handleCastInfinite(value: number) {
