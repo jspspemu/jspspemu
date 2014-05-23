@@ -181,3 +181,4 @@ node_modules
 /samples/*.cso
 /samples/jazz
 /samples/TYRIAN
+/packager/xwalk
