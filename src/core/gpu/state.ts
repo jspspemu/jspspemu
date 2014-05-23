@@ -242,8 +242,22 @@ export class Matrix4x4 {
 	index = 0;
 	values = mat4.create();
 
+	constructor() {
+		//for (var n = 0; n < 16; n++) this.values[n] = -1;
+	}
+
+	check(value: number) {
+		var check = (this.values[this.index] == value);
+		if (check) this.index++;
+		return check;
+	}
+
 	put(value: number) {
-		this.putAt(this.index++, value);
+		this.values[this.index++] = value;
+	}
+
+	getAt(index: number, value: number) {
+		return this.values[index];
 	}
 
 	putAt(index:number, value: number) {
@@ -265,8 +279,18 @@ export class Matrix4x3 {
 		12, 13, 14
 	]);
 
+	check(value: number) {
+		var check = (this.values[Matrix4x3.indices[this.index]] == value);
+		if (check) this.index++;
+		return check;
+	}
+
 	put(value: number) {
 		this.putAt(this.index++, value);
+	}
+
+	getAt(index: number) {
+		return this.values[Matrix4x3.indices[index]];
 	}
 
 	putAt(index: number, value: number) {
@@ -326,6 +350,7 @@ export class Lightning {
 	_ambientLightColorAlpha = -1;
 	enabled = false;
 	lights = [new Light(), new Light(), new Light(), new Light()];
+	lightModel = LightModelEnum.SeparateSpecularColor;
 	specularPower = 1;
 	ambientLightColor = new ColorState();
 }
@@ -368,6 +393,9 @@ export enum TextureMapMode {
 	GU_ENVIRONMENT_MAP = 2,
 }
 
+export enum TextureLevelMode { Auto = 0, Const = 1, Slope = 2 }
+
+
 export class TextureState {
 	tmode = -1;
 	tflt = -1;
@@ -376,6 +404,7 @@ export class TextureState {
 	_envColor = -1;
 	_tfunc = -1;
 	_shadeUV = -1;
+	_tbias = -1;
 
 	enabled = false;
 	swizzled = false;
@@ -401,6 +430,9 @@ export class TextureState {
 	mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
 	textureProjectionMapMode = TextureProjectionMapMode.GU_NORMAL;
 	textureMapMode = TextureMapMode.GU_TEXTURE_COORDS;
+	slopeLevel = 0;
+	levelMode = TextureLevelMode.Auto;
+	mipmapBias = 1.0;
 
 	getTextureComponentsCount() {
 		switch (this.textureMapMode) {
@@ -503,7 +535,10 @@ export class Color {
 
 export class Blending {
 	_alpha = -1;
+	_colorMask = -1;
+	_colorMaskA = -1;
 	enabled = false;
+	updated = false;
 	functionSource = GuBlendingFactor.GU_SRC_ALPHA;
 	functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
 	equation = GuBlendingEquation.Add;
@@ -511,6 +546,7 @@ export class Blending {
 	_fixColorDestinationWord = -1;
 	fixColorSource: Color = new Color();
 	fixColorDestination: Color = new Color();
+	colorMask = { r: 0, g: 0, b: 0, a: 0 };
 }
 
 export class AlphaTest {
@@ -537,14 +573,38 @@ export class ClipPlane {
 }
 
 export class SkinningState {
-	currentBoneIndex = 0;
+	_currentBoneIndex = 0;
 	boneMatrices = [new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3()];
-	linear = new Float32Array(128);
+	linear = new Float32Array(96);
+
+	_currentBoneMatrix = 0;
+	_currentBoneMatrixIndex = 0;
+
+	setCurrentBoneIndex(index: number) {
+		this._currentBoneIndex = index;
+		this._currentBoneMatrix = ToInt32(this._currentBoneIndex / 12);
+		this._currentBoneMatrixIndex = ToInt32(this._currentBoneIndex % 12);
+	}
+
+	_increment() {
+		this._currentBoneMatrixIndex++;
+		this._currentBoneIndex++;
+		if (this._currentBoneMatrixIndex >= 12) {
+			this._currentBoneMatrix++;
+			this._currentBoneMatrixIndex = 0;
+		}
+	}
+
+	check(value: number) {
+		var check = (this.linear[this._currentBoneIndex] == value);
+		if (check) this._increment();
+		return check;
+	}
 
 	write(value: number) {
-		this.linear[this.currentBoneIndex] = value;
-		this.boneMatrices[ToInt32(this.currentBoneIndex / 12)].putAt(this.currentBoneIndex % 12, value);
-		this.currentBoneIndex++;
+		this.linear[this._currentBoneIndex] = value;
+		this.boneMatrices[this._currentBoneMatrix].putAt(this._currentBoneMatrixIndex, value);
+		this._increment();
 	}
 }
 
@@ -577,7 +637,12 @@ export class PatchState {
 }
 
 export class Fog {
+	_color = -1;
+
 	enabled = false;
+	far = 0;
+	dist = 1;
+	color = new Color();
 }
 
 export class LogicOp {

@@ -128,43 +128,46 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
 		}
 
-		var blending = state.blending;
-		if (this.enableDisable(gl.BLEND, blending.enabled)) {
-			var getBlendFix = (color: _state.Color) => {
-				if (color.equals(0, 0, 0, 1)) return gl.ZERO;
-				if (color.equals(1, 1, 1, 1)) return gl.ONE;
-				return gl.CONSTANT_COLOR;
-			};
+		if (!this.state.blending.updated) {
+			this.state.blending.updated = true;
+			var blending = state.blending;
+			if (this.enableDisable(gl.BLEND, blending.enabled)) {
+				var getBlendFix = (color: _state.Color) => {
+					if (color.equals(0, 0, 0, 1)) return gl.ZERO;
+					if (color.equals(1, 1, 1, 1)) return gl.ONE;
+					return gl.CONSTANT_COLOR;
+				};
 
-			var sfactor = gl.SRC_COLOR + blending.functionSource;
-			var dfactor = gl.SRC_COLOR + blending.functionDestination;
+				var sfactor = gl.SRC_COLOR + blending.functionSource;
+				var dfactor = gl.SRC_COLOR + blending.functionDestination;
 
-			if (blending.functionSource == _state.GuBlendingFactor.GU_FIX) {
-				sfactor = getBlendFix(blending.fixColorSource);
-			}
-
-			if (blending.functionDestination == _state.GuBlendingFactor.GU_FIX) {
-				if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
-					dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
-				} else {
-					dfactor = getBlendFix(blending.fixColorDestination);
+				if (blending.functionSource == _state.GuBlendingFactor.GU_FIX) {
+					sfactor = getBlendFix(blending.fixColorSource);
 				}
+
+				if (blending.functionDestination == _state.GuBlendingFactor.GU_FIX) {
+					if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
+						dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
+					} else {
+						dfactor = getBlendFix(blending.fixColorDestination);
+					}
+				}
+
+
+				gl.blendEquation(this.equationTranslate[blending.equation]);
+				gl.blendFunc(sfactor, dfactor);
+				switch (blending.equation) {
+					case _state.GuBlendingEquation.Abs:
+					case _state.GuBlendingEquation.Max:
+					case _state.GuBlendingEquation.Min:
+					case _state.GuBlendingEquation.Add: gl.blendEquation(gl.FUNC_ADD); break;
+					case _state.GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
+					case _state.GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
+				}
+
+				var blendColor = blending.fixColorDestination;
+				gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
 			}
-
-
-			gl.blendEquation(this.equationTranslate[blending.equation]);
-			gl.blendFunc(sfactor, dfactor);
-			switch (blending.equation) {
-				case _state.GuBlendingEquation.Abs:
-				case _state.GuBlendingEquation.Max:
-				case _state.GuBlendingEquation.Min:
-				case _state.GuBlendingEquation.Add: gl.blendEquation(gl.FUNC_ADD); break;
-				case _state.GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
-				case _state.GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
-			}
-
-			var blendColor = blending.fixColorDestination;
-			gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
 		}
 
 		var stencil = state.stencil;
@@ -200,7 +203,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		var clearingFlags = this.clearingFlags;
 		//gl.disable(gl.TEXTURE_2D);
 		gl.disable(gl.SCISSOR_TEST);
-		gl.disable(gl.BLEND);
+		gl.disable(gl.BLEND); this.state.blending.updated = false;
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.STENCIL_TEST);
 		gl.disable(gl.CULL_FACE);
@@ -421,6 +424,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			}
 			for (var n = 0; n < vertexState.realWeightCount; n++) {
 				program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+				//program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.linear, 12 * n);
 			}
 		}
 

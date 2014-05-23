@@ -66,6 +66,7 @@ class PspGpuExecutor {
 	}
 
 	NOP(p: number) { }
+	DUMMY(p: number) { }
 	IADDR(p: number) { this.state.indexAddress = p; }
 	OFFSETADDR(p: number) { this.state.baseOffset = (p << 8); }
 	FRAMEBUFPTR(p: number) { this.state.frameBuffer.lowAddress = p; }
@@ -74,16 +75,16 @@ class PspGpuExecutor {
 		this.list.jumpRelativeOffset(p & ~3);
 	}
 	CALL(p: number, current: number) {
-		this.list.callstack.push((current << 2) + 4);
-		this.list.callstack.push(((this.state.baseOffset >>> 2) & Memory.MASK));
+		this.list.callstack[this.list.callstackIndex++] = ((current << 2) + 4);
+		this.list.callstack[this.list.callstackIndex++] = (((this.state.baseOffset >>> 2) & Memory.MASK));
 		this.list.jumpRelativeOffset(p & ~3);
 	}
 	RET(p: number) {
-		if (this.list.callstack.length > 0) {
-			this.list.state.baseOffset = this.list.callstack.pop();
-			this.list.jumpAbsolute(this.list.callstack.pop());
+		if (this.list.callstackIndex > 0 && this.list.callstackIndex < 1024) {
+			this.list.state.baseOffset = this.list.callstack[--this.list.callstackIndex];
+			this.list.jumpAbsolute(this.list.callstack[--this.list.callstackIndex]);
 		} else {
-			console.info('gpu callstack empty');
+			console.info('gpu callstack empty or overflow');
 		}
 	}
 	VERTEXTYPE(p: number) {
@@ -111,17 +112,56 @@ class PspGpuExecutor {
 		return true;
 	}
 
-	PROJMATRIXNUMBER(p: number) { this.state.projectionMatrix.reset(p); }
-	PROJMATRIXDATA(p: number) { this.invalidatePrim(); this.state.projectionMatrix.put(float1(p)); }
+	PROJMATRIXNUMBER(p: number) {
+		this.state.projectionMatrix.reset(p);
+	}
+	PROJMATRIXDATA(p: number) {
+		var v = float1(p);
+		if (this.state.projectionMatrix.check(v)) return;
+		this.invalidatePrim();
+		this.state.projectionMatrix.put(v);
+	}
 
-	VIEWMATRIXNUMBER(p: number) { this.state.viewMatrix.reset(p); }
-	VIEWMATRIXDATA(p: number) { this.invalidatePrim(); this.state.viewMatrix.put(float1(p)); }
+	VIEWMATRIXNUMBER(p: number) {
+		this.state.viewMatrix.reset(p);
+	}
+	VIEWMATRIXDATA(p: number) {
+		var v = float1(p);
+		if (this.state.viewMatrix.check(v)) return;
+		this.invalidatePrim();
+		this.state.viewMatrix.put(v);
+	}
 
-	WORLDMATRIXNUMBER(p: number) { this.state.worldMatrix.reset(p); }
-	WORLDMATRIXDATA(p: number) { this.invalidatePrim(); this.state.worldMatrix.put(float1(p)); }
+	WORLDMATRIXNUMBER(p: number) {
+		this.state.worldMatrix.reset(p);
+	}
+	WORLDMATRIXDATA(p: number) {
+		var v = float1(p);
+		if (this.state.worldMatrix.check(v)) return;
+		this.invalidatePrim();
+		this.state.worldMatrix.put(v);
+	}
 
-	BONEMATRIXNUMBER(p: number) { this.state.skinning.currentBoneIndex = p; }
-	BONEMATRIXDATA(p: number) { this.invalidatePrim(); this.state.skinning.write(float1(p)); }
+	BONEMATRIXNUMBER(p: number) {
+		this.state.skinning.setCurrentBoneIndex(p);
+	}
+	BONEMATRIXDATA(p: number) {
+		var v = float1(p);
+		if (this.state.skinning.check(v)) return;
+		this.invalidatePrim();
+		this.state.skinning.write(v);
+	}
+
+	TGENMATRIXNUMBER(p: number) {
+		this.state.texture.matrix.reset(p);
+	}
+	TGENMATRIXDATA(p: number) {
+		var v = float1(p);
+		if (this.state.texture.matrix.check(v)) return;
+		this.invalidatePrim();
+		this.state.texture.matrix.put(v);
+	}
+
 
 	TEXOFFSETU(p: number) {
 		var v = float1(p);
@@ -147,6 +187,42 @@ class PspGpuExecutor {
 		if (this.state.texture.scaleV == v) return;
 		this.invalidatePrim();
 		this.state.texture.scaleV = float1(p);
+	}
+
+	TBIAS(p: number) {
+		if (this.state.texture._tbias == p) return;
+		this.invalidatePrim();
+		this.state.texture._tbias = p;
+		this.state.texture.levelMode = <_state.TextureLevelMode>param8(p, 0)
+		this.state.texture.mipmapBias = param8(p, 16) / 16;
+	}
+
+	TSLOPE(p: number) {
+		var v = float1(p);
+		if (this.state.texture.slopeLevel == v) return;
+		this.invalidatePrim();
+		this.state.texture.slopeLevel = v;
+	}
+
+	FCOL(p: number) {
+		if (this.state.fog._color == p) return;
+		this.invalidatePrim();
+		this.state.fog._color = p;
+		this.state.fog.color.setRGB(p);
+	}
+
+	FFAR(p: number) {
+		var v = float1(p);
+		if (this.state.fog.far == v) return;
+		this.invalidatePrim();
+		this.state.fog.far = v;
+	}
+
+	FDIST(p: number) {
+		var v = float1(p);
+		if (this.state.fog.dist == v) return;
+		this.invalidatePrim();
+		this.state.fog.dist = v;
 	}
 
 	private invalidatePrim() {
@@ -361,6 +437,7 @@ class PspGpuExecutor {
 		if (this.state.blending.enabled == bool1(p)) return;
 		this.invalidatePrim();
 		this.state.blending.enabled = bool1(p);
+		this.state.blending.updated = false;
 	}
 
 	ALPHA(p: number) {
@@ -370,6 +447,7 @@ class PspGpuExecutor {
 		this.state.blending.functionSource = <_state.GuBlendingFactor>param4(p, 0);
 		this.state.blending.functionDestination = < _state.GuBlendingFactor > param4(p, 4);
 		this.state.blending.equation = <_state.GuBlendingEquation > param4(p, 8);
+		this.state.blending.updated = false;
 	}
 
 	REVERSENORMAL(p: number) {
@@ -421,9 +499,6 @@ class PspGpuExecutor {
 		this.state.texture.fragment2X = (param8(p, 16) != 0);
 	}
 
-	TGENMATRIXNUMBER(p: number) { this.state.texture.matrix.reset(p); }
-	TGENMATRIXDATA(p: number) { this.invalidatePrim(); this.state.texture.matrix.put(float1(p)); }
-
 	TFLUSH(p: number) {
 		this.invalidatePrim();
 		this.list.drawDriver.textureFlush(this.state);
@@ -441,6 +516,24 @@ class PspGpuExecutor {
 		if (this.state.drawPixelFormat == <PixelFormat>param4(p, 0)) return;
 		this.invalidatePrim();
 		this.state.drawPixelFormat = <PixelFormat>param4(p, 0);
+	}
+
+	PMSKC(p: number) {
+		if (this.state.blending._colorMask == p) return;
+		this.invalidatePrim();
+		this.state.blending._colorMask = p;
+		this.state.blending.colorMask.r = param8(p, 0);
+		this.state.blending.colorMask.g = param8(p, 8);
+		this.state.blending.colorMask.b = param8(p, 16);
+		this.state.blending.updated = false;
+	}
+
+	PMSKA(p: number) {
+		if (this.state.blending._colorMaskA == p) return;
+		this.invalidatePrim();
+		this.state.blending._colorMaskA = p;
+		this.state.blending.colorMask.a = param8(p, 0);
+		this.state.blending.updated = false;
 	}
 
 	MATERIALSPECULARCOEF(p: number) {
@@ -628,6 +721,7 @@ class PspGpuExecutor {
 		this.invalidatePrim();
 		this.state.blending._fixColorSourceWord = p;
 		this.state.blending.fixColorSource.setRGB(p);
+		this.state.blending.updated = false;
 	}
 
 	DFIX(p: number) {
@@ -635,6 +729,7 @@ class PspGpuExecutor {
 		this.invalidatePrim();
 		this.state.blending._fixColorDestinationWord = p;
 		this.state.blending.fixColorDestination.setRGB(p);
+		this.state.blending.updated = false;
 	}
 
 	UNKNOWN(p: number, current: number, op: number) {
@@ -775,6 +870,12 @@ class PspGpuExecutor {
 		if (this.light(index).enabled == bool1(p)) return;
 		this.invalidatePrim();
 		this.light(index).enabled = bool1(p);
+	}
+
+	LIGHTMODE(p: number) {
+		if (this.state.lightning.lightModel != <_state.LightModelEnum>param8(p, 0)) return;
+		this.invalidatePrim();
+		this.state.lightning.lightModel = <_state.LightModelEnum>param8(p, 0);
 	}
 
 	LIGHTTYPE_(p: number, index: number) {
@@ -966,7 +1067,8 @@ class PspGpuList {
 		this.current4 = ((address >>> 2) & Memory.MASK);
 	}
 
-	callstack = <number[]>[];
+	callstack = new Int32Array(1024);
+	callstackIndex = 0;
 
 	primBatchPrimitiveType:number = -1;
 
@@ -1003,17 +1105,20 @@ class PspGpuList {
 
 	private runUntilStallInner() {
 		var u32 = this.memory.u32;
+		var showOpcodes = this.showOpcodes;
+		var table = this.executor.table;
+		var stall4 = this.stall4;
 
 		//while (this.hasMoreInstructions) {
-		while (!this.completed && ((this.stall4 == 0) || (this.current4 < this.stall4))) {
+		while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
 			var instructionPC4 = this.current4++;
 			var instruction = u32[instructionPC4];
 
 			var op = (instruction >>> 24);
 			var params24 = (instruction & 0x00FFFFFF);
 
-			if (this.showOpcodes) this.opcodes.push(GpuOpCodes[op]);
-			if (this.executor.table[op](params24, instructionPC4)) return;
+			if (showOpcodes) this.opcodes.push(GpuOpCodes[op]);
+			if (table[op](params24, instructionPC4, op)) return;
 		}
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}

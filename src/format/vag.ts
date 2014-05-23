@@ -68,8 +68,10 @@ class VagDecoder {
 		this.decodeBlock(block);
 	}
 
+	private sample = new Sample(0, 0);
+
 	getNextSample() {
-		if (this.reachedEnd) return new Sample(0, 0);
+		if (this.reachedEnd) return this.sample.set(0, 0);
 
 		this.sampleIndexInBlock %= VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK;
 
@@ -77,10 +79,10 @@ class VagDecoder {
 			this.seekNextBlock();
 		}
 
-		if (this.reachedEnd) return new Sample(0, 0)
+		if (this.reachedEnd) return this.sample.set(0, 0);
 
 		var value = this.decodedBlockSamples[this.sampleIndexInBlock++];
-		return new Sample(value, value);
+		return this.sample.set(value, value);
 	}
 
 	decodeBlock(block: Uint8Array) {

@@ -24,6 +24,7 @@ export class Sample {
 	set(left: number, right: number) {
 		this.left = left;
 		this.right = right;
+		return this;
 	}
 
 	scale(leftScale: number, rightScale: number) {
@@ -119,7 +120,7 @@ export class PspAudioChannel {
 }
 
 export class PspAudio {
-	private context: AudioContext;
+	private context: AudioContext = null;
 	playingChannels = new SortedSet<PspAudioChannel>();
 
 	constructor() {

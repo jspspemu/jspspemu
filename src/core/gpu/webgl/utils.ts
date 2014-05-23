@@ -1,4 +1,7 @@
-﻿export class WrappedWebGLUniform {
+﻿var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
+var mat4x3 = mat4.create();
+
+export class WrappedWebGLUniform {
 	private location: WebGLUniformLocation;
 
 	constructor(private gl: WebGLRenderingContext, private program: WebGLProgram, private name: string) {
@@ -6,6 +9,12 @@
 	}
 
 	setMat4(data: Float32Array) {
+		this.gl.uniformMatrix4fv(this.location, false, data);
+	}
+
+	setMat4x3(data: Float32Array, index: number) {
+		mat4.identity(mat4x3);
+		for (var n = 0; n < 12; n++) mat4x3[mat4x3_indices[n]] = data[index + n];
 		this.gl.uniformMatrix4fv(this.location, false, data);
 	}
 

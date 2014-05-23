@@ -2211,6 +2211,12 @@ var DSet = (function (_super) {
     return DSet;
 })(SortedSet);
 
+var Pool = (function () {
+    function Pool() {
+    }
+    return Pool;
+})();
+
 var UidCollection = (function () {
     function UidCollection(lastId) {
         if (typeof lastId === "undefined") { lastId = 1; }
@@ -2744,6 +2750,7 @@ var Sample = (function () {
     Sample.prototype.set = function (left, right) {
         this.left = left;
         this.right = right;
+        return this;
     };
 
     Sample.prototype.scale = function (leftScale, rightScale) {
@@ -2853,6 +2860,7 @@ exports.PspAudioChannel = PspAudioChannel;
 
 var PspAudio = (function () {
     function PspAudio() {
+        this.context = null;
         this.playingChannels = new SortedSet();
         try  {
             this.context = new AudioContext();
@@ -4407,7 +4415,7 @@ var VfpuPrefixes = (function () {
                     break;
             }
         } else {
-            value = values[n];
+            value = values[sourceIndex];
             if (sourceAbsolute)
                 value = call('Math.abs', [value]);
         }
@@ -4448,6 +4456,7 @@ var PrefixPrediction = (function () {
     }
     PrefixPrediction.prototype.reset = function () {
         this.set(this.default_value);
+        //this.setUnknown();
     };
 
     PrefixPrediction.prototype.eat = function () {
@@ -4473,16 +4482,20 @@ var InstructionAst = (function () {
         this._vpfxs = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);
         this._vpfxt = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);
         this._vpfxd = new PrefixPrediction(PrefixPrediction.DEFAULT_STORE_VALUE);
+        this.enableStaticPrefixVfpuOptimization = true;
         ast = new _ast.MipsAstBuilder();
     }
+    //private enableStaticPrefixVfpuOptimization = false;
     InstructionAst.prototype.reset = function () {
-        this.eatPrefixes();
-    };
-
-    InstructionAst.prototype.eatPrefixes = function () {
         this._vpfxs.reset();
         this._vpfxt.reset();
         this._vpfxd.reset();
+    };
+
+    InstructionAst.prototype.eatPrefixes = function () {
+        this._vpfxs.eat();
+        this._vpfxt.eat();
+        this._vpfxd.eat();
     };
 
     InstructionAst.prototype.lui = function (i) {
@@ -4529,30 +4542,33 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype._vset_readVS = function (st, i, type, size) {
-        if (size <= 0)
-            size = i.ONE_TWO;
-        var regs = readVector_type(i.VS, size, type);
-        var prefix = this._vpfxs;
-
-         {
-            st.push(call_stm('state.loadVs_prefixed', [ast.array(regs)]));
-        }
-        return xrange(0, size).map(function (index) {
-            return ast.vector_vs(index);
-        });
+        return this._vset_readVSVT(st, i, type, size, 'vs');
     };
 
     InstructionAst.prototype._vset_readVT = function (st, i, type, size) {
+        return this._vset_readVSVT(st, i, type, size, 'vt');
+    };
+
+    InstructionAst.prototype._vset_readVSVT = function (st, i, type, size, name) {
         if (size <= 0)
             size = i.ONE_TWO;
-        var regs = readVector_type(i.VT, size, type);
-        var prefix = this._vpfxt;
+        var regs = readVector_type((name == 'vs') ? i.VS : i.VT, size, type);
+        var prefix = (name == 'vs') ? this._vpfxs : this._vpfxt;
+        if (this.enableStaticPrefixVfpuOptimization && prefix.known) {
+            var out = [];
+            for (var n = 0; n < size; n++) {
+                var vname = ((name == 'vs') ? 's' : 't') + n;
+                out.push(ast.raw(vname));
+                st.push(ast.allocVar(vname, VfpuPrefixes.transformRead(n, prefix.value, regs)));
+            }
 
-         {
-            st.push(call_stm('state.loadVt_prefixed', [ast.array(regs)]));
+            //if (prefix.value != PrefixPrediction.DEFAULT_LOAD_VALUE) st.push(ast.debugger());
+            return out;
+        } else {
+            st.push(call_stm(((name == 'vs') ? 'state.loadVs_prefixed' : 'state.loadVt_prefixed'), [ast.array(regs)]));
         }
         return xrange(0, size).map(function (index) {
-            return ast.vector_vt(index);
+            return (name == 'vs') ? ast.vector_vs(index) : ast.vector_vt(index);
         });
     };
 
@@ -4560,8 +4576,12 @@ var InstructionAst = (function () {
         if (size <= 0)
             size = i.ONE_TWO;
         var dest_regs = getVectorRegs(i.VD, size);
-
-         {
+        if (this.enableStaticPrefixVfpuOptimization && this._vpfxd.known) {
+            for (var n = 0; n < size; n++) {
+                var dest_reg = dest_regs[n];
+                st.push(VfpuPrefixes.transformStore(n, this._vpfxd.value, (type == 'float') ? vfpr(dest_reg) : vfpr_i(dest_reg), generate(n)));
+            }
+        } else {
             st.push(call_stm((type == 'float') ? 'state.storeVd_prefixed' : 'state.storeVd_prefixed_i', [
                 ast.arrayNumbers(dest_regs),
                 ast.array(xrange(0, size).map(function (n) {
@@ -4683,6 +4703,7 @@ var InstructionAst = (function () {
         ]));
 
         //if (vectorSize == 3) st.push(ast.debugger());
+        this.eatPrefixes();
         return stms(st);
     };
 
@@ -4700,6 +4721,7 @@ var InstructionAst = (function () {
                 });
             }))
         ]));
+        this.eatPrefixes();
         return stms(st);
     };
 
@@ -5123,12 +5145,14 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype._vcmovtf = function (i, True) {
-        return call_stm('state.vcmovtf', [
+        var result = call_stm('state.vcmovtf', [
             imm32(i.IMM3),
             immBool(True),
             ast.arrayNumbers(getVectorRegs(i.VD, i.ONE_TWO)),
             ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO))
         ]);
+        this.eatPrefixes();
+        return result;
     };
 
     InstructionAst.prototype.vcmovt = function (i) {
@@ -5139,11 +5163,13 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype.vcmp = function (i) {
-        return call_stm('state.vcmp', [
+        var result = call_stm('state.vcmp', [
             imm32(i.IMM4),
             ast.array(readVector_f(i.VS, i.ONE_TWO)),
             ast.array(readVector_f(i.VT, i.ONE_TWO))
         ]);
+        this.eatPrefixes();
+        return result;
     };
 
     // @TODO:
@@ -5307,9 +5333,11 @@ var InstructionAst = (function () {
         var src = readMatrix(i.VS, vectorSize);
 
         //var target = readMatrix(i.VT, i.ONE_TWO);
-        return setMatrix(dest, function (column, row, index) {
+        var result = setMatrix(dest, function (column, row, index) {
             return src[index];
         });
+        this.eatPrefixes();
+        return result;
     };
 
     InstructionAst.prototype.vmmul = function (i) {
@@ -5329,6 +5357,7 @@ var InstructionAst = (function () {
             return sum;
         }));
         st.push(call_stm('state.eatPrefixes', []));
+        this.eatPrefixes();
         return stms(st);
     };
 
@@ -5348,9 +5377,11 @@ var InstructionAst = (function () {
             throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
         var dest = getVectorRegs(i.VD, 2);
         var src = readVector_i(i.VS, 4);
-        return setVector_i(dest, function (index) {
+        var result = setVector_i(dest, function (index) {
             return ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]);
         });
+        this.eatPrefixes();
+        return result;
     };
 
     // CPU
@@ -5737,11 +5768,13 @@ var InstructionAst = (function () {
     };
 
     InstructionAst.prototype._callstackPush = function (i) {
-        return stm(call('state.callstackPush', [imm32(i.PC)]));
+        //return stm(call('state.callstackPush', [imm32(i.PC)]));
+        return ast.stm();
     };
 
     InstructionAst.prototype._callstackPop = function (i) {
-        return stm(call('state.callstackPop', []));
+        //return stm(call('state.callstackPop', []));
+        return ast.stm();
     };
 
     InstructionAst.prototype.j = function (i) {
@@ -7950,11 +7983,11 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.callstackPush = function (PC) {
-        this.callstack.push(PC);
+        //this.callstack.push(PC);
     };
 
     CpuState.prototype.callstackPop = function () {
-        this.callstack.pop();
+        //this.callstack.pop();
     };
 
     CpuState.prototype.printCallstack = function (symbolLookup) {
@@ -8594,6 +8627,8 @@ var PspGpuExecutor = (function () {
 
     PspGpuExecutor.prototype.NOP = function (p) {
     };
+    PspGpuExecutor.prototype.DUMMY = function (p) {
+    };
     PspGpuExecutor.prototype.IADDR = function (p) {
         this.state.indexAddress = p;
     };
@@ -8610,16 +8645,16 @@ var PspGpuExecutor = (function () {
         this.list.jumpRelativeOffset(p & ~3);
     };
     PspGpuExecutor.prototype.CALL = function (p, current) {
-        this.list.callstack.push((current << 2) + 4);
-        this.list.callstack.push(((this.state.baseOffset >>> 2) & Memory.MASK));
+        this.list.callstack[this.list.callstackIndex++] = ((current << 2) + 4);
+        this.list.callstack[this.list.callstackIndex++] = (((this.state.baseOffset >>> 2) & Memory.MASK));
         this.list.jumpRelativeOffset(p & ~3);
     };
     PspGpuExecutor.prototype.RET = function (p) {
-        if (this.list.callstack.length > 0) {
-            this.list.state.baseOffset = this.list.callstack.pop();
-            this.list.jumpAbsolute(this.list.callstack.pop());
+        if (this.list.callstackIndex > 0 && this.list.callstackIndex < 1024) {
+            this.list.state.baseOffset = this.list.callstack[--this.list.callstackIndex];
+            this.list.jumpAbsolute(this.list.callstack[--this.list.callstackIndex]);
         } else {
-            console.info('gpu callstack empty');
+            console.info('gpu callstack empty or overflow');
         }
     };
     PspGpuExecutor.prototype.VERTEXTYPE = function (p) {
@@ -8652,32 +8687,55 @@ var PspGpuExecutor = (function () {
         this.state.projectionMatrix.reset(p);
     };
     PspGpuExecutor.prototype.PROJMATRIXDATA = function (p) {
+        var v = float1(p);
+        if (this.state.projectionMatrix.check(v))
+            return;
         this.invalidatePrim();
-        this.state.projectionMatrix.put(float1(p));
+        this.state.projectionMatrix.put(v);
     };
 
     PspGpuExecutor.prototype.VIEWMATRIXNUMBER = function (p) {
         this.state.viewMatrix.reset(p);
     };
     PspGpuExecutor.prototype.VIEWMATRIXDATA = function (p) {
+        var v = float1(p);
+        if (this.state.viewMatrix.check(v))
+            return;
         this.invalidatePrim();
-        this.state.viewMatrix.put(float1(p));
+        this.state.viewMatrix.put(v);
     };
 
     PspGpuExecutor.prototype.WORLDMATRIXNUMBER = function (p) {
         this.state.worldMatrix.reset(p);
     };
     PspGpuExecutor.prototype.WORLDMATRIXDATA = function (p) {
+        var v = float1(p);
+        if (this.state.worldMatrix.check(v))
+            return;
         this.invalidatePrim();
-        this.state.worldMatrix.put(float1(p));
+        this.state.worldMatrix.put(v);
     };
 
     PspGpuExecutor.prototype.BONEMATRIXNUMBER = function (p) {
-        this.state.skinning.currentBoneIndex = p;
+        this.state.skinning.setCurrentBoneIndex(p);
     };
     PspGpuExecutor.prototype.BONEMATRIXDATA = function (p) {
+        var v = float1(p);
+        if (this.state.skinning.check(v))
+            return;
         this.invalidatePrim();
-        this.state.skinning.write(float1(p));
+        this.state.skinning.write(v);
+    };
+
+    PspGpuExecutor.prototype.TGENMATRIXNUMBER = function (p) {
+        this.state.texture.matrix.reset(p);
+    };
+    PspGpuExecutor.prototype.TGENMATRIXDATA = function (p) {
+        var v = float1(p);
+        if (this.state.texture.matrix.check(v))
+            return;
+        this.invalidatePrim();
+        this.state.texture.matrix.put(v);
     };
 
     PspGpuExecutor.prototype.TEXOFFSETU = function (p) {
@@ -8708,6 +8766,47 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.texture.scaleV = float1(p);
+    };
+
+    PspGpuExecutor.prototype.TBIAS = function (p) {
+        if (this.state.texture._tbias == p)
+            return;
+        this.invalidatePrim();
+        this.state.texture._tbias = p;
+        this.state.texture.levelMode = param8(p, 0);
+        this.state.texture.mipmapBias = param8(p, 16) / 16;
+    };
+
+    PspGpuExecutor.prototype.TSLOPE = function (p) {
+        var v = float1(p);
+        if (this.state.texture.slopeLevel == v)
+            return;
+        this.invalidatePrim();
+        this.state.texture.slopeLevel = v;
+    };
+
+    PspGpuExecutor.prototype.FCOL = function (p) {
+        if (this.state.fog._color == p)
+            return;
+        this.invalidatePrim();
+        this.state.fog._color = p;
+        this.state.fog.color.setRGB(p);
+    };
+
+    PspGpuExecutor.prototype.FFAR = function (p) {
+        var v = float1(p);
+        if (this.state.fog.far == v)
+            return;
+        this.invalidatePrim();
+        this.state.fog.far = v;
+    };
+
+    PspGpuExecutor.prototype.FDIST = function (p) {
+        var v = float1(p);
+        if (this.state.fog.dist == v)
+            return;
+        this.invalidatePrim();
+        this.state.fog.dist = v;
     };
 
     PspGpuExecutor.prototype.invalidatePrim = function () {
@@ -8992,6 +9091,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.blending.enabled = bool1(p);
+        this.state.blending.updated = false;
     };
 
     PspGpuExecutor.prototype.ALPHA = function (p) {
@@ -9002,6 +9102,7 @@ var PspGpuExecutor = (function () {
         this.state.blending.functionSource = param4(p, 0);
         this.state.blending.functionDestination = param4(p, 4);
         this.state.blending.equation = param4(p, 8);
+        this.state.blending.updated = false;
     };
 
     PspGpuExecutor.prototype.REVERSENORMAL = function (p) {
@@ -9060,14 +9161,6 @@ var PspGpuExecutor = (function () {
         this.state.texture.fragment2X = (param8(p, 16) != 0);
     };
 
-    PspGpuExecutor.prototype.TGENMATRIXNUMBER = function (p) {
-        this.state.texture.matrix.reset(p);
-    };
-    PspGpuExecutor.prototype.TGENMATRIXDATA = function (p) {
-        this.invalidatePrim();
-        this.state.texture.matrix.put(float1(p));
-    };
-
     PspGpuExecutor.prototype.TFLUSH = function (p) {
         this.invalidatePrim();
         this.list.drawDriver.textureFlush(this.state);
@@ -9087,6 +9180,26 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.drawPixelFormat = param4(p, 0);
+    };
+
+    PspGpuExecutor.prototype.PMSKC = function (p) {
+        if (this.state.blending._colorMask == p)
+            return;
+        this.invalidatePrim();
+        this.state.blending._colorMask = p;
+        this.state.blending.colorMask.r = param8(p, 0);
+        this.state.blending.colorMask.g = param8(p, 8);
+        this.state.blending.colorMask.b = param8(p, 16);
+        this.state.blending.updated = false;
+    };
+
+    PspGpuExecutor.prototype.PMSKA = function (p) {
+        if (this.state.blending._colorMaskA == p)
+            return;
+        this.invalidatePrim();
+        this.state.blending._colorMaskA = p;
+        this.state.blending.colorMask.a = param8(p, 0);
+        this.state.blending.updated = false;
     };
 
     PspGpuExecutor.prototype.MATERIALSPECULARCOEF = function (p) {
@@ -9358,6 +9471,7 @@ var PspGpuExecutor = (function () {
         this.invalidatePrim();
         this.state.blending._fixColorSourceWord = p;
         this.state.blending.fixColorSource.setRGB(p);
+        this.state.blending.updated = false;
     };
 
     PspGpuExecutor.prototype.DFIX = function (p) {
@@ -9366,6 +9480,7 @@ var PspGpuExecutor = (function () {
         this.invalidatePrim();
         this.state.blending._fixColorDestinationWord = p;
         this.state.blending.fixColorDestination.setRGB(p);
+        this.state.blending.updated = false;
     };
 
     PspGpuExecutor.prototype.UNKNOWN = function (p, current, op) {
@@ -9516,6 +9631,13 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.light(index).enabled = bool1(p);
+    };
+
+    PspGpuExecutor.prototype.LIGHTMODE = function (p) {
+        if (this.state.lightning.lightModel != param8(p, 0))
+            return;
+        this.invalidatePrim();
+        this.state.lightning.lightModel = param8(p, 0);
     };
 
     PspGpuExecutor.prototype.LIGHTTYPE_ = function (p, index) {
@@ -9872,7 +9994,8 @@ var PspGpuList = (function () {
         this.completed = false;
         this.status = 4 /* Paused */;
         this.errorCount = 0;
-        this.callstack = [];
+        this.callstack = new Int32Array(1024);
+        this.callstackIndex = 0;
         this.primBatchPrimitiveType = -1;
         this.batchPrimCount = 0;
         this.primCount = 0;
@@ -9931,17 +10054,20 @@ var PspGpuList = (function () {
 
     PspGpuList.prototype.runUntilStallInner = function () {
         var u32 = this.memory.u32;
+        var showOpcodes = this.showOpcodes;
+        var table = this.executor.table;
+        var stall4 = this.stall4;
 
-        while (!this.completed && ((this.stall4 == 0) || (this.current4 < this.stall4))) {
+        while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
             var instructionPC4 = this.current4++;
             var instruction = u32[instructionPC4];
 
             var op = (instruction >>> 24);
             var params24 = (instruction & 0x00FFFFFF);
 
-            if (this.showOpcodes)
+            if (showOpcodes)
                 this.opcodes.push(GpuOpCodes[op]);
-            if (this.executor.table[op](params24, instructionPC4))
+            if (table[op](params24, instructionPC4, op))
                 return;
         }
         this.status = (this.isStalled) ? 3 /* Stalling */ : 0 /* Completed */;
@@ -10387,7 +10513,7 @@ exports.PspGpu = PspGpu;
     GpuOpCodes[GpuOpCodes["Unknown0xFC"] = 0xFC] = "Unknown0xFC";
     GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 0xFD] = "Unknown0xFD";
     GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 0xFE] = "Unknown0xFE";
-    GpuOpCodes[GpuOpCodes["Dummy"] = 0xFF] = "Dummy";
+    GpuOpCodes[GpuOpCodes["DUMMY"] = 0xFF] = "DUMMY";
 })(exports.GpuOpCodes || (exports.GpuOpCodes = {}));
 var GpuOpCodes = exports.GpuOpCodes;
 //# sourceMappingURL=instructions.js.map
@@ -10850,9 +10976,21 @@ var Matrix4x4 = (function () {
     function Matrix4x4() {
         this.index = 0;
         this.values = mat4.create();
+        //for (var n = 0; n < 16; n++) this.values[n] = -1;
     }
+    Matrix4x4.prototype.check = function (value) {
+        var check = (this.values[this.index] == value);
+        if (check)
+            this.index++;
+        return check;
+    };
+
     Matrix4x4.prototype.put = function (value) {
-        this.putAt(this.index++, value);
+        this.values[this.index++] = value;
+    };
+
+    Matrix4x4.prototype.getAt = function (index, value) {
+        return this.values[index];
     };
 
     Matrix4x4.prototype.putAt = function (index, value) {
@@ -10871,8 +11009,19 @@ var Matrix4x3 = (function () {
         this.index = 0;
         this.values = mat4.create();
     }
+    Matrix4x3.prototype.check = function (value) {
+        var check = (this.values[Matrix4x3.indices[this.index]] == value);
+        if (check)
+            this.index++;
+        return check;
+    };
+
     Matrix4x3.prototype.put = function (value) {
         this.putAt(this.index++, value);
+    };
+
+    Matrix4x3.prototype.getAt = function (index) {
+        return this.values[Matrix4x3.indices[index]];
     };
 
     Matrix4x3.prototype.putAt = function (index, value) {
@@ -10967,6 +11116,7 @@ var Lightning = (function () {
         this._ambientLightColorAlpha = -1;
         this.enabled = false;
         this.lights = [new Light(), new Light(), new Light(), new Light()];
+        this.lightModel = 1 /* SeparateSpecularColor */;
         this.specularPower = 1;
         this.ambientLightColor = new ColorState();
     }
@@ -11025,6 +11175,13 @@ var TextureProjectionMapMode = exports.TextureProjectionMapMode;
 })(exports.TextureMapMode || (exports.TextureMapMode = {}));
 var TextureMapMode = exports.TextureMapMode;
 
+(function (TextureLevelMode) {
+    TextureLevelMode[TextureLevelMode["Auto"] = 0] = "Auto";
+    TextureLevelMode[TextureLevelMode["Const"] = 1] = "Const";
+    TextureLevelMode[TextureLevelMode["Slope"] = 2] = "Slope";
+})(exports.TextureLevelMode || (exports.TextureLevelMode = {}));
+var TextureLevelMode = exports.TextureLevelMode;
+
 var TextureState = (function () {
     function TextureState() {
         this.tmode = -1;
@@ -11034,6 +11191,7 @@ var TextureState = (function () {
         this._envColor = -1;
         this._tfunc = -1;
         this._shadeUV = -1;
+        this._tbias = -1;
         this.enabled = false;
         this.swizzled = false;
         this.matrix = new Matrix4x4();
@@ -11058,6 +11216,9 @@ var TextureState = (function () {
         this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
         this.textureProjectionMapMode = 3 /* GU_NORMAL */;
         this.textureMapMode = 0 /* GU_TEXTURE_COORDS */;
+        this.slopeLevel = 0;
+        this.levelMode = 0 /* Auto */;
+        this.mipmapBias = 1.0;
     }
     TextureState.prototype.getTextureComponentsCount = function () {
         switch (this.textureMapMode) {
@@ -11195,7 +11356,10 @@ exports.Color = Color;
 var Blending = (function () {
     function Blending() {
         this._alpha = -1;
+        this._colorMask = -1;
+        this._colorMaskA = -1;
         this.enabled = false;
+        this.updated = false;
         this.functionSource = 2 /* GU_SRC_ALPHA */;
         this.functionDestination = 5 /* GU_ONE_MINUS_DST_ALPHA */;
         this.equation = 0 /* Add */;
@@ -11203,6 +11367,7 @@ var Blending = (function () {
         this._fixColorDestinationWord = -1;
         this.fixColorSource = new Color();
         this.fixColorDestination = new Color();
+        this.colorMask = { r: 0, g: 0, b: 0, a: 0 };
     }
     return Blending;
 })();
@@ -11258,14 +11423,38 @@ exports.ClipPlane = ClipPlane;
 
 var SkinningState = (function () {
     function SkinningState() {
-        this.currentBoneIndex = 0;
+        this._currentBoneIndex = 0;
         this.boneMatrices = [new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3()];
-        this.linear = new Float32Array(128);
+        this.linear = new Float32Array(96);
+        this._currentBoneMatrix = 0;
+        this._currentBoneMatrixIndex = 0;
     }
+    SkinningState.prototype.setCurrentBoneIndex = function (index) {
+        this._currentBoneIndex = index;
+        this._currentBoneMatrix = ToInt32(this._currentBoneIndex / 12);
+        this._currentBoneMatrixIndex = ToInt32(this._currentBoneIndex % 12);
+    };
+
+    SkinningState.prototype._increment = function () {
+        this._currentBoneMatrixIndex++;
+        this._currentBoneIndex++;
+        if (this._currentBoneMatrixIndex >= 12) {
+            this._currentBoneMatrix++;
+            this._currentBoneMatrixIndex = 0;
+        }
+    };
+
+    SkinningState.prototype.check = function (value) {
+        var check = (this.linear[this._currentBoneIndex] == value);
+        if (check)
+            this._increment();
+        return check;
+    };
+
     SkinningState.prototype.write = function (value) {
-        this.linear[this.currentBoneIndex] = value;
-        this.boneMatrices[ToInt32(this.currentBoneIndex / 12)].putAt(this.currentBoneIndex % 12, value);
-        this.currentBoneIndex++;
+        this.linear[this._currentBoneIndex] = value;
+        this.boneMatrices[this._currentBoneMatrix].putAt(this._currentBoneMatrixIndex, value);
+        this._increment();
     };
     return SkinningState;
 })();
@@ -11309,7 +11498,11 @@ exports.PatchState = PatchState;
 
 var Fog = (function () {
     function Fog() {
+        this._color = -1;
         this.enabled = false;
+        this.far = 0;
+        this.dist = 1;
+        this.color = new Color();
     }
     return Fog;
 })();
@@ -11813,50 +12006,53 @@ var WebGlPspDrawDriver = (function () {
             gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
         }
 
-        var blending = state.blending;
-        if (this.enableDisable(gl.BLEND, blending.enabled)) {
-            var getBlendFix = function (color) {
-                if (color.equals(0, 0, 0, 1))
-                    return gl.ZERO;
-                if (color.equals(1, 1, 1, 1))
-                    return gl.ONE;
-                return gl.CONSTANT_COLOR;
-            };
+        if (!this.state.blending.updated) {
+            this.state.blending.updated = true;
+            var blending = state.blending;
+            if (this.enableDisable(gl.BLEND, blending.enabled)) {
+                var getBlendFix = function (color) {
+                    if (color.equals(0, 0, 0, 1))
+                        return gl.ZERO;
+                    if (color.equals(1, 1, 1, 1))
+                        return gl.ONE;
+                    return gl.CONSTANT_COLOR;
+                };
 
-            var sfactor = gl.SRC_COLOR + blending.functionSource;
-            var dfactor = gl.SRC_COLOR + blending.functionDestination;
+                var sfactor = gl.SRC_COLOR + blending.functionSource;
+                var dfactor = gl.SRC_COLOR + blending.functionDestination;
 
-            if (blending.functionSource == 10 /* GU_FIX */) {
-                sfactor = getBlendFix(blending.fixColorSource);
-            }
-
-            if (blending.functionDestination == 10 /* GU_FIX */) {
-                if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
-                    dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
-                } else {
-                    dfactor = getBlendFix(blending.fixColorDestination);
+                if (blending.functionSource == 10 /* GU_FIX */) {
+                    sfactor = getBlendFix(blending.fixColorSource);
                 }
-            }
 
-            gl.blendEquation(this.equationTranslate[blending.equation]);
-            gl.blendFunc(sfactor, dfactor);
-            switch (blending.equation) {
-                case 5 /* Abs */:
-                case 4 /* Max */:
-                case 3 /* Min */:
-                case 0 /* Add */:
-                    gl.blendEquation(gl.FUNC_ADD);
-                    break;
-                case 1 /* Substract */:
-                    gl.blendEquation(gl.FUNC_SUBTRACT);
-                    break;
-                case 2 /* ReverseSubstract */:
-                    gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
-                    break;
-            }
+                if (blending.functionDestination == 10 /* GU_FIX */) {
+                    if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
+                        dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
+                    } else {
+                        dfactor = getBlendFix(blending.fixColorDestination);
+                    }
+                }
 
-            var blendColor = blending.fixColorDestination;
-            gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
+                gl.blendEquation(this.equationTranslate[blending.equation]);
+                gl.blendFunc(sfactor, dfactor);
+                switch (blending.equation) {
+                    case 5 /* Abs */:
+                    case 4 /* Max */:
+                    case 3 /* Min */:
+                    case 0 /* Add */:
+                        gl.blendEquation(gl.FUNC_ADD);
+                        break;
+                    case 1 /* Substract */:
+                        gl.blendEquation(gl.FUNC_SUBTRACT);
+                        break;
+                    case 2 /* ReverseSubstract */:
+                        gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
+                        break;
+                }
+
+                var blendColor = blending.fixColorDestination;
+                gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
+            }
         }
 
         var stencil = state.stencil;
@@ -11894,6 +12090,7 @@ var WebGlPspDrawDriver = (function () {
         //gl.disable(gl.TEXTURE_2D);
         gl.disable(gl.SCISSOR_TEST);
         gl.disable(gl.BLEND);
+        this.state.blending.updated = false;
         gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.STENCIL_TEST);
         gl.disable(gl.CULL_FACE);
@@ -12104,6 +12301,7 @@ var WebGlPspDrawDriver = (function () {
             }
             for (var n = 0; n < vertexState.realWeightCount; n++) {
                 program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+                //program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.linear, 12 * n);
             }
         }
 
@@ -12552,6 +12750,9 @@ exports.TextureHandler = TextureHandler;
 //# sourceMappingURL=texture.js.map
 },
 "src/core/gpu/webgl/utils": function(module, exports, require) {
+var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
+var mat4x3 = mat4.create();
+
 var WrappedWebGLUniform = (function () {
     function WrappedWebGLUniform(gl, program, name) {
         this.gl = gl;
@@ -12560,6 +12761,13 @@ var WrappedWebGLUniform = (function () {
         this.location = gl.getUniformLocation(program, name);
     }
     WrappedWebGLUniform.prototype.setMat4 = function (data) {
+        this.gl.uniformMatrix4fv(this.location, false, data);
+    };
+
+    WrappedWebGLUniform.prototype.setMat4x3 = function (data, index) {
+        mat4.identity(mat4x3);
+        for (var n = 0; n < 12; n++)
+            mat4x3[mat4x3_indices[n]] = data[index + n];
         this.gl.uniformMatrix4fv(this.location, false, data);
     };
 
@@ -16074,6 +16282,7 @@ var VagDecoder = (function () {
         this.currentState = new VagState();
         this.currentLoopCount = 0;
         this.totalLoopCount = 0;
+        this.sample = new Sample(0, 0);
         this.reset();
     }
     Object.defineProperty(VagDecoder.prototype, "hasMore", {
@@ -16131,7 +16340,7 @@ var VagDecoder = (function () {
 
     VagDecoder.prototype.getNextSample = function () {
         if (this.reachedEnd)
-            return new Sample(0, 0);
+            return this.sample.set(0, 0);
 
         this.sampleIndexInBlock %= VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK;
 
@@ -16140,10 +16349,10 @@ var VagDecoder = (function () {
         }
 
         if (this.reachedEnd)
-            return new Sample(0, 0);
+            return this.sample.set(0, 0);
 
         var value = this.decodedBlockSamples[this.sampleIndexInBlock++];
-        return new Sample(value, value);
+        return this.sample.set(value, value);
     };
 
     VagDecoder.prototype.decodeBlock = function (block) {
@@ -18800,11 +19009,15 @@ var Thread = (function () {
         //this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
         this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
         this.waitingObject = info;
-        this._suspendUntilPromiseDone(promise);
+        this._suspendUntilPromiseDone(promise, 0 /* NO */);
     };
 
     Thread.prototype._suspendUntilPromiseDone = function (promise, compensate) {
         var _this = this;
+        if (compensate == 1 /* YES */) {
+            var startTime = performance.now();
+        }
+
         this.waitingPromise = promise;
 
         this.suspend();
@@ -18817,6 +19030,11 @@ var Thread = (function () {
             _this.acceptingCallbacks = false;
             if (result !== undefined)
                 _this.state.V0 = result;
+
+            if (compensate == 1 /* YES */) {
+                var endTime = performance.now();
+                _this.accumulatedMicroseconds += (endTime - startTime) * 1000;
+            }
 
             //console.error('resumed ' + this.name);
             _this.resume();
@@ -18937,9 +19155,6 @@ var ThreadManager = (function () {
         if (!this.running)
             return;
 
-        //var doCompensate = true;
-        var doCompensate = false;
-
         var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
 
         //console.log('delayedTime', timeMsToCompensate);
@@ -18966,10 +19181,6 @@ var ThreadManager = (function () {
                 if (thread.running) {
                     runningThreadCount++;
                     runningPriority = Math.min(runningPriority, thread.priority);
-                    if (doCompensate) {
-                        thread.accumulatedMicroseconds += microsecondsToCompensate;
-                        doCompensate = false;
-                    }
                 }
             });
 

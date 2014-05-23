@@ -464,11 +464,11 @@ export class CpuState {
 	private callstack: number[] = [];
 
 	callstackPush(PC: number) {
-		this.callstack.push(PC);
+		//this.callstack.push(PC);
 	}
 
 	callstackPop() {
-		this.callstack.pop();
+		//this.callstack.pop();
 	}
 
 	printCallstack(symbolLookup: any = null) {

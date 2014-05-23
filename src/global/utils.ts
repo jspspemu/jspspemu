@@ -102,6 +102,10 @@ class SortedSet<T> {
 class DSet<T> extends SortedSet<T> {
 }
 
+class Pool<T> {
+
+}
+
 class UidCollection<T>
 {
     private items: NumberDictionary<T> = {};
