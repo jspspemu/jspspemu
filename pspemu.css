@@ -34,9 +34,15 @@ body {
     padding: 4px;
     display: inline-block;
     opacity: 0.7;
+    position: relative;
+    top: -0.5em;
+    left: -0.5em;
 }
 #touch_buttons span.pressed {
-    opacity: 1.0;
+    transform: scale(1.6);
+    -moz-transform: scale(1.6);
+    -webkit-transform: scale(1.6);
+    -ms-transform: scale(1.6);
 }
 #touch_buttons_font {
     color: white;
@@ -70,23 +76,23 @@ body {
 
 #touch_buttons #directional_pad {
     position: absolute;
-    left: 15%;
+    left: 10%;
     top: 35%;
-    font-size: 1.2em;
+    font-size: 0.8em;
 }
 
 #touch_buttons #button_pad {
     position: absolute;
-    left: 75%;
-    top: 35%;
-    font-size: 1.2em;
+    left: 85%;
+    top: 70%;
+    font-size: 0.7em;
 }
 
 #touch_buttons #select_start_pad {
     position: absolute;
     left: 45%;
-    top: 75%;
-    font-size: 1.2em;
+    top: 80%;
+    font-size: 0.8em;
 }
 
 #touch_buttons #lr_pad {
@@ -96,12 +102,13 @@ body {
     width: 100%;
 }
 
-#touch_buttons .psp_button#button_up { left: 0em; top:-1em;  }
+#touch_buttons .psp_button#button_up { left: 0em; top:-0.8em;  }
+#touch_buttons .psp_button#button_left { left: -0.8em; top:0em; }
+#touch_buttons .psp_button#button_right { left: +0.8em; top:0em; }
+#touch_buttons .psp_button#button_down { left: 0em; top:+0.8em; }
+
 #touch_buttons .psp_button#button_up_left { left: -1em; top:-1em; font-size:0.8em; }
 #touch_buttons .psp_button#button_up_right { left: +1em; top:-1em; font-size:0.8em; }
-#touch_buttons .psp_button#button_left { left: -1em; top:0em; }
-#touch_buttons .psp_button#button_right { left: +1em; top:0em; }
-#touch_buttons .psp_button#button_down { left: 0em; top:+1em; }
 #touch_buttons .psp_button#button_down_left { left: -1em; top:+1em; font-size:0.8em; }
 #touch_buttons .psp_button#button_down_right { left: +1em; top:+1em; font-size:0.8em; }
 
@@ -110,6 +117,7 @@ body {
 #touch_buttons .psp_button#button_square { left: -1em; top:0em;  }
 #touch_buttons .psp_button#button_circle { left: +1em; top:0em;  }
 
+#touch_buttons .psp_button#button_menu { left: -0.0em; top:-1em;  }
 #touch_buttons .psp_button#button_select { left: -0.75em; top:0em;  }
 #touch_buttons .psp_button#button_start { left: +0.75em; top:0em;  }
 
