@@ -259,6 +259,7 @@ class PspGpuExecutor {
 		if (this.state.clipPlane.enabled == bool1(p)) return;
 		this.invalidatePrim();
 		this.state.clipPlane.enabled = bool1(p);
+		this.state.clipPlane.updated = false;
 	}
 	SCISSOR1(p: number) {
 		if (this.state.clipPlane._scissorLeftTop == p) return;
@@ -266,6 +267,7 @@ class PspGpuExecutor {
 		this.state.clipPlane._scissorLeftTop = p;
 		this.state.clipPlane.scissor.left = param10(p, 0);
 		this.state.clipPlane.scissor.top = param10(p, 10);
+		this.state.clipPlane.updated = false;
 	}
 
 	SCISSOR2(p: number) {
@@ -274,6 +276,7 @@ class PspGpuExecutor {
 		this.state.clipPlane._scissorRightBottom = p;
 		this.state.clipPlane.scissor.right = param10(p, 0);
 		this.state.clipPlane.scissor.bottom = param10(p, 10);
+		this.state.clipPlane.updated = false;
 	}
 
 	TMODE(p: number) {
@@ -369,6 +372,7 @@ class PspGpuExecutor {
 		if (this.state.depthTest.func == v) return;
 		this.invalidatePrim();
 		this.state.depthTest.func = v;
+		this.state.depthTest.updated = false;
 	}
 
 	ZTESTENABLE(p: number) {
@@ -376,6 +380,7 @@ class PspGpuExecutor {
 		if (this.state.depthTest.enabled == v) return;
 		this.invalidatePrim();
 		this.state.depthTest.enabled = v;
+		this.state.depthTest.updated = false;
 	}
 
 	ZMSK(p: number) {
@@ -383,6 +388,7 @@ class PspGpuExecutor {
 		if (this.state.depthTest.mask == v) return;
 		this.invalidatePrim();
 		this.state.depthTest.mask = v;
+		this.state.depthTest.updated = false;
 	}
 
 	MINZ(p: number) {
@@ -390,6 +396,7 @@ class PspGpuExecutor {
 		if (this.state.depthTest.rangeFar == v) return;
 		this.invalidatePrim();
 		this.state.depthTest.rangeFar = v;
+		this.state.depthTest.updated = false;
 	}
 
 	MAXZ(p: number) {
@@ -397,6 +404,7 @@ class PspGpuExecutor {
 		if (this.state.depthTest.rangeNear == v) return;
 		this.invalidatePrim();
 		this.state.depthTest.rangeNear = v;
+		this.state.depthTest.updated = false;
 	}
 
 	FRAMEBUFWIDTH(p: number) {

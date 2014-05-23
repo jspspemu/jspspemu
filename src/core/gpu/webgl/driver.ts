@@ -122,10 +122,13 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 		}
 
-		if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
-			var rect = state.clipPlane.scissor;
-			var ratio = this.getScaleRatio();
-			gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
+		if (!state.clipPlane.updated) {
+			state.clipPlane.updated = true;
+			if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
+				var rect = state.clipPlane.scissor;
+				var ratio = this.getScaleRatio();
+				gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
+			}
 		}
 
 		if (!this.state.blending.updated) {
@@ -176,11 +179,14 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			gl.stencilOp(this.opsConvertTable[stencil.fail], this.opsConvertTable[stencil.zfail], this.opsConvertTable[stencil.zpass]);
 		}
 
-		gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
-		//gl.depthRange(0, 1);
-		gl.depthMask(state.depthTest.mask == 0);
-		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
-			gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
+		if (!this.state.depthTest.updated) {
+			this.state.depthTest.updated = true;
+			gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+			//gl.depthRange(0, 1);
+			gl.depthMask(state.depthTest.mask == 0);
+			if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
+				gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
+			}
 		}
 
 		var alphaTest = state.alphaTest;
@@ -191,20 +197,22 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		} else {
 			//console.warn("alphaTest.enabled = false");
 		}
-
-		gl.colorMask(true, true, true, true);
-
 	}
 
-	private updateClearState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+	private updateClearStateEnd(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
+		var gl = this.gl;
+		gl.colorMask(true, true, true, true);
+	}
+
+	private updateClearStateStart(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
 		var ccolorMask = false, calphaMask = false;
 		var clearingFlags = this.clearingFlags;
 		//gl.disable(gl.TEXTURE_2D);
-		gl.disable(gl.SCISSOR_TEST);
+		gl.disable(gl.SCISSOR_TEST); state.clipPlane.updated = false;
 		gl.disable(gl.BLEND); this.state.blending.updated = false;
-		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.DEPTH_TEST); this.state.depthTest.updated = false;
 		gl.disable(gl.STENCIL_TEST);
 		gl.disable(gl.CULL_FACE);
 		gl.depthMask(false);
@@ -248,7 +256,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	private updateState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		if (this.state.clearing) {
-			this.updateClearState(program, vertexState, primitiveType);
+			this.updateClearStateStart(program, vertexState, primitiveType);
 		} else {
 			this.updateNormalState(program, vertexState, primitiveType);
 		}
@@ -400,6 +408,10 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 		this.drawArraysActual(gl, program, vertexState, primitiveType, count, vertices);
 		this.unsetProgramParameters(gl, program, vertexState);
+
+		if (this.state.clearing) {
+			this.updateClearStateEnd(program, vertexState, primitiveType);
+		}
 	}
 
 	private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState) {

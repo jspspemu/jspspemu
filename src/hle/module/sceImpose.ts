@@ -1,5 +1,6 @@
 ﻿import _utils = require('../utils');
 import _context = require('../../context');
+import _structs = require('../structs');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 
@@ -12,9 +13,15 @@ export class sceImpose {
 		return 0;
 	});
 
-	sceImposeSetLanguageMode = createNativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint', this, (language: number, buttonPreference: number) => {
-		//this.context.config.language = language;
-		//this.context.config.buttonPreference = buttonPreference;
+	sceImposeSetLanguageMode = createNativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint', this, (language: _structs.PspLanguages, buttonPreference: _structs.ButtonPreference) => {
+		this.context.config.language = language;
+		this.context.config.buttonPreference = buttonPreference;
+		return 0;
+	});
+
+	sceImposeGetLanguageMode = createNativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*', this, (languagePtr: Stream, buttonPreferencePtr: Stream) => {
+		languagePtr.writeUInt32(this.context.config.language);
+		buttonPreferencePtr.writeUInt32(this.context.config.buttonPreference);
 		return 0;
 	});
 }

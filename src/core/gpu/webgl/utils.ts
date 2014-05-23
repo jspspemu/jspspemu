@@ -51,7 +51,7 @@ export class WrappedWebGLAttrib {
 		var gl = this.gl;
 		if (!this.buffer) this.buffer = this.gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-		(<any>gl.bufferData)(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+		(<any>gl.bufferData)(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
 		this.enable();
 		gl.vertexAttribPointer(this.location, rsize, gl.FLOAT, false, 0, 0);
 	}

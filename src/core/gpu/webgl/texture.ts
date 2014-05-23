@@ -165,10 +165,10 @@ export class TextureHandler {
 	end() {
 		if (!this.invalidatedAll) return;
 		this.invalidatedAll = false;
-		//for (var n = 0; n < this.textures.length; n++) {
-		//	var texture = this.textures[n];
-		//	texture.validHint = false;
-		//}
+		for (var n = 0; n < this.textures.length; n++) {
+			var texture = this.textures[n];
+			texture.validHint = false;
+		}
 	}
 
 	private invalidatedMemoryAll() {

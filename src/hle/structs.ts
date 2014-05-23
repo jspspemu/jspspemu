@@ -108,3 +108,8 @@ export enum PspLanguages { // ISO-639-1
 	TRADITIONAL_CHINESE = 10, // zh
 	SIMPLIFIED_CHINESE = 11, // zh?
 }
+
+export enum ButtonPreference {
+	JAP = 0,
+	NA = 1,
+}

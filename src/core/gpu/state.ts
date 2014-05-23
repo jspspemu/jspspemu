@@ -469,6 +469,7 @@ export enum TestFunctionEnum {
 }
 
 export class DepthTestState {
+	updated = false;
 	enabled = false;
 	func = TestFunctionEnum.Always;
 	mask = 0;
@@ -566,6 +567,7 @@ export class Rectangle {
 }
 
 export class ClipPlane {
+	updated = false;
 	enabled = true;
 	scissor = new Rectangle(0, 0, 512, 272);
 	_scissorLeftTop = -1;

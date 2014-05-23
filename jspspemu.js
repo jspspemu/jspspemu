@@ -8891,6 +8891,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.clipPlane.enabled = bool1(p);
+        this.state.clipPlane.updated = false;
     };
     PspGpuExecutor.prototype.SCISSOR1 = function (p) {
         if (this.state.clipPlane._scissorLeftTop == p)
@@ -8899,6 +8900,7 @@ var PspGpuExecutor = (function () {
         this.state.clipPlane._scissorLeftTop = p;
         this.state.clipPlane.scissor.left = param10(p, 0);
         this.state.clipPlane.scissor.top = param10(p, 10);
+        this.state.clipPlane.updated = false;
     };
 
     PspGpuExecutor.prototype.SCISSOR2 = function (p) {
@@ -8908,6 +8910,7 @@ var PspGpuExecutor = (function () {
         this.state.clipPlane._scissorRightBottom = p;
         this.state.clipPlane.scissor.right = param10(p, 0);
         this.state.clipPlane.scissor.bottom = param10(p, 10);
+        this.state.clipPlane.updated = false;
     };
 
     PspGpuExecutor.prototype.TMODE = function (p) {
@@ -9013,6 +9016,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.depthTest.func = v;
+        this.state.depthTest.updated = false;
     };
 
     PspGpuExecutor.prototype.ZTESTENABLE = function (p) {
@@ -9021,6 +9025,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.depthTest.enabled = v;
+        this.state.depthTest.updated = false;
     };
 
     PspGpuExecutor.prototype.ZMSK = function (p) {
@@ -9029,6 +9034,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.depthTest.mask = v;
+        this.state.depthTest.updated = false;
     };
 
     PspGpuExecutor.prototype.MINZ = function (p) {
@@ -9037,6 +9043,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.depthTest.rangeFar = v;
+        this.state.depthTest.updated = false;
     };
 
     PspGpuExecutor.prototype.MAXZ = function (p) {
@@ -9045,6 +9052,7 @@ var PspGpuExecutor = (function () {
             return;
         this.invalidatePrim();
         this.state.depthTest.rangeNear = v;
+        this.state.depthTest.updated = false;
     };
 
     PspGpuExecutor.prototype.FRAMEBUFWIDTH = function (p) {
@@ -11271,6 +11279,7 @@ var TestFunctionEnum = exports.TestFunctionEnum;
 
 var DepthTestState = (function () {
     function DepthTestState() {
+        this.updated = false;
         this.enabled = false;
         this.func = 1 /* Always */;
         this.mask = 0;
@@ -11412,6 +11421,7 @@ exports.Rectangle = Rectangle;
 
 var ClipPlane = (function () {
     function ClipPlane() {
+        this.updated = false;
         this.enabled = true;
         this.scissor = new Rectangle(0, 0, 512, 272);
         this._scissorLeftTop = -1;
@@ -12000,10 +12010,13 @@ var WebGlPspDrawDriver = (function () {
             gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
         }
 
-        if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
-            var rect = state.clipPlane.scissor;
-            var ratio = this.getScaleRatio();
-            gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
+        if (!state.clipPlane.updated) {
+            state.clipPlane.updated = true;
+            if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
+                var rect = state.clipPlane.scissor;
+                var ratio = this.getScaleRatio();
+                gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
+            }
         }
 
         if (!this.state.blending.updated) {
@@ -12061,12 +12074,15 @@ var WebGlPspDrawDriver = (function () {
             gl.stencilOp(this.opsConvertTable[stencil.fail], this.opsConvertTable[stencil.zfail], this.opsConvertTable[stencil.zpass]);
         }
 
-        gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+        if (!this.state.depthTest.updated) {
+            this.state.depthTest.updated = true;
+            gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
 
-        //gl.depthRange(0, 1);
-        gl.depthMask(state.depthTest.mask == 0);
-        if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
-            gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
+            //gl.depthRange(0, 1);
+            gl.depthMask(state.depthTest.mask == 0);
+            if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
+                gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
+            }
         }
 
         var alphaTest = state.alphaTest;
@@ -12077,11 +12093,14 @@ var WebGlPspDrawDriver = (function () {
         } else {
             //console.warn("alphaTest.enabled = false");
         }
+    };
 
+    WebGlPspDrawDriver.prototype.updateClearStateEnd = function (program, vertexState, primitiveType) {
+        var gl = this.gl;
         gl.colorMask(true, true, true, true);
     };
 
-    WebGlPspDrawDriver.prototype.updateClearState = function (program, vertexState, primitiveType) {
+    WebGlPspDrawDriver.prototype.updateClearStateStart = function (program, vertexState, primitiveType) {
         var state = this.state;
         var gl = this.gl;
         var ccolorMask = false, calphaMask = false;
@@ -12089,9 +12108,11 @@ var WebGlPspDrawDriver = (function () {
 
         //gl.disable(gl.TEXTURE_2D);
         gl.disable(gl.SCISSOR_TEST);
+        state.clipPlane.updated = false;
         gl.disable(gl.BLEND);
         this.state.blending.updated = false;
         gl.disable(gl.DEPTH_TEST);
+        this.state.depthTest.updated = false;
         gl.disable(gl.STENCIL_TEST);
         gl.disable(gl.CULL_FACE);
         gl.depthMask(false);
@@ -12134,7 +12155,7 @@ var WebGlPspDrawDriver = (function () {
 
     WebGlPspDrawDriver.prototype.updateState = function (program, vertexState, primitiveType) {
         if (this.state.clearing) {
-            this.updateClearState(program, vertexState, primitiveType);
+            this.updateClearStateStart(program, vertexState, primitiveType);
         } else {
             this.updateNormalState(program, vertexState, primitiveType);
         }
@@ -12277,6 +12298,10 @@ var WebGlPspDrawDriver = (function () {
 
         this.drawArraysActual(gl, program, vertexState, primitiveType, count, vertices);
         this.unsetProgramParameters(gl, program, vertexState);
+
+        if (this.state.clearing) {
+            this.updateClearStateEnd(program, vertexState, primitiveType);
+        }
     };
 
     WebGlPspDrawDriver.prototype.setProgramParameters = function (gl, program, vertexState) {
@@ -12601,10 +12626,10 @@ var TextureHandler = (function () {
         if (!this.invalidatedAll)
             return;
         this.invalidatedAll = false;
-        //for (var n = 0; n < this.textures.length; n++) {
-        //	var texture = this.textures[n];
-        //	texture.validHint = false;
-        //}
+        for (var n = 0; n < this.textures.length; n++) {
+            var texture = this.textures[n];
+            texture.validHint = false;
+        }
     };
 
     TextureHandler.prototype.invalidatedMemoryAll = function () {
@@ -12809,7 +12834,7 @@ var WrappedWebGLAttrib = (function () {
         if (!this.buffer)
             this.buffer = this.gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
         this.enable();
         gl.vertexAttribPointer(this.location, rsize, gl.FLOAT, false, 0, 0);
     };
@@ -17265,10 +17290,12 @@ module.exports = SceKernelErrors;
 var _structs = require('./structs');
 
 var PspLanguages = _structs.PspLanguages;
+var ButtonPreference = _structs.ButtonPreference;
 
 var Config = (function () {
     function Config() {
         this.language = 1 /* ENGLISH */;
+        this.buttonPreference = 1 /* NA */;
         this.language = this.detectLanguage();
     }
     Config.prototype.detectLanguage = function () {
@@ -21017,6 +21044,7 @@ var createNativeFunction = _utils.createNativeFunction;
 
 var sceImpose = (function () {
     function sceImpose(context) {
+        var _this = this;
         this.context = context;
         this.sceImposeGetBatteryIconStatus = createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, function (isChargingPointer, iconStatusPointer) {
             isChargingPointer.writeInt32(0 /* NotCharging */);
@@ -21024,8 +21052,13 @@ var sceImpose = (function () {
             return 0;
         });
         this.sceImposeSetLanguageMode = createNativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint', this, function (language, buttonPreference) {
-            //this.context.config.language = language;
-            //this.context.config.buttonPreference = buttonPreference;
+            _this.context.config.language = language;
+            _this.context.config.buttonPreference = buttonPreference;
+            return 0;
+        });
+        this.sceImposeGetLanguageMode = createNativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*', this, function (languagePtr, buttonPreferencePtr) {
+            languagePtr.writeUInt32(_this.context.config.language);
+            buttonPreferencePtr.writeUInt32(_this.context.config.buttonPreference);
             return 0;
         });
     }
@@ -24254,6 +24287,12 @@ exports.HleIoDirent = HleIoDirent;
     PspLanguages[PspLanguages["SIMPLIFIED_CHINESE"] = 11] = "SIMPLIFIED_CHINESE";
 })(exports.PspLanguages || (exports.PspLanguages = {}));
 var PspLanguages = exports.PspLanguages;
+
+(function (ButtonPreference) {
+    ButtonPreference[ButtonPreference["JAP"] = 0] = "JAP";
+    ButtonPreference[ButtonPreference["NA"] = 1] = "NA";
+})(exports.ButtonPreference || (exports.ButtonPreference = {}));
+var ButtonPreference = exports.ButtonPreference;
 //# sourceMappingURL=structs.js.map
 },
 "src/hle/utils": function(module, exports, require) {
