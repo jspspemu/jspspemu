@@ -1,4 +1,6 @@
 @echo off
+REM SET XWALK_PATH=C:\dev\crosswalk-6.35.131.4
+SET XWALK_PATH=C:\dev\crosswalk-5.34.104.5
 mkdir "%~dp0\xwalk"
 mkdir "%~dp0\xwalk\polyfills"
 mkdir "%~dp0\xwalk\flash0"
@@ -16,6 +18,7 @@ copy "%~dp0\..\buttons.ttf" "%~dp0\xwalk\buttons.ttf"
 xcopy /y /e "%~dp0\..\polyfills" "%~dp0\xwalk\polyfills"
 xcopy /y /e "%~dp0\..\flash0" "%~dp0\xwalk\flash0"
 xcopy /y /e "%~dp0\..\lib" "%~dp0\xwalk\lib"
-PUSHD C:\dev\crosswalk-5.34.104.5
+PUSHD %XWALK_PATH%
 python make_apk.py --manifest="%~dp0\xwalk\manifest.json"
 POPD
+adb install %XWALK_PATH%\jspspemu_0.0.0.1_arm.apk

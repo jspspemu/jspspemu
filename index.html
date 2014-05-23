@@ -293,6 +293,19 @@
         }
     </script>
 
+    <script type="text/javascript">
+        var inCrossWalk = window.screen.show;
+
+        if (screen.lockOrientation) {
+            screen.lockOrientation('landscape');
+        }
+
+        // crosswalk
+        if (inCrossWalk) {
+            requestFullScreen();
+        }
+    </script>
+
     <!--
     <script data-main="js/src/app.js" src="lib/require.js"></script>
     -->

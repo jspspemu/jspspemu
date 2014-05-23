@@ -12,5 +12,14 @@
 	"description": "Javascript psp emulator",
 	"icons": {
 		"128": "icon128.png"
+	},
+	"launch_screen": {
+		"ready_when": "complete",
+		"default": {
+			"background_color": "#000000",
+			"background_image": "icon128.png",
+			"image": "icon128.png",
+			"image_border": "30px 40px stretch"
+		}
 	}
 }
