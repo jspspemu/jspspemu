@@ -120,7 +120,7 @@ function controllerRegister() {
 
 			var touchState = touchesState[touch.identifier];
 
-			if (touchState.rect) {
+			if (touchState && touchState.rect) {
 				$(touchState.rect.name).removeClass('pressed');
 				simulateButtonUp(touchState.rect.button);
 			}
@@ -166,10 +166,12 @@ function controllerRegister() {
 
 var emulator = new Emulator();
 window['emulator'] = emulator;
-var sampleDemo = '';
+var sampleDemo = undefined;
 
 if (document.location.hash) {
 	sampleDemo = document.location.hash.substr(1);
+} else {
+	$('#game_menu').show();
 }
 
 if (sampleDemo) {

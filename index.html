@@ -17,8 +17,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <link rel="stylesheet" href="pspemu.css" />
-
     <script src="lib/aes.js"></script>
     <script src="lib/sha1.js"></script>
     <script src="lib/lib-typedarrays-min.js"></script>
@@ -39,6 +37,8 @@
     <script src="lib/mocha.js"></script>
     <script src="lib/chai.js"></script>
     <script src="lib/difflib.js"></script>
+	<script src="lib/moment.min.js"></script>
+
     <script>
         mocha.setup('bdd');
         var expect = chai.expect;
@@ -49,75 +49,219 @@
     <script src="MediaEngine.js"></script>
 
     <script src="jspspemu.js"></script>
+
+	<link rel="stylesheet" href="lib/bootstrap/bootstrap.min.css" />
+	<link rel="stylesheet" href="lib/bootstrap/bootstrap-theme.min.css" />
+	<link rel="stylesheet" href="lib/fontawesome/font-awesome.min.css" />
+	
+	<link rel="stylesheet" href="pspemu.css" />
+
+	<script src="lib/bootstrap/bootstrap.min.js"></script>
 </head>
 <body>
-    <div id="body">
-        <div id="header_info" style="background:rgba(0,0,0,0.3);">
-            <center>
-                <select id="files" style="width:110px;"></select>
-                <!--
-                <select id="scale"><option value="1.0">1.0x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option></select>
-                -->
-                <input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
-                <button onclick="$('#load_file').click();">Select Game...</button>
-                <a href="javascript:requestFullScreen();$('#fullScreen').hide();" style="font:16px Arial;color:white;">[Fullscreen]</a>
-                <a href="http://github.com/soywiz/jspspemu" style="font:16px Arial;color:white;" target="_blank">[Github]</a>
-                <a href="http://blog.jspspemu.com" style="font:16px Arial;color:white;" target="_blank">[Blog]</a>
-                <a href="javascript:emulator.memory.dump();" style="font:16px Arial;color:white;">[Dump]</a>
-                <a href="javascript:emulator.toggleDropbox();" style="font:16px Arial;color:white;">[Savegames:Dropbox]</a>
-                <span id="dropbox" style="color:white;"></span>
-            </center>
-        </div>
-        <div id="canvas_container">
-            <div id="touch_overlay" style="z-index:1000;position:absolute;width:480px;height:272px;"></div>
-            <div id="touch_buttons_font" style="position:absolute;">
-                <div id="touch_buttons">
-                    <span id="directional_pad">
-                        <span class="psp_button" id="button_left">2</span>
-                        <span class="psp_button" id="button_up">3</span>
-                        <span class="psp_button" id="button_right">1</span>
-                        <span class="psp_button" id="button_down">4</span>
-                        <!--
-                        <span class="psp_button" id="button_up_right">5</span>
-                        <span class="psp_button" id="button_down_right">6</span>
-                        <span class="psp_button" id="button_up_left">7</span>
-                        <span class="psp_button" id="button_down_left">8</span>
-                            -->
-                    </span>
+	<input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
+	<div id="game_menu_toggler" style="position:absolute;top:0;right:0;z-index:10000;opacity:0.5;">
+		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="$('#game_menu').toggle(200);" title="Menu"><span class="glyphicon glyphicon-cog" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="" title="Chat"><span class="glyphicon glyphicon-user" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+	</div>
+	<div id="body">
+		<div id="canvas_container">
+			<div id="game_menu" style="z-index:2000;position:absolute;width:480px;height:272px;background:rgba(255,255,255,0.9);display:none;">
+				<nav class="navbar navbar-default" role="navigation">
+					<div class="container-fluid">
+						<div class="navbar-header">
+							<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+								<span class="sr-only">Toggle navigation</span>
+								<span class="icon-bar"></span>
+								<span class="icon-bar"></span>
+								<span class="icon-bar"></span>
+							</button>
+							<a class="navbar-brand" href="#" style="background:url('logo_wide_50.png') no-repeat;width:260px;"></a>
+						</div>
 
-                    <span id="button_pad">
-                        <span class="psp_button" id="button_cross">X</span>
-                        <span class="psp_button" id="button_circle">C</span>
-                        <span class="psp_button" id="button_triangle">T</span>
-                        <span class="psp_button" id="button_square">S</span>
-                    </span>
+						<!-- Collect the nav links, forms, and other content for toggling -->
+						<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+							<ul class="nav navbar-nav">
+								<li class="active"><a href="http://github.com/soywiz/jspspemu"><span class="glyphicon glyphicon-play"></span> Emulator</a></li>
+								<li><a href="http://blog.jspspemu.com" target="_blank"><span class="fa fa-wordpress"></span> Blog</a></li>
+								<li><a href="http://github.com/soywiz/jspspemu" target="_blank"><span class="fa fa-github"></span> Github</a></li>
+							</ul>
+							<ul class="nav navbar-nav navbar-right">
+								<li><a href="https://www.facebook.com/pspemu" target="_blank"><span class="fa fa-facebook"></span> Facebook</a></li>
+								<li><a href="https://twitter.com/dpspemu" target="_blank"><span class="fa fa-twitter"></span> Twitter</a></li>
+							</ul>
+						</div>
+					</div>
+				</nav>
+				<div class="container-fluid">
+					<div class="row">
+						<div class="col-xs-4">
+							<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+							<!-- jspspemu 300x250 -->
+							<ins class="adsbygoogle"
+								 style="display:inline-block;width:300px;height:250px"
+								 data-ad-client="ca-pub-3395905965441916"
+								 data-ad-slot="3061814725"></ins>
+							<script>
+								(adsbygoogle = window.adsbygoogle || []).push({});
+							</script>
+						</div>
+						<div class="col-xs-5">
+							<div class="panel panel-default">
+								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-play"></span> Play</h3></div>
+								<div class="panel-body">
+									<div class="btn-group">
+										<div class="btn-group">
+											<button type="button" class="btn btn-default" onclick="selectFile('');">
+												<span class="glyphicon glyphicon-stop"></span> Stop
+											</button>
+											<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+												<span class="glyphicon glyphicon-eye-open"></span> Demos <span class="caret"></span>
+											</button>
+											<ul id="demo_list" class="dropdown-menu" style="max-height:300px;overflow-y:scroll;">
+												<li><a href="#">Dropdown link</a></li>
+												<li><a href="#">Dropdown link</a></li>
+											</ul>
+										</div>
+										<button type="button" class="btn btn-success" onclick="$('#load_file').click();"><span class="glyphicon glyphicon-folder-open"></span> Select game...</button>
+									</div>
 
-                    <span id="lr_pad">
-                        <span class="psp_button" id="button_l">l</span>
-                        <span class="psp_button" id="button_r">r</span>
-                    </span>
+									<form action="javascript:void(0)" method="get">
+										<div class="input-group input-group" style="margin-top:10px;">
+											<span class="input-group-addon">URL</span>
+											<input type="text" class="form-control" placeholder="http://.../game.iso" id="gameUrl">
+											<span class="input-group-btn">
+												<button class="btn btn-default" type="submit" onclick="selectFile($('#gameUrl').val());">Open</button>
+											</span>
+										</div>
+									</form>
 
-                    <span id="select_start_pad">
-                        <span class="psp_button" id="button_menu" style="font:0.4em Arial;">MENU</span>
-                        <span class="psp_button" id="button_start">A</span>
-                        <span class="psp_button" id="button_select">B</span>
-                    </span>
-                </div>
-            </div>
-            <canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
-            <!--
-                <canvas id="webgl_canvas" width="480" height="272" style="background: black; width: 480px; height: 272px; border: 0; display: none; "></canvas>
-            <canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-            <canvas id="webgl_canvas" width="1920" height="1044" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-                -->
-            <canvas id="webgl_canvas" width="1440" height="816" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-            
-        </div>
-        <div id="thread_list" style="color:white;"></div>
-        <div id="output"></div>
-    </div>
-    <script>
-        var demos = [
+								</div>
+								<div class="panel-footer" style="color:#777;"><small><small>Currently the emulator can play ELF, PBP, ISO, CSO and ZIP files.</small></small></div>
+							</div>
+							<div class="panel panel-default">
+								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info"></span> Lastest changes</h3></div>
+								<div class="panel-body">
+									<div id="github_info" style="font-size:0.7em;height:160px;overflow-y:auto;"></div>
+									<script type="text/javascript">
+										//function githubapicallback(data) {
+										//	alert(data);
+										//}
+
+										function loadGithubFromCache() {
+											var cache = JSON.parse(localStorage['github_cache']);
+											var response = cache.response;
+
+											if (response.meta.status >= 400) {
+												$('#github_info').html("Couldn't retrieve info from github");
+											} else {
+												$('#github_info').html('');
+												response.data.forEach(function (item) {
+													var i = $('<div />').text(moment(item.commit.committer.date).format('YYYY-MM-DD (HH:mm)') + ' - ' + item.sha.substr(0, 10));
+													i.append(' <a href="' + htmlspecialchars(item.html_url) + '" target="_blank" style="color:#777;"><span class="fa fa-plus-circle"></a>');
+													$('#github_info').append(i);
+													var i = $('<div style="white-space: pre-wrap;color:#777;padding-bottom:8px;font-size:0.9em;" />').text(item.commit.message);
+													$('#github_info').append(i);
+												});
+											}
+										}
+
+										if (localStorage['github_cache'] && ((Date.now() - JSON.parse(localStorage['github_cache']).time) < 3600)) {
+											loadGithubFromCache();
+										} else {
+											$.ajax({
+												url: 'https://api.github.com/repos/soywiz/jspspemu/commits?page=1&per_page=15&callback=githubapicallback',
+												dataType: 'jsonp'
+											}).done(function (response) {
+												localStorage['github_cache'] = JSON.stringify({ response: response, time: Date.now() });
+												loadGithubFromCache();
+											});
+										}
+									</script>
+								</div>
+							</div>
+
+						</div>
+						<div class="col-xs-3">
+							<div class="panel panel-default">
+								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info"></span> Version</h3></div>
+								<div class="panel-body" id="git_version">
+									git-master
+								</div>
+							</div>
+							<div class="panel panel-default">
+								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-wrench"></span> Tools</h3></div>
+								<div class="panel-body">
+									<ul class="nav nav-pills nav-stacked">
+										<li><a href="javascript:requestFullScreen();"><span class="glyphicon glyphicon-fullscreen"></span> Fullscreen</a></li>
+										<li><a href="javascript:emulator.toggleDropbox();"><span class="glyphicon glyphicon-cloud"></span> Dropbox <small>(<span id="dropbox" style="color:white;"></span>)</small></a></li>
+										<li><a href="javascript:emulator.memory.dump();"><span class="glyphicon glyphicon-floppy-disk"></span> Memory dump</a></li>
+									</ul>
+								</div>
+							</div>
+							<!--
+							<div class="panel panel-default">
+								<div class="panel-heading">
+									<h3 class="panel-title"><span class="glyphicon glyphicon-user"></span> Chat</h3>
+								</div>
+
+								<div class="panel-body">
+								</div>
+							</div>
+							-->
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="touch_overlay" style="z-index:1000;position:absolute;width:480px;height:272px;"></div>
+			<div id="touch_buttons_font" style="position:absolute;">
+				<div id="touch_buttons">
+					<span id="directional_pad">
+						<span class="psp_button" id="button_left">2</span>
+						<span class="psp_button" id="button_up">3</span>
+						<span class="psp_button" id="button_right">1</span>
+						<span class="psp_button" id="button_down">4</span>
+						<!--
+						<span class="psp_button" id="button_up_right">5</span>
+						<span class="psp_button" id="button_down_right">6</span>
+						<span class="psp_button" id="button_up_left">7</span>
+						<span class="psp_button" id="button_down_left">8</span>
+							-->
+					</span>
+
+					<span id="button_pad">
+						<span class="psp_button" id="button_cross">X</span>
+						<span class="psp_button" id="button_circle">C</span>
+						<span class="psp_button" id="button_triangle">T</span>
+						<span class="psp_button" id="button_square">S</span>
+					</span>
+
+					<span id="lr_pad">
+						<span class="psp_button" id="button_l">l</span>
+						<span class="psp_button" id="button_r">r</span>
+					</span>
+
+					<span id="select_start_pad">
+						<span class="psp_button" id="button_menu" style="font:0.4em Arial;">MENU</span>
+						<span class="psp_button" id="button_start">A</span>
+						<span class="psp_button" id="button_select">B</span>
+					</span>
+				</div>
+			</div>
+			<canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
+			<!--
+			<canvas id="webgl_canvas" width="480" height="272" style="background: black; width: 480px; height: 272px; border: 0; display: none; "></canvas>
+			<canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
+			<canvas id="webgl_canvas" width="1920" height="1044" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
+			-->
+			<canvas id="webgl_canvas" width="1440" height="816" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
+
+		</div>
+		<div id="thread_list" style="color:white;"></div>
+		<div id="output"></div>
+	</div>
+	<script>
+		var demos = [
             "-CPU",
             "compilerPerf.elf",
             "counter.elf",
@@ -188,147 +332,182 @@
             //"reminiscence/EBOOT.PBP",
             //"UraKaitenPatissierPSP/EBOOT.PBP",
             //"Doom/EBOOT.PBP",
-        ];
+		];
 
-        function updateScaleWith(scale) {
-            var width = 480 * scale, height = 272 * scale;
-            //console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
-            $('#body').css('width', width + 'px');
-            $('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
-            $('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-            $('#touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-            //$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
-        }
+		function updateScaleWith(scale) {
+			var width = 480 * scale, height = 272 * scale;
+			//console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
+			$('#body').css('width', width + 'px');
+			$('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
+			$('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+			$('#touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
 
-        function updateScale() {
-            updateScaleWith(parseFloat($('#scale').val()));
-        }
+			$('#game_menu')
+				//.css('width', width + 'px').css('height', height + 'px')
+				.css('width', '960px').css('height', '544px')
+				.css('-webkit-transform-origin', '0 0')
+				.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+				.css('-moz-transform-origin', '0 0')
+				.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+				.css('-ms-transform-origin', '0 0')
+				.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+				.css('transform-origin', '0 0')
+				.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+			;
+			$('#game_menu_toggler')
+				.css('-webkit-transform-origin', '100% 0')
+				.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+				.css('-moz-transform-origin', '100% 0')
+				.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+				.css('-ms-transform-origin', '100% 0')
+				.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+				.css('transform-origin', '100% 0')
+				.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+			;
 
-        $('#scale').change(function () { updateScale(); });
-        updateScale();
+			//$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
+		}
 
-        $('#files').html('');
-        var selectedItem = document.location.hash.substr(1);
-        $('#files').append('<option value="">-- DEMOS --</option>');
-        demos.forEach(function (fileName) {
-            if (fileName.substr(0, 1) == '-') {
-                $('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
-            } else {
-                var path = 'samples/' + fileName;
-                var item = $('<option value="' + path + '">' + fileName + '</option>');
-                if (selectedItem == path) item.attr('selected', 'selected')
-                $('#files').append(item);
-            }
-        });
-        $('#files').change(function () {
-            console.clear();
-            document.location.hash = $('#files').val();
-            document.location.reload();
-            //emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
-            //downloadAnd
-            //document.location = 'index.html?' + $('#files').val();
-        });
-        $('#load_file').change(function (e) {
-            if (e.target.files && e.target.files.length > 0) {
-                console.clear();
-                emulator.executeFileAsync(e.target.files[0]);
-            }
-        });
-        $(window).on('hashchange', function() {
-            console.clear();
-            emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
-        });
-        //$(document.body).click(function (e) { e.preventDefault() });
-        //$(document.body).mousedown(function (e) { e.preventDefault() });
-        //$(document.body).mouseup(function (e) { e.preventDefault() });
+		function updateScale() {
+			updateScaleWith(parseFloat($('#scale').val()));
+		}
 
-        //$(window).on('select', function (e) { e.preventDefault() });
-        //<a href="index.html?' + fileName + '" style="color:white;">
-    </script>
+		$('#scale').change(function () { updateScale(); });
+		updateScale();
 
-    <script>
-        $('#touch_buttons_font').css('display', isTouchDevice() ? 'block' : 'none');
-        //$('#touch_buttons_font').css('display', 'block');
+		$('#demo_list').html('');
+		$('#files').html('');
+		var selectedItem = document.location.hash.substr(1);
 
-        require('src/app');
+		function selectFile(file) {
+			console.clear();
+			document.location.hash = file;
+			document.location.reload();
+		}
 
-        function onResize() {
-            var position = $('#canvas_container').position();
-            //var availableHeight = $(window).height() - position.top * 2;
-            var availableHeight = $(window).height() - position.top;
-            var availableWidth = $(window).width();
+		//$('#files').append('<option value="">-- DEMOS --</option>');
+		demos.forEach(function (fileName) {
+			if (fileName.substr(0, 1) == '-') {
+				$('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
+				$('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
+			} else {
+				var path = 'samples/' + fileName;
 
-            var scale1 = availableHeight / 272;
-            var scale2 = availableWidth / 480;
-            var steps = 0.5;
-            var scale = Math.min(scale1, scale2);
-            //scale = Math.floor(scale * (1 / steps)) / (1 / steps);
+				//<li class="active"><a href="#">Home</a></li>
+				//<li><a href="#">Profile</a></li>
+				//<li><a href="#">Messages</a></li>
 
-            if (scale < steps) scale = steps;
+				$('#demo_list').append($('<li class="' + ((selectedItem == path) ? 'active' : '') + '"><a href="javascript:void(0)" onclick="selectFile(\'' + path + '\')">' + fileName + '</a></li>'));
 
-            updateScaleWith(scale);
+				var item = $('<option value="' + path + '">' + fileName + '</option>');
+				if (selectedItem == path) item.attr('selected', 'selected')
+				$('#files').append(item);
+			}
+		});
+		$('#files').change(function () {
+			selectFile($('#files').val());
+		});
+		$('#load_file').change(function (e) {
+			if (e.target.files && e.target.files.length > 0) {
+				console.clear();
+				emulator.executeFileAsync(e.target.files[0]);
+			}
+		});
+		$(window).on('hashchange', function () {
+			console.clear();
+			emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
+		});
+		//$(document.body).click(function (e) { e.preventDefault() });
+		//$(document.body).mousedown(function (e) { e.preventDefault() });
+		//$(document.body).mouseup(function (e) { e.preventDefault() });
 
-            var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
+		//$(window).on('select', function (e) { e.preventDefault() });
+		//<a href="index.html?' + fileName + '" style="color:white;">
+	</script>
 
-            if (window.innerHeight > window.innerWidth) isFullScreen = false;
+	<script>
+		$('#touch_buttons_font').css('display', isTouchDevice() ? 'block' : 'none');
+		//$('#touch_buttons_font').css('display', 'block');
 
-            $(document.body).toggleClass('fullscreen', isFullScreen);
-        }
+		require('src/app');
 
-        $(window).on('resize', function (e) {
-            onResize();
-        });
+		function onResize() {
+			var position = $('#canvas_container').position();
+			//var availableHeight = $(window).height() - position.top * 2;
+			var availableHeight = $(window).height() - position.top;
+			var availableWidth = $(window).width();
 
-        onResize();
+			var scale1 = availableHeight / 272;
+			var scale2 = availableWidth / 480;
+			var steps = 0.5;
+			var scale = Math.min(scale1, scale2);
+			//scale = Math.floor(scale * (1 / steps)) / (1 / steps);
 
-        function requestFullScreen() {
-            if (document.body['requestFullScreen']) {
-                document.body['requestFullScreen']();
-            } else if (document.body['webkitRequestFullScreen']) {
-                document.body['webkitRequestFullScreen']();
-            } else if (document.body['mozRequestFullScreen']) {
-                document.body['mozRequestFullScreen']();
-            }
-        }
+			if (scale < steps) scale = steps;
 
-        emulator.checkPlugins();
+			updateScaleWith(scale);
 
-        window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
-            console.error(errorObj);
-            console.error(errorObj['stack']);
-            alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
-        }
-    </script>
+			var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
 
-    <script type="text/javascript">
-        var inCrossWalk = window.screen.show;
+			if (window.innerHeight > window.innerWidth) isFullScreen = false;
 
-        if (screen.lockOrientation) {
-            screen.lockOrientation('landscape');
-        }
+			$(document.body).toggleClass('fullscreen', isFullScreen);
+		}
 
-        // crosswalk
-        if (inCrossWalk) {
-            requestFullScreen();
-        }
-    </script>
+		$(window).on('resize', function (e) {
+			onResize();
+		});
 
-    <!--
-    <script data-main="js/src/app.js" src="lib/require.js"></script>
-    -->
+		onResize();
 
-    <script>
-    (function (i, s, o, g, r, a, m) {
-        i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-            (i[r].q = i[r].q || []).push(arguments)
-        }, i[r].l = 1 * new Date(); a = s.createElement(o),
-        m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
-    })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+		function requestFullScreen() {
+			if (document.body['requestFullScreen']) {
+				document.body['requestFullScreen']();
+			} else if (document.body['webkitRequestFullScreen']) {
+				document.body['webkitRequestFullScreen']();
+			} else if (document.body['mozRequestFullScreen']) {
+				document.body['mozRequestFullScreen']();
+			}
+		}
 
-    ga('create', 'UA-50864498-1', 'jspspemu.com');
-	ga('require', 'displayfeatures');
-    ga('send', 'pageview');
+		emulator.checkPlugins();
 
-    </script>
+		window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
+			console.error(errorObj);
+			console.error(errorObj['stack']);
+			alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
+		}
+	</script>
+
+	<script type="text/javascript">
+		var inCrossWalk = window.screen.show;
+
+		if (screen.lockOrientation) {
+			screen.lockOrientation('landscape');
+		}
+
+		// crosswalk
+		if (inCrossWalk) {
+			requestFullScreen();
+		}
+	</script>
+
+	<!--
+	<script data-main="js/src/app.js" src="lib/require.js"></script>
+	-->
+
+	<script>
+		(function (i, s, o, g, r, a, m) {
+			i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+				(i[r].q = i[r].q || []).push(arguments)
+			}, i[r].l = 1 * new Date(); a = s.createElement(o),
+			m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+		})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+		ga('create', 'UA-50864498-1', 'jspspemu.com');
+		ga('require', 'displayfeatures');
+		ga('send', 'pageview');
+
+	</script>
 </body>
 </html>

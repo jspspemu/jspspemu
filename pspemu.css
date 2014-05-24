@@ -8,6 +8,7 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
+    background: black;
 }
 
 body {
@@ -145,3 +146,22 @@ canvas {
 :-ms-fullscreen #header_info { visibility:hidden; }
 :fullscreen #header_info { visibility:hidden; }
 body.fullscreen #header_info { visibility:hidden; }
+
+ul.nav { list-style: none; padding: 0; margin: 0; }
+ul.nav li {
+    padding: 0;
+    margin: 0;
+}
+
+.game_menu_toggler_item {
+    position:relative;
+    left:2em;
+    transition:left 0.1s;
+    transition-timing-function: ease;
+}
+
+.game_menu_toggler_item:hover {
+    left:0;
+    transition:left 0.25s;
+    transition-timing-function: ease;
+}

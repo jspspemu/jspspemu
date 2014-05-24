@@ -482,3 +482,15 @@ class HalfFloat {
 		return MathFloat.reinterpretIntAsFloat((s << 31) | (e << 23) | f);
 	}
 }
+
+
+function htmlspecialchars(str) {
+	return str.replace(/[&<>]/g, (tag) => {
+		switch (tag) {
+			case '&': return '&amp;';
+			case '<': return '&lt;';
+			case '>': return '&gt;';
+		}
+		return tag;
+	});
+}

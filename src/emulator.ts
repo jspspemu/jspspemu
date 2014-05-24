@@ -313,7 +313,7 @@ export class Emulator {
 
 	connectToDropbox(newValue: boolean) {
 		newValue = !!newValue;
-		$('#dropbox').html(newValue ? '<span style="color:#3A3;">dropbox enabled</span>' : '<span style="color:#777;">dropbox disabled</span>');
+		$('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
 		var oldValue = (localStorage["dropbox"] == 'true');
 
 		console.log('dropbox: ', oldValue, '->', newValue);
@@ -322,10 +322,10 @@ export class Emulator {
 			localStorage["dropbox"] = 'true';
 
 			DropboxVfs.tryLoginAsync().then(() => {
-				$('#dropbox').html('<span style="color:#7F7;">dropbox connected</span>');
+				$('#dropbox').html('<span style="color:#6A6;">connected</span>');
 			}).catch((e) => {
 				console.error(e);
-				$('#dropbox').html('<span style="color:#F77;">dropbox error</span>');
+				$('#dropbox').html('<span style="color:#F77;">error</span>');
 			});
 		} else {
 			delete localStorage["dropbox"];
@@ -359,6 +359,8 @@ export class Emulator {
 	
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
+		$('#game_menu').hide();
+
 		this.gameTitle = '';
 		this.loadIcon0(Stream.fromArray([]));
 		this.loadPic1(Stream.fromArray([]));

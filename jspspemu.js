@@ -2065,7 +2065,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2572,6 +2572,20 @@ var HalfFloat = (function () {
     };
     return HalfFloat;
 })();
+
+function htmlspecialchars(str) {
+    return str.replace(/[&<>]/g, function (tag) {
+        switch (tag) {
+            case '&':
+                return '&amp;';
+            case '<':
+                return '&lt;';
+            case '>':
+                return '&gt;';
+        }
+        return tag;
+    });
+}
 //# sourceMappingURL=utils.js.map
 
 var require = (function() {
@@ -2727,7 +2741,7 @@ function controllerRegister() {
 
             var touchState = touchesState[touch.identifier];
 
-            if (touchState.rect) {
+            if (touchState && touchState.rect) {
                 $(touchState.rect.name).removeClass('pressed');
                 simulateButtonUp(touchState.rect.button);
             }
@@ -2775,10 +2789,12 @@ function controllerRegister() {
 
 var emulator = new Emulator();
 window['emulator'] = emulator;
-var sampleDemo = '';
+var sampleDemo = undefined;
 
 if (document.location.hash) {
     sampleDemo = document.location.hash.substr(1);
+} else {
+    $('#game_menu').show();
 }
 
 if (sampleDemo) {
@@ -14888,7 +14904,7 @@ var Emulator = (function () {
 
     Emulator.prototype.connectToDropbox = function (newValue) {
         newValue = !!newValue;
-        $('#dropbox').html(newValue ? '<span style="color:#3A3;">dropbox enabled</span>' : '<span style="color:#777;">dropbox disabled</span>');
+        $('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
         var oldValue = (localStorage["dropbox"] == 'true');
 
         console.log('dropbox: ', oldValue, '->', newValue);
@@ -14897,10 +14913,10 @@ var Emulator = (function () {
             localStorage["dropbox"] = 'true';
 
             DropboxVfs.tryLoginAsync().then(function () {
-                $('#dropbox').html('<span style="color:#7F7;">dropbox connected</span>');
+                $('#dropbox').html('<span style="color:#6A6;">connected</span>');
             }).catch(function (e) {
                 console.error(e);
-                $('#dropbox').html('<span style="color:#F77;">dropbox error</span>');
+                $('#dropbox').html('<span style="color:#F77;">error</span>');
             });
         } else {
             delete localStorage["dropbox"];
@@ -14935,6 +14951,8 @@ var Emulator = (function () {
 
     Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
         var _this = this;
+        $('#game_menu').hide();
+
         this.gameTitle = '';
         this.loadIcon0(Stream.fromArray([]));
         this.loadPic1(Stream.fromArray([]));
