@@ -1,13 +1,21 @@
-﻿import _utils = require('../utils');
+﻿import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
+import _utils = require('../utils');
 import _context = require('../../context');
-import createNativeFunction = _utils.createNativeFunction;
+import _manager = require('../manager');
 import SceKernelErrors = require('../SceKernelErrors');
+import createNativeFunction = _utils.createNativeFunction;
+import EmulatorContext = _context.EmulatorContext;
+import MemoryPartition = _manager.MemoryPartition;
+import Interop = _manager.Interop;
+import Thread = _manager.Thread;
 
 export class sceNetAdhocctl {
 	constructor(private context: _context.EmulatorContext) { }
 
 	private currentState = State.Disconnected;
 	private currentName = "noname";
+
+	public ws: WebSocket;
 
 	/** Initialise the Adhoc control library */
 	sceNetAdhocctlInit = createNativeFunction(0xE26F226E, 150, 'int', 'int/int/void*', this, (stacksize: number, priority: number, product: Stream) => {
@@ -23,8 +31,49 @@ export class sceNetAdhocctl {
 	/** Connect to the Adhoc control */
 	sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, (name: string) => {
 		this.currentName = name;
-		this.currentState = State.Connected;
-		this._notifyAdhocctlHandler(Event.Connected);
+
+		this.ws = new WebSocket('ws://127.0.0.1/ws/' + this.context.gameId, 'adhoc');
+
+		this.context.container['ws'] = this.ws;
+
+		this.ws.onopen = (e) => {
+		};
+		this.ws.onclose = (e) => {
+			this.currentState = State.Disconnected;
+			this._notifyAdhocctlHandler(Event.Disconnected);
+		};
+		this.ws.onmessage = (e) => {
+			var info = JSON.parse(e.data);
+			if (info.from == 'FF:FF:FF:FF:FF:FF') {
+				switch (info.type) {
+					case 'setid':
+						this.context.container['mac'] = string2mac(info.payload);
+						//debugger;
+						this.currentState = State.Connected;
+						this._notifyAdhocctlHandler(Event.Connected);
+
+						break;
+				}
+				console.info('from_server', info);
+			} else {
+				var event = <_sceNetAdhocMatching.Event><any>(_sceNetAdhocMatching.Event[info.type]);
+				var macfrom = string2mac(info.from);
+				var data = Stream.fromBase64(info.payload).toUInt8Array();
+
+				var matching = <_sceNetAdhocMatching.Matching>this.context.container['matching'];
+				if (matching) {
+					matching.notify(event, macfrom, data);
+				}
+			}
+		};
+		this.ws.onerror = (e) => {
+		};
+		return 0;
+	});
+
+	/** Disconnect from the Adhoc control */
+	sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, () => {
+		this.ws.close();
 		return 0;
 	});
 
@@ -32,6 +81,11 @@ export class sceNetAdhocctl {
 
 	sceNetAdhocctlAddHandler = createNativeFunction(0x20B317A0, 150, 'int', 'int/int', this, (callback: number, parameter: number) => {
 		return this.handlers.allocate(new HandlerCallback(callback, parameter));
+	});
+
+	sceNetAdhocctlDelHandler = createNativeFunction(0x6402490B, 150, 'int', 'int', this, (handler: number) => {
+		this.handlers.remove(handler);
+		return 0;
 	});
 
 	sceNetAdhocctlGetState = createNativeFunction(0x75ECD386, 150, 'int', 'void*', this, (stateOut: Stream) => {
@@ -52,16 +106,6 @@ class HandlerCallback {
 	}
 }
 
-enum Event {
-	Error = 0,
-	Connected = 1,
-	Disconnected = 2,
-	Scan = 3,
-	Game = 4,
-	Discover = 5,
-	Wol = 6,
-	WolInterrupted = 7,
-}
 
 enum State {
 	Disconnected = 0,
@@ -78,8 +122,22 @@ enum Mode {
 	None = -1,
 }
 
+
+enum Event {
+	Error = 0,
+	Connected = 1,
+	Disconnected = 2,
+	Scan = 3,
+	Game = 4,
+	Discover = 5,
+	Wol = 6,
+	WolInterrupted = 7,
+}
+
+
 var NICK_NAME_LENGTH = 128;
 var GROUP_NAME_LENGTH = 8;
 var IBSS_NAME_LENGTH = 6;
 var ADHOC_ID_LENGTH = 9;
 var MAX_GAME_MODE_MACS = 16;
+

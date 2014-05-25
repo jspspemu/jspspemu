@@ -67,7 +67,11 @@ if (!Math['clz32']) {
 
 if (!Math['trunc']) {
 	Math['trunc'] = function (x: number) {
-		return x < 0 ? Math.ceil(x) : Math.floor(x);
+		if (x < 0) {
+			return Math.ceil(x) | 0;
+		} else {
+			return Math.floor(x) | 0;
+		}
 	}
 }
 
@@ -83,38 +87,38 @@ if (!Math['imul']) {
 	}
 }
 
-function testMultiply64_Base(a: number, b: number) {
-	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
-	var result2 = Math.imul32_64(a, b, [1, 1]);
-	return {
-		int64: result,
-		fast: result2,
-		compare: (result.low == result2[0]) && (result.high == result2[1]),
-	};
-}
-
-function testMultiply64_Base_u(a: number, b: number) {
-	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
-	var result2 = Math.umul32_64(a, b, [1, 1]);
-	return {
-		int64: result,
-		fast: result2,
-		compare: (result.low == result2[0]) && (result.high == result2[1]),
-	};
-}
-
-function testMultiply64() {
-	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
-	values.forEach((v1) => {
-		values.forEach((v2) => {
-			var result = testMultiply64_Base(v1, v2);
-			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
-
-			var result = testMultiply64_Base_u(v1, v2);
-			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
-		});
-	});
-}
+//function testMultiply64_Base(a: number, b: number) {
+//	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+//	var result2 = Math.imul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64_Base_u(a: number, b: number) {
+//	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+//	var result2 = Math.umul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64() {
+//	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+//	values.forEach((v1) => {
+//		values.forEach((v2) => {
+//			var result = testMultiply64_Base(v1, v2);
+//			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//
+//			var result = testMultiply64_Base_u(v1, v2);
+//			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//		});
+//	});
+//}
 
 if (!Math.umul32_64) {
 	Math.umul32_64 = function (a: number, b: number, result?: number[]) {
@@ -482,6 +486,21 @@ class MathUtils {
 		if (v < min) return min;
 		if (v > max) return max;
 		return v;
+	}
+}
+
+class IntUtils {
+	static toHexString(value: number, padCount: number) {
+		var str = (value >>> 0).toString(16);
+		while (str.length < padCount) str = '0' + str;
+		return str;
+	}
+}
+
+class StringUtils {
+	static padLeft(text: string, padchar: string, length: number) {
+		while (text.length < length) text = padchar + text;
+		return text;
 	}
 }
 

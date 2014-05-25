@@ -1,19 +1,36 @@
 ﻿import _cpu = require('../core/cpu');
 import _memory = require('../core/memory');
+import IndentStringGenerator = require('../util/IndentStringGenerator');
 
 import Memory = _memory.Memory;
 export import NativeFunction = _cpu.NativeFunction;
 
-export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function) {
+export interface CreateOptions {
+	tryCatch?: boolean;
+}
+
+export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function, options?: CreateOptions) {
+	var tryCatch = true;
+	if (options) {
+		if (options.tryCatch !== undefined) tryCatch = options.tryCatch;
+	}
+
     var code = '';
 
-    var args = [];
+	var args = [];
+	var maxGprIndex = 12;
 	var gprindex = 4;
 	var fprindex = 0;
 	//var fprindex = 2;
 
-    function _readGpr32() {
-		return 'state.gpr[' + (gprindex++) + ']';
+	function _readGpr32() {
+		if (gprindex >= maxGprIndex) {
+			//return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
+
+			return 'state.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
+		} else {
+			return 'state.gpr[' + (gprindex++) + ']';
+		}
 	}
 
 	function readFpr32() {
@@ -57,40 +74,44 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
         }
     });
 
-	code += 'var error = false;';
-	code += 'try {';
-	code += 'var args = [' + args.join(', ') + '];';
-	code += 'var result = internalFunc.apply(_this, args);';
-	code += '} catch (e) {';
-	code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
-	code += '}';
+	code += 'var error = false;\n';
+	if (tryCatch) {
+		code += 'try {\n';
+	}
+	code += 'var args = [' + args.join(', ') + '];\n';
+	code += 'var result = internalFunc.apply(_this, args);\n';
+	if (tryCatch) {
+		code += '} catch (e) {\n';
+		code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }\n';
+		code += '}\n';
+	}
 
 	var debugSyscalls = false;
 	//var debugSyscalls = true;
 
 	if (debugSyscalls) {
-		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;";
-		code += "if (DebugOnce(info, 10)) {";
-		code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
-		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
-		code += "}";
+		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
+		code += "if (DebugOnce(info, 10)) {\n";
+		code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
+		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+		code += "}\n";
 	}
 
-	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
-	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } } ';
+	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
+	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
 
     switch (retval) {
         case 'void': break;
-		case 'uint': case 'int': code += 'state.V0 = result | 0;'; break;
-		case 'bool': code += 'state.V0 = result ? 1 : 0;'; break;
-		case 'float': code += 'state.fpr[0] = result;'; break;
+		case 'uint': case 'int': code += 'state.V0 = result | 0;\n'; break;
+		case 'bool': code += 'state.V0 = result ? 1 : 0;\n'; break;
+		case 'float': code += 'state.fpr[0] = result;\n'; break;
 		case 'long':
-			code += 'if (!error) {';
-			code += 'if (!(result instanceof Integer64)) { console.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }';
-			code += 'state.V0 = result.low; state.V1 = result.high;';
-			code += '} else {';
-			code += 'state.V0 = result; state.V1 = 0;';
-			code += '}';
+			code += 'if (!error) {\n';
+			code += 'if (!(result instanceof Integer64)) { console.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }\n';
+			code += 'state.V0 = result.low; state.V1 = result.high;\n';
+			code += '} else {\n';
+			code += 'state.V0 = result; state.V1 = 0;\n';
+			code += '}\n';
             break;
         default: throw ('Invalid return value "' + retval + '"');
     }

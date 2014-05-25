@@ -19,7 +19,7 @@ export class IoFileMgrForUser {
 		var output = this.context.memory.getPointerStream(outputPointer, outputLength);
 
 		return this.context.fileManager.devctlAsync(deviceName, command, input, output);
-	});
+	}, { tryCatch : false });
 
 
 	fileUids = new UidCollection<_manager.HleFile>(3);

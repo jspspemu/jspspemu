@@ -405,32 +405,7 @@ export class CpuState {
 	PC: number = 0;
 	IC: number = 0;
 	LO: number = 0;
-	_HI: number = 0;
-	_HI_op: number = 0;
-	_HI_op1: number = 0;
-	_HI_op2: number = 0;
-
-	set HI(value:number) {
-		this._HI = value;
-		this._HI_op = 0;
-	}
-
-	setHIOp(op: number, op1: number, op2: number) {
-		this._HI_op = op;
-		this._HI_op1 = op1;
-		this._HI_op2 = op2;
-	}
-	
-	get HI() {
-		switch (this._HI_op) {
-			case 0: return this._HI;
-			case 1:
-				var result = Math.imul32_64(this._HI_op1, this._HI_op2, CpuState._mult_temp);
-				this._HI_op = 0;
-				return this._HI = result[1];
-		}
-		throw (new Error("Can't generate HI"));
-	}
+	HI: number = 0;
 
 	thread: any = null;
 
@@ -445,7 +420,10 @@ export class CpuState {
 	}
 
 	copyRegistersFrom(other: CpuState) {
-		['PC', 'IC', 'LO', 'HI'].forEach((item) => { this[item] = other[item]; });
+		this.PC = other.PC;
+		this.IC = other.IC;
+		this.LO = other.LO;
+		this.HI = other.HI;
 		for (var n = 0; n < 32; n++) this.gpr[n] = other.gpr[n];
 		for (var n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
 		for (var n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
@@ -654,8 +632,9 @@ export class CpuState {
 	private static _mult_temp = [0, 0];
 
 	mult(rs: number, rt: number) {
-		this.LO = Math.imul(rs, rt);
-		this.setHIOp(1, rs, rt);
+		Math.imul32_64(rs, rt, CpuState._mult_temp);
+		this.LO = CpuState._mult_temp[0];
+		this.HI = CpuState._mult_temp[1];
 	}
 
 	madd(rs: number, rt: number) {

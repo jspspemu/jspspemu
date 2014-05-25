@@ -179,12 +179,29 @@ interface MicrotaskCallback {
 class Microtask {
 	private static queued: boolean = false;
 	private static callbacks: MicrotaskCallback[] = [];
+	private static initialized: boolean = false;
+	private static __messageType = '__Microtask_execute';
+	private static __location = null;
+
+	private static initOnce() {
+		if (Microtask.initialized) return;
+		window.addEventListener("message", Microtask.window_message, false);
+		Microtask.__location = document.location.href;
+		Microtask.initialized = true;
+	}
+
+	private static window_message(e) {
+		if (e.data == Microtask.__messageType) Microtask.execute();
+	}
 
 	static queue(callback: MicrotaskCallback) {
+		Microtask.initOnce();
 		Microtask.callbacks.push(callback);
 		if (!Microtask.queued) {
 			Microtask.queued = true;
+			//window.postMessage(Microtask.__messageType, Microtask.__location);
 			setTimeout(Microtask.execute, 0);
+			//Microtask.execute(); // @TODO
 		}
 	}
 
@@ -493,4 +510,14 @@ function htmlspecialchars(str) {
 		}
 		return tag;
 	});
+}
+
+function mac2string(mac: Uint8Array) {
+	return sprintf("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+function string2mac(string: string) {
+	var array = String(string).split(':').map(item => parseInt(item, 16));
+	while (array.length < 6) array.push(0);
+	return new Uint8Array(array);
 }

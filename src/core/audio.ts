@@ -84,7 +84,10 @@ export class PspAudioChannel {
 				if (this.buffers.length == 0) break;
 
 				//for (var n = 0; n < Math.min(3, this.buffers.length); n++) if (this.buffers[n]) this.buffers[n].resolve();
-				this.buffers.slice(0, 3).forEach(buffer => buffer.resolve());
+				for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
+					this.buffers[m].resolve();
+				}
+				//this.buffers.slice(0, 3).forEach(buffer => buffer.resolve());
 
 				this.currentBuffer = this.buffers.shift();
 				this.currentBuffer.resolve();

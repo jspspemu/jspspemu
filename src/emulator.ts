@@ -289,6 +289,8 @@ export class Emulator {
 						var pspElf = new PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager);
 						pspElf.load(elfStream);
 						this.context.symbolLookup = pspElf;
+						this.context.gameTitle = this.gameTitle;
+						this.context.gameId = pspElf.moduleInfo.name;
 						var moduleInfo = pspElf.moduleInfo;
 
 						//this.memory.dump(); debugger;
@@ -359,7 +361,7 @@ export class Emulator {
 	
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
-		$('#game_menu').hide();
+		$('#game_menu').fadeOut(100);
 
 		this.gameTitle = '';
 		this.loadIcon0(Stream.fromArray([]));

@@ -24,7 +24,9 @@ class PspInstructionStm extends ast_builder.ANodeStm {
 		super();
 	}
 
-	toJs() { return sprintf("/*%08X*/ /* %-6s */ %s ", this.PC, this.di.type.name, this.code.toJs()); }
+	toJs() {
+		return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
+	}
 	optimize() { return new PspInstructionStm(this.PC, this.code.optimize(), this.di); }
 }
 
@@ -66,6 +68,16 @@ export class FunctionGenerator {
 	}
 
 	create(address: number) {
+		var code = this._create(address);
+		try {
+			return new Function('state', code);
+		} catch (e) {
+			console.info('code:\n', code);
+			throw (e);
+		}
+	}
+
+	_create(address: number) {
 		//var enableOptimizations = false;
 		var enableOptimizations = true;
 
@@ -120,6 +132,7 @@ export class FunctionGenerator {
 
 				var isBranch = di.type.isBranch;
 				var isCall = di.type.isCall;
+				var isUnconditionalNonLinkJump = (di.type.name == 'j');
 				var jumpAddress = 0;
 				var jumpBack = false;
 				var jumpAhead = false;
@@ -134,7 +147,7 @@ export class FunctionGenerator {
 				jumpBack = !jumpAhead;
 
 				// SIMPLE LOOP
-				var isSimpleLoop = isBranch && jumpBack && (jumpAddress >= startPC);
+				var isSimpleLoop = (isBranch || isUnconditionalNonLinkJump) && jumpBack && (jumpAddress >= startPC);
 				var isFunctionCall = isCall;
 
 				stms.add(emitInstruction());
@@ -186,17 +199,11 @@ export class FunctionGenerator {
 		returnWithCheck();
 
 		if (mustDumpFunction) {
-			console.debug(sprintf("// function_%08X:\n%s", address, stms.toJs()));
+			console.debug("// function_" + IntUtils.toHexString(address, 8) + ":\n" + stms.toJs());
 		}
 
 		if (n >= 100000) throw (new Error(sprintf("Too large function PC=%08X", address)));
 
-		var code = stms.toJs();
-		try {
-			return new Function('state', code);
-		} catch (e) {
-			console.info('code:\n', code);
-			throw(e);
-		}
+		return stms.toJs();
 	}
 }

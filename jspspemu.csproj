@@ -108,6 +108,8 @@
     <TypeScriptCompile Include="src\hle\module\sceDmac.ts" />
     <TypeScriptCompile Include="src\hle\module\sceGe_user.ts" />
     <TypeScriptCompile Include="src\hle\module\sceHprm.ts" />
+    <TypeScriptCompile Include="src\hle\module\sceNetAdhocctl.ts" />
+    <TypeScriptCompile Include="src\hle\module\sceNetAdhocMatching.ts" />
     <TypeScriptCompile Include="src\hle\module\sceParseHttp.ts" />
     <TypeScriptCompile Include="src\hle\module\sceHttp.ts" />
     <TypeScriptCompile Include="src\hle\module\sceImpose.ts" />
@@ -116,8 +118,6 @@
     <TypeScriptCompile Include="src\hle\module\sceMpeg.ts" />
     <TypeScriptCompile Include="src\hle\module\sceNet.ts" />
     <TypeScriptCompile Include="src\hle\module\sceNetAdhoc.ts" />
-    <TypeScriptCompile Include="src\hle\module\sceNetAdhocctl.ts" />
-    <TypeScriptCompile Include="src\hle\module\sceNetAdhocMatching.ts" />
     <TypeScriptCompile Include="src\hle\module\sceNetApctl.ts" />
     <TypeScriptCompile Include="src\hle\module\sceNetInet.ts" />
     <TypeScriptCompile Include="src\hle\module\sceNetResolver.ts" />

@@ -36,6 +36,9 @@ export class EmulatorContext {
 	interruptManager: _interrupt.InterruptManager;
 	symbolLookup: ISymbolLookup;
 	interop: _manager.Interop;
+	container: any = {};
+	gameTitle = 'unknown';
+	gameId = 'unknown';
 
 	constructor() {
 	}

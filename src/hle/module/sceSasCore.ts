@@ -275,8 +275,9 @@ class SasCore {
 
 		var prevPosDiv = -1;
 
-		this.voices.forEach((voice) => {
-			if (!voice.onAndPlaying) return;
+		for (var n = 0; n < this.voices.length; n++) {
+			var voice = this.voices[n];
+			if (!voice.onAndPlaying) continue;
 
 			//var sampleLeftSum = 0, sampleRightSum = 0;
 			//var sampleLeftMax = 0, sampleRightMax = 0;
@@ -309,7 +310,7 @@ class SasCore {
 					break;
 				}
 			}
-		});
+		}
 
 		for (var n = 0; n < numberOfSamples; n++) {
 			var sample = this.bufferTempArray[n];

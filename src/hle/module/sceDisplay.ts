@@ -23,14 +23,14 @@ export class sceDisplay {
 		this.width = width;
 		this.height = height;
         return 0;
-	});
+	}, { tryCatch: false });
 
 	sceDisplayGetMode = createNativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*', this, (modePtr: Stream, widthPtr: Stream, heightPtr: Stream) => {
 		if (modePtr) modePtr.writeInt32(this.mode);
 		if (widthPtr) widthPtr.writeInt32(this.width);
 		if (heightPtr) heightPtr.writeInt32(this.height);
 		return 0;
-	});
+	}, { tryCatch: false });
 
 	_waitVblankAsync(thread: Thread, acceptCallbacks: AcceptCallbacks) {
 		this.context.display.updateTime();
@@ -44,32 +44,32 @@ export class sceDisplay {
 
     sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, (thread:Thread, cycleNum: number) => {
 		return this._waitVblankAsync(thread, AcceptCallbacks.NO);
-	});
+	}, { tryCatch: false });
 
 	sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, (thread: Thread, cycleNum: number) => {
 		return this._waitVblankAsync(thread, AcceptCallbacks.YES);
-	});
+	}, { tryCatch: false });
 
 	sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, (thread: Thread) => {
 		return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
-	});
+	}, { tryCatch: false });
 
 	sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, (thread: Thread) => {
 		return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
-	});
+	}, { tryCatch : false });
 
 	sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'int', '', this, () => {
 		this.context.display.updateTime();
 		return this.context.display.vblankCount;
-	});
+	}, { tryCatch: false });
 
 	sceDisplayGetFramePerSec = createNativeFunction(0xDBA6C4C4, 150, 'float', '', this, () => {
 		return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
-	});
+	}, { tryCatch: false });
 
 	sceDisplayIsVblank = createNativeFunction(0x4D4E10EC, 150, 'int', '', this, () => {
 		return (this.context.display.secondsLeftForVblank == 0);
-	});
+	}, { tryCatch: false });
 
 	sceDisplaySetFrameBuf = createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, (address: number, bufferWidth: number, pixelFormat: PixelFormat, sync: number) => {
         this.context.display.address = address;
@@ -77,7 +77,7 @@ export class sceDisplay {
         this.context.display.pixelFormat = pixelFormat;
         this.context.display.sync = sync;
         return 0;
-	});
+	}, { tryCatch: false });
 
 	sceDisplayGetFrameBuf = createNativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*', this, (topaddrPtr: Stream, bufferWidthPtr: Stream, pixelFormatPtr: Stream, syncPtr: Stream) => {
 		if (topaddrPtr) topaddrPtr.writeInt32(this.context.display.address);
@@ -85,12 +85,11 @@ export class sceDisplay {
 		if (pixelFormatPtr) pixelFormatPtr.writeInt32(this.context.display.pixelFormat);
 		if (syncPtr) syncPtr.writeInt32(this.context.display.sync);
 		return 0;
-	});
-
+	}, { tryCatch: false });
 
 	sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, () => {
 		this.context.display.updateTime();
 		return this.context.display.hcountTotal;
-	});
+	}, { tryCatch: false });
 }
 

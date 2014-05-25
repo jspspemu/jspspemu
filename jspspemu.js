@@ -539,7 +539,11 @@ if (!Math['clz32']) {
 
 if (!Math['trunc']) {
     Math['trunc'] = function (x) {
-        return x < 0 ? Math.ceil(x) : Math.floor(x);
+        if (x < 0) {
+            return Math.ceil(x) | 0;
+        } else {
+            return Math.floor(x) | 0;
+        }
     };
 }
 
@@ -556,41 +560,38 @@ if (!Math['imul']) {
     };
 }
 
-function testMultiply64_Base(a, b) {
-    var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
-    var result2 = Math.imul32_64(a, b, [1, 1]);
-    return {
-        int64: result,
-        fast: result2,
-        compare: (result.low == result2[0]) && (result.high == result2[1])
-    };
-}
-
-function testMultiply64_Base_u(a, b) {
-    var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
-    var result2 = Math.umul32_64(a, b, [1, 1]);
-    return {
-        int64: result,
-        fast: result2,
-        compare: (result.low == result2[0]) && (result.high == result2[1])
-    };
-}
-
-function testMultiply64() {
-    var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
-    values.forEach(function (v1) {
-        values.forEach(function (v2) {
-            var result = testMultiply64_Base(v1, v2);
-            if (!result.compare)
-                console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
-
-            var result = testMultiply64_Base_u(v1, v2);
-            if (!result.compare)
-                console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
-        });
-    });
-}
-
+//function testMultiply64_Base(a: number, b: number) {
+//	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+//	var result2 = Math.imul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64_Base_u(a: number, b: number) {
+//	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+//	var result2 = Math.umul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64() {
+//	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+//	values.forEach((v1) => {
+//		values.forEach((v2) => {
+//			var result = testMultiply64_Base(v1, v2);
+//			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//
+//			var result = testMultiply64_Base_u(v1, v2);
+//			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//		});
+//	});
+//}
 if (!Math.umul32_64) {
     Math.umul32_64 = function (a, b, result) {
         if (result === undefined)
@@ -1048,6 +1049,29 @@ var MathUtils = (function () {
         return v;
     };
     return MathUtils;
+})();
+
+var IntUtils = (function () {
+    function IntUtils() {
+    }
+    IntUtils.toHexString = function (value, padCount) {
+        var str = (value >>> 0).toString(16);
+        while (str.length < padCount)
+            str = '0' + str;
+        return str;
+    };
+    return IntUtils;
+})();
+
+var StringUtils = (function () {
+    function StringUtils() {
+    }
+    StringUtils.padLeft = function (text, padchar, length) {
+        while (text.length < length)
+            text = padchar + text;
+        return text;
+    };
+    return StringUtils;
 })();
 
 function ToUint32(x) {
@@ -1730,48 +1754,6 @@ var UInt8Type = (function () {
     return UInt8Type;
 })();
 
-var Struct = (function () {
-    function Struct(items) {
-        this.items = items;
-        this.processedItems = [];
-        this.processedItems = items.map(function (item) {
-            for (var key in item)
-                return { name: key, type: item[key] };
-            throw (new Error("Entry must have one item"));
-        });
-    }
-    Struct.create = function (items) {
-        return new Struct(items);
-    };
-
-    Struct.prototype.read = function (stream) {
-        var out = {};
-        this.processedItems.forEach(function (item) {
-            out[item.name] = item.type.read(stream, out);
-        });
-        return out;
-    };
-    Struct.prototype.write = function (stream, value) {
-        this.processedItems.forEach(function (item) {
-            item.type.write(stream, value[item.name], value);
-        });
-    };
-    Object.defineProperty(Struct.prototype, "length", {
-        get: function () {
-            return this.processedItems.sum(function (item) {
-                if (!item)
-                    throw ("Invalid item!!");
-                if (!item.type)
-                    throw ("Invalid item type!!");
-                return item.type.length;
-            });
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return Struct;
-})();
-
 var StructClass = (function () {
     function StructClass(_class, items) {
         this._class = _class;
@@ -1790,27 +1772,32 @@ var StructClass = (function () {
     StructClass.prototype.read = function (stream) {
         var _class = this._class;
         var out = new _class();
-        this.processedItems.forEach(function (item) {
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
             out[item.name] = item.type.read(stream, out);
-        });
+        }
         return out;
     };
     StructClass.prototype.write = function (stream, value) {
-        this.processedItems.forEach(function (item) {
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
             item.type.write(stream, value[item.name], value);
-        });
+        }
     };
     Object.defineProperty(StructClass.prototype, "length", {
         get: function () {
-            return this.processedItems.sum(function (item) {
+            var sum = 0;
+            for (var n = 0; n < this.processedItems.length; n++) {
+                var item = this.processedItems[n];
                 if (!item)
                     throw ("Invalid item!!");
                 if (!item.type) {
                     console.log(item);
                     throw ("Invalid item type!!");
                 }
-                return item.type.length;
-            });
+                sum += item.type.length;
+            }
+            return sum;
         },
         enumerable: true,
         configurable: true
@@ -2065,7 +2052,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2273,11 +2260,28 @@ String.prototype.contains = function (value) {
 var Microtask = (function () {
     function Microtask() {
     }
+    Microtask.initOnce = function () {
+        if (Microtask.initialized)
+            return;
+        window.addEventListener("message", Microtask.window_message, false);
+        Microtask.__location = document.location.href;
+        Microtask.initialized = true;
+    };
+
+    Microtask.window_message = function (e) {
+        if (e.data == Microtask.__messageType)
+            Microtask.execute();
+    };
+
     Microtask.queue = function (callback) {
+        Microtask.initOnce();
         Microtask.callbacks.push(callback);
         if (!Microtask.queued) {
             Microtask.queued = true;
+
+            //window.postMessage(Microtask.__messageType, Microtask.__location);
             setTimeout(Microtask.execute, 0);
+            //Microtask.execute(); // @TODO
         }
     };
 
@@ -2290,6 +2294,9 @@ var Microtask = (function () {
     };
     Microtask.queued = false;
     Microtask.callbacks = [];
+    Microtask.initialized = false;
+    Microtask.__messageType = '__Microtask_execute';
+    Microtask.__location = null;
     return Microtask;
 })();
 
@@ -2586,6 +2593,19 @@ function htmlspecialchars(str) {
         return tag;
     });
 }
+
+function mac2string(mac) {
+    return sprintf("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+function string2mac(string) {
+    var array = String(string).split(':').map(function (item) {
+        return parseInt(item, 16);
+    });
+    while (array.length < 6)
+        array.push(0);
+    return new Uint8Array(array);
+}
 //# sourceMappingURL=utils.js.map
 
 var require = (function() {
@@ -2809,6 +2829,8 @@ $(window).load(function () {
 "src/context": function(module, exports, require) {
 var EmulatorContext = (function () {
     function EmulatorContext() {
+        this.container = {};
+        this.gameTitle = 'unknown';
     }
     EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config, interop) {
         this.interruptManager = interruptManager;
@@ -2945,11 +2967,11 @@ var PspAudioChannel = (function () {
                 if (this.buffers.length == 0)
                     break;
 
-                //for (var n = 0; n < Math.min(3, this.buffers.length); n++) if (this.buffers[n]) this.buffers[n].resolve();
-                this.buffers.slice(0, 3).forEach(function (buffer) {
-                    return buffer.resolve();
-                });
+                for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
+                    this.buffers[m].resolve();
+                }
 
+                //this.buffers.slice(0, 3).forEach(buffer => buffer.resolve());
                 this.currentBuffer = this.buffers.shift();
                 this.currentBuffer.resolve();
             }
@@ -3835,7 +3857,8 @@ var ANodeExprU32 = (function (_super) {
         this.value = value;
     }
     ANodeExprU32.prototype.toJs = function () {
-        return sprintf('0x%08X', this.value);
+        return '0x' + IntUtils.toHexString(this.value, 8);
+        //return sprintf('0x%08X', this.value);
     };
     return ANodeExprU32;
 })(ANodeExpr);
@@ -6079,7 +6102,7 @@ var PspInstructionStm = (function (_super) {
         this.di = di;
     }
     PspInstructionStm.prototype.toJs = function () {
-        return sprintf("/*%08X*/ /* %-6s */ %s ", this.PC, this.di.type.name, this.code.toJs());
+        return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
     };
     PspInstructionStm.prototype.optimize = function () {
         return new PspInstructionStm(this.PC, this.code.optimize(), this.di);
@@ -6127,6 +6150,16 @@ var FunctionGenerator = (function () {
     };
 
     FunctionGenerator.prototype.create = function (address) {
+        var code = this._create(address);
+        try  {
+            return new Function('state', code);
+        } catch (e) {
+            console.info('code:\n', code);
+            throw (e);
+        }
+    };
+
+    FunctionGenerator.prototype._create = function (address) {
         var _this = this;
         //var enableOptimizations = false;
         var enableOptimizations = true;
@@ -6181,6 +6214,7 @@ var FunctionGenerator = (function () {
 
                 var isBranch = di.type.isBranch;
                 var isCall = di.type.isCall;
+                var isUnconditionalNonLinkJump = (di.type.name == 'j');
                 var jumpAddress = 0;
                 var jumpBack = false;
                 var jumpAhead = false;
@@ -6195,7 +6229,7 @@ var FunctionGenerator = (function () {
                 jumpBack = !jumpAhead;
 
                 // SIMPLE LOOP
-                var isSimpleLoop = isBranch && jumpBack && (jumpAddress >= startPC);
+                var isSimpleLoop = (isBranch || isUnconditionalNonLinkJump) && jumpBack && (jumpAddress >= startPC);
                 var isFunctionCall = isCall;
 
                 stms.add(emitInstruction());
@@ -6246,19 +6280,13 @@ var FunctionGenerator = (function () {
         returnWithCheck();
 
         if (mustDumpFunction) {
-            console.debug(sprintf("// function_%08X:\n%s", address, stms.toJs()));
+            console.debug("// function_" + IntUtils.toHexString(address, 8) + ":\n" + stms.toJs());
         }
 
         if (n >= 100000)
             throw (new Error(sprintf("Too large function PC=%08X", address)));
 
-        var code = stms.toJs();
-        try  {
-            return new Function('state', code);
-        } catch (e) {
-            console.info('code:\n', code);
-            throw (e);
-        }
+        return stms.toJs();
     };
     return FunctionGenerator;
 })();
@@ -7626,10 +7654,7 @@ var CpuState = (function () {
         this.PC = 0;
         this.IC = 0;
         this.LO = 0;
-        this._HI = 0;
-        this._HI_op = 0;
-        this._HI_op1 = 0;
-        this._HI_op2 = 0;
+        this.HI = 0;
         this.thread = null;
         this.callstack = [];
         this.fcr31_rm = 0;
@@ -7986,33 +8011,6 @@ var CpuState = (function () {
         this.vfpr[0] = 0;
     };
 
-
-    CpuState.prototype.setHIOp = function (op, op1, op2) {
-        this._HI_op = op;
-        this._HI_op1 = op1;
-        this._HI_op2 = op2;
-    };
-
-    Object.defineProperty(CpuState.prototype, "HI", {
-        get: function () {
-            switch (this._HI_op) {
-                case 0:
-                    return this._HI;
-                case 1:
-                    var result = Math.imul32_64(this._HI_op1, this._HI_op2, CpuState._mult_temp);
-                    this._HI_op = 0;
-                    return this._HI = result[1];
-            }
-            throw (new Error("Can't generate HI"));
-        },
-        set: function (value) {
-            this._HI = value;
-            this._HI_op = 0;
-        },
-        enumerable: true,
-        configurable: true
-    });
-
     CpuState.prototype.preserveRegisters = function (callback) {
         var temp = new CpuState(this.memory, this.syscallManager);
         temp.copyRegistersFrom(this);
@@ -8024,10 +8022,10 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.copyRegistersFrom = function (other) {
-        var _this = this;
-        ['PC', 'IC', 'LO', 'HI'].forEach(function (item) {
-            _this[item] = other[item];
-        });
+        this.PC = other.PC;
+        this.IC = other.IC;
+        this.LO = other.LO;
+        this.HI = other.HI;
         for (var n = 0; n < 32; n++)
             this.gpr[n] = other.gpr[n];
         for (var n = 0; n < 32; n++)
@@ -8340,8 +8338,9 @@ var CpuState = (function () {
     };
 
     CpuState.prototype.mult = function (rs, rt) {
-        this.LO = Math.imul(rs, rt);
-        this.setHIOp(1, rs, rt);
+        Math.imul32_64(rs, rt, CpuState._mult_temp);
+        this.LO = CpuState._mult_temp[0];
+        this.HI = CpuState._mult_temp[1];
     };
 
     CpuState.prototype.madd = function (rs, rt) {
@@ -14167,6 +14166,12 @@ var Memory = (function () {
         return new Uint8Array(this.buffer, address, length);
     };
 
+    Memory.prototype.writeUint8Array = function (address, data) {
+        for (var n = 0; n < data.length; n++)
+            this.writeInt8(address + n, data[n]);
+        this._checkWriteBreakpoints(address, address + data.length);
+    };
+
     Memory.prototype.writeStream = function (address, stream) {
         stream = stream.sliceWithLength(0, stream.length);
         while (stream.available > 0) {
@@ -14881,6 +14886,8 @@ var Emulator = (function () {
                         var pspElf = new PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
                         pspElf.load(elfStream);
                         _this.context.symbolLookup = pspElf;
+                        _this.context.gameTitle = _this.gameTitle;
+                        _this.context.gameId = pspElf.moduleInfo.name;
                         var moduleInfo = pspElf.moduleInfo;
 
                         //this.memory.dump(); debugger;
@@ -14951,7 +14958,7 @@ var Emulator = (function () {
 
     Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
         var _this = this;
-        $('#game_menu').hide();
+        $('#game_menu').fadeOut(100);
 
         this.gameTitle = '';
         this.loadIcon0(Stream.fromArray([]));
@@ -19127,8 +19134,11 @@ var Thread = (function () {
 
     Thread.prototype.delayMicrosecondsAsync = function (delayMicroseconds, allowCompensating) {
         //console.error(delayMicroseconds, this.accumulatedMicroseconds);
+        //return waitAsync(delayMicroseconds / 1000).then(() => 0);
         var _this = this;
         if (typeof allowCompensating === "undefined") { allowCompensating = false; }
+        this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000); // Don't accumulate more than 50ms
+
         if (allowCompensating) {
             //debugger;
             var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
@@ -19948,7 +19958,7 @@ var IoFileMgrForUser = (function () {
             var output = _this.context.memory.getPointerStream(outputPointer, outputLength);
 
             return _this.context.fileManager.devctlAsync(deviceName, command, input, output);
-        });
+        }, { tryCatch: false });
         this.fileUids = new UidCollection(3);
         this.directoryUids = new UidCollection(1);
         this.sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
@@ -20961,7 +20971,7 @@ var sceDisplay = (function () {
             _this.width = width;
             _this.height = height;
             return 0;
-        });
+        }, { tryCatch: false });
         this.sceDisplayGetMode = createNativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*', this, function (modePtr, widthPtr, heightPtr) {
             if (modePtr)
                 modePtr.writeInt32(_this.mode);
@@ -20970,36 +20980,36 @@ var sceDisplay = (function () {
             if (heightPtr)
                 heightPtr.writeInt32(_this.height);
             return 0;
-        });
+        }, { tryCatch: false });
         this.sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
             return _this._waitVblankAsync(thread, 0 /* NO */);
-        });
+        }, { tryCatch: false });
         this.sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
             return _this._waitVblankAsync(thread, 1 /* YES */);
-        });
+        }, { tryCatch: false });
         this.sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, function (thread) {
             return _this._waitVblankStartAsync(thread, 0 /* NO */);
-        });
+        }, { tryCatch: false });
         this.sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, function (thread) {
             return _this._waitVblankStartAsync(thread, 1 /* YES */);
-        });
+        }, { tryCatch: false });
         this.sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'int', '', this, function () {
             _this.context.display.updateTime();
             return _this.context.display.vblankCount;
-        });
+        }, { tryCatch: false });
         this.sceDisplayGetFramePerSec = createNativeFunction(0xDBA6C4C4, 150, 'float', '', this, function () {
             return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
-        });
+        }, { tryCatch: false });
         this.sceDisplayIsVblank = createNativeFunction(0x4D4E10EC, 150, 'int', '', this, function () {
             return (_this.context.display.secondsLeftForVblank == 0);
-        });
+        }, { tryCatch: false });
         this.sceDisplaySetFrameBuf = createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
             _this.context.display.address = address;
             _this.context.display.bufferWidth = bufferWidth;
             _this.context.display.pixelFormat = pixelFormat;
             _this.context.display.sync = sync;
             return 0;
-        });
+        }, { tryCatch: false });
         this.sceDisplayGetFrameBuf = createNativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*', this, function (topaddrPtr, bufferWidthPtr, pixelFormatPtr, syncPtr) {
             if (topaddrPtr)
                 topaddrPtr.writeInt32(_this.context.display.address);
@@ -21010,11 +21020,11 @@ var sceDisplay = (function () {
             if (syncPtr)
                 syncPtr.writeInt32(_this.context.display.sync);
             return 0;
-        });
+        }, { tryCatch: false });
         this.sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, function () {
             _this.context.display.updateTime();
             return _this.context.display.hcountTotal;
-        });
+        }, { tryCatch: false });
     }
     sceDisplay.prototype._waitVblankAsync = function (thread, acceptCallbacks) {
         this.context.display.updateTime();
@@ -21467,8 +21477,13 @@ var createNativeFunction = _utils.createNativeFunction;
 
 var sceNet = (function () {
     function sceNet(context) {
+        var _this = this;
         this.context = context;
         this.sceNetInit = createNativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int', this, function (memoryPoolSize, calloutprio, calloutstack, netintrprio, netintrstack) {
+            _this.context.container['mac'] = new Uint8Array(xrange(0, 6).map(function (index) {
+                return Math.random() * 255;
+            }));
+
             return 0;
         });
         this.sceNetTerm = createNativeFunction(0x281928A9, 150, 'int', '', this, function () {
@@ -21484,21 +21499,22 @@ var sceNet = (function () {
         });
         /** Convert string to a Mac address **/
         this.sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/void*', this, function (string, macAddress) {
-            for (var n = 0; n < 6; n++)
-                macAddress.writeInt8(0);
+            string.split(':').forEach(function (part) {
+                macAddress.writeInt8(parseInt(part, 16));
+            });
             return 0;
         });
         /** Convert Mac address to a string **/
         this.sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'void*/void*', this, function (macAddress, outputAddress) {
-            var mac = [0, 0, 0, 0, 0, 0];
-            for (var n = 0; n < 6; n++)
-                mac[n] = macAddress.readUInt8();
+            var mac = macAddress.readBytes(6);
             outputAddress.writeStringz(sprintf('%02X:%02X:%02X:%02X:%02X:%02X', mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], mac[6]));
             return 0;
         });
         /** Retrieve the local Mac address **/
         this.sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'void*', this, function (macAddress) {
-            var mac = [1, 2, 3, 4, 5, 6];
+            var mac = _this.context.container['mac'];
+            console.info('sceNetGetLocalEtherAddr:', mac2string(mac));
+
             for (var n = 0; n < 6; n++)
                 macAddress.writeUInt8(mac[n]);
             return 0;
@@ -21514,20 +21530,26 @@ exports.sceNet = sceNet;
 //# sourceMappingURL=sceNet.js.map
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
+var _sceNetAdhocMatching = require('./sceNetAdhocMatching');
 var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
 
+//var pdpsByPort = <NumberDictionary<Pdp>>{};
+//var pdpInstance: Pdp = null;
+//var matchingInstance: Matching = null;
 var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
         var _this = this;
         this.context = context;
         /** Initialise the adhoc library. */
         this.sceNetAdhocInit = createNativeFunction(0xE1D621D7, 150, 'int', '', this, function () {
+            _this.partition = _this.context.memoryManager.kernelPartition.allocateLow(0x4000);
             return 0;
         });
         /** Terminate the adhoc library */
         this.sceNetAdhocTerm = createNativeFunction(0xA62C6F57, 150, 'int', '', this, function () {
+            _this.partition.deallocate();
             return 0;
         });
         /** */
@@ -21538,17 +21560,42 @@ var sceNetAdhoc = (function () {
         this.pdps = new UidCollection(1);
         /** Create a PDP object. */
         this.sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'void*/int/uint/int', this, function (mac, port, bufsize, unk1) {
-            return _this.pdps.allocate(new PDP());
+            //debugger;
+            var pdp = new Pdp(_this.context, mac.readBytes(6), port, bufsize);
+            _this.context.container['pdp'] = pdp;
+            pdp.id = _this.pdps.allocate(pdp);
+            return pdp.id;
         });
         /** Delete a PDP object. */
         this.sceNetAdhocPdpDelete = createNativeFunction(0x7F27BB5E, 150, 'int', 'int/int', this, function (pdpId, unk1) {
+            var pdp = _this.pdps.get(pdpId);
+            pdp.dispose();
+
             _this.pdps.remove(pdpId);
             return 0;
         });
         /** Send a PDP packet to a destination. */
-        this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/void*/int/void*/int/int/int', this, function (pdpId, destMacAddr, port, data, len, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPdpSend"));
-            return -1;
+        this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/void*/int/byte[]/int/int', this, function (pdpId, destMacAddr, port, dataStream, timeout, nonblock) {
+            //debugger;
+            var pdp = _this.pdps.get(pdpId);
+
+            //var recv = new PdpRecv();
+            var destMac = destMacAddr.readBytes(6);
+            var data = dataStream.readBytes(dataStream.length);
+
+            //recv.port = port;
+            ////recv.mac = destMac;
+            //recv.mac = new Uint8Array([10, 11, 12, 13, 14, 15]);
+            //recv.data = data;
+            //
+            //pdp.addRecv(recv);
+            var matching = _this.context.container['matching'];
+            matching.sendMessage(11 /* Data */, destMac, data);
+
+            //console.info('sceNetAdhocPdpSend:', pdpId, destMac, port, data, timeout, nonblock);
+            //debugger;
+            //throw (new Error("Not implemented sceNetAdhocPdpSend"));
+            return 0;
         });
         /** Receive a PDP packet */
         this.sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/void*/void*/void*/void*/int/int', this, function (pdpId, srcMacAddr, portPtr, data, dataLength, timeout, nonblock) {
@@ -21558,9 +21605,20 @@ var sceNetAdhoc = (function () {
         /** Get the status of all PDP objects */
         this.sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, function (size, pdpStatStruct) {
             size.writeInt32(0);
-
-            //throw (new Error("Not implemented sceNetAdhocGetPdpStat"));
             return 0;
+            //var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
+            //var pos = 0;
+            //this.pdps.list().forEach(pdp => {
+            //	var stat = new PdpStatStruct();
+            //	stat.nextPointer = 0;
+            //	stat.pdpId = pdp.id;
+            //	stat.port = pdp.port;
+            //	stat.mac = xrange(0, 6).map(index => pdp.mac[index]);
+            //	stat.rcvdData = pdp.getDataLength();
+            //	PdpStatStruct.struct.write(outStream, stat);
+            //});
+            //size.writeInt32(outStream.position);
+            //return 0;
         });
         /** Create own game object type data. */
         this.sceNetAdhocGameModeCreateMaster = createNativeFunction(0x7F75C338, 150, 'int', 'byte[]', this, function (data) {
@@ -21642,12 +21700,58 @@ var sceNetAdhoc = (function () {
 })();
 exports.sceNetAdhoc = sceNetAdhoc;
 
-var PDP = (function () {
-    function PDP() {
+var PdpRecv = (function () {
+    function PdpRecv() {
+        this.port = 0;
+        this.mac = new Uint8Array(6);
+        this.data = new Uint8Array(0);
     }
-    PDP.prototype.dispose = function () {
+    return PdpRecv;
+})();
+
+var Pdp = (function () {
+    function Pdp(context, mac, port, bufsize) {
+        this.context = context;
+        this.mac = mac;
+        this.port = port;
+        this.bufsize = bufsize;
+        this.id = 0;
+        this.recvList = [];
+    }
+    Pdp.prototype.addRecv = function (item) {
+        this.recvList.push(item);
+        if (!this.context.container['matching'])
+            debugger;
+        this.context.container['matching'].notify(11 /* Data */, item.mac, item.data);
     };
-    return PDP;
+
+    Pdp.prototype.getDataLength = function () {
+        return this.recvList.sum(function (item) {
+            return item.data.length;
+        });
+    };
+
+    Pdp.prototype.dispose = function () {
+    };
+    return Pdp;
+})();
+
+var PdpStatStruct = (function () {
+    function PdpStatStruct() {
+        this.nextPointer = 0;
+        this.pdpId = 0;
+        this.mac = [0, 0, 0, 0, 0, 0];
+        this.port = 0;
+        this.rcvdData = 0;
+    }
+    PdpStatStruct.struct = StructClass.create(PdpStatStruct, [
+        { nextPointer: UInt32 },
+        { pdpId: Int32 },
+        { mac: StructArray(Int8, 6) },
+        { port: Int16 },
+        { rcvdData: UInt32 }
+    ]);
+    return PdpStatStruct;
 })();
 /*
 class pdpStatStruct { // PDP status structure
@@ -21674,13 +21778,19 @@ public int unk1; // Unknown
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
 var _utils = require('../utils');
 
+var _manager = require('../manager');
+_manager.Thread;
+
 var createNativeFunction = _utils.createNativeFunction;
+
+var Thread = _manager.Thread;
 
 var sceNetAdhocMatching = (function () {
     function sceNetAdhocMatching(context) {
         var _this = this;
         this.context = context;
         this.poolStat = { size: 0, maxsize: 0, freesize: 0 };
+        /** Initialise the Adhoc matching library */
         this.sceNetAdhocMatchingInit = createNativeFunction(0x2A2A1E07, 150, 'int', 'int', this, function (memSize) {
             //stateOut.writeInt32(this.currentState);
             _this.poolStat.size = memSize;
@@ -21688,17 +21798,46 @@ var sceNetAdhocMatching = (function () {
             _this.poolStat.freesize = memSize;
             return 0;
         });
+        /** Terminate the Adhoc matching library */
         this.sceNetAdhocMatchingTerm = createNativeFunction(0x7945ECDA, 150, 'int', '', this, function () {
             return 0;
         });
         this.matchings = new UidCollection(1);
-        this.sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'int/int/int/int/int/int/int/int/uint', this, function (mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback) {
-            return _this.matchings.allocate(new Matching(mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback));
+        /** Create an Adhoc matching object */
+        this.sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint', this, function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback) {
+            var matching = new Matching(_this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback);
+            matching.id = _this.matchings.allocate(matching);
+            _this.context.container['matching'] = matching;
+            return matching.id;
         });
-        this.sceNetAdhocMatchingStart = createNativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*', this, function (matchingId, evthPri, evthStack, inthPri, inthStack, optLen, optData) {
+        /** Select a matching target */
+        this.sceNetAdhocMatchingSelectTarget = createNativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*', this, function (matchingId, mac, dataLength, dataPointer) {
             var matching = _this.matchings.get(matchingId);
-            matching.setHello(optData.sliceWithLength(0, optLen));
+            matching.selectTarget(mac.readBytes(6), (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
+            return 0;
+        });
+        this.sceNetAdhocMatchingCancelTarget = createNativeFunction(0xEA3C6108, 150, 'int', 'int/void*', this, function (matchingId, mac) {
+            var matching = _this.matchings.get(matchingId);
+            matching.cancelTarget(mac.readBytes(6));
+            return 0;
+        });
+        /** Delete an Adhoc matching object */
+        this.sceNetAdhocMatchingDelete = createNativeFunction(0xF16EAF4F, 150, 'int', 'int', this, function (matchingId) {
+            _this.matchings.remove(matchingId);
+            return 0;
+        });
+        /** Start a matching object */
+        this.sceNetAdhocMatchingStart = createNativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*', this, function (matchingId, evthPri, evthStack, inthPri, inthStack, optLen, optData) {
+            //throw (new Error("sceNetAdhocMatchingStart"));
+            var matching = _this.matchings.get(matchingId);
+            matching.hello = optData.readBytes(optLen);
             matching.start();
+            return 0;
+        });
+        /** Stop a matching object */
+        this.sceNetAdhocMatchingStop = createNativeFunction(0x32B156B3, 150, 'int', 'int', this, function (matchingId) {
+            var matching = _this.matchings.get(matchingId);
+            matching.stop();
             return 0;
         });
     }
@@ -21707,7 +21846,9 @@ var sceNetAdhocMatching = (function () {
 exports.sceNetAdhocMatching = sceNetAdhocMatching;
 
 var Matching = (function () {
-    function Matching(mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback) {
+    function Matching(context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback) {
+        this.context = context;
+        this.thread = thread;
         this.mode = mode;
         this.maxPeers = maxPeers;
         this.port = port;
@@ -21717,17 +21858,122 @@ var Matching = (function () {
         this.initCount = initCount;
         this.msgDeplay = msgDeplay;
         this.callback = callback;
+        this.id = 0;
+        this.receivedJoinMacAddressPending = false;
+        this.joinMac = '00:00:00:00:00:00';
+        this.mac = new Uint8Array([1, 2, 3, 4, 5, 6]);
+        this.hello = new Uint8Array(0);
+        this.timer = -1;
     }
-    Matching.prototype.setHello = function (data) {
+    Matching.prototype.start = function () {
+        var _this = this;
+        setInterval(function () {
+            _this.sendMessage(1 /* Hello */, Matching.MAC_ALL, _this.hello);
+        }, this.helloDelay / 1000);
     };
 
-    Matching.prototype.start = function () {
+    Matching.prototype.stop = function () {
+        clearInterval(this.timer);
     };
+
+    Matching.prototype.selectTarget = function (mac, data) {
+        var macstr = mac2string(mac);
+        console.info("adhoc: selectTarget", macstr);
+        if (this.receivedJoinMacAddressPending && macstr == this.joinMac) {
+            this.receivedJoinMacAddressPending = false;
+            this.sendMessage(6 /* Accept */, mac, data);
+        } else {
+            this.sendMessage(2 /* Join */, mac, data);
+        }
+    };
+
+    Matching.prototype.cancelTarget = function (mac) {
+        var macstr = mac2string(mac);
+        console.info("adhoc: cancelTarget", macstr);
+        this.receivedJoinMacAddressPending = false;
+        this.sendMessage(5 /* Cancel */, mac, null);
+    };
+
+    Matching.prototype.sendMessage = function (event, tomac, data) {
+        if (!data)
+            data = new Uint8Array(0);
+        if (event != 1 /* Hello */) {
+            console.info("adhoc: send ->", Event[event], event, ':', mac2string(tomac), ':', Stream.fromUint8Array(data).readString(data.length));
+        }
+        var ws = this.context.container['ws'];
+        if (ws) {
+            ws.send(JSON.stringify({ type: Event[event], to: mac2string(tomac), payload: Stream.fromUint8Array(data).toBase64() }));
+        } else {
+            console.warn('not provided a websocket. Not connected to adhoc controller?');
+        }
+    };
+
+    Matching.prototype.notify = function (event, frommac, data) {
+        if (!data)
+            data = new Uint8Array(0);
+
+        if (event != 1 /* Hello */) {
+            console.info("adhoc: received <-", Event[event], event, ':', mac2string(frommac), ':', Stream.fromUint8Array(data).readString(data.length));
+        }
+
+        switch (event) {
+            case 2 /* Join */:
+                this.receivedJoinMacAddressPending = true;
+                this.joinMac = mac2string(frommac);
+                break;
+        }
+
+        var macPartition = this.context.memoryManager.kernelPartition.allocateLow(8, 'Matching.mac');
+        this.context.memory.writeUint8Array(macPartition.low, frommac);
+        this.context.memory.memset(macPartition.low, 0, macPartition.size);
+
+        var dataPartition = this.context.memoryManager.kernelPartition.allocateLow(Math.max(8, MathUtils.nextAligned(data.length, 8)), 'Matching.data');
+        this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
+        this.context.memory.writeUint8Array(dataPartition.low, data);
+
+        //// @TODO: Enqueue callback instead of executing now?
+        this.context.interop.execute(this.thread.state, this.callback, [
+            this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
+        ]);
+
+        dataPartition.deallocate();
+        macPartition.deallocate();
+
+        switch (event) {
+            case 6 /* Accept */:
+                this.sendMessage(7 /* Complete */, frommac, data);
+                break;
+            case 11 /* Data */:
+                this.sendMessage(12 /* DataConfirm */, frommac, null);
+                break;
+        }
+    };
+    Matching.MAC_ALL = new Uint8Array([0, 0, 0, 0, 0, 0]);
     return Matching;
 })();
+exports.Matching = Matching;
+
+(function (Event) {
+    Event[Event["Hello"] = 1] = "Hello";
+    Event[Event["Join"] = 2] = "Join";
+    Event[Event["Left"] = 3] = "Left";
+    Event[Event["Reject"] = 4] = "Reject";
+    Event[Event["Cancel"] = 5] = "Cancel";
+    Event[Event["Accept"] = 6] = "Accept";
+    Event[Event["Complete"] = 7] = "Complete";
+    Event[Event["Timeout"] = 8] = "Timeout";
+    Event[Event["Error"] = 9] = "Error";
+    Event[Event["Disconnect"] = 10] = "Disconnect";
+    Event[Event["Data"] = 11] = "Data";
+    Event[Event["DataConfirm"] = 12] = "DataConfirm";
+    Event[Event["DataTimeout"] = 13] = "DataTimeout";
+    Event[Event["InternalPing"] = 100] = "InternalPing";
+})(exports.Event || (exports.Event = {}));
+var Event = exports.Event;
 //# sourceMappingURL=sceNetAdhocMatching.js.map
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
+var _sceNetAdhocMatching = require('./sceNetAdhocMatching');
 var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
@@ -21750,13 +21996,58 @@ var sceNetAdhocctl = (function () {
         /** Connect to the Adhoc control */
         this.sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, function (name) {
             _this.currentName = name;
-            _this.currentState = 1 /* Connected */;
-            _this._notifyAdhocctlHandler(1 /* Connected */);
+
+            _this.ws = new WebSocket('ws://127.0.0.1/ws/' + _this.context.gameId, 'adhoc');
+
+            _this.context.container['ws'] = _this.ws;
+
+            _this.ws.onopen = function (e) {
+            };
+            _this.ws.onclose = function (e) {
+                _this.currentState = 0 /* Disconnected */;
+                _this._notifyAdhocctlHandler(2 /* Disconnected */);
+            };
+            _this.ws.onmessage = function (e) {
+                var info = JSON.parse(e.data);
+                if (info.from == 'FF:FF:FF:FF:FF:FF') {
+                    switch (info.type) {
+                        case 'setid':
+                            _this.context.container['mac'] = string2mac(info.payload);
+
+                            //debugger;
+                            _this.currentState = 1 /* Connected */;
+                            _this._notifyAdhocctlHandler(1 /* Connected */);
+
+                            break;
+                    }
+                    console.info('from_server', info);
+                } else {
+                    var event = (_sceNetAdhocMatching.Event[info.type]);
+                    var macfrom = string2mac(info.from);
+                    var data = Stream.fromBase64(info.payload).toUInt8Array();
+
+                    var matching = _this.context.container['matching'];
+                    if (matching) {
+                        matching.notify(event, macfrom, data);
+                    }
+                }
+            };
+            _this.ws.onerror = function (e) {
+            };
+            return 0;
+        });
+        /** Disconnect from the Adhoc control */
+        this.sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, function () {
+            _this.ws.close();
             return 0;
         });
         this.handlers = new UidCollection(1);
         this.sceNetAdhocctlAddHandler = createNativeFunction(0x20B317A0, 150, 'int', 'int/int', this, function (callback, parameter) {
             return _this.handlers.allocate(new HandlerCallback(callback, parameter));
+        });
+        this.sceNetAdhocctlDelHandler = createNativeFunction(0x6402490B, 150, 'int', 'int', this, function (handler) {
+            _this.handlers.remove(handler);
+            return 0;
         });
         this.sceNetAdhocctlGetState = createNativeFunction(0x75ECD386, 150, 'int', 'void*', this, function (stateOut) {
             stateOut.writeInt32(_this.currentState);
@@ -21783,18 +22074,6 @@ var HandlerCallback = (function () {
     return HandlerCallback;
 })();
 
-var Event;
-(function (Event) {
-    Event[Event["Error"] = 0] = "Error";
-    Event[Event["Connected"] = 1] = "Connected";
-    Event[Event["Disconnected"] = 2] = "Disconnected";
-    Event[Event["Scan"] = 3] = "Scan";
-    Event[Event["Game"] = 4] = "Game";
-    Event[Event["Discover"] = 5] = "Discover";
-    Event[Event["Wol"] = 6] = "Wol";
-    Event[Event["WolInterrupted"] = 7] = "WolInterrupted";
-})(Event || (Event = {}));
-
 var State;
 (function (State) {
     State[State["Disconnected"] = 0] = "Disconnected";
@@ -21811,6 +22090,18 @@ var Mode;
     Mode[Mode["GameMode"] = 1] = "GameMode";
     Mode[Mode["None"] = -1] = "None";
 })(Mode || (Mode = {}));
+
+var Event;
+(function (Event) {
+    Event[Event["Error"] = 0] = "Error";
+    Event[Event["Connected"] = 1] = "Connected";
+    Event[Event["Disconnected"] = 2] = "Disconnected";
+    Event[Event["Scan"] = 3] = "Scan";
+    Event[Event["Game"] = 4] = "Game";
+    Event[Event["Discover"] = 5] = "Discover";
+    Event[Event["Wol"] = 6] = "Wol";
+    Event[Event["WolInterrupted"] = 7] = "WolInterrupted";
+})(Event || (Event = {}));
 
 var NICK_NAME_LENGTH = 128;
 var GROUP_NAME_LENGTH = 8;
@@ -22468,7 +22759,6 @@ var SasCore = (function () {
             this.voices.push(new Voice(this.voices.length));
     }
     SasCore.prototype.mix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
-        var _this = this;
         while (this.bufferTempArray.length < this.grainSamples)
             this.bufferTempArray.push(new Sample(0, 0));
 
@@ -22483,9 +22773,10 @@ var SasCore = (function () {
 
         var prevPosDiv = -1;
 
-        this.voices.forEach(function (voice) {
+        for (var n = 0; n < this.voices.length; n++) {
+            var voice = this.voices[n];
             if (!voice.onAndPlaying)
-                return;
+                continue;
 
             //var sampleLeftSum = 0, sampleRightSum = 0;
             //var sampleLeftMax = 0, sampleRightMax = 0;
@@ -22508,7 +22799,7 @@ var SasCore = (function () {
                         //sampleRightMax = Math.max(sampleRightMax, Math.abs(voice.rightVolume));
                         //
                         //sampleCount++;
-                        _this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
+                        this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
                     }
 
                     prevPosDiv = posDiv;
@@ -22518,7 +22809,7 @@ var SasCore = (function () {
                     break;
                 }
             }
-        });
+        }
 
         for (var n = 0; n < numberOfSamples; n++) {
             var sample = this.bufferTempArray[n];
@@ -23564,7 +23855,7 @@ var ThreadManForUser = (function () {
         this.sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
             //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
             return Integer64.fromNumber(_this._getCurrentMicroseconds());
-        });
+        }, { tryCatch: false });
         this.sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, function (currentThread) {
             return currentThread.id;
         });
@@ -24436,16 +24727,28 @@ var _cpu = require('../core/cpu');
 var NativeFunction = _cpu.NativeFunction;
 exports.NativeFunction = NativeFunction;
 
-function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc) {
+function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
+    var tryCatch = true;
+    if (options) {
+        if (options.tryCatch !== undefined)
+            tryCatch = options.tryCatch;
+    }
+
     var code = '';
 
     var args = [];
+    var maxGprIndex = 12;
     var gprindex = 4;
     var fprindex = 0;
 
     //var fprindex = 2;
     function _readGpr32() {
-        return 'state.gpr[' + (gprindex++) + ']';
+        if (gprindex >= maxGprIndex) {
+            //return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
+            return 'state.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
+        } else {
+            return 'state.gpr[' + (gprindex++) + ']';
+        }
     }
 
     function readFpr32() {
@@ -24518,48 +24821,52 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         }
     });
 
-    code += 'var error = false;';
-    code += 'try {';
-    code += 'var args = [' + args.join(', ') + '];';
-    code += 'var result = internalFunc.apply(_this, args);';
-    code += '} catch (e) {';
-    code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }';
-    code += '}';
+    code += 'var error = false;\n';
+    if (tryCatch) {
+        code += 'try {\n';
+    }
+    code += 'var args = [' + args.join(', ') + '];\n';
+    code += 'var result = internalFunc.apply(_this, args);\n';
+    if (tryCatch) {
+        code += '} catch (e) {\n';
+        code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }\n';
+        code += '}\n';
+    }
 
     var debugSyscalls = false;
 
     //var debugSyscalls = true;
     if (debugSyscalls) {
-        code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;";
-        code += "if (DebugOnce(info, 10)) {";
-        code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");";
-        code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); } ";
-        code += "}";
+        code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
+        code += "if (DebugOnce(info, 10)) {\n";
+        code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
+        code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+        code += "}\n";
     }
 
-    code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); } ';
-    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } } ';
+    code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
+    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
 
     switch (retval) {
         case 'void':
             break;
         case 'uint':
         case 'int':
-            code += 'state.V0 = result | 0;';
+            code += 'state.V0 = result | 0;\n';
             break;
         case 'bool':
-            code += 'state.V0 = result ? 1 : 0;';
+            code += 'state.V0 = result ? 1 : 0;\n';
             break;
         case 'float':
-            code += 'state.fpr[0] = result;';
+            code += 'state.fpr[0] = result;\n';
             break;
         case 'long':
-            code += 'if (!error) {';
-            code += 'if (!(result instanceof Integer64)) { console.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }';
-            code += 'state.V0 = result.low; state.V1 = result.high;';
-            code += '} else {';
-            code += 'state.V0 = result; state.V1 = 0;';
-            code += '}';
+            code += 'if (!error) {\n';
+            code += 'if (!(result instanceof Integer64)) { console.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }\n';
+            code += 'state.V0 = result.low; state.V1 = result.high;\n';
+            code += '} else {\n';
+            code += 'state.V0 = result; state.V1 = 0;\n';
+            code += '}\n';
             break;
         default:
             throw ('Invalid return value "' + retval + '"');
@@ -27062,15 +27369,16 @@ describe('utils', function () {
             assert.equal(Int16.read(stream), 0x0201);
             assert.equal(Int16.read(stream), 0x0403);
         });
-
-        it('should read simple struct', function () {
-            var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
-            var MyStruct = Struct.create([
-                { item1: Int16 },
-                { item2: Int16 }
-            ]);
-            assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
+        /*
+        it('should read simple struct', () => {
+        var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
+        var MyStruct = Struct.create([
+        { item1: Int16 },
+        { item2: Int16 }
+        ]);
+        assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
         });
+        */
     });
 
     describe('Binary search', function () {

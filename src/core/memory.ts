@@ -203,6 +203,11 @@ export class Memory {
 		return new Uint8Array(this.buffer, address, length);
 	}
 
+	writeUint8Array(address: number, data: Uint8Array) {
+		for (var n = 0; n < data.length; n++) this.writeInt8(address + n, data[n]);
+		this._checkWriteBreakpoints(address, address + data.length);
+	}
+
 	writeStream(address: number, stream: Stream) {
 		stream = stream.sliceWithLength(0, stream.length);
 		while (stream.available > 0) {

@@ -124,6 +124,10 @@ export class Thread {
 	accumulatedMicroseconds = 0;
 	delayMicrosecondsAsync(delayMicroseconds: number, allowCompensating = false) {
 		//console.error(delayMicroseconds, this.accumulatedMicroseconds);
+		//return waitAsync(delayMicroseconds / 1000).then(() => 0);
+
+
+		this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000); // Don't accumulate more than 50ms
 
 		if (allowCompensating) {
 			//debugger;

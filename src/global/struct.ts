@@ -87,37 +87,6 @@ interface StructEntryProcessed {
 	type: IType;
 }
 
-class Struct<T> implements IType {
-	processedItems: StructEntryProcessed[] = [];
-
-	constructor(private items: StructEntry[]) {
-		this.processedItems = items.map(item => {
-			for (var key in item) return { name: key, type: item[key] };
-			throw (new Error("Entry must have one item"));
-		});
-	}
-
-	static create<T>(items: StructEntry[]) {
-		return new Struct<T>(items);
-	}
-
-	read(stream: Stream): T {
-		var out: any = {};
-		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream, out); });
-		return out;
-	}
-	write(stream: Stream, value: T): void {
-		this.processedItems.forEach(item => { item.type.write(stream, value[item.name], value); });
-	}
-	get length() {
-		return this.processedItems.sum<number>(item => {
-			if (!item) throw ("Invalid item!!");
-			if (!item.type) throw ("Invalid item type!!");
-			return item.type.length;
-		});
-	}
-}
-
 class StructClass<T> implements IType {
 	processedItems: StructEntryProcessed[] = [];
 
@@ -135,21 +104,30 @@ class StructClass<T> implements IType {
 	read(stream: Stream): T {
 		var _class = this._class;
 		var out: T = new _class();
-		this.processedItems.forEach(item => { out[item.name] = item.type.read(stream, out); });
+		for (var n = 0; n < this.processedItems.length; n++) {
+			var item = this.processedItems[n];
+			out[item.name] = item.type.read(stream, out);
+		}
 		return out;
 	}
 	write(stream: Stream, value: T): void {
-		this.processedItems.forEach(item => { item.type.write(stream, value[item.name], value); });
+		for (var n = 0; n < this.processedItems.length; n++) {
+			var item = this.processedItems[n];
+			item.type.write(stream, value[item.name], value);
+		}
 	}
 	get length() {
-		return this.processedItems.sum<number>(item => {
+		var sum = 0;
+		for (var n = 0; n < this.processedItems.length; n++) {
+			var item = this.processedItems[n];
 			if (!item) throw ("Invalid item!!");
 			if (!item.type) {
 				console.log(item);
 				throw ("Invalid item type!!");
 			}
-			return item.type.length;
-		});
+			sum += item.type.length;
+		}
+		return sum;
 	}
 }
 

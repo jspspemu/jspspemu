@@ -204,7 +204,7 @@ export class ThreadManForUser {
 	sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, () => {
 		//console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
 		return Integer64.fromNumber(this._getCurrentMicroseconds());
-	});
+	}, { tryCatch: false });
 
 	sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, (currentThread: Thread) => {
 		return currentThread.id

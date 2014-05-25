@@ -7,6 +7,8 @@ export class sceNet {
 	constructor(private context: _context.EmulatorContext) { }
 
 	sceNetInit = createNativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int', this, (memoryPoolSize: number, calloutprio: number, calloutstack: number, netintrprio: number, netintrstack: number) => {
+		this.context.container['mac'] = new Uint8Array(xrange(0, 6).map(index => Math.random() * 255));
+
 		return 0;
 	});
 
@@ -26,21 +28,24 @@ export class sceNet {
 
 	/** Convert string to a Mac address **/
 	sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/void*', this, (string: string, macAddress: Stream) => {
-		for (var n = 0; n < 6; n++) macAddress.writeInt8(0);
+		string.split(':').forEach(part => {
+			macAddress.writeInt8(parseInt(part, 16));
+		});
 		return 0;
 	});
 
 	/** Convert Mac address to a string **/
 	sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'void*/void*', this, (macAddress: Stream, outputAddress: Stream) => {
-		var mac = [0, 0, 0, 0, 0, 0];
-		for (var n = 0; n < 6; n++) mac[n] = macAddress.readUInt8();
+		var mac = macAddress.readBytes(6);
 		outputAddress.writeStringz(sprintf('%02X:%02X:%02X:%02X:%02X:%02X', mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], mac[6]));
 		return 0;
 	});
 
 	/** Retrieve the local Mac address **/
 	sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'void*', this, (macAddress: Stream) => {
-		var mac = [1, 2, 3, 4, 5, 6];
+		var mac = <Uint8Array>this.context.container['mac'];
+		console.info('sceNetGetLocalEtherAddr:', mac2string(mac));
+		//debugger;
 		for (var n = 0; n < 6; n++) macAddress.writeUInt8(mac[n]);
 		return 0;
 	});

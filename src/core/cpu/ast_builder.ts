@@ -139,7 +139,10 @@ export class ANodeExprFloat extends ANodeExpr {
 
 export class ANodeExprU32 extends ANodeExpr {
 	constructor(public value: number) { super(); }
-	toJs() { return sprintf('0x%08X', this.value); }
+	toJs() {
+		return '0x' + IntUtils.toHexString(this.value, 8);
+		//return sprintf('0x%08X', this.value);
+	}
 }
 
 export class ANodeExprBinop extends ANodeExpr {
