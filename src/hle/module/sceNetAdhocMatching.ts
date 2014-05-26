@@ -99,19 +99,21 @@ export class Matching {
 	private onMessageCancelable: Cancelable = null;
 	private state = State.START;
 
+	private sendHello() {
+		if (this.state != State.START) return;
+		this.sendMessage(Event.Hello, Matching.MAC_ALL, this.hello);
+	}
+
 	start() {
-		this.helloTimer = setInterval(() => {
-			if (this.state != State.START) return;
-
-			this.sendMessage(Event.Hello, Matching.MAC_ALL, this.hello);
-		}, this.helloDelay / 1000);
-
-		this.dataTimer = setInterval(() => {
-		}, this.msgDelay / 1000);
-
 		this.onMessageCancelable = this.context.netManager.onmessage(this.port).add(packet => {
 			this.notify(Event[packet.type], packet.mac, packet.payload);
 		})
+
+		this.helloTimer = setInterval(() => { this.sendHello(); }, this.helloDelay / 1000);
+		this.sendHello();
+
+		this.dataTimer = setInterval(() => {
+		}, this.msgDelay / 1000);
 	}
 
 	stop() {

@@ -22050,21 +22050,25 @@ var Matching = (function () {
         this.state = 0 /* START */;
         this.messageQueue = [];
     }
+    Matching.prototype.sendHello = function () {
+        if (this.state != 0 /* START */)
+            return;
+        this.sendMessage(1 /* Hello */, Matching.MAC_ALL, this.hello);
+    };
+
     Matching.prototype.start = function () {
         var _this = this;
-        this.helloTimer = setInterval(function () {
-            if (_this.state != 0 /* START */)
-                return;
-
-            _this.sendMessage(1 /* Hello */, Matching.MAC_ALL, _this.hello);
-        }, this.helloDelay / 1000);
-
-        this.dataTimer = setInterval(function () {
-        }, this.msgDelay / 1000);
-
         this.onMessageCancelable = this.context.netManager.onmessage(this.port).add(function (packet) {
             _this.notify(Event[packet.type], packet.mac, packet.payload);
         });
+
+        this.helloTimer = setInterval(function () {
+            _this.sendHello();
+        }, this.helloDelay / 1000);
+        this.sendHello();
+
+        this.dataTimer = setInterval(function () {
+        }, this.msgDelay / 1000);
     };
 
     Matching.prototype.stop = function () {

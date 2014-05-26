@@ -1,2 +1,2 @@
 @echo off
-node utils\static_server.js
+node utils\http_server.js
