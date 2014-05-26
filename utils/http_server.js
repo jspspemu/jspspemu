@@ -128,11 +128,6 @@ var server = http.createServer(function(request, response) {
   });
 });
 
-var server = http.createServer(function(request, response) {
-	response.writeHead(400, { 'Content-Type': 'text/html' });
-	response.end('not serving');
-});
-
 server.on('error', function(e) {
 	console.error(e);
 });

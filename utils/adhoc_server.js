@@ -1,5 +1,3 @@
-var http = require("http");
-
 var WebSocketServer = require('websocket').server;
 
 var debug = false;
@@ -103,16 +101,3 @@ module.exports.connectToServer = function(server) {
 		}
 	});
 };
-
-var server = http.createServer(function(request, response) {
-	response.writeHead(400, { 'Content-Type': 'text/html' });
-	response.end('not serving');
-});
-
-server.on('error', function(e) {
-	console.error(e);
-});
-
-server.listen(parseInt(port, 10), '0.0.0.0');
-
-module.exports.connectToServer(server);
