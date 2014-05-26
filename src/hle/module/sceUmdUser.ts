@@ -1,5 +1,4 @@
 ﻿import _utils = require('../utils');
-import Signal = require('../../util/Signal');
 import _context = require('../../context');
 import createNativeFunction = _utils.createNativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');

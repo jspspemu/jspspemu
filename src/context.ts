@@ -25,6 +25,7 @@ export class EmulatorContext {
 	controller: _controller.IPspController;
 	rtc: _rtc.PspRtc;
 	gpu: _gpu.PspGpu;
+	netManager: _manager.NetManager;
 	memoryManager: _manager.MemoryManager;
 	threadManager: _manager.ThreadManager;
 	callbackManager: _manager.CallbackManager;
@@ -36,6 +37,7 @@ export class EmulatorContext {
 	interruptManager: _interrupt.InterruptManager;
 	symbolLookup: ISymbolLookup;
 	interop: _manager.Interop;
+
 	container: any = {};
 	gameTitle = 'unknown';
 	gameId = 'unknown';
@@ -43,7 +45,7 @@ export class EmulatorContext {
 	constructor() {
 	}
 
-	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager: _manager.ModuleManager, config: _config.Config, interop: _manager.Interop) {
+	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, instructionCache: _cpu.InstructionCache, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager: _manager.ModuleManager, config: _config.Config, interop: _manager.Interop, netManager: _manager.NetManager) {
 		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;
@@ -59,5 +61,6 @@ export class EmulatorContext {
 		this.moduleManager = moduleManager;
 		this.config = config;
 		this.interop = interop;
+		this.netManager = netManager;
 	}
 }

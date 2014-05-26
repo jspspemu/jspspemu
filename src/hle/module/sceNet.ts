@@ -27,26 +27,21 @@ export class sceNet {
 	});
 
 	/** Convert string to a Mac address **/
-	sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/void*', this, (string: string, macAddress: Stream) => {
-		string.split(':').forEach(part => {
-			macAddress.writeInt8(parseInt(part, 16));
-		});
+	sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]', this, (string: string, mac: Uint8Array) => {
+		mac.set(string2mac(string));
 		return 0;
 	});
 
 	/** Convert Mac address to a string **/
-	sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'void*/void*', this, (macAddress: Stream, outputAddress: Stream) => {
-		var mac = macAddress.readBytes(6);
-		outputAddress.writeStringz(sprintf('%02X:%02X:%02X:%02X:%02X:%02X', mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], mac[6]));
+	sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'byte[6]/void*', this, (mac: Uint8Array, outputAddress: Stream) => {
+		outputAddress.writeStringz(mac2string(mac));
 		return 0;
 	});
 
 	/** Retrieve the local Mac address **/
-	sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'void*', this, (macAddress: Stream) => {
-		var mac = <Uint8Array>this.context.container['mac'];
-		console.info('sceNetGetLocalEtherAddr:', mac2string(mac));
-		//debugger;
-		for (var n = 0; n < 6; n++) macAddress.writeUInt8(mac[n]);
+	sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]', this, (macOut: Uint8Array) => {
+		console.info("sceNetGetLocalEtherAddr: ", mac2string(this.context.netManager.mac));
+		macOut.set(this.context.netManager.mac);
 		return 0;
 	});
 

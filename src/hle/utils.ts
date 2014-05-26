@@ -70,7 +70,13 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'ulong': case 'long': args.push(readGpr64()); break;
 			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
 			case 'byte[]': args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
-            default: throw ('Invalid argument "' + item + '"');
+			default:
+				var matches = [];
+				if (matches = item.match(/^byte\[(\d+)\]$/)) {
+					args.push('state.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+				} else {
+					throw ('Invalid argument "' + item + '"');
+				}
         }
     });
 

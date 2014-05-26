@@ -28,52 +28,31 @@ export class sceNetAdhocctl {
 		return 0;
 	});
 
+	private connectHandlers = <Cancelable[]>[];
+
 	/** Connect to the Adhoc control */
 	sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, (name: string) => {
 		this.currentName = name;
 
-		this.ws = new WebSocket('ws://127.0.0.1/ws/' + this.context.gameId, 'adhoc');
-
-		this.context.container['ws'] = this.ws;
-
-		this.ws.onopen = (e) => {
-		};
-		this.ws.onclose = (e) => {
+		this.connectHandlers.push(this.context.netManager.onopen.add(() => {
+			this.currentState = State.Connected;
+			this._notifyAdhocctlHandler(Event.Connected);
+		}));
+		this.connectHandlers.push(this.context.netManager.onclose.add(() => {
 			this.currentState = State.Disconnected;
 			this._notifyAdhocctlHandler(Event.Disconnected);
-		};
-		this.ws.onmessage = (e) => {
-			var info = JSON.parse(e.data);
-			if (info.from == 'FF:FF:FF:FF:FF:FF') {
-				switch (info.type) {
-					case 'setid':
-						this.context.container['mac'] = string2mac(info.payload);
-						//debugger;
-						this.currentState = State.Connected;
-						this._notifyAdhocctlHandler(Event.Connected);
-
-						break;
-				}
-				console.info('from_server', info);
-			} else {
-				var event = <_sceNetAdhocMatching.Event><any>(_sceNetAdhocMatching.Event[info.type]);
-				var macfrom = string2mac(info.from);
-				var data = Stream.fromBase64(info.payload).toUInt8Array();
-
-				var matching = <_sceNetAdhocMatching.Matching>this.context.container['matching'];
-				if (matching) {
-					matching.notify(event, macfrom, data);
-				}
-			}
-		};
-		this.ws.onerror = (e) => {
-		};
+		}));
+		if (this.context.netManager.connected) {
+			this.currentState = State.Connected;
+			this._notifyAdhocctlHandler(Event.Connected);
+		}
+		this.context.netManager.connectOnce();
 		return 0;
 	});
 
 	/** Disconnect from the Adhoc control */
 	sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, () => {
-		this.ws.close();
+		while (this.connectHandlers.length) this.connectHandlers.shift().cancel();
 		return 0;
 	});
 
@@ -95,8 +74,8 @@ export class sceNetAdhocctl {
 
 	private _notifyAdhocctlHandler(event: Event, error = <SceKernelErrors>0) {
 		this.handlers.list().forEach(callback => {
-			var state = this.context.threadManager.current.state;
-			this.context.interop.execute(state, callback.callback, [event, error, callback.argument]);
+			this.context.callbackManager.executeLater(callback.callback, [event, error, callback.argument]);
+			//this.context.interop.execute(this.context.threadManager.current.state, callback.callback, [event, error, callback.argument]);
 		});
 	}
 }

@@ -1,5 +1,4 @@
-﻿import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager');
 import SceKernelErrors = require('../SceKernelErrors');
@@ -9,12 +8,9 @@ import MemoryPartition = _manager.MemoryPartition;
 import Interop = _manager.Interop;
 import Thread = _manager.Thread;
 
-//var pdpsByPort = <NumberDictionary<Pdp>>{};
-//var pdpInstance: Pdp = null;
-//var matchingInstance: Matching = null;
-
 export class sceNetAdhoc {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: _context.EmulatorContext) {
+	}
 
 	private partition: MemoryPartition;
 
@@ -39,10 +35,8 @@ export class sceNetAdhoc {
 	private pdps = new UidCollection<Pdp>(1);
 
 	/** Create a PDP object. */
-	sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'void*/int/uint/int', this, (mac: Stream, port: number, bufsize: number, unk1: number) => {
-		//debugger;
-		var pdp = new Pdp(this.context, mac.readBytes(6), port, bufsize);
-		this.context.container['pdp'] = pdp;
+	sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int', this, (mac: Uint8Array, port: number, bufsize: number, unk1: number) => {
+		var pdp = new Pdp(this.context, mac, port, bufsize);
 		pdp.id = this.pdps.allocate(pdp);
 		return pdp.id;
 	});
@@ -57,55 +51,61 @@ export class sceNetAdhoc {
 	});
 
 	/** Send a PDP packet to a destination. */
-	sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/void*/int/byte[]/int/int', this, (pdpId: number, destMacAddr: Stream, port: number, dataStream: Stream, timeout: number, nonblock: number) => {
+	sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int', this, (pdpId: number, destMac: Uint8Array, port: number, dataStream: Stream, timeout: number, nonblock: number) => {
 		//debugger;
 		var pdp = this.pdps.get(pdpId);
 
-		//var recv = new PdpRecv();
-
-		var destMac = destMacAddr.readBytes(6);
 		var data = dataStream.readBytes(dataStream.length);
+		pdp.send(port, destMac, data);
 
-		//recv.port = port;
-		////recv.mac = destMac;
-		//recv.mac = new Uint8Array([10, 11, 12, 13, 14, 15]);
-		//recv.data = data;
-		//
-		//pdp.addRecv(recv);
-
-		var matching = (<_sceNetAdhocMatching.Matching>this.context.container['matching']);
-		matching.sendMessage(_sceNetAdhocMatching.Event.Data, destMac, data);
-
-		//console.info('sceNetAdhocPdpSend:', pdpId, destMac, port, data, timeout, nonblock);
-		//debugger;
-		//throw (new Error("Not implemented sceNetAdhocPdpSend"));
 		return 0;
 	});
 
 	/** Receive a PDP packet */
-	sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/void*/void*/void*/void*/int/int', this, (pdpId: number, srcMacAddr: Stream, portPtr: Stream, data: Stream, dataLength: Stream, timeout: number, nonblock: number) => {
-		throw (new Error("Not implemented sceNetAdhocPdpRecv"));
-		return -1;
+	sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int', this, (pdpId: number, srcMac: Uint8Array, portPtr: Stream, data: Stream, dataLengthPtr: Stream, timeout: number, nonblock: number): any => {
+		var block = !nonblock;
+
+		var pdp = this.pdps.get(pdpId);
+
+		var recvOne = (chunk: _manager.NetPacket) => {
+			srcMac.set(chunk.mac);
+			data.writeBytes(chunk.payload);
+			portPtr.writeInt16(pdp.port);
+			dataLengthPtr.writeInt32(chunk.payload.length);
+			return 0;
+		};
+
+		// block
+		if (block) {
+			return pdp.recvOneAsync().then(recvOne);
+		} else {
+			if (pdp.chunks.length <= 0) return 0x80410709; // ERROR_NET_ADHOC_NO_DATA_AVAILABLE
+			return recvOne(pdp.chunks.shift());
+		}
 	});
 
 	/** Get the status of all PDP objects */
-	sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, (size: Stream, pdpStatStruct: Stream) => {
-		size.writeInt32(0);
-		return 0;
+	sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, (sizeStream: Stream, pdpStatStruct: Stream) => {
+		var maxSize = sizeStream.sliceWithLength(0).readInt32();
+
+		var pdps = this.pdps.list();
+
+		var totalSize = pdps.length * PdpStatStruct.struct.length;
+		sizeStream.sliceWithLength(0).writeInt32(totalSize);
 
 		//var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
-		//var pos = 0;
-		//this.pdps.list().forEach(pdp => {
-		//	var stat = new PdpStatStruct();
-		//	stat.nextPointer = 0;
-		//	stat.pdpId = pdp.id;
-		//	stat.port = pdp.port;
-		//	stat.mac = xrange(0, 6).map(index => pdp.mac[index]);
-		//	stat.rcvdData = pdp.getDataLength();
-		//	PdpStatStruct.struct.write(outStream, stat);
-		//});
-		//size.writeInt32(outStream.position);
-		//return 0;
+		var pos = 0;
+		pdps.forEach(pdp => {
+			var stat = new PdpStatStruct();
+			stat.nextPointer = 0;
+			stat.pdpId = pdp.id;
+			stat.port = pdp.port;
+			stat.mac = xrange(0, 6).map(index => pdp.mac[index]);
+			stat.rcvdData = pdp.getDataLength();
+			//console.log("sceNetAdhocGetPdpStat:", stat);
+			PdpStatStruct.struct.write(pdpStatStruct, stat);
+		});
+		return 0;
 	});
 
 	/** Create own game object type data. */
@@ -115,7 +115,7 @@ export class sceNetAdhoc {
 	});
 
 	/** Create peer game object type data. */
-	sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'void*/byte[]', this, (mac: Stream, data: Stream) => {
+	sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]', this, (mac: Uint8Array, data: Stream) => {
 		throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
 		return -1;
 	});
@@ -145,13 +145,13 @@ export class sceNetAdhoc {
 	});
 
 	/** Open a PTP (Peer To Peer) connection */
-	sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'void*/int/void*/int/int/int/int/int', this, (srcmac: Stream, srcport: number, destmac: Stream, destport: number, bufsize: number, delay: number, count: number, unk1: number) => {
+	sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int', this, (srcmac: Uint8Array, srcport: number, destmac: Stream, destport: number, bufsize: number, delay: number, count: number, unk1: number) => {
 		throw (new Error("Not implemented sceNetAdhocPtpOpen"));
 		return -1;
 	});
 
 	/** Wait for an incoming PTP connection */
-	sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'void*/int/int/int/int/int/int', this, (srcmac: Stream, srcport: number, bufsize: number, delay: number, count: number, queue: number, unk1: number) => {
+	sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int', this, (srcmac: Uint8Array, srcport: number, bufsize: number, delay: number, count: number, queue: number, unk1: number) => {
 		throw (new Error("Not implemented sceNetAdhocPtpListen"));
 		return -1;
 	});
@@ -207,24 +207,40 @@ class PdpRecv {
 	data = new Uint8Array(0);
 }
 
-class Pdp {
-	id = 0;
-	private recvList = <PdpRecv[]>[];
+export class Pdp {
+	id: number;
+	onMessageCancel: Cancelable;
+	chunks = <_manager.NetPacket[]>[];
+	onChunkRecv = new Signal();
 
-	constructor(private context:EmulatorContext, public mac: Uint8Array, public port: number, public bufsize: number) {
+	constructor(private context: EmulatorContext, public mac: Uint8Array, public port: number, public bufsize: number) {
+		this.onMessageCancel = this.context.netManager.onmessage(port).add(packet => {
+			this.chunks.push(packet);
+			this.onChunkRecv.dispatch();
+		})
 	}
 
-	addRecv(item: PdpRecv) {
-		this.recvList.push(item);
-		if (!this.context.container['matching']) debugger;
-		this.context.container['matching'].notify(_sceNetAdhocMatching.Event.Data, item.mac, item.data);
+	recvOneAsync() {
+		return new Promise<_manager.NetPacket>((resolve, reject) => {
+			this.onChunkRecv.once(() => {
+				resolve(this.chunks.shift());
+			});
+		});
+	}
+
+	send(port: number, destMac: Uint8Array, data: Uint8Array) {
+		this.context.netManager.send(port, 'sceNetAdhocPdpSend', destMac, data);
 	}
 
 	getDataLength() {
-		return this.recvList.sum(item => item.data.length);
+		return this.chunks.sum(chunk => chunk.payload.length);
 	}
 
 	dispose() {
+		if (this.onMessageCancel) {
+			this.onMessageCancel.cancel();
+			this.onMessageCancel = null;
+		}
 	}
 }
 
@@ -245,14 +261,6 @@ class PdpStatStruct {
 }
 
 /*
-class pdpStatStruct { // PDP status structure
-	public uint NextPointer; // Pointer to next PDP structure in list (pdpStatStruct *next;) (uint)
-	public int pdpId; // pdp ID
-	public fixed byte mac[6]; // MAC address byte[6]
-	public ushort port; // Port
-	public uint rcvdData; // Bytes received
-}
-
 class ptpStatStruct { // PTP status structure
 	public uint NextAddress; // Pointer to next PTP structure in list (ptpStatStruct *next;)
 	public int ptpId; // ptp ID

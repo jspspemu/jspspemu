@@ -1,7 +1,6 @@
 ﻿import _thread = require('./thread');
 import _interop = require('./interop');
 import _cpu = require('../../core/cpu');
-import Signal = require('../../util/Signal');
 
 import CpuState = _cpu.CpuState;
 import Thread = _thread.Thread;
@@ -31,6 +30,12 @@ export class CallbackManager {
 		return this.uids.get(id);
 	}
 
+	private normalCallbacks = <{ callback: number; args: number[] }[]>[];
+
+	executeLater(callback: number, args: number[]) {
+		this.normalCallbacks.push({ callback: callback, args: args });
+	}
+
 	notify(id: number, arg2: number) {
 		var callback = this.get(id);
 		//if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
@@ -38,9 +43,20 @@ export class CallbackManager {
 		this.onAdded.dispatch(this.notifications.length);
 	}
 
+	executeLaterPendingWithinThread(thread: Thread) {
+		var state = thread.state;
+
+		while (this.normalCallbacks.length > 0) {
+			var normalCallback = this.normalCallbacks.shift();
+			this.interop.execute(state, normalCallback.callback, normalCallback.args);
+		}
+	}
+
 	executePendingWithinThread(thread: Thread) {
 		var state = thread.state;
 		var count = 0;
+
+		this.executeLaterPendingWithinThread(thread);
 
 		while (this.notifications.length > 0) {
 			var notification = this.notifications.shift();

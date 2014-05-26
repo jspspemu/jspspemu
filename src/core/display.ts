@@ -1,7 +1,6 @@
 ﻿import memory = require('./memory');
 import pixelformat = require('./pixelformat');
 import _interrupt = require('./interrupt');
-import Signal = require('../util/Signal');
 
 import InterruptManager = _interrupt.InterruptManager;
 import PspInterrupts = _interrupt.PspInterrupts;

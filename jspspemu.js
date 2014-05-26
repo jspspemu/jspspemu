@@ -1373,6 +1373,10 @@ var Stream = (function () {
         return btoa(out);
     };
 
+    Stream.prototype.toStringAll = function () {
+        return this.sliceWithLength(0).readString(this.length);
+    };
+
     Stream.prototype.toUInt8Array = function () {
         return new Uint8Array(this.toArrayBuffer());
     };
@@ -2052,7 +2056,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2386,6 +2390,12 @@ var ArrayBufferUtils = (function () {
         //for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
     };
 
+    ArrayBufferUtils.cloneBytes = function (input) {
+        var out = new Uint8Array(input.length);
+        out.set(input);
+        return out;
+    };
+
     ArrayBufferUtils.concat = function (chunks) {
         var tmp = new Uint8Array(chunks.sum(function (chunk) {
             return chunk.byteLength;
@@ -2595,7 +2605,7 @@ function htmlspecialchars(str) {
 }
 
 function mac2string(mac) {
-    return sprintf("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
 function string2mac(string) {
@@ -2606,6 +2616,59 @@ function string2mac(string) {
         array.push(0);
     return new Uint8Array(array);
 }
+
+var SignalCancelable = (function () {
+    function SignalCancelable(signal, callback) {
+        this.signal = signal;
+        this.callback = callback;
+    }
+    SignalCancelable.prototype.cancel = function () {
+        this.signal.remove(this.callback);
+    };
+    return SignalCancelable;
+})();
+
+var Signal = (function () {
+    function Signal() {
+        this.callbacks = [];
+    }
+    Object.defineProperty(Signal.prototype, "length", {
+        get: function () {
+            return this.callbacks.length;
+        },
+        enumerable: true,
+        configurable: true
+    });
+
+    Signal.prototype.add = function (callback) {
+        this.callbacks.push(callback);
+        return new SignalCancelable(this, callback);
+    };
+
+    Signal.prototype.remove = function (callback) {
+        var index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
+            this.callbacks.splice(index, 1);
+        }
+    };
+
+    Signal.prototype.once = function (callback) {
+        var _this = this;
+        var once = function () {
+            _this.remove(once);
+            callback();
+        };
+        this.add(once);
+        return new SignalCancelable(this, once);
+    };
+
+    Signal.prototype.dispatch = function (value) {
+        this.callbacks.forEach(function (callback) {
+            callback(value);
+        });
+    };
+    return Signal;
+})();
 //# sourceMappingURL=utils.js.map
 
 var require = (function() {
@@ -2831,8 +2894,9 @@ var EmulatorContext = (function () {
     function EmulatorContext() {
         this.container = {};
         this.gameTitle = 'unknown';
+        this.gameId = 'unknown';
     }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config, interop) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config, interop, netManager) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -2848,6 +2912,7 @@ var EmulatorContext = (function () {
         this.moduleManager = moduleManager;
         this.config = config;
         this.interop = interop;
+        this.netManager = netManager;
     };
     return EmulatorContext;
 })();
@@ -8140,6 +8205,10 @@ var CpuState = (function () {
         return this.memory.getPointerStream(address, size);
     };
 
+    CpuState.prototype.getPointerU8Array = function (address, size) {
+        return this.memory.getPointerU8Array(address, size);
+    };
+
     Object.defineProperty(CpuState.prototype, "REGS", {
         get: function () {
             return sprintf('r1: %08X, r2: %08X, r3: %08X, r3: %08X', this.gpr[1], this.gpr[2], this.gpr[3], this.gpr[4]);
@@ -8470,7 +8539,6 @@ var __extends = this.__extends || function (d, b) {
 var memory = require('./memory');
 var pixelformat = require('./pixelformat');
 var _interrupt = require('./interrupt');
-var Signal = require('../util/Signal');
 
 var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
@@ -13045,8 +13113,6 @@ exports.FastFloat32Buffer = FastFloat32Buffer;
 //# sourceMappingURL=utils.js.map
 },
 "src/core/interrupt": function(module, exports, require) {
-var Signal = require('../util/Signal');
-
 var InterruptHandler = (function () {
     function InterruptHandler(no) {
         this.no = no;
@@ -13910,8 +13976,6 @@ function kirk_4_7_get_key(key_type) {
 //# sourceMappingURL=kirk.js.map
 },
 "src/core/memory": function(module, exports, require) {
-var Signal = require('../util/Signal');
-
 var Memory = (function () {
     function Memory() {
         this.invalidateDataRange = new Signal();
@@ -14664,6 +14728,7 @@ var SyscallManager = _cpu.SyscallManager;
 var ThreadManager = _manager.ThreadManager;
 var ModuleManager = _manager.ModuleManager;
 var MemoryManager = _manager.MemoryManager;
+var NetManager = _manager.NetManager;
 var FileManager = _manager.FileManager;
 var CallbackManager = _manager.CallbackManager;
 var Interop = _manager.Interop;
@@ -14711,6 +14776,7 @@ var Emulator = (function () {
             _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas, _this.interop);
             _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new ModuleManager(_this.context);
+            _this.netManager = new NetManager();
 
             _this.emulatorVfs = new EmulatorVfs();
             _this.ms0Vfs = new MountableVfs();
@@ -14732,7 +14798,7 @@ var Emulator = (function () {
 
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
 
-            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop, _this.netManager);
 
             return Promise.all([
                 _this.display.startAsync(),
@@ -18257,6 +18323,8 @@ var _callback = require('./manager/callback');
 _callback.Callback;
 var _interop = require('./manager/interop');
 _interop.Interop;
+var _net = require('./manager/net');
+_net.NetManager;
 
 var Device = _file.Device;
 exports.Device = Device;
@@ -18299,17 +18367,19 @@ exports.CallbackManager = CallbackManager;
 
 var Interop = _interop.Interop;
 exports.Interop = Interop;
+
+var NetManager = _net.NetManager;
+exports.NetManager = NetManager;
 //# sourceMappingURL=manager.js.map
 },
 "src/hle/manager/callback": function(module, exports, require) {
-var Signal = require('../../util/Signal');
-
 var CallbackManager = (function () {
     function CallbackManager(interop) {
         this.interop = interop;
         this.uids = new UidCollection(1);
         this.notifications = [];
         this.onAdded = new Signal();
+        this.normalCallbacks = [];
     }
     Object.defineProperty(CallbackManager.prototype, "hasPendingCallbacks", {
         get: function () {
@@ -18331,6 +18401,10 @@ var CallbackManager = (function () {
         return this.uids.get(id);
     };
 
+    CallbackManager.prototype.executeLater = function (callback, args) {
+        this.normalCallbacks.push({ callback: callback, args: args });
+    };
+
     CallbackManager.prototype.notify = function (id, arg2) {
         var callback = this.get(id);
 
@@ -18339,9 +18413,20 @@ var CallbackManager = (function () {
         this.onAdded.dispatch(this.notifications.length);
     };
 
+    CallbackManager.prototype.executeLaterPendingWithinThread = function (thread) {
+        var state = thread.state;
+
+        while (this.normalCallbacks.length > 0) {
+            var normalCallback = this.normalCallbacks.shift();
+            this.interop.execute(state, normalCallback.callback, normalCallback.args);
+        }
+    };
+
     CallbackManager.prototype.executePendingWithinThread = function (thread) {
         var state = thread.state;
         var count = 0;
+
+        this.executeLaterPendingWithinThread(thread);
 
         while (this.notifications.length > 0) {
             var notification = this.notifications.shift();
@@ -18957,6 +19042,82 @@ var ModuleManager = (function () {
 exports.ModuleManager = ModuleManager;
 //# sourceMappingURL=module.js.map
 },
+"src/hle/manager/net": function(module, exports, require) {
+var NetManager = (function () {
+    function NetManager() {
+        this.connected = false;
+        this.ws = null;
+        this._onmessageSignals = {};
+        this.onopen = new Signal();
+        this.onclose = new Signal();
+        this.mac = new Uint8Array(6);
+    }
+    NetManager.prototype.onmessage = function (port) {
+        if (!this._onmessageSignals[port])
+            this._onmessageSignals[port] = new Signal();
+        return this._onmessageSignals[port];
+    };
+
+    NetManager.prototype.connectOnce = function () {
+        var _this = this;
+        if (this.ws)
+            return;
+        this.ws = new WebSocket('ws://' + location.host + '/adhoc', 'adhoc');
+
+        this.ws.onopen = function (e) {
+        };
+        this.ws.onclose = function (e) {
+            _this.connected = false;
+            _this.onclose.dispatch();
+            setTimeout(function () {
+                _this.ws = null;
+                _this.connectOnce();
+            }, 5000);
+        };
+        this.ws.onmessage = function (e) {
+            var info = JSON.parse(e.data);
+            if (info.from == 'ff:ff:ff:ff:ff:ff') {
+                console.info('NetManager: from_server:', info);
+                switch (info.type) {
+                    case 'setid':
+                        _this.mac = string2mac(info.payload);
+                        _this.connected = true;
+                        _this.onopen.dispatch();
+                        break;
+                }
+            } else {
+                var packet = {
+                    port: info.port,
+                    type: info.type,
+                    mac: string2mac(info.from),
+                    payload: Stream.fromBase64(info.payload).toUInt8Array()
+                };
+
+                //console.info('NetManager: from_user:', { port: info.port, type: info.type, mac: info.from, payload: Stream.fromBase64(info.payload).toStringAll() });
+                _this.onmessage(info.port).dispatch(packet);
+            }
+        };
+        this.ws.onerror = function (e) {
+            _this.connected = false;
+            console.error(e);
+            setTimeout(function () {
+                _this.connectOnce();
+                _this.ws = null;
+            }, 10000);
+        };
+    };
+
+    NetManager.prototype.send = function (port, type, toMac, data) {
+        this.connectOnce();
+
+        //console.info('NetManager: send:', { type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toStringAll() });
+        this.ws.send(JSON.stringify({ type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toBase64() }));
+    };
+    return NetManager;
+})();
+exports.NetManager = NetManager;
+//# sourceMappingURL=net.js.map
+},
 "src/hle/manager/scemodule": function(module, exports, require) {
 // 0x08400000
 var SceModule = (function () {
@@ -19370,6 +19531,9 @@ var ThreadManager = (function () {
             if (runningThreadCount != 0) {
                 this.threads.forEach(function (thread) {
                     if (thread.running && (thread.priority == runningPriority)) {
+                        // No callbacks?
+                        _this.callbackManager.executeLaterPendingWithinThread(thread);
+
                         do {
                             thread.runStep();
                             if (!_this.interruptManager.enabled) {
@@ -21498,25 +21662,19 @@ var sceNet = (function () {
             return -1;
         });
         /** Convert string to a Mac address **/
-        this.sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/void*', this, function (string, macAddress) {
-            string.split(':').forEach(function (part) {
-                macAddress.writeInt8(parseInt(part, 16));
-            });
+        this.sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]', this, function (string, mac) {
+            mac.set(string2mac(string));
             return 0;
         });
         /** Convert Mac address to a string **/
-        this.sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'void*/void*', this, function (macAddress, outputAddress) {
-            var mac = macAddress.readBytes(6);
-            outputAddress.writeStringz(sprintf('%02X:%02X:%02X:%02X:%02X:%02X', mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], mac[6]));
+        this.sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'byte[6]/void*', this, function (mac, outputAddress) {
+            outputAddress.writeStringz(mac2string(mac));
             return 0;
         });
         /** Retrieve the local Mac address **/
-        this.sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'void*', this, function (macAddress) {
-            var mac = _this.context.container['mac'];
-            console.info('sceNetGetLocalEtherAddr:', mac2string(mac));
-
-            for (var n = 0; n < 6; n++)
-                macAddress.writeUInt8(mac[n]);
+        this.sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]', this, function (macOut) {
+            console.info("sceNetGetLocalEtherAddr: ", mac2string(_this.context.netManager.mac));
+            macOut.set(_this.context.netManager.mac);
             return 0;
         });
         this.sceNetGetMallocStat = createNativeFunction(0xCC393E48, 150, 'int', 'void*', this, function (statPtr) {
@@ -21530,14 +21688,10 @@ exports.sceNet = sceNet;
 //# sourceMappingURL=sceNet.js.map
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
-var _sceNetAdhocMatching = require('./sceNetAdhocMatching');
 var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
 
-//var pdpsByPort = <NumberDictionary<Pdp>>{};
-//var pdpInstance: Pdp = null;
-//var matchingInstance: Matching = null;
 var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
         var _this = this;
@@ -21559,10 +21713,8 @@ var sceNetAdhoc = (function () {
         });
         this.pdps = new UidCollection(1);
         /** Create a PDP object. */
-        this.sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'void*/int/uint/int', this, function (mac, port, bufsize, unk1) {
-            //debugger;
-            var pdp = new Pdp(_this.context, mac.readBytes(6), port, bufsize);
-            _this.context.container['pdp'] = pdp;
+        this.sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int', this, function (mac, port, bufsize, unk1) {
+            var pdp = new Pdp(_this.context, mac, port, bufsize);
             pdp.id = _this.pdps.allocate(pdp);
             return pdp.id;
         });
@@ -21575,50 +21727,63 @@ var sceNetAdhoc = (function () {
             return 0;
         });
         /** Send a PDP packet to a destination. */
-        this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/void*/int/byte[]/int/int', this, function (pdpId, destMacAddr, port, dataStream, timeout, nonblock) {
+        this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int', this, function (pdpId, destMac, port, dataStream, timeout, nonblock) {
             //debugger;
             var pdp = _this.pdps.get(pdpId);
 
-            //var recv = new PdpRecv();
-            var destMac = destMacAddr.readBytes(6);
             var data = dataStream.readBytes(dataStream.length);
+            pdp.send(port, destMac, data);
 
-            //recv.port = port;
-            ////recv.mac = destMac;
-            //recv.mac = new Uint8Array([10, 11, 12, 13, 14, 15]);
-            //recv.data = data;
-            //
-            //pdp.addRecv(recv);
-            var matching = _this.context.container['matching'];
-            matching.sendMessage(11 /* Data */, destMac, data);
-
-            //console.info('sceNetAdhocPdpSend:', pdpId, destMac, port, data, timeout, nonblock);
-            //debugger;
-            //throw (new Error("Not implemented sceNetAdhocPdpSend"));
             return 0;
         });
         /** Receive a PDP packet */
-        this.sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/void*/void*/void*/void*/int/int', this, function (pdpId, srcMacAddr, portPtr, data, dataLength, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPdpRecv"));
-            return -1;
+        this.sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int', this, function (pdpId, srcMac, portPtr, data, dataLengthPtr, timeout, nonblock) {
+            var block = !nonblock;
+
+            var pdp = _this.pdps.get(pdpId);
+
+            var recvOne = function (chunk) {
+                srcMac.set(chunk.mac);
+                data.writeBytes(chunk.payload);
+                portPtr.writeInt16(pdp.port);
+                dataLengthPtr.writeInt32(chunk.payload.length);
+                return 0;
+            };
+
+            // block
+            if (block) {
+                return pdp.recvOneAsync().then(recvOne);
+            } else {
+                if (pdp.chunks.length <= 0)
+                    return 0x80410709;
+                return recvOne(pdp.chunks.shift());
+            }
         });
         /** Get the status of all PDP objects */
-        this.sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, function (size, pdpStatStruct) {
-            size.writeInt32(0);
-            return 0;
+        this.sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, function (sizeStream, pdpStatStruct) {
+            var maxSize = sizeStream.sliceWithLength(0).readInt32();
+
+            var pdps = _this.pdps.list();
+
+            var totalSize = pdps.length * PdpStatStruct.struct.length;
+            sizeStream.sliceWithLength(0).writeInt32(totalSize);
+
             //var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
-            //var pos = 0;
-            //this.pdps.list().forEach(pdp => {
-            //	var stat = new PdpStatStruct();
-            //	stat.nextPointer = 0;
-            //	stat.pdpId = pdp.id;
-            //	stat.port = pdp.port;
-            //	stat.mac = xrange(0, 6).map(index => pdp.mac[index]);
-            //	stat.rcvdData = pdp.getDataLength();
-            //	PdpStatStruct.struct.write(outStream, stat);
-            //});
-            //size.writeInt32(outStream.position);
-            //return 0;
+            var pos = 0;
+            pdps.forEach(function (pdp) {
+                var stat = new PdpStatStruct();
+                stat.nextPointer = 0;
+                stat.pdpId = pdp.id;
+                stat.port = pdp.port;
+                stat.mac = xrange(0, 6).map(function (index) {
+                    return pdp.mac[index];
+                });
+                stat.rcvdData = pdp.getDataLength();
+
+                //console.log("sceNetAdhocGetPdpStat:", stat);
+                PdpStatStruct.struct.write(pdpStatStruct, stat);
+            });
+            return 0;
         });
         /** Create own game object type data. */
         this.sceNetAdhocGameModeCreateMaster = createNativeFunction(0x7F75C338, 150, 'int', 'byte[]', this, function (data) {
@@ -21626,7 +21791,7 @@ var sceNetAdhoc = (function () {
             return -1;
         });
         /** Create peer game object type data. */
-        this.sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'void*/byte[]', this, function (mac, data) {
+        this.sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]', this, function (mac, data) {
             throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
             return -1;
         });
@@ -21651,12 +21816,12 @@ var sceNetAdhoc = (function () {
             return -1;
         });
         /** Open a PTP (Peer To Peer) connection */
-        this.sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'void*/int/void*/int/int/int/int/int', this, function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
+        this.sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int', this, function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
             throw (new Error("Not implemented sceNetAdhocPtpOpen"));
             return -1;
         });
         /** Wait for an incoming PTP connection */
-        this.sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'void*/int/int/int/int/int/int', this, function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
+        this.sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int', this, function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
             throw (new Error("Not implemented sceNetAdhocPtpListen"));
             return -1;
         });
@@ -21711,30 +21876,46 @@ var PdpRecv = (function () {
 
 var Pdp = (function () {
     function Pdp(context, mac, port, bufsize) {
+        var _this = this;
         this.context = context;
         this.mac = mac;
         this.port = port;
         this.bufsize = bufsize;
-        this.id = 0;
-        this.recvList = [];
+        this.chunks = [];
+        this.onChunkRecv = new Signal();
+        this.onMessageCancel = this.context.netManager.onmessage(port).add(function (packet) {
+            _this.chunks.push(packet);
+            _this.onChunkRecv.dispatch();
+        });
     }
-    Pdp.prototype.addRecv = function (item) {
-        this.recvList.push(item);
-        if (!this.context.container['matching'])
-            debugger;
-        this.context.container['matching'].notify(11 /* Data */, item.mac, item.data);
+    Pdp.prototype.recvOneAsync = function () {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            _this.onChunkRecv.once(function () {
+                resolve(_this.chunks.shift());
+            });
+        });
+    };
+
+    Pdp.prototype.send = function (port, destMac, data) {
+        this.context.netManager.send(port, 'sceNetAdhocPdpSend', destMac, data);
     };
 
     Pdp.prototype.getDataLength = function () {
-        return this.recvList.sum(function (item) {
-            return item.data.length;
+        return this.chunks.sum(function (chunk) {
+            return chunk.payload.length;
         });
     };
 
     Pdp.prototype.dispose = function () {
+        if (this.onMessageCancel) {
+            this.onMessageCancel.cancel();
+            this.onMessageCancel = null;
+        }
     };
     return Pdp;
 })();
+exports.Pdp = Pdp;
 
 var PdpStatStruct = (function () {
     function PdpStatStruct() {
@@ -21754,13 +21935,6 @@ var PdpStatStruct = (function () {
     return PdpStatStruct;
 })();
 /*
-class pdpStatStruct { // PDP status structure
-public uint NextPointer; // Pointer to next PDP structure in list (pdpStatStruct *next;) (uint)
-public int pdpId; // pdp ID
-public fixed byte mac[6]; // MAC address byte[6]
-public ushort port; // Port
-public uint rcvdData; // Bytes received
-}
 class ptpStatStruct { // PTP status structure
 public uint NextAddress; // Pointer to next PTP structure in list (ptpStatStruct *next;)
 public int ptpId; // ptp ID
@@ -21804,16 +21978,16 @@ var sceNetAdhocMatching = (function () {
         });
         this.matchings = new UidCollection(1);
         /** Create an Adhoc matching object */
-        this.sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint', this, function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback) {
-            var matching = new Matching(_this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback);
+        this.sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint', this, function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
+            var matching = new Matching(_this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
             matching.id = _this.matchings.allocate(matching);
-            _this.context.container['matching'] = matching;
             return matching.id;
         });
         /** Select a matching target */
-        this.sceNetAdhocMatchingSelectTarget = createNativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*', this, function (matchingId, mac, dataLength, dataPointer) {
+        this.sceNetAdhocMatchingSelectTarget = createNativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*', this, function (matchingId, macStream, dataLength, dataPointer) {
             var matching = _this.matchings.get(matchingId);
-            matching.selectTarget(mac.readBytes(6), (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
+            var mac = macStream.readBytes(6);
+            matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
             return 0;
         });
         this.sceNetAdhocMatchingCancelTarget = createNativeFunction(0xEA3C6108, 150, 'int', 'int/void*', this, function (matchingId, mac) {
@@ -21845,8 +22019,16 @@ var sceNetAdhocMatching = (function () {
 })();
 exports.sceNetAdhocMatching = sceNetAdhocMatching;
 
+(function (State) {
+    State[State["START"] = 0] = "START";
+    State[State["JOIN_WAIT_RESPONSE"] = 1] = "JOIN_WAIT_RESPONSE";
+    State[State["JOIN_WAIT_COMPLETE"] = 2] = "JOIN_WAIT_COMPLETE";
+    State[State["COMPLETED"] = 3] = "COMPLETED";
+})(exports.State || (exports.State = {}));
+var State = exports.State;
+
 var Matching = (function () {
-    function Matching(context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDeplay, callback) {
+    function Matching(context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
         this.context = context;
         this.thread = thread;
         this.mode = mode;
@@ -21856,56 +22038,76 @@ var Matching = (function () {
         this.helloDelay = helloDelay;
         this.pingDelay = pingDelay;
         this.initCount = initCount;
-        this.msgDeplay = msgDeplay;
+        this.msgDelay = msgDelay;
         this.callback = callback;
         this.id = 0;
-        this.receivedJoinMacAddressPending = false;
         this.joinMac = '00:00:00:00:00:00';
         this.mac = new Uint8Array([1, 2, 3, 4, 5, 6]);
         this.hello = new Uint8Array(0);
-        this.timer = -1;
+        this.helloTimer = -1;
+        this.dataTimer = -1;
+        this.onMessageCancelable = null;
+        this.state = 0 /* START */;
+        this.messageQueue = [];
     }
     Matching.prototype.start = function () {
         var _this = this;
-        setInterval(function () {
+        this.helloTimer = setInterval(function () {
+            if (_this.state != 0 /* START */)
+                return;
+
             _this.sendMessage(1 /* Hello */, Matching.MAC_ALL, _this.hello);
         }, this.helloDelay / 1000);
+
+        this.dataTimer = setInterval(function () {
+        }, this.msgDelay / 1000);
+
+        this.onMessageCancelable = this.context.netManager.onmessage(this.port).add(function (packet) {
+            _this.notify(Event[packet.type], packet.mac, packet.payload);
+        });
     };
 
     Matching.prototype.stop = function () {
-        clearInterval(this.timer);
+        clearInterval(this.helloTimer);
+        clearInterval(this.dataTimer);
+
+        if (this.onMessageCancelable) {
+            this.onMessageCancelable.cancel();
+            this.onMessageCancelable = null;
+        }
     };
 
     Matching.prototype.selectTarget = function (mac, data) {
         var macstr = mac2string(mac);
-        console.info("adhoc: selectTarget", macstr);
-        if (this.receivedJoinMacAddressPending && macstr == this.joinMac) {
-            this.receivedJoinMacAddressPending = false;
+        console.info("net.adhoc: selectTarget", macstr);
+
+        // Accept
+        if ((this.state == 1 /* JOIN_WAIT_RESPONSE */) && (macstr == this.joinMac)) {
+            this.state = 2 /* JOIN_WAIT_COMPLETE */;
             this.sendMessage(6 /* Accept */, mac, data);
         } else {
+            this.state = 1 /* JOIN_WAIT_RESPONSE */;
             this.sendMessage(2 /* Join */, mac, data);
         }
     };
 
     Matching.prototype.cancelTarget = function (mac) {
+        // Cancel
         var macstr = mac2string(mac);
-        console.info("adhoc: cancelTarget", macstr);
-        this.receivedJoinMacAddressPending = false;
+        console.info("net.adhoc: cancelTarget", macstr);
+        this.state = 0 /* START */;
         this.sendMessage(5 /* Cancel */, mac, null);
     };
 
     Matching.prototype.sendMessage = function (event, tomac, data) {
+        //this.messageQueue.push({ event: event, tomac: ArrayBufferUtils.cloneBytes(tomac), data: ArrayBufferUtils.cloneBytes(data) });
         if (!data)
             data = new Uint8Array(0);
         if (event != 1 /* Hello */) {
-            console.info("adhoc: send ->", Event[event], event, ':', mac2string(tomac), ':', Stream.fromUint8Array(data).readString(data.length));
+            console.info("net.adhoc: send ->", Event[event], event, ':', mac2string(tomac), ':', Stream.fromUint8Array(data).readString(data.length));
         }
-        var ws = this.context.container['ws'];
-        if (ws) {
-            ws.send(JSON.stringify({ type: Event[event], to: mac2string(tomac), payload: Stream.fromUint8Array(data).toBase64() }));
-        } else {
-            console.warn('not provided a websocket. Not connected to adhoc controller?');
-        }
+
+        this.context.netManager.send(this.port, Event[event], tomac, data);
     };
 
     Matching.prototype.notify = function (event, frommac, data) {
@@ -21913,38 +22115,52 @@ var Matching = (function () {
             data = new Uint8Array(0);
 
         if (event != 1 /* Hello */) {
-            console.info("adhoc: received <-", Event[event], event, ':', mac2string(frommac), ':', Stream.fromUint8Array(data).readString(data.length));
+            console.info("net.adhoc: received <-", Event[event], event, ':', mac2string(frommac), ':', Stream.fromUint8Array(data).readString(data.length));
         }
 
         switch (event) {
             case 2 /* Join */:
-                this.receivedJoinMacAddressPending = true;
+                this.state = 1 /* JOIN_WAIT_RESPONSE */;
                 this.joinMac = mac2string(frommac);
                 break;
         }
 
         var macPartition = this.context.memoryManager.kernelPartition.allocateLow(8, 'Matching.mac');
-        this.context.memory.writeUint8Array(macPartition.low, frommac);
         this.context.memory.memset(macPartition.low, 0, macPartition.size);
+        this.context.memory.writeUint8Array(macPartition.low, frommac);
 
         var dataPartition = this.context.memoryManager.kernelPartition.allocateLow(Math.max(8, MathUtils.nextAligned(data.length, 8)), 'Matching.data');
         this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
         this.context.memory.writeUint8Array(dataPartition.low, data);
 
         //// @TODO: Enqueue callback instead of executing now?
-        this.context.interop.execute(this.thread.state, this.callback, [
+        this.context.callbackManager.executeLater(this.callback, [
             this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
         ]);
 
+        //this.context.interop.execute(this.thread.state, this.callback, [
+        //	this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
+        //]);
         dataPartition.deallocate();
         macPartition.deallocate();
 
         switch (event) {
             case 6 /* Accept */:
                 this.sendMessage(7 /* Complete */, frommac, data);
+                this.state = 2 /* JOIN_WAIT_COMPLETE */;
+                break;
+            case 7 /* Complete */:
+                if (this.state == 2 /* JOIN_WAIT_COMPLETE */) {
+                    this.sendMessage(7 /* Complete */, frommac, data);
+                    this.state = 3 /* COMPLETED */;
+                }
                 break;
             case 11 /* Data */:
                 this.sendMessage(12 /* DataConfirm */, frommac, null);
+                break;
+            case 10 /* Disconnect */:
+            case 3 /* Left */:
+                this.state = 0 /* START */;
                 break;
         }
     };
@@ -21967,13 +22183,18 @@ exports.Matching = Matching;
     Event[Event["Data"] = 11] = "Data";
     Event[Event["DataConfirm"] = 12] = "DataConfirm";
     Event[Event["DataTimeout"] = 13] = "DataTimeout";
-    Event[Event["InternalPing"] = 100] = "InternalPing";
 })(exports.Event || (exports.Event = {}));
 var Event = exports.Event;
+
+(function (Mode) {
+    Mode[Mode["Host"] = 1] = "Host";
+    Mode[Mode["Client"] = 2] = "Client";
+    Mode[Mode["Ptp"] = 3] = "Ptp";
+})(exports.Mode || (exports.Mode = {}));
+var Mode = exports.Mode;
 //# sourceMappingURL=sceNetAdhocMatching.js.map
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
-var _sceNetAdhocMatching = require('./sceNetAdhocMatching');
 var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
@@ -21993,52 +22214,30 @@ var sceNetAdhocctl = (function () {
         this.sceNetAdhocctlTerm = createNativeFunction(0x9D689E13, 150, 'int', '', this, function () {
             return 0;
         });
+        this.connectHandlers = [];
         /** Connect to the Adhoc control */
         this.sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, function (name) {
             _this.currentName = name;
 
-            _this.ws = new WebSocket('ws://127.0.0.1/ws/' + _this.context.gameId, 'adhoc');
-
-            _this.context.container['ws'] = _this.ws;
-
-            _this.ws.onopen = function (e) {
-            };
-            _this.ws.onclose = function (e) {
+            _this.connectHandlers.push(_this.context.netManager.onopen.add(function () {
+                _this.currentState = 1 /* Connected */;
+                _this._notifyAdhocctlHandler(1 /* Connected */);
+            }));
+            _this.connectHandlers.push(_this.context.netManager.onclose.add(function () {
                 _this.currentState = 0 /* Disconnected */;
                 _this._notifyAdhocctlHandler(2 /* Disconnected */);
-            };
-            _this.ws.onmessage = function (e) {
-                var info = JSON.parse(e.data);
-                if (info.from == 'FF:FF:FF:FF:FF:FF') {
-                    switch (info.type) {
-                        case 'setid':
-                            _this.context.container['mac'] = string2mac(info.payload);
-
-                            //debugger;
-                            _this.currentState = 1 /* Connected */;
-                            _this._notifyAdhocctlHandler(1 /* Connected */);
-
-                            break;
-                    }
-                    console.info('from_server', info);
-                } else {
-                    var event = (_sceNetAdhocMatching.Event[info.type]);
-                    var macfrom = string2mac(info.from);
-                    var data = Stream.fromBase64(info.payload).toUInt8Array();
-
-                    var matching = _this.context.container['matching'];
-                    if (matching) {
-                        matching.notify(event, macfrom, data);
-                    }
-                }
-            };
-            _this.ws.onerror = function (e) {
-            };
+            }));
+            if (_this.context.netManager.connected) {
+                _this.currentState = 1 /* Connected */;
+                _this._notifyAdhocctlHandler(1 /* Connected */);
+            }
+            _this.context.netManager.connectOnce();
             return 0;
         });
         /** Disconnect from the Adhoc control */
         this.sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, function () {
-            _this.ws.close();
+            while (_this.connectHandlers.length)
+                _this.connectHandlers.shift().cancel();
             return 0;
         });
         this.handlers = new UidCollection(1);
@@ -22058,8 +22257,8 @@ var sceNetAdhocctl = (function () {
         var _this = this;
         if (typeof error === "undefined") { error = 0; }
         this.handlers.list().forEach(function (callback) {
-            var state = _this.context.threadManager.current.state;
-            _this.context.interop.execute(state, callback.callback, [event, error, callback.argument]);
+            _this.context.callbackManager.executeLater(callback.callback, [event, error, callback.argument]);
+            //this.context.interop.execute(this.context.threadManager.current.state, callback.callback, [event, error, callback.argument]);
         });
     };
     return sceNetAdhocctl;
@@ -22995,7 +23194,6 @@ exports.sceSuspendForUser = sceSuspendForUser;
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
 var _utils = require('../utils');
-var Signal = require('../../util/Signal');
 
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -24817,7 +25015,12 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
                 args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
                 break;
             default:
-                throw ('Invalid argument "' + item + '"');
+                var matches = [];
+                if (matches = item.match(/^byte\[(\d+)\]$/)) {
+                    args.push('state.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+                } else {
+                    throw ('Invalid argument "' + item + '"');
+                }
         }
     });
 
@@ -26339,43 +26542,6 @@ var IndentStringGenerator = (function () {
 module.exports = IndentStringGenerator;
 //# sourceMappingURL=IndentStringGenerator.js.map
 },
-"src/util/Signal": function(module, exports, require) {
-var Signal = (function () {
-    function Signal() {
-        this.callbacks = [];
-    }
-    Signal.prototype.add = function (callback) {
-        this.callbacks.push(callback);
-        return callback;
-    };
-
-    Signal.prototype.remove = function (callback) {
-        var index = this.callbacks.indexOf(callback);
-        if (index >= 0) {
-            this.callbacks.splice(index, 1);
-        }
-    };
-
-    Signal.prototype.once = function (callback) {
-        var _this = this;
-        var once = function () {
-            _this.remove(once);
-            callback();
-        };
-        this.add(once);
-    };
-
-    Signal.prototype.dispatch = function (value) {
-        this.callbacks.forEach(function (callback) {
-            callback(value);
-        });
-    };
-    return Signal;
-})();
-
-module.exports = Signal;
-//# sourceMappingURL=Signal.js.map
-},
 "src/util/StringUtils": function(module, exports, require) {
 var StringUtils = (function () {
     function StringUtils() {
@@ -26679,7 +26845,7 @@ describe('elf', function () {
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
 
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null, null);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);

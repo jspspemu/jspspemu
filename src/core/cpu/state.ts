@@ -467,6 +467,10 @@ export class CpuState {
 		return this.memory.getPointerStream(address, size);
 	}
 
+	getPointerU8Array(address: number, size?: number) {
+		return this.memory.getPointerU8Array(address, size)
+	}
+
 	get REGS() {
 		return sprintf('r1: %08X, r2: %08X, r3: %08X, r3: %08X', this.gpr[1], this.gpr[2], this.gpr[3], this.gpr[4]);
 	}

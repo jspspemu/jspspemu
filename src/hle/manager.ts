@@ -4,6 +4,7 @@ import _module = require('./manager/module'); _module.ModuleManager;
 import _thread = require('./manager/thread'); _thread.Thread;
 import _callback = require('./manager/callback'); _callback.Callback;
 import _interop = require('./manager/interop'); _interop.Interop;
+import _net = require('./manager/net'); _net.NetManager;
 
 export import Device = _file.Device;
 export import FileManager = _file.FileManager;
@@ -28,3 +29,6 @@ export import Callback = _callback.Callback;
 export import CallbackManager = _callback.CallbackManager;
 
 export import Interop = _interop.Interop;
+
+export import NetManager = _net.NetManager;
+export import NetPacket = _net.NetPacket;

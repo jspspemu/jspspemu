@@ -342,6 +342,12 @@ class ArrayBufferUtils {
 		//for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
 	}
 
+	static cloneBytes(input: Uint8Array) {
+		var out = new Uint8Array(input.length);
+		out.set(input);
+		return out;
+	}
+
 	static concat(chunks: ArrayBuffer[]) {
 		var tmp = new Uint8Array(chunks.sum(chunk => chunk.byteLength));
 		var offset = 0;
@@ -513,11 +519,59 @@ function htmlspecialchars(str) {
 }
 
 function mac2string(mac: Uint8Array) {
-	return sprintf("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	return sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
 function string2mac(string: string) {
 	var array = String(string).split(':').map(item => parseInt(item, 16));
 	while (array.length < 6) array.push(0);
 	return new Uint8Array(array);
+}
+
+interface Cancelable {
+	cancel();
+}
+
+class SignalCancelable<T> implements Cancelable {
+	constructor(private signal: Signal<T>, private callback: (value?: T) => void) {
+	}
+
+	cancel() {
+		this.signal.remove(this.callback);
+	}
+}
+
+class Signal<T> {
+	callbacks = [];
+
+	get length() {
+		return this.callbacks.length;
+	}
+
+	add(callback: (value?: T) => void) {
+		this.callbacks.push(callback);
+		return new SignalCancelable(this, callback);
+	}
+
+	remove(callback: (value?: T) => void) {
+		var index = this.callbacks.indexOf(callback);
+		if (index >= 0) {
+			this.callbacks.splice(index, 1);
+		}
+	}
+
+	once(callback: (value?: T) => void) {
+		var once = () => {
+			this.remove(once);
+			callback();
+		};
+		this.add(once);
+		return new SignalCancelable(this, once);
+	}
+
+	dispatch(value?: T) {
+		this.callbacks.forEach((callback) => {
+			callback(value);
+		});
+	}
 }

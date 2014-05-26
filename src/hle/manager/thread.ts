@@ -344,6 +344,9 @@ export class ThreadManager {
 			if (runningThreadCount != 0) {
 				this.threads.forEach((thread) => {
 					if (thread.running && (thread.priority == runningPriority)) {
+						// No callbacks?
+						this.callbackManager.executeLaterPendingWithinThread(thread);
+
 						do {
 							thread.runStep();
 							if (!this.interruptManager.enabled) {

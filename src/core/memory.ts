@@ -1,6 +1,4 @@
-﻿import Signal = require('../util/Signal');
-
-declare function saveAs(data: Blob, name: string):void;
+﻿declare function saveAs(data: Blob, name: string):void;
 
 export class Memory {
 	buffer: ArrayBuffer;

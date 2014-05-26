@@ -55,6 +55,7 @@ import SyscallManager = _cpu.SyscallManager;
 import ThreadManager = _manager.ThreadManager;
 import ModuleManager = _manager.ModuleManager;
 import MemoryManager = _manager.MemoryManager;
+import NetManager = _manager.NetManager;
 import FileManager = _manager.FileManager;
 import CallbackManager = _manager.CallbackManager;
 import Interop = _manager.Interop;
@@ -76,6 +77,7 @@ export class Emulator {
 	private instructionCache: InstructionCache;
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
+	private netManager: NetManager;
 	private moduleManager: ModuleManager;
 	private ms0Vfs: MountableVfs;
 	private callbackManager: CallbackManager;
@@ -124,6 +126,7 @@ export class Emulator {
 			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas, this.interop);
 			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
 			this.moduleManager = new ModuleManager(this.context);
+			this.netManager = new NetManager();
 
 			this.emulatorVfs = new EmulatorVfs();
 			this.ms0Vfs = new MountableVfs();
@@ -145,7 +148,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
 
 			return Promise.all([
 				this.display.startAsync(),

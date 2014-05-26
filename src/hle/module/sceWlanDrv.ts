@@ -9,5 +9,4 @@ export class sceWlanDrv {
 	sceWlanGetSwitchState = createNativeFunction(0xD7763699, 150, 'bool', '', this, () => {
 		return true;
 	});
-
 }

@@ -92,6 +92,7 @@
     <TypeScriptCompile Include="src\hle\manager\file.ts" />
     <TypeScriptCompile Include="src\hle\manager\interop.ts" />
     <TypeScriptCompile Include="src\hle\manager\module.ts" />
+    <TypeScriptCompile Include="src\hle\manager\net.ts" />
     <TypeScriptCompile Include="src\hle\manager\scemodule.ts" />
     <TypeScriptCompile Include="src\hle\module\ExceptionManagerForKernel.ts" />
     <TypeScriptCompile Include="src\hle\module\InterruptManager.ts" />
@@ -167,7 +168,6 @@
     <TypeScriptCompile Include="src\util\IndentStringGenerator.ts" />
     <TypeScriptCompile Include="src\global\int64.ts" />
     <TypeScriptCompile Include="src\global\math.ts" />
-    <TypeScriptCompile Include="src\util\Signal.ts" />
     <TypeScriptCompile Include="src\global\stream.ts" />
     <TypeScriptCompile Include="src\util\StringUtils.ts" />
     <TypeScriptCompile Include="src\global\struct.ts" />

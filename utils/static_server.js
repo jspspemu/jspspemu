@@ -162,10 +162,12 @@ var wsClientLastId = 0;
 function num2mac(value) {
 	value = value & 0x00FFFFFF;
 	var parts = [];
-	for (var n = 0; n < 4; n++) {
+	parts.push(1);
+	parts.push(value % 255);
+	for (var n = 3; n >= 0; n--) {
 		parts.push((value >>> (n * 8)) & 0xFF);
 	}
-	return ('01:02:' + parts.map(function(part) { var out = part.toString(16); while (out.length < 2) out = '0' + out; return out; }).join(':')).toUpperCase();
+	return (parts.map(function(part) { var out = part.toString(16); while (out.length < 2) out = '0' + out; return out; }).join(':')).toLowerCase();
 }
 
 //console.log(num2mac(0));
@@ -189,7 +191,7 @@ wsServer.on('request', function(request) {
 		
 		var client = { id : num2mac(wsClientLastId++), request: request, connection: connection };
 		wsClientsMap[partition][client.id] = client;
-		connection.sendUTF(JSON.stringify({ from : 'FF:FF:FF:FF:FF:FF', type: 'setid', payload : client.id }));
+		connection.sendUTF(JSON.stringify({ from : 'ff:ff:ff:ff:ff:ff', port : 0, type: 'setid', payload : client.id }));
 
 		console.log((new Date()) + ' Connection accepted.');
 		connection.on('message', function(messageInfo) {
@@ -200,17 +202,16 @@ wsServer.on('request', function(request) {
 				
 				if (to == '00:00:00:00:00:00') { // broadcast to everyone but me
 					for (var id in wsClientsMap[partition]) { var other = wsClientsMap[partition][id];
-						if (other != client) {
-							other.connection.sendUTF(JSON.stringify({ from : client.id, type: message.type, payload : message.payload }));
-						}
+						if (other == client) continue;
+						other.connection.sendUTF(JSON.stringify({ from : client.id, port : message.port, type: message.type, payload : message.payload }));
 					}
-				} else if (to == 'FF:FF:FF:FF:FF:FF') { // to server
+				} else if (to == 'ff:ff:ff:ff:ff:ff') { // to server
 				} else {
 					var other = wsClientsMap[partition][to];
 					if (!other) {
 						console.error("Can't find client '" + to + "'");
 					} else {
-						other.connection.sendUTF(JSON.stringify({ from : client.id, type: message.type, payload : message.payload }));
+						other.connection.sendUTF(JSON.stringify({ from : client.id, port : message.port, type: message.type, payload : message.payload }));
 					}
 				}
 				//console.log(data);

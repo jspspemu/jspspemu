@@ -191,6 +191,10 @@ class Stream {
 		return btoa(out);
 	}
 
+	toStringAll() {
+		return this.sliceWithLength(0).readString(this.length);
+	}
+
 	toUInt8Array() {
 		return new Uint8Array(this.toArrayBuffer());
 	}

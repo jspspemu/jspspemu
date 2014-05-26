@@ -1,5 +1,4 @@
-﻿import Signal = require('../util/Signal');
-import _cpu = require('./cpu');
+﻿import _cpu = require('./cpu');
 
 export class InterruptHandler {
 	enabled = false;
