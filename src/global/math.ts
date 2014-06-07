@@ -11,9 +11,6 @@
 	log10(x: number): number;
 }
 
-if (!Math.log2) { Math.log2 = (x: number) => { return Math.log(x) / Math.LN2; }; }
-if (!Math.log10) { Math.log10 = (x: number) => { return Math.log(x) / Math.LN10; }; }
-
 declare var vec4: {
 	create(): Float32Array;
 	fromValues(x: number, y: number, z: number, w: number): Float32Array;
@@ -32,6 +29,19 @@ declare var mat4: {
 	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
 };
 
+self['polyfills'] = self['polyfills'] || {};
+
+self['polyfills']['log2'] = !Math['log2'];
+if (!Math.log2) {
+	Math.log2 = (x: number) => { return Math.log(x) / Math.LN2; };
+}
+
+self['polyfills']['log10'] = !Math['log10'];
+if (!Math.log10) {
+	Math.log10 = (x: number) => { return Math.log(x) / Math.LN10; };
+}
+
+self['polyfills']['sign'] = !Math['sign'];
 if (!Math['sign']) {
 	Math['sign'] = (x: number) => {
 		if (x < 0) return -1;
@@ -40,6 +50,7 @@ if (!Math['sign']) {
 	};
 }
 
+self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
 	Math['rint'] = (value: number) => {
 		var twoToThe52 = Math.pow(2, 52); // 2^52
@@ -50,6 +61,7 @@ if (!Math['rint']) {
 	};
 }
 
+self['polyfills']['clz32'] = !Math['clz32'];
 if (!Math['clz32']) {
 	Math['clz32'] = (x: number) => {
 		x >>>= 0;
@@ -65,6 +77,7 @@ if (!Math['clz32']) {
 	};
 }
 
+self['polyfills']['trunc'] = !Math['trunc'];
 if (!Math['trunc']) {
 	Math['trunc'] = function (x: number) {
 		if (x < 0) {
@@ -75,6 +88,7 @@ if (!Math['trunc']) {
 	}
 }
 
+self['polyfills']['imul'] = !Math['imul'];
 if (!Math['imul']) {
 	Math['imul'] = function (a: number, b: number) {
 		var ah = (a >>> 16) & 0xffff;
@@ -120,6 +134,7 @@ if (!Math['imul']) {
 //	});
 //}
 
+self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
 	Math.umul32_64 = function (a: number, b: number, result?: number[]) {
 		if (result === undefined) result = [0, 0];
@@ -152,6 +167,7 @@ if (!Math.umul32_64) {
 	};
 }
 
+self['polyfills']['imul32_64'] = !Math['imul32_64'];
 if (!Math.imul32_64) {
 	Math.imul32_64 = function (a: number, b: number, result?: number[]) {
 		if (result === undefined) result = [0, 0];
@@ -182,6 +198,7 @@ if (!Math.imul32_64) {
 	}
 }
 
+self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
 	Math['fround'] = function (x: number) {
 		var f32 = new Float32Array(1);

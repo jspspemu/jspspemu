@@ -10,6 +10,7 @@ Lastest version have been tested on:
 * Opera 20
 * Firefox 29
 * Internet Explorer 11 (no sound)
+* Safari 8
 
 Opera and Chrome performs the best because they use V8 that is lightning fast.
 
@@ -21,7 +22,7 @@ You can reference some samples like this:
 * http://jspspemu.com/#samples/TrigWars.zip
 * http://jspspemu.com/#samples/Doom.zip
 
-It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API, Web Workers and the Gamepad API.
+It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API, Web Workers, WebSockets and the Gamepad API.
 It will use FileSystem API / IndexedDB too.
 
 At this point it can run some demos and homebrew games.

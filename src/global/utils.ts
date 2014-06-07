@@ -214,6 +214,18 @@ class Microtask {
 	}
 }
 
+self['polyfills'] = self['polyfills'] || {};
+self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
+self['polyfills']['setImmediate'] = !self.setImmediate;
+self['polyfills']['performance'] = !self.performance;
+
+if (!self['performance']) {
+	self['performance'] = <any>{};
+	self['performance']['now'] = function () {
+		return Date.now();
+	};
+}
+
 if (!window['setImmediate']) {
 	window['setImmediate'] = function (callback: () => void) {
 		Microtask.queue(callback);

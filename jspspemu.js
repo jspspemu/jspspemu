@@ -468,17 +468,23 @@ var Integer64 = (function () {
 })();
 //# sourceMappingURL=int64.js.map
 
-﻿if (!Math.log2) {
+﻿self['polyfills'] = self['polyfills'] || {};
+
+self['polyfills']['log2'] = !Math['log2'];
+if (!Math.log2) {
     Math.log2 = function (x) {
         return Math.log(x) / Math.LN2;
     };
 }
+
+self['polyfills']['log10'] = !Math['log10'];
 if (!Math.log10) {
     Math.log10 = function (x) {
         return Math.log(x) / Math.LN10;
     };
 }
 
+self['polyfills']['sign'] = !Math['sign'];
 if (!Math['sign']) {
     Math['sign'] = function (x) {
         if (x < 0)
@@ -489,6 +495,7 @@ if (!Math['sign']) {
     };
 }
 
+self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
     Math['rint'] = function (value) {
         var twoToThe52 = Math.pow(2, 52);
@@ -500,6 +507,7 @@ if (!Math['rint']) {
     };
 }
 
+self['polyfills']['clz32'] = !Math['clz32'];
 if (!Math['clz32']) {
     Math['clz32'] = function (x) {
         x >>>= 0;
@@ -537,6 +545,7 @@ if (!Math['clz32']) {
     };
 }
 
+self['polyfills']['trunc'] = !Math['trunc'];
 if (!Math['trunc']) {
     Math['trunc'] = function (x) {
         if (x < 0) {
@@ -547,6 +556,7 @@ if (!Math['trunc']) {
     };
 }
 
+self['polyfills']['imul'] = !Math['imul'];
 if (!Math['imul']) {
     Math['imul'] = function (a, b) {
         var ah = (a >>> 16) & 0xffff;
@@ -592,6 +602,7 @@ if (!Math['imul']) {
 //		});
 //	});
 //}
+self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
     Math.umul32_64 = function (a, b, result) {
         if (result === undefined)
@@ -624,6 +635,7 @@ if (!Math.umul32_64) {
     };
 }
 
+self['polyfills']['imul32_64'] = !Math['imul32_64'];
 if (!Math.imul32_64) {
     Math.imul32_64 = function (a, b, result) {
         if (result === undefined)
@@ -658,6 +670,7 @@ if (!Math.imul32_64) {
     };
 }
 
+self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
     Math['fround'] = function (x) {
         var f32 = new Float32Array(1);
@@ -2303,6 +2316,18 @@ var Microtask = (function () {
     Microtask.__location = null;
     return Microtask;
 })();
+
+self['polyfills'] = self['polyfills'] || {};
+self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
+self['polyfills']['setImmediate'] = !self.setImmediate;
+self['polyfills']['performance'] = !self.performance;
+
+if (!self['performance']) {
+    self['performance'] = {};
+    self['performance']['now'] = function () {
+        return Date.now();
+    };
+}
 
 if (!window['setImmediate']) {
     window['setImmediate'] = function (callback) {
@@ -6366,6 +6391,7 @@ var FunctionGenerator = generator.FunctionGenerator;
 var CpuSpecialAddresses = state.CpuSpecialAddresses;
 
 var InstructionCache = (function () {
+    //private cache: Function[] = [];
     function InstructionCache(memory) {
         this.memory = memory;
         this.cache = {};
@@ -6373,6 +6399,7 @@ var InstructionCache = (function () {
     }
     InstructionCache.prototype.invalidateAll = function () {
         this.cache = {};
+        //this.cache = [];
     };
 
     InstructionCache.prototype.invalidateRange = function (from, to) {
