@@ -68,6 +68,8 @@
     <TypeScriptCompile Include="src\core\gpu\webgl\utils.ts" />
     <TypeScriptCompile Include="src\core\interrupt.ts" />
     <TypeScriptCompile Include="src\core\kirk.ts" />
+    <TypeScriptCompile Include="src\core\kirk\jsaes.ts" />
+    <TypeScriptCompile Include="src\core\kirk\jsaes2.ts" />
     <TypeScriptCompile Include="src\core\kirk\kirk.ts" />
     <TypeScriptCompile Include="src\core\kirk\crypto.ts" />
     <TypeScriptCompile Include="src\core\pixelformat.ts" />

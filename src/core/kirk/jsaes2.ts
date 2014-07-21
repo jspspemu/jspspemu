@@ -15,11 +15,8 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
 	// Compute double table
 	var d = [];
 	for (var i = 0; i < 256; i++) {
-		if (i < 128) {
-			d[i] = (i << 1);
-		} else {
-			d[i] = (i << 1) ^ 0x11b;
-		}
+		d[i] = (i << 1);
+		if (i >= 128) d[i] ^= 0x11b;
 	}
 
 	// Walk GF(2^8)
@@ -42,14 +39,14 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
 		SUB_MIX_0[x] = (t << 24) | (t >>> 8);
 		SUB_MIX_1[x] = (t << 16) | (t >>> 16);
 		SUB_MIX_2[x] = (t << 8) | (t >>> 24);
-		SUB_MIX_3[x] = t;
+		SUB_MIX_3[x] = (t << 0);
 
 		// Compute inv sub bytes, inv mix columns tables
 		var t = (x8 * 0x1010101) ^ (x4 * 0x10001) ^ (x2 * 0x101) ^ (x * 0x1010100);
 		INV_SUB_MIX_0[sx] = (t << 24) | (t >>> 8);
 		INV_SUB_MIX_1[sx] = (t << 16) | (t >>> 16);
 		INV_SUB_MIX_2[sx] = (t << 8) | (t >>> 24);
-		INV_SUB_MIX_3[sx] = t;
+		INV_SUB_MIX_3[sx] = (t << 0);
 
 		// Compute next counter
 		if (!x) {
