@@ -218,8 +218,7 @@ export class Emulator {
 					});
 				case 'psp':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						_elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer));
-						throw (new Error("Not supported encrypted elf files yet!"));
+						return this._loadAndExecuteAsync(new MemoryAsyncStream(_elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
 					});
 				case 'zip':
 					return _format_zip.Zip.fromStreamAsync(asyncStream).then(zip => {
@@ -261,8 +260,11 @@ export class Emulator {
 									var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(data => { this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(() => { });
 									var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(data => { this.loadPic1(Stream.fromArrayBuffer(data)); }).catch(() => { });
 
-									return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(bootBinData => {
-										return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+									return isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN').then((exists) => {
+										var path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
+										return isoFs.readAllAsync(path).then(bootBinData => {
+											return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/' + path);
+										});
 									});
 								});
 							}

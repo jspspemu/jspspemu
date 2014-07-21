@@ -13673,7 +13673,7 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
         INV_SUB_MIX_0[sx] = (t << 24) | (t >>> 8);
         INV_SUB_MIX_1[sx] = (t << 16) | (t >>> 16);
         INV_SUB_MIX_2[sx] = (t << 8) | (t >>> 24);
-        INV_SUB_MIX_3[sx] = t;
+        INV_SUB_MIX_3[sx] = (t << 0);
 
         // Compute next counter
         if (!x) {
@@ -15443,8 +15443,7 @@ var Emulator = (function () {
                     });
                 case 'psp':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        _elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer));
-                        throw (new Error("Not supported encrypted elf files yet!"));
+                        return _this._loadAndExecuteAsync(new MemoryAsyncStream(_elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
                     });
                 case 'zip':
                     return _format_zip.Zip.fromStreamAsync(asyncStream).then(function (zip) {
@@ -15494,8 +15493,11 @@ var Emulator = (function () {
                                     }).catch(function () {
                                     });
 
-                                    return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
-                                        return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                                    return isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (exists) {
+                                        var path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
+                                        return isoFs.readAllAsync(path).then(function (bootBinData) {
+                                            return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/' + path);
+                                        });
                                     });
                                 });
                             }
