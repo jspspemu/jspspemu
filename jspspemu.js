@@ -13508,46 +13508,51 @@ function AES_ExpandKey(_key) {
     return new Uint8Array(key);
 }
 
-function AES_SubBytes(state, sbox) {
+var temp = new Uint8Array(16);
+
+function AES_SubBytes(state, state_offset, sbox) {
     for (var i = 0; i < 16; i++)
-        state[i] = sbox[state[i]];
+        temp[i] = state[i + state_offset];
+    for (var i = 0; i < 16; i++)
+        state[i + state_offset] = sbox[temp[i]];
 }
 
-function AES_AddRoundKey(state, rkey, rkey_offset) {
+function AES_AddRoundKey(state, state_offset, rkey, rkey_offset) {
     for (var i = 0; i < 16; i++)
-        state[i] ^= rkey[i + rkey_offset];
+        state[i + state_offset] ^= rkey[i + rkey_offset];
 }
 
-function AES_ShiftRows(state, shifttab) {
-    var h = new Array().concat(state);
+function AES_ShiftRows(state, state_offset, shifttab) {
     for (var i = 0; i < 16; i++)
-        state[i] = h[shifttab[i]];
+        temp[i] = state[i + state_offset];
+    for (var i = 0; i < 16; i++)
+        state[i + state_offset] = temp[shifttab[i]];
 }
 
-function AES_MixColumns(state) {
+function AES_MixColumns(state, block_offset) {
     for (var i = 0; i < 16; i += 4) {
-        var s0 = state[i + 0], s1 = state[i + 1];
-        var s2 = state[i + 2], s3 = state[i + 3];
+        var s0 = state[i + block_offset + 0], s1 = state[i + block_offset + 1];
+        var s2 = state[i + block_offset + 2], s3 = state[i + block_offset + 3];
         var h = s0 ^ s1 ^ s2 ^ s3;
-        state[i + 0] ^= h ^ AES_xtime[s0 ^ s1];
-        state[i + 1] ^= h ^ AES_xtime[s1 ^ s2];
-        state[i + 2] ^= h ^ AES_xtime[s2 ^ s3];
-        state[i + 3] ^= h ^ AES_xtime[s3 ^ s0];
+        state[i + block_offset + 0] ^= h ^ AES_xtime[s0 ^ s1];
+        state[i + block_offset + 1] ^= h ^ AES_xtime[s1 ^ s2];
+        state[i + block_offset + 2] ^= h ^ AES_xtime[s2 ^ s3];
+        state[i + block_offset + 3] ^= h ^ AES_xtime[s3 ^ s0];
     }
 }
 
-function AES_MixColumns_Inv(state) {
+function AES_MixColumns_Inv(state, block_offset) {
     for (var i = 0; i < 16; i += 4) {
-        var s0 = state[i + 0], s1 = state[i + 1];
-        var s2 = state[i + 2], s3 = state[i + 3];
+        var s0 = state[i + block_offset + 0], s1 = state[i + block_offset + 1];
+        var s2 = state[i + block_offset + 2], s3 = state[i + block_offset + 3];
         var h = s0 ^ s1 ^ s2 ^ s3;
         var xh = AES_xtime[h];
         var h1 = AES_xtime[AES_xtime[xh ^ s0 ^ s2]] ^ h;
         var h2 = AES_xtime[AES_xtime[xh ^ s1 ^ s3]] ^ h;
-        state[i + 0] ^= h1 ^ AES_xtime[s0 ^ s1];
-        state[i + 1] ^= h2 ^ AES_xtime[s1 ^ s2];
-        state[i + 2] ^= h1 ^ AES_xtime[s2 ^ s3];
-        state[i + 3] ^= h2 ^ AES_xtime[s3 ^ s0];
+        state[i + block_offset + 0] ^= h1 ^ AES_xtime[s0 ^ s1];
+        state[i + block_offset + 1] ^= h2 ^ AES_xtime[s1 ^ s2];
+        state[i + block_offset + 2] ^= h1 ^ AES_xtime[s2 ^ s3];
+        state[i + block_offset + 3] ^= h2 ^ AES_xtime[s3 ^ s0];
     }
 }
 
@@ -13555,18 +13560,18 @@ function AES_MixColumns_Inv(state) {
 AES_Encrypt: encrypt the 16 byte array 'block' with the previously
 expanded key 'key'.
 */
-function AES_Encrypt(block, key) {
+function AES_Encrypt(block, block_offset, key) {
     var l = key.length;
-    AES_AddRoundKey(block, key, 0);
+    AES_AddRoundKey(block, block_offset, key, 0);
     for (var i = 16; i < l - 16; i += 16) {
-        AES_SubBytes(block, AES_Sbox);
-        AES_ShiftRows(block, AES_ShiftRowTab);
-        AES_MixColumns(block);
-        AES_AddRoundKey(block, key, i);
+        AES_SubBytes(block, block_offset, AES_Sbox);
+        AES_ShiftRows(block, block_offset, AES_ShiftRowTab);
+        AES_MixColumns(block, block_offset);
+        AES_AddRoundKey(block, block_offset, key, i);
     }
-    AES_SubBytes(block, AES_Sbox);
-    AES_ShiftRows(block, AES_ShiftRowTab);
-    AES_AddRoundKey(block, key, i);
+    AES_SubBytes(block, block_offset, AES_Sbox);
+    AES_ShiftRows(block, block_offset, AES_ShiftRowTab);
+    AES_AddRoundKey(block, block_offset, key, i);
     return block;
 }
 exports.AES_Encrypt = AES_Encrypt;
@@ -13575,44 +13580,40 @@ exports.AES_Encrypt = AES_Encrypt;
 AES_Decrypt: decrypt the 16 byte array 'block' with the previously
 expanded key 'key'.
 */
-function AES_Decrypt(block, expandedKey) {
+function AES_Decrypt(block, block_offset, expandedKey) {
     var l = expandedKey.length;
-    AES_AddRoundKey(block, expandedKey, l - 16);
-    AES_ShiftRows(block, AES_ShiftRowTab_Inv);
-    AES_SubBytes(block, AES_Sbox_Inv);
+    AES_AddRoundKey(block, block_offset, expandedKey, l - 16);
+    AES_ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
+    AES_SubBytes(block, block_offset, AES_Sbox_Inv);
     for (var i = l - 32; i >= 16; i -= 16) {
-        AES_AddRoundKey(block, expandedKey, i);
-        AES_MixColumns_Inv(block);
-        AES_ShiftRows(block, AES_ShiftRowTab_Inv);
-        AES_SubBytes(block, AES_Sbox_Inv);
+        AES_AddRoundKey(block, block_offset, expandedKey, i);
+        AES_MixColumns_Inv(block, block_offset);
+        AES_ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
+        AES_SubBytes(block, block_offset, AES_Sbox_Inv);
     }
-    AES_AddRoundKey(block, expandedKey, 0);
+    AES_AddRoundKey(block, block_offset, expandedKey, 0);
     return block;
 }
 exports.AES_Decrypt = AES_Decrypt;
 
-function AES_Decrypt_Blocks_CBC(blocksData, keyData, iv) {
-    var blocks = new Array(blocksData.length);
-    for (var n = 0; n < blocksData.length; n++)
-        blocks[n] = blocksData[n];
+function AES_Decrypt_Blocks_CBC(blocks, key, iv) {
+    var keyLength = key.length;
+    var expandedKey = AES_ExpandKey(Array.apply(null, key));
+    var out = new Uint8Array(blocks.length);
 
-    var keyLength = keyData.length;
-
-    var expandedKey = AES_ExpandKey(Array.apply(null, keyData));
-    var out = new Uint8Array(blocksData.length);
-
-    var prevChunk = Array.apply(null, iv);
+    var chunkUn = new Uint8Array(keyLength);
+    var prevChunk = new Uint8Array(keyLength);
 
     for (var n = 0; n < blocks.length; n += keyLength) {
-        var chunk = blocks.slice(n, n + keyLength);
-        var chunkUn = chunk.slice(0, keyLength);
+        for (var m = 0; m < keyLength; m++)
+            chunkUn[m] = blocks[n + m];
 
-        exports.AES_Decrypt(chunk, expandedKey);
+        exports.AES_Decrypt(blocks, n, expandedKey);
 
-        for (var m = 0; m < prevChunk.length; m++)
-            out[n + m] = chunk[m] ^ prevChunk[m];
+        for (var m = 0; m < keyLength; m++)
+            out[n + m] = blocks[n + m] ^ prevChunk[m];
 
-        prevChunk = chunkUn;
+        prevChunk.set(chunkUn);
     }
     return out;
 }
