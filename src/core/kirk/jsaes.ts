@@ -61,29 +61,31 @@ function AES_ShiftRows(state: Uint8Array, state_offset: number, shifttab: Uint8A
 }
 
 function AES_MixColumns(state: Uint8Array, block_offset: number) {
-	for (var i = 0; i < 16; i += 4) {
-		var s0 = state[i + block_offset + 0], s1 = state[i + block_offset + 1];
-		var s2 = state[i + block_offset + 2], s3 = state[i + block_offset + 3];
+	var end = block_offset + 16;
+
+	for (var i = block_offset; i < end; i += 4) {
+		var s0 = state[i + 0], s1 = state[i + 1];
+		var s2 = state[i + 2], s3 = state[i + 3];
 		var h = s0 ^ s1 ^ s2 ^ s3;
-		state[i + block_offset + 0] ^= h ^ AES_xtime[s0 ^ s1];
-		state[i + block_offset + 1] ^= h ^ AES_xtime[s1 ^ s2];
-		state[i + block_offset + 2] ^= h ^ AES_xtime[s2 ^ s3];
-		state[i + block_offset + 3] ^= h ^ AES_xtime[s3 ^ s0];
+		state[i + 0] ^= h ^ AES_xtime[s0 ^ s1];
+		state[i + 1] ^= h ^ AES_xtime[s1 ^ s2];
+		state[i + 2] ^= h ^ AES_xtime[s2 ^ s3];
+		state[i + 3] ^= h ^ AES_xtime[s3 ^ s0];
 	}
 }
 
 function AES_MixColumns_Inv(state: Uint8Array, block_offset: number) {
-	for (var i = 0; i < 16; i += 4) {
-		var s0 = state[i + block_offset + 0], s1 = state[i + block_offset + 1];
-		var s2 = state[i + block_offset + 2], s3 = state[i + block_offset + 3];
+	var end = block_offset + 16;
+	for (var i = block_offset; i < end; i += 4) {
+		var s0 = state[i + 0], s1 = state[i + 1], s2 = state[i + 2], s3 = state[i + 3];
 		var h = s0 ^ s1 ^ s2 ^ s3;
 		var xh = AES_xtime[h];
 		var h1 = AES_xtime[AES_xtime[xh ^ s0 ^ s2]] ^ h;
 		var h2 = AES_xtime[AES_xtime[xh ^ s1 ^ s3]] ^ h;
-		state[i + block_offset + 0] ^= h1 ^ AES_xtime[s0 ^ s1];
-		state[i + block_offset + 1] ^= h2 ^ AES_xtime[s1 ^ s2];
-		state[i + block_offset + 2] ^= h1 ^ AES_xtime[s2 ^ s3];
-		state[i + block_offset + 3] ^= h2 ^ AES_xtime[s3 ^ s0];
+		state[i + 0] ^= h1 ^ AES_xtime[s0 ^ s1];
+		state[i + 1] ^= h2 ^ AES_xtime[s1 ^ s2];
+		state[i + 2] ^= h1 ^ AES_xtime[s2 ^ s3];
+		state[i + 3] ^= h2 ^ AES_xtime[s3 ^ s0];
 	}
 }
 

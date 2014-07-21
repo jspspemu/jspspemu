@@ -331,7 +331,9 @@ class Stream {
 	}
 
 	writeBytes(data: Uint8Array) {
-		for (var n = 0; n < data.length; n++) this.writeInt8(data[n]);
+		var out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
+		out.set(data, this.offset);
+		this.skip(data.length);
 	}
 
 	readBytes(count: number) {
