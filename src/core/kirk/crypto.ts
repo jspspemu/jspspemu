@@ -1,4 +1,5 @@
 ﻿import jsaes = require('./jsaes');
+import jsaes2 = require('./jsaes2');
 
 declare var CryptoJS: any;
 
@@ -108,5 +109,6 @@ export function aes_decrypt(data: Uint8Array, key: Uint8Array, iv?: Uint8Array) 
 
 	if (iv === undefined) iv = new Uint8Array(keyLength);
 
-	return jsaes.AES_Decrypt_Blocks_CBC(data, key, iv);
+	//return jsaes.Decrypt_Blocks_CBC(data, key, iv);
+	return jsaes2.decrypt_aes128_cbc(data, key);
 }

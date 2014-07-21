@@ -1,4 +1,4 @@
-﻿var AES_Sbox = new Uint8Array([
+﻿var SBOX = new Uint8Array([
 	99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171,
 	118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164, 114, 192, 183, 253,
 	147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154,
@@ -14,13 +14,18 @@
 	137, 13, 191, 230, 66, 104, 65, 153, 45, 15, 176, 84, 187, 22
 ]);
 
-var AES_ShiftRowTab = new Uint8Array([0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11]);
+var SHIFT_ROW_TAB = new Uint8Array([0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11]);
 
-var AES_Sbox_Inv = new Uint8Array(256);
+var INV_SBOX = new Uint8Array(256);
 var AES_ShiftRowTab_Inv = new Uint8Array(16);
-var AES_xtime = new Uint8Array(256);
+var XTIME = new Uint8Array(256);
 
-function AES_ExpandKey(_key: number[]) {
+// Init
+for (var i = 0; i < 256; i++) INV_SBOX[SBOX[i]] = i;
+for (var i = 0; i < 16; i++) AES_ShiftRowTab_Inv[SHIFT_ROW_TAB[i]] = i;
+for (var i = 0; i < 128; i++) XTIME[i] = i << 1, XTIME[128 + i] = (i << 1) ^ 0x1b;
+
+function ExpandKey(_key: number[]) {
 	var key = _key.slice();
 	var kl = key.length, ks, Rcon = 1;
 	switch (kl) {
@@ -33,10 +38,10 @@ function AES_ExpandKey(_key: number[]) {
 	for (var i = kl; i < ks; i += 4) {
 		var temp = key.slice(i - 4, i);
 		if (i % kl == 0) {
-			temp = [AES_Sbox[temp[1]] ^ Rcon, AES_Sbox[temp[2]], AES_Sbox[temp[3]], AES_Sbox[temp[0]]];
+			temp = [SBOX[temp[1]] ^ Rcon, SBOX[temp[2]], SBOX[temp[3]], SBOX[temp[0]]];
 			if ((Rcon <<= 1) >= 256) Rcon ^= 0x11b;
 		} else if ((kl > 24) && (i % kl == 16)) {
-			temp = [AES_Sbox[temp[0]], AES_Sbox[temp[1]], AES_Sbox[temp[2]], AES_Sbox[temp[3]]];
+			temp = [SBOX[temp[0]], SBOX[temp[1]], SBOX[temp[2]], SBOX[temp[3]]];
 		}
 
 		for (var j = 0; j < 4; j++) key[i + j] = key[i + j - kl] ^ temp[j];
@@ -46,93 +51,82 @@ function AES_ExpandKey(_key: number[]) {
 
 var temp = new Uint8Array(16);
 
-function AES_SubBytes(state: Uint8Array, state_offset: number, sbox: Uint8Array) {
+function SubBytes(state: Uint8Array, state_offset: number, sbox: Uint8Array) {
 	for (var i = 0; i < 16; i++) temp[i] = state[i + state_offset];
 	for (var i = 0; i < 16; i++) state[i + state_offset] = sbox[temp[i]];
 }
 
-function AES_AddRoundKey(state: Uint8Array, state_offset:number, rkey: Uint8Array, rkey_offset: number) {
+function AddRoundKey(state: Uint8Array, state_offset:number, rkey: Uint8Array, rkey_offset: number) {
 	for (var i = 0; i < 16; i++) state[i + state_offset] ^= rkey[i + rkey_offset];
 }
 
-function AES_ShiftRows(state: Uint8Array, state_offset: number, shifttab: Uint8Array) {
+function ShiftRows(state: Uint8Array, state_offset: number, shifttab: Uint8Array) {
 	for (var i = 0; i < 16; i++) temp[i] = state[i + state_offset];
 	for (var i = 0; i < 16; i++) state[i + state_offset] = temp[shifttab[i]];
 }
 
-function AES_MixColumns(state: Uint8Array, block_offset: number) {
+function MixColumns(state: Uint8Array, block_offset: number) {
 	var end = block_offset + 16;
 
 	for (var i = block_offset; i < end; i += 4) {
 		var s0 = state[i + 0], s1 = state[i + 1];
 		var s2 = state[i + 2], s3 = state[i + 3];
 		var h = s0 ^ s1 ^ s2 ^ s3;
-		state[i + 0] ^= h ^ AES_xtime[s0 ^ s1];
-		state[i + 1] ^= h ^ AES_xtime[s1 ^ s2];
-		state[i + 2] ^= h ^ AES_xtime[s2 ^ s3];
-		state[i + 3] ^= h ^ AES_xtime[s3 ^ s0];
+		state[i + 0] ^= h ^ XTIME[s0 ^ s1];
+		state[i + 1] ^= h ^ XTIME[s1 ^ s2];
+		state[i + 2] ^= h ^ XTIME[s2 ^ s3];
+		state[i + 3] ^= h ^ XTIME[s3 ^ s0];
 	}
 }
 
-function AES_MixColumns_Inv(state: Uint8Array, block_offset: number) {
+function MixColumns_Inv(state: Uint8Array, block_offset: number) {
 	var end = block_offset + 16;
 	for (var i = block_offset; i < end; i += 4) {
 		var s0 = state[i + 0], s1 = state[i + 1], s2 = state[i + 2], s3 = state[i + 3];
 		var h = s0 ^ s1 ^ s2 ^ s3;
-		var xh = AES_xtime[h];
-		var h1 = AES_xtime[AES_xtime[xh ^ s0 ^ s2]] ^ h;
-		var h2 = AES_xtime[AES_xtime[xh ^ s1 ^ s3]] ^ h;
-		state[i + 0] ^= h1 ^ AES_xtime[s0 ^ s1];
-		state[i + 1] ^= h2 ^ AES_xtime[s1 ^ s2];
-		state[i + 2] ^= h1 ^ AES_xtime[s2 ^ s3];
-		state[i + 3] ^= h2 ^ AES_xtime[s3 ^ s0];
+		var xh = XTIME[h];
+		var h1 = XTIME[XTIME[xh ^ s0 ^ s2]] ^ h;
+		var h2 = XTIME[XTIME[xh ^ s1 ^ s3]] ^ h;
+		state[i + 0] ^= h1 ^ XTIME[s0 ^ s1];
+		state[i + 1] ^= h2 ^ XTIME[s1 ^ s2];
+		state[i + 2] ^= h1 ^ XTIME[s2 ^ s3];
+		state[i + 3] ^= h2 ^ XTIME[s3 ^ s0];
 	}
 }
 
-
-/* 
-   AES_Encrypt: encrypt the 16 byte array 'block' with the previously 
-   expanded key 'key'.
-*/
-
-export function AES_Encrypt(block: Uint8Array, block_offset: number, key: Uint8Array) {
+export function Encrypt(block: Uint8Array, block_offset: number, key: Uint8Array) {
 	var l = key.length;
-	AES_AddRoundKey(block, block_offset, key, 0);
+	AddRoundKey(block, block_offset, key, 0);
 	for (var i = 16; i < l - 16; i += 16) {
-		AES_SubBytes(block, block_offset, AES_Sbox);
-		AES_ShiftRows(block, block_offset, AES_ShiftRowTab);
-		AES_MixColumns(block, block_offset);
-		AES_AddRoundKey(block, block_offset, key, i);
+		SubBytes(block, block_offset, SBOX);
+		ShiftRows(block, block_offset, SHIFT_ROW_TAB);
+		MixColumns(block, block_offset);
+		AddRoundKey(block, block_offset, key, i);
 	}
-	AES_SubBytes(block, block_offset, AES_Sbox);
-	AES_ShiftRows(block, block_offset, AES_ShiftRowTab);
-	AES_AddRoundKey(block, block_offset, key, i);
+	SubBytes(block, block_offset, SBOX);
+	ShiftRows(block, block_offset, SHIFT_ROW_TAB);
+	AddRoundKey(block, block_offset, key, i);
 	return block;
 }
 
-/* 
-   AES_Decrypt: decrypt the 16 byte array 'block' with the previously 
-   expanded key 'key'.
-*/
-
-export function AES_Decrypt(block: Uint8Array, block_offset: number, expandedKey: Uint8Array) {
+export function Decrypt(block: Uint8Array, block_offset: number, expandedKey: Uint8Array) {
 	var l = expandedKey.length;
-	AES_AddRoundKey(block, block_offset, expandedKey, l - 16);
-	AES_ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
-	AES_SubBytes(block, block_offset, AES_Sbox_Inv);
+	AddRoundKey(block, block_offset, expandedKey, l - 16);
+	ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
+	SubBytes(block, block_offset, INV_SBOX);
 	for (var i = l - 32; i >= 16; i -= 16) {
-		AES_AddRoundKey(block, block_offset, expandedKey, i);
-		AES_MixColumns_Inv(block, block_offset);
-		AES_ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
-		AES_SubBytes(block, block_offset, AES_Sbox_Inv);
+		AddRoundKey(block, block_offset, expandedKey, i);
+		MixColumns_Inv(block, block_offset);
+		ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
+		SubBytes(block, block_offset, INV_SBOX);
 	}
-	AES_AddRoundKey(block, block_offset, expandedKey, 0);
+	AddRoundKey(block, block_offset, expandedKey, 0);
 	return block;
 }
 
-export function AES_Decrypt_Blocks_CBC(blocks: Uint8Array, key: Uint8Array, iv: Uint8Array) {
+export function Decrypt_Blocks_CBC(blocks: Uint8Array, key: Uint8Array, iv: Uint8Array) {
 	var keyLength = key.length;
-	var expandedKey = AES_ExpandKey(Array.apply(null, key));
+	var expandedKey = ExpandKey(Array.apply(null, key));
 	var out = new Uint8Array(blocks.length);
 
 	var chunkUn = new Uint8Array(keyLength);
@@ -142,7 +136,7 @@ export function AES_Decrypt_Blocks_CBC(blocks: Uint8Array, key: Uint8Array, iv: 
 	for (var n = 0; n < blocks.length; n += keyLength) {
 		for (var m = 0; m < keyLength; m++) chunkUn[m] = blocks[n + m];
 
-		AES_Decrypt(blocks, n, expandedKey);
+		Decrypt(blocks, n, expandedKey);
 
 		for (var m = 0; m < keyLength; m++) out[n + m] = blocks[n + m] ^ prevChunk[m];
 
@@ -150,8 +144,3 @@ export function AES_Decrypt_Blocks_CBC(blocks: Uint8Array, key: Uint8Array, iv: 
 	}
 	return out;
 }
-
-// Init
-for (var i = 0; i < 256; i++) AES_Sbox_Inv[AES_Sbox[i]] = i;
-for (var i = 0; i < 16; i++) AES_ShiftRowTab_Inv[AES_ShiftRowTab[i]] = i;
-for (var i = 0; i < 128; i++) AES_xtime[i] = i << 1, AES_xtime[128 + i] = (i << 1) ^ 0x1b;
