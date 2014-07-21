@@ -116,6 +116,15 @@ class StructClass<T> implements IType {
 			item.type.write(stream, value[item.name], value);
 		}
 	}
+	offsetOfField(name: string) {
+		var offset = 0;
+		for (var n = 0; n < this.processedItems.length; n++) {
+			var item = this.processedItems[n];
+			if (item.name == name) return offset;
+			offset += item.type.length;
+		}
+		return -1;
+	}
 	get length() {
 		var sum = 0;
 		for (var n = 0; n < this.processedItems.length; n++) {

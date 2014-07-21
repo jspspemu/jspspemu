@@ -1,5 +1,6 @@
 ﻿declare function require(name: string): any;
 
+require('./format/pspTest');
 require('./format/csoTest');
 require('./format/isoTest');
 require('./format/pbpTest');

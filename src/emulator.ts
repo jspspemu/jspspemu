@@ -218,7 +218,7 @@ export class Emulator {
 					});
 				case 'psp':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						_elf_crypted_prx.decrypt(new Uint8Array(executableArrayBuffer));
+						_elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer));
 						throw (new Error("Not supported encrypted elf files yet!"));
 					});
 				case 'zip':

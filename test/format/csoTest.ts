@@ -19,7 +19,7 @@ describe('cso', () => {
 				var CD0001 = stream.readStringz(6);
 				assert.equal(CD0001, '\u0001CD001');
 			});
-            //console.log(cso);
+			//console.log(cso);
 		});
 	});
 
@@ -29,9 +29,10 @@ describe('cso', () => {
 				assert.equal(
 					JSON.stringify(iso.children.slice(0, 4).map(node => node.path)),
 					JSON.stringify(["path", "path/0", "path/1", "path/2"])
-				);
+					);
 			});
 		});
 	});
 
 });
+

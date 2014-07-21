@@ -60,7 +60,7 @@ export class VertexReader {
 
 	constructor(public vertexState: _state.VertexState) {
 		this.readCode = this.createJs();
-		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', this.readCode));
+		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
 	}
 
 	private oneOuput = [new _state.Vertex()];

@@ -127,7 +127,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	//console.log(code);
-	var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
+	var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
 	nativeFunction.call = (context, state) => {
         func(_this, internalFunc, context, state, nativeFunction);
 	};

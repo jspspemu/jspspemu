@@ -578,7 +578,7 @@ export class Instructions {
 	private fastFindByData(i32: number, pc: number = 0) {
 		if (!this.decoder) {
 			var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
-			this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', switchCode));
+			this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
 		}
 		return this.decoder(this.instructionTypeListByName, i32, pc);
 		/*

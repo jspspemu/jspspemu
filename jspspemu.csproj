@@ -171,6 +171,7 @@
     <TypeScriptCompile Include="src\global\stream.ts" />
     <TypeScriptCompile Include="src\util\StringUtils.ts" />
     <TypeScriptCompile Include="src\global\struct.ts" />
+    <TypeScriptCompile Include="test\format\pspTest.ts" />
     <TypeScriptCompile Include="test\format\csoTest.ts" />
     <TypeScriptCompile Include="test\format\isoTest.ts" />
     <TypeScriptCompile Include="test\format\psfTest.ts" />

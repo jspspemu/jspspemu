@@ -1359,6 +1359,10 @@ var Stream = (function () {
         return Stream.fromArray(array);
     };
 
+    Stream.fromSize = function (size) {
+        return Stream.fromUint8Array(new Uint8Array(size));
+    };
+
     Stream.fromArray = function (array) {
         var buffer = new ArrayBuffer(array.length);
         var w8 = new Uint8Array(buffer);
@@ -1402,6 +1406,14 @@ var Stream = (function () {
         return this.sliceWithLowHigh(this.position, this.length);
     };
 
+    Stream.prototype.slice = function () {
+        return this.clone();
+    };
+
+    Stream.prototype.sliceFrom = function (low) {
+        return this.sliceWithLength(low);
+    };
+
     Stream.prototype.sliceWithLength = function (low, count) {
         if (count === undefined)
             count = this.length - low;
@@ -1443,6 +1455,15 @@ var Stream = (function () {
     Stream.prototype.skip = function (count, pass) {
         this.offset += count;
         return pass;
+    };
+
+    Stream.prototype.set = function (index, value) {
+        this.data.setInt8(index, value);
+        return this;
+    };
+
+    Stream.prototype.get = function (index) {
+        return this.data.getUint8(index);
     };
 
     Stream.prototype.readInt8 = function (endian) {
@@ -1490,39 +1511,54 @@ var Stream = (function () {
         other.writeBytes(this.readBytes(this.available));
     };
 
+    Stream.prototype.writeByteRepeated = function (value, count) {
+        if (typeof count === "undefined") { count = -1; }
+        if (count < 0)
+            count = this.available;
+        for (var n = 0; n < count; n++)
+            this.data.setInt8(this.offset + n, value);
+        this.skip(n);
+        return this;
+    };
+
     Stream.prototype.writeInt8 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(1, this.data.setInt8(this.offset, value));
+        this.data.setInt8(this.offset, value);
+        return this.skip(1, this);
     };
     Stream.prototype.writeInt16 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(2, this.data.setInt16(this.offset, value, (endian == 0 /* LITTLE */)));
+        this.data.setInt16(this.offset, value, (endian == 0 /* LITTLE */));
+        return this.skip(2, this);
     };
     Stream.prototype.writeInt32 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(4, this.data.setInt32(this.offset, value, (endian == 0 /* LITTLE */)));
+        this.data.setInt32(this.offset, value, (endian == 0 /* LITTLE */));
+        return this.skip(4, this);
     };
     Stream.prototype.writeInt64 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         return this._writeUInt64(value, endian);
     };
-
     Stream.prototype.writeFloat32 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(4, this.data.setFloat32(this.offset, value, (endian == 0 /* LITTLE */)));
+        this.data.setFloat32(this.offset, value, (endian == 0 /* LITTLE */));
+        return this.skip(4, this);
     };
-
     Stream.prototype.writeUInt8 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(1, this.data.setUint8(this.offset, value));
+        this.data.setUint8(this.offset, value);
+        return this.skip(1, this);
     };
     Stream.prototype.writeUInt16 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(2, this.data.setUint16(this.offset, value, (endian == 0 /* LITTLE */)));
+        this.data.setUint16(this.offset, value, (endian == 0 /* LITTLE */));
+        return this.skip(2, this);
     };
     Stream.prototype.writeUInt32 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
-        return this.skip(4, this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */)));
+        this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */));
+        return this.skip(4, this);
     };
     Stream.prototype.writeUInt64 = function (value, endian) {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
@@ -1533,10 +1569,15 @@ var Stream = (function () {
         if (typeof endian === "undefined") { endian = 0 /* LITTLE */; }
         this.writeUInt32((endian == 0 /* LITTLE */) ? value.low : value.high, endian);
         this.writeUInt32((endian == 0 /* LITTLE */) ? value.high : value.low, endian);
+        return this;
     };
 
     Stream.prototype.writeStruct = function (struct, value) {
         struct.write(this, value);
+    };
+
+    Stream.prototype.writeStream = function (stream) {
+        return this.writeBytes(stream.slice().readBytes(stream.available));
     };
 
     Stream.prototype.writeString = function (str) {
@@ -1565,6 +1606,10 @@ var Stream = (function () {
 
     Stream.prototype.readBytes = function (count) {
         return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+
+    Stream.prototype.readAllBytes = function () {
+        return this.readBytes(this.available);
     };
 
     Stream.prototype.readInt16Array = function (count) {
@@ -1800,6 +1845,16 @@ var StructClass = (function () {
             var item = this.processedItems[n];
             item.type.write(stream, value[item.name], value);
         }
+    };
+    StructClass.prototype.offsetOfField = function (name) {
+        var offset = 0;
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            if (item.name == name)
+                return offset;
+            offset += item.type.length;
+        }
+        return -1;
     };
     Object.defineProperty(StructClass.prototype, "length", {
         get: function () {
@@ -2069,7 +2124,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -6242,7 +6297,7 @@ var FunctionGenerator = (function () {
     FunctionGenerator.prototype.create = function (address) {
         var code = this._create(address);
         try  {
-            return new Function('state', code);
+            return new Function('state', '"use strict";' + code);
         } catch (e) {
             console.info('code:\n', code);
             throw (e);
@@ -6391,7 +6446,6 @@ var FunctionGenerator = generator.FunctionGenerator;
 var CpuSpecialAddresses = state.CpuSpecialAddresses;
 
 var InstructionCache = (function () {
-    //private cache: Function[] = [];
     function InstructionCache(memory) {
         this.memory = memory;
         this.cache = {};
@@ -6399,7 +6453,6 @@ var InstructionCache = (function () {
     }
     InstructionCache.prototype.invalidateAll = function () {
         this.cache = {};
-        //this.cache = [];
     };
 
     InstructionCache.prototype.invalidateRange = function (from, to) {
@@ -7051,7 +7104,7 @@ var Instructions = (function () {
         if (typeof pc === "undefined") { pc = 0; }
         if (!this.decoder) {
             var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
-            this.decoder = (new Function('instructionsByName', 'value', 'pc', switchCode));
+            this.decoder = (new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
         }
         return this.decoder(this.instructionTypeListByName, i32, pc);
         /*
@@ -11955,7 +12008,7 @@ var VertexReader = (function () {
         this.s32 = new Int32Array(this.input2.buffer);
         this.f32 = new Float32Array(this.input2.buffer);
         this.readCode = this.createJs();
-        this.readOneFunc = (new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', this.readCode));
+        this.readOneFunc = (new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
     }
     VertexReader.prototype.readOne = function (input, index) {
         this.oneIndices[0] = index;
@@ -13268,13 +13321,17 @@ var KIRK_AES128CBC_HEADER = _kirk.KIRK_AES128CBC_HEADER;
 exports.KIRK_AES128CBC_HEADER = KIRK_AES128CBC_HEADER;
 var KirkMode = _kirk.KirkMode;
 exports.KirkMode = KirkMode;
+var CommandEnum = _kirk.CommandEnum;
+exports.CommandEnum = CommandEnum;
 var CMD7 = _kirk.CMD7;
 exports.CMD7 = CMD7;
-var decryptAes128CbcWithKey = _kirk.decryptAes128CbcWithKey;
-exports.decryptAes128CbcWithKey = decryptAes128CbcWithKey;
+var hleUtilsBufferCopyWithRange = _kirk.hleUtilsBufferCopyWithRange;
+exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 //# sourceMappingURL=kirk.js.map
 },
 "src/core/kirk/crypto": function(module, exports, require) {
+var jsaes = require('./jsaes');
+
 function cryptoToArray(info) {
     var words = info.words;
     var wordsLen = words.length;
@@ -13334,46 +13391,780 @@ function aes_encrypt(data, key, iv) {
 }
 exports.aes_encrypt = aes_encrypt;
 
+function uint8array_to_array32(data) {
+    var data2 = new Uint32Array(data.buffer);
+    var out = new Array(data2.length / 4);
+    for (var n = 0; n < data2.length; n++) {
+        out[n] = data2[n];
+        //if (out[n] & 0x80) out[n] |= ~0xFF;
+    }
+    return out;
+}
+
+function uint8array_to_array8(data) {
+    var out = new Array(data.length / 4);
+    for (var n = 0; n < data.length; n++) {
+        out[n] = data[n];
+        //if (out[n] & 0x80) out[n] |= ~0xFF;
+    }
+    return out;
+}
+
+function array_to_uint8array(data) {
+    var out = new Uint8Array(data.length);
+    for (var n = 0; n < data.length; n++)
+        out[n] = data[n];
+    return out;
+}
+
+function pad_PKCS7(array, padding) {
+    var left = (padding - (array.length % padding)) % padding;
+    for (var n = 0; n < left; n++)
+        array.push(left);
+    return array;
+}
+
+function pad_Zero(array, padding) {
+    var left = (padding - (array.length % padding)) % padding;
+    for (var n = 0; n < left; n++)
+        array.push(0);
+    return array;
+}
+
+function cbc(data, iv) {
+    for (var m = 0; m < 16; m++)
+        data[m] ^= iv[m];
+    for (var n = 16; n < data.length; n += 16) {
+        for (var m = 0; m < 16; m++) {
+            data[n + m] ^= data[n + m - 16];
+        }
+    }
+}
+
 function aes_decrypt(data, key, iv) {
-    var info = {};
-    if (iv !== undefined)
-        info['iv'] = fromCryptoArray(iv);
-    return cryptoToArray(CryptoJS.AES.decrypt(fromCryptoArray(data), fromCryptoArray(key), info));
+    var keyLength = key.length;
+
+    if (iv === undefined)
+        iv = new Uint8Array(keyLength);
+
+    return jsaes.AES_Decrypt_Blocks_CBC(data, key, iv);
 }
 exports.aes_decrypt = aes_decrypt;
-
-console.log(ab2hex(exports.md5(str2ab('hello'))));
-console.log(ab2hex(exports.sha1(str2ab('hello'))));
 //# sourceMappingURL=crypto.js.map
+},
+"src/core/kirk/jsaes": function(module, exports, require) {
+var AES_Sbox = [
+    99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171,
+    118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164, 114, 192, 183, 253,
+    147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154,
+    7, 18, 128, 226, 235, 39, 178, 117, 9, 131, 44, 26, 27, 110, 90, 160, 82, 59, 214, 179, 41, 227,
+    47, 132, 83, 209, 0, 237, 32, 252, 177, 91, 106, 203, 190, 57, 74, 76, 88, 207, 208, 239, 170,
+    251, 67, 77, 51, 133, 69, 249, 2, 127, 80, 60, 159, 168, 81, 163, 64, 143, 146, 157, 56, 245,
+    188, 182, 218, 33, 16, 255, 243, 210, 205, 12, 19, 236, 95, 151, 68, 23, 196, 167, 126, 61,
+    100, 93, 25, 115, 96, 129, 79, 220, 34, 42, 144, 136, 70, 238, 184, 20, 222, 94, 11, 219, 224,
+    50, 58, 10, 73, 6, 36, 92, 194, 211, 172, 98, 145, 149, 228, 121, 231, 200, 55, 109, 141, 213,
+    78, 169, 108, 86, 244, 234, 101, 122, 174, 8, 186, 120, 37, 46, 28, 166, 180, 198, 232, 221,
+    116, 31, 75, 189, 139, 138, 112, 62, 181, 102, 72, 3, 246, 14, 97, 53, 87, 185, 134, 193, 29,
+    158, 225, 248, 152, 17, 105, 217, 142, 148, 155, 30, 135, 233, 206, 85, 40, 223, 140, 161,
+    137, 13, 191, 230, 66, 104, 65, 153, 45, 15, 176, 84, 187, 22
+];
+
+var AES_ShiftRowTab = [0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11];
+
+var AES_Sbox_Inv = new Array(256);
+var AES_ShiftRowTab_Inv = new Array(16);
+var AES_xtime = new Array(256);
+
+function AES_ExpandKey(key) {
+    var kl = key.length, ks, Rcon = 1;
+    switch (kl) {
+        case 16:
+            ks = 16 * (10 + 1);
+            break;
+        case 24:
+            ks = 16 * (12 + 1);
+            break;
+        case 32:
+            ks = 16 * (14 + 1);
+            break;
+        default:
+            alert("AES_ExpandKey: Only key lengths of 16, 24 or 32 bytes allowed!");
+    }
+    for (var i = kl; i < ks; i += 4) {
+        var temp = key.slice(i - 4, i);
+        if (i % kl == 0) {
+            temp = new Array(AES_Sbox[temp[1]] ^ Rcon, AES_Sbox[temp[2]], AES_Sbox[temp[3]], AES_Sbox[temp[0]]);
+            if ((Rcon <<= 1) >= 256)
+                Rcon ^= 0x11b;
+        } else if ((kl > 24) && (i % kl == 16))
+            temp = new Array(AES_Sbox[temp[0]], AES_Sbox[temp[1]], AES_Sbox[temp[2]], AES_Sbox[temp[3]]);
+        for (var j = 0; j < 4; j++)
+            key[i + j] = key[i + j - kl] ^ temp[j];
+    }
+}
+
+function AES_SubBytes(state, sbox) {
+    for (var i = 0; i < 16; i++)
+        state[i] = sbox[state[i]];
+}
+
+function AES_AddRoundKey(state, rkey) {
+    for (var i = 0; i < 16; i++)
+        state[i] ^= rkey[i];
+}
+
+function AES_ShiftRows(state, shifttab) {
+    var h = new Array().concat(state);
+    for (var i = 0; i < 16; i++)
+        state[i] = h[shifttab[i]];
+}
+
+function AES_MixColumns(state) {
+    for (var i = 0; i < 16; i += 4) {
+        var s0 = state[i + 0], s1 = state[i + 1];
+        var s2 = state[i + 2], s3 = state[i + 3];
+        var h = s0 ^ s1 ^ s2 ^ s3;
+        state[i + 0] ^= h ^ AES_xtime[s0 ^ s1];
+        state[i + 1] ^= h ^ AES_xtime[s1 ^ s2];
+        state[i + 2] ^= h ^ AES_xtime[s2 ^ s3];
+        state[i + 3] ^= h ^ AES_xtime[s3 ^ s0];
+    }
+}
+
+function AES_MixColumns_Inv(state) {
+    for (var i = 0; i < 16; i += 4) {
+        var s0 = state[i + 0], s1 = state[i + 1];
+        var s2 = state[i + 2], s3 = state[i + 3];
+        var h = s0 ^ s1 ^ s2 ^ s3;
+        var xh = AES_xtime[h];
+        var h1 = AES_xtime[AES_xtime[xh ^ s0 ^ s2]] ^ h;
+        var h2 = AES_xtime[AES_xtime[xh ^ s1 ^ s3]] ^ h;
+        state[i + 0] ^= h1 ^ AES_xtime[s0 ^ s1];
+        state[i + 1] ^= h2 ^ AES_xtime[s1 ^ s2];
+        state[i + 2] ^= h1 ^ AES_xtime[s2 ^ s3];
+        state[i + 3] ^= h2 ^ AES_xtime[s3 ^ s0];
+    }
+}
+
+/*
+AES_Encrypt: encrypt the 16 byte array 'block' with the previously
+expanded key 'key'.
+*/
+function AES_Encrypt(block, key) {
+    var l = key.length;
+    AES_AddRoundKey(block, key.slice(0, 16));
+    for (var i = 16; i < l - 16; i += 16) {
+        AES_SubBytes(block, AES_Sbox);
+        AES_ShiftRows(block, AES_ShiftRowTab);
+        AES_MixColumns(block);
+        AES_AddRoundKey(block, key.slice(i, i + 16));
+    }
+    AES_SubBytes(block, AES_Sbox);
+    AES_ShiftRows(block, AES_ShiftRowTab);
+    AES_AddRoundKey(block, key.slice(i, l));
+    return block;
+}
+exports.AES_Encrypt = AES_Encrypt;
+
+/*
+AES_Decrypt: decrypt the 16 byte array 'block' with the previously
+expanded key 'key'.
+*/
+function AES_Decrypt(block, expandedKey) {
+    var l = expandedKey.length;
+    AES_AddRoundKey(block, expandedKey.slice(l - 16, l));
+    AES_ShiftRows(block, AES_ShiftRowTab_Inv);
+    AES_SubBytes(block, AES_Sbox_Inv);
+    for (var i = l - 32; i >= 16; i -= 16) {
+        AES_AddRoundKey(block, expandedKey.slice(i, i + 16));
+        AES_MixColumns_Inv(block);
+        AES_ShiftRows(block, AES_ShiftRowTab_Inv);
+        AES_SubBytes(block, AES_Sbox_Inv);
+    }
+    AES_AddRoundKey(block, expandedKey.slice(0, 16));
+    return block;
+}
+exports.AES_Decrypt = AES_Decrypt;
+
+function AES_Decrypt_Blocks_CBC(blocksData, keyData, iv) {
+    var blocks = new Array(blocksData.length);
+    for (var n = 0; n < blocksData.length; n++)
+        blocks[n] = blocksData[n];
+
+    var keyLength = keyData.length;
+
+    var expandedKey = new Array(keyData.length);
+    for (var n = 0; n < keyData.length; n++)
+        expandedKey[n] = keyData[n];
+
+    AES_ExpandKey(expandedKey);
+    var out = new Uint8Array(blocksData.length);
+
+    var prevChunk = Array.apply(null, iv);
+
+    for (var n = 0; n < blocks.length; n += keyLength) {
+        var chunk = blocks.slice(n, n + keyLength);
+        var chunkUn = chunk.slice(0, keyLength);
+
+        exports.AES_Decrypt(chunk, expandedKey);
+
+        for (var m = 0; m < prevChunk.length; m++)
+            chunk[m] ^= prevChunk[m];
+        for (var m = 0; m < prevChunk.length; m++)
+            out[n + m] = chunk[m];
+
+        prevChunk = chunkUn;
+    }
+    return out;
+}
+exports.AES_Decrypt_Blocks_CBC = AES_Decrypt_Blocks_CBC;
+
+for (var i = 0; i < 256; i++)
+    AES_Sbox_Inv[AES_Sbox[i]] = i;
+for (var i = 0; i < 16; i++)
+    AES_ShiftRowTab_Inv[AES_ShiftRowTab[i]] = i;
+for (var i = 0; i < 128; i++)
+    AES_xtime[i] = i << 1, AES_xtime[128 + i] = (i << 1) ^ 0x1b;
+//# sourceMappingURL=jsaes.js.map
+},
+"src/core/kirk/jsaes2": function(module, exports, require) {
+/* rijndael.js      Rijndael Reference Implementation
+This is a modified version of the software described below,
+produced in September 2003 by John Walker for use in the
+JavsScrypt browser-based encryption package.  The principal
+changes are replacing the original getRandomBytes function with
+one which calls our pseudorandom generator (which must
+be instantiated and seeded before the first call on getRandomBytes),
+and changing keySizeInBits to 256.  Some code not required by the
+JavsScrypt application has been commented out.  Please see
+http://www.fourmilab.ch/javascrypt/ for further information on
+JavaScrypt.
+The following is the original copyright and application
+information.
+Copyright (c) 2001 Fritz Schneider
+This software is provided as-is, without express or implied warranty.
+Permission to use, copy, modify, distribute or sell this software, with or
+without fee, for any purpose and by any individual or organization, is hereby
+granted, provided that the above copyright notice and this paragraph appear
+in all copies. Distribution as a part of an application or binary must
+include the above copyright notice in the documentation and/or other materials
+provided with the application or distribution.
+As the above disclaimer notes, you are free to use this code however you
+want. However, I would request that you send me an email
+(fritz /at/ cs /dot/ ucsd /dot/ edu) to say hi if you find this code useful
+or instructional. Seeing that people are using the code acts as
+encouragement for me to continue development. If you *really* want to thank
+me you can buy the book I wrote with Thomas Powell, _JavaScript:
+_The_Complete_Reference_ :)
+This code is an UNOPTIMIZED REFERENCE implementation of Rijndael.
+If there is sufficient interest I can write an optimized (word-based,
+table-driven) version, although you might want to consider using a
+compiled language if speed is critical to your application. As it stands,
+one run of the monte carlo test (10,000 encryptions) can take up to
+several minutes, depending upon your processor. You shouldn't expect more
+than a few kilobytes per second in throughput.
+Also note that there is very little error checking in these functions.
+Doing proper error checking is always a good idea, but the ideal
+implementation (using the instanceof operator and exceptions) requires
+IE5+/NS6+, and I've chosen to implement this code so that it is compatible
+with IE4/NS4.
+And finally, because JavaScript doesn't have an explicit byte/char data
+type (although JavaScript 2.0 most likely will), when I refer to "byte"
+in this code I generally mean "32 bit integer with value in the interval
+[0,255]" which I treat as a byte.
+See http://www-cse.ucsd.edu/~fritz/rijndael.html for more documentation
+of the (very simple) API provided by this code.
+Fritz Schneider
+fritz at cs.ucsd.edu
+*/
+// Rijndael parameters --  Valid values are 128, 192, or 256
+//var keySizeInBits = 256;
+var keySizeInBits = 128;
+var blockSizeInBits = 128;
+
+//
+// Note: in the following code the two dimensional arrays are indexed as
+//       you would probably expect, as array[row][column]. The state arrays
+//       are 2d arrays of the form state[4][Nb].
+// The number of rounds for the cipher, indexed by [Nk][Nb]
+var roundsArray = [
+    , , , , [, , , , 10, , 12, , 14], ,
+    [, , , , 12, , 12, , 14], ,
+    [, , , , 14, , 14, , 14]];
+
+// The number of bytes to shift by in shiftRow, indexed by [Nb][row]
+var shiftOffsets = [, , , , [, 1, 2, 3], , [, 1, 2, 3], , [, 1, 3, 4]];
+
+// The round constants used in subkey expansion
+var Rcon = [
+    0x01, 0x02, 0x04, 0x08, 0x10, 0x20,
+    0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8,
+    0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc,
+    0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4,
+    0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91];
+
+// Precomputed lookup table for the SBox
+var SBox = [
+    99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171,
+    118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164,
+    114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113,
+    216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154, 7, 18, 128, 226,
+    235, 39, 178, 117, 9, 131, 44, 26, 27, 110, 90, 160, 82, 59, 214,
+    179, 41, 227, 47, 132, 83, 209, 0, 237, 32, 252, 177, 91, 106, 203,
+    190, 57, 74, 76, 88, 207, 208, 239, 170, 251, 67, 77, 51, 133, 69,
+    249, 2, 127, 80, 60, 159, 168, 81, 163, 64, 143, 146, 157, 56, 245,
+    188, 182, 218, 33, 16, 255, 243, 210, 205, 12, 19, 236, 95, 151, 68,
+    23, 196, 167, 126, 61, 100, 93, 25, 115, 96, 129, 79, 220, 34, 42,
+    144, 136, 70, 238, 184, 20, 222, 94, 11, 219, 224, 50, 58, 10, 73,
+    6, 36, 92, 194, 211, 172, 98, 145, 149, 228, 121, 231, 200, 55, 109,
+    141, 213, 78, 169, 108, 86, 244, 234, 101, 122, 174, 8, 186, 120, 37,
+    46, 28, 166, 180, 198, 232, 221, 116, 31, 75, 189, 139, 138, 112, 62,
+    181, 102, 72, 3, 246, 14, 97, 53, 87, 185, 134, 193, 29, 158, 225,
+    248, 152, 17, 105, 217, 142, 148, 155, 30, 135, 233, 206, 85, 40, 223,
+    140, 161, 137, 13, 191, 230, 66, 104, 65, 153, 45, 15, 176, 84, 187,
+    22];
+
+// Precomputed lookup table for the inverse SBox
+var SBoxInverse = [
+    82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243, 215,
+    251, 124, 227, 57, 130, 155, 47, 255, 135, 52, 142, 67, 68, 196, 222,
+    233, 203, 84, 123, 148, 50, 166, 194, 35, 61, 238, 76, 149, 11, 66,
+    250, 195, 78, 8, 46, 161, 102, 40, 217, 36, 178, 118, 91, 162, 73,
+    109, 139, 209, 37, 114, 248, 246, 100, 134, 104, 152, 22, 212, 164, 92,
+    204, 93, 101, 182, 146, 108, 112, 72, 80, 253, 237, 185, 218, 94, 21,
+    70, 87, 167, 141, 157, 132, 144, 216, 171, 0, 140, 188, 211, 10, 247,
+    228, 88, 5, 184, 179, 69, 6, 208, 44, 30, 143, 202, 63, 15, 2,
+    193, 175, 189, 3, 1, 19, 138, 107, 58, 145, 17, 65, 79, 103, 220,
+    234, 151, 242, 207, 206, 240, 180, 230, 115, 150, 172, 116, 34, 231, 173,
+    53, 133, 226, 249, 55, 232, 28, 117, 223, 110, 71, 241, 26, 113, 29,
+    41, 197, 137, 111, 183, 98, 14, 170, 24, 190, 27, 252, 86, 62, 75,
+    198, 210, 121, 32, 154, 219, 192, 254, 120, 205, 90, 244, 31, 221, 168,
+    51, 136, 7, 199, 49, 177, 18, 16, 89, 39, 128, 236, 95, 96, 81,
+    127, 169, 25, 181, 74, 13, 45, 229, 122, 159, 147, 201, 156, 239, 160,
+    224, 59, 77, 174, 42, 245, 176, 200, 235, 187, 60, 131, 83, 153, 97,
+    23, 43, 4, 126, 186, 119, 214, 38, 225, 105, 20, 99, 85, 33, 12,
+    125];
+
+// This method circularly shifts the array left by the number of elements
+// given in its parameter. It returns the resulting array and is used for
+// the ShiftRow step. Note that shift() and push() could be used for a more
+// elegant solution, but they require IE5.5+, so I chose to do it manually.
+function cyclicShiftLeft(theArray, positions) {
+    var temp = theArray.slice(0, positions);
+    theArray = theArray.slice(positions).concat(temp);
+    return theArray;
+}
+
+// Cipher parameters ... do not change these
+var Nk = keySizeInBits / 32;
+var Nb = blockSizeInBits / 32;
+var Nr = roundsArray[Nk][Nb];
+
+// Multiplies the element "poly" of GF(2^8) by x. See the Rijndael spec.
+function xtime(poly) {
+    poly <<= 1;
+    return ((poly & 0x100) ? (poly ^ 0x11B) : (poly));
+}
+
+// Multiplies the two elements of GF(2^8) together and returns the result.
+// See the Rijndael spec, but should be straightforward: for each power of
+// the indeterminant that has a 1 coefficient in x, add y times that power
+// to the result. x and y should be bytes representing elements of GF(2^8)
+function mult_GF256(x, y) {
+    var bit, result = 0;
+
+    for (bit = 1; bit < 256; bit *= 2, y = xtime(y)) {
+        if (x & bit)
+            result ^= y;
+    }
+    return result;
+}
+
+// Performs the substitution step of the cipher.  State is the 2d array of
+// state information (see spec) and direction is string indicating whether
+// we are performing the forward substitution ("encrypt") or inverse
+// substitution (anything else)
+function byteSub(state, direction) {
+    var S;
+    if (direction == "encrypt")
+        S = SBox;
+    else
+        S = SBoxInverse;
+    for (var i = 0; i < 4; i++)
+        for (var j = 0; j < Nb; j++)
+            state[i][j] = S[state[i][j]];
+}
+
+// Performs the row shifting step of the cipher.
+function shiftRow(state, direction) {
+    for (var i = 1; i < 4; i++)
+        if (direction == "encrypt")
+            state[i] = cyclicShiftLeft(state[i], shiftOffsets[Nb][i]);
+        else
+            state[i] = cyclicShiftLeft(state[i], Nb - shiftOffsets[Nb][i]);
+}
+
+// Performs the column mixing step of the cipher. Most of these steps can
+// be combined into table lookups on 32bit values (at least for encryption)
+// to greatly increase the speed.
+function mixColumn(state, direction) {
+    var b = [];
+    for (var j = 0; j < Nb; j++) {
+        for (var i = 0; i < 4; i++) {
+            if (direction == "encrypt")
+                b[i] = mult_GF256(state[i][j], 2) ^ mult_GF256(state[(i + 1) % 4][j], 3) ^ state[(i + 2) % 4][j] ^ state[(i + 3) % 4][j];
+            else
+                b[i] = mult_GF256(state[i][j], 0xE) ^ mult_GF256(state[(i + 1) % 4][j], 0xB) ^ mult_GF256(state[(i + 2) % 4][j], 0xD) ^ mult_GF256(state[(i + 3) % 4][j], 9);
+        }
+        for (var i = 0; i < 4; i++)
+            state[i][j] = b[i];
+    }
+}
+
+// Adds the current round key to the state information. Straightforward.
+function addRoundKey(state, roundKey) {
+    for (var j = 0; j < Nb; j++) {
+        state[0][j] ^= (roundKey[j] & 0xFF); // and XOR
+        state[1][j] ^= ((roundKey[j] >> 8) & 0xFF);
+        state[2][j] ^= ((roundKey[j] >> 16) & 0xFF);
+        state[3][j] ^= ((roundKey[j] >> 24) & 0xFF);
+    }
+}
+
+// This function creates the expanded key from the input (128/192/256-bit)
+// key. The parameter key is an array of bytes holding the value of the key.
+// The returned value is an array whose elements are the 32-bit words that
+// make up the expanded key.
+function keyExpansion(key) {
+    var expandedKey = new Array();
+    var temp;
+
+    // in case the key size or parameters were changed...
+    Nk = keySizeInBits / 32;
+    Nb = blockSizeInBits / 32;
+    Nr = roundsArray[Nk][Nb];
+
+    for (var j = 0; j < Nk; j++)
+        expandedKey[j] = (key[4 * j]) | (key[4 * j + 1] << 8) | (key[4 * j + 2] << 16) | (key[4 * j + 3] << 24);
+
+    for (j = Nk; j < Nb * (Nr + 1); j++) {
+        temp = expandedKey[j - 1];
+        if (j % Nk == 0)
+            temp = ((SBox[(temp >> 8) & 0xFF]) | (SBox[(temp >> 16) & 0xFF] << 8) | (SBox[(temp >> 24) & 0xFF] << 16) | (SBox[temp & 0xFF] << 24)) ^ Rcon[Math.floor(j / Nk) - 1];
+        else if (Nk > 6 && j % Nk == 4)
+            temp = (SBox[(temp >> 24) & 0xFF] << 24) | (SBox[(temp >> 16) & 0xFF] << 16) | (SBox[(temp >> 8) & 0xFF] << 8) | (SBox[temp & 0xFF]);
+        expandedKey[j] = expandedKey[j - Nk] ^ temp;
+    }
+    return expandedKey;
+}
+
+// Rijndael's round functions...
+function Round(state, roundKey) {
+    byteSub(state, "encrypt");
+    shiftRow(state, "encrypt");
+    mixColumn(state, "encrypt");
+    addRoundKey(state, roundKey);
+}
+
+function InverseRound(state, roundKey) {
+    addRoundKey(state, roundKey);
+    mixColumn(state, "decrypt");
+    shiftRow(state, "decrypt");
+    byteSub(state, "decrypt");
+}
+
+function FinalRound(state, roundKey) {
+    byteSub(state, "encrypt");
+    shiftRow(state, "encrypt");
+    addRoundKey(state, roundKey);
+}
+
+function InverseFinalRound(state, roundKey) {
+    addRoundKey(state, roundKey);
+    shiftRow(state, "decrypt");
+    byteSub(state, "decrypt");
+}
+
+// encrypt is the basic encryption function. It takes parameters
+// block, an array of bytes representing a plaintext block, and expandedKey,
+// an array of words representing the expanded key previously returned by
+// keyExpansion(). The ciphertext block is returned as an array of bytes.
+function encrypt(block, expandedKey) {
+    var i;
+    if (!block || block.length * 8 != blockSizeInBits)
+        return;
+    if (!expandedKey)
+        return;
+
+    block = packBytes(block);
+    addRoundKey(block, expandedKey);
+    for (i = 1; i < Nr; i++)
+        Round(block, expandedKey.slice(Nb * i, Nb * (i + 1)));
+    FinalRound(block, expandedKey.slice(Nb * Nr));
+    return unpackBytes(block);
+}
+
+// decrypt is the basic decryption function. It takes parameters
+// block, an array of bytes representing a ciphertext block, and expandedKey,
+// an array of words representing the expanded key previously returned by
+// keyExpansion(). The decrypted block is returned as an array of bytes.
+function decrypt(block, expandedKey) {
+    var i;
+    if (!block || block.length * 8 != blockSizeInBits)
+        return;
+    if (!expandedKey)
+        return;
+
+    block = packBytes(block);
+    InverseFinalRound(block, expandedKey.slice(Nb * Nr));
+    for (i = Nr - 1; i > 0; i--)
+        InverseRound(block, expandedKey.slice(Nb * i, Nb * (i + 1)));
+    addRoundKey(block, expandedKey);
+    return unpackBytes(block);
+}
+
+/* !NEEDED
+// This method takes a byte array (byteArray) and converts it to a string by
+// applying String.fromCharCode() to each value and concatenating the result.
+// The resulting string is returned. Note that this function SKIPS zero bytes
+// under the assumption that they are padding added in formatPlaintext().
+// Obviously, do not invoke this method on raw data that can contain zero
+// bytes. It is really only appropriate for printable ASCII/Latin-1
+// values. Roll your own function for more robust functionality :)
+function byteArrayToString(byteArray) {
+var result = "";
+for(var i=0; i<byteArray.length; i++)
+if (byteArray[i] != 0)
+result += String.fromCharCode(byteArray[i]);
+return result;
+}
+*/
+// This function takes an array of bytes (byteArray) and converts them
+// to a hexadecimal string. Array element 0 is found at the beginning of
+// the resulting string, high nibble first. Consecutive elements follow
+// similarly, for example [16, 255] --> "10ff". The function returns a
+// string.
+function byteArrayToHex(byteArray) {
+    var result = "";
+    if (!byteArray)
+        return;
+    for (var i = 0; i < byteArray.length; i++)
+        result += ((byteArray[i] < 16) ? "0" : "") + byteArray[i].toString(16);
+    return result;
+}
+
+// This function converts a string containing hexadecimal digits to an
+// array of bytes. The resulting byte array is filled in the order the
+// values occur in the string, for example "10FF" --> [16, 255]. This
+// function returns an array.
+function hexToByteArray(hexString) {
+    if (hexString.indexOf("0x") == 0 || hexString.indexOf("0X") == 0)
+        hexString = hexString.substring(2);
+    hexString = hexString.replace(/[^A-Fa-f0-9]/g, ''); //remove non-hex chars
+    if (hexString.length % 2)
+        return;
+    var byteArray = [];
+    for (var i = 0; i < hexString.length; i += 2)
+        byteArray[Math.floor(i / 2)] = parseInt(hexString.slice(i, i + 2), 16);
+    return byteArray;
+}
+
+// This function packs an array of bytes into the four row form defined by
+// Rijndael. It assumes the length of the array of bytes is divisible by
+// four. Bytes are filled in according to the Rijndael spec (starting with
+// column 0, row 0 to 3). This function returns a 2d array.
+function packBytes(octets) {
+    var state = new Array();
+    if (!octets || octets.length % 4)
+        return;
+
+    state[0] = new Array();
+    state[1] = new Array();
+    state[2] = new Array();
+    state[3] = new Array();
+    for (var j = 0; j < octets.length; j += 4) {
+        state[0][j / 4] = octets[j];
+        state[1][j / 4] = octets[j + 1];
+        state[2][j / 4] = octets[j + 2];
+        state[3][j / 4] = octets[j + 3];
+    }
+    return state;
+}
+
+// This function unpacks an array of bytes from the four row format preferred
+// by Rijndael into a single 1d array of bytes. It assumes the input "packed"
+// is a packed array. Bytes are filled in according to the Rijndael spec.
+// This function returns a 1d array of bytes.
+function unpackBytes(packed) {
+    var result = new Array();
+    for (var j = 0; j < packed[0].length; j++) {
+        result[result.length] = packed[0][j];
+        result[result.length] = packed[1][j];
+        result[result.length] = packed[2][j];
+        result[result.length] = packed[3][j];
+    }
+    return result;
+}
+
+// This function takes a prospective plaintext (string or array of bytes)
+// and pads it with pseudorandom bytes if its length is not a multiple of the block
+// size. If plaintext is a string, it is converted to an array of bytes
+// in the process. The type checking can be made much nicer using the
+// instanceof operator, but this operator is not available until IE5.0 so I
+// chose to use the heuristic below.
+function formatPlaintext(plaintext) {
+    var bpb = blockSizeInBits / 8;
+    var i;
+
+    // if primitive string or String instance
+    if ((!((typeof plaintext == "object") && ((typeof (plaintext[0])) == "number"))) && ((typeof plaintext == "string") || plaintext.indexOf)) {
+        plaintext = plaintext.split("");
+
+        for (i = 0; i < plaintext.length; i++)
+            plaintext[i] = plaintext[i].charCodeAt(0) & 0xFF;
+    }
+
+    i = plaintext.length % bpb;
+    if (i > 0) {
+        plaintext = plaintext.concat(getRandomBytes(bpb - i));
+    }
+
+    return plaintext;
+}
+
+// Returns an array containing "howMany" random bytes.
+function getRandomBytes(howMany) {
+    var i, bytes = new Array();
+
+    for (i = 0; i < howMany; i++) {
+        //bytes[i] = prng.nextInt(255);
+        bytes[i] = Math.random() * 255;
+    }
+    return bytes;
+}
+
+// rijndaelEncrypt(plaintext, key, mode)
+// Encrypts the plaintext using the given key and in the given mode.
+// The parameter "plaintext" can either be a string or an array of bytes.
+// The parameter "key" must be an array of key bytes. If you have a hex
+// string representing the key, invoke hexToByteArray() on it to convert it
+// to an array of bytes. The third parameter "mode" is a string indicating
+// the encryption mode to use, either "ECB" or "CBC". If the parameter is
+// omitted, ECB is assumed.
+//
+// An array of bytes representing the cihpertext is returned. To convert
+// this array to hex, invoke byteArrayToHex() on it.
+function rijndaelEncrypt(plaintext, key, mode) {
+    var expandedKey, aBlock;
+    var bpb = blockSizeInBits / 8;
+    var ct;
+
+    if (!plaintext || !key)
+        return;
+    if (key.length * 8 != keySizeInBits)
+        return;
+    if (mode == "CBC") {
+        ct = getRandomBytes(bpb); // get IV
+        //dump("IV", byteArrayToHex(ct));
+    } else {
+        mode = "ECB";
+        ct = new Array();
+    }
+
+    // convert plaintext to byte array and pad with zeros if necessary.
+    plaintext = formatPlaintext(plaintext);
+
+    expandedKey = keyExpansion(key);
+
+    for (var block = 0; block < plaintext.length / bpb; block++) {
+        aBlock = plaintext.slice(block * bpb, (block + 1) * bpb);
+        if (mode == "CBC") {
+            for (var i = 0; i < bpb; i++) {
+                aBlock[i] ^= ct[(block * bpb) + i];
+            }
+        }
+        ct = ct.concat(encrypt(aBlock, expandedKey));
+    }
+
+    return ct;
+}
+exports.rijndaelEncrypt = rijndaelEncrypt;
+
+// rijndaelDecrypt(ciphertext, key, mode)
+// Decrypts the using the given key and mode. The parameter "ciphertext"
+// must be an array of bytes. The parameter "key" must be an array of key
+// bytes. If you have a hex string representing the ciphertext or key,
+// invoke hexToByteArray() on it to convert it to an array of bytes. The
+// parameter "mode" is a string, either "CBC" or "ECB".
+//
+// An array of bytes representing the plaintext is returned. To convert
+// this array to a hex string, invoke byteArrayToHex() on it. To convert it
+// to a string of characters, you can use byteArrayToString().
+function rijndaelDecrypt(ciphertext, key, mode) {
+    var expandedKey;
+    var bpb = blockSizeInBits / 8;
+    var pt = new Array();
+    var aBlock;
+    var block;
+
+    if (!ciphertext || !key || typeof ciphertext == "string")
+        return;
+    if (key.length * 8 != keySizeInBits)
+        return;
+    if (!mode) {
+        mode = "ECB"; // assume ECB if mode omitted
+    }
+
+    expandedKey = keyExpansion(key);
+
+    for (block = (ciphertext.length / bpb) - 1; block > 0; block--) {
+        aBlock = decrypt(ciphertext.slice(block * bpb, (block + 1) * bpb), expandedKey);
+        if (mode == "CBC")
+            for (var i = 0; i < bpb; i++)
+                pt[(block - 1) * bpb + i] = aBlock[i] ^ ciphertext[(block - 1) * bpb + i];
+        else
+            pt = aBlock.concat(pt);
+    }
+
+    // do last block if ECB (skips the IV in CBC)
+    if (mode == "ECB")
+        pt = decrypt(ciphertext.slice(0, bpb), expandedKey).concat(pt);
+
+    return pt;
+}
+exports.rijndaelDecrypt = rijndaelDecrypt;
+//# sourceMappingURL=jsaes2.js.map
 },
 "src/core/kirk/kirk": function(module, exports, require) {
 var crypto = require('./crypto');
 
 var kirk1_key = new Uint8Array([0x98, 0xC9, 0x40, 0x97, 0x5C, 0x1D, 0x10, 0xE8, 0x7F, 0xE6, 0x0E, 0xA3, 0xFD, 0x03, 0xA8, 0xBA]);
-var kirk7_key02 = new Uint8Array([0xB8, 0x13, 0xC3, 0x5E, 0xC6, 0x44, 0x41, 0xE3, 0xDC, 0x3C, 0x16, 0xF5, 0xB4, 0x5E, 0x64, 0x84]);
-var kirk7_key03 = new Uint8Array([0x98, 0x02, 0xC4, 0xE6, 0xEC, 0x9E, 0x9E, 0x2F, 0xFC, 0x63, 0x4C, 0xE4, 0x2F, 0xBB, 0x46, 0x68]);
-var kirk7_key04 = new Uint8Array([0x99, 0x24, 0x4C, 0xD2, 0x58, 0xF5, 0x1B, 0xCB, 0xB0, 0x61, 0x9C, 0xA7, 0x38, 0x30, 0x07, 0x5F]);
-var kirk7_key05 = new Uint8Array([0x02, 0x25, 0xD7, 0xBA, 0x63, 0xEC, 0xB9, 0x4A, 0x9D, 0x23, 0x76, 0x01, 0xB3, 0xF6, 0xAC, 0x17]);
-var kirk7_key07 = new Uint8Array([0x76, 0x36, 0x8B, 0x43, 0x8F, 0x77, 0xD8, 0x7E, 0xFE, 0x5F, 0xB6, 0x11, 0x59, 0x39, 0x88, 0x5C]);
-var kirk7_key0C = new Uint8Array([0x84, 0x85, 0xC8, 0x48, 0x75, 0x08, 0x43, 0xBC, 0x9B, 0x9A, 0xEC, 0xA7, 0x9C, 0x7F, 0x60, 0x18]);
-var kirk7_key0D = new Uint8Array([0xB5, 0xB1, 0x6E, 0xDE, 0x23, 0xA9, 0x7B, 0x0E, 0xA1, 0x7C, 0xDB, 0xA2, 0xDC, 0xDE, 0xC4, 0x6E]);
-var kirk7_key0E = new Uint8Array([0xC8, 0x71, 0xFD, 0xB3, 0xBC, 0xC5, 0xD2, 0xF2, 0xE2, 0xD7, 0x72, 0x9D, 0xDF, 0x82, 0x68, 0x82]);
-var kirk7_key0F = new Uint8Array([0x0A, 0xBB, 0x33, 0x6C, 0x96, 0xD4, 0xCD, 0xD8, 0xCB, 0x5F, 0x4B, 0xE0, 0xBA, 0xDB, 0x9E, 0x03]);
-var kirk7_key10 = new Uint8Array([0x32, 0x29, 0x5B, 0xD5, 0xEA, 0xF7, 0xA3, 0x42, 0x16, 0xC8, 0x8E, 0x48, 0xFF, 0x50, 0xD3, 0x71]);
-var kirk7_key11 = new Uint8Array([0x46, 0xF2, 0x5E, 0x8E, 0x4D, 0x2A, 0xA5, 0x40, 0x73, 0x0B, 0xC4, 0x6E, 0x47, 0xEE, 0x6F, 0x0A]);
-var kirk7_key12 = new Uint8Array([0x5D, 0xC7, 0x11, 0x39, 0xD0, 0x19, 0x38, 0xBC, 0x02, 0x7F, 0xDD, 0xDC, 0xB0, 0x83, 0x7D, 0x9D]);
-var kirk7_key38 = new Uint8Array([0x12, 0x46, 0x8D, 0x7E, 0x1C, 0x42, 0x20, 0x9B, 0xBA, 0x54, 0x26, 0x83, 0x5E, 0xB0, 0x33, 0x03]);
-var kirk7_key39 = new Uint8Array([0xC4, 0x3B, 0xB6, 0xD6, 0x53, 0xEE, 0x67, 0x49, 0x3E, 0xA9, 0x5F, 0xBC, 0x0C, 0xED, 0x6F, 0x8A]);
-var kirk7_key3A = new Uint8Array([0x2C, 0xC3, 0xCF, 0x8C, 0x28, 0x78, 0xA5, 0xA6, 0x63, 0xE2, 0xAF, 0x2D, 0x71, 0x5E, 0x86, 0xBA]);
-var kirk7_key44 = new Uint8Array([0x7D, 0xF4, 0x92, 0x65, 0xE3, 0xFA, 0xD6, 0x78, 0xD6, 0xFE, 0x78, 0xAD, 0xBB, 0x3D, 0xFB, 0x63]);
-var kirk7_key4B = new Uint8Array([0x0C, 0xFD, 0x67, 0x9A, 0xF9, 0xB4, 0x72, 0x4F, 0xD7, 0x8D, 0xD6, 0xE9, 0x96, 0x42, 0x28, 0x8B]);
-var kirk7_key53 = new Uint8Array([0xAF, 0xFE, 0x8E, 0xB1, 0x3D, 0xD1, 0x7E, 0xD8, 0x0A, 0x61, 0x24, 0x1C, 0x95, 0x92, 0x56, 0xB6]);
-var kirk7_key57 = new Uint8Array([0x1C, 0x9B, 0xC4, 0x90, 0xE3, 0x06, 0x64, 0x81, 0xFA, 0x59, 0xFD, 0xB6, 0x00, 0xBB, 0x28, 0x70]);
-var kirk7_key5D = new Uint8Array([0x11, 0x5A, 0x5D, 0x20, 0xD5, 0x3A, 0x8D, 0xD3, 0x9C, 0xC5, 0xAF, 0x41, 0x0F, 0x0F, 0x18, 0x6F]);
-var kirk7_key63 = new Uint8Array([0x9C, 0x9B, 0x13, 0x72, 0xF8, 0xC6, 0x40, 0xCF, 0x1C, 0x62, 0xF5, 0xD5, 0x92, 0xDD, 0xB5, 0x82]);
-var kirk7_key64 = new Uint8Array([0x03, 0xB3, 0x02, 0xE8, 0x5F, 0xF3, 0x81, 0xB1, 0x3B, 0x8D, 0xAA, 0x2A, 0x90, 0xFF, 0x5E, 0x61]);
-
 var kirk16_key = new Uint8Array([0x47, 0x5E, 0x09, 0xF4, 0xA2, 0x37, 0xDA, 0x9B, 0xEF, 0xFF, 0x3B, 0xC0, 0x77, 0x14, 0x3D, 0x8A]);
+
+var kirk7_keys = {
+    0x02: new Uint8Array([0xB8, 0x13, 0xC3, 0x5E, 0xC6, 0x44, 0x41, 0xE3, 0xDC, 0x3C, 0x16, 0xF5, 0xB4, 0x5E, 0x64, 0x84]),
+    0x03: new Uint8Array([0x98, 0x02, 0xC4, 0xE6, 0xEC, 0x9E, 0x9E, 0x2F, 0xFC, 0x63, 0x4C, 0xE4, 0x2F, 0xBB, 0x46, 0x68]),
+    0x04: new Uint8Array([0x99, 0x24, 0x4C, 0xD2, 0x58, 0xF5, 0x1B, 0xCB, 0xB0, 0x61, 0x9C, 0xA7, 0x38, 0x30, 0x07, 0x5F]),
+    0x05: new Uint8Array([0x02, 0x25, 0xD7, 0xBA, 0x63, 0xEC, 0xB9, 0x4A, 0x9D, 0x23, 0x76, 0x01, 0xB3, 0xF6, 0xAC, 0x17]),
+    0x07: new Uint8Array([0x76, 0x36, 0x8B, 0x43, 0x8F, 0x77, 0xD8, 0x7E, 0xFE, 0x5F, 0xB6, 0x11, 0x59, 0x39, 0x88, 0x5C]),
+    0x0C: new Uint8Array([0x84, 0x85, 0xC8, 0x48, 0x75, 0x08, 0x43, 0xBC, 0x9B, 0x9A, 0xEC, 0xA7, 0x9C, 0x7F, 0x60, 0x18]),
+    0x0D: new Uint8Array([0xB5, 0xB1, 0x6E, 0xDE, 0x23, 0xA9, 0x7B, 0x0E, 0xA1, 0x7C, 0xDB, 0xA2, 0xDC, 0xDE, 0xC4, 0x6E]),
+    0x0E: new Uint8Array([0xC8, 0x71, 0xFD, 0xB3, 0xBC, 0xC5, 0xD2, 0xF2, 0xE2, 0xD7, 0x72, 0x9D, 0xDF, 0x82, 0x68, 0x82]),
+    0x0F: new Uint8Array([0x0A, 0xBB, 0x33, 0x6C, 0x96, 0xD4, 0xCD, 0xD8, 0xCB, 0x5F, 0x4B, 0xE0, 0xBA, 0xDB, 0x9E, 0x03]),
+    0x10: new Uint8Array([0x32, 0x29, 0x5B, 0xD5, 0xEA, 0xF7, 0xA3, 0x42, 0x16, 0xC8, 0x8E, 0x48, 0xFF, 0x50, 0xD3, 0x71]),
+    0x11: new Uint8Array([0x46, 0xF2, 0x5E, 0x8E, 0x4D, 0x2A, 0xA5, 0x40, 0x73, 0x0B, 0xC4, 0x6E, 0x47, 0xEE, 0x6F, 0x0A]),
+    0x12: new Uint8Array([0x5D, 0xC7, 0x11, 0x39, 0xD0, 0x19, 0x38, 0xBC, 0x02, 0x7F, 0xDD, 0xDC, 0xB0, 0x83, 0x7D, 0x9D]),
+    0x38: new Uint8Array([0x12, 0x46, 0x8D, 0x7E, 0x1C, 0x42, 0x20, 0x9B, 0xBA, 0x54, 0x26, 0x83, 0x5E, 0xB0, 0x33, 0x03]),
+    0x39: new Uint8Array([0xC4, 0x3B, 0xB6, 0xD6, 0x53, 0xEE, 0x67, 0x49, 0x3E, 0xA9, 0x5F, 0xBC, 0x0C, 0xED, 0x6F, 0x8A]),
+    0x3A: new Uint8Array([0x2C, 0xC3, 0xCF, 0x8C, 0x28, 0x78, 0xA5, 0xA6, 0x63, 0xE2, 0xAF, 0x2D, 0x71, 0x5E, 0x86, 0xBA]),
+    0x44: new Uint8Array([0x7D, 0xF4, 0x92, 0x65, 0xE3, 0xFA, 0xD6, 0x78, 0xD6, 0xFE, 0x78, 0xAD, 0xBB, 0x3D, 0xFB, 0x63]),
+    0x4B: new Uint8Array([0x0C, 0xFD, 0x67, 0x9A, 0xF9, 0xB4, 0x72, 0x4F, 0xD7, 0x8D, 0xD6, 0xE9, 0x96, 0x42, 0x28, 0x8B]),
+    0x53: new Uint8Array([0xAF, 0xFE, 0x8E, 0xB1, 0x3D, 0xD1, 0x7E, 0xD8, 0x0A, 0x61, 0x24, 0x1C, 0x95, 0x92, 0x56, 0xB6]),
+    0x57: new Uint8Array([0x1C, 0x9B, 0xC4, 0x90, 0xE3, 0x06, 0x64, 0x81, 0xFA, 0x59, 0xFD, 0xB6, 0x00, 0xBB, 0x28, 0x70]),
+    0x5D: new Uint8Array([0x11, 0x5A, 0x5D, 0x20, 0xD5, 0x3A, 0x8D, 0xD3, 0x9C, 0xC5, 0xAF, 0x41, 0x0F, 0x0F, 0x18, 0x6F]),
+    0x63: new Uint8Array([0x9C, 0x9B, 0x13, 0x72, 0xF8, 0xC6, 0x40, 0xCF, 0x1C, 0x62, 0xF5, 0xD5, 0x92, 0xDD, 0xB5, 0x82]),
+    0x64: new Uint8Array([0x03, 0xB3, 0x02, 0xE8, 0x5F, 0xF3, 0x81, 0xB1, 0x3B, 0x8D, 0xAA, 0x2A, 0x90, 0xFF, 0x5E, 0x61])
+};
 
 // ECC Curves for Kirk 1 and Kirk 0x11
 // Common Curve paramters p and a
@@ -13398,18 +14189,9 @@ var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 
 
 // ------------------------- KEY VAULT END -------------------------
 // ------------------------- INTERNAL STUFF -------------------------
-(function (KirkMode) {
-    KirkMode[KirkMode["Cmd1"] = 1] = "Cmd1";
-    KirkMode[KirkMode["Cmd2"] = 2] = "Cmd2";
-    KirkMode[KirkMode["Cmd3"] = 3] = "Cmd3";
-    KirkMode[KirkMode["EncryptCbc"] = 4] = "EncryptCbc";
-    KirkMode[KirkMode["DecryptCbc"] = 5] = "DecryptCbc";
-})(exports.KirkMode || (exports.KirkMode = {}));
-var KirkMode = exports.KirkMode;
-
 var KIRK_AES128CBC_HEADER = (function () {
     function KIRK_AES128CBC_HEADER() {
-        this.mode = 0;
+        this.mode = 0 /* Invalid0 */;
         this.unk_4 = 0;
         this.unk_8 = 0;
         this.keyseed = 0;
@@ -13425,6 +14207,27 @@ var KIRK_AES128CBC_HEADER = (function () {
     return KIRK_AES128CBC_HEADER;
 })();
 exports.KIRK_AES128CBC_HEADER = KIRK_AES128CBC_HEADER;
+
+var AES128CMACHeader = (function () {
+    function AES128CMACHeader() {
+    }
+    AES128CMACHeader.struct = StructClass.create(AES128CMACHeader, [
+        { AES_key: StructArray(UInt8, 16) },
+        { CMAC_key: StructArray(UInt8, 16) },
+        { CMAC_header_hash: StructArray(UInt8, 16) },
+        { CMAC_data_hash: StructArray(UInt8, 16) },
+        { Unknown1: StructArray(UInt8, 32) },
+        { Mode: UInt8 },
+        { UseECDSAhash: UInt8 },
+        { Unknown2: StructArray(UInt8, 14) },
+        { DataSize: UInt32 },
+        { DataOffset: UInt32 },
+        { Unknown3: StructArray(UInt8, 8) },
+        { Unknown4: StructArray(UInt8, 16) }
+    ]);
+    return AES128CMACHeader;
+})();
+exports.AES128CMACHeader = AES128CMACHeader;
 
 //interface KIRK_CMD1_HEADER
 //{
@@ -13579,24 +14382,6 @@ exports.KIRK_AES128CBC_HEADER = KIRK_AES128CBC_HEADER;
 //	return KIRK_OPERATION_SUCCESS;
 //}
 //
-function decryptAes128CbcWithKey(data, keyIndex) {
-    return crypto.aes_decrypt(data, kirk_4_7_get_key(keyIndex));
-}
-exports.decryptAes128CbcWithKey = decryptAes128CbcWithKey;
-
-function CMD7(inbuff) {
-    var inbuffStream = Stream.fromUint8Array(inbuff);
-    var header = KIRK_AES128CBC_HEADER.struct.read(inbuffStream);
-
-    if (header.mode != 5 /* DecryptCbc */)
-        throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
-    if (header.data_size == 0)
-        throw (new Error("Kirk data size == 0"));
-
-    return exports.decryptAes128CbcWithKey(inbuff.subarray(KIRK_AES128CBC_HEADER.length), header.keyseed);
-}
-exports.CMD7 = CMD7;
-
 //
 //function kirk_CMD10(u8 * inbuff, int insize)
 //{
@@ -13924,55 +14709,44 @@ exports.CMD7 = CMD7;
 //	return 0;
 //}
 function kirk_4_7_get_key(key_type) {
-    switch (key_type) {
-        case (0x02):
-            return kirk7_key02;
-        case (0x03):
-            return kirk7_key03;
-        case (0x04):
-            return kirk7_key04;
-        case (0x05):
-            return kirk7_key05;
-        case (0x07):
-            return kirk7_key07;
-        case (0x0C):
-            return kirk7_key0C;
-        case (0x0D):
-            return kirk7_key0D;
-        case (0x0E):
-            return kirk7_key0E;
-        case (0x0F):
-            return kirk7_key0F;
-        case (0x10):
-            return kirk7_key10;
-        case (0x11):
-            return kirk7_key11;
-        case (0x12):
-            return kirk7_key12;
-        case (0x38):
-            return kirk7_key38;
-        case (0x39):
-            return kirk7_key39;
-        case (0x3A):
-            return kirk7_key3A;
-        case (0x44):
-            return kirk7_key44;
-        case (0x4B):
-            return kirk7_key4B;
-        case (0x53):
-            return kirk7_key53;
-        case (0x57):
-            return kirk7_key57;
-        case (0x5D):
-            return kirk7_key5D;
-        case (0x63):
-            return kirk7_key63;
-        case (0x64):
-            return kirk7_key64;
-        default:
-            throw (new Error("Unsupported key '" + key_type + "'"));
-    }
+    var key = kirk7_keys[key_type];
+    if (!key)
+        throw (new Error("Unsupported key '" + key_type + "'"));
+    return key;
 }
+
+(function (KirkMode) {
+    KirkMode[KirkMode["Invalid0"] = 0] = "Invalid0";
+    KirkMode[KirkMode["Cmd1"] = 1] = "Cmd1";
+    KirkMode[KirkMode["Cmd2"] = 2] = "Cmd2";
+    KirkMode[KirkMode["Cmd3"] = 3] = "Cmd3";
+    KirkMode[KirkMode["EncryptCbc"] = 4] = "EncryptCbc";
+    KirkMode[KirkMode["DecryptCbc"] = 5] = "DecryptCbc";
+})(exports.KirkMode || (exports.KirkMode = {}));
+var KirkMode = exports.KirkMode;
+
+(function (CommandEnum) {
+    CommandEnum[CommandEnum["DECRYPT_PRIVATE"] = 0x1] = "DECRYPT_PRIVATE";
+    CommandEnum[CommandEnum["ENCRYPT_SIGN"] = 0x2] = "ENCRYPT_SIGN";
+    CommandEnum[CommandEnum["DECRYPT_SIGN"] = 0x3] = "DECRYPT_SIGN";
+    CommandEnum[CommandEnum["ENCRYPT_IV_0"] = 0x4] = "ENCRYPT_IV_0";
+    CommandEnum[CommandEnum["ENCRYPT_IV_FUSE"] = 0x5] = "ENCRYPT_IV_FUSE";
+    CommandEnum[CommandEnum["ENCRYPT_IV_USER"] = 0x6] = "ENCRYPT_IV_USER";
+    CommandEnum[CommandEnum["DECRYPT_IV_0"] = 0x7] = "DECRYPT_IV_0";
+    CommandEnum[CommandEnum["DECRYPT_IV_FUSE"] = 0x8] = "DECRYPT_IV_FUSE";
+    CommandEnum[CommandEnum["DECRYPT_IV_USER"] = 0x9] = "DECRYPT_IV_USER";
+    CommandEnum[CommandEnum["PRIV_SIG_CHECK"] = 0xA] = "PRIV_SIG_CHECK";
+    CommandEnum[CommandEnum["SHA1_HASH"] = 0xB] = "SHA1_HASH";
+    CommandEnum[CommandEnum["ECDSA_GEN_KEYS"] = 0xC] = "ECDSA_GEN_KEYS";
+    CommandEnum[CommandEnum["ECDSA_MULTIPLY_POINT"] = 0xD] = "ECDSA_MULTIPLY_POINT";
+    CommandEnum[CommandEnum["PRNG"] = 0xE] = "PRNG";
+    CommandEnum[CommandEnum["INIT"] = 0xF] = "INIT";
+    CommandEnum[CommandEnum["ECDSA_SIGN"] = 0x10] = "ECDSA_SIGN";
+    CommandEnum[CommandEnum["ECDSA_VERIFY"] = 0x11] = "ECDSA_VERIFY";
+    CommandEnum[CommandEnum["CERT_VERIFY"] = 0x12] = "CERT_VERIFY";
+})(exports.CommandEnum || (exports.CommandEnum = {}));
+var CommandEnum = exports.CommandEnum;
+
 //function kirk_CMD1_ex(outbuff: Uint8Array, inbuff: Uint8Array, size: number, header: KIRK_CMD1_HEADER)
 //{
 //	var buffer = new Uint8Array(size);
@@ -13984,22 +14758,51 @@ function kirk_4_7_get_key(key_type) {
 //}
 //
 //
-//function sceUtilsBufferCopyWithRange(outbuff: Uint8Array, outsize: number, inbuff: Uint8Array, insize:number, cmd:number)
-//{
-//	switch (cmd) {
-//		case KIRK_CMD_DECRYPT_PRIVATE: return kirk_CMD1(outbuff, inbuff, insize); break;
-//		case KIRK_CMD_ENCRYPT_IV_0: return kirk_CMD4(outbuff, inbuff, insize); break;
-//		case KIRK_CMD_DECRYPT_IV_0: return kirk_CMD7(outbuff, inbuff, insize); break;
-//		case KIRK_CMD_PRIV_SIGN_CHECK: return kirk_CMD10(inbuff, insize); break;
-//		case KIRK_CMD_SHA1_HASH: return kirk_CMD11(outbuff, inbuff, insize); break;
-//		case KIRK_CMD_ECDSA_GEN_KEYS: return kirk_CMD12(outbuff, outsize); break;
-//		case KIRK_CMD_ECDSA_MULTIPLY_POINT: return kirk_CMD13(outbuff, outsize, inbuff, insize); break;
-//		case KIRK_CMD_PRNG: return kirk_CMD14(outbuff, outsize); break;
-//		case KIRK_CMD_ECDSA_SIGN: return kirk_CMD16(outbuff, outsize, inbuff, insize); break;
-//		case KIRK_CMD_ECDSA_VERIFY: return kirk_CMD17(inbuff, insize); break;
-//	}
-//	return -1;
-//}
+function CMD7(input) {
+    var header = KIRK_AES128CBC_HEADER.struct.read(input.slice());
+
+    if (header.mode != 5 /* DecryptCbc */)
+        throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
+    if (header.data_size == 0)
+        throw (new Error("Kirk data size == 0"));
+
+    return crypto.aes_decrypt(input.sliceFrom(KIRK_AES128CBC_HEADER.struct.length).readAllBytes(), kirk_4_7_get_key(header.keyseed));
+}
+exports.CMD7 = CMD7;
+
+function kirk_CMD7(output, input) {
+    var output2 = Stream.fromUint8Array(exports.CMD7(input.slice()));
+    output.slice().writeStream(output2);
+}
+
+function kirk_CMD1(output, input) {
+    //console.log(input.sliceWithLength(0, 128).readAllBytes());
+    var header = input.slice().readStruct(AES128CMACHeader.struct);
+    if (header.Mode != 1 /* Cmd1 */)
+        throw (new Error("Kirk mode != Cmd1"));
+
+    var Keys = crypto.aes_decrypt(input.sliceWithLength(0, 16 * 2).readAllBytes(), kirk1_key);
+    var KeyAes = Keys.subarray(0, 16);
+    var KeyCmac = Keys.subarray(16, 16);
+
+    var PaddedDataSize = (header.DataSize + 15) & -16;
+    var Output = crypto.aes_decrypt(input.sliceWithLength(header.DataOffset + AES128CMACHeader.struct.length, PaddedDataSize).readAllBytes(), KeyAes);
+    output.slice().writeBytes(Output.subarray(0, header.DataSize));
+}
+
+function hleUtilsBufferCopyWithRange(output, input, command) {
+    switch (command) {
+        case 1 /* DECRYPT_PRIVATE */:
+            return kirk_CMD1(output, input);
+            break;
+
+        case 7 /* DECRYPT_IV_0 */:
+            return kirk_CMD7(output, input);
+            break;
+    }
+    throw (new Error("Not implemented hleUtilsBufferCopyWithRange! with command " + command + ': ' + CommandEnum[command]));
+}
+exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 //# sourceMappingURL=kirk.js.map
 },
 "src/core/memory": function(module, exports, require) {
@@ -14895,7 +15698,7 @@ var Emulator = (function () {
                     });
                 case 'psp':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        _elf_crypted_prx.decrypt(new Uint8Array(executableArrayBuffer));
+                        _elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer));
                         throw (new Error("Not supported encrypted elf files yet!"));
                     });
                 case 'zip':
@@ -17570,6 +18373,7 @@ exports.Config = Config;
 //# sourceMappingURL=config.js.map
 },
 "src/hle/elf_crypted_prx": function(module, exports, require) {
+var kirk = require('../core/kirk');
 var keys144 = require('./elf_crypted_prx_keys_144');
 var keys16 = require('./elf_crypted_prx_keys_16');
 
@@ -17592,7 +18396,7 @@ var Header = (function () {
         { bssSize: UInt32 },
         { segAlign: StructArray(UInt16, 4) },
         { segAddress: StructArray(UInt32, 4) },
-        { segSize: StructArray(UInt32, 5) },
+        { segSize: StructArray(UInt32, 4) },
         { reserved: StructArray(UInt32, 5) },
         { devkitVersion: UInt32 },
         { decMode: UInt8 },
@@ -17626,44 +18430,100 @@ function getTagInfo2(checkTag) {
     });
 }
 
-function decrypt1(input) {
-    var stream = Stream.fromUint8Array(input);
-    console.log(Header.struct.read(stream));
-    //kirk.CMD7();
+function copyFromTo(from, fromOffset, to, toOffset, count) {
+    for (var n = 0; n < count; n++) {
+        to[toOffset + n] = from[fromOffset + n];
+    }
+}
+
+function memset(array, offset, count, value) {
+    for (var n = 0; n < count; n++)
+        array[offset + n] = value;
+}
+
+function decrypt1(pbIn) {
+    var cbTotal = pbIn.length;
+    var _pbOut = new Uint8Array(cbTotal);
+    var pbOut = Stream.fromUint8Array(_pbOut);
+    pbOut.slice().writeStream(pbIn);
+
+    var header = Header.struct.read(pbIn.slice());
+    var pti = getTagInfo(header.tag);
+    if (!pti)
+        throw (new Error("Can't find tag " + header.tag));
+
+    // build conversion into pbOut
+    pbOut.slice().writeStream(pbIn);
+    pbOut.slice().writeByteRepeated(0x00, 0x150);
+    pbOut.slice().writeByteRepeated(0x55, 0x40);
+
+    // step3 demangle in place
+    //kirk.KIRK_AES128CBC_HEADER.struct.write();
+    var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
+    h7_header.mode = 5 /* DecryptCbc */;
+    h7_header.unk_4 = 0;
+    h7_header.unk_8 = 0;
+    h7_header.keyseed = pti.code; // initial seed for PRX
+    h7_header.data_size = 0x70; // size
+
+    kirk.KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
+
+    // redo part of the SIG check (step2)
+    var buffer1 = Stream.fromSize(0x150);
+    buffer1.sliceWithLength(0x00).writeStream(pbIn.sliceWithLength(0xD0, 0x80));
+    buffer1.sliceWithLength(0x80).writeStream(pbIn.sliceWithLength(0x80, 0x50));
+    buffer1.sliceWithLength(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
+
+    //console.log('buffer1', buffer1.slice().readAllBytes());
+    if (pti.codeExtra != 0) {
+        var buffer2 = Stream.fromSize(20 + 0xA0);
+
+        buffer2.slice().writeUInt32(5).writeUInt32(0).writeUInt32(0).writeUInt32(pti.codeExtra).writeUInt32(0xA0).writeStream(buffer1.sliceWithLength(0x10, 0xA0));
+
+        kirk.hleUtilsBufferCopyWithRange(buffer2.sliceWithLength(0, 20 + 0xA0), buffer2.sliceWithLength(0, 20 + 0xA0), 7 /* DECRYPT_IV_0 */);
+
+        // copy result back
+        buffer1.slice().writeStream(buffer2.sliceWithLength(0, 0xA0));
+    }
+
+    pbOut.sliceFrom(0x40).writeStream(buffer1.sliceWithLength(0x40, 0x40));
+
+    for (var iXOR = 0; iXOR < 0x70; iXOR++)
+        pbOut.set(0x40 + iXOR, ((pbOut.get(0x40 + iXOR) ^ pti.key[0x14 + iXOR]) & 0xFF));
+
+    kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x2C, 20 + 0x70), pbOut.sliceWithLength(0x2C, 20 + 0x70), 7 /* DECRYPT_IV_0 */);
+
+    for (var iXOR = 0x6F; iXOR >= 0; iXOR--)
+        pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
+
+    pbOut.sliceFrom(0x80).writeByteRepeated(0, 0x30);
+
+    pbOut.set(0xA0, 1);
+
+    // copy unscrambled parts from header
+    pbOut.sliceFrom(0xB0).writeStream(pbIn.sliceWithLength(0xB0, 0x20)); // file size + lots of zeros
+    pbOut.sliceFrom(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80)); // ~PSP header
+
+    // step4: do the actual decryption of code block
+    //  point 0x40 bytes into the buffer to key info
+    kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x00, cbTotal), pbOut.sliceWithLength(0x40, cbTotal - 0x40), 1 /* DECRYPT_PRIVATE */);
+
+    //File.WriteAllBytes("../../../TestInput/temp.bin", _pbOut);
+    var outputSize = pbIn.sliceFrom(0xB0).readUInt32();
+
+    return pbOut.sliceWithLength(0, outputSize);
 }
 
 function decrypt2(input) {
 }
 
 function decrypt(input) {
-    return decrypt1(input);
+    return decrypt1(input.slice());
 }
 exports.decrypt = decrypt;
 //# sourceMappingURL=elf_crypted_prx.js.map
 },
 "src/hle/elf_crypted_prx_keys_144": function(module, exports, require) {
-exports.g_tagInfo = [
-    // 1.x PRXs
-    { tag: 0x00000000, ikey: g_key0, code: 0x42 },
-    { tag: 0x02000000, ikey: g_key2, code: 0x45 },
-    { tag: 0x03000000, ikey: g_key3, code: 0x46 },
-    // 2.0 PRXs
-    { tag: 0x4467415d, ikey: g_key44, code: 0x59, codeExtra: 0x59 },
-    { tag: 0x207bbf2f, ikey: g_key20, code: 0x5A, codeExtra: 0x5A },
-    { tag: 0x3ace4dce, ikey: g_key3A, code: 0x5B, codeExtra: 0x5B },
-    // misc
-    { tag: 0x07000000, ikey: g_key_INDEXDAT1xx, code: 0x4A },
-    { tag: 0x08000000, ikey: g_keyEBOOT1xx, code: 0x4B },
-    { tag: 0xC0CB167C, ikey: g_keyEBOOT2xx, code: 0x5D, codeExtra: 0x5D },
-    { tag: 0x0B000000, ikey: g_keyUPDATER, code: 0x4E },
-    { tag: 0x0C000000, ikey: g_keyDEMOS27X, code: 0x4F },
-    { tag: 0x0F000000, ikey: g_keyMEIMG250, code: 0x52 },
-    { tag: 0x862648D1, ikey: g_keyMEIMG260, code: 0x52, codeExtra: 0x52 },
-    { tag: 0x207BBF2F, ikey: g_keyUNK1, code: 0x5A, codeExtra: 0x5A },
-    { tag: 0x09000000, ikey: g_key_GAMESHARE1xx, code: 0x4C },
-    { tag: 0xBB67C59F, ikey: g_key_GAMESHARE2xx, code: 0x5E, codeExtra: 0x5E }
-];
-
 var g_key0 = new Uint32Array([
     0x7b21f3be, 0x299c5e1d, 0x1c9c5e71, 0x96cb4645, 0x3c9b1be0, 0xeb85de3d,
     0x4a7f2022, 0xc2206eaa, 0xd50b3265, 0x55770567, 0x3c080840, 0x981d55f2,
@@ -17794,6 +18654,31 @@ var g_key_INDEXDAT1xx = new Uint32Array([
     0xA34D8C80, 0x962B235D, 0x3E420548, 0x09CF9FFE, 0xD4883F5C, 0xD90E9CB5,
     0x00AEF4E9, 0xF0886DE9, 0x62A58A5B, 0x52A55546, 0x971941B5, 0xF5B79FAC
 ]);
+
+function process(_item) {
+    var item = _item;
+    item.key = new Uint8Array(_item.ikey.buffer);
+    return item;
+}
+
+exports.g_tagInfo = [
+    process({ tag: 0x00000000, ikey: g_key0, code: 0x42, codeExtra: 0x00 }),
+    process({ tag: 0x02000000, ikey: g_key2, code: 0x45, codeExtra: 0x00 }),
+    process({ tag: 0x03000000, ikey: g_key3, code: 0x46, codeExtra: 0x00 }),
+    process({ tag: 0x4467415d, ikey: g_key44, code: 0x59, codeExtra: 0x59 }),
+    process({ tag: 0x207bbf2f, ikey: g_key20, code: 0x5A, codeExtra: 0x5A }),
+    process({ tag: 0x3ace4dce, ikey: g_key3A, code: 0x5B, codeExtra: 0x5B }),
+    process({ tag: 0x07000000, ikey: g_key_INDEXDAT1xx, code: 0x4A, codeExtra: 0x00 }),
+    process({ tag: 0x08000000, ikey: g_keyEBOOT1xx, code: 0x4B, codeExtra: 0x00 }),
+    process({ tag: 0xC0CB167C, ikey: g_keyEBOOT2xx, code: 0x5D, codeExtra: 0x5D }),
+    process({ tag: 0x0B000000, ikey: g_keyUPDATER, code: 0x4E, codeExtra: 0x00 }),
+    process({ tag: 0x0C000000, ikey: g_keyDEMOS27X, code: 0x4F, codeExtra: 0x00 }),
+    process({ tag: 0x0F000000, ikey: g_keyMEIMG250, code: 0x52, codeExtra: 0x00 }),
+    process({ tag: 0x862648D1, ikey: g_keyMEIMG260, code: 0x52, codeExtra: 0x52 }),
+    process({ tag: 0x207BBF2F, ikey: g_keyUNK1, code: 0x5A, codeExtra: 0x5A }),
+    process({ tag: 0x09000000, ikey: g_key_GAMESHARE1xx, code: 0x4C, codeExtra: 0x00 }),
+    process({ tag: 0xBB67C59F, ikey: g_key_GAMESHARE2xx, code: 0x5E, codeExtra: 0x5E })
+];
 //# sourceMappingURL=elf_crypted_prx_keys_144.js.map
 },
 "src/hle/elf_crypted_prx_keys_16": function(module, exports, require) {
@@ -25112,7 +25997,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     nativeFunction.firmwareVersion = firmwareVersion;
 
     //console.log(code);
-    var func = new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
+    var func = new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
     nativeFunction.call = function (context, state) {
         func(_this, internalFunc, context, state, nativeFunction);
     };
@@ -26584,6 +27469,7 @@ module.exports = StringUtils;
 //# sourceMappingURL=StringUtils.js.map
 },
 "test/_tests": function(module, exports, require) {
+require('./format/pspTest');
 require('./format/csoTest');
 require('./format/isoTest');
 require('./format/pbpTest');
@@ -26713,6 +27599,35 @@ describe('psf', function () {
     });
 });
 //# sourceMappingURL=psfTest.js.map
+},
+"test/format/pspTest": function(module, exports, require) {
+var elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
+
+describe('psp', function () {
+    var testInputStream;
+    var testExpectedStream;
+
+    before(function () {
+        return downloadFileAsync('samples/TEST_EBOOT.BIN').then(function (data) {
+            testInputStream = Stream.fromArrayBuffer(data);
+            return downloadFileAsync('samples/TEST_BOOT.BIN').then(function (data) {
+                testExpectedStream = Stream.fromArrayBuffer(data);
+            });
+        });
+    });
+
+    it('should load fine', function () {
+        var resultByteArray = elf_crypted_prx.decrypt(testInputStream).slice().readAllBytes();
+        var expectedByteArray = testExpectedStream.slice().readAllBytes();
+        assert.equal(resultByteArray.length, expectedByteArray.length);
+        for (var n = 0; n < resultByteArray.length; n++) {
+            if (resultByteArray[n] != expectedByteArray[n]) {
+                assert.equal(resultByteArray[n], expectedByteArray[n], "failed at " + n + ' with total length ' + resultByteArray.length);
+            }
+        }
+    });
+});
+//# sourceMappingURL=pspTest.js.map
 },
 "test/format/vagTest": function(module, exports, require) {
 var _vag = require('../../src/format/vag');

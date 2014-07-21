@@ -70,7 +70,7 @@ export class FunctionGenerator {
 	create(address: number) {
 		var code = this._create(address);
 		try {
-			return new Function('state', code);
+			return new Function('state', '"use strict";' + code);
 		} catch (e) {
 			console.info('code:\n', code);
 			throw (e);

@@ -23,8 +23,6 @@ export class InstructionCache {
 		for (var n = from; n < to; n += 4) delete this.cache[n];
 	}
 
-	
-
 	getFunction(address: number) {
 		var item = this.cache[address];
 		if (item) return item;

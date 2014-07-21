@@ -1,30 +1,10 @@
-﻿export var g_tagInfo = [
-	// 1.x PRXs
-	{ tag :0x00000000, ikey : g_key0, code : 0x42 },
-	{ tag :0x02000000, ikey : g_key2, code : 0x45 },
-	{ tag :0x03000000, ikey : g_key3, code : 0x46 },
-
-	// 2.0 PRXs
-	{ tag :0x4467415d, ikey : g_key44, code : 0x59, codeExtra : 0x59 },
-	{ tag :0x207bbf2f, ikey : g_key20, code : 0x5A, codeExtra : 0x5A },
-	{ tag :0x3ace4dce, ikey : g_key3A, code : 0x5B, codeExtra : 0x5B },
-
-	// misc
-	{ tag :0x07000000, ikey : g_key_INDEXDAT1xx, code : 0x4A },                    // 1.xx index.dat
-	{ tag :0x08000000, ikey : g_keyEBOOT1xx, code : 0x4B },                        // 1.xx game eboot.bin
-	{ tag :0xC0CB167C, ikey : g_keyEBOOT2xx, code : 0x5D, codeExtra : 0x5D },      // 2.xx+ game eboot.bin
-
-	{ tag :0x0B000000, ikey : g_keyUPDATER, code : 0x4E },                         // updater data.psp
-	{ tag :0x0C000000, ikey : g_keyDEMOS27X, code : 0x4F },                        // 2.7x demos
-	{ tag :0x0F000000, ikey : g_keyMEIMG250, code : 0x52 },                        // 2.50 meimg and me_sdimg
-	{ tag :0x862648D1, ikey : g_keyMEIMG260, code : 0x52, codeExtra : 0x52 },      // 2.60+ meimg and me_sdimg
-
-	{ tag :0x207BBF2F, ikey : g_keyUNK1, code : 0x5A, codeExtra : 0x5A },		  // unknown
-
-	{ tag :0x09000000, ikey : g_key_GAMESHARE1xx, code : 0x4C },                   // gameshare 1.xx
-	{ tag :0xBB67C59F, ikey : g_key_GAMESHARE2xx, code : 0x5E, codeExtra : 0x5E }, // gameshare 2.xx (old)
-];
-
+﻿export interface TagInfo {
+	tag: number;
+	ikey: Uint32Array;
+	key: Uint8Array;
+	code: number;
+	codeExtra: number;
+}
 
 var g_key0 = new Uint32Array([
 0x7b21f3be, 0x299c5e1d, 0x1c9c5e71, 0x96cb4645, 0x3c9b1be0, 0xeb85de3d,
@@ -156,3 +136,36 @@ var g_key_INDEXDAT1xx = new Uint32Array([
 0xA34D8C80, 0x962B235D, 0x3E420548, 0x09CF9FFE, 0xD4883F5C, 0xD90E9CB5,
 0x00AEF4E9, 0xF0886DE9, 0x62A58A5B, 0x52A55546, 0x971941B5, 0xF5B79FAC,
 ]);
+
+function process(_item: any): TagInfo {
+	var item = <TagInfo>_item;
+	item.key = new Uint8Array((<Uint32Array>_item.ikey).buffer);
+	return item;
+}
+
+export var g_tagInfo = <TagInfo[]>[
+	// 1.x PRXs
+	process({ tag: 0x00000000, ikey: g_key0, code: 0x42, codeExtra: 0x00 }),
+	process({ tag: 0x02000000, ikey: g_key2, code: 0x45, codeExtra: 0x00 }),
+	process({ tag: 0x03000000, ikey: g_key3, code: 0x46, codeExtra: 0x00 }),
+
+	// 2.0 PRXs
+	process({ tag: 0x4467415d, ikey: g_key44, code: 0x59, codeExtra: 0x59 }),
+	process({ tag: 0x207bbf2f, ikey: g_key20, code: 0x5A, codeExtra: 0x5A }),
+	process({ tag: 0x3ace4dce, ikey: g_key3A, code: 0x5B, codeExtra: 0x5B }),
+
+	// misc
+	process({ tag: 0x07000000, ikey: g_key_INDEXDAT1xx, code: 0x4A, codeExtra: 0x00 }),                    // 1.xx index.dat
+	process({ tag: 0x08000000, ikey: g_keyEBOOT1xx, code: 0x4B, codeExtra: 0x00 }),                        // 1.xx game eboot.bin
+	process({ tag: 0xC0CB167C, ikey: g_keyEBOOT2xx, code: 0x5D, codeExtra: 0x5D }),      // 2.xx+ game eboot.bin
+
+	process({ tag: 0x0B000000, ikey: g_keyUPDATER, code: 0x4E, codeExtra: 0x00 }),                         // updater data.psp
+	process({ tag: 0x0C000000, ikey: g_keyDEMOS27X, code: 0x4F, codeExtra: 0x00 }),                        // 2.7x demos
+	process({ tag: 0x0F000000, ikey: g_keyMEIMG250, code: 0x52, codeExtra: 0x00 }),                        // 2.50 meimg and me_sdimg
+	process({ tag: 0x862648D1, ikey: g_keyMEIMG260, code: 0x52, codeExtra: 0x52 }),      // 2.60+ meimg and me_sdimg
+
+	process({ tag: 0x207BBF2F, ikey: g_keyUNK1, code: 0x5A, codeExtra: 0x5A }),		  // unknown
+
+	process({ tag: 0x09000000, ikey: g_key_GAMESHARE1xx, code: 0x4C, codeExtra: 0x00 }),                   // gameshare 1.xx
+	process({ tag: 0xBB67C59F, ikey: g_key_GAMESHARE2xx, code: 0x5E, codeExtra: 0x5E }), // gameshare 2.xx (old)
+];
