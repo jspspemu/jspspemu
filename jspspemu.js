@@ -13690,28 +13690,23 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
 // Precomputed Rcon lookup
 var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
-function swap32(val) {
-    return ((val & 0xFF) << 24) | ((val & 0xFF00) << 8) | ((val >> 8) & 0xFF00) | ((val >> 24) & 0xFF);
+function swap32(v) {
+    return ((v & 0xFF) << 24) | ((v & 0xFF00) << 8) | ((v >> 8) & 0xFF00) | ((v >> 24) & 0xFF);
 }
 
 function uint8array_to_words(key) {
     var temp = new Uint32Array(key.buffer, key.byteOffset, key.length / 4);
     var words = new Uint32Array(key.length / 4);
-    for (var n = 0; n < words.length; n++) {
+    for (var n = 0; n < words.length; n++)
         words[n] = swap32(temp[n]);
-    }
     return words;
 }
 
 function words_to_uint8array(words) {
     var out = new Uint8Array(words.length * 4);
-    for (var n = 0, m = 0; n < words.length; n++, m += 4) {
-        var word = words[n];
-        out[m + 3] = (word >> 0) & 0xFF;
-        out[m + 2] = (word >> 8) & 0xFF;
-        out[m + 1] = (word >> 16) & 0xFF;
-        out[m + 0] = (word >> 24) & 0xFF;
-    }
+    var out2 = new Uint32Array(out.buffer);
+    for (var n = 0; n < words.length; n++)
+        out2[n] = swap32(words[n]);
     return out;
 }
 
@@ -13837,11 +13832,12 @@ exports.AES = AES;
 function decrypt_aes128_cbc(data, key) {
     var aes = new AES(key);
     var words = uint8array_to_words(data);
+    var wordsLength = words.length;
 
     var t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     var s0 = 0, s1 = 0, s2 = 0, s3 = 0;
 
-    for (var n = 0; n < words.length; n += 4) {
+    for (var n = 0; n < wordsLength; n += 4) {
         t0 = words[n + 0];
         t1 = words[n + 1];
         t2 = words[n + 2];
