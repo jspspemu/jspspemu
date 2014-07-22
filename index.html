@@ -189,7 +189,7 @@
 						<div class="col-xs-3">
 							<div class="panel panel-default">
 								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info-circle"></span> Version</h3></div>
-								<div class="panel-body" id="git_version" style="height:48px;">
+								<div class="panel-body" id="git_version" style="min-height:48px;">
 									<span id="version-gitdescribe"></span>
 								</div>
 							</div>
@@ -562,9 +562,9 @@
 					<div><input type="text" id="shareUrl" value="" style="width:100%;" /></div>
 					<div>HTML:</div>
 					<div><textarea id="shareIframe" style="width:100%;"></textarea></div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					<div>Embedding:</div>
+					<div><a href="http://blog.jspspemu.com/2014/05/streaming-psp-games-embedding-and-cors.html" target="_blank">Guide for embedding and hosting games and demos: CORS</a></div>
+					<button type="button" class="btn btn-default" data-dismiss="modal" style="float:right;margin-top:-30px;">Close</button>
 				</div>
 			</div>
 		</div>
@@ -575,11 +575,12 @@
 			<div class="modal-content">
 				<div class="modal-header">
 					<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-					<h4 class="modal-title" id="helpModalLabel">Help (Controls)</h4>
+					<h4 class="modal-title" id="helpModalLabel">Help</h4>
 				</div>
 				<div class="modal-body">
-					<p>Gamepad: You can connect a <a href="http://www.motioninjoy.com/download" target="_blank">ps3 controller</a> <a href="http://betterds3.ciebiera.net/" target="_blank">[2]</a></p>
-					<p>Keyboard:</p>
+					<p>Author: <a href="http://cballesterosvelasco.es/" target="_blank">Carlos Ballesteros Velasco (soywiz)</a></p>
+					<p>Controls: Gamepad: You can connect a <a href="http://www.motioninjoy.com/download" target="_blank">ps3 controller</a> <a href="http://betterds3.ciebiera.net/" target="_blank">[2]</a></p>
+					<p>Controls: Keyboard:</p>
 					<ul>
 						<li><strong>W/A/S/D</strong>: Triangle/Square/Cross/Circle</li>
 						<li><strong>I/J/K/L</strong>: Simulated analogic pad</li>
