@@ -5,7 +5,7 @@ jspspemu
 
 A PSP emulator made using javascript (actually typescript). It works with modern browsers.
 
-![TrigWars screenshot](/docs/screenshot_TrigWars.png?raw=true "TrigWars screenshot")
+![Valhalla Knights screenshot](/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
 
 Lastest version have been tested on:
 * Google Chrome 33 (fastest)
