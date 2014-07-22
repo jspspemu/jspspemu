@@ -116,7 +116,7 @@ export class FunctionGenerator {
 
 			if (this.instructionUsageCount[di.type.name] === undefined) {
 				this.instructionUsageCount[di.type.name] = 0;
-				console.warn('**** NEW instruction: ', di.type.name);
+				//console.warn('**** NEW instruction:', di.type.name);
 			}
 			this.instructionUsageCount[di.type.name]++;
 

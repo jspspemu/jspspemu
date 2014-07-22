@@ -18,7 +18,7 @@
   },
   "scripts": {
 	"benchmark": "node benchmarks/benchmark.js",
-    "test": "mocha-phantomjs test.html"
+    "test": "mocha-phantomjs -R dot test.html"
   },
   "license": "MIT",
   "engines": {

@@ -6345,7 +6345,7 @@ var FunctionGenerator = (function () {
 
             if (this.instructionUsageCount[di.type.name] === undefined) {
                 this.instructionUsageCount[di.type.name] = 0;
-                console.warn('**** NEW instruction: ', di.type.name);
+                //console.warn('**** NEW instruction:', di.type.name);
             }
             this.instructionUsageCount[di.type.name]++;
 
@@ -17492,7 +17492,7 @@ var Zip = (function () {
             item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
             item.zipDirEntry = zipDirEntry;
         });
-        console.log(this.root);
+        //console.log(this.root);
     }
     Zip.prototype.get = function (path) {
         return this.root.access(path);
@@ -17508,13 +17508,11 @@ var Zip = (function () {
     };
 
     Zip.fromStreamAsync = function (zipStream) {
-        console.info('zipStream', zipStream);
-
+        //console.info('zipStream', zipStream);
         return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then(function (data) {
             var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
 
-            console.log('zipEndLocator', zipEndLocator);
-
+            //console.log('zipEndLocator', zipEndLocator);
             return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then(function (data) {
                 var dirEntries = StructArray(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
 
@@ -25947,6 +25945,136 @@ var MemoryStickVfs = _ms.MemoryStickVfs;
 exports.MemoryStickVfs = MemoryStickVfs;
 //# sourceMappingURL=vfs.js.map
 },
+"src/hle/vfs/indexeddb": function(module, exports, require) {
+
+var MyStoreIndexedDb = (function () {
+    function MyStoreIndexedDb(store) {
+        this.store = store;
+    }
+    MyStoreIndexedDb.prototype.putAsync = function (value) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var request = _this.store.put(value);
+            request.onsuccess = function (e) {
+                resolve();
+            };
+            request.onerror = function (e) {
+                reject(e['value']);
+            };
+        });
+    };
+
+    MyStoreIndexedDb.prototype.deleteAsync = function (key) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var request = _this.store.delete(key);
+
+            request.onsuccess = function (e) {
+                resolve();
+            };
+
+            request.onerror = function (e) {
+                reject(e['value']);
+            };
+        });
+    };
+
+    MyStoreIndexedDb.prototype.getRangeAsync = function (keyRange, iterator) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            try  {
+                var cursorRequest = _this.store.openCursor(keyRange.keyRange);
+            } catch (e) {
+                console.error(e);
+                reject(e);
+            }
+
+            //console.log('mm', cursorRequest);
+            cursorRequest.onsuccess = function (e) {
+                var cursor = cursorRequest.result;
+                if (!!cursor == false) {
+                    resolve();
+                    return;
+                } else {
+                    var result2 = iterator(cursor.value);
+                    cursor.continue();
+                }
+            };
+
+            cursorRequest.onerror = function (e) {
+                //console.log('dd');
+                reject(e['value']);
+            };
+        });
+    };
+
+    MyStoreIndexedDb.prototype.getOneAsync = function (keyRange) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            _this.getRangeAsync(keyRange.keyRange, function (item) {
+                resolve(item);
+            }).then(function () {
+                resolve(null);
+            }).catch(function (e) {
+                reject(e);
+            });
+        });
+    };
+    return MyStoreIndexedDb;
+})();
+
+var MyRangeIndexedDb = (function () {
+    function MyRangeIndexedDb(keyRange) {
+        this.keyRange = keyRange;
+    }
+    return MyRangeIndexedDb;
+})();
+
+var MyStorageIndexedDb = (function () {
+    function MyStorageIndexedDb(db) {
+        this.db = db;
+    }
+    MyStorageIndexedDb.prototype.getStore = function (name) {
+        return new MyStoreIndexedDb(this.db.transaction([name], "readwrite").objectStore(name));
+    };
+
+    MyStorageIndexedDb.prototype.rangeOnly = function (name) {
+        return new MyRangeIndexedDb(IDBKeyRange.only(name));
+    };
+
+    MyStorageIndexedDb.openAsync = function (name, version, stores) {
+        return new Promise(function (resolve, reject) {
+            var request = indexedDB.open(name, version);
+            request.onupgradeneeded = function (e) {
+                var db = request.result;
+
+                // A versionchange transaction is started automatically.
+                //request.transaction.onerror = html5rocks.indexedDB.onerror;
+                console.log('upgrade!');
+
+                stores.forEach(function (store) {
+                    if (db.objectStoreNames.contains(store))
+                        db.deleteObjectStore(store);
+                    db.createObjectStore(store, { keyPath: "name" });
+                });
+            };
+            request.onerror = function (event) {
+                reject(new Error("Can't open indexedDB"));
+            };
+            request.onsuccess = function (event) {
+                resolve(new MyStorageIndexedDb(request.result));
+            };
+        });
+    };
+    return MyStorageIndexedDb;
+})();
+
+function openAsync(name, version, stores) {
+    return MyStorageIndexedDb.openAsync(name, version, stores);
+}
+exports.openAsync = openAsync;
+//# sourceMappingURL=indexeddb.js.map
+},
 "src/hle/vfs/vfs": function(module, exports, require) {
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -26936,97 +27064,7 @@ var VfsEntry = _vfs.VfsEntry;
 
 var FileOpenFlags = _vfs.FileOpenFlags;
 
-
-function indexedDbOpenAsync(name, version, stores) {
-    return new Promise(function (resolve, reject) {
-        var request = indexedDB.open(name, version);
-        request.onupgradeneeded = function (e) {
-            var db = request.result;
-
-            // A versionchange transaction is started automatically.
-            //request.transaction.onerror = html5rocks.indexedDB.onerror;
-            console.log('upgrade!');
-
-            stores.forEach(function (store) {
-                if (db.objectStoreNames.contains(store))
-                    db.deleteObjectStore(store);
-                db.createObjectStore(store, { keyPath: "name" });
-            });
-        };
-        request.onerror = function (event) {
-            reject(new Error("Can't open indexedDB"));
-        };
-        request.onsuccess = function (event) {
-            resolve(request.result);
-        };
-    });
-}
-
-function indexedDbPutAsync(store, value) {
-    return new Promise(function (resolve, reject) {
-        var request = store.put(value);
-        request.onsuccess = function (e) {
-            resolve();
-        };
-        request.onerror = function (e) {
-            reject(e['value']);
-        };
-    });
-}
-
-function indexedDbDeleteAsync(store, key) {
-    return new Promise(function (resolve, reject) {
-        var request = store.delete(key);
-
-        request.onsuccess = function (e) {
-            resolve();
-        };
-
-        request.onerror = function (e) {
-            reject(e['value']);
-        };
-    });
-}
-
-function indexedDbGetRangeAsync(store, keyRange, iterator) {
-    return new Promise(function (resolve, reject) {
-        try  {
-            var cursorRequest = store.openCursor(keyRange);
-        } catch (e) {
-            console.error(e);
-            reject(e);
-        }
-
-        //console.log('mm', cursorRequest);
-        cursorRequest.onsuccess = function (e) {
-            var cursor = cursorRequest.result;
-            if (!!cursor == false) {
-                resolve();
-                return;
-            } else {
-                var result2 = iterator(cursor.value);
-                cursor.continue();
-            }
-        };
-
-        cursorRequest.onerror = function (e) {
-            //console.log('dd');
-            reject(e['value']);
-        };
-    });
-}
-
-function indexedDbGetOneAsync(store, keyRange) {
-    return new Promise(function (resolve, reject) {
-        indexedDbGetRangeAsync(store, keyRange, function (item) {
-            resolve(item);
-        }).then(function () {
-            resolve(null);
-        }).catch(function (e) {
-            reject(e);
-        });
-    });
-}
+var storage = require('./indexeddb');
 
 var StorageVfs = (function (_super) {
     __extends(StorageVfs, _super);
@@ -27037,7 +27075,7 @@ var StorageVfs = (function (_super) {
     StorageVfs.prototype.initializeOnceAsync = function () {
         var _this = this;
         if (!this.openDbPromise) {
-            this.openDbPromise = indexedDbOpenAsync(this.key, 3, ['files']).then(function (db) {
+            this.openDbPromise = storage.openAsync(this.key, 3, ['files']).then(function (db) {
                 _this.db = db;
                 return _this;
             });
@@ -27084,8 +27122,7 @@ var StorageVfsEntry = (function (_super) {
 
     StorageVfsEntry.prototype._getFileAsync = function () {
         var _this = this;
-        var store = this.db.transaction(["files"], "readwrite").objectStore('files');
-        return indexedDbGetOneAsync(store, IDBKeyRange.only(this.name)).then(function (file) {
+        return this.db.getStore('files').getOneAsync(this.db.rangeOnly(this.name)).then(function (file) {
             if (file == null)
                 file = { name: _this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
             return file;
@@ -27099,8 +27136,7 @@ var StorageVfsEntry = (function (_super) {
     };
 
     StorageVfsEntry.prototype._writeAllAsync = function (data) {
-        var store = this.db.transaction(["files"], "readwrite").objectStore('files');
-        return indexedDbPutAsync(store, {
+        return this.db.getStore('files').putAsync({
             'name': this.name,
             'content': new Uint8Array(data),
             'date': new Date(),
@@ -27917,7 +27953,7 @@ describe('vfs', function () {
             vfs2.writeAllAsync('simple2', new Uint8Array([1, 2, 3, 4, 5]).buffer);
         }).then(function () {
             return msVfs.getStatAsync('simple1').then(function (stat) {
-                console.log(stat);
+                //console.log(stat);
                 assert.equal('simple1', stat.name);
                 assert.equal(5, stat.size);
             });

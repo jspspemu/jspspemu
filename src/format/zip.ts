@@ -115,7 +115,7 @@ export class Zip {
 			item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
 			item.zipDirEntry = zipDirEntry;
 		});
-		console.log(this.root);
+		//console.log(this.root);
 	}
 
 	get(path: string): ZipEntry {
@@ -132,12 +132,12 @@ export class Zip {
 	}
 
 	static fromStreamAsync(zipStream: AsyncStream) {
-		console.info('zipStream', zipStream);
+		//console.info('zipStream', zipStream);
 
 		return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then((data) => {
 			var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
 
-			console.log('zipEndLocator', zipEndLocator);
+			//console.log('zipEndLocator', zipEndLocator);
 
 			return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then((data) => {
 				var dirEntries = StructArray<ZipDirEntry>(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));

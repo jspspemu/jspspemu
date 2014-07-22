@@ -125,7 +125,7 @@ describe('vfs', () => {
 			})
 			.then(() => {
 				return msVfs.getStatAsync('simple1').then(stat => {
-					console.log(stat);
+					//console.log(stat);
 					assert.equal('simple1', stat.name);
 					assert.equal(5, stat.size);
 				});

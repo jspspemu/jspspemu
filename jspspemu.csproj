@@ -154,6 +154,7 @@
     <TypeScriptCompile Include="src\hle\structs.ts" />
     <TypeScriptCompile Include="src\hle\utils.ts" />
     <TypeScriptCompile Include="src\hle\vfs.ts" />
+    <TypeScriptCompile Include="src\hle\vfs\indexeddb.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_dropbox.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_emulator.ts" />
     <TypeScriptCompile Include="src\hle\vfs\vfs_iso.ts" />
