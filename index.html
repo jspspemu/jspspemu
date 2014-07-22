@@ -143,7 +143,7 @@
 								<div class="panel-footer" style="color:#777;"><small><small>Currently the emulator can play ELF, PBP, ISO, CSO and ZIP files.</small></small></div>
 							</div>
 							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info"></span> Lastest changes</h3></div>
+								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-git"></span> Lastest changes</h3></div>
 								<div class="panel-body">
 									<div id="github_info" style="font-size:0.7em;height:160px;overflow-y:auto;"></div>
 									<script type="text/javascript">
@@ -187,13 +187,17 @@
 						</div>
 						<div class="col-xs-3">
 							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info"></span> Version</h3></div>
-								<div class="panel-body" id="git_version">
-									git-master (<span id="version-date" style="font-size:0.8em;"></span>)
+								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info-circle"></span> Version</h3></div>
+								<div class="panel-body" id="git_version" style="height:48px;">
+									<span id="version-gitdescribe"></span>
 								</div>
 							</div>
 							<script type="text/javascript">
-								$('#version-date').text(moment(document.lastModified).format("YYYY-MM-DD HH:mm"));
+								$.ajax({
+									url: ".gitdescribe"
+								}).done(function (data) {
+									$("#version-gitdescribe").html(data + ' (<span style="font-size:0.8em;">' + moment(document.lastModified).format("YYYY-MM-DD HH:mm") + '</span>)');
+								});
 							</script>
 							<div class="panel panel-default">
 								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-wrench"></span> Tools</h3></div>
