@@ -59,13 +59,17 @@
 </head>
 <body>
 	<input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
-	<div id="game_menu_toggler" style="position:absolute;top:0;right:0;z-index:10000;opacity:0.5;">
+	<div id="game_menu_toggler" style="position:absolute;top:0;right:0;z-index:1049;opacity:0.5;">
 		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="$('#game_menu').fadeToggle(200);" title="Menu"><span class="glyphicon glyphicon-cog" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+		<!--
 		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="" title="Chat"><span class="glyphicon glyphicon-user" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+		-->
+		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="openShareModal();" title="Share"><span class="fa fa-share-alt" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="requestFullScreen();" title="Fullscreen"><span class="glyphicon glyphicon-fullscreen" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
 	</div>
 	<div id="body">
 		<div id="canvas_container">
-			<div id="game_menu" style="z-index:2000;position:absolute;width:480px;height:272px;background:rgba(255,255,255,0.9);display:none;">
+			<div id="game_menu" style="z-index:1001;position:absolute;width:480px;height:272px;background:rgba(255,255,255,0.9);display:none;">
 				<nav class="navbar navbar-default" role="navigation">
 					<div class="container-fluid">
 						<div class="navbar-header">
@@ -199,6 +203,17 @@
 										<li><a href="javascript:emulator.toggleDropbox();"><span class="glyphicon glyphicon-cloud"></span> Dropbox <small>(<span id="dropbox" style="color:white;"></span>)</small></a></li>
 										<li><a href="javascript:emulator.memory.dump();"><span class="glyphicon glyphicon-floppy-disk"></span> Memory dump</a></li>
 									</ul>
+								</div>
+							</div>
+							<div class="panel panel-default">
+								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-heart"></span> Care</h3></div>
+								<div class="panel-body">
+									<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+										<input type="hidden" name="cmd" value="_s-xclick">
+										<input type="hidden" name="hosted_button_id" value="PEJGCR7VC56U8">
+										<input type="image" src="docs/paypal-donate-button.png" border="0" name="submit" alt="Donate via PayPal">
+										<img alt="" border="0" src="https://www.paypalobjects.com/EN/i/scr/pixel.gif" width="1" height="1">
+									</form>
 								</div>
 							</div>
 							<!--
@@ -511,5 +526,39 @@
 		ga('send', 'pageview');
 
 	</script>
+
+	<script type="text/javascript">
+	//<![CDATA[
+		function openShareModal() {
+			var hashShare = document.location.hash.replace(/^#+/, '');
+			if (!hashShare || !hashShare.length) {
+				alert("Open a game from an url to share");
+			} else {
+				$('#shareUrl').val(document.location.href);
+				$('#shareIframe').val('<iframe src="' + document.location.href + '" width="480" height="272"></iframe>');
+				$('#shareModal').modal({ show: 'true' });
+			}
+		}
+	//]]>
+	</script>
+	<div class="modal fade" id="shareModal" tabindex="-1" role="dialog" aria-labelledby="shareModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+					<h4 class="modal-title" id="shareModalLabel">Share</h4>
+				</div>
+				<div class="modal-body">
+					<div>URL:</html>
+					<div><input type="text" id="shareUrl" value="" style="width:100%;" /></div>
+					<div>HTML:</html>
+					<div><textarea id="shareIframe" style="width:100%;"></textarea></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </body>
 </html>

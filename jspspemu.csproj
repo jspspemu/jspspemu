@@ -17,10 +17,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.png" />
+    <Content Include="lib\bootstrap\bootstrap-theme.min.css" />
+    <Content Include="lib\bootstrap\bootstrap.min.css" />
+    <Content Include="lib\bootstrap\bootstrap.min.js" />
+    <Content Include="lib\bootstrap\glyphicons-halflings-regular.svg" />
     <Content Include="lib\chai.js" />
     <Content Include="lib\difflib.js" />
     <Content Include="lib\dropbox-datastores-1.0-latest.js" />
     <Content Include="lib\FileSaver.js" />
+    <Content Include="lib\fontawesome\font-awesome.min.css" />
+    <Content Include="lib\fontawesome\fontawesome-webfont.svg" />
     <Content Include="lib\gl-matrix.js" />
     <Content Include="index.html" />
     <Content Include="lib\jquery-2.1.0.js" />
@@ -251,6 +257,13 @@
     <Content Include="package.json" />
     <Content Include="me\build_at3.bat" />
     <Content Include=".travis.yml" />
+    <Content Include="lib\bootstrap\glyphicons-halflings-regular.eot" />
+    <Content Include="lib\bootstrap\glyphicons-halflings-regular.ttf" />
+    <Content Include="lib\bootstrap\glyphicons-halflings-regular.woff" />
+    <Content Include="lib\fontawesome\fontawesome-webfont.eot" />
+    <Content Include="lib\fontawesome\fontawesome-webfont.ttf" />
+    <Content Include="lib\fontawesome\fontawesome-webfont.woff" />
+    <Content Include="lib\fontawesome\FontAwesome.otf" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>
