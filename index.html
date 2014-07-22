@@ -64,8 +64,9 @@
 		<!--
 		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="" title="Chat"><span class="glyphicon glyphicon-user" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
 		-->
-		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="openShareModal();" title="Share"><span class="fa fa-share-alt" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="openShareModal();" title="Share"><span class="fa fa-share-alt" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);width:35px;height:35px;"></span></button></div>
 		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="requestFullScreen();" title="Fullscreen"><span class="glyphicon glyphicon-fullscreen" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
+		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="openHelpModal();" title="Help"><span class="fa fa-question-circle" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);width:35px;height:35px;"></span></button></div>
 	</div>
 	<div id="body">
 		<div id="canvas_container">
@@ -539,9 +540,13 @@
 				alert("Open a game from an url to share");
 			} else {
 				$('#shareUrl').val(document.location.href);
-				$('#shareIframe').val('<iframe src="' + document.location.href + '" width="480" height="272"></iframe>');
+				$('#shareIframe').val('<iframe src="' + document.location.href + '" width="480" height="272" style="border:0;"></iframe>');
 				$('#shareModal').modal({ show: 'true' });
 			}
+		}
+
+		function openHelpModal() {
+			$('#helpModal').modal({ show: 'true' });
 		}
 	//]]>
 	</script>
@@ -553,10 +558,35 @@
 					<h4 class="modal-title" id="shareModalLabel">Share</h4>
 				</div>
 				<div class="modal-body">
-					<div>URL:</html>
+					<div>URL:</div>
 					<div><input type="text" id="shareUrl" value="" style="width:100%;" /></div>
-					<div>HTML:</html>
+					<div>HTML:</div>
 					<div><textarea id="shareIframe" style="width:100%;"></textarea></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal fade" id="helpModal" tabindex="-1" role="dialog" aria-labelledby="helpModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+					<h4 class="modal-title" id="helpModalLabel">Help (Controls)</h4>
+				</div>
+				<div class="modal-body">
+					<p>Gamepad: You can connect a <a href="http://www.motioninjoy.com/download" target="_blank">ps3 controller</a> <a href="http://betterds3.ciebiera.net/" target="_blank">[2]</a></p>
+					<p>Keyboard:</p>
+					<ul>
+						<li><strong>W/A/S/D</strong>: Triangle/Square/Cross/Circle</li>
+						<li><strong>I/J/K/L</strong>: Simulated analogic pad</li>
+						<li><strong>Q/E</strong>: Left and Right triggers</li>
+						<li><strong>Return/Space</strong>: Start/Select</li>
+						<li><strong>Curcor Keys</strong>: Digital pad</li>
+					</ul>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
