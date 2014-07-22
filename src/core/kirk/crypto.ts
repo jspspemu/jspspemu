@@ -1,5 +1,4 @@
-﻿import jsaes = require('./jsaes');
-import jsaes2 = require('./jsaes2');
+﻿import jsaes2 = require('./jsaes2');
 
 declare var CryptoJS: any;
 

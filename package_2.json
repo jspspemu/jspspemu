@@ -1,0 +1,19 @@
+{
+  "main": "index.html",
+  "name": "jspspemu",
+  "description": "javascript psp emulator",
+  "version": "0.1.0",
+  "keywords": [ "emulator", "psp" ],
+  "window": {
+    "title": "node-webkit demo",
+    "icon": "icon.png",
+    "toolbar": true,
+    "frame": true,
+    "width": 1000,
+    "height": 640,
+    "position": "center"
+  },
+  "webkit": {
+    "plugin": false
+  }
+}

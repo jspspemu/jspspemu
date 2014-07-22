@@ -1,19 +1,27 @@
 {
-  "main": "index.html",
   "name": "jspspemu",
-  "description": "javascript psp emulator",
-  "version": "0.1.0",
-  "keywords": [ "emulator", "psp" ],
-  "window": {
-    "title": "node-webkit demo",
-    "icon": "icon.png",
-    "toolbar": true,
-    "frame": true,
-    "width": 1000,
-    "height": 640,
-    "position": "center"
+  "description": "javascript psp emulator http://jspspemu.com/",
+  "version": "0.0.1",
+  "author": "Carlos Ballesteros <cballesterosvelasco@gmail.com> (http://cballesterosvelasco.es/)",
+  "contributors": [ 
+  ],
+  "dependencies": {
   },
-  "webkit": {
-    "plugin": false
+  "devDependencies": {
+	"mocha-phantomjs": "3.5.0"
+  },
+  "homepage": "https://github.com/soywiz/jspspemu",
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/soywiz/jspspemu.git"
+  },
+  "scripts": {
+	"benchmark": "node benchmarks/benchmark.js",
+    "test": "mocha-phantomjs test.html"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "*"
   }
 }

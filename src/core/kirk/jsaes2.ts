@@ -1,4 +1,11 @@
-﻿// Lookup tables
+﻿/*
+CryptoJS v3.1.2
+code.google.com/p/crypto-js
+(c) 2009-2013 by Jeff Mott. All rights reserved.
+code.google.com/p/crypto-js/wiki/License
+*/
+
+// Lookup tables
 var SBOX = new Uint8Array(256);
 var INV_SBOX = new Uint8Array(256);
 var SUB_MIX_0 = new Uint32Array(256);
@@ -60,27 +67,6 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
 
 // Precomputed Rcon lookup
 var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
-
-function swap32(v) {
-	return ((v & 0xFF) << 24)
-		| ((v & 0xFF00) << 8)
-		| ((v >> 8) & 0xFF00)
-		| ((v >> 24) & 0xFF);
-}
-
-function uint8array_to_words(key: Uint8Array) {
-	var temp = new Uint32Array(key.buffer, key.byteOffset, key.length / 4);
-	var words = new Uint32Array(key.length / 4);
-	for (var n = 0; n < words.length; n++) words[n] = swap32(temp[n]);
-	return words;
-}
-
-function words_to_uint8array(words: Uint32Array) {
-	var out = new Uint8Array(words.length * 4);
-	var out2 = new Uint32Array(out.buffer);
-	for (var n = 0; n < words.length; n++) out2[n] = swap32(words[n]);
-	return out;
-}
 
 /**
  * AES block cipher algorithm.
@@ -203,6 +189,24 @@ export class AES {
 	}
 }
 
+function swap32(v) {
+	return ((v & 0xFF) << 24) | ((v & 0xFF00) << 8) | ((v >> 8) & 0xFF00) | ((v >> 24) & 0xFF);
+}
+
+function uint8array_to_words(key: Uint8Array) {
+	var temp = new Uint32Array(key.buffer, key.byteOffset, key.length / 4);
+	var words = new Uint32Array(key.length / 4);
+	for (var n = 0; n < words.length; n++) words[n] = swap32(temp[n]);
+	return words;
+}
+
+function words_to_uint8array(words: Uint32Array) {
+	var out = new Uint8Array(words.length * 4);
+	var out2 = new Uint32Array(out.buffer);
+	for (var n = 0; n < words.length; n++) out2[n] = swap32(words[n]);
+	return out;
+}
+
 export function decrypt_aes128_cbc(data: Uint8Array, key: Uint8Array) {
 	var aes = new AES(key);
 	var words = uint8array_to_words(data);
@@ -231,31 +235,3 @@ export function decrypt_aes128_cbc(data: Uint8Array, key: Uint8Array) {
 	}
 	return words_to_uint8array(words);
 }
-
-/*
-$key = implode('', array_map('chr', [12,253,103,154,249,180,114,79,215,141,214,233,150,66,40,139]));
-$input = implode('', array_map('chr', [217,56,160,171,217,220,84,205,219,46,247,119,43,184,111,170]));
-$expected = implode('', array_map('chr', [154,58,77,144,134,84,195,210,0,28,172,244,16,122,183,3]));
-
-printf("%s\n", bin2hex($key));
-printf("%s\n", bin2hex($input));
-
-$td = mcrypt_module_open('rijndael-128', '', 'cbc', ''); 
-mcrypt_generic_init($td, $key, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"); 
-
-$encrypted_data = mdecrypt_generic($td, $input); 
-
-echo "{$encrypted_data}\n";
-echo "{$expected}\n";
-*/
-
-/*
-var data = new Uint8Array([217, 56, 160, 171, 217, 220, 84, 205, 219, 46, 247, 119, 43, 184, 111, 170]);
-var key = new Uint8Array([12, 253, 103, 154, 249, 180, 114, 79, 215, 141, 214, 233, 150, 66, 40, 139]);
-var expected = new Uint8Array([154, 58, 77, 144, 134, 84, 195, 210, 0, 28, 172, 244, 16, 122, 183, 3]);
-var aes = new AES(key);
-var dataout = uint8array_to_words(data);
-aes.decryptBlock(dataout, 0);
-console.log(expected);
-console.log(words_to_uint8array(dataout));
-*/

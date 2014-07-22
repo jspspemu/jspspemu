@@ -17,7 +17,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.png" />
-    <Content Include="lib\aes.js" />
     <Content Include="lib\chai.js" />
     <Content Include="lib\difflib.js" />
     <Content Include="lib\dropbox-datastores-1.0-latest.js" />
@@ -68,7 +67,6 @@
     <TypeScriptCompile Include="src\core\gpu\webgl\utils.ts" />
     <TypeScriptCompile Include="src\core\interrupt.ts" />
     <TypeScriptCompile Include="src\core\kirk.ts" />
-    <TypeScriptCompile Include="src\core\kirk\jsaes.ts" />
     <TypeScriptCompile Include="src\core\kirk\jsaes2.ts" />
     <TypeScriptCompile Include="src\core\kirk\kirk.ts" />
     <TypeScriptCompile Include="src\core\kirk\crypto.ts" />
@@ -251,6 +249,7 @@
     <Content Include="README.md" />
     <Content Include="package.json" />
     <Content Include="me\build_at3.bat" />
+    <Content Include=".travis.yml" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>
