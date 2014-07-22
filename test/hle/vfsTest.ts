@@ -35,7 +35,7 @@ describe('vfs', () => {
 		
 		return Promise.resolve(0)
 			.then(() => {
-				storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+				return storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
 			})
 			.then(() => {
 				return storageVfs.getStatAsync('simple').then(stat => {
@@ -89,7 +89,7 @@ describe('vfs', () => {
 
 		return Promise.resolve(0)
 			.then(() => {
-				msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+				return msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
 			})
 			.then(() => {
 				return msVfs.getStatAsync('simple').then(stat => {

@@ -71,8 +71,8 @@ class StorageVfsEntry extends VfsEntry {
 	}
 
 	private _getFileAsync(): Promise<File> {
-		return this.db.getStore('files').getOneAsync(this.db.rangeOnly(this.name)).then(file => {
-			if (file == null) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
+		return this.db.getAsync(this.name).then(file => {
+			if (!file) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
 			return file;
 		});
 	}
@@ -82,7 +82,7 @@ class StorageVfsEntry extends VfsEntry {
 	}
 
 	private _writeAllAsync(data:ArrayBuffer) {
-		return this.db.getStore('files').putAsync({
+		return this.db.putAsync(this.name, {
 			'name': this.name,
 			'content': new Uint8Array(data),
 			'date': new Date(),

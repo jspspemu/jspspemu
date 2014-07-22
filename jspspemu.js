@@ -13456,175 +13456,6 @@ function aes_decrypt(data, key, iv) {
 exports.aes_decrypt = aes_decrypt;
 //# sourceMappingURL=crypto.js.map
 },
-"src/core/kirk/jsaes": function(module, exports, require) {
-var SBOX = new Uint8Array([
-    99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171,
-    118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164, 114, 192, 183, 253,
-    147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154,
-    7, 18, 128, 226, 235, 39, 178, 117, 9, 131, 44, 26, 27, 110, 90, 160, 82, 59, 214, 179, 41, 227,
-    47, 132, 83, 209, 0, 237, 32, 252, 177, 91, 106, 203, 190, 57, 74, 76, 88, 207, 208, 239, 170,
-    251, 67, 77, 51, 133, 69, 249, 2, 127, 80, 60, 159, 168, 81, 163, 64, 143, 146, 157, 56, 245,
-    188, 182, 218, 33, 16, 255, 243, 210, 205, 12, 19, 236, 95, 151, 68, 23, 196, 167, 126, 61,
-    100, 93, 25, 115, 96, 129, 79, 220, 34, 42, 144, 136, 70, 238, 184, 20, 222, 94, 11, 219, 224,
-    50, 58, 10, 73, 6, 36, 92, 194, 211, 172, 98, 145, 149, 228, 121, 231, 200, 55, 109, 141, 213,
-    78, 169, 108, 86, 244, 234, 101, 122, 174, 8, 186, 120, 37, 46, 28, 166, 180, 198, 232, 221,
-    116, 31, 75, 189, 139, 138, 112, 62, 181, 102, 72, 3, 246, 14, 97, 53, 87, 185, 134, 193, 29,
-    158, 225, 248, 152, 17, 105, 217, 142, 148, 155, 30, 135, 233, 206, 85, 40, 223, 140, 161,
-    137, 13, 191, 230, 66, 104, 65, 153, 45, 15, 176, 84, 187, 22
-]);
-
-var SHIFT_ROW_TAB = new Uint8Array([0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11]);
-
-var INV_SBOX = new Uint8Array(256);
-var AES_ShiftRowTab_Inv = new Uint8Array(16);
-var XTIME = new Uint8Array(256);
-
-for (var i = 0; i < 256; i++)
-    INV_SBOX[SBOX[i]] = i;
-for (var i = 0; i < 16; i++)
-    AES_ShiftRowTab_Inv[SHIFT_ROW_TAB[i]] = i;
-for (var i = 0; i < 128; i++)
-    XTIME[i] = i << 1, XTIME[128 + i] = (i << 1) ^ 0x1b;
-
-function ExpandKey(_key) {
-    var key = _key.slice();
-    var kl = key.length, ks, Rcon = 1;
-    switch (kl) {
-        case 16:
-            ks = 16 * (10 + 1);
-            break;
-        case 24:
-            ks = 16 * (12 + 1);
-            break;
-        case 32:
-            ks = 16 * (14 + 1);
-            break;
-        default:
-            throw (new Error("AES_ExpandKey: Only key lengths of 16, 24 or 32 bytes allowed!"));
-    }
-
-    for (var i = kl; i < ks; i += 4) {
-        var temp = key.slice(i - 4, i);
-        if (i % kl == 0) {
-            temp = [SBOX[temp[1]] ^ Rcon, SBOX[temp[2]], SBOX[temp[3]], SBOX[temp[0]]];
-            if ((Rcon <<= 1) >= 256)
-                Rcon ^= 0x11b;
-        } else if ((kl > 24) && (i % kl == 16)) {
-            temp = [SBOX[temp[0]], SBOX[temp[1]], SBOX[temp[2]], SBOX[temp[3]]];
-        }
-
-        for (var j = 0; j < 4; j++)
-            key[i + j] = key[i + j - kl] ^ temp[j];
-    }
-    return new Uint8Array(key);
-}
-
-var temp = new Uint8Array(16);
-
-function SubBytes(state, state_offset, sbox) {
-    for (var i = 0; i < 16; i++)
-        temp[i] = state[i + state_offset];
-    for (var i = 0; i < 16; i++)
-        state[i + state_offset] = sbox[temp[i]];
-}
-
-function AddRoundKey(state, state_offset, rkey, rkey_offset) {
-    for (var i = 0; i < 16; i++)
-        state[i + state_offset] ^= rkey[i + rkey_offset];
-}
-
-function ShiftRows(state, state_offset, shifttab) {
-    for (var i = 0; i < 16; i++)
-        temp[i] = state[i + state_offset];
-    for (var i = 0; i < 16; i++)
-        state[i + state_offset] = temp[shifttab[i]];
-}
-
-function MixColumns(state, block_offset) {
-    var end = block_offset + 16;
-
-    for (var i = block_offset; i < end; i += 4) {
-        var s0 = state[i + 0], s1 = state[i + 1];
-        var s2 = state[i + 2], s3 = state[i + 3];
-        var h = s0 ^ s1 ^ s2 ^ s3;
-        state[i + 0] ^= h ^ XTIME[s0 ^ s1];
-        state[i + 1] ^= h ^ XTIME[s1 ^ s2];
-        state[i + 2] ^= h ^ XTIME[s2 ^ s3];
-        state[i + 3] ^= h ^ XTIME[s3 ^ s0];
-    }
-}
-
-function MixColumns_Inv(state, block_offset) {
-    var end = block_offset + 16;
-    for (var i = block_offset; i < end; i += 4) {
-        var s0 = state[i + 0], s1 = state[i + 1], s2 = state[i + 2], s3 = state[i + 3];
-        var h = s0 ^ s1 ^ s2 ^ s3;
-        var xh = XTIME[h];
-        var h1 = XTIME[XTIME[xh ^ s0 ^ s2]] ^ h;
-        var h2 = XTIME[XTIME[xh ^ s1 ^ s3]] ^ h;
-        state[i + 0] ^= h1 ^ XTIME[s0 ^ s1];
-        state[i + 1] ^= h2 ^ XTIME[s1 ^ s2];
-        state[i + 2] ^= h1 ^ XTIME[s2 ^ s3];
-        state[i + 3] ^= h2 ^ XTIME[s3 ^ s0];
-    }
-}
-
-function Encrypt(block, block_offset, key) {
-    var l = key.length;
-    AddRoundKey(block, block_offset, key, 0);
-    for (var i = 16; i < l - 16; i += 16) {
-        SubBytes(block, block_offset, SBOX);
-        ShiftRows(block, block_offset, SHIFT_ROW_TAB);
-        MixColumns(block, block_offset);
-        AddRoundKey(block, block_offset, key, i);
-    }
-    SubBytes(block, block_offset, SBOX);
-    ShiftRows(block, block_offset, SHIFT_ROW_TAB);
-    AddRoundKey(block, block_offset, key, i);
-    return block;
-}
-exports.Encrypt = Encrypt;
-
-function Decrypt(block, block_offset, expandedKey) {
-    var l = expandedKey.length;
-    AddRoundKey(block, block_offset, expandedKey, l - 16);
-    ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
-    SubBytes(block, block_offset, INV_SBOX);
-    for (var i = l - 32; i >= 16; i -= 16) {
-        AddRoundKey(block, block_offset, expandedKey, i);
-        MixColumns_Inv(block, block_offset);
-        ShiftRows(block, block_offset, AES_ShiftRowTab_Inv);
-        SubBytes(block, block_offset, INV_SBOX);
-    }
-    AddRoundKey(block, block_offset, expandedKey, 0);
-    return block;
-}
-exports.Decrypt = Decrypt;
-
-function Decrypt_Blocks_CBC(blocks, key, iv) {
-    var keyLength = key.length;
-    var expandedKey = ExpandKey(Array.apply(null, key));
-    var out = new Uint8Array(blocks.length);
-
-    var chunkUn = new Uint8Array(keyLength);
-    var prevChunk = new Uint8Array(keyLength);
-
-    for (var n = 0; n < blocks.length; n += keyLength) {
-        for (var m = 0; m < keyLength; m++)
-            chunkUn[m] = blocks[n + m];
-
-        exports.Decrypt(blocks, n, expandedKey);
-
-        for (var m = 0; m < keyLength; m++)
-            out[n + m] = blocks[n + m] ^ prevChunk[m];
-
-        prevChunk.set(chunkUn);
-    }
-    return out;
-}
-exports.Decrypt_Blocks_CBC = Decrypt_Blocks_CBC;
-//# sourceMappingURL=jsaes.js.map
-},
 "src/core/kirk/jsaes2": function(module, exports, require) {
 /*
 CryptoJS v3.1.2
@@ -13865,70 +13696,6 @@ function decrypt_aes128_cbc(data, key) {
 }
 exports.decrypt_aes128_cbc = decrypt_aes128_cbc;
 //# sourceMappingURL=jsaes2.js.map
-},
-"src/core/kirk/jssha1": function(module, exports, require) {
-var SHA1 = (function () {
-    function SHA1() {
-    }
-    return SHA1;
-})();
-
-(function () {
-    var crypt = require('crypt'), utf8 = require('charenc').utf8, bin = require('charenc').bin, sha1 = function (message) {
-        // Convert to byte array
-        if (message.constructor == String)
-            message = utf8.stringToBytes(message);
-        else if (typeof Buffer !== 'undefined' && typeof Buffer.isBuffer == 'function' && Buffer.isBuffer(message))
-            message = Array.prototype.slice.call(message, 0);
-        else if (!Array.isArray(message))
-            message = message.toString();
-
-        // otherwise assume byte array
-        var m = crypt.bytesToWords(message), l = message.length * 8, w = [], H0 = 1732584193, H1 = -271733879, H2 = -1732584194, H3 = 271733878, H4 = -1009589776;
-
-        // Padding
-        m[l >> 5] |= 0x80 << (24 - l % 32);
-        m[((l + 64 >>> 9) << 4) + 15] = l;
-
-        for (var i = 0; i < m.length; i += 16) {
-            var a = H0, b = H1, c = H2, d = H3, e = H4;
-
-            for (var j = 0; j < 80; j++) {
-                if (j < 16)
-                    w[j] = m[i + j];
-                else {
-                    var n = w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16];
-                    w[j] = (n << 1) | (n >>> 31);
-                }
-
-                var t = ((H0 << 5) | (H0 >>> 27)) + H4 + (w[j] >>> 0) + (j < 20 ? (H1 & H2 | ~H1 & H3) + 1518500249 : j < 40 ? (H1 ^ H2 ^ H3) + 1859775393 : j < 60 ? (H1 & H2 | H1 & H3 | H2 & H3) - 1894007588 : (H1 ^ H2 ^ H3) - 899497514);
-
-                H4 = H3;
-                H3 = H2;
-                H2 = (H1 << 30) | (H1 >>> 2);
-                H1 = H0;
-                H0 = t;
-            }
-
-            H0 += a;
-            H1 += b;
-            H2 += c;
-            H3 += d;
-            H4 += e;
-        }
-
-        return [H0, H1, H2, H3, H4];
-    }, api = function (message, options) {
-        var digestbytes = crypt.wordsToBytes(sha1(message));
-        return options && options.asBytes ? digestbytes : options && options.asString ? bin.bytesToString(digestbytes) : crypt.bytesToHex(digestbytes);
-    };
-
-    api._blocksize = 16;
-    api._digestsize = 20;
-
-    module.exports = api;
-})();
-//# sourceMappingURL=jssha1.js.map
 },
 "src/core/kirk/kirk": function(module, exports, require) {
 var crypto = require('./crypto');
@@ -15493,8 +15260,7 @@ var Emulator = (function () {
                     });
                 case 'psp':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        _elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer));
-                        throw (new Error("Not supported encrypted elf files yet!"));
+                        return _this._loadAndExecuteAsync(new MemoryAsyncStream(_elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
                     });
                 case 'zip':
                     return _format_zip.Zip.fromStreamAsync(asyncStream).then(function (zip) {
@@ -15544,8 +15310,11 @@ var Emulator = (function () {
                                     }).catch(function () {
                                     });
 
-                                    return isoFs.readAllAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (bootBinData) {
-                                        return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/PSP_GAME/SYSDIR/BOOT.BIN');
+                                    return isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (exists) {
+                                        var path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
+                                        return isoFs.readAllAsync(path).then(function (bootBinData) {
+                                            return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/' + path);
+                                        });
                                     });
                                 });
                             }
@@ -18253,7 +18022,7 @@ function decrypt1(pbIn) {
     // step3 demangle in place
     //kirk.KIRK_AES128CBC_HEADER.struct.write();
     var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
-    h7_header.mode = kirk.KirkMode.DecryptCbc;
+    h7_header.mode = 5 /* DecryptCbc */;
     h7_header.unk_4 = 0;
     h7_header.unk_8 = 0;
     h7_header.keyseed = pti.code; // initial seed for PRX
@@ -20402,7 +20171,6 @@ var ExceptionManagerForKernel = (function () {
     return ExceptionManagerForKernel;
 })();
 exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
-//# sourceMappingURL=ExceptionManagerForKernel.js.map
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20453,7 +20221,6 @@ var InterruptManager = (function () {
     return InterruptManager;
 })();
 exports.InterruptManager = InterruptManager;
-//# sourceMappingURL=InterruptManager.js.map
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20470,7 +20237,6 @@ var KDebugForKernel = (function () {
     return KDebugForKernel;
 })();
 exports.KDebugForKernel = KDebugForKernel;
-//# sourceMappingURL=KDebugForKernel.js.map
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20516,7 +20282,6 @@ var Kernel_Library = (function () {
     return Kernel_Library;
 })();
 exports.Kernel_Library = Kernel_Library;
-//# sourceMappingURL=Kernel_Library.js.map
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20538,7 +20303,6 @@ var LoadCoreForKernel = (function () {
     return LoadCoreForKernel;
 })();
 exports.LoadCoreForKernel = LoadCoreForKernel;
-//# sourceMappingURL=LoadCoreForKernel.js.map
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20574,7 +20338,6 @@ var LoadExecForUser = (function () {
     return LoadExecForUser;
 })();
 exports.LoadExecForUser = LoadExecForUser;
-//# sourceMappingURL=LoadExecForUser.js.map
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20628,7 +20391,6 @@ var ModuleMgrForUser = (function () {
     return ModuleMgrForUser;
 })();
 exports.ModuleMgrForUser = ModuleMgrForUser;
-//# sourceMappingURL=ModuleMgrForUser.js.map
 },
 "src/hle/module/StdioForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20651,7 +20413,6 @@ var StdioForUser = (function () {
     return StdioForUser;
 })();
 exports.StdioForUser = StdioForUser;
-//# sourceMappingURL=StdioForUser.js.map
 },
 "src/hle/module/SysMemUserForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20775,7 +20536,6 @@ var SysMemUserForUser = (function () {
     return SysMemUserForUser;
 })();
 exports.SysMemUserForUser = SysMemUserForUser;
-//# sourceMappingURL=SysMemUserForUser.js.map
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20793,7 +20553,6 @@ var UtilsForKernel = (function () {
     return UtilsForKernel;
 })();
 exports.UtilsForKernel = UtilsForKernel;
-//# sourceMappingURL=UtilsForKernel.js.map
 },
 "src/hle/module/UtilsForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20892,7 +20651,6 @@ var UtilsForUser = (function () {
     return UtilsForUser;
 })();
 exports.UtilsForUser = UtilsForUser;
-//# sourceMappingURL=UtilsForUser.js.map
 },
 "src/hle/module/iofilemgr/IoFileMgrForUser": function(module, exports, require) {
 var _utils = require('../../utils');
@@ -21687,7 +21445,6 @@ var CodecType;
     CodecType[CodecType["PSP_MODE_AT_3_PLUS"] = 0x00001000] = "PSP_MODE_AT_3_PLUS";
     CodecType[CodecType["PSP_MODE_AT_3"] = 0x00001001] = "PSP_MODE_AT_3";
 })(CodecType || (CodecType = {}));
-//# sourceMappingURL=sceAtrac3plus.js.map
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
 var _utils = require('../utils');
@@ -21832,7 +21589,6 @@ var Channel = (function () {
     });
     return Channel;
 })();
-//# sourceMappingURL=sceAudio.js.map
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
 var _utils = require('../utils');
@@ -21902,7 +21658,6 @@ var sceCtrl = (function () {
     return sceCtrl;
 })();
 exports.sceCtrl = sceCtrl;
-//# sourceMappingURL=sceCtrl.js.map
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
 var _utils = require('../utils');
@@ -21997,7 +21752,6 @@ var sceDisplay = (function () {
     return sceDisplay;
 })();
 exports.sceDisplay = sceDisplay;
-//# sourceMappingURL=sceDisplay.js.map
 },
 "src/hle/module/sceDmac": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22029,7 +21783,6 @@ var sceDmac = (function () {
     return sceDmac;
 })();
 exports.sceDmac = sceDmac;
-//# sourceMappingURL=sceDmac.js.map
 },
 "src/hle/module/sceGe_user": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22111,7 +21864,6 @@ var CallbackData = (function () {
     ]);
     return CallbackData;
 })();
-//# sourceMappingURL=sceGe_user.js.map
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22129,7 +21881,6 @@ var sceHprm = (function () {
     return sceHprm;
 })();
 exports.sceHprm = sceHprm;
-//# sourceMappingURL=sceHprm.js.map
 },
 "src/hle/module/sceHttp": function(module, exports, require) {
 var sceHttp = (function () {
@@ -22139,7 +21890,6 @@ var sceHttp = (function () {
     return sceHttp;
 })();
 exports.sceHttp = sceHttp;
-//# sourceMappingURL=sceHttp.js.map
 },
 "src/hle/module/sceImpose": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22183,7 +21933,6 @@ var BatteryStatusEnum;
     BatteryStatusEnum[BatteryStatusEnum["PartiallyFilled"] = 2] = "PartiallyFilled";
     BatteryStatusEnum[BatteryStatusEnum["FullyFilled"] = 3] = "FullyFilled";
 })(BatteryStatusEnum || (BatteryStatusEnum = {}));
-//# sourceMappingURL=sceImpose.js.map
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22298,7 +22047,6 @@ public byte BPP;
 public fixed byte Pad[3];
 }
 */
-//# sourceMappingURL=sceLibFont.js.map
 },
 "src/hle/module/sceMp3": function(module, exports, require) {
 var sceMp3 = (function () {
@@ -22308,7 +22056,6 @@ var sceMp3 = (function () {
     return sceMp3;
 })();
 exports.sceMp3 = sceMp3;
-//# sourceMappingURL=sceMp3.js.map
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22427,7 +22174,6 @@ var RingBuffer = (function () {
     ]);
     return RingBuffer;
 })();
-//# sourceMappingURL=sceMpeg.js.map
 },
 "src/hle/module/sceNet": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22480,7 +22226,6 @@ var sceNet = (function () {
     return sceNet;
 })();
 exports.sceNet = sceNet;
-//# sourceMappingURL=sceNet.js.map
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22742,7 +22487,6 @@ public uint rcvdData; // Bytes received
 public int unk1; // Unknown
 }
 */
-//# sourceMappingURL=sceNetAdhoc.js.map
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
 var _utils = require('../utils');
@@ -22991,7 +22735,6 @@ var Event = exports.Event;
     Mode[Mode["Ptp"] = 3] = "Ptp";
 })(exports.Mode || (exports.Mode = {}));
 var Mode = exports.Mode;
-//# sourceMappingURL=sceNetAdhocMatching.js.map
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
 var _utils = require('../utils');
@@ -23106,7 +22849,6 @@ var GROUP_NAME_LENGTH = 8;
 var IBSS_NAME_LENGTH = 6;
 var ADHOC_ID_LENGTH = 9;
 var MAX_GAME_MODE_MACS = 16;
-//# sourceMappingURL=sceNetAdhocctl.js.map
 },
 "src/hle/module/sceNetApctl": function(module, exports, require) {
 var sceNetApctl = (function () {
@@ -23116,7 +22858,6 @@ var sceNetApctl = (function () {
     return sceNetApctl;
 })();
 exports.sceNetApctl = sceNetApctl;
-//# sourceMappingURL=sceNetApctl.js.map
 },
 "src/hle/module/sceNetInet": function(module, exports, require) {
 var sceNetInet = (function () {
@@ -23126,7 +22867,6 @@ var sceNetInet = (function () {
     return sceNetInet;
 })();
 exports.sceNetInet = sceNetInet;
-//# sourceMappingURL=sceNetInet.js.map
 },
 "src/hle/module/sceNetResolver": function(module, exports, require) {
 var sceNetResolver = (function () {
@@ -23136,7 +22876,6 @@ var sceNetResolver = (function () {
     return sceNetResolver;
 })();
 exports.sceNetResolver = sceNetResolver;
-//# sourceMappingURL=sceNetResolver.js.map
 },
 "src/hle/module/sceNp": function(module, exports, require) {
 var sceNp = (function () {
@@ -23146,7 +22885,6 @@ var sceNp = (function () {
     return sceNp;
 })();
 exports.sceNp = sceNp;
-//# sourceMappingURL=sceNp.js.map
 },
 "src/hle/module/sceNpAuth": function(module, exports, require) {
 var sceNpAuth = (function () {
@@ -23156,7 +22894,6 @@ var sceNpAuth = (function () {
     return sceNpAuth;
 })();
 exports.sceNpAuth = sceNpAuth;
-//# sourceMappingURL=sceNpAuth.js.map
 },
 "src/hle/module/sceNpService": function(module, exports, require) {
 var sceNpService = (function () {
@@ -23166,7 +22903,6 @@ var sceNpService = (function () {
     return sceNpService;
 })();
 exports.sceNpService = sceNpService;
-//# sourceMappingURL=sceNpService.js.map
 },
 "src/hle/module/sceOpenPSID": function(module, exports, require) {
 var sceOpenPSID = (function () {
@@ -23176,7 +22912,6 @@ var sceOpenPSID = (function () {
     return sceOpenPSID;
 })();
 exports.sceOpenPSID = sceOpenPSID;
-//# sourceMappingURL=sceOpenPSID.js.map
 },
 "src/hle/module/sceParseHttp": function(module, exports, require) {
 var sceParseHttp = (function () {
@@ -23186,7 +22921,6 @@ var sceParseHttp = (function () {
     return sceParseHttp;
 })();
 exports.sceParseHttp = sceParseHttp;
-//# sourceMappingURL=sceParseHttp.js.map
 },
 "src/hle/module/sceParseUri": function(module, exports, require) {
 var sceParseUri = (function () {
@@ -23196,7 +22930,6 @@ var sceParseUri = (function () {
     return sceParseUri;
 })();
 exports.sceParseUri = sceParseUri;
-//# sourceMappingURL=sceParseUri.js.map
 },
 "src/hle/module/scePower": function(module, exports, require) {
 var _utils = require('../utils');
@@ -23373,7 +23106,6 @@ var PowerFlagsSet;
     PowerFlagsSet[PowerFlagsSet["BatteryExists"] = 0x00000080] = "BatteryExists";
     PowerFlagsSet[PowerFlagsSet["BatteryPower"] = 0x0000007F] = "BatteryPower";
 })(PowerFlagsSet || (PowerFlagsSet = {}));
-//# sourceMappingURL=scePower.js.map
 },
 "src/hle/module/scePspNpDrm_user": function(module, exports, require) {
 var scePspNpDrm_user = (function () {
@@ -23383,7 +23115,6 @@ var scePspNpDrm_user = (function () {
     return scePspNpDrm_user;
 })();
 exports.scePspNpDrm_user = scePspNpDrm_user;
-//# sourceMappingURL=scePspNpDrm_user.js.map
 },
 "src/hle/module/sceReg": function(module, exports, require) {
 var _utils = require('../utils');
@@ -23444,7 +23175,6 @@ var RegParam = (function () {
     ]);
     return RegParam;
 })();
-//# sourceMappingURL=sceReg.js.map
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
 var _utils = require('../utils');
@@ -23500,7 +23230,6 @@ var sceRtc = (function () {
     return sceRtc;
 })();
 exports.sceRtc = sceRtc;
-//# sourceMappingURL=sceRtc.js.map
 },
 "src/hle/module/sceSasCore": function(module, exports, require) {
 var _utils = require('../utils');
@@ -23950,7 +23679,6 @@ var AdsrFlags;
     AdsrFlags[AdsrFlags["HasSustain"] = (1 << 2)] = "HasSustain";
     AdsrFlags[AdsrFlags["HasRelease"] = (1 << 3)] = "HasRelease";
 })(AdsrFlags || (AdsrFlags = {}));
-//# sourceMappingURL=sceSasCore.js.map
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
 var sceSsl = (function () {
@@ -23960,7 +23688,6 @@ var sceSsl = (function () {
     return sceSsl;
 })();
 exports.sceSsl = sceSsl;
-//# sourceMappingURL=sceSsl.js.map
 },
 "src/hle/module/sceSuspendForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -23989,7 +23716,6 @@ var sceSuspendForUser = (function () {
     return sceSuspendForUser;
 })();
 exports.sceSuspendForUser = sceSuspendForUser;
-//# sourceMappingURL=sceSuspendForUser.js.map
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -24083,7 +23809,6 @@ var PspUmdState;
     PspUmdState[PspUmdState["PSP_UMD_READY"] = 0x10] = "PSP_UMD_READY";
     PspUmdState[PspUmdState["PSP_UMD_READABLE"] = 0x20] = "PSP_UMD_READABLE";
 })(PspUmdState || (PspUmdState = {}));
-//# sourceMappingURL=sceUmdUser.js.map
 },
 "src/hle/module/sceUtility": function(module, exports, require) {
 var _utils = require('../utils');
@@ -24658,7 +24383,6 @@ var SizeRequiredSpaceInfo = (function () {
     ]);
     return SizeRequiredSpaceInfo;
 })();
-//# sourceMappingURL=sceUtility.js.map
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
 var sceVaudio = (function () {
@@ -24668,7 +24392,6 @@ var sceVaudio = (function () {
     return sceVaudio;
 })();
 exports.sceVaudio = sceVaudio;
-//# sourceMappingURL=sceVaudio.js.map
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
 var _utils = require('../utils');
@@ -24685,7 +24408,6 @@ var sceWlanDrv = (function () {
     return sceWlanDrv;
 })();
 exports.sceWlanDrv = sceWlanDrv;
-//# sourceMappingURL=sceWlanDrv.js.map
 },
 "src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
 var _utils = require('../../utils');
@@ -25947,14 +25669,41 @@ exports.MemoryStickVfs = MemoryStickVfs;
 },
 "src/hle/vfs/indexeddb": function(module, exports, require) {
 
-var MyStoreIndexedDb = (function () {
-    function MyStoreIndexedDb(store) {
-        this.store = store;
+var MyStorageIndexedDb = (function () {
+    function MyStorageIndexedDb(db) {
+        this.db = db;
     }
-    MyStoreIndexedDb.prototype.putAsync = function (value) {
-        var _this = this;
+    MyStorageIndexedDb.openAsync = function (name) {
         return new Promise(function (resolve, reject) {
-            var request = _this.store.put(value);
+            var request = indexedDB.open(name, 1);
+            request.onupgradeneeded = function (e) {
+                var db = request.result;
+
+                // A versionchange transaction is started automatically.
+                //request.transaction.onerror = html5rocks.indexedDB.onerror;
+                console.log('upgrade!');
+
+                if (db.objectStoreNames.contains('items'))
+                    db.deleteObjectStore('items');
+                db.createObjectStore('items', { keyPath: "key" });
+            };
+            request.onerror = function (event) {
+                reject(new Error("Can't open indexedDB"));
+            };
+            request.onsuccess = function (event) {
+                resolve(new MyStorageIndexedDb(request.result));
+            };
+        });
+    };
+
+    MyStorageIndexedDb.prototype.getItemsStore = function () {
+        return this.db.transaction(['items'], "readwrite").objectStore('items');
+    };
+
+    MyStorageIndexedDb.prototype.putAsync = function (key, value) {
+        var store = this.getItemsStore();
+        return new Promise(function (resolve, reject) {
+            var request = store.put({ key: key, value: value });
             request.onsuccess = function (e) {
                 resolve();
             };
@@ -25964,10 +25713,10 @@ var MyStoreIndexedDb = (function () {
         });
     };
 
-    MyStoreIndexedDb.prototype.deleteAsync = function (key) {
-        var _this = this;
+    MyStorageIndexedDb.prototype.deleteAsync = function (key) {
+        var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
-            var request = _this.store.delete(key);
+            var request = store.delete(key);
 
             request.onsuccess = function (e) {
                 resolve();
@@ -25979,11 +25728,19 @@ var MyStoreIndexedDb = (function () {
         });
     };
 
-    MyStoreIndexedDb.prototype.getRangeAsync = function (keyRange, iterator) {
-        var _this = this;
+    MyStorageIndexedDb.prototype.hasAsync = function (key) {
+        return this.getAsync(key).then(function () {
+            return true;
+        }, function () {
+            return false;
+        });
+    };
+
+    MyStorageIndexedDb.prototype.getAsync = function (key) {
+        var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
             try  {
-                var cursorRequest = _this.store.openCursor(keyRange.keyRange);
+                var cursorRequest = store.openCursor(IDBKeyRange.only(key));
             } catch (e) {
                 console.error(e);
                 reject(e);
@@ -25996,8 +25753,10 @@ var MyStoreIndexedDb = (function () {
                     resolve();
                     return;
                 } else {
-                    var result2 = iterator(cursor.value);
-                    cursor.continue();
+                    var result = cursor.value;
+                    cursor.delete();
+                    resolve(result.value);
+                    //cursor.continue();
                 }
             };
 
@@ -26007,70 +25766,41 @@ var MyStoreIndexedDb = (function () {
             };
         });
     };
-
-    MyStoreIndexedDb.prototype.getOneAsync = function (keyRange) {
-        var _this = this;
-        return new Promise(function (resolve, reject) {
-            _this.getRangeAsync(keyRange.keyRange, function (item) {
-                resolve(item);
-            }).then(function () {
-                resolve(null);
-            }).catch(function (e) {
-                reject(e);
-            });
-        });
-    };
-    return MyStoreIndexedDb;
-})();
-
-var MyRangeIndexedDb = (function () {
-    function MyRangeIndexedDb(keyRange) {
-        this.keyRange = keyRange;
-    }
-    return MyRangeIndexedDb;
-})();
-
-var MyStorageIndexedDb = (function () {
-    function MyStorageIndexedDb(db) {
-        this.db = db;
-    }
-    MyStorageIndexedDb.prototype.getStore = function (name) {
-        return new MyStoreIndexedDb(this.db.transaction([name], "readwrite").objectStore(name));
-    };
-
-    MyStorageIndexedDb.prototype.rangeOnly = function (name) {
-        return new MyRangeIndexedDb(IDBKeyRange.only(name));
-    };
-
-    MyStorageIndexedDb.openAsync = function (name, version, stores) {
-        return new Promise(function (resolve, reject) {
-            var request = indexedDB.open(name, version);
-            request.onupgradeneeded = function (e) {
-                var db = request.result;
-
-                // A versionchange transaction is started automatically.
-                //request.transaction.onerror = html5rocks.indexedDB.onerror;
-                console.log('upgrade!');
-
-                stores.forEach(function (store) {
-                    if (db.objectStoreNames.contains(store))
-                        db.deleteObjectStore(store);
-                    db.createObjectStore(store, { keyPath: "name" });
-                });
-            };
-            request.onerror = function (event) {
-                reject(new Error("Can't open indexedDB"));
-            };
-            request.onsuccess = function (event) {
-                resolve(new MyStorageIndexedDb(request.result));
-            };
-        });
-    };
     return MyStorageIndexedDb;
 })();
 
+var MyStorageFake = (function () {
+    function MyStorageFake(name) {
+        this.name = name;
+        this.items = {};
+        //console.log('new MyStorageFake(' + name + ')');
+    }
+    MyStorageFake.prototype.putAsync = function (key, value) {
+        this.items[key] = value;
+        return Promise.resolve();
+    };
+
+    MyStorageFake.prototype.deleteAsync = function (key) {
+        delete this.items[key];
+        return Promise.resolve();
+    };
+
+    MyStorageFake.prototype.hasAsync = function (key) {
+        return Promise.resolve(this.items[key] !== undefined);
+    };
+
+    MyStorageFake.prototype.getAsync = function (key) {
+        return Promise.resolve(this.items[key]);
+    };
+    return MyStorageFake;
+})();
+
 function openAsync(name, version, stores) {
-    return MyStorageIndexedDb.openAsync(name, version, stores);
+    if (typeof indexedDB == "undefined") {
+        return Promise.resolve(new MyStorageFake(name));
+    } else {
+        return MyStorageIndexedDb.openAsync(name + '_v2');
+    }
 }
 exports.openAsync = openAsync;
 //# sourceMappingURL=indexeddb.js.map
@@ -27122,8 +26852,8 @@ var StorageVfsEntry = (function (_super) {
 
     StorageVfsEntry.prototype._getFileAsync = function () {
         var _this = this;
-        return this.db.getStore('files').getOneAsync(this.db.rangeOnly(this.name)).then(function (file) {
-            if (file == null)
+        return this.db.getAsync(this.name).then(function (file) {
+            if (!file)
                 file = { name: _this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
             return file;
         });
@@ -27136,7 +26866,7 @@ var StorageVfsEntry = (function (_super) {
     };
 
     StorageVfsEntry.prototype._writeAllAsync = function (data) {
-        return this.db.getStore('files').putAsync({
+        return this.db.putAsync(this.name, {
             'name': this.name,
             'content': new Uint8Array(data),
             'date': new Date(),
@@ -27378,43 +27108,6 @@ var IndentStringGenerator = (function () {
 
 module.exports = IndentStringGenerator;
 //# sourceMappingURL=IndentStringGenerator.js.map
-},
-"src/util/Signal": function(module, exports, require) {
-var Signal = (function () {
-    function Signal() {
-        this.callbacks = [];
-    }
-    Signal.prototype.add = function (callback) {
-        this.callbacks.push(callback);
-        return callback;
-    };
-
-    Signal.prototype.remove = function (callback) {
-        var index = this.callbacks.indexOf(callback);
-        if (index >= 0) {
-            this.callbacks.splice(index, 1);
-        }
-    };
-
-    Signal.prototype.once = function (callback) {
-        var _this = this;
-        var once = function () {
-            _this.remove(once);
-            callback();
-        };
-        this.add(once);
-    };
-
-    Signal.prototype.dispatch = function (value) {
-        this.callbacks.forEach(function (callback) {
-            callback(value);
-        });
-    };
-    return Signal;
-})();
-
-module.exports = Signal;
-//# sourceMappingURL=Signal.js.map
 },
 "src/util/StringUtils": function(module, exports, require) {
 var StringUtils = (function () {
@@ -27878,7 +27571,7 @@ describe('vfs', function () {
         var storageVfs = new StorageVfs('test');
 
         return Promise.resolve(0).then(function () {
-            storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+            return storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
         }).then(function () {
             return storageVfs.getStatAsync('simple').then(function (stat) {
                 assert.equal('simple', stat.name);
@@ -27923,7 +27616,7 @@ describe('vfs', function () {
         var msVfs = new MemoryStickVfs([storageVfs], null, null);
 
         return Promise.resolve(0).then(function () {
-            msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
+            return msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
         }).then(function () {
             return msVfs.getStatAsync('simple').then(function (stat) {
                 assert.equal('simple', stat.name);

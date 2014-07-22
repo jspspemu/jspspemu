@@ -17,7 +17,7 @@
     "url": "git://github.com/soywiz/jspspemu.git"
   },
   "scripts": {
-	"benchmark": "node benchmarks/benchmark.js",
+	"start": "node --harmony utils/http_server.js",
     "test": "mocha-phantomjs -R dot test.html"
   },
   "license": "MIT",

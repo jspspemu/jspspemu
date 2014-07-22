@@ -8,9 +8,9 @@ A PSP emulator made using javascript (actually typescript). It works with modern
 ![Valhalla Knights screenshot](/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
 
 Lastest version have been tested on:
-* Google Chrome 33 (fastest)
-* Opera 20
-* Firefox 29
+* Google Chrome 36 (fastest)
+* Opera 23
+* Firefox 31
 * Internet Explorer 11 (no sound)
 * Safari 8
 
