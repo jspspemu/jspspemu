@@ -1,6 +1,8 @@
 ﻿import _memory = require('../core/memory');
 import Memory = _memory.Memory;
 
+var console = logger.named('elf');
+
 export class ElfHeader {
 	magic: string;
 	class: number;

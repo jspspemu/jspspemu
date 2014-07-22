@@ -1,4 +1,5 @@
-﻿
+﻿var console = logger.named('indexeddb');
+
 //declare var indexedDB: any;
 declare var IDBKeyRange: IDBKeyRange;
 
@@ -14,6 +15,7 @@ class MyStorageIndexedDb implements MyStorage {
 	}
 
 	static openAsync(name: string) {
+		console.info('MyStorageIndexedDb.openAsync("' + name + '")');
 		return new Promise<MyStorage>((resolve, reject) => {
 			var request = indexedDB.open(name, 1);
 			request.onupgradeneeded = function (e) {
@@ -40,6 +42,7 @@ class MyStorageIndexedDb implements MyStorage {
 	}
 
 	putAsync(key: string, value: any): Promise<void> {
+		console.log('putAsync', key, value);
 		var store = this.getItemsStore();
 		return new Promise<void>((resolve, reject) => {
 			var request = store.put({ key: key, value: value });
@@ -53,6 +56,7 @@ class MyStorageIndexedDb implements MyStorage {
 	}
 
 	deleteAsync(key: string): Promise<void> {
+		console.log('deleteAsync', key);
 		var store = this.getItemsStore();
 		return new Promise<void>((resolve, reject) => {
 			var request = store.delete(key);
@@ -68,6 +72,7 @@ class MyStorageIndexedDb implements MyStorage {
 	}
 
 	hasAsync(key: string): Promise<boolean> {
+		console.log('hasAsync', key);
 		return this.getAsync(key).then(() => true, () => false);
 	}
 
@@ -78,30 +83,21 @@ class MyStorageIndexedDb implements MyStorage {
 			//var keyRange = IDBKeyRange.only(key);
 			//var keyRange = IDBKeyRange.lowerBound(0);
 
-			try {
-			var cursorRequest = store.openCursor(IDBKeyRange.only(key));
-			} catch (e) {
-				console.error(e);
-				reject(e);
-			}
+			var request = store.get(key);
 
-			//console.log('mm', cursorRequest);
-
-			cursorRequest.onsuccess = (e) => {
-				var cursor = <IDBCursorWithValue>cursorRequest.result;
-				if (!!cursor == false) {
-					resolve();
-					return;
+			request.onsuccess = (e) => {
+				var result = e.target['result'];
+				if (!result) {
+					console.log('getAsync', key, undefined);
+					resolve(undefined);
 				} else {
-					var result = cursor.value;
-					cursor.delete();
+					console.log('getAsync', key, result.value);
 					resolve(result.value);
-					//cursor.continue();
 				}
 			};
 
-			cursorRequest.onerror = (e) => {
-				//console.log('dd');
+			request.onerror = (e) => {
+				console.log('getAsync', key, e);
 				reject(e['value']);
 			};
 		});
@@ -116,21 +112,27 @@ class MyStorageFake implements MyStorage {
 	}
 
 	putAsync(key: string, value: any): Promise<void> {
+		console.log('putAsync', key, value);
 		this.items[key] = value;
 		return Promise.resolve();
 	}
 
 	deleteAsync(key: string): Promise<void> {
+		console.log('deleteAsync', key);
 		delete this.items[key];
 		return Promise.resolve();
 	}
 
 	hasAsync(key: string): Promise<boolean> {
-		return Promise.resolve(this.items[key] !== undefined);
+		var value = this.items[key] !== undefined;
+		console.log('hasAsync', key, value);
+		return Promise.resolve(value);
 	}
 
 	getAsync(key: string): Promise<any> {
-		return Promise.resolve(this.items[key]);
+		var result = this.items[key];
+		console.log('getAsync', key, result);
+		return Promise.resolve(result);
 	}
 }
 

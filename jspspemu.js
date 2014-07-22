@@ -2125,7 +2125,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2750,6 +2750,79 @@ var Signal = (function () {
     };
     return Signal;
 })();
+
+var Logger = (function () {
+    function Logger(policy, console, name) {
+        this.policy = policy;
+        this.console = console;
+        this.name = name;
+    }
+    Logger.prototype.named = function (name) {
+        return new Logger(this.policy, this.console, (this.name + '.' + name).replace(/^\.+/, ''));
+    };
+
+    Logger.prototype._log = function (type, level, args) {
+        if (this.policy.canLog(this.name, level)) {
+            args.unshift(this.name + ':');
+            this.console[type].apply(this.console, args);
+        }
+    };
+
+    Logger.prototype.debug = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('debug', 0, args);
+    };
+    Logger.prototype.log = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('log', 1, args);
+    };
+    Logger.prototype.info = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('info', 2, args);
+    };
+    Logger.prototype.warn = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('warn', 3, args);
+    };
+    Logger.prototype.error = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('error', 4, args);
+    };
+    return Logger;
+})();
+
+var LoggerPolicies = (function () {
+    function LoggerPolicies() {
+        this.disableAll = false;
+        this.minLogLevel = 1;
+    }
+    LoggerPolicies.prototype.canLog = function (name, level) {
+        if (this.disableAll)
+            return false;
+        if (level < this.minLogLevel)
+            return false;
+        return true;
+    };
+    return LoggerPolicies;
+})();
+
+var loggerPolicies = new LoggerPolicies();
+var logger = new Logger(loggerPolicies, console, '');
 //# sourceMappingURL=utils.js.map
 
 var require = (function() {
@@ -15582,6 +15655,8 @@ exports.Cso = Cso;
 var _memory = require('../core/memory');
 var Memory = _memory.Memory;
 
+var console = logger.named('elf');
+
 var ElfHeader = (function () {
     function ElfHeader() {
     }
@@ -15890,6 +15965,8 @@ exports.ElfLoader = ElfLoader;
 //# sourceMappingURL=elf.js.map
 },
 "src/format/elf_dwarf": function(module, exports, require) {
+var console = logger.named('elf.dwarf');
+
 // https://github.com/soywiz/pspemu/blob/master/src/pspemu/hle/elf/ElfDwarf.d
 var Uleb128Class = (function () {
     function Uleb128Class() {
@@ -18501,6 +18578,8 @@ var ElfRelocType = _format_elf.ElfRelocType;
 var ElfProgramHeaderType = _format_elf.ElfProgramHeaderType;
 var ElfDwarfLoader = _format_elf_dwarf.ElfDwarfLoader;
 
+var console = logger.named('elf.psp');
+
 var ElfPspModuleInfo = (function () {
     function ElfPspModuleInfo() {
     }
@@ -18581,7 +18660,7 @@ var PspElfLoader = (function () {
         this.baseAddress = 0;
     }
     PspElfLoader.prototype.load = function (stream) {
-        console.warn('PspElfLoader.load');
+        //console.warn('PspElfLoader.load');
         this.elfLoader = ElfLoader.fromStream(stream);
 
         //ElfSectionHeaderFlags.Allocate
@@ -18593,10 +18672,9 @@ var PspElfLoader = (function () {
 
         this.elfDwarfLoader = new ElfDwarfLoader();
         this.elfDwarfLoader.parseElfLoader(this.elfLoader);
-
         //this.memory.dump(); debugger;
         //this.elfDwarfLoader.getSymbolAt();
-        console.log(this.moduleInfo);
+        //logger.log(this.moduleInfo);
     };
 
     PspElfLoader.prototype.getSymbolAt = function (address) {
@@ -25668,12 +25746,15 @@ exports.MemoryStickVfs = MemoryStickVfs;
 //# sourceMappingURL=vfs.js.map
 },
 "src/hle/vfs/indexeddb": function(module, exports, require) {
+var console = logger.named('indexeddb');
+
 
 var MyStorageIndexedDb = (function () {
     function MyStorageIndexedDb(db) {
         this.db = db;
     }
     MyStorageIndexedDb.openAsync = function (name) {
+        console.info('MyStorageIndexedDb.openAsync("' + name + '")');
         return new Promise(function (resolve, reject) {
             var request = indexedDB.open(name, 1);
             request.onupgradeneeded = function (e) {
@@ -25701,6 +25782,7 @@ var MyStorageIndexedDb = (function () {
     };
 
     MyStorageIndexedDb.prototype.putAsync = function (key, value) {
+        console.log('putAsync', key, value);
         var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
             var request = store.put({ key: key, value: value });
@@ -25714,6 +25796,7 @@ var MyStorageIndexedDb = (function () {
     };
 
     MyStorageIndexedDb.prototype.deleteAsync = function (key) {
+        console.log('deleteAsync', key);
         var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
             var request = store.delete(key);
@@ -25729,6 +25812,7 @@ var MyStorageIndexedDb = (function () {
     };
 
     MyStorageIndexedDb.prototype.hasAsync = function (key) {
+        console.log('hasAsync', key);
         return this.getAsync(key).then(function () {
             return true;
         }, function () {
@@ -25739,29 +25823,24 @@ var MyStorageIndexedDb = (function () {
     MyStorageIndexedDb.prototype.getAsync = function (key) {
         var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
-            try  {
-                var cursorRequest = store.openCursor(IDBKeyRange.only(key));
-            } catch (e) {
-                console.error(e);
-                reject(e);
-            }
+            //console.log('rr');
+            //var keyRange = IDBKeyRange.only(key);
+            //var keyRange = IDBKeyRange.lowerBound(0);
+            var request = store.get(key);
 
-            //console.log('mm', cursorRequest);
-            cursorRequest.onsuccess = function (e) {
-                var cursor = cursorRequest.result;
-                if (!!cursor == false) {
-                    resolve();
-                    return;
+            request.onsuccess = function (e) {
+                var result = e.target['result'];
+                if (!result) {
+                    console.log('getAsync', key, undefined);
+                    resolve(undefined);
                 } else {
-                    var result = cursor.value;
-                    cursor.delete();
+                    console.log('getAsync', key, result.value);
                     resolve(result.value);
-                    //cursor.continue();
                 }
             };
 
-            cursorRequest.onerror = function (e) {
-                //console.log('dd');
+            request.onerror = function (e) {
+                console.log('getAsync', key, e);
                 reject(e['value']);
             };
         });
@@ -25776,21 +25855,27 @@ var MyStorageFake = (function () {
         //console.log('new MyStorageFake(' + name + ')');
     }
     MyStorageFake.prototype.putAsync = function (key, value) {
+        console.log('putAsync', key, value);
         this.items[key] = value;
         return Promise.resolve();
     };
 
     MyStorageFake.prototype.deleteAsync = function (key) {
+        console.log('deleteAsync', key);
         delete this.items[key];
         return Promise.resolve();
     };
 
     MyStorageFake.prototype.hasAsync = function (key) {
-        return Promise.resolve(this.items[key] !== undefined);
+        var value = this.items[key] !== undefined;
+        console.log('hasAsync', key, value);
+        return Promise.resolve(value);
     };
 
     MyStorageFake.prototype.getAsync = function (key) {
-        return Promise.resolve(this.items[key]);
+        var result = this.items[key];
+        console.log('getAsync', key, result);
+        return Promise.resolve(result);
     };
     return MyStorageFake;
 })();
@@ -26796,6 +26881,8 @@ var FileOpenFlags = _vfs.FileOpenFlags;
 
 var storage = require('./indexeddb');
 
+var console = logger.named('vfs.storage');
+
 var StorageVfs = (function (_super) {
     __extends(StorageVfs, _super);
     function StorageVfs(key) {
@@ -26833,6 +26920,7 @@ var StorageVfsEntry = (function (_super) {
     StorageVfsEntry.prototype.initAsync = function (flags, mode) {
         var _this = this;
         return this._getFileAsync().then(function (file) {
+            console.info('initAsync', file);
             if (!file.exists) {
                 if (!(flags & 512 /* Create */)) {
                     throw (new Error("File '" + file.name + "' doesn't exist"));
@@ -27133,8 +27221,8 @@ require('./util/utilsTest');
 require('./testasm');
 require('./gpuTest');
 require('./instructionTest');
-/*
 require('./hle/elfTest');
+/*
 */
 //require('./pspautotests');
 //# sourceMappingURL=_tests.js.map
@@ -27448,7 +27536,6 @@ describe('elf', function () {
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
-        console.log(elf);
     });
 });
 //# sourceMappingURL=elfTest.js.map

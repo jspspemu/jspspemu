@@ -587,3 +587,41 @@ class Signal<T> {
 		});
 	}
 }
+
+class Logger {
+	constructor(private policy:LoggerPolicies, private console:any, private name:string) {
+	}
+
+	named(name: string) {
+		return new Logger(this.policy, this.console, (this.name + '.' + name).replace(/^\.+/, ''));
+	}
+
+	_log(type: string, level: number, args: any[]) {
+		if (this.policy.canLog(this.name, level)) {
+			args.unshift(this.name + ':');
+			this.console[type].apply(this.console, args);
+		}
+	}
+
+	debug(...args) { this._log('debug', 0, args); }
+	log(...args) { this._log('log', 1, args); }
+	info(...args) { this._log('info', 2, args); }
+	warn(...args) { this._log('warn', 3, args); }
+	error(...args) { this._log('error', 4, args); }
+}
+
+class LoggerPolicies {
+	public disableAll = false;
+	public minLogLevel = 1;
+
+	canLog(name: string, level: number) {
+		if (this.disableAll) return false;
+		if (level < this.minLogLevel) return false;
+		return true;
+	}
+
+
+}
+
+var loggerPolicies = new LoggerPolicies();
+var logger = new Logger(loggerPolicies, console, '');

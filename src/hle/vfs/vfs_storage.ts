@@ -11,6 +11,8 @@ import FileOpenFlags = _vfs.FileOpenFlags;
 
 import storage = require('./indexeddb');
 
+var console = logger.named('vfs.storage');
+
 export class StorageVfs extends Vfs {
 	private db: storage.MyStorage;
 	private openDbPromise: Promise<StorageVfs>;
@@ -53,6 +55,7 @@ class StorageVfsEntry extends VfsEntry {
 
 	private initAsync(flags: FileOpenFlags, mode: FileMode) {
 		return this._getFileAsync().then(file => {
+			console.info('initAsync', file);
 			if (!file.exists) {
 				if (!(flags & FileOpenFlags.Create)) {
 					throw (new Error("File '" + file.name + "' doesn't exist"));

@@ -20,6 +20,8 @@ import ElfRelocType = _format_elf.ElfRelocType;
 import ElfProgramHeaderType = _format_elf.ElfProgramHeaderType;
 import ElfDwarfLoader = _format_elf_dwarf.ElfDwarfLoader;
 
+var console = logger.named('elf.psp');
+
 export class ElfPspModuleInfo {
 	moduleAtributes: number;
 	moduleVersion: number;
@@ -119,7 +121,7 @@ export class PspElfLoader {
     }
 
 	load(stream: Stream) {
-		console.warn('PspElfLoader.load');
+		//console.warn('PspElfLoader.load');
 		this.elfLoader = ElfLoader.fromStream(stream);
 
 		//ElfSectionHeaderFlags.Allocate
@@ -137,7 +139,7 @@ export class PspElfLoader {
 
 		//this.elfDwarfLoader.getSymbolAt();
 
-		console.log(this.moduleInfo);
+		//logger.log(this.moduleInfo);
 	}
 
 	getSymbolAt(address: number) {

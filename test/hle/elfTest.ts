@@ -37,6 +37,5 @@ describe('elf', () => {
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
-        console.log(elf);
     });
 });

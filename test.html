@@ -40,7 +40,12 @@
 	</script>
     <script type="text/javascript">
         require('test/_tests');
-		if (window.mochaPhantomJS) { mochaPhantomJS.run(); } else { mocha.run(); }
+        if (window.mochaPhantomJS) {
+        	loggerPolicies.disableAll = true;
+        	mochaPhantomJS.run();
+        } else {
+        	mocha.run();
+        }
     </script>
 </body>
 </html>
