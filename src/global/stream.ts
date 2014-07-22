@@ -177,11 +177,11 @@ class Stream {
 	}
 
 	toImageUrl() {
-		var urlCreator = window['URL'] || window['webkitURL'];
-		if (urlCreator) {
+		try {
+			var urlCreator = window['URL'] || window['webkitURL'];
 			var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
 			return urlCreator.createObjectURL(blob);
-		} else {
+		} catch (e) {
 			return 'data:image/png;base64,' + this.toBase64();
 		}
 	}

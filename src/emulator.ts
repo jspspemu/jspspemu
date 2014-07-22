@@ -60,6 +60,7 @@ import FileManager = _manager.FileManager;
 import CallbackManager = _manager.CallbackManager;
 import Interop = _manager.Interop;
 
+var console = logger.named('emulator');
 
 export class Emulator {
 	public context: EmulatorContext;

@@ -7,6 +7,8 @@ import MemoryAnchor = _manager.MemoryAnchor;
 import Thread = _manager.Thread;
 import MemoryPartition = _manager.MemoryPartition;
 
+var console = logger.named('module.SysMemUserForUser');
+
 export class SysMemUserForUser {
 	constructor(private context: _context.EmulatorContext) { }
 

@@ -9,6 +9,8 @@ export interface CreateOptions {
 	tryCatch?: boolean;
 }
 
+var console = logger.named('createNativeFunction');
+
 export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function, options?: CreateOptions) {
 	var tryCatch = true;
 	if (options) {
@@ -127,9 +129,9 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	//console.log(code);
-	var func = <any>new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
+	var func = <any>new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
 	nativeFunction.call = (context, state) => {
-        func(_this, internalFunc, context, state, nativeFunction);
+		func(_this, console, internalFunc, context, state, nativeFunction);
 	};
 	nativeFunction.nativeCall = internalFunc;
     //console.log(out);

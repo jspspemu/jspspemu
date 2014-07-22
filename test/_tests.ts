@@ -14,6 +14,4 @@ require('./testasm');
 require('./gpuTest');
 require('./instructionTest');
 require('./hle/elfTest');
-/*
-*/
-//require('./pspautotests');
+require('./pspautotests');

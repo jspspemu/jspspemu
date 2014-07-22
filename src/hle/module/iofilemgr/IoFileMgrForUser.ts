@@ -11,6 +11,8 @@ import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 import VfsStat = _vfs.VfsStat;
 
+var console = logger.named('module.IoFileMgrForUser');
+
 export class IoFileMgrForUser {
 	constructor(private context: _context.EmulatorContext) { }
 

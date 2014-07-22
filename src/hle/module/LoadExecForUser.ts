@@ -5,6 +5,8 @@ import createNativeFunction = _utils.createNativeFunction;
 import _manager = require('../manager');
 import Thread = _manager.Thread;
 
+var console = logger.named('module.LoadExecForUser');
+
 export class LoadExecForUser {
     constructor(private context: _context.EmulatorContext) { }
 

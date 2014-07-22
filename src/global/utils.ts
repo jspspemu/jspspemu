@@ -608,6 +608,9 @@ class Logger {
 	info(...args) { this._log('info', 2, args); }
 	warn(...args) { this._log('warn', 3, args); }
 	error(...args) { this._log('error', 4, args); }
+
+	groupCollapsed(...args) { this._log('groupCollapsed', 5, args); }
+	groupEnd(...args) { this._log('groupEnd', 5, args); }
 }
 
 class LoggerPolicies {

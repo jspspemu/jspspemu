@@ -17,6 +17,7 @@ import IDrawDriver = _driver.IDrawDriver;
 import ColorEnum = _state.ColorEnum;
 import GpuOpCodes = _instructions.GpuOpCodes;
 import WebGlPspDrawDriver = require('./webgl/driver');
+import DummyDrawDriver = require('./webgl/driver_dummy');
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]);
@@ -1240,7 +1241,11 @@ export class PspGpu implements IPspGpu {
 	callbacks = new UidCollection<PspGpuCallback>(1);
 
 	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement, private cpuExecutor: CpuExecutor) {
-		this.driver = new WebGlPspDrawDriver(memory, display, canvas);
+		try {
+			this.driver = new WebGlPspDrawDriver(memory, display, canvas);
+		} catch (e) {
+			this.driver = new DummyDrawDriver(memory, display, canvas);
+		}
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
 		this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
     }

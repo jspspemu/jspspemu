@@ -213,12 +213,14 @@
 							<div class="panel panel-default">
 								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-heart"></span> Care</h3></div>
 								<div class="panel-body">
-									<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+									<center>
+									<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
 										<input type="hidden" name="cmd" value="_s-xclick">
 										<input type="hidden" name="hosted_button_id" value="PEJGCR7VC56U8">
 										<input type="image" src="docs/paypal-donate-button.png" border="0" name="submit" alt="Donate via PayPal">
 										<img alt="" border="0" src="https://www.paypalobjects.com/EN/i/scr/pixel.gif" width="1" height="1">
 									</form>
+									</center>
 								</div>
 							</div>
 							<!--
@@ -540,7 +542,7 @@
 				alert("Open a game from an url to share");
 			} else {
 				$('#shareUrl').val(document.location.href);
-				$('#shareIframe').val('<iframe src="' + document.location.href + '" width="480" height="272" style="border:0;"></iframe>');
+				$('#shareIframe').val('<iframe src="' + document.location.href + '" width="640" height="362" style="border:0;"></iframe>');
 				$('#shareModal').modal({ show: 'true' });
 			}
 		}

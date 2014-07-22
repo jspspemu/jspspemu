@@ -1,1 +1,1 @@
-@mocha-phantomjs -p c:\dev\tools\phantomjs.exe -R dot test.html -g %*
+@mocha-phantomjs -p c:\dev\tools\phantomjs.exe test.html -g %*

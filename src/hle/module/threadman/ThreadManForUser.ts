@@ -13,6 +13,8 @@ import ThreadStatus = _manager.ThreadStatus;
 import PspThreadAttributes = _manager.PspThreadAttributes;
 import OutOfMemoryError = _manager.OutOfMemoryError;
 
+var console = logger.named('module.ThreadManForUser');
+
 export class ThreadManForUser {
 	constructor(private context: _context.EmulatorContext) { }
 

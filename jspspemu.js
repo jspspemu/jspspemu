@@ -1372,11 +1372,11 @@ var Stream = (function () {
     };
 
     Stream.prototype.toImageUrl = function () {
-        var urlCreator = window['URL'] || window['webkitURL'];
-        if (urlCreator) {
+        try  {
+            var urlCreator = window['URL'] || window['webkitURL'];
             var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
             return urlCreator.createObjectURL(blob);
-        } else {
+        } catch (e) {
             return 'data:image/png;base64,' + this.toBase64();
         }
     };
@@ -2125,7 +2125,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-///<reference path="../../typings/promise/promise.d.ts" />
+﻿///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2802,6 +2802,21 @@ var Logger = (function () {
             args[_i] = arguments[_i + 0];
         }
         this._log('error', 4, args);
+    };
+
+    Logger.prototype.groupCollapsed = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('groupCollapsed', 5, args);
+    };
+    Logger.prototype.groupEnd = function () {
+        var args = [];
+        for (var _i = 0; _i < (arguments.length - 0); _i++) {
+            args[_i] = arguments[_i + 0];
+        }
+        this._log('groupEnd', 5, args);
     };
     return Logger;
 })();
@@ -8930,6 +8945,7 @@ var Memory = _memory.Memory;
 
 var GpuOpCodes = _instructions.GpuOpCodes;
 var WebGlPspDrawDriver = require('./webgl/driver');
+var DummyDrawDriver = require('./webgl/driver_dummy');
 
 var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
@@ -10566,7 +10582,11 @@ var PspGpu = (function () {
         this.canvas = canvas;
         this.cpuExecutor = cpuExecutor;
         this.callbacks = new UidCollection(1);
-        this.driver = new WebGlPspDrawDriver(memory, display, canvas);
+        try  {
+            this.driver = new WebGlPspDrawDriver(memory, display, canvas);
+        } catch (e) {
+            this.driver = new DummyDrawDriver(memory, display, canvas);
+        }
 
         //this.driver = new Context2dPspDrawDriver(memory, canvas);
         this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
@@ -12251,6 +12271,37 @@ var ShaderCache = _shader.ShaderCache;
 
 var TextureHandler = _texture.TextureHandler;
 
+var DummyDrawDriver = (function () {
+    function DummyDrawDriver() {
+    }
+    DummyDrawDriver.prototype.end = function () {
+    };
+
+    DummyDrawDriver.prototype.initAsync = function () {
+        return Promise.resolve();
+    };
+
+    /**
+    * Flush texture page-cache.
+    *
+    * Do this if you have copied/rendered into an area currently in the texture-cache
+    */
+    DummyDrawDriver.prototype.textureFlush = function (state) {
+    };
+
+    /**
+    * Synchronize rendering pipeline with image upload.
+    *
+    * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
+    */
+    DummyDrawDriver.prototype.textureSync = function (state) {
+    };
+
+    DummyDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
+    };
+    return DummyDrawDriver;
+})();
+
 var WebGlPspDrawDriver = (function () {
     function WebGlPspDrawDriver(memory, display, canvas) {
         this.memory = memory;
@@ -12757,6 +12808,41 @@ var ClearBufferSet;
 
 module.exports = WebGlPspDrawDriver;
 //# sourceMappingURL=driver.js.map
+},
+"src/core/gpu/webgl/driver_dummy": function(module, exports, require) {
+var DummyDrawDriver = (function () {
+    function DummyDrawDriver() {
+    }
+    DummyDrawDriver.prototype.end = function () {
+    };
+
+    DummyDrawDriver.prototype.initAsync = function () {
+        return Promise.resolve();
+    };
+
+    /**
+    * Flush texture page-cache.
+    *
+    * Do this if you have copied/rendered into an area currently in the texture-cache
+    */
+    DummyDrawDriver.prototype.textureFlush = function (state) {
+    };
+
+    /**
+    * Synchronize rendering pipeline with image upload.
+    *
+    * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
+    */
+    DummyDrawDriver.prototype.textureSync = function (state) {
+    };
+
+    DummyDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
+    };
+    return DummyDrawDriver;
+})();
+
+module.exports = DummyDrawDriver;
+//# sourceMappingURL=driver_dummy.js.map
 },
 "src/core/gpu/webgl/shader": function(module, exports, require) {
 var _utils = require('./utils');
@@ -15197,6 +15283,8 @@ var NetManager = _manager.NetManager;
 var FileManager = _manager.FileManager;
 var CallbackManager = _manager.CallbackManager;
 var Interop = _manager.Interop;
+
+var console = logger.named('emulator');
 
 var Emulator = (function () {
     function Emulator(memory) {
@@ -19823,6 +19911,8 @@ var ProgramExecutor = _cpu.ProgramExecutor;
 var NativeFunction = _cpu.NativeFunction;
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
+var console = logger.named('hle.thread');
+
 (function (ThreadStatus) {
     ThreadStatus[ThreadStatus["RUNNING"] = 1] = "RUNNING";
     ThreadStatus[ThreadStatus["READY"] = 2] = "READY";
@@ -20387,6 +20477,8 @@ var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
 
+var console = logger.named('module.LoadExecForUser');
+
 var LoadExecForUser = (function () {
     function LoadExecForUser(context) {
         var _this = this;
@@ -20416,6 +20508,7 @@ var LoadExecForUser = (function () {
     return LoadExecForUser;
 })();
 exports.LoadExecForUser = LoadExecForUser;
+//# sourceMappingURL=LoadExecForUser.js.map
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20497,6 +20590,8 @@ var _utils = require('../utils');
 
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
+
+var console = logger.named('module.SysMemUserForUser');
 
 var SysMemUserForUser = (function () {
     function SysMemUserForUser(context) {
@@ -20614,6 +20709,7 @@ var SysMemUserForUser = (function () {
     return SysMemUserForUser;
 })();
 exports.SysMemUserForUser = SysMemUserForUser;
+//# sourceMappingURL=SysMemUserForUser.js.map
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20743,6 +20839,8 @@ _manager.Thread;
 var Thread = _manager.Thread;
 
 var FileOpenFlags = _vfs.FileOpenFlags;
+
+var console = logger.named('module.IoFileMgrForUser');
 
 var IoFileMgrForUser = (function () {
     function IoFileMgrForUser(context) {
@@ -24503,6 +24601,8 @@ var ThreadStatus = _manager.ThreadStatus;
 var PspThreadAttributes = _manager.PspThreadAttributes;
 var OutOfMemoryError = _manager.OutOfMemoryError;
 
+var console = logger.named('module.ThreadManForUser');
+
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         var _this = this;
@@ -25524,6 +25624,8 @@ var _cpu = require('../core/cpu');
 var NativeFunction = _cpu.NativeFunction;
 exports.NativeFunction = NativeFunction;
 
+var console = logger.named('createNativeFunction');
+
 function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
     var tryCatch = true;
     if (options) {
@@ -25680,9 +25782,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     nativeFunction.firmwareVersion = firmwareVersion;
 
     //console.log(code);
-    var func = new Function('_this', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
+    var func = new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
     nativeFunction.call = function (context, state) {
-        func(_this, internalFunc, context, state, nativeFunction);
+        func(_this, console, internalFunc, context, state, nativeFunction);
     };
     nativeFunction.nativeCall = internalFunc;
 
@@ -27222,9 +27324,7 @@ require('./testasm');
 require('./gpuTest');
 require('./instructionTest');
 require('./hle/elfTest');
-/*
-*/
-//require('./pspautotests');
+require('./pspautotests');
 //# sourceMappingURL=_tests.js.map
 },
 "test/format/csoTest": function(module, exports, require) {
@@ -27779,10 +27879,60 @@ var _vfs = require('../src/hle/vfs');
 
 var Emulator = _emulator.Emulator;
 
+var console = logger.named('');
+
 describe('pspautotests', function () {
     this.timeout(5000);
 
-    var tests = [];
+    var tests = [
+        //{ "audio/atrac": ["atractest", "decode", "ids", "resetting", "setdata"] },
+        //{ "audio/mp3": ["mp3test"] },
+        //{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
+        //{ "audio/sceaudio": ["datalen", "output", "reserve"] },
+        { "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
+        //{ "cpu/fpu": ["fcr", "fpu"] },
+        { "cpu/icache": ["icache"] },
+        { "cpu/lsu": ["lsu"] },
+        //{ "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector"] },
+        //{ "ctrl": ["ctrl", "vblank"] },
+        //{ "ctrl/idle": ["idle"] },
+        //{ "ctrl/sampling": ["sampling"] },
+        //{ "ctrl/sampling2": ["sampling2"] },
+        //{ "display": ["display", "hcount", "vblankmulti"] },
+        //{ "dmac": ["dmactest"] },
+        //{ "font": ["altcharcode", "charglyphimage", "charglyphimageclip", "charimagerect", "charinfo", "find", "fontinfo", "fontinfobyindex", "fontlist", "fonttest", "newlib", "open", "openfile", "openmem", "optimum", "resolution", "shadowglyphimage", "shadowglyphimageclip", "shadowimagerect", "shadowinfo"] },
+        //{ "gpu/callbacks": ["ge_callbacks"] },
+        //{ "gpu/commands": ["basic", "blocktransfer", "material"] },
+        //{ "gpu/complex": ["complex"] },
+        //{ "gpu/displaylist": ["state"] },
+        //{ "gpu/ge": ["break", "context", "edram", "get", "queue"] },
+        //{ "gpu/reflection": ["reflection"] },
+        //{ "gpu/rendertarget": ["rendertarget"] },
+        //{ "gpu/signals": ["continue", "jumps", "pause", "simple", "suspend", "sync"] },
+        //{ "gpu/simple": ["simple"] },
+        //{ "gpu/triangle": ["triangle"] },
+        //{ "hash": ["hash"] },
+        //{ "hle": ["check_not_used_uids"] },
+        //{ "intr": ["intr", "suspended", "waits"] },
+        //{ "intr/vblank": ["vblank"] },
+        //{ "io/cwd": ["cwd"] },
+        //{ "io/directory": ["directory"] },
+        //{ "io/file": ["file", "rename"] },
+        //{ "io/io": ["io"] },
+        //{ "io/iodrv": ["iodrv"] },
+        //{ "kirk": ["kirk"] },
+        //{ "loader/bss": ["bss"] },
+        //{ "malloc": ["malloc"] },
+        //{ "misc": ["dcache", "deadbeef", "libc", "sdkver", "testgp", "timeconv"] },
+        //{ "modules/loadexec": ["loader"] },
+        //{ "mstick": ["mstick"] },
+        //{ "net/http": ["http"] },
+        //{ "net/primary": ["ether"] },
+        //{ "power": ["cpu", "freq", "power"] },
+        //{ "power/volatile": ["lock", "trylock", "unlock"] },
+        //{ "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
+        { "string": ["string"] }
+    ];
 
     function normalizeString(string) {
         return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');

@@ -5,6 +5,8 @@ import Emulator = _emulator.Emulator;
 
 declare var difflib: any;
 
+var console = logger.named('');
+
 describe('pspautotests', function () {
 	this.timeout(5000);
 
@@ -13,10 +15,10 @@ describe('pspautotests', function () {
 		//{ "audio/mp3": ["mp3test"] },
 		//{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
 		//{ "audio/sceaudio": ["datalen", "output", "reserve"] },
-		//{ "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
+		{ "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
 		//{ "cpu/fpu": ["fcr", "fpu"] },
-		//{ "cpu/icache": ["icache"] },
-		//{ "cpu/lsu": ["lsu"] },
+		{ "cpu/icache": ["icache"] },
+		{ "cpu/lsu": ["lsu"] },
 		//{ "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector"] },
 		//{ "ctrl": ["ctrl", "vblank"] },
 		//{ "ctrl/idle": ["idle"] },
@@ -55,7 +57,7 @@ describe('pspautotests', function () {
 		//{ "power": ["cpu", "freq", "power"] },
 		//{ "power/volatile": ["lock", "trylock", "unlock"] },
 		//{ "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
-		//{ "string": ["string"] },
+		{ "string": ["string"] },
 		//{ "sysmem": ["freesize", "memblock", "partition", "sysmem"] },
 		//{ "threads/alarm": ["alarm"] },
 		//{ "threads/alarm/cancel": ["cancel"] },

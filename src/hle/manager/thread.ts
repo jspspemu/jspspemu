@@ -20,6 +20,8 @@ import ProgramExecutor = _cpu.ProgramExecutor;
 import NativeFunction = _cpu.NativeFunction;
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
+var console = logger.named('hle.thread');
+
 export enum ThreadStatus {
 	RUNNING = 1,
 	READY   = 2,
