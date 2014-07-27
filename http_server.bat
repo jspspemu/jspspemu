@@ -8,6 +8,6 @@ dir "%~dp0\src\*.ts" /b /s >> %OPTIONS%
 dir "%~dp0\test\*.ts" /b /s >> %OPTIONS%
 dir "%~dp0\typings\*.ts" /b /s >> %OPTIONS%
 rd /s /q "%~dp0\js"
-CALL tsc.cmd @%OPTIONS%
+CALL tsc @%OPTIONS%
 
 node utils\http_server.js

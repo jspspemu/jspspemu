@@ -1244,7 +1244,7 @@ export class PspGpu implements IPspGpu {
 		try {
 			this.driver = new WebGlPspDrawDriver(memory, display, canvas);
 		} catch (e) {
-			this.driver = new DummyDrawDriver(memory, display, canvas);
+			this.driver = new DummyDrawDriver();
 		}
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
 		this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);

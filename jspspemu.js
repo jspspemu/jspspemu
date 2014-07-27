@@ -2125,7 +2125,7 @@ var Pointer = (function () {
 })();
 //# sourceMappingURL=struct.js.map
 
-﻿///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/promise/promise.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -10585,7 +10585,7 @@ var PspGpu = (function () {
         try  {
             this.driver = new WebGlPspDrawDriver(memory, display, canvas);
         } catch (e) {
-            this.driver = new DummyDrawDriver(memory, display, canvas);
+            this.driver = new DummyDrawDriver();
         }
 
         //this.driver = new Context2dPspDrawDriver(memory, canvas);
@@ -12270,37 +12270,6 @@ var FastFloat32Buffer = _utils.FastFloat32Buffer;
 var ShaderCache = _shader.ShaderCache;
 
 var TextureHandler = _texture.TextureHandler;
-
-var DummyDrawDriver = (function () {
-    function DummyDrawDriver() {
-    }
-    DummyDrawDriver.prototype.end = function () {
-    };
-
-    DummyDrawDriver.prototype.initAsync = function () {
-        return Promise.resolve();
-    };
-
-    /**
-    * Flush texture page-cache.
-    *
-    * Do this if you have copied/rendered into an area currently in the texture-cache
-    */
-    DummyDrawDriver.prototype.textureFlush = function (state) {
-    };
-
-    /**
-    * Synchronize rendering pipeline with image upload.
-    *
-    * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
-    */
-    DummyDrawDriver.prototype.textureSync = function (state) {
-    };
-
-    DummyDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
-    };
-    return DummyDrawDriver;
-})();
 
 var WebGlPspDrawDriver = (function () {
     function WebGlPspDrawDriver(memory, display, canvas) {
@@ -20339,6 +20308,7 @@ var ExceptionManagerForKernel = (function () {
     return ExceptionManagerForKernel;
 })();
 exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
+//# sourceMappingURL=ExceptionManagerForKernel.js.map
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20389,6 +20359,7 @@ var InterruptManager = (function () {
     return InterruptManager;
 })();
 exports.InterruptManager = InterruptManager;
+//# sourceMappingURL=InterruptManager.js.map
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20405,6 +20376,7 @@ var KDebugForKernel = (function () {
     return KDebugForKernel;
 })();
 exports.KDebugForKernel = KDebugForKernel;
+//# sourceMappingURL=KDebugForKernel.js.map
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20450,6 +20422,7 @@ var Kernel_Library = (function () {
     return Kernel_Library;
 })();
 exports.Kernel_Library = Kernel_Library;
+//# sourceMappingURL=Kernel_Library.js.map
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20471,6 +20444,7 @@ var LoadCoreForKernel = (function () {
     return LoadCoreForKernel;
 })();
 exports.LoadCoreForKernel = LoadCoreForKernel;
+//# sourceMappingURL=LoadCoreForKernel.js.map
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20508,7 +20482,6 @@ var LoadExecForUser = (function () {
     return LoadExecForUser;
 })();
 exports.LoadExecForUser = LoadExecForUser;
-//# sourceMappingURL=LoadExecForUser.js.map
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
 var _utils = require('../utils');
@@ -20709,7 +20682,6 @@ var SysMemUserForUser = (function () {
     return SysMemUserForUser;
 })();
 exports.SysMemUserForUser = SysMemUserForUser;
-//# sourceMappingURL=SysMemUserForUser.js.map
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 var _utils = require('../utils');
@@ -28034,7 +28006,7 @@ describe('pspautotests', function () {
                         this.timeout(15000);
 
                         var emulator = new Emulator();
-                        var file_base = '../pspautotests/tests/' + testGroupName + '/' + testName;
+                        var file_base = './pspautotests/tests/' + testGroupName + '/' + testName;
                         var file_prx = file_base + '.prx';
 
                         //var file_prx = file_base + '.iso';
