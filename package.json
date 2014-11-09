@@ -18,7 +18,7 @@
   },
   "scripts": {
 	"start": "node --harmony source/utils/http_server.js",
-    "setup": "npm -g install typescript; npm install; pushd source/utils; npm install; popd",
+    "setup": "npm -g install typescript; npm install; cd source/utils; npm install; cd ../..",
     "build": "node --harmony source/utils/build_singleton.js",
     "test": "node --harmony source/utils/build_singleton.js && mocha-phantomjs -R spec test.html"
   },
