@@ -8,7 +8,7 @@
   "dependencies": {
   },
   "devDependencies": {
-	"mocha-phantomjs": "3.5.0"
+	"mocha-phantomjs": "3.5.1"
   },
   "homepage": "https://github.com/jspspemu/jspspemu",
   "keywords": [],
@@ -17,8 +17,10 @@
     "url": "git://github.com/jspspemu/jspspemu.git"
   },
   "scripts": {
-	"start": "node --harmony utils/http_server.js",
-    "test": "mocha-phantomjs -R spec test.html"
+	"start": "node --harmony source/utils/http_server.js",
+    "setup": "npm -g install typescript; npm install; pushd source/utils; npm install; popd",
+    "build": "node --harmony source/utils/build_singleton.js",
+    "test": "node --harmony source/utils/build_singleton.js && mocha-phantomjs -R spec test.html"
   },
   "license": "MIT",
   "engines": {

@@ -6,10 +6,10 @@
     <title>jspspemu</title>
     <meta name="viewport" content="width=480, initial-scale=0.75, maximum-scale=0.75, minimum-scale=0.75, user-scalable=no">
 
-    <link rel="shortcut icon" href="icon.png" id="dynamic-favicon" />
+    <link rel="shortcut icon" href="data/icon.png" id="dynamic-favicon" />
 
-    <link rel="apple-touch-icon" href="./icon.png" />
-    <link rel="apple-touch-icon-precomposed" href="icon.png" />
+    <link rel="apple-touch-icon" href="data/icon.png" />
+    <link rel="apple-touch-icon-precomposed" href="data/icon.png" />
 
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,26 +17,26 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <script src="lib/sha1.js"></script>
-    <script src="lib/lib-typedarrays-min.js"></script>
-    <script src="lib/dropbox-datastores-1.0-latest.js" type="text/javascript"></script>
+    <script src="source/lib/sha1.js"></script>
+    <script src="source/lib/lib-typedarrays-min.js"></script>
+    <script src="source/lib/dropbox-datastores-1.0-latest.js" type="text/javascript"></script>
 
-    <script src="lib/jquery-2.1.0.js"></script>
-    <script src="lib/gl-matrix.js"></script>
-    <script src="lib/underscore.js"></script>
-    <script src="lib/zlib_and_gzip.min.js"></script>
-    <script src="lib/zlib/rawinflate.min.js"></script>
-    <script src="lib/sprintf.js"></script>
-    <script src="lib/FileSaver.js"></script>
-    <script src="polyfills/promise.js"></script>
+    <script src="source/lib/jquery-2.1.0.js"></script>
+    <script src="source/lib/gl-matrix.js"></script>
+    <script src="source/lib/underscore.js"></script>
+    <script src="source/lib/zlib_and_gzip.min.js"></script>
+    <script src="source/lib/zlib/rawinflate.min.js"></script>
+    <script src="source/lib/sprintf.js"></script>
+    <script src="source/lib/FileSaver.js"></script>
+    <script src="source/polyfills/promise.js"></script>
     <!--
     <script src="polyfills/es6-collections.min.js"></script>
     <script src="polyfills/setImmediate.js"></script>
     -->
-    <script src="lib/mocha.js"></script>
-    <script src="lib/chai.js"></script>
-    <script src="lib/difflib.js"></script>
-	<script src="lib/moment.min.js"></script>
+    <script src="source/lib/mocha.js"></script>
+    <script src="source/lib/chai.js"></script>
+    <script src="source/lib/difflib.js"></script>
+	<script src="source/lib/moment.min.js"></script>
 
     <script>
         mocha.setup('bdd');
@@ -49,13 +49,13 @@
 
     <script src="jspspemu.js"></script>
 
-	<link rel="stylesheet" href="lib/bootstrap/bootstrap.min.css" />
-	<link rel="stylesheet" href="lib/bootstrap/bootstrap-theme.min.css" />
-	<link rel="stylesheet" href="lib/fontawesome/font-awesome.min.css" />
+	<link rel="stylesheet" href="source/lib/bootstrap/bootstrap.min.css" />
+	<link rel="stylesheet" href="source/lib/bootstrap/bootstrap-theme.min.css" />
+	<link rel="stylesheet" href="source/lib/fontawesome/font-awesome.min.css" />
 	
 	<link rel="stylesheet" href="pspemu.css" />
 
-	<script src="lib/bootstrap/bootstrap.min.js"></script>
+	<script src="source/lib/bootstrap/bootstrap.min.js"></script>
 </head>
 <body>
 	<input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
@@ -80,7 +80,7 @@
 								<span class="icon-bar"></span>
 								<span class="icon-bar"></span>
 							</button>
-							<a class="navbar-brand" href="#" style="background:url('logo_wide_50.png') no-repeat;width:260px;"></a>
+							<a class="navbar-brand" href="#" style="background:url('data/logo_wide_50.png') no-repeat;width:260px;"></a>
 						</div>
 
 						<!-- Collect the nav links, forms, and other content for toggling -->
@@ -217,7 +217,7 @@
 									<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
 										<input type="hidden" name="cmd" value="_s-xclick">
 										<input type="hidden" name="hosted_button_id" value="PEJGCR7VC56U8">
-										<input type="image" src="docs/paypal-donate-button.png" border="0" name="submit" alt="Donate via PayPal">
+										<input type="image" src="data/docs/paypal-donate-button.png" border="0" name="submit" alt="Donate via PayPal">
 									</form>
 									</center>
 								</div>

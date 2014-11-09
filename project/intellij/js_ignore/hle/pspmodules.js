@@ -1,0 +1,134 @@
+///<reference path="../global.d.ts" />
+var ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel');
+var InterruptManager = require('./module/InterruptManager');
+var KDebugForKernel = require('./module/KDebugForKernel');
+var Kernel_Library = require('./module/Kernel_Library');
+var LoadCoreForKernel = require('./module/LoadCoreForKernel');
+var LoadExecForUser = require('./module/LoadExecForUser');
+var ModuleMgrForUser = require('./module/ModuleMgrForUser');
+var sceAtrac3plus = require('./module/sceAtrac3plus');
+var sceAudio = require('./module/sceAudio');
+var sceCtrl = require('./module/sceCtrl');
+var sceDisplay = require('./module/sceDisplay');
+var sceDmac = require('./module/sceDmac');
+var sceGe_user = require('./module/sceGe_user');
+var sceHprm = require('./module/sceHprm');
+var sceHttp = require('./module/sceHttp');
+var sceParseHttp = require('./module/sceParseHttp');
+var sceParseUri = require('./module/sceParseUri');
+var sceImpose = require('./module/sceImpose');
+var sceLibFont = require('./module/sceLibFont');
+var sceMp3 = require('./module/sceMp3');
+var sceMpeg = require('./module/sceMpeg');
+var sceNet = require('./module/sceNet');
+var sceNetAdhoc = require('./module/sceNetAdhoc');
+var sceNetAdhocctl = require('./module/sceNetAdhocctl');
+var sceNetAdhocMatching = require('./module/sceNetAdhocMatching');
+var sceNetApctl = require('./module/sceNetApctl');
+var sceNetInet = require('./module/sceNetInet');
+var sceNetResolver = require('./module/sceNetResolver');
+var sceNp = require('./module/sceNp');
+var sceNpAuth = require('./module/sceNpAuth');
+var sceNpService = require('./module/sceNpService');
+var sceOpenPSID = require('./module/sceOpenPSID');
+var scePower = require('./module/scePower');
+var scePspNpDrm_user = require('./module/scePspNpDrm_user');
+var sceReg = require('./module/sceReg');
+var sceRtc = require('./module/sceRtc');
+var sceSasCore = require('./module/sceSasCore');
+var sceSsl = require('./module/sceSsl');
+var sceSuspendForUser = require('./module/sceSuspendForUser');
+var sceUmdUser = require('./module/sceUmdUser');
+var sceUtility = require('./module/sceUtility');
+var sceVaudio = require('./module/sceVaudio');
+var sceWlanDrv = require('./module/sceWlanDrv');
+var StdioForUser = require('./module/StdioForUser');
+var SysMemUserForUser = require('./module/SysMemUserForUser');
+var UtilsForKernel = require('./module/UtilsForKernel');
+var UtilsForUser = require('./module/UtilsForUser');
+var IoFileMgrForUser = require('./module/iofilemgr/IoFileMgrForUser');
+var ThreadManForUser = require('./module/threadman/ThreadManForUser');
+var ThreadManForUser_callbacks = require('./module/threadman/ThreadManForUser_callbacks');
+var ThreadManForUser_sema = require('./module/threadman/ThreadManForUser_sema');
+var ThreadManForUser_eventflag = require('./module/threadman/ThreadManForUser_eventflag');
+var ThreadManForUser_vpl = require('./module/threadman/ThreadManForUser_vpl');
+var ThreadManForUser_mutex = require('./module/threadman/ThreadManForUser_mutex');
+function _registerModules(manager) {
+}
+function _registerSyscall(syscallManager, moduleManager, id, moduleName, functionName) {
+    syscallManager.registerWithId(id, moduleManager.getByName(moduleName).getByName(functionName));
+}
+function registerModules(manager) {
+    manager.registerModule(ExceptionManagerForKernel);
+    manager.registerModule(InterruptManager);
+    manager.registerModule(KDebugForKernel);
+    manager.registerModule(Kernel_Library);
+    manager.registerModule(LoadCoreForKernel);
+    manager.registerModule(LoadExecForUser);
+    manager.registerModule(ModuleMgrForUser);
+    manager.registerModule(sceAtrac3plus);
+    manager.registerModule(sceAudio);
+    manager.registerModule(sceCtrl);
+    manager.registerModule(sceDisplay);
+    manager.registerModule(sceDmac);
+    manager.registerModule(sceGe_user);
+    manager.registerModule(sceHprm);
+    manager.registerModule(sceHttp);
+    manager.registerModule(sceParseHttp);
+    manager.registerModule(sceParseUri);
+    manager.registerModule(sceImpose);
+    manager.registerModule(sceLibFont);
+    manager.registerModule(sceMp3);
+    manager.registerModule(sceMpeg);
+    manager.registerModule(sceNet);
+    manager.registerModule(sceNetAdhoc);
+    manager.registerModule(sceNetAdhocctl);
+    manager.registerModule(sceNetAdhocMatching);
+    manager.registerModule(sceNetApctl);
+    manager.registerModule(sceNetInet);
+    manager.registerModule(sceNetResolver);
+    manager.registerModule(sceNp);
+    manager.registerModule(sceNpAuth);
+    manager.registerModule(sceNpService);
+    manager.registerModule(sceOpenPSID);
+    manager.registerModule(scePower);
+    manager.registerModule(scePspNpDrm_user);
+    manager.registerModule(sceReg);
+    manager.registerModule(sceRtc);
+    manager.registerModule(sceSasCore);
+    manager.registerModule(sceSsl);
+    manager.registerModule(sceSuspendForUser);
+    manager.registerModule(sceUmdUser);
+    manager.registerModule(sceUtility);
+    manager.registerModule(sceVaudio);
+    manager.registerModule(sceWlanDrv);
+    manager.registerModule(StdioForUser);
+    manager.registerModule(SysMemUserForUser);
+    manager.registerModule(UtilsForKernel);
+    manager.registerModule(UtilsForUser);
+    manager.registerModule(IoFileMgrForUser);
+    manager.registerModule(ThreadManForUser);
+    manager.registerModule(ThreadManForUser_callbacks);
+    manager.registerModule(ThreadManForUser_sema);
+    manager.registerModule(ThreadManForUser_eventflag);
+    manager.registerModule(ThreadManForUser_vpl);
+    manager.registerModule(ThreadManForUser_mutex);
+}
+function registerSyscalls(syscallManager, moduleManager) {
+    _registerSyscall(syscallManager, moduleManager, 0x206D, "ThreadManForUser", "sceKernelCreateThread");
+    _registerSyscall(syscallManager, moduleManager, 0x206F, "ThreadManForUser", "sceKernelStartThread");
+    _registerSyscall(syscallManager, moduleManager, 0x2071, "ThreadManForUser", "sceKernelExitDeleteThread");
+    _registerSyscall(syscallManager, moduleManager, 0x20BF, "UtilsForUser", "sceKernelUtilsMt19937Init");
+    _registerSyscall(syscallManager, moduleManager, 0x20C0, "UtilsForUser", "sceKernelUtilsMt19937UInt");
+    _registerSyscall(syscallManager, moduleManager, 0x213A, "sceDisplay", "sceDisplaySetMode");
+    _registerSyscall(syscallManager, moduleManager, 0x2147, "sceDisplay", "sceDisplayWaitVblankStart");
+    _registerSyscall(syscallManager, moduleManager, 0x213F, "sceDisplay", "sceDisplaySetFrameBuf");
+    _registerSyscall(syscallManager, moduleManager, 0x20EB, "LoadExecForUser", "sceKernelExitGame");
+    _registerSyscall(syscallManager, moduleManager, 0x2150, "sceCtrl", "sceCtrlPeekBufferPositive");
+}
+function registerModulesAndSyscalls(syscallManager, moduleManager) {
+    registerModules(moduleManager);
+    registerSyscalls(syscallManager, moduleManager);
+}
+exports.registerModulesAndSyscalls = registerModulesAndSyscalls;
+//# sourceMappingURL=pspmodules.js.map

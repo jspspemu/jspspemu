@@ -5,7 +5,7 @@ if (IN_WORKER) {
 	self.addEventListener('message', function(e) {
 		var data = e.data;
 		
-		var func = new Function('var func = (' + data.code + '); return func.apply(null, arguments);')
+		var func = new Function('var func = (' + data.code + '); return func.apply(null, arguments);');
 		var argsArray = data.payload;
 
 		var result = func.apply(null, argsArray);
