@@ -1,4 +1,6 @@
-﻿import _audio = require('../core/audio');
+﻿///<reference path="../global.d.ts" />
+
+import _audio = require('../core/audio');
 import Sample = _audio.Sample;
 
 var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];

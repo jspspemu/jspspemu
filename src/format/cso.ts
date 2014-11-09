@@ -1,4 +1,6 @@
-﻿var CSO_MAGIC = 'CISO';
+﻿///<reference path="../global.d.ts" />
+
+var CSO_MAGIC = 'CISO';
 
 class Header {
     magic: string;

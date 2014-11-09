@@ -1,4 +1,7 @@
-﻿import _pbp = require('../../src/format/pbp');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _pbp = require('../../src/format/pbp');
 
 import Pbp = _pbp.Pbp;
 

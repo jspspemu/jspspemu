@@ -1,4 +1,7 @@
-﻿import _cpu = require('../src/core/cpu');
+﻿///<reference path="./global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _cpu = require('../src/core/cpu');
 
 import Instructions = _cpu.Instructions;
 

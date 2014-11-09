@@ -1,0 +1,1 @@
+tsc --outDir js --target ES5 --module commonjs bootstrap.ts

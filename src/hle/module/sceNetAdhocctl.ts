@@ -1,4 +1,6 @@
-﻿import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
+﻿///<reference path="../../global.d.ts" />
+
+import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
 import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager');

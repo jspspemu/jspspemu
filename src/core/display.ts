@@ -1,4 +1,6 @@
-﻿import memory = require('./memory');
+﻿///<reference path="../global.d.ts" />
+
+import memory = require('./memory');
 import pixelformat = require('./pixelformat');
 import _interrupt = require('./interrupt');
 
@@ -149,7 +151,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		var w8 = imageData.data;
 		var baseAddress = this.address & 0x0FFFFFFF;
 
-		PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
+		PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, <Uint8Array><any>w8, 0, count, false);
 		this.context.putImageData(imageData, 0, 0);
 	}
 

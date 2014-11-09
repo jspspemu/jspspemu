@@ -1,17 +1,19 @@
-﻿declare function require(name: string): any;
+﻿///<reference path="./global.d.ts" />
 
-require('./format/pspTest');
-require('./format/csoTest');
-require('./format/isoTest');
-require('./format/pbpTest');
-require('./format/psfTest');
-require('./format/zipTest');
-require('./format/vagTest');
-require('./hle/memorymanagerTest');
-require('./hle/vfsTest');
-require('./util/utilsTest');
-require('./testasm');
-require('./gpuTest');
-require('./instructionTest');
-require('./hle/elfTest');
-require('./pspautotests');
+//declare function require(name: string): any;
+
+import pspTest = require('./format/pspTest'); pspTest.ref();
+import csoTest = require('./format/csoTest'); csoTest.ref();
+import isoTest = require('./format/isoTest'); isoTest.ref();
+import pbpTest = require('./format/pbpTest'); pbpTest.ref();
+import psfTest = require('./format/psfTest'); psfTest.ref();
+import zipTest = require('./format/zipTest'); zipTest.ref();
+import vagTest = require('./format/vagTest'); vagTest.ref();
+import memorymanagerTest = require('./hle/memorymanagerTest'); memorymanagerTest.ref();
+import vfsTest = require('./hle/vfsTest'); vfsTest.ref();
+import utilsTest = require('./util/utilsTest'); utilsTest.ref();
+import testasm = require('./testasm'); testasm.ref();
+import gpuTest = require('./gpuTest'); gpuTest.ref();
+import instructionTest = require('./instructionTest'); instructionTest.ref();
+import elfTest = require('./hle/elfTest'); elfTest.ref();
+import pspautotests = require('./pspautotests'); pspautotests.ref();

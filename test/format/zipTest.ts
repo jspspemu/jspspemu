@@ -1,4 +1,7 @@
-﻿import _zip = require('../../src/format/zip');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _zip = require('../../src/format/zip');
 import _vfs = require('../../src/hle/vfs');
 
 describe('zip', () => {

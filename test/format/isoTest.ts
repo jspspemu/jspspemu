@@ -1,4 +1,7 @@
-﻿import _iso = require('../../src/format/iso');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _iso = require('../../src/format/iso');
 import _vfs = require('../../src/hle/vfs');
 
 describe('iso', () => {

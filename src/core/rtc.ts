@@ -1,4 +1,6 @@
-﻿export class PspRtc {
+﻿///<reference path="../global.d.ts" />
+
+export class PspRtc {
 	getCurrentUnixSeconds() {
 		return new Date().getTime() / 1000;
 	}

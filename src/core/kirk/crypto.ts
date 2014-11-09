@@ -1,4 +1,6 @@
-﻿import jsaes2 = require('./jsaes2');
+﻿///<reference path="../../global.d.ts" />
+
+import jsaes2 = require('./jsaes2');
 
 declare var CryptoJS: any;
 

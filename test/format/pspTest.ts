@@ -1,4 +1,7 @@
-﻿import elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
 
 describe('psp', () => {
 	var testInputStream: Stream;

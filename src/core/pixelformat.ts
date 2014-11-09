@@ -1,4 +1,6 @@
-﻿import _memory = require('./memory');
+﻿///<reference path="../global.d.ts" />
+
+import _memory = require('./memory');
 import Memory = _memory.Memory;
 
 export class PixelFormatUtils {

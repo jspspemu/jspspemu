@@ -1,4 +1,6 @@
-﻿import _memory = require('../core/memory');
+﻿///<reference path="../global.d.ts" />
+
+import _memory = require('../core/memory');
 import Memory = _memory.Memory;
 
 var console = logger.named('elf');

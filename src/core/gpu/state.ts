@@ -1,4 +1,6 @@
-﻿import _memory = require('../memory');
+﻿///<reference path="../../global.d.ts" />
+
+import _memory = require('../memory');
 import _pixelformat = require('../pixelformat');
 
 import Memory = _memory.Memory;

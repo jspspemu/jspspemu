@@ -1,4 +1,6 @@
-﻿import _manager = require('./hle/manager');
+﻿///<reference path="global.d.ts" />
+
+import _manager = require('./hle/manager');
 import _display = require('./core/display');
 import _controller = require('./core/controller');
 import _gpu = require('./core/gpu');

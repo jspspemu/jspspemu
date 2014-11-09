@@ -1,3 +1,5 @@
+///<reference path="../global.d.ts" />
+
 var SECTOR_SIZE = 0x800;
 
 class DirectoryRecordDate {

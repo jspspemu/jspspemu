@@ -1,4 +1,6 @@
-﻿export interface RiffSubchunkHandler {
+﻿///<reference path="../global.d.ts" />
+
+export interface RiffSubchunkHandler {
 	(stream:Stream): void;
 }
 

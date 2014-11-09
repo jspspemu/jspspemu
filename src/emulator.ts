@@ -1,4 +1,6 @@
-﻿import _context = require('./context');
+﻿///<reference path="global.d.ts" />
+
+import _context = require('./context');
 import _cpu = require('./core/cpu');
 import _gpu = require('./core/gpu');
 import _rtc = require('./core/rtc');

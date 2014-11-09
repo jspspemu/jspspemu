@@ -1,4 +1,5 @@
-﻿// 0x08400000 
+﻿///<reference path="../../global.d.ts" />
+// 0x08400000
 
 export class SceModule {
 	next: number;

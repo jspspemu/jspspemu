@@ -1,4 +1,7 @@
-﻿import _cso = require('../../src/format/cso');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _cso = require('../../src/format/cso');
 import _iso = require('../../src/format/iso');
 
 describe('cso', () => {

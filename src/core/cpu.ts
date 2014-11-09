@@ -1,4 +1,6 @@
-﻿import _assembler = require('./cpu/assembler'); _assembler.MipsAssembler;
+﻿///<reference path="../global.d.ts" />
+
+import _assembler = require('./cpu/assembler'); _assembler.MipsAssembler;
 import _state = require('./cpu/state'); _state.CpuState;
 import _executor = require('./cpu/executor'); _executor.ProgramExecutor;
 import _icache = require('./cpu/icache'); _icache.InstructionCache;

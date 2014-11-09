@@ -1,4 +1,6 @@
-﻿import _utils = require('../utils');
+﻿///<reference path="../../global.d.ts" />
+
+import _utils = require('../utils');
 import _manager = require('../manager');
 import _vfs = require('../vfs');
 import _structs = require('../structs');

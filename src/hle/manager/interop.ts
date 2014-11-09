@@ -1,4 +1,6 @@
-﻿import _thread = require('./thread');
+﻿///<reference path="../../global.d.ts" />
+
+import _thread = require('./thread');
 import _cpu = require('../../core/cpu'); _cpu.CpuState;
 
 import CpuState = _cpu.CpuState;

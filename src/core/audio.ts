@@ -1,3 +1,5 @@
+///<reference path="../global.d.ts" />
+
 export class PspAudioBuffer {
 	offset: number = 0;
 
@@ -40,7 +42,6 @@ export class Sample {
 	GetNextSample() {
 	}
 }
-
 
 export class PspAudioChannel {
 	private buffers: PspAudioBuffer[] = [];

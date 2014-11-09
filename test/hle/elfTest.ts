@@ -1,4 +1,7 @@
-﻿import _elf = require('../../src/format/elf');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _elf = require('../../src/format/elf');
 import _memory = require('../../src/core/memory');
 import _cpu = require('../../src/core/cpu');
 import _display = require('../../src/core/display');

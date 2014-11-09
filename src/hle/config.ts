@@ -1,4 +1,6 @@
-﻿import _structs = require('./structs');
+﻿///<reference path="../global.d.ts" />
+
+import _structs = require('./structs');
 
 import PspLanguages = _structs.PspLanguages;
 import ButtonPreference = _structs.ButtonPreference;

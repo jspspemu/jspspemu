@@ -1,4 +1,9 @@
-﻿describe('utils', () => {
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _emulator = require('../../src/emulator');
+
+describe('utils', () => {
     
     describe('string repeat', () => {
         it('simple', () => {

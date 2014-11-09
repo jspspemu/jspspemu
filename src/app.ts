@@ -1,4 +1,6 @@
-﻿import _controller = require('./core/controller');
+﻿///<reference path="global.d.ts" />
+
+import _controller = require('./core/controller');
 import _emulator = require('./emulator');
 
 import PspCtrlButtons = _controller.PspCtrlButtons;

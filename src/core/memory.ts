@@ -1,4 +1,6 @@
-﻿declare function saveAs(data: Blob, name: string):void;
+﻿///<reference path="../global.d.ts" />
+
+declare function saveAs(data: Blob, name: string):void;
 
 export class Memory {
 	buffer: ArrayBuffer;

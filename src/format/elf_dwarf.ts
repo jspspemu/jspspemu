@@ -1,4 +1,6 @@
-﻿import _format_elf = require('./elf');
+﻿///<reference path="../global.d.ts" />
+
+import _format_elf = require('./elf');
 
 var console = logger.named('elf.dwarf');
 

@@ -1,4 +1,4 @@
-///<reference path="../../typings.d.ts" />
+///<reference path="../../global.d.ts" />
 
 import memory = require('../memory');
 import instructions = require('./instructions');

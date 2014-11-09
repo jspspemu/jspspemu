@@ -1,4 +1,6 @@
-﻿import _utils = require('../utils');
+﻿///<reference path="../../global.d.ts" />
+
+import _utils = require('../utils');
 import _context = require('../../context');
 import _audio = require('../../core/audio');
 import _vag = require('../../format/vag');

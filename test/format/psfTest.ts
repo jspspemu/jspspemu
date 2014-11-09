@@ -1,4 +1,7 @@
-﻿import _psf = require('../../src/format/psf');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _psf = require('../../src/format/psf');
 
 import Psf = _psf.Psf;
 

@@ -1,4 +1,6 @@
-﻿import _gpu = require('./gpu/gpu'); _gpu.PspGpu; 
+﻿///<reference path="../global.d.ts" />
+
+import _gpu = require('./gpu/gpu'); _gpu.PspGpu;
 import _state = require('./gpu/state'); _state.AlphaTest;
 import _vertex = require('./gpu/vertex'); _vertex.VertexReader;
 

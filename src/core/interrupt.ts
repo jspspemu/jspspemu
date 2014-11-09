@@ -1,4 +1,6 @@
-﻿import _cpu = require('./cpu');
+﻿///<reference path="../global.d.ts" />
+
+import _cpu = require('./cpu');
 
 export class InterruptHandler {
 	enabled = false;

@@ -1,4 +1,6 @@
-﻿export function detectFormatAsync(asyncStream: AsyncStream): Promise<string> {
+﻿///<reference path="../global.d.ts" />
+
+export function detectFormatAsync(asyncStream: AsyncStream): Promise<string> {
 	return asyncStream.readChunkAsync(0, 4).then((data):any => {
 		var stream = Stream.fromArrayBuffer(data);
 		if (stream.length < 4) {

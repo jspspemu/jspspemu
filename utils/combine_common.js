@@ -83,12 +83,12 @@ function generateCombinedCommonJs(mapFiles) {
 	moduleNames.forEach(function(moduleName) {
 		if (isGlobal(moduleName)) return;
 		var content = mapFiles[moduleName];
-		items.push(JSON.stringify(moduleName.replace(/\.js$/, '')) + ': function(module, exports, require) {\n' + content.replace('\uFEFF', '') + '}');
+		items.push(JSON.stringify(moduleName.replace(/\.js$/, '')) + ': function(module, exports, require) {\n' + content.replace('\uFEFF', '') + '\n}');
 	});
 	
 	commonjsFile += items.join(',\n');
 
-	commonjsFile += '});\n'
+	commonjsFile += '});\n';
 	commonjsFile += '})();\n';
 	return commonjsFile;
 }

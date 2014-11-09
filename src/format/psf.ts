@@ -1,4 +1,6 @@
-﻿enum DataType {
+﻿///<reference path="../global.d.ts" />
+
+enum DataType {
 	Binary = 0,
 	Text = 2,
 	Int = 4,

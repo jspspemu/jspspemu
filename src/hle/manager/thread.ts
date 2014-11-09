@@ -1,4 +1,6 @@
-﻿import _cpu = require('../../core/cpu');
+﻿///<reference path="../../global.d.ts" />
+
+import _cpu = require('../../core/cpu');
 import _memory = require('../../core/memory');
 import _display = require('../../core/display');
 import _interrupt = require('../../core/interrupt');

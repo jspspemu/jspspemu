@@ -1,4 +1,6 @@
-﻿import _state = require('./state');
+﻿///<reference path="../../global.d.ts" />
+
+import _state = require('./state');
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 import ColorEnum = _state.ColorEnum;
 

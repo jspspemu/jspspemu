@@ -1,4 +1,6 @@
-﻿import _cpu = require('../../core/cpu');
+﻿///<reference path="../../global.d.ts" />
+
+import _cpu = require('../../core/cpu');
 
 import NativeFunction = _cpu.NativeFunction;
 import SyscallManager = _cpu.SyscallManager;

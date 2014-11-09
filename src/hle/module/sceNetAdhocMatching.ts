@@ -1,4 +1,6 @@
-﻿import _sceNetAdhoc = require('./sceNetAdhoc');
+﻿///<reference path="../../global.d.ts" />
+
+import _sceNetAdhoc = require('./sceNetAdhoc');
 import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager'); _manager.Thread;

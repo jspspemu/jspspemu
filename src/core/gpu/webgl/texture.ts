@@ -1,4 +1,6 @@
-﻿import _state = require('../state');
+﻿///<reference path="../../../global.d.ts" />
+
+import _state = require('../state');
 import _utils = require('./utils');
 import _pixelformat = require('../../pixelformat');
 import _memory = require('../../memory');

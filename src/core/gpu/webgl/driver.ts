@@ -1,4 +1,6 @@
-﻿import _driver = require('../driver');
+﻿///<reference path="../../../global.d.ts" />
+
+import _driver = require('../driver');
 import _state = require('../state');
 import _memory = require('../../memory');
 import _display = require('../../display');

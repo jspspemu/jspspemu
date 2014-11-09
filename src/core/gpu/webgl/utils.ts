@@ -1,4 +1,6 @@
-﻿var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
+﻿///<reference path="../../../global.d.ts" />
+
+var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
 var mat4x3 = mat4.create();
 
 export class WrappedWebGLUniform {

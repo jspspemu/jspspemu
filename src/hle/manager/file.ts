@@ -1,4 +1,6 @@
-﻿import _vfs = require('../vfs/vfs');
+﻿///<reference path="../../global.d.ts" />
+
+import _vfs = require('../vfs/vfs');
 
 export class Device {
 	cwd: string = '';

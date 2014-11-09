@@ -1,4 +1,4 @@
-﻿///<reference path="../../typings.d.ts" />
+﻿///<reference path="../../global.d.ts" />
 
 import instructions = require('./instructions');
 import _ast = require('./ast_builder');

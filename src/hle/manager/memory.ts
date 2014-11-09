@@ -1,4 +1,6 @@
-﻿enum MemoryPartitions {
+﻿///<reference path="../../global.d.ts" />
+
+enum MemoryPartitions {
     Kernel0 = 0,
     User = 2,
     VolatilePartition = 5,

@@ -1,4 +1,6 @@
-﻿import _thread = require('./thread');
+﻿///<reference path="../../global.d.ts" />
+
+import _thread = require('./thread');
 import _interop = require('./interop');
 import _cpu = require('../../core/cpu');
 

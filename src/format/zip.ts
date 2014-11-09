@@ -1,4 +1,6 @@
-﻿export class ZipEntry {
+﻿///<reference path="../global.d.ts" />
+
+export class ZipEntry {
 	private children: StringDictionary<ZipEntry> = {};
 	zipDirEntry: ZipDirEntry;
 	normalizedName: string;

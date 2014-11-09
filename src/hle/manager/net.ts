@@ -1,4 +1,6 @@
-﻿export interface NetPacket {
+﻿///<reference path="../../global.d.ts" />
+
+export interface NetPacket {
 	port: number;
 	type: string;
 	mac: Uint8Array;

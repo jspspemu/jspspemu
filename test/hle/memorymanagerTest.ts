@@ -1,4 +1,7 @@
-﻿import _manager = require('../../src/hle/manager');
+﻿///<reference path="../global.d.ts" />
+export function ref() { } // Workaround to allow typescript to include this module
+
+import _manager = require('../../src/hle/manager');
 
 import MemoryAnchor = _manager.MemoryAnchor;
 import MemoryPartition = _manager.MemoryPartition;

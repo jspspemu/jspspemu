@@ -1,4 +1,6 @@
-﻿import memory = require('../memory');
+﻿///<reference path="../../global.d.ts" />
+
+import memory = require('../memory');
 import generator = require('./generator');
 import state = require('./state');
 

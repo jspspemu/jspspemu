@@ -1,4 +1,6 @@
-﻿import state = require('./state');
+﻿///<reference path="../../global.d.ts" />
+
+import state = require('./state');
 import icache = require('./icache');
 
 import InstructionCache = icache.InstructionCache;

@@ -1,4 +1,6 @@
-﻿enum PbpMagic {
+﻿///<reference path="../global.d.ts" />
+
+enum PbpMagic {
 	expected = 0x50425000,
 }
 

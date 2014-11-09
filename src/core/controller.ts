@@ -1,4 +1,6 @@
-﻿export interface IPspController {
+﻿///<reference path="../global.d.ts" />
+
+export interface IPspController {
 	startAsync();
 	stopAsync();
 	data: SceCtrlData;
@@ -220,7 +222,7 @@ export enum HtmlKeyCodes {
 	ctrl = 17, alt = 18, pause = 19, caps_lock = 20,
 	escape = 27, space = 32, page_up = 33, page_down = 34,
 	end = 35, home = 36, left = 37, up = 38,
-	right = 39, down = 40, insert = 45, delete = 46,
+	right = 39, down = 40, insert = 45, _delete = 46,
 	k0 = 48, k1 = 49, k2 = 50, k3 = 51,
 	k4 = 52, k5 = 53, k6 = 54, k7 = 55,
 	k8 = 56, k9 = 57, a = 65, b = 66,
@@ -240,5 +242,5 @@ export enum HtmlKeyCodes {
 	f11 = 122, f12 = 123, num_lock = 144, scroll_lock = 145,
 	semi_colon = 186, equal_sign = 187, comma = 188, dash = 189,
 	period = 190, forward_slash = 191, grave_accent = 192, open_bracket = 219,
-	back_slash = 220, close_braket = 221, single_quote = 222,
+	back_slash = 220, close_braket = 221, single_quote = 222
 }
