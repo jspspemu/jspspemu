@@ -18,7 +18,7 @@ Then you can just change .ts files and refresh the page.
 In the project/ folder you can find projects for visual studio and intellij.
 Also you can use any other editor as long as you use "npm start".
 
-![Valhalla Knights screenshot](/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
+![Valhalla Knights screenshot](/data/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
 
 Lastest version have been tested on:
 * Google Chrome 36 (fastest)

@@ -1,6 +1,6 @@
 ﻿@font-face {
     font-family: 'Buttons';
-    src: url('data/buttons.ttf');
+    src: url('buttons.ttf');
 }
 
 html, body {
@@ -105,24 +105,24 @@ body {
 
 #touch_buttons .psp_button#button_up { left: 0em; top:-0.8em;  }
 #touch_buttons .psp_button#button_left { left: -0.8em; top:0em; }
-#touch_buttons .psp_button#button_right { left: +0.8em; top:0em; }
-#touch_buttons .psp_button#button_down { left: 0em; top:+0.8em; }
+#touch_buttons .psp_button#button_right { left: 0.8em; top:0em; }
+#touch_buttons .psp_button#button_down { left: 0em; top:0.8em; }
 
 #touch_buttons .psp_button#button_up_left { left: -1em; top:-1em; font-size:0.8em; }
-#touch_buttons .psp_button#button_up_right { left: +1em; top:-1em; font-size:0.8em; }
-#touch_buttons .psp_button#button_down_left { left: -1em; top:+1em; font-size:0.8em; }
-#touch_buttons .psp_button#button_down_right { left: +1em; top:+1em; font-size:0.8em; }
+#touch_buttons .psp_button#button_up_right { left: 1em; top:-1em; font-size:0.8em; }
+#touch_buttons .psp_button#button_down_left { left: -1em; top:1em; font-size:0.8em; }
+#touch_buttons .psp_button#button_down_right { left: 1em; top:1em; font-size:0.8em; }
 
 #touch_buttons .psp_button#button_triangle { left: 0em; top:-1em;  }
-#touch_buttons .psp_button#button_cross { left: 0em; top:+1em;  }
+#touch_buttons .psp_button#button_cross { left: 0em; top:1em;  }
 #touch_buttons .psp_button#button_square { left: -1em; top:0em;  }
-#touch_buttons .psp_button#button_circle { left: +1em; top:0em;  }
+#touch_buttons .psp_button#button_circle { left: 1em; top:0em;  }
 
 #touch_buttons .psp_button#button_menu { left: -0.0em; top:-1em;  }
 #touch_buttons .psp_button#button_select { left: -0.75em; top:0em;  }
-#touch_buttons .psp_button#button_start { left: +0.75em; top:0em;  }
+#touch_buttons .psp_button#button_start { left: 0.75em; top:0em;  }
 
-#touch_buttons .psp_button#button_l { left: +0em; top:0em;  }
+#touch_buttons .psp_button#button_l { left: 0em; top:0em;  }
 #touch_buttons .psp_button#button_r { left: 9em; top:0em;  }
 
 

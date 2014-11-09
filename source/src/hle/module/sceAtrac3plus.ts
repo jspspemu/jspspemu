@@ -300,8 +300,8 @@ class Atrac3 {
 			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
 				self['window'] = self;
 				if (!self['MediaEngine']) {
-					importScripts('polyfills/promise.js');
-					importScripts('MediaEngine.js');
+					importScripts('source/polyfills/promise.js');
+					importScripts('data/MediaEngine.js');
 					self['MediaEngine'] = MediaEngine;
 				}
 

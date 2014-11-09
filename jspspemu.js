@@ -19726,8 +19726,8 @@ var Atrac3 = (function () {
             outPromise = WorkerTask.executeAsync(function (id, blockData, firstDataChunk) {
                 self['window'] = self;
                 if (!self['MediaEngine']) {
-                    importScripts('polyfills/promise.js');
-                    importScripts('MediaEngine.js');
+                    importScripts('source/polyfills/promise.js');
+                    importScripts('data/MediaEngine.js');
                     self['MediaEngine'] = MediaEngine;
                 }
                 var atrac3Decoder = 'atrac3Decoder_' + id;
