@@ -34,14 +34,18 @@ Then you can just change .ts files and refresh the page.
 In the project/ folder you can find projects for visual studio and intellij.
 Also you can use any other editor as long as you use "npm start".
 
+### Compatibility:
+
 Lastest version have been tested on:
 * Google Chrome 36 (fastest)
 * Opera 23
 * Firefox 31
 * Internet Explorer 11 (no sound)
-* Safari 8
+* Safari 8 (it won't work with prior versions because of the lack of webgl support)
 
 Opera and Chrome performs the best because they use V8 that is lightning fast.
+
+### More information:
 
 You can view the lastest version here (updated from git every push):
 * http://jspspemu.com/
