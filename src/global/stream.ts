@@ -1,4 +1,9 @@
-﻿interface AsyncStream {
+﻿///<reference path="./utils.ts" />
+///<reference path="./int64.ts" />
+///<reference path="./async.ts" />
+///<reference path="./struct.ts" />
+
+interface AsyncStream {
 	name: string;
 	date: Date;
 	size: number;
@@ -22,11 +27,7 @@ class BufferedAsyncStream extends ProxyAsyncStream {
 
 	get name() { return this.stream.name + '+buffered'; }
 
-	private cache = {
-		start: 0,
-		end: 0,
-		data: new ArrayBuffer(0),
-	};
+	private cache = { start: 0, end: 0, data: new ArrayBuffer(0) };
 
 	getCachedEntry(start: number, end: number) {
 		if (start >= this.cache.start && end <= this.cache.end) {
@@ -204,6 +205,7 @@ class Stream {
 	}
 
 	toArrayBuffer() {
+
 		return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
 	}
 

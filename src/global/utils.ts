@@ -1,4 +1,7 @@
 ///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="../../typings/sprintf.d.ts" />
+///<reference path="./array.ts" />
+///<reference path="./math.ts" />
 
 interface NumberDictionary<V> {
     [key: number]: V;

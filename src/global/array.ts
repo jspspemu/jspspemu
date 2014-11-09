@@ -1,4 +1,6 @@
-﻿function identity<T>(a: T) { return a; }
+﻿///<reference path="./math.ts" />
+
+function identity<T>(a: T) { return a; }
 function funcTrue<T>(a: T) { return true; }
 
 interface Array<T> {
@@ -25,7 +27,7 @@ function compareNumbers(a, b) {
 
 Array.prototype.contains = function <T>(item: T) {
 	return (<T[]>this).indexOf(item) >= 0;
-}
+};
 
 Array.prototype.binarySearchValue = function <T>(selector: (item: T) => number) {
 	var array = <T[]>this;

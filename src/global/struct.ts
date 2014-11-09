@@ -1,4 +1,6 @@
-﻿interface IType {
+﻿///<reference path="./stream.ts" />
+
+interface IType {
 	read(stream: Stream, context?: any): any;
 	write(stream: Stream, value: any, context?: any): void;
 	length: number;

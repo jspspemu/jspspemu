@@ -10,7 +10,4 @@
 ///<reference path="../typings/zlib.d.ts" />
 ///<reference path="../typings/jquery/jquery.d.ts" />
 ///<reference path="../typings/underscore/underscore.d.ts" />
-
-
-declare function sprintf(...args: any[]);
-declare function printf(...args: any[]);
+///<reference path="../typings/sprintf.d.ts" />
