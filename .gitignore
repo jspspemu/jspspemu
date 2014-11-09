@@ -45,7 +45,6 @@ build/
 *.pidb
 *.log
 *.scc
-*.iws
 
 # Visual C++ cache files
 ipch/
@@ -184,3 +183,7 @@ node_modules
 /samples/TYRIAN
 /packager/xwalk
 /options.txt
+
+
+*.iws
+*.ide

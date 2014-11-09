@@ -11,8 +11,22 @@ First install node.js >= 0.10: http://nodejs.org/
 Then execute this in the project folder:
 ```
 npm run setup
+```
+
+In the case it fails you can execute commands manually:
+```
+npm -g install typescript
+npm install
+cd source/utils
+npm install
+cd ../..
+```
+
+Then you can start a debug web server that also will compile typescript whenever it changes with this command in the project's folder:
+```
 npm start
 ```
+
 This will compile, watch for changes and start a server at port 8080.
 Then you can just change .ts files and refresh the page.
 In the project/ folder you can find projects for visual studio and intellij.

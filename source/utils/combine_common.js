@@ -146,9 +146,10 @@ fs.writeFileSync(__dirname + '/../jspspemu.js', commonjsFile);
 */
 
 function compileProject(watch, done) {
-	var ARGS = TSC_ARGS;
+    var ARGS = TSC_ARGS;
+    var TSC_CMD = (process.platform == 'win32') ? 'tsc.cmd' : 'tsc';
 	if (watch) ARGS = ['-w'].concat(TSC_ARGS);
-	var tsc_command = child_process.spawn('tsc', ARGS);
+	var tsc_command = child_process.spawn(TSC_CMD, ARGS);
 	//console.log(ARGS);
 	//console.log(tsc_command);
 	///*
