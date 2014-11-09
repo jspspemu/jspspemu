@@ -10,11 +10,11 @@
   "devDependencies": {
 	"mocha-phantomjs": "3.5.0"
   },
-  "homepage": "https://github.com/soywiz/jspspemu",
+  "homepage": "https://github.com/jspspemu/jspspemu",
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git://github.com/soywiz/jspspemu.git"
+    "url": "git://github.com/jspspemu/jspspemu.git"
   },
   "scripts": {
 	"start": "node --harmony utils/http_server.js",

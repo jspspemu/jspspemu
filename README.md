@@ -1,7 +1,7 @@
 jspspemu
 ========
 
-[![Build Status](https://secure.travis-ci.org/soywiz/jspspemu.svg)](http://travis-ci.org/#!/soywiz/jspspemu)
+[![Build Status](https://secure.travis-ci.org/jspspemu/jspspemu.svg)](http://travis-ci.org/#!/jspspemu/jspspemu)
 
 A PSP emulator made using javascript (actually typescript). It works with modern browsers.
 

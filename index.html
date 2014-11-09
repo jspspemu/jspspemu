@@ -86,9 +86,9 @@
 						<!-- Collect the nav links, forms, and other content for toggling -->
 						<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 							<ul class="nav navbar-nav">
-								<li class="active"><a href="http://github.com/soywiz/jspspemu"><span class="glyphicon glyphicon-play"></span> Emulator</a></li>
+								<li class="active"><a href="http://github.com/jspspemu/jspspemu"><span class="glyphicon glyphicon-play"></span> Emulator</a></li>
 								<li><a href="http://blog.jspspemu.com" target="_blank"><span class="fa fa-wordpress"></span> Blog</a></li>
-								<li><a href="http://github.com/soywiz/jspspemu" target="_blank"><span class="fa fa-github"></span> Github</a></li>
+								<li><a href="http://github.com/jspspemu/jspspemu" target="_blank"><span class="fa fa-github"></span> Github</a></li>
 							</ul>
 							<ul class="nav navbar-nav navbar-right">
 								<li><a href="https://www.facebook.com/pspemu" target="_blank"><span class="fa fa-facebook"></span> Facebook</a></li>
@@ -174,7 +174,7 @@
 											loadGithubFromCache();
 										} else {
 											$.ajax({
-												url: 'https://api.github.com/repos/soywiz/jspspemu/commits?page=1&per_page=15&callback=githubapicallback',
+												url: 'https://api.github.com/repos/jspspemu/jspspemu/commits?page=1&per_page=15&callback=githubapicallback',
 												dataType: 'jsonp'
 											}).done(function (response) {
 												localStorage['github_cache'] = JSON.stringify({ response: response, time: Date.now() });
