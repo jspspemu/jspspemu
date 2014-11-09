@@ -5,7 +5,9 @@ jspspemu
 
 A PSP emulator made using javascript (actually typescript). It works with modern browsers.
 
-Building from source:
+![Valhalla Knights screenshot](/data/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
+
+### Building from source:
 
 First install node.js >= 0.10: http://nodejs.org/
 Then execute this in the project folder:
@@ -31,8 +33,6 @@ This will compile, watch for changes and start a server at port 8080.
 Then you can just change .ts files and refresh the page.
 In the project/ folder you can find projects for visual studio and intellij.
 Also you can use any other editor as long as you use "npm start".
-
-![Valhalla Knights screenshot](/data/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
 
 Lastest version have been tested on:
 * Google Chrome 36 (fastest)
