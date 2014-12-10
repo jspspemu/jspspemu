@@ -5432,7 +5432,7 @@ var InstructionAst = (function () {
         return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]);
     };
     InstructionAst.prototype.jalr = function (i) {
-        return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)), ]);
+        return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]);
     };
     InstructionAst.prototype._comp = function (i, fc02, fc3) {
         var fc_unordererd = ((fc02 & 1) != 0);
@@ -5772,7 +5772,7 @@ var InstructionCache = (function () {
                 //console.log(state.thread);
                 //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
                 state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
-                throw (new CpuBreakException());
+                throw new CpuBreakException();
             };
         }
         else {
@@ -25605,6 +25605,7 @@ describe('pspautotests', function () {
     this.timeout(5000);
     var tests = [
         { "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
+        { "cpu/fpu": ["fcr", "fpu"] },
         { "cpu/icache": ["icache"] },
         { "cpu/lsu": ["lsu"] },
         { "string": ["string"] },
@@ -25888,8 +25889,8 @@ describe('cpu running', function () {
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix));
     });
     it('opcode mult', function () {
-        assertProgram("mult", { "$1": 7, "$2": 9 }, ["mult $1, $2", ], { "LO": 7 * 9, "HI": 0 });
-        assertProgram("mult", { "$1": -1, "$2": 9 }, ["mult $1, $2", ], { "LO": -1 * 9, "HI": -1 });
+        assertProgram("mult", { "$1": 7, "$2": 9 }, ["mult $1, $2",], { "LO": 7 * 9, "HI": 0 });
+        assertProgram("mult", { "$1": -1, "$2": 9 }, ["mult $1, $2",], { "LO": -1 * 9, "HI": -1 });
     });
 });
 

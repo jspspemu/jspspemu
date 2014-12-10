@@ -19,7 +19,7 @@ describe('pspautotests', function () {
 		//{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
 		//{ "audio/sceaudio": ["datalen", "output", "reserve"] },
 		{ "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
-		//{ "cpu/fpu": ["fcr", "fpu"] },
+		{ "cpu/fpu": ["fcr", "fpu"] },
 		{ "cpu/icache": ["icache"] },
 		{ "cpu/lsu": ["lsu"] },
 		//{ "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector"] },

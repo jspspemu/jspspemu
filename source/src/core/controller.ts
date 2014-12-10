@@ -12,7 +12,7 @@ export class SceCtrlData {
 	buttons: PspCtrlButtons = PspCtrlButtons.none;
 	lx: number = 0;
 	ly: number = 0;
-	_rsrv: number[] = [0, 0, 0, 0, 0]
+	_rsrv: number[] = [0, 0, 0, 0, 0];
 
     constructor() {
 		this.x = 0;

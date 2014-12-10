@@ -30,13 +30,13 @@ export class InstructionCache {
 		if (item) return item;
 
 		if (address == CpuSpecialAddresses.EXIT_THREAD) {
-			return this.cache[address] = function (state: CpuState) {
+			return this.cache[address] = (state: CpuState) => {
 				//console.log(state);
 				//console.log(state.thread);
 				//console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
 
 				state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
-				throw (new CpuBreakException());
+				throw new CpuBreakException();
 			};
 		} else {
 			return this.cache[address] = this.functionGenerator.create(address);
