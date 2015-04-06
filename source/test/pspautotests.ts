@@ -3,10 +3,9 @@ export function ref() { } // Workaround to allow typescript to include this modu
 
 import _emulator = require('../src/emulator');
 import _vfs = require('../src/hle/vfs');
+import difflib = require('../src/util/difflib');
 
 import Emulator = _emulator.Emulator;
-
-declare var difflib: any;
 
 var console = logger.named('');
 

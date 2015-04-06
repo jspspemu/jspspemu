@@ -19,9 +19,9 @@ if (!file) {
     var emu = new Emulator();
 
     emu.loadExecuteAndWaitAsync(new MemoryAsyncStream(toArrayBuffer(require('fs').readFileSync(file))), 'cube.iso', function() {
-        emu.emulatorVfs.onWrite.add(function(data) {
+        emu.context.onStdout.add(function(data) {
             process.stdout.write(data);
-        })
+        });
     }).then(function(output) {
         //console.log(output);
     });

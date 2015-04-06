@@ -5,12 +5,11 @@ var exported:any = {};
 var l = exported;
 
 function p(b, e) {
-    var a = b.split("."),
-        c = l;
+    var a = b.split(".");
+    var c = l;
     !(a[0] in c) && c.execScript && c.execScript("var " + a[0]);
     for (var d; a.length && (d = a.shift());) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
-};
-var q = "undefined" !== typeof Uint8Array && "undefined" !== typeof Uint16Array && "undefined" !== typeof Uint32Array && "undefined" !== typeof DataView;
+}
 
 function t(b) {
     var e = b.length,
@@ -19,7 +18,7 @@ function t(b) {
         d, f, g, h, k, m, r, n, s, J;
     for (n = 0; n < e; ++n) b[n] > a && (a = b[n]), b[n] < c && (c = b[n]);
     d = 1 << a;
-    f = new(q ? Uint32Array : Array)(d);
+    f = new Uint32Array(d);
     g = 1;
     h = 0;
     for (k = 2; g <= a;) {
@@ -42,7 +41,7 @@ function u(b, e) {
     this.g = [];
     this.h = 32768;
     this.c = this.f = this.d = this.k = 0;
-    this.input = q ? new Uint8Array(b) : b;
+    this.input = new Uint8Array(b);
     this.l = !1;
     this.i = v;
     this.q = !1;
@@ -50,11 +49,11 @@ function u(b, e) {
     switch (this.i) {
         case w:
             this.a = 32768;
-            this.b = new(q ? Uint8Array : Array)(32768 + this.h + 258);
+            this.b = new Uint8Array(32768 + this.h + 258);
             break;
         case v:
             this.a = 0;
-            this.b = new(q ? Uint8Array : Array)(this.h);
+            this.b = new Uint8Array(this.h);
             this.e = this.v;
             this.m = this.s;
             this.j = this.t;
@@ -94,9 +93,7 @@ u.prototype.u = function() {
                                g > c.length;) {
                             m = k - d;
                             g -= m;
-                            if (q) c.set(e.subarray(a, a + m), d), d += m, a += m;
-                            else
-                                for (; m--;) c[d++] = e[a++];
+                            c.set(e.subarray(a, a + m), d), d += m, a += m;
                             this.a = d;
                             c = this.e();
                             d = this.a
@@ -110,9 +107,7 @@ u.prototype.u = function() {
                     default:
                         throw Error("invalid inflate mode");
                 }
-                if (q) c.set(e.subarray(a, a + g), d), d += g, a += g;
-                else
-                    for (; g--;) c[d++] = e[a++];
+                c.set(e.subarray(a, a + g), d), d += g, a += g;
                 this.d = a;
                 this.a = d;
                 this.b = c;
@@ -130,23 +125,23 @@ u.prototype.u = function() {
     return this.m()
 };
 var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15],
-    C = q ? new Uint16Array(B) : B,
+    C = new Uint16Array(B),
     D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258],
-    E = q ? new Uint16Array(D) : D,
+    E = new Uint16Array(D),
     F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0],
-    G = q ? new Uint8Array(F) : F,
+    G = new Uint8Array(F),
     H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577],
-    I = q ? new Uint16Array(H) : H,
+    I = new Uint16Array(H),
     K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13,
         13
     ],
-    L = q ? new Uint8Array(K) : K,
-    M = new(q ? Uint8Array : Array)(288),
+    L = new Uint8Array(K),
+    M = new Uint8Array(288),
     N, O;
 N = 0;
 for (O = M.length; N < O; ++N) M[N] = 143 >= N ? 8 : 255 >= N ? 9 : 279 >= N ? 7 : 8;
 var y = t(M),
-    P = new(q ? Uint8Array : Array)(30),
+    P = new Uint8Array(30),
     Q, R;
 Q = 0;
 for (R = P.length; Q < R; ++Q) P[Q] = 5;
@@ -200,16 +195,12 @@ function A(b) {
     var a = x(b, 5) + 257,
         c = x(b, 5) + 1,
         d = x(b, 4) + 4,
-        f = new(q ? Uint8Array : Array)(C.length),
+        f = new Uint8Array(C.length),
         g, h, k, m;
     for (m = 0; m < d; ++m) f[C[m]] = x(b, 3);
-    if (!q) {
-        m = d;
-        for (d = f.length; m < d; ++m) f[C[m]] = 0
-    }
     g = t(f);
-    h = new(q ? Uint8Array : Array)(a);
-    k = new(q ? Uint8Array : Array)(c);
+    h = new Uint8Array(a);
+    k = new Uint8Array(c);
     b.p = 0;
     b.j(t(e.call(b, a, g, h)), t(e.call(b, c, g, k)))
 }
@@ -252,19 +243,13 @@ u.prototype.t = function(b, e) {
     this.a = c
 };
 u.prototype.e = function() {
-    var b = new(q ? Uint8Array : Array)(this.a - 32768),
+    var b = new Uint8Array(this.a - 32768),
         e = this.a - 32768,
         a, c, d = this.b;
-    if (q) b.set(d.subarray(32768, b.length));
-    else {
-        a = 0;
-        for (c = b.length; a < c; ++a) b[a] = d[a + 32768]
-    }
+    b.set(d.subarray(32768, b.length));
     this.g.push(b);
     this.k += b.length;
-    if (q) d.set(d.subarray(e, e + 32768));
-    else
-        for (a = 0; 32768 > a; ++a) d[a] = d[e + a];
+    d.set(d.subarray(e, e + 32768));
     this.a = 32768;
     return d
 };
@@ -274,16 +259,16 @@ u.prototype.v = function(b) {
         h = this.b;
     b && ("number" === typeof b.o && (a = b.o), "number" === typeof b.r && (a += b.r));
     2 > a ? (c = (g.length - this.d) / this.n[2], f = 258 * (c / 2) | 0, d = f < h.length ? h.length + f : h.length << 1) : d = h.length * a;
-    q ? (e = new Uint8Array(d), e.set(h)) : e = h;
+    e = new Uint8Array(d); e.set(h);
     return this.b = e
 };
 u.prototype.m = function() {
     var b = 0,
         e = this.b,
         a = this.g,
-        c, d = new(q ? Uint8Array : Array)(this.k + (this.a - 32768)),
+        c, d = new Uint8Array(this.k + (this.a - 32768)),
         f, g, h, k;
-    if (0 === a.length) return q ? this.b.subarray(32768, this.a) : this.b.slice(32768, this.a);
+    if (0 === a.length) return this.b.subarray(32768, this.a);
     f = 0;
     for (g = a.length; f < g; ++f) {
         c = a[f];
@@ -297,7 +282,7 @@ u.prototype.m = function() {
 };
 u.prototype.s = function() {
     var b, e = this.a;
-    q ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
+    true ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
     return this.buffer = b
 };
 p("Zlib.RawInflate", u);

@@ -1,0 +1,25 @@
+<html>
+<head></head>
+<body>
+<script type="text/javascript" src="jspspemu.js"></script>
+<div id="output" style="font: 14px 'Lucida Console', Monaco, monospace;white-space: nowrap;"></div>
+<script type="text/javascript">
+    var Emulator = require('src/emulator').Emulator;
+    var MemoryAsyncStream = require('src/core/stream').MemoryAsyncStream2;
+    Emulator.disableLog();
+    var emu = new Emulator();
+
+    UrlAsyncStream.fromUrlAsync('data/benchmark/benchmark.prx').then(function(stream) {
+	    return emu.loadExecuteAndWaitAsync(stream, 'cube.iso', function() {
+	        emu.context.onStdout.add(function(data) {
+	        	output.innerText = output.innerText + data;
+	        	//console.log(data);
+	            //process.stdout.write(data);
+	        });
+	    }).then(function(output) {
+	        //console.log(output);
+	    });
+    });
+</script>
+</body>
+</html>

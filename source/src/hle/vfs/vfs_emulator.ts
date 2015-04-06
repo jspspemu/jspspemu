@@ -1,9 +1,14 @@
 ﻿import _vfs = require('./vfs'); _vfs.Vfs;
 
+import _context = require('../../context');
+
 export class EmulatorVfs extends _vfs.Vfs {
 	output = '';
 	screenshot = null;
-	onWrite = new Signal<string>();
+
+	constructor(public context:_context.EmulatorContext) {
+		super();
+	}
 
 	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream) {
 		switch (command) {
@@ -14,7 +19,7 @@ export class EmulatorVfs extends _vfs.Vfs {
 			case EmulatorDevclEnum.SendOutput:
 				var str = input.readString(input.length);
 				this.output += str;
-				this.onWrite.dispatch(str);
+				this.context.onStdout.dispatch(str);
 				if (typeof $ != 'undefined') $('#output').append(str);
 				//console.info();
 				break;

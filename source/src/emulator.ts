@@ -137,7 +137,7 @@ export class Emulator {
 			this.moduleManager = new ModuleManager(this.context);
 			this.netManager = new NetManager();
 
-			this.emulatorVfs = new EmulatorVfs();
+			this.emulatorVfs = new EmulatorVfs(this.context);
 			this.ms0Vfs = new MountableVfs();
 			this.storageVfs = new StorageVfs('psp_storage');
 			this.dropboxVfs = new DropboxVfs();

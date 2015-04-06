@@ -2971,6 +2971,8 @@ $(window).load(function () {
 "src/context": function(module, exports, require) {
 var EmulatorContext = (function () {
     function EmulatorContext() {
+        this.onStdout = new Signal();
+        this.onStderr = new Signal();
         this.container = {};
         this.gameTitle = 'unknown';
         this.gameId = 'unknown';
@@ -13195,7 +13197,7 @@ var Emulator = (function () {
             _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
             _this.moduleManager = new ModuleManager(_this.context);
             _this.netManager = new NetManager();
-            _this.emulatorVfs = new EmulatorVfs();
+            _this.emulatorVfs = new EmulatorVfs(_this.context);
             _this.ms0Vfs = new MountableVfs();
             _this.storageVfs = new StorageVfs('psp_storage');
             _this.dropboxVfs = new DropboxVfs();
@@ -15123,19 +15125,18 @@ exports.ZipDirEntry = ZipDirEntry;
 var exported = {};
 var l = exported;
 function p(b, e) {
-    var a = b.split("."), c = l;
+    var a = b.split(".");
+    var c = l;
     !(a[0] in c) && c.execScript && c.execScript("var " + a[0]);
     for (var d; a.length && (d = a.shift());)
         !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {};
 }
-;
-var q = "undefined" !== typeof Uint8Array && "undefined" !== typeof Uint16Array && "undefined" !== typeof Uint32Array && "undefined" !== typeof DataView;
 function t(b) {
     var e = b.length, a = 0, c = Number.POSITIVE_INFINITY, d, f, g, h, k, m, r, n, s, J;
     for (n = 0; n < e; ++n)
         b[n] > a && (a = b[n]), b[n] < c && (c = b[n]);
     d = 1 << a;
-    f = new (q ? Uint32Array : Array)(d);
+    f = new Uint32Array(d);
     g = 1;
     h = 0;
     for (k = 2; g <= a;) {
@@ -15161,7 +15162,7 @@ function u(b, e) {
     this.g = [];
     this.h = 32768;
     this.c = this.f = this.d = this.k = 0;
-    this.input = q ? new Uint8Array(b) : b;
+    this.input = new Uint8Array(b);
     this.l = !1;
     this.i = v;
     this.q = !1;
@@ -15170,11 +15171,11 @@ function u(b, e) {
     switch (this.i) {
         case w:
             this.a = 32768;
-            this.b = new (q ? Uint8Array : Array)(32768 + this.h + 258);
+            this.b = new Uint8Array(32768 + this.h + 258);
             break;
         case v:
             this.a = 0;
-            this.b = new (q ? Uint8Array : Array)(this.h);
+            this.b = new Uint8Array(this.h);
             this.e = this.v;
             this.m = this.s;
             this.j = this.t;
@@ -15208,11 +15209,7 @@ u.prototype.u = function () {
                         for (; d + g > c.length;) {
                             m = k - d;
                             g -= m;
-                            if (q)
-                                c.set(e.subarray(a, a + m), d), d += m, a += m;
-                            else
-                                for (; m--;)
-                                    c[d++] = e[a++];
+                            c.set(e.subarray(a, a + m), d), d += m, a += m;
                             this.a = d;
                             c = this.e();
                             d = this.a;
@@ -15227,11 +15224,7 @@ u.prototype.u = function () {
                     default:
                         throw Error("invalid inflate mode");
                 }
-                if (q)
-                    c.set(e.subarray(a, a + g), d), d += g, a += g;
-                else
-                    for (; g--;)
-                        c[d++] = e[a++];
+                c.set(e.subarray(a, a + g), d), d += g, a += g;
                 this.d = a;
                 this.a = d;
                 this.b = c;
@@ -15248,11 +15241,11 @@ u.prototype.u = function () {
     }
     return this.m();
 };
-var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], C = q ? new Uint16Array(B) : B, D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258], E = q ? new Uint16Array(D) : D, F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0], G = q ? new Uint8Array(F) : F, H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577], I = q ? new Uint16Array(H) : H, K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13], L = q ? new Uint8Array(K) : K, M = new (q ? Uint8Array : Array)(288), N, O;
+var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], C = new Uint16Array(B), D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258], E = new Uint16Array(D), F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0], G = new Uint8Array(F), H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577], I = new Uint16Array(H), K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13], L = new Uint8Array(K), M = new Uint8Array(288), N, O;
 N = 0;
 for (O = M.length; N < O; ++N)
     M[N] = 143 >= N ? 8 : 255 >= N ? 9 : 279 >= N ? 7 : 8;
-var y = t(M), P = new (q ? Uint8Array : Array)(30), Q, R;
+var y = t(M), P = new Uint8Array(30), Q, R;
 Q = 0;
 for (R = P.length; Q < R; ++Q)
     P[Q] = 5;
@@ -15305,17 +15298,12 @@ function A(b) {
         this.p = d;
         return c;
     }
-    var a = x(b, 5) + 257, c = x(b, 5) + 1, d = x(b, 4) + 4, f = new (q ? Uint8Array : Array)(C.length), g, h, k, m;
+    var a = x(b, 5) + 257, c = x(b, 5) + 1, d = x(b, 4) + 4, f = new Uint8Array(C.length), g, h, k, m;
     for (m = 0; m < d; ++m)
         f[C[m]] = x(b, 3);
-    if (!q) {
-        m = d;
-        for (d = f.length; m < d; ++m)
-            f[C[m]] = 0;
-    }
     g = t(f);
-    h = new (q ? Uint8Array : Array)(a);
-    k = new (q ? Uint8Array : Array)(c);
+    h = new Uint8Array(a);
+    k = new Uint8Array(c);
     b.p = 0;
     b.j(t(e.call(b, a, g, h)), t(e.call(b, c, g, k)));
 }
@@ -15362,21 +15350,11 @@ u.prototype.t = function (b, e) {
     this.a = c;
 };
 u.prototype.e = function () {
-    var b = new (q ? Uint8Array : Array)(this.a - 32768), e = this.a - 32768, a, c, d = this.b;
-    if (q)
-        b.set(d.subarray(32768, b.length));
-    else {
-        a = 0;
-        for (c = b.length; a < c; ++a)
-            b[a] = d[a + 32768];
-    }
+    var b = new Uint8Array(this.a - 32768), e = this.a - 32768, a, c, d = this.b;
+    b.set(d.subarray(32768, b.length));
     this.g.push(b);
     this.k += b.length;
-    if (q)
-        d.set(d.subarray(e, e + 32768));
-    else
-        for (a = 0; 32768 > a; ++a)
-            d[a] = d[e + a];
+    d.set(d.subarray(e, e + 32768));
     this.a = 32768;
     return d;
 };
@@ -15384,13 +15362,14 @@ u.prototype.v = function (b) {
     var e, a = this.input.length / this.d + 1 | 0, c, d, f, g = this.input, h = this.b;
     b && ("number" === typeof b.o && (a = b.o), "number" === typeof b.r && (a += b.r));
     2 > a ? (c = (g.length - this.d) / this.n[2], f = 258 * (c / 2) | 0, d = f < h.length ? h.length + f : h.length << 1) : d = h.length * a;
-    q ? (e = new Uint8Array(d), e.set(h)) : e = h;
+    e = new Uint8Array(d);
+    e.set(h);
     return this.b = e;
 };
 u.prototype.m = function () {
-    var b = 0, e = this.b, a = this.g, c, d = new (q ? Uint8Array : Array)(this.k + (this.a - 32768)), f, g, h, k;
+    var b = 0, e = this.b, a = this.g, c, d = new Uint8Array(this.k + (this.a - 32768)), f, g, h, k;
     if (0 === a.length)
-        return q ? this.b.subarray(32768, this.a) : this.b.slice(32768, this.a);
+        return this.b.subarray(32768, this.a);
     f = 0;
     for (g = a.length; f < g; ++f) {
         c = a[f];
@@ -15406,7 +15385,7 @@ u.prototype.m = function () {
 };
 u.prototype.s = function () {
     var b, e = this.a;
-    q ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
+    true ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
     return this.buffer = b;
 };
 p("Zlib.RawInflate", u);
@@ -18536,7 +18515,7 @@ var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
 _manager.Thread;
 var FileOpenFlags = _vfs.FileOpenFlags;
-var console = logger.named('module.IoFileMgrForUser');
+var log = logger.named('module.IoFileMgrForUser');
 var IoFileMgrForUser = (function () {
     function IoFileMgrForUser(context) {
         var _this = this;
@@ -18552,25 +18531,25 @@ var IoFileMgrForUser = (function () {
             return _this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
                 var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
                 if (result == 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */) {
-                    console.error(str, result);
+                    log.error(str, result);
                 }
                 else {
-                    console.info(str, result);
+                    log.info(str, result);
                 }
                 return result;
             });
         });
         this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
+            log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
             return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
                 var file = _this.getFileById(fileId);
                 file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
-                console.info('-->', fileId);
+                log.info('-->', fileId);
                 return fileId;
             });
         });
         this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
-            console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
@@ -18578,30 +18557,32 @@ var IoFileMgrForUser = (function () {
             return 0;
         });
         this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
-            console.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
+            log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
             return 0;
         });
         this.sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
-            console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
+            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
             _this.fileUids.remove(fileId);
             return 0;
         });
         this.sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, function (fileId, input) {
             if (fileId < 3) {
-                console.log('STD[' + fileId + ']', input.readString(input.length));
+                var str = input.readString(input.length);
+                log.log('STD[' + fileId + ']', str);
+                _this.context.onStdout.dispatch(str);
                 return 0;
             }
             else {
                 var file = _this.getFileById(fileId);
                 return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
-                    console.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
+                    log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
                     file.cursor += writtenCount;
                     return writtenCount;
                 }).catch(function (e) {
-                    console.error(e);
+                    log.error(e);
                     return 2147614721 /* ERROR_ERROR */;
                 });
             }
@@ -18633,13 +18614,13 @@ var IoFileMgrForUser = (function () {
             var file = _this.getFileById(fileId);
             if (file.asyncResult) {
                 if (DebugOnce('sceIoPollAsync', 100))
-                    console.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
+                    log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
                 resultPointer.writeInt64(file.asyncResult);
                 return 0;
             }
             else {
                 if (DebugOnce('sceIoPollAsync', 100))
-                    console.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+                    log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
                 resultPointer.writeInt64(Integer64.fromInt(0));
                 return 1;
             }
@@ -18652,7 +18633,7 @@ var IoFileMgrForUser = (function () {
             try {
                 return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
                     var stat2 = _this._vfsStatToSceIoStat(stat);
-                    console.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
+                    log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
                     if (sceIoStatPointer) {
                         sceIoStatPointer.position = 0;
                         _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
@@ -18661,18 +18642,18 @@ var IoFileMgrForUser = (function () {
                 }).catch(function (error) { return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */; });
             }
             catch (e) {
-                console.error(e);
+                log.error(e);
                 return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
             }
         });
         this.sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
-            console.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
+            log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
             try {
                 _this.context.fileManager.chdir(path);
                 return 0;
             }
             catch (e) {
-                console.error(e);
+                log.error(e);
                 return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
             }
         });
@@ -18691,16 +18672,16 @@ var IoFileMgrForUser = (function () {
             return result;
         });
         this.sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, function (path, accessMode) {
-            console.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
+            log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
             return 0;
         });
         this.sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (path) {
-            console.log('sceIoDopen("' + path + '")');
+            log.log('sceIoDopen("' + path + '")');
             return _this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
-                console.log('opened directory "' + path + '"');
+                log.log('opened directory "' + path + '"');
                 return _this.directoryUids.allocate(directory);
             }).catch(function (error) {
-                console.error(error);
+                log.error(error);
                 return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
             });
         });
@@ -18739,7 +18720,7 @@ var IoFileMgrForUser = (function () {
         return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
             return _this.fileUids.allocate(file);
         }).catch(function (e) {
-            console.error('Not found', filename, e);
+            log.error('Not found', filename, e);
             return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
         });
     };
@@ -18747,23 +18728,310 @@ var IoFileMgrForUser = (function () {
         thread.state.LO = fileId;
         if (!this.fileUids.has(fileId)) {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                console.info('_sceIoWaitAsyncCB', fileId, 'file not found');
+                log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
             return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
         }
         var file = this.getFileById(fileId);
         if (file.asyncOperation) {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
+                log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
             return file.asyncOperation.then(function (result) {
                 if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                    console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
+                    log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
                 resultPointer.writeInt64(result);
                 return 0;
             });
         }
         else {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
+                log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
+            resultPointer.writeInt64(Integer64.fromNumber(0));
+            return Promise.resolve(1);
+        }
+    };
+    IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
+        var stat2 = new _structs.SceIoStat();
+        stat2.mode = 0;
+        stat2.size = stat.size;
+        stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
+        stat2.timeLastAccess = _structs.ScePspDateTime.fromDate(stat.timeLastAccess);
+        stat2.timeLastModification = _structs.ScePspDateTime.fromDate(stat.timeLastModification);
+        stat2.deviceDependentData[0] = stat.dependentData0 || 0;
+        stat2.deviceDependentData[1] = stat.dependentData1 || 0;
+        stat2.attributes = 0;
+        if (stat.isDirectory) {
+            stat2.mode = 0x1000;
+            stat2.attributes |= 16 /* Directory */;
+            stat2.attributes |= 4 /* CanRead */;
+        }
+        else {
+            stat2.mode = 0x2000;
+            stat2.attributes |= 32 /* File */;
+            stat2.attributes |= 1 /* CanExecute */;
+            stat2.attributes |= 4 /* CanRead */;
+            stat2.attributes |= 2 /* CanWrite */;
+        }
+        return stat2;
+    };
+    IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
+        var file = this.getFileById(fileId);
+        switch (whence) {
+            case 0 /* Set */:
+                file.cursor = 0 + offset;
+                break;
+            case 1 /* Cursor */:
+                file.cursor = file.cursor + offset;
+                break;
+            case 2 /* End */:
+                file.cursor = file.entry.size + offset;
+                break;
+        }
+        return file.cursor;
+    };
+    return IoFileMgrForUser;
+})();
+exports.IoFileMgrForUser = IoFileMgrForUser;
+
+},
+"src/hle/module/iofilemgr/iofilemgrforuser": function(module, exports, require) {
+var _utils = require('../../utils');
+var createNativeFunction = _utils.createNativeFunction;
+var _vfs = require('../../vfs');
+var _structs = require('../../structs');
+var SceKernelErrors = require('../../SceKernelErrors');
+var _manager = require('../../manager');
+_manager.Thread;
+var FileOpenFlags = _vfs.FileOpenFlags;
+var log = logger.named('module.IoFileMgrForUser');
+var IoFileMgrForUser = (function () {
+    function IoFileMgrForUser(context) {
+        var _this = this;
+        this.context = context;
+        this.sceIoDevctl = createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, function (deviceName, command, inputPointer, inputLength, outputPointer, outputLength) {
+            var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
+            var output = _this.context.memory.getPointerStream(outputPointer, outputLength);
+            return _this.context.fileManager.devctlAsync(deviceName, command, input, output);
+        }, { tryCatch: false });
+        this.fileUids = new UidCollection(3);
+        this.directoryUids = new UidCollection(1);
+        this.sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
+            return _this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
+                var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
+                if (result == 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */) {
+                    log.error(str, result);
+                }
+                else {
+                    log.info(str, result);
+                }
+                return result;
+            });
+        });
+        this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
+            log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
+            return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
+                var file = _this.getFileById(fileId);
+                file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+                log.info('-->', fileId);
+                return fileId;
+            });
+        });
+        this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
+            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+            var file = _this.getFileById(fileId);
+            if (file)
+                file.close();
+            file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
+            return 0;
+        });
+        this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
+            log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
+            return 0;
+        });
+        this.sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
+            var file = _this.getFileById(fileId);
+            if (file)
+                file.close();
+            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
+            _this.fileUids.remove(fileId);
+            return 0;
+        });
+        this.sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, function (fileId, input) {
+            if (fileId < 3) {
+                var str = input.readString(input.length);
+                log.log('STD[' + fileId + ']', str);
+                _this.context.onStdout.dispatch(str);
+                return 0;
+            }
+            else {
+                var file = _this.getFileById(fileId);
+                return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
+                    log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
+                    file.cursor += writtenCount;
+                    return writtenCount;
+                }).catch(function (e) {
+                    log.error(e);
+                    return 2147614721 /* ERROR_ERROR */;
+                });
+            }
+        });
+        this.sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
+            var file = _this.getFileById(fileId);
+            return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+                file.cursor += readedData.byteLength;
+                _this.context.memory.writeBytes(outputPointer, readedData);
+                return readedData.byteLength;
+            });
+        });
+        this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, function (thread, fileId, outputPointer, outputLength) {
+            var file = _this.getFileById(fileId);
+            file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+                file.cursor += readedData.byteLength;
+                _this.context.memory.writeBytes(outputPointer, readedData);
+                return Integer64.fromNumber(readedData.byteLength);
+            }));
+            return 0;
+        });
+        this.sceIoWaitAsync = createNativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+        });
+        this.sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+        });
+        this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            var file = _this.getFileById(fileId);
+            if (file.asyncResult) {
+                if (DebugOnce('sceIoPollAsync', 100))
+                    log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
+                resultPointer.writeInt64(file.asyncResult);
+                return 0;
+            }
+            else {
+                if (DebugOnce('sceIoPollAsync', 100))
+                    log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+                resultPointer.writeInt64(Integer64.fromInt(0));
+                return 1;
+            }
+        });
+        this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
+            if (sceIoStatPointer) {
+                sceIoStatPointer.position = 0;
+                _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+            }
+            try {
+                return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
+                    var stat2 = _this._vfsStatToSceIoStat(stat);
+                    log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
+                    if (sceIoStatPointer) {
+                        sceIoStatPointer.position = 0;
+                        _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+                    }
+                    return 0;
+                }).catch(function (error) { return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */; });
+            }
+            catch (e) {
+                log.error(e);
+                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+            }
+        });
+        this.sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
+            log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
+            try {
+                _this.context.fileManager.chdir(path);
+                return 0;
+            }
+            catch (e) {
+                log.error(e);
+                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+            }
+        });
+        this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
+            var file = _this.getFileById(fileId);
+            var result = _this._seek(fileId, offset.getNumber(), whence);
+            file.setAsyncOperationNow(Integer64.fromNumber(result));
+            return 0;
+        });
+        this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
+            var result = _this._seek(fileId, offset.getNumber(), whence);
+            return Integer64.fromNumber(result);
+        });
+        this.sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
+            var result = _this._seek(fileId, offset, whence);
+            return result;
+        });
+        this.sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, function (path, accessMode) {
+            log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
+            return 0;
+        });
+        this.sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (path) {
+            log.log('sceIoDopen("' + path + '")');
+            return _this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
+                log.log('opened directory "' + path + '"');
+                return _this.directoryUids.allocate(directory);
+            }).catch(function (error) {
+                log.error(error);
+                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+            });
+        });
+        this.sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
+            if (!_this.directoryUids.has(fileId))
+                return -1;
+            _this.directoryUids.get(fileId).close();
+            _this.directoryUids.remove(fileId);
+            return 0;
+        });
+        this.sceIoDread = createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, function (fileId, hleIoDirentPtr) {
+            if (!_this.directoryUids.has(fileId))
+                return -1;
+            var directory = _this.directoryUids.get(fileId);
+            if (directory.left > 0) {
+                var stat = directory.read();
+                var hleIoDirent = new _structs.HleIoDirent();
+                hleIoDirent.name = stat.name;
+                hleIoDirent.stat = _this._vfsStatToSceIoStat(stat);
+                hleIoDirent.privateData = 0;
+                _structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
+            }
+            return directory.left;
+        });
+        this.sceIoChangeAsyncPriority = createNativeFunction(0xB293727F, 150, 'int', 'int/int', this, function (fileId, priority) {
+            return 0;
+        });
+    }
+    IoFileMgrForUser.prototype.getFileById = function (id) {
+        if (!this.fileUids.has(id))
+            throw (new SceKernelException(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */));
+        return this.fileUids.get(id);
+    };
+    IoFileMgrForUser.prototype._sceIoOpenAsync = function (filename, flags, mode) {
+        var _this = this;
+        return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
+            return _this.fileUids.allocate(file);
+        }).catch(function (e) {
+            log.error('Not found', filename, e);
+            return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+        });
+    };
+    IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
+        thread.state.LO = fileId;
+        if (!this.fileUids.has(fileId)) {
+            if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
+            return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
+        }
+        var file = this.getFileById(fileId);
+        if (file.asyncOperation) {
+            if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
+            return file.asyncOperation.then(function (result) {
+                if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                    log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
+                resultPointer.writeInt64(result);
+                return 0;
+            });
+        }
+        else {
+            if (DebugOnce('_sceIoWaitAsyncCB', 100))
+                log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
             resultPointer.writeInt64(Integer64.fromNumber(0));
             return Promise.resolve(1);
         }
@@ -23468,11 +23736,11 @@ var _vfs = require('./vfs');
 _vfs.Vfs;
 var EmulatorVfs = (function (_super) {
     __extends(EmulatorVfs, _super);
-    function EmulatorVfs() {
-        _super.apply(this, arguments);
+    function EmulatorVfs(context) {
+        _super.call(this);
+        this.context = context;
         this.output = '';
         this.screenshot = null;
-        this.onWrite = new Signal();
     }
     EmulatorVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
@@ -23483,7 +23751,7 @@ var EmulatorVfs = (function (_super) {
             case 2 /* SendOutput */:
                 var str = input.readString(input.length);
                 this.output += str;
-                this.onWrite.dispatch(str);
+                this.context.onStdout.dispatch(str);
                 if (typeof $ != 'undefined')
                     $('#output').append(str);
                 break;
@@ -24124,6 +24392,358 @@ var IndentStringGenerator = (function () {
 module.exports = IndentStringGenerator;
 
 },
+"src/util/difflib": function(module, exports, require) {
+var __whitespace = { " ": true, "\t": true, "\n": true, "\f": true, "\r": true };
+var difflib = {
+    defaultJunkFunction: function (c) {
+        return __whitespace.hasOwnProperty(c);
+    },
+    stripLinebreaks: function (str) {
+        return str.replace(/^[\n\r]*|[\n\r]*$/g, "");
+    },
+    stringAsLines: function (str) {
+        var lfpos = str.indexOf("\n");
+        var crpos = str.indexOf("\r");
+        var linebreak = ((lfpos > -1 && crpos > -1) || crpos < 0) ? "\n" : "\r";
+        var lines = str.split(linebreak);
+        for (var i = 0; i < lines.length; i++) {
+            lines[i] = difflib.stripLinebreaks(lines[i]);
+        }
+        return lines;
+    },
+    __reduce: function (func, list, initial) {
+        if (initial != null) {
+            var value = initial;
+            var idx = 0;
+        }
+        else if (list) {
+            var value = list[0];
+            var idx = 1;
+        }
+        else {
+            return null;
+        }
+        for (; idx < list.length; idx++) {
+            value = func(value, list[idx]);
+        }
+        return value;
+    },
+    __ntuplecomp: function (a, b) {
+        var mlen = Math.max(a.length, b.length);
+        for (var i = 0; i < mlen; i++) {
+            if (a[i] < b[i])
+                return -1;
+            if (a[i] > b[i])
+                return 1;
+        }
+        return a.length == b.length ? 0 : (a.length < b.length ? -1 : 1);
+    },
+    __calculate_ratio: function (matches, length) {
+        return length ? 2.0 * matches / length : 1.0;
+    },
+    __isindict: function (dict) {
+        return function (key) {
+            return dict.hasOwnProperty(key);
+        };
+    },
+    __dictget: function (dict, key, defaultValue) {
+        return dict.hasOwnProperty(key) ? dict[key] : defaultValue;
+    },
+    SequenceMatcher: function (a, b, isjunk) {
+        if (isjunk === void 0) { isjunk = undefined; }
+        this.set_seqs = function (a, b) {
+            this.set_seq1(a);
+            this.set_seq2(b);
+        };
+        this.set_seq1 = function (a) {
+            if (a == this.a)
+                return;
+            this.a = a;
+            this.matching_blocks = this.opcodes = null;
+        };
+        this.set_seq2 = function (b) {
+            if (b == this.b)
+                return;
+            this.b = b;
+            this.matching_blocks = this.opcodes = this.fullbcount = null;
+            this.__chain_b();
+        };
+        this.__chain_b = function () {
+            var b = this.b;
+            var n = b.length;
+            var b2j = this.b2j = {};
+            var populardict = {};
+            for (var i = 0; i < b.length; i++) {
+                var elt = b[i];
+                if (b2j.hasOwnProperty(elt)) {
+                    var indices = b2j[elt];
+                    if (n >= 200 && indices.length * 100 > n) {
+                        populardict[elt] = 1;
+                        delete b2j[elt];
+                    }
+                    else {
+                        indices.push(i);
+                    }
+                }
+                else {
+                    b2j[elt] = [i];
+                }
+            }
+            for (var elt in populardict) {
+                if (populardict.hasOwnProperty(elt)) {
+                    delete b2j[elt];
+                }
+            }
+            var isjunk = this.isjunk;
+            var junkdict = {};
+            if (isjunk) {
+                for (var elt in populardict) {
+                    if (populardict.hasOwnProperty(elt) && isjunk(elt)) {
+                        junkdict[elt] = 1;
+                        delete populardict[elt];
+                    }
+                }
+                for (var elt in b2j) {
+                    if (b2j.hasOwnProperty(elt) && isjunk(elt)) {
+                        junkdict[elt] = 1;
+                        delete b2j[elt];
+                    }
+                }
+            }
+            this.isbjunk = difflib.__isindict(junkdict);
+            this.isbpopular = difflib.__isindict(populardict);
+        };
+        this.find_longest_match = function (alo, ahi, blo, bhi) {
+            var a = this.a;
+            var b = this.b;
+            var b2j = this.b2j;
+            var isbjunk = this.isbjunk;
+            var besti = alo;
+            var bestj = blo;
+            var bestsize = 0;
+            var j = null;
+            var k;
+            var j2len = {};
+            var nothing = [];
+            for (var i = alo; i < ahi; i++) {
+                var newj2len = {};
+                var jdict = difflib.__dictget(b2j, a[i], nothing);
+                for (var jkey in jdict) {
+                    if (jdict.hasOwnProperty(jkey)) {
+                        j = jdict[jkey];
+                        if (j < blo)
+                            continue;
+                        if (j >= bhi)
+                            break;
+                        newj2len[j] = k = difflib.__dictget(j2len, j - 1, 0) + 1;
+                        if (k > bestsize) {
+                            besti = i - k + 1;
+                            bestj = j - k + 1;
+                            bestsize = k;
+                        }
+                    }
+                }
+                j2len = newj2len;
+            }
+            while (besti > alo && bestj > blo && !isbjunk(b[bestj - 1]) && a[besti - 1] == b[bestj - 1]) {
+                besti--;
+                bestj--;
+                bestsize++;
+            }
+            while (besti + bestsize < ahi && bestj + bestsize < bhi && !isbjunk(b[bestj + bestsize]) && a[besti + bestsize] == b[bestj + bestsize]) {
+                bestsize++;
+            }
+            while (besti > alo && bestj > blo && isbjunk(b[bestj - 1]) && a[besti - 1] == b[bestj - 1]) {
+                besti--;
+                bestj--;
+                bestsize++;
+            }
+            while (besti + bestsize < ahi && bestj + bestsize < bhi && isbjunk(b[bestj + bestsize]) && a[besti + bestsize] == b[bestj + bestsize]) {
+                bestsize++;
+            }
+            return [besti, bestj, bestsize];
+        };
+        this.get_matching_blocks = function () {
+            if (this.matching_blocks != null)
+                return this.matching_blocks;
+            var la = this.a.length;
+            var lb = this.b.length;
+            var queue = [[0, la, 0, lb]];
+            var matching_blocks = [];
+            var alo, ahi, blo, bhi, qi, i, j, k, x;
+            while (queue.length) {
+                qi = queue.pop();
+                alo = qi[0];
+                ahi = qi[1];
+                blo = qi[2];
+                bhi = qi[3];
+                x = this.find_longest_match(alo, ahi, blo, bhi);
+                i = x[0];
+                j = x[1];
+                k = x[2];
+                if (k) {
+                    matching_blocks.push(x);
+                    if (alo < i && blo < j)
+                        queue.push([alo, i, blo, j]);
+                    if (i + k < ahi && j + k < bhi)
+                        queue.push([i + k, ahi, j + k, bhi]);
+                }
+            }
+            matching_blocks.sort(difflib.__ntuplecomp);
+            var i1 = 0, j1 = 0, k1 = 0, block = 0;
+            var i2, j2, k2;
+            var non_adjacent = [];
+            for (var idx in matching_blocks) {
+                if (matching_blocks.hasOwnProperty(idx)) {
+                    block = matching_blocks[idx];
+                    i2 = block[0];
+                    j2 = block[1];
+                    k2 = block[2];
+                    if (i1 + k1 == i2 && j1 + k1 == j2) {
+                        k1 += k2;
+                    }
+                    else {
+                        if (k1)
+                            non_adjacent.push([i1, j1, k1]);
+                        i1 = i2;
+                        j1 = j2;
+                        k1 = k2;
+                    }
+                }
+            }
+            if (k1)
+                non_adjacent.push([i1, j1, k1]);
+            non_adjacent.push([la, lb, 0]);
+            this.matching_blocks = non_adjacent;
+            return this.matching_blocks;
+        };
+        this.get_opcodes = function () {
+            if (this.opcodes != null)
+                return this.opcodes;
+            var i = 0;
+            var j = 0;
+            var answer = [];
+            this.opcodes = answer;
+            var block, ai, bj, size, tag;
+            var blocks = this.get_matching_blocks();
+            for (var idx in blocks) {
+                if (blocks.hasOwnProperty(idx)) {
+                    block = blocks[idx];
+                    ai = block[0];
+                    bj = block[1];
+                    size = block[2];
+                    tag = '';
+                    if (i < ai && j < bj) {
+                        tag = 'replace';
+                    }
+                    else if (i < ai) {
+                        tag = 'delete';
+                    }
+                    else if (j < bj) {
+                        tag = 'insert';
+                    }
+                    if (tag)
+                        answer.push([tag, i, ai, j, bj]);
+                    i = ai + size;
+                    j = bj + size;
+                    if (size)
+                        answer.push(['equal', ai, i, bj, j]);
+                }
+            }
+            return answer;
+        };
+        this.get_grouped_opcodes = function (n) {
+            if (!n)
+                n = 3;
+            var codes = this.get_opcodes();
+            if (!codes)
+                codes = [["equal", 0, 1, 0, 1]];
+            var code, tag, i1, i2, j1, j2;
+            if (codes[0][0] == 'equal') {
+                code = codes[0];
+                tag = code[0];
+                i1 = code[1];
+                i2 = code[2];
+                j1 = code[3];
+                j2 = code[4];
+                codes[0] = [tag, Math.max(i1, i2 - n), i2, Math.max(j1, j2 - n), j2];
+            }
+            if (codes[codes.length - 1][0] == 'equal') {
+                code = codes[codes.length - 1];
+                tag = code[0];
+                i1 = code[1];
+                i2 = code[2];
+                j1 = code[3];
+                j2 = code[4];
+                codes[codes.length - 1] = [tag, i1, Math.min(i2, i1 + n), j1, Math.min(j2, j1 + n)];
+            }
+            var nn = n + n;
+            var group = [];
+            var groups = [];
+            for (var idx in codes) {
+                if (codes.hasOwnProperty(idx)) {
+                    code = codes[idx];
+                    tag = code[0];
+                    i1 = code[1];
+                    i2 = code[2];
+                    j1 = code[3];
+                    j2 = code[4];
+                    if (tag == 'equal' && i2 - i1 > nn) {
+                        group.push([tag, i1, Math.min(i2, i1 + n), j1, Math.min(j2, j1 + n)]);
+                        groups.push(group);
+                        group = [];
+                        i1 = Math.max(i1, i2 - n);
+                        j1 = Math.max(j1, j2 - n);
+                    }
+                    group.push([tag, i1, i2, j1, j2]);
+                }
+            }
+            if (group && !(group.length == 1 && group[0][0] == 'equal'))
+                groups.push(group);
+            return groups;
+        };
+        this.ratio = function () {
+            var matches = difflib.__reduce(function (sum, triple) {
+                return sum + triple[triple.length - 1];
+            }, this.get_matching_blocks(), 0);
+            return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
+        };
+        this.quick_ratio = function () {
+            var fullbcount, elt;
+            if (this.fullbcount == null) {
+                this.fullbcount = fullbcount = {};
+                for (var i = 0; i < this.b.length; i++) {
+                    elt = this.b[i];
+                    fullbcount[elt] = difflib.__dictget(fullbcount, elt, 0) + 1;
+                }
+            }
+            fullbcount = this.fullbcount;
+            var avail = {};
+            var availhas = difflib.__isindict(avail);
+            var matches = 0;
+            var numb = 0;
+            for (var i = 0; i < this.a.length; i++) {
+                elt = this.a[i];
+                if (availhas(elt)) {
+                    numb = avail[elt];
+                }
+                else {
+                    numb = difflib.__dictget(fullbcount, elt, 0);
+                }
+                avail[elt] = numb - 1;
+                if (numb > 0)
+                    matches++;
+            }
+            return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
+        };
+        this.isjunk = isjunk ? isjunk : difflib.defaultJunkFunction;
+        this.a = this.b = null;
+        this.set_seqs(a, b);
+    }
+};
+module.exports = difflib;
+
+},
 "test/_tests": function(module, exports, require) {
 var pspTest = require('./format/pspTest');
 pspTest.ref();
@@ -24650,6 +25270,7 @@ function ref() {
 exports.ref = ref;
 var _emulator = require('../src/emulator');
 var _vfs = require('../src/hle/vfs');
+var difflib = require('../src/util/difflib');
 var Emulator = _emulator.Emulator;
 var console = logger.named('');
 describe('pspautotests', function () {
