@@ -1,4 +1,3 @@
-///<reference path="./math.ts" />
 function identity(a) {
     return a;
 }
@@ -34,13 +33,10 @@ Array.prototype.binarySearchIndex = function (selector) {
         var item = array[current];
         var result = selector(item);
         if (result == 0) {
-            //console.log('->', current);
             return current;
         }
-        //console.log(min, current, max);
         if (((current == min) || (current == max))) {
             if (min != max) {
-                //console.log('*');
                 min = max = current = (current != min) ? min : max;
             }
             else {
@@ -183,7 +179,7 @@ function _downloadFileAsync(method, url, headers) {
 }
 function downloadFileAsync(url, headers) {
     return _downloadFileAsync('GET', url, headers).then(function (request) {
-        var arraybuffer = request.response; // not responseText
+        var arraybuffer = request.response;
         return arraybuffer;
     });
 }
@@ -195,15 +191,12 @@ function downloadFileChunkAsync(url, from, count) {
 }
 function statFileAsync(url) {
     return _downloadFileAsync('HEAD', url).then(function (request) {
-        //console.error('content-type', request.getResponseHeader('content-type'));
-        //console.log(request.getAllResponseHeaders());
         var size = parseInt(request.getResponseHeader('content-length'));
         var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
         return { size: size, date: date };
     });
 }
 
-// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
 var Integer64 = (function () {
     function Integer64(low, high) {
         this._low = low | 0;
@@ -327,7 +320,6 @@ var Integer64 = (function () {
         if (!thisNeg && otherNeg) {
             return 1;
         }
-        // at this point, the signs are the same, so subtraction will not overflow
         if (this.sub(other).isNegative()) {
             return -1;
         }
@@ -468,7 +460,6 @@ var mat4 = (function () {
     };
     mat4.multiply = function (out, a, b) {
         var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3], a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7], a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11], a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
-        // Cache only the current line of the second matrix
         var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
         out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
         out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
@@ -592,12 +583,12 @@ if (!Math['sign']) {
 self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
     Math['rint'] = function (value) {
-        var twoToThe52 = Math.pow(2, 52); // 2^52
-        var sign = Math.sign(value); // preserve sign info
+        var twoToThe52 = Math.pow(2, 52);
+        var sign = Math.sign(value);
         value = Math.abs(value);
         if (value < twoToThe52)
             value = ((twoToThe52 + value) - twoToThe52);
-        return sign * value; // restore original sign
+        return sign * value;
     };
 }
 self['polyfills']['clz32'] = !Math['clz32'];
@@ -607,7 +598,6 @@ if (!Math['clz32']) {
         if (x == 0)
             return 32;
         var result = 0;
-        // Binary search.
         if ((x & 0xFFFF0000) === 0) {
             x <<= 16;
             result += 16;
@@ -649,43 +639,9 @@ if (!Math['imul']) {
         var al = a & 0xffff;
         var bh = (b >>> 16) & 0xffff;
         var bl = b & 0xffff;
-        // the shift by 0 fixes the sign on the high part
-        // the final |0 converts the unsigned value into a signed value
         return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
     };
 }
-//function testMultiply64_Base(a: number, b: number) {
-//	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
-//	var result2 = Math.imul32_64(a, b, [1, 1]);
-//	return {
-//		int64: result,
-//		fast: result2,
-//		compare: (result.low == result2[0]) && (result.high == result2[1]),
-//	};
-//}
-//
-//function testMultiply64_Base_u(a: number, b: number) {
-//	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
-//	var result2 = Math.umul32_64(a, b, [1, 1]);
-//	return {
-//		int64: result,
-//		fast: result2,
-//		compare: (result.low == result2[0]) && (result.high == result2[1]),
-//	};
-//}
-//
-//function testMultiply64() {
-//	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
-//	values.forEach((v1) => {
-//		values.forEach((v2) => {
-//			var result = testMultiply64_Base(v1, v2);
-//			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
-//
-//			var result = testMultiply64_Base_u(v1, v2);
-//			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
-//		});
-//	});
-//}
 self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
     Math.umul32_64 = function (a, b, result) {
@@ -760,11 +716,11 @@ var BitUtils = (function () {
         return (1 << value) - 1;
     };
     BitUtils.bitrev32 = function (v) {
-        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1); // swap odd and even bits
-        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2); // swap consecutive pairs
-        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4); // swap nibbles ... 
-        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8); // swap bytes
-        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16); // swap 2-byte long pairs
+        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1);
+        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2);
+        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4);
+        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8);
+        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16);
         return v;
     };
     BitUtils.rotr = function (value, offset) {
@@ -783,9 +739,6 @@ var BitUtils = (function () {
         return x;
     };
     BitUtils.seh = function (x) {
-        //x = x & 0xFFFF;
-        //if (x & 0x8000) x = 0xFFFF0000 | x;
-        //return x;
         return (((x & 0xFFFF) << 16) >> 16);
     };
     BitUtils.wsbh = function (v) {
@@ -854,7 +807,6 @@ var MathVfpu = (function () {
     MathVfpu.vuc2i = function (index, value) {
         return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
     };
-    // @TODO
     MathVfpu.vs2i = function (index, value) {
         if ((index % 2) == 0)
             value <<= 16;
@@ -881,11 +833,9 @@ var MathVfpu = (function () {
         return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
     };
     MathVfpu.vf2h = function () {
-        //debugger;
         return 0;
     };
     MathVfpu.vh2f = function () {
-        //debugger;
         return 0;
     };
     return MathVfpu;
@@ -923,7 +873,6 @@ var MathFloat = (function () {
         return Math.abs(value);
     };
     MathFloat.neg = function (value) {
-        //return MathFloat.reinterpretIntAsFloat(MathFloat.reinterpretFloatAsInt(value) ^ 0x80000000);
         return -value;
     };
     MathFloat.ocp = function (value) {
@@ -1061,7 +1010,6 @@ var MathUtils = (function () {
     }
     MathUtils.sextend16 = function (value) {
         return (((value & 0xFFFF) << 16) >> 16);
-        //value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
     };
     MathUtils.prevAligned = function (value, alignment) {
         return Math.floor(value / alignment) * alignment;
@@ -1151,10 +1099,6 @@ function xrange(start, end) {
     return ArrayUtils.range(start, end);
 }
 
-///<reference path="./utils.ts" />
-///<reference path="./int64.ts" />
-///<reference path="./async.ts" />
-///<reference path="./struct.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -1225,7 +1169,6 @@ var BufferedAsyncStream = (function (_super) {
         var start = offset;
         var end = offset + count;
         var cache = this.getCachedEntry(start, end);
-        //return this.stream.readChunkAsync(start, count);
         if (cache) {
             return Promise.resolve(cache.data.slice(start - cache.start, end - cache.start));
         }
@@ -1279,7 +1222,6 @@ var UrlAsyncStream = (function () {
                 console.error("Invalid file with size '" + stat.size + "'", stat);
                 throw (new Error("Invalid file with size '" + stat.size + "'"));
             }
-            // If file is less  than 5MB, then download it completely
             if (stat.size < 5 * 1024 * 1024) {
                 return downloadFileAsync(url).then(function (data) { return MemoryAsyncStream.fromArrayBuffer(data); });
             }
@@ -1296,7 +1238,6 @@ var UrlAsyncStream = (function () {
         configurable: true
     });
     UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        //console.error();
         console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
         return downloadFileChunkAsync(this.url, offset, count);
     };
@@ -1625,7 +1566,6 @@ var Stream = (function () {
     return Stream;
 })();
 
-///<reference path="./stream.ts" />
 var Int64Type = (function () {
     function Int64Type(endian) {
         this.endian = endian;
@@ -2062,9 +2002,6 @@ var Pointer = (function () {
     return Pointer;
 })();
 
-///<reference path="../../typings/promise/promise.d.ts" />
-///<reference path="./array.ts" />
-///<reference path="./math.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2076,27 +2013,6 @@ if (typeof self == 'undefined')
 if (typeof navigator == 'undefined')
     navigator = {};
 function sprintf() {
-    //  discuss at: http://phpjs.org/functions/sprintf/
-    // original by: Ash Searle (http://hexmen.com/blog/)
-    // improved by: Michael White (http://getsprink.com)
-    // improved by: Jack
-    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
-    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
-    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
-    // improved by: Dj
-    // improved by: Allidylls
-    //    input by: Paulo Freitas
-    //    input by: Brett Zamir (http://brett-zamir.me)
-    //   example 1: sprintf("%01.2f", 123.1);
-    //   returns 1: 123.10
-    //   example 2: sprintf("[%10s]", 'monkey');
-    //   returns 2: '[    monkey]'
-    //   example 3: sprintf("[%'#10s]", 'monkey');
-    //   returns 3: '[####monkey]'
-    //   example 4: sprintf("%d", 123456789012345);
-    //   returns 4: '123456789012345'
-    //   example 5: sprintf('%-03s', 'E');
-    //   returns 5: 'E00'
     var args = [];
     for (var _i = 0; _i < arguments.length; _i++) {
         args[_i - 0] = arguments[_i];
@@ -2105,7 +2021,6 @@ function sprintf() {
     var a = arguments;
     var i = 0;
     var format = a[i++];
-    // pad()
     var pad = function (str, len, chr, leftJustify) {
         if (!chr) {
             chr = ' ';
@@ -2113,7 +2028,6 @@ function sprintf() {
         var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0).join(chr);
         return leftJustify ? str + padding : padding + str;
     };
-    // justify()
     var justify = function (value, prefix, leftJustify, minWidth, zeroPad, customPadChar) {
         if (customPadChar === void 0) { customPadChar = undefined; }
         var diff = minWidth - value.length;
@@ -2127,9 +2041,7 @@ function sprintf() {
         }
         return value;
     };
-    // formatBaseX()
     var formatBaseX = function (value, base, prefix, leftJustify, minWidth, precision, zeroPad) {
-        // Note: casts negative numbers to positive ones
         var number = value >>> 0;
         prefix = prefix && number && {
             '2': '0b',
@@ -2139,7 +2051,6 @@ function sprintf() {
         value = prefix + pad(number.toString(base), precision || 0, '0', false);
         return justify(value, prefix, leftJustify, minWidth, zeroPad);
     };
-    // formatString()
     var formatString = function (value, leftJustify, minWidth, precision, zeroPad, customPadChar) {
         if (customPadChar === void 0) { customPadChar = undefined; }
         if (precision != null) {
@@ -2147,13 +2058,11 @@ function sprintf() {
         }
         return justify(value, '', leftJustify, minWidth, zeroPad, customPadChar);
     };
-    // doFormat()
     var doFormat = function (substring, valueIndex, flags, minWidth, _, precision, type) {
         var number, prefix, method, textTransform, value;
         if (substring === '%%') {
             return '%';
         }
-        // parse flags
         var leftJustify = false;
         var positivePrefix = '';
         var zeroPad = false;
@@ -2183,8 +2092,6 @@ function sprintf() {
                     break;
             }
         }
-        // parameters may be null, undefined, empty-string or real valued
-        // we want to ignore null, undefined and empty-string values
         if (!minWidth) {
             minWidth = 0;
         }
@@ -2197,7 +2104,6 @@ function sprintf() {
         else {
             minWidth = +minWidth;
         }
-        // Note: undocumented perl feature:
         if (minWidth < 0) {
             minWidth = -minWidth;
             leftJustify = true;
@@ -2217,7 +2123,6 @@ function sprintf() {
         else {
             precision = +precision;
         }
-        // grab value using valueIndex if required?
         value = valueIndex ? a[valueIndex.slice(0, -1)] : a[i++];
         switch (type) {
             case 's':
@@ -2237,7 +2142,7 @@ function sprintf() {
             case 'i':
             case 'd':
                 number = +value || 0;
-                number = Math.round(number - number % 1); // Plain Math.round doesn't just truncate
+                number = Math.round(number - number % 1);
                 prefix = number < 0 ? '-' : positivePrefix;
                 value = prefix + pad(String(Math.abs(number)), precision, '0', false);
                 return justify(value, prefix, leftJustify, minWidth, zeroPad);
@@ -2451,7 +2356,6 @@ var Microtask = (function () {
         Microtask.callbacks.push(callback);
         if (!Microtask.queued) {
             Microtask.queued = true;
-            //window.postMessage(Microtask.__messageType, Microtask.__location);
             setTimeout(Microtask.execute, 0);
         }
     };
@@ -2482,12 +2386,10 @@ if (!self['performance']) {
 if (!window['setImmediate']) {
     window['setImmediate'] = function (callback) {
         Microtask.queue(callback);
-        //return setTimeout(callback, 0);
         return -1;
     };
     window['clearImmediate'] = function (timer) {
         throw (new Error("Not implemented!"));
-        //clearTimeout(timer);
     };
 }
 var Utf8 = (function () {
@@ -2552,7 +2454,6 @@ var ArrayBufferUtils = (function () {
     };
     ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
         output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
-        //for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
     };
     ArrayBufferUtils.cloneBytes = function (input) {
         var out = new Uint8Array(input.length);
@@ -2673,14 +2574,12 @@ var HalfFloat = (function () {
     }
     HalfFloat.fromFloat = function (Float) {
         var i = MathFloat.reinterpretFloatAsInt(Float);
-        var s = ((i >> 16) & 0x00008000); // sign
-        var e = ((i >> 23) & 0x000000ff) - (127 - 15); // exponent
-        var f = ((i >> 0) & 0x007fffff); // fraction
-        // need to handle NaNs and Inf?
+        var s = ((i >> 16) & 0x00008000);
+        var e = ((i >> 23) & 0x000000ff) - (127 - 15);
+        var f = ((i >> 0) & 0x007fffff);
         if (e <= 0) {
             if (e < -10) {
                 if (s != 0) {
-                    // handle -0.0
                     return 0x8000;
                 }
                 return 0;
@@ -2690,28 +2589,22 @@ var HalfFloat = (function () {
         }
         else if (e == 0xff - (127 - 15)) {
             if (f == 0) {
-                // Inf
                 return s | 0x7c00;
             }
-            // NAN
             f >>= 13;
             return s | 0x7c00 | f | ((f == 0) ? 1 : 0);
         }
         if (e > 30) {
-            // Overflow
             return s | 0x7c00;
         }
         return s | (e << 10) | (f >> 13);
     };
     HalfFloat.toFloat = function (imm16) {
-        var s = (imm16 >> 15) & 0x00000001; // Sign
-        var e = (imm16 >> 10) & 0x0000001f; // Exponent
-        var f = (imm16 >> 0) & 0x000003ff; // Fraction
-        // Need to handle 0x7C00 INF and 0xFC00 -INF?
+        var s = (imm16 >> 15) & 0x00000001;
+        var e = (imm16 >> 10) & 0x0000001f;
+        var f = (imm16 >> 0) & 0x000003ff;
         if (e == 0) {
-            // Need to handle +-0 case f==0 or f=0x8000?
             if (f == 0) {
-                // Plus or minus zero
                 return MathFloat.reinterpretIntAsFloat(s << 31);
             }
             while ((f & 0x00000400) == 0) {
@@ -2723,10 +2616,8 @@ var HalfFloat = (function () {
         }
         else if (e == 31) {
             if (f == 0) {
-                // Inf
                 return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000);
             }
-            // NaN
             return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000 | (f << 13));
         }
         e = e + (127 - 15);
@@ -2738,12 +2629,9 @@ var HalfFloat = (function () {
 function htmlspecialchars(str) {
     return str.replace(/[&<>]/g, function (tag) {
         switch (tag) {
-            case '&':
-                return '&amp;';
-            case '<':
-                return '&lt;';
-            case '>':
-                return '&gt;';
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
         }
         return tag;
     });
@@ -2930,7 +2818,6 @@ function requireModules(moduleFiles) {
 
 },
 "src/app": function(module, exports, require) {
-///<reference path="global.d.ts" />
 var _controller = require('./core/controller');
 var _emulator = require('./emulator');
 var PspCtrlButtons = _controller.PspCtrlButtons;
@@ -3043,7 +2930,6 @@ function controllerRegister() {
         touchEnd(e.originalEvent['changedTouches']);
         e.preventDefault();
     });
-    //$('#touch_overlay').mouseover((e) => { updatePos(e.clientX, e.clientY); });
     var pressing = false;
     function generateTouchEvent(x, y) {
         return { clientX: x, clientY: y, identifier: 0 };
@@ -3083,7 +2969,6 @@ $(window).load(function () {
 
 },
 "src/context": function(module, exports, require) {
-///<reference path="global.d.ts" />
 var EmulatorContext = (function () {
     function EmulatorContext() {
         this.container = {};
@@ -3114,7 +2999,6 @@ exports.EmulatorContext = EmulatorContext;
 
 },
 "src/core/audio": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var PspAudioBuffer = (function () {
     function PspAudioBuffer(readedCallback, data) {
         this.readedCallback = readedCallback;
@@ -3193,18 +3077,11 @@ var PspAudioChannel = (function () {
         if (this.node)
             this.node.connect(this.context.destination);
         this.audio.playingChannels.add(this);
-        //document.addEventListener("visibilitychange", this.onVisibilityChanged);
     };
-    /*
-    private onVisibilityChanged() {
-        document.hidden;
-    }
-    */
     PspAudioChannel.prototype.stop = function () {
         if (this.node)
             this.node.disconnect();
         this.audio.playingChannels.delete(this);
-        //document.removeEventListener("visibilitychange", this.onVisibilityChanged);
     };
     PspAudioChannel.prototype.process = function (e) {
         var left = e.outputBuffer.getChannelData(0);
@@ -3218,7 +3095,6 @@ var PspAudioChannel = (function () {
                 for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
                     this.buffers[m].resolve();
                 }
-                //this.buffers.slice(0, 3).forEach(buffer => buffer.resolve());
                 this.currentBuffer = this.buffers.shift();
                 this.currentBuffer.resolve();
             }
@@ -3239,9 +3115,7 @@ var PspAudioChannel = (function () {
         if (!this.node)
             return waitAsync(10).then(function () { return 0; });
         if (this.buffers.length < 8) {
-            //(data.length / 2)
             this.buffers.push(new PspAudioBuffer(null, data));
-            //return 0;
             return 0;
         }
         else {
@@ -3297,7 +3171,6 @@ exports.PspAudio = PspAudio;
 
 },
 "src/core/controller": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 if (typeof navigator == 'undefined')
     navigator = {};
 var SceCtrlData = (function () {
@@ -3367,14 +3240,12 @@ var PspController = (function () {
         this.buttonMapping[83 /* s */] = 16384 /* cross */;
         this.buttonMapping[65 /* a */] = 32768 /* square */;
         this.buttonMapping[68 /* d */] = 8192 /* circle */;
-        //this.buttonMapping[KeyCodes.Down] = PspCtrlButtons.Down;
         this.fieldMapping[73 /* i */] = 'analogUp';
         this.fieldMapping[75 /* k */] = 'analogDown';
         this.fieldMapping[74 /* j */] = 'analogLeft';
         this.fieldMapping[76 /* l */] = 'analogRight';
     }
     PspController.prototype.keyDown = function (e) {
-        //console.log(e.keyCode);
         var button = this.buttonMapping[e.keyCode];
         if (button !== undefined)
             this.data.buttons |= button;
@@ -3436,12 +3307,9 @@ var PspController = (function () {
         this.analogAddY = MathUtils.clamp(this.analogAddY, -1, +1);
         this.data.x = this.analogAddX;
         this.data.y = this.analogAddY;
-        //console.log('zzzzzzzzz');
         if (window.navigator && window.navigator['getGamepads']) {
-            //console.log('bbbbbbbbb');
             var gamepads = (navigator['getGamepads'])();
             if (gamepads[0]) {
-                //console.log('aaaaaaaa');
                 var buttonMapping = [
                     16384 /* cross */,
                     8192 /* circle */,
@@ -3629,7 +3497,6 @@ var HtmlKeyCodes = exports.HtmlKeyCodes;
 
 },
 "src/core/cpu": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _assembler = require('./cpu/assembler');
 _assembler.MipsAssembler;
 var _state = require('./cpu/state');
@@ -3656,7 +3523,6 @@ exports.NativeFunction = _syscall.NativeFunction;
 
 },
 "src/core/cpu/assembler": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var memory = require('../memory');
 var instructions = require('./instructions');
 var Instructions = instructions.Instructions;
@@ -3676,14 +3542,12 @@ var MipsAssembler = (function () {
         }
     };
     MipsAssembler.prototype.assemble = function (PC, line) {
-        //console.log(line);
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
         switch (instructionName) {
             case 'li':
                 var parts = instructionArguments.split(',');
-                //console.log(parts);
                 return this.assemble(PC, 'addiu ' + parts[0] + ', r0, ' + parts[1]);
         }
         var instructionType = this.instructions.findByName(instructionName);
@@ -3695,40 +3559,26 @@ var MipsAssembler = (function () {
                 case '%J':
                 case '%s':
                 case '%d':
-                case '%t':
-                    return '([$r]\\d+)';
-                case '%i':
-                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%C':
-                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%c':
-                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                default:
-                    throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
+                case '%t': return '([$r]\\d+)';
+                case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
         }).replace(/\s+/g, '\\s*');
-        //console.log(formatPattern);
         var regex = new RegExp('^' + formatPattern + '$', '');
-        //console.log(line);
-        //console.log(formatPattern);
         var matches = instructionArguments.match(regex);
-        //console.log(matches);
-        //console.log(types);
         if (matches === null) {
             throw ('Not matching ' + instructionArguments + ' : ' + regex + ' : ' + instructionType.format);
         }
         for (var n = 0; n < types.length; n++) {
             var type = types[n];
             var match = matches[n + 1];
-            //console.log(type + ' = ' + match);
             this.update(instruction, type, match);
         }
-        //console.log(instructionType);
-        //console.log(matches);
         return [instruction];
     };
     MipsAssembler.prototype.decodeRegister = function (name) {
-        //console.log(name);
         if (name.charAt(0) == '$')
             return parseInt(name.substr(1));
         if (name.charAt(0) == 'r')
@@ -3764,8 +3614,7 @@ var MipsAssembler = (function () {
             case '%c':
                 instruction.syscall = this.decodeInteger(value);
                 break;
-            default:
-                throw ("MipsAssembler.Update: Unknown type '" + type + "'");
+            default: throw ("MipsAssembler.Update: Unknown type '" + type + "'");
         }
     };
     return MipsAssembler;
@@ -3792,8 +3641,7 @@ var MipsDisassembler = (function () {
                 case '%t':
                     return _this.encodeRegister(instruction.rt);
                     break;
-                default:
-                    throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
+                default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
         return instructionType.name + ' ' + arguments;
@@ -3804,7 +3652,6 @@ exports.MipsDisassembler = MipsDisassembler;
 
 },
 "src/core/cpu/ast_builder": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -3884,7 +3731,6 @@ var ANodeStmList = (function (_super) {
             if (usedLabels[n] !== undefined) {
                 lines.push('while(true) {');
             }
-            //console.log(usedLabels);
             lines.push(child.toJs());
             if (child instanceof ANodeStmJump) {
                 lines.push('}');
@@ -4032,7 +3878,6 @@ var ANodeExprU32 = (function (_super) {
     }
     ANodeExprU32.prototype.toJs = function () {
         return '0x' + IntUtils.toHexString(this.value, 8);
-        //return sprintf('0x%08X', this.value);
     };
     return ANodeExprU32;
 })(ANodeExpr);
@@ -4289,7 +4134,6 @@ exports.MipsAstBuilder = MipsAstBuilder;
 
 },
 "src/core/cpu/codegen": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var instructions = require('./instructions');
 var _ast = require('./ast_builder');
 var ast;
@@ -4409,7 +4253,6 @@ var VMatRegClass = (function () {
         this.reg = reg;
     }
     VMatRegClass.prototype._setMatrix = function (generator) {
-        // @TODO
         var array = [];
         for (var column = 0; column < 4; column++) {
             for (var row = 0; row < 4; row++) {
@@ -4437,7 +4280,6 @@ var VVecRegClass = (function () {
         this.reg = reg;
     }
     VVecRegClass.prototype._setVector = function (generator) {
-        // @TODO
         var array = [];
         var statements = [];
         var regs = getVectorRegs(this.reg, 4 /* Quad */);
@@ -4499,8 +4341,7 @@ function getVectorRegs(vectorReg, N) {
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
-        default:
-            debugger;
+        default: debugger;
     }
     var regs = new Array(length);
     for (var i = 0; i < length; i++) {
@@ -4533,8 +4374,7 @@ function getMatrixRegs(matrixReg, N) {
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
-        default:
-            debugger;
+        default: debugger;
     }
     var transpose = (matrixReg >> 5) & 1;
     var regs = new Array(side * side);
@@ -4569,10 +4409,8 @@ function setMemoryVector(offset, items) {
 }
 function memoryRef(type, address) {
     switch (type) {
-        case 'float':
-            return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
-        default:
-            throw (new Error("Not implemented memoryRef type '" + type + "'"));
+        case 'float': return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
+        default: throw (new Error("Not implemented memoryRef type '" + type + "'"));
     }
 }
 function getMemoryVector(offset, count) {
@@ -4604,12 +4442,6 @@ function setVector_i(leftList, generator) {
         ast.array(ArrayUtils.range(0, leftList.length).map(function (index) { return generator(index); }))
     ]);
 }
-/*
-private AstNodeExpr Address_RS_IMM14(int Offset = 0)
-{
-return ast.Cast<uint>(ast.Binary(ast.GPR_s(RS), "+", Instruction.IMM14 * 4 + Offset), false);
-}
-*/
 var VfpuConstants = [
     { name: "VFPU_ZERO", value: 0.0 },
     { name: "VFPU_HUGE", value: 340282346638528859811704183484516925440 },
@@ -4676,7 +4508,7 @@ var VfpuPrefixes = (function () {
         var destinationSaturation = (info >> (0 + n * 2)) & 3;
         var destinationMask = (info >> (8 + n * 1)) & 1;
         if (destinationMask) {
-            return ast.stm(); // Masked. No write value.
+            return ast.stm();
         }
         else {
             var value = value;
@@ -4687,8 +4519,7 @@ var VfpuPrefixes = (function () {
                 case 3:
                     value = call('MathFloat.sat1', [value]);
                     break;
-                default:
-                    break;
+                default: break;
             }
             return assign_stm(left, value);
         }
@@ -4703,7 +4534,6 @@ var PrefixPrediction = (function () {
     }
     PrefixPrediction.prototype.reset = function () {
         this.set(this.default_value);
-        //this.setUnknown();
     };
     PrefixPrediction.prototype.eat = function () {
         this.set(this.default_value);
@@ -4728,7 +4558,6 @@ var InstructionAst = (function () {
         this.enableStaticPrefixVfpuOptimization = true;
         ast = new _ast.MipsAstBuilder();
     }
-    //private enableStaticPrefixVfpuOptimization = false;
     InstructionAst.prototype.reset = function () {
         this._vpfxs.reset();
         this._vpfxt.reset();
@@ -4790,7 +4619,6 @@ var InstructionAst = (function () {
                 out.push(ast.raw(vname));
                 st.push(ast.allocVar(vname, VfpuPrefixes.transformRead(n, prefix.value, regs)));
             }
-            //if (prefix.value != PrefixPrediction.DEFAULT_LOAD_VALUE) st.push(ast.debugger());
             return out;
         }
         else {
@@ -4815,10 +4643,8 @@ var InstructionAst = (function () {
             ]));
         }
         st.push(call_stm('state.eatPrefixes', []));
-        //st.push(ast.debugger());
         this.eatPrefixes();
     };
-    // Prefixes
     InstructionAst.prototype.vpfxs = function (i) {
         this._vpfxs.set(i.data);
         return stms([
@@ -4837,7 +4663,6 @@ var InstructionAst = (function () {
             call_stm('state.setVpfxd', [imm32(i.data)]),
         ]);
     };
-    // Memory read/write
     InstructionAst.prototype["lv.s"] = function (i) {
         return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)]));
     };
@@ -4862,8 +4687,6 @@ var InstructionAst = (function () {
     InstructionAst.prototype["svr.q"] = function (i) {
         return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
     };
-    // Constants
-    // @TODO: d-prefix in vt register
     InstructionAst.prototype.viim = function (i) {
         return assign_stm(vfpr(i.VT), imm32(i.imm16));
     };
@@ -4902,7 +4725,6 @@ var InstructionAst = (function () {
                 return _this._aggregateV(imm_f(0), vectorSize, function (aggregated, m) { return binop(aggregated, '+', binop(srcMat[n * vectorSize + m], '*', ast.vector_vt(m))); });
             })),
         ]));
-        //if (vectorSize == 3) st.push(ast.debugger());
         this.eatPrefixes();
         return stms(st);
     };
@@ -4940,7 +4762,6 @@ var InstructionAst = (function () {
     };
     InstructionAst.prototype.vmscl = function (i) {
         var vectorSize = i.ONE_TWO;
-        //return ast.stm(ast.debugger('not implemented'));
         var src = readMatrix(i.VS, vectorSize);
         return setMatrix(getMatrixRegsVD(i), function (c, r, index) { return binop(src[index], '*', vfpr(i.VT)); });
     };
@@ -4952,7 +4773,7 @@ var InstructionAst = (function () {
     };
     InstructionAst.prototype.vmov = function (i) {
         return this._vset3(i, function (i, s, t) { return s[i]; });
-    }; // vset3 in order to eat prefixes
+    };
     InstructionAst.prototype.vrcp = function (i) {
         return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); });
     };
@@ -4962,32 +4783,22 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vbfy1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return binop(src[0], '+', src[1]);
-                case 1:
-                    return binop(src[0], '-', src[1]);
-                case 2:
-                    return binop(src[2], '+', src[3]);
-                case 3:
-                    return binop(src[2], '-', src[3]);
-                default:
-                    throw (new Error("vbfy1: Invalid operation"));
+                case 0: return binop(src[0], '+', src[1]);
+                case 1: return binop(src[0], '-', src[1]);
+                case 2: return binop(src[2], '+', src[3]);
+                case 3: return binop(src[2], '-', src[3]);
+                default: throw (new Error("vbfy1: Invalid operation"));
             }
         });
     };
     InstructionAst.prototype.vbfy2 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return binop(src[0], '+', src[2]);
-                case 1:
-                    return binop(src[1], '+', src[3]);
-                case 2:
-                    return binop(src[0], '-', src[2]);
-                case 3:
-                    return binop(src[1], '-', src[3]);
-                default:
-                    throw (new Error("vbfy1: Invalid operation"));
+                case 0: return binop(src[0], '+', src[2]);
+                case 1: return binop(src[1], '+', src[3]);
+                case 2: return binop(src[0], '-', src[2]);
+                case 3: return binop(src[1], '-', src[3]);
+                default: throw (new Error("vbfy1: Invalid operation"));
             }
         });
     };
@@ -4995,80 +4806,55 @@ var InstructionAst = (function () {
         var vectorSize = i.ONE_TWO;
         return this._vset2(i, function (index, src) {
             switch (index) {
-                case 0:
-                    return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
-                case 1:
-                    return ast.call('MathFloat.sat0', [src[0]]);
-                case 2:
-                    return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
-                case 3:
-                    return ast.call('MathFloat.sat0', [src[1]]);
-                default:
-                    throw (new Error("vsocp: " + index));
+                case 0: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
+                case 1: return ast.call('MathFloat.sat0', [src[0]]);
+                case 2: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
+                case 3: return ast.call('MathFloat.sat0', [src[1]]);
+                default: throw (new Error("vsocp: " + index));
             }
         }, vectorSize * 2, vectorSize);
     };
     InstructionAst.prototype.vsrt1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.min', [src[0], src[1]]);
-                case 1:
-                    return call('MathFloat.max', [src[0], src[1]]);
-                case 2:
-                    return call('MathFloat.min', [src[2], src[3]]);
-                case 3:
-                    return call('MathFloat.max', [src[2], src[3]]);
-                default:
-                    throw (new Error("vsrt1: Invalid operation"));
+                case 0: return call('MathFloat.min', [src[0], src[1]]);
+                case 1: return call('MathFloat.max', [src[0], src[1]]);
+                case 2: return call('MathFloat.min', [src[2], src[3]]);
+                case 3: return call('MathFloat.max', [src[2], src[3]]);
+                default: throw (new Error("vsrt1: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt2 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.min', [src[0], src[3]]);
-                case 1:
-                    return call('MathFloat.min', [src[1], src[2]]);
-                case 2:
-                    return call('MathFloat.max', [src[1], src[2]]);
-                case 3:
-                    return call('MathFloat.max', [src[0], src[3]]);
-                default:
-                    throw (new Error("vsrt2: Invalid operation"));
+                case 0: return call('MathFloat.min', [src[0], src[3]]);
+                case 1: return call('MathFloat.min', [src[1], src[2]]);
+                case 2: return call('MathFloat.max', [src[1], src[2]]);
+                case 3: return call('MathFloat.max', [src[0], src[3]]);
+                default: throw (new Error("vsrt2: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt3 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.max', [src[0], src[1]]);
-                case 1:
-                    return call('MathFloat.min', [src[0], src[1]]);
-                case 2:
-                    return call('MathFloat.max', [src[2], src[3]]);
-                case 3:
-                    return call('MathFloat.min', [src[2], src[3]]);
-                default:
-                    throw (new Error("vsrt3: Invalid operation"));
+                case 0: return call('MathFloat.max', [src[0], src[1]]);
+                case 1: return call('MathFloat.min', [src[0], src[1]]);
+                case 2: return call('MathFloat.max', [src[2], src[3]]);
+                case 3: return call('MathFloat.min', [src[2], src[3]]);
+                default: throw (new Error("vsrt3: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt4 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.max', [src[0], src[3]]);
-                case 1:
-                    return call('MathFloat.max', [src[1], src[2]]);
-                case 2:
-                    return call('MathFloat.min', [src[1], src[2]]);
-                case 3:
-                    return call('MathFloat.min', [src[0], src[3]]);
-                default:
-                    throw (new Error("vsrt4: Invalid operation"));
+                case 0: return call('MathFloat.max', [src[0], src[3]]);
+                case 1: return call('MathFloat.max', [src[1], src[2]]);
+                case 2: return call('MathFloat.min', [src[1], src[2]]);
+                case 3: return call('MathFloat.min', [src[0], src[3]]);
+                default: throw (new Error("vsrt4: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
@@ -5084,12 +4870,6 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vrndf2 = function (i) {
         return this._vset1(i, function (i) { return call('state.vrndf2', []); });
     };
-    /*
-    public AstNodeStm vrnds(i: Instruction) { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int>) CpuEmitterUtils._vrnds, ast.CpuThreadState)); }
-    public AstNodeStm vrndi(i: Instruction) { return VEC_VD_i.SetVector(Index => ast.CallStatic((Func < CpuThreadState, int>) CpuEmitterUtils._vrndi, ast.CpuThreadState), PC); }
-    public AstNodeStm vrndf1(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf1, ast.CpuThreadState), PC); }
-    public AstNodeStm vrndf2(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf2, ast.CpuThreadState), PC); }
-    */
     InstructionAst.prototype._aggregateV = function (val, size, generator) {
         for (var n = 0; n < size; n++)
             val = generator(val, n);
@@ -5124,28 +4904,20 @@ var InstructionAst = (function () {
     InstructionAst.prototype["vcrs.t"] = function (i) {
         return this._vset3(i, function (index, src, target) {
             switch (index) {
-                case 0:
-                    return binop(src[1], '*', target[2]);
-                case 1:
-                    return binop(src[2], '*', target[0]);
-                case 2:
-                    return binop(src[0], '*', target[1]);
-                default:
-                    throw (new Error("vcrs_t not implemented"));
+                case 0: return binop(src[1], '*', target[2]);
+                case 1: return binop(src[2], '*', target[0]);
+                case 2: return binop(src[0], '*', target[1]);
+                default: throw (new Error("vcrs_t not implemented"));
             }
         }, 3, 3, 3);
     };
     InstructionAst.prototype["vcrsp.t"] = function (i) {
         return this._vset3(i, function (index, src, target) {
             switch (index) {
-                case 0:
-                    return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
-                case 1:
-                    return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
-                case 2:
-                    return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
-                default:
-                    throw (new Error("vcrs_t assert"));
+                case 0: return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
+                case 1: return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
+                case 2: return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
+                default: throw (new Error("vcrs_t assert"));
             }
         }, 3, 3, 3);
     };
@@ -5190,14 +4962,10 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vqmul = function (i) {
         return this._vset3(i, function (i, s, t) {
             switch (i) {
-                case 0:
-                    return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 1:
-                    return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 2:
-                    return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 3:
-                    return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 0: return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 1: return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 2: return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 3: return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
             }
         }, 4, 4, 4);
     };
@@ -5283,9 +5051,6 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    // @TODO:
-    //vwbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
-    //vsbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
     InstructionAst.prototype.vwbn = function (i) {
         return ast.stm();
     };
@@ -5332,7 +5097,6 @@ var InstructionAst = (function () {
         return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); });
     };
     InstructionAst.prototype.vasin = function (i) {
-        //return this._vset2(i, (i, src) => call('MathFloat.asinv1', [src[i]]));
         return stms([
             this._vset2(i, function (i, src) { return call('MathFloat.asinv1', [src[i]]); }),
         ]);
@@ -5391,7 +5155,6 @@ var InstructionAst = (function () {
         var vectorSize = i.ONE_TWO;
         var dest = getMatrixRegs(i.VD, vectorSize);
         var src = readMatrix(i.VS, vectorSize);
-        //var target = readMatrix(i.VT, i.ONE_TWO);
         var result = setMatrix(dest, function (column, row, index) { return src[index]; });
         this.eatPrefixes();
         return result;
@@ -5402,7 +5165,6 @@ var InstructionAst = (function () {
         var src = readMatrix(i.VS, VectorSize);
         var target = readMatrix(i.VT, VectorSize);
         var st = [];
-        //st.push(ast.debugger());
         st.push(setMatrix(dest, function (Column, Row, Index) {
             var sum = imm_f(0);
             for (var n = 0; n < VectorSize; n++) {
@@ -5433,7 +5195,6 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    // CPU
     InstructionAst.prototype.add = function (i) {
         return this.addu(i);
     };
@@ -5473,7 +5234,6 @@ var InstructionAst = (function () {
     InstructionAst.prototype.srlv = function (i) {
         return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31))));
     };
-    //srlv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.srl', [gpr(i.rt), gpr(i.rs)])); }
     InstructionAst.prototype.rotrv = function (i) {
         return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
     };
@@ -5778,11 +5538,9 @@ var InstructionAst = (function () {
         return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
     };
     InstructionAst.prototype._callstackPush = function (i) {
-        //return stm(call('state.callstackPush', [imm32(i.PC)]));
         return ast.stm();
     };
     InstructionAst.prototype._callstackPop = function (i) {
-        //return stm(call('state.callstackPop', []));
         return ast.stm();
     };
     InstructionAst.prototype.j = function (i) {
@@ -5807,7 +5565,7 @@ var InstructionAst = (function () {
         var fc_unordererd = ((fc02 & 1) != 0);
         var fc_equal = ((fc02 & 2) != 0);
         var fc_less = ((fc02 & 4) != 0);
-        var fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
+        var fc_inv_qnan = (fc3 != 0);
         return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
     };
     InstructionAst.prototype["c.f.s"] = function (i) {
@@ -5864,7 +5622,6 @@ exports.InstructionAst = InstructionAst;
 
 },
 "src/core/cpu/executor": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var state = require('./state');
 var icache = require('./icache');
 var ProgramExecutor = (function () {
@@ -5882,7 +5639,6 @@ var ProgramExecutor = (function () {
         this.lastPC = this.state.PC;
         var func = this.instructionCache.getFunction(this.state.PC);
         func(this.state);
-        //this.instructionCache.getFunction(this.state.PC)(this.state);
     };
     ProgramExecutor.prototype.executeUntilPCReachesWithoutCall = function (expectedPC) {
         while (this.state.PC != expectedPC) {
@@ -5923,7 +5679,6 @@ exports.ProgramExecutor = ProgramExecutor;
 
 },
 "src/core/cpu/generator": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -5961,7 +5716,6 @@ var FunctionGenerator = (function () {
         this.memory = memory;
         this.instructions = Instructions.instance;
         this.instructionAst = new InstructionAst();
-        //private instructionGenerartorsByName = <StringDictionary<Function>>{ };
         this.instructionUsageCount = {};
     }
     FunctionGenerator.prototype.getInstructionUsageCount = function () {
@@ -6001,7 +5755,6 @@ var FunctionGenerator = (function () {
     };
     FunctionGenerator.prototype._create = function (address) {
         var _this = this;
-        //var enableOptimizations = false;
         var enableOptimizations = true;
         if (address == 0x00000000) {
             throw (new Error("Trying to execute 0x00000000"));
@@ -6025,13 +5778,11 @@ var FunctionGenerator = (function () {
         }
         for (var n = 0; n < 100000; n++) {
             var di = this.decodeInstruction(PC + 0);
-            //console.log(di);
             pcToLabel[PC] = stms.createLabel(PC);
             if (this.instructionUsageCount[di.type.name] === undefined) {
                 this.instructionUsageCount[di.type.name] = 0;
             }
             this.instructionUsageCount[di.type.name]++;
-            //if ([0x089162F8, 0x08916318].contains(PC)) stms.push(ast.debugger(sprintf('PC: %08X', PC)));
             if (di.type.isJumpOrBranch) {
                 var di2 = this.decodeInstruction(PC + 4);
                 if (di2.type.isJumpOrBranch) {
@@ -6052,7 +5803,6 @@ var FunctionGenerator = (function () {
                 }
                 jumpAhead = jumpAddress > PC;
                 jumpBack = !jumpAhead;
-                // SIMPLE LOOP
                 var isSimpleLoop = (isBranch || isUnconditionalNonLinkJump) && jumpBack && (jumpAddress >= startPC);
                 var isFunctionCall = isCall;
                 stms.add(emitInstruction());
@@ -6112,7 +5862,6 @@ exports.FunctionGenerator = FunctionGenerator;
 
 },
 "src/core/cpu/icache": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var memory = require('../memory');
 var generator = require('./generator');
 var state = require('./state');
@@ -6137,9 +5886,6 @@ var InstructionCache = (function () {
             return item;
         if (address == 268435455 /* EXIT_THREAD */) {
             return this.cache[address] = function (state) {
-                //console.log(state);
-                //console.log(state.thread);
-                //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
                 state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
                 throw new CpuBreakException();
             };
@@ -6154,7 +5900,6 @@ exports.InstructionCache = InstructionCache;
 
 },
 "src/core/cpu/instructions": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var memory = require('../memory');
 var IndentStringGenerator = require('../../util/IndentStringGenerator');
 var ADDR_TYPE_NONE = 0;
@@ -6229,7 +5974,6 @@ function VM(format) {
     var value = 0;
     var mask = 0;
     format.split(':').forEach(function (item) {
-        // normal chunk
         if (/^[01\-]+$/.test(item)) {
             for (var n = 0; n < item.length; n++) {
                 value <<= 1;
@@ -6267,7 +6011,6 @@ var InstructionType = (function () {
         this.instructionType = instructionType;
     }
     InstructionType.prototype.match = function (i32) {
-        //printf("%08X | %08X | %08X", i32, this.vm.value, this.vm.mask);
         return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask);
     };
     InstructionType.prototype.isInstructionType = function (mask) {
@@ -6336,14 +6079,12 @@ var Instructions = (function () {
         var ID = function (name, vm, format, addressType, instructionType) {
             _this.add(name, vm, format, addressType, instructionType);
         };
-        // Arithmetic operations.
         ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
         ID("addiu", VM("001001:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
         ID("sub", VM("000000:rs:rt:rd:00000:100010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("subu", VM("000000:rs:rt:rd:00000:100011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        // Logical Operations.
         ID("and", VM("000000:rs:rt:rd:00000:100100"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("andi", VM("001100:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
         ID("nor", VM("000000:rs:rt:rd:00000:100111"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
@@ -6351,7 +6092,6 @@ var Instructions = (function () {
         ID("ori", VM("001101:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
         ID("xor", VM("000000:rs:rt:rd:00000:100110"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("xori", VM("001110:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-        // Shift Left/Right Logical/Arithmethic (Variable).
         ID("sll", VM("000000:00000:rt:rd:sa:000000"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
         ID("sllv", VM("000000:rs:rt:rd:00000:000100"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
         ID("sra", VM("000000:00000:rt:rd:sa:000011"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
@@ -6360,77 +6100,56 @@ var Instructions = (function () {
         ID("srlv", VM("000000:rs:rt:rd:00000:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
         ID("rotr", VM("000000:00001:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
         ID("rotrv", VM("000000:rs:rt:rd:00001:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-        // Set Less Than (Immediate) (Unsigned).
         ID("slt", VM("000000:rs:rt:rd:00000:101010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("slti", VM("001010:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
         ID("sltu", VM("000000:rs:rt:rd:00000:101011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("sltiu", VM("001011:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-        // Load Upper Immediate.
         ID("lui", VM("001111:00000:rt:imm16"), "%t, %I", ADDR_TYPE_NONE, 0);
-        // Sign Extend Byte/Half word.
         ID("seb", VM("011111:00000:rt:rd:10000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
         ID("seh", VM("011111:00000:rt:rd:11000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
-        // BIT REVerse.
         ID("bitrev", VM("011111:00000:rt:rd:10100:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // MAXimum/MINimum.
         ID("max", VM("000000:rs:rt:rd:00000:101100"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("min", VM("000000:rs:rt:rd:00000:101101"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // DIVide (Unsigned).
         ID("div", VM("000000:rs:rt:00000:00000:011010"), "%s, %t", ADDR_TYPE_NONE, 0);
         ID("divu", VM("000000:rs:rt:00000:00000:011011"), "%s, %t", ADDR_TYPE_NONE, 0);
-        // MULTiply (Unsigned).
         ID("mult", VM("000000:rs:rt:00000:00000:011000"), "%s, %t", ADDR_TYPE_NONE, 0);
         ID("multu", VM("000000:rs:rt:00000:00000:011001"), "%s, %t", ADDR_TYPE_NONE, 0);
-        // Multiply ADD/SUBstract (Unsigned).
         ID("madd", VM("000000:rs:rt:00000:00000:011100"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("maddu", VM("000000:rs:rt:00000:00000:011101"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("msub", VM("000000:rs:rt:00000:00000:101110"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("msubu", VM("000000:rs:rt:00000:00000:101111"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Move To/From HI/LO.
         ID("mfhi", VM("000000:00000:00000:rd:00000:010000"), "%d", ADDR_TYPE_NONE, 0);
         ID("mflo", VM("000000:00000:00000:rd:00000:010010"), "%d", ADDR_TYPE_NONE, 0);
         ID("mthi", VM("000000:rs:00000:00000:00000:010001"), "%s", ADDR_TYPE_NONE, 0);
         ID("mtlo", VM("000000:rs:00000:00000:00000:010011"), "%s", ADDR_TYPE_NONE, 0);
-        // Move if Zero/Non zero.
         ID("movz", VM("000000:rs:rt:rd:00000:001010"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("movn", VM("000000:rs:rt:rd:00000:001011"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // EXTract/INSert.
         ID("ext", VM("011111:rs:rt:msb:lsb:000000"), "%t, %s, %a, %ne", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("ins", VM("011111:rs:rt:msb:lsb:000100"), "%t, %s, %a, %ni", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Count Leading Ones/Zeros in word.
         ID("clz", VM("000000:rs:00000:rd:00000:010110"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("clo", VM("000000:rs:00000:rd:00000:010111"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Word Swap Bytes Within Halfwords/Words.
         ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Branch Equal (Likely).
         ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        // Branch on Greater Equal Zero (And Link) (Likely).
         ID("bgez", VM("000001:rs:00001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bgezl", VM("000001:rs:00011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
         ID("bgezal", VM("000001:rs:10001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
         ID("bgezall", VM("000001:rs:10011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
-        // Branch on Less Than Zero (And Link) (Likely).
         ID("bltz", VM("000001:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bltzl", VM("000001:rs:00010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
         ID("bltzal", VM("000001:rs:10000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
         ID("bltzall", VM("000001:rs:10010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
-        // Branch on Less Or Equals than Zero (Likely).
         ID("blez", VM("000110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("blezl", VM("010110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        // Branch on Great Than Zero (Likely).
         ID("bgtz", VM("000111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bgtzl", VM("010111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        // Branch on Not Equals (Likely).
         ID("bne", VM("000101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bnel", VM("010101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        // Jump (And Link) (Register).
         ID("j", VM("000010:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JUMP);
         ID("jr", VM("000000:rs:00000:00000:00000:001000"), "%J", ADDR_TYPE_REG, INSTR_TYPE_JUMP);
         ID("jalr", VM("000000:rs:00000:rd:00000:001001"), "%J, %d", ADDR_TYPE_REG, INSTR_TYPE_JAL);
         ID("jal", VM("000011:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JAL);
-        // Branch on C1 False/True (Likely).
         ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
@@ -6442,26 +6161,19 @@ var Instructions = (function () {
         ID("lwr", VM("100110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("lbu", VM("100100:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("lhu", VM("100101:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        // Store Byte/Half word/Word (Left/Right).
         ID("sb", VM("101000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("sh", VM("101001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("sw", VM("101011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("swl", VM("101010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("swr", VM("101110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        // Load Linked word.
-        // Store Conditional word.
         ID("ll", VM("110000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
         ID("sc", VM("111000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
-        // Load Word to Cop1 floating point.
-        // Store Word from Cop1 floating point.
         ID("lwc1", VM("110001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("swc1", VM("111001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
-        // Binary Floating Point Unit Operations
         ID("add.s", VM("010001:10000:ft:fs:fd:000000"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
         ID("sub.s", VM("010001:10000:ft:fs:fd:000001"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
         ID("mul.s", VM("010001:10000:ft:fs:fd:000010"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
         ID("div.s", VM("010001:10000:ft:fs:fd:000011"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-        // Unary Floating Point Unit Operations
         ID("sqrt.s", VM("010001:10000:00000:fs:fd:000100"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("abs.s", VM("010001:10000:00000:fs:fd:000101"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("mov.s", VM("010001:10000:00000:fs:fd:000110"), "%D, %S", ADDR_TYPE_NONE, 0);
@@ -6470,16 +6182,12 @@ var Instructions = (function () {
         ID("trunc.w.s", VM("010001:10000:00000:fs:fd:001101"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("ceil.w.s", VM("010001:10000:00000:fs:fd:001110"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("floor.w.s", VM("010001:10000:00000:fs:fd:001111"), "%D, %S", ADDR_TYPE_NONE, 0);
-        // Convert
         ID("cvt.s.w", VM("010001:10100:00000:fs:fd:100000"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("cvt.w.s", VM("010001:10000:00000:fs:fd:100100"), "%D, %S", ADDR_TYPE_NONE, 0);
-        // Move float point registers
         ID("mfc1", VM("010001:00000:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
         ID("mtc1", VM("010001:00100:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
-        // CFC1 -- move Control word from/to floating point (C1)
         ID("cfc1", VM("010001:00010:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
         ID("ctc1", VM("010001:00110:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
-        // Compare <condition> Single.
         ID("c.f.s", VM("010001:10000:ft:fs:00000:11:0000"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.un.s", VM("010001:10000:ft:fs:00000:11:0001"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.eq.s", VM("010001:10000:ft:fs:00000:11:0010"), "%S, %T", ADDR_TYPE_NONE, 0);
@@ -6496,67 +6204,38 @@ var Instructions = (function () {
         ID("c.nge.s", VM("010001:10000:ft:fs:00000:11:1101"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.le.s", VM("010001:10000:ft:fs:00000:11:1110"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.ngt.s", VM("010001:10000:ft:fs:00000:11:1111"), "%S, %T", ADDR_TYPE_NONE, 0);
-        // Syscall
         ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
         ID("cache", VM("101111:rs:-----:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("icache_index_invalidate", VM("101111:rs:00100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("icache_index_unlock", VM("101111:rs:00110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("icache_hit_invalidate", VM("101111:rs:01000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("icache_fill", VM("101111:rs:01010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("icache_fill_with_lock", VM("101111:rs:01011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //
-        //ID("dcache_index_writeback_invalidate", VM("101111:rs:10100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_index_unlock", VM("101111:rs:10110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_create_dirty_exclusive", VM("101111:rs:11000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_hit_invalidate", VM("101111:rs:11001:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_hit_writeback", VM("101111:rs:11010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_hit_writeback_invalidate", VM("101111:rs:11011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_create_dirty_exclusive_with_lock", VM("101111:rs:11100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_fill", VM("101111:rs:11110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        //ID("dcache_fill_with_lock", VM("101111:rs:11111:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
         ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
         ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);
         ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
         ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // (D?/Exception) RETurn
         ID("dret", VM("011100:00000:00000:00000:00000:111110"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("eret", VM("010000:10000:00000:00000:00000:011000"), "", ADDR_TYPE_NONE, 0);
-        // Move (From/To) IC
         ID("mfic", VM("011100:rt:00000:00000:00000:100100"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtic", VM("011100:rt:00000:00000:00000:100110"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Move (From/To) DR
         ID("mfdr", VM("011100:00000:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtdr", VM("011100:00100:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // C? (From/To) Cop0
-        ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CFC0(010000:00010:rt:c0cr:00000:000000)
-        ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CTC0(010000:00110:rt:c0cr:00000:000000)
-        // Move (From/To) Cop0
-        ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MFC0(010000:00000:rt:c0dr:00000:000000)
-        ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MTC0(010000:00100:rt:c0dr:00000:000000)
-        // Move From/to Vfpu (C?).
+        ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
+        ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
         ID("mfv", VM("010010:00:011:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mfvc", VM("010010:00:011:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtv", VM("010010:00:111:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtvc", VM("010010:00:111:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Load/Store Vfpu (Left/Right).
         ID("lv.s", VM("110010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("lv.q", VM("110110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("lvl.q", VM("110101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("lvr.q", VM("110101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("sv.q", VM("111110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu DOT product
-        // Vfpu SCaLe/ROTate
         ID("vdot", VM("011001:001:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vscl", VM("011001:010:vt:two:vs:one:vd"), "%zp, %yp, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsge", VM("011011:110:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        //ID("vslt",        VM("011011:100:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // FIXED 2013-07-14
-        // ROTate
+        ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vrot", VM("111100:111:01:imm5:two:vs:one:vd"), "%zp, %ys, %vr", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu ZERO/ONE
         ID("vzero", VM("110100:00:000:0:0110:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vone", VM("110100:00:000:0:0111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu MOVe/SiGN/Reverse SQuare root/COSine/Arc SINe/LOG2
         ID("vmov", VM("110100:00:000:0:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vabs", VM("110100:00:000:0:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vneg", VM("110100:00:000:0:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -6575,18 +6254,13 @@ var Instructions = (function () {
         ID("vrexp2", VM("110100:00:000:1:1100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsat0", VM("110100:00:000:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsat1", VM("110100:00:000:0:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu ConSTant
         ID("vcst", VM("110100:00:011:imm5:two:0000000:one:vd"), "%zp, %vk", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu Matrix MULtiplication
         ID("vmmul", VM("111100:000:vt:two:vs:one:vd"), "%zm, %tym, %xm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // -
         ID("vhdp", VM("011001:100:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vcrs.t", VM("011001:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vcrsp.t", VM("111100:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu Integer to(2) Color
         ID("vi2c", VM("110100:00:001:11:101:two:vs:one:vd"), "%zs, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vi2uc", VM("110100:00:001:11:100:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // -
         ID("vtfm2", VM("111100:001:vt:0:vs:1:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vtfm3", VM("111100:010:vt:1:vs:0:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vtfm4", VM("111100:011:vt:1:vs:1:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -6595,14 +6269,12 @@ var Instructions = (function () {
         ID("vhtfm4", VM("111100:011:vt:1:vs:0:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsrt3", VM("110100:00:010:01000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vfad", VM("110100:00:010:00110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu MINimum/MAXium/ADD/SUB/DIV/MUL
         ID("vmin", VM("011011:010:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vmax", VM("011011:011:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vadd", VM("011000:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsub", VM("011000:001:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vdiv", VM("011000:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vmul", VM("011001:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Vfpu (Matrix) IDenTity
         ID("vidt", VM("110100:00:000:0:0011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vmidt", VM("111100:111:00:00011:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("viim", VM("110111:11:0:vd:imm16"), "%xs, %vi", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -6651,8 +6323,6 @@ var Instructions = (function () {
         ID("vlgb", VM("110100:00:001:10:111:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vqmul", VM("111100:101:vt:1:vs:1:vd"), "%zq, %yq, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vs2i", VM("110100:00:001:11:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Working on it.
-        //"110100:00:001:11:000:1000000010000001"
         ID("vc2i", VM("110100:00:001:11:001:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vuc2i", VM("110100:00:001:11:000:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsbn", VM("011000:010:vt:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -6663,8 +6333,6 @@ var Instructions = (function () {
         ID("vsrt4", VM("110100:00:010:01001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vus2i", VM("110100:00:001:11010:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        //ID("vwb.q",       VM("111110------------------------1-"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        // Branch Vfpu (True/False) (Likely)
         ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
         ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
         ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
@@ -6699,7 +6367,6 @@ var Instructions = (function () {
     };
     Instructions.prototype.findByData = function (i32, pc) {
         if (pc === void 0) { pc = 0; }
-        //return this.slowFindByData(i32, pc);
         return this.fastFindByData(i32, pc);
     };
     Instructions.prototype.fastFindByData = function (i32, pc) {
@@ -6709,15 +6376,6 @@ var Instructions = (function () {
             this.decoder = (new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
         }
         return this.decoder(this.instructionTypeListByName, i32, pc);
-        /*
-        try {
-        } catch (e) {
-            console.log(this.decoder);
-            console.log(this.instructionTypeListByName);
-            console.log(this.instructionTypeList);
-            throw (e);
-        }
-        */
     };
     Instructions.prototype.slowFindByData = function (i32, pc) {
         if (pc === void 0) { pc = 0; }
@@ -7171,7 +6829,6 @@ exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/cpu/state": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -7209,10 +6866,6 @@ var VfpuPrefixRead = (function (_super) {
     function VfpuPrefixRead() {
         _super.apply(this, arguments);
     }
-    //private getSourceIndex(i: number) { return BitUtils.extract(this._info, 0 + i * 2, 2); }
-    //private getSourceAbsolute(i: number) { return BitUtils.extractBool(this._info, 8 + i * 1); }
-    //private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
-    //private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
     VfpuPrefixRead.prototype.transformValues = function (input, output) {
         this._readInfo();
         var info = this._info;
@@ -7222,10 +6875,6 @@ var VfpuPrefixRead = (function (_super) {
         }
         else {
             for (var n = 0; n < input.length; n++) {
-                //var sourceIndex = this.getSourceIndex(n);
-                //var sourceAbsolute = this.getSourceAbsolute(n);
-                //var sourceConstant = this.getSourceConstant(n);
-                //var sourceNegate = this.getSourceNegate(n);
                 var sourceIndex = (info >> (0 + n * 2)) & 3;
                 var sourceAbsolute = (info >> (8 + n * 1)) & 1;
                 var sourceConstant = (info >> (12 + n * 1)) & 1;
@@ -7251,7 +6900,6 @@ var VfpuPrefixRead = (function (_super) {
                     }
                 }
                 else {
-                    //debugger;
                     value = input[sourceIndex];
                     if (sourceAbsolute)
                         value = Math.abs(value);
@@ -7269,8 +6917,6 @@ var VfpuPrefixWrite = (function (_super) {
     function VfpuPrefixWrite() {
         _super.apply(this, arguments);
     }
-    //getDestinationSaturation(i: number) { return (this._info >> (0 + i * 2)) & 3; }
-    //getDestinationMask(i: number) { return (this._info >> (8 + i * 1)) & 1; }
     VfpuPrefixWrite.prototype.storeTransformedValues = function (vfpr, indices, values) {
         this._readInfo();
         var info = this._info;
@@ -7281,8 +6927,6 @@ var VfpuPrefixWrite = (function (_super) {
         }
         else {
             for (var n = 0; n < indices.length; n++) {
-                //var destinationSaturation = this.getDestinationSaturation(n);
-                //var destinationMask = this.getDestinationMask(n);
                 var destinationSaturation = (info >> (0 + n * 2)) & 3;
                 var destinationMask = (info >> (8 + n * 1)) & 1;
                 if (destinationMask) {
@@ -7296,8 +6940,7 @@ var VfpuPrefixWrite = (function (_super) {
                         case 3:
                             value = MathFloat.sat1(value);
                             break;
-                        default:
-                            break;
+                        default: break;
                     }
                     vfpr[indices[n]] = value;
                 }
@@ -7357,7 +7000,6 @@ var CpuState = (function () {
         this.fpr_Buffer = new ArrayBuffer(32 * 4);
         this.fpr = new Float32Array(this.fpr_Buffer);
         this.fpr_i = new Int32Array(this.fpr_Buffer);
-        //fpr: Float32Array = new Float32Array(32);
         this.vfpr_Buffer = new ArrayBuffer(128 * 4);
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
@@ -7421,7 +7063,7 @@ var CpuState = (function () {
         var cc = 0;
         var or_val = 0;
         var and_val = 1;
-        var affected_bits = (1 << 4) | (1 << 5); // 4 and 5
+        var affected_bits = (1 << 4) | (1 << 5);
         for (var i = 0; i < vectorSize; i++) {
             var c = false;
             switch (cond) {
@@ -7692,7 +7334,6 @@ var CpuState = (function () {
             this.vfpr_i[indices[n]] = values[n];
     };
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
-        // @TODO
         this.vfpr[0] = 0;
         throw new Error("Not implemented vfpuSetMatrix!");
     };
@@ -7797,10 +7438,8 @@ var CpuState = (function () {
         this.gpr[31] = value;
     };
     CpuState.prototype.callstackPush = function (PC) {
-        //this.callstack.push(PC);
     };
     CpuState.prototype.callstackPop = function () {
-        //this.callstack.pop();
     };
     CpuState.prototype.printCallstack = function (symbolLookup) {
         if (symbolLookup === void 0) { symbolLookup = null; }
@@ -7891,10 +7530,6 @@ var CpuState = (function () {
             this.fcr31_cc = fc_unordererd;
         }
         else {
-            //bool cc = false;
-            //if (fc_equal) cc = cc || (s == t);
-            //if (fc_less) cc = cc || (s < t);
-            //return cc;
             var equal = (fc_equal) && (s == t);
             var less = (fc_less) && (s < t);
             this.fcr31_cc = (less || equal);
@@ -7902,19 +7537,14 @@ var CpuState = (function () {
     };
     CpuState.prototype._cvt_w_s_impl = function (FS) {
         switch (this.fcr31_rm) {
-            case 0:
-                return MathFloat.rint(FS);
-            case 1:
-                return MathFloat.cast(FS);
-            case 2:
-                return MathFloat.ceil(FS);
-            case 3:
-                return MathFloat.floor(FS);
+            case 0: return MathFloat.rint(FS);
+            case 1: return MathFloat.cast(FS);
+            case 2: return MathFloat.ceil(FS);
+            case 3: return MathFloat.floor(FS);
         }
         throw ("RM has an invalid value!!");
     };
     CpuState.prototype.cache = function (rs, type, offset) {
-        //if (DebugOnce('state.cache', 100)) console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
     };
     CpuState.prototype.syscall = function (id) {
         this.syscallManager.call(this, id);
@@ -7988,14 +7618,14 @@ var CpuState = (function () {
         this.memory.writeInt32(AddressPointer, WordToWrite);
     };
     CpuState.prototype.div = function (rs, rt) {
-        rs |= 0; // signed
-        rt |= 0; // signed
+        rs |= 0;
+        rt |= 0;
         this.LO = (rs / rt) | 0;
         this.HI = (rs % rt) | 0;
     };
     CpuState.prototype.divu = function (rs, rt) {
-        rs >>>= 0; // unsigned
-        rt >>>= 0; // unsigned
+        rs >>>= 0;
+        rt >>>= 0;
         this.LO = (rs / rt) | 0;
         this.HI = (rs % rt) | 0;
     };
@@ -8076,7 +7706,6 @@ exports.CpuState = CpuState;
 
 },
 "src/core/cpu/syscall": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var state = require('./state');
 var NativeFunction = (function () {
     function NativeFunction() {
@@ -8101,7 +7730,6 @@ var SyscallManager = (function () {
         var nativeFunction = this.calls[id];
         if (!nativeFunction)
             throw (sprintf("Can't call syscall %s: 0x%06X", id));
-        //printf('calling syscall 0x%04X : %s', id, nativeFunction.name);
         nativeFunction.call(this.context, state);
     };
     return SyscallManager;
@@ -8110,7 +7738,6 @@ exports.SyscallManager = SyscallManager;
 
 },
 "src/core/display": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -8204,7 +7831,6 @@ var PspDisplay = (function (_super) {
         this.hcountTotal = (this.elapsedSeconds * PspDisplay.HORIZONTAL_SYNC_HZ) | 0;
         this.hcountCurrent = (((this.elapsedSeconds % 1.00002) * PspDisplay.HORIZONTAL_SYNC_HZ) | 0) % PspDisplay.NUMBER_OF_ROWS;
         this.vblankCount = (this.elapsedSeconds * PspDisplay.VERTICAL_SYNC_HZ) | 0;
-        //console.log(this.elapsedSeconds);
         if (this.hcountCurrent >= PspDisplay.VSYNC_ROW) {
             this.isInVblank = true;
             this.rowsLeftForVblank = 0;
@@ -8228,7 +7854,6 @@ var PspDisplay = (function (_super) {
         var w8 = imageData.data;
         var baseAddress = this.address & 0x0FFFFFFF;
         PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w8, 0, count, false);
-        //PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, <Uint8Array><any>w8, 0, count, false);
         this.context.putImageData(imageData, 0, 0);
     };
     PspDisplay.prototype.setEnabledDisplay = function (enable) {
@@ -8237,14 +7862,11 @@ var PspDisplay = (function (_super) {
             this.canvas.style.display = enable ? 'block' : 'none';
         if (this.webglcanvas)
             this.webglcanvas.style.display = !enable ? 'block' : 'none';
-        //this.canvas.style.display = 'none';
-        //this.webglcanvas.style.display = 'block';
     };
     PspDisplay.prototype.startAsync = function () {
         var _this = this;
         this.startTime = this.getCurrentMs();
         this.updateTime();
-        //$(this.canvas).focus();
         this.interval = setInterval(function () {
             _this.updateTime();
             _this.vblankCount++;
@@ -8259,7 +7881,6 @@ var PspDisplay = (function (_super) {
         this.interval = -1;
         return Promise.resolve();
     };
-    //mustWaitVBlank = false;
     PspDisplay.prototype.checkVblankThrottle = function () {
         var currentTime = performance.now();
         if ((currentTime - this.lastTimeVblank) >= (PspDisplay.VERTICAL_SECONDS * 1000)) {
@@ -8284,24 +7905,22 @@ var PspDisplay = (function (_super) {
             return Promise.resolve(0);
         return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
     };
-    PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000; // hz
+    PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000;
     PspDisplay.CYCLES_PER_PIXEL = 1;
     PspDisplay.PIXELS_IN_A_ROW = 525;
     PspDisplay.VSYNC_ROW = 272;
-    //static VSYNC_ROW = 100;
     PspDisplay.NUMBER_OF_ROWS = 286;
     PspDisplay.HCOUNT_PER_VBLANK = 285.72;
-    PspDisplay.HORIZONTAL_SYNC_HZ = (PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL) / PspDisplay.PIXELS_IN_A_ROW; // 17142.85714285714
-    PspDisplay.HORIZONTAL_SECONDS = 1 / PspDisplay.HORIZONTAL_SYNC_HZ; // 5.8333333333333E-5
-    PspDisplay.VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK; // 59.998800024
-    PspDisplay.VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ; // 0.016667
+    PspDisplay.HORIZONTAL_SYNC_HZ = (PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL) / PspDisplay.PIXELS_IN_A_ROW;
+    PspDisplay.HORIZONTAL_SECONDS = 1 / PspDisplay.HORIZONTAL_SYNC_HZ;
+    PspDisplay.VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK;
+    PspDisplay.VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ;
     return PspDisplay;
 })(BasePspDisplay);
 exports.PspDisplay = PspDisplay;
 
 },
 "src/core/gpu": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _gpu = require('./gpu/gpu');
 _gpu.PspGpu;
 var _state = require('./gpu/state');
@@ -8319,11 +7938,9 @@ exports.VertexReaderFactory = _vertex.VertexReaderFactory;
 
 },
 "src/core/gpu/driver": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 
 },
 "src/core/gpu/gpu": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _memory = require('../memory');
 var _pixelformat = require('../pixelformat');
 var _instructions = require('./instructions');
@@ -8889,7 +8506,6 @@ var PspGpuExecutor = (function () {
         this.list.drawDriver.textureFlush(this.state);
     };
     PspGpuExecutor.prototype.TSYNC = function (p) {
-        //this.invalidatePrim();
         this.list.drawDriver.textureSync(this.state);
     };
     PspGpuExecutor.prototype.TPSM = function (p) {
@@ -9213,7 +8829,6 @@ var PspGpuExecutor = (function () {
                 indices = list.memory.getU16Array(indicesAddress);
                 break;
         }
-        //if (vertexState.realWeightCount > 0) debugger;
         var vertexInput = list.memory.getPointerDataView(vertexAddress);
         if (vertexState.address) {
             if (!vertexState.hasIndex) {
@@ -9642,7 +9257,6 @@ var PspGpuList = (function () {
         this.primBatchPrimitiveType = -1;
         this.batchPrimCount = 0;
         this.primCount = 0;
-        //private showOpcodes = true;
         this.showOpcodes = false;
         this.opcodes = [];
     }
@@ -9683,7 +9297,6 @@ var PspGpuList = (function () {
     Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
         get: function () {
             return !this.completed && !this.isStalled;
-            //return !this.completed && ((this.stall == 0) || (this.current < this.stall));
         },
         enumerable: true,
         configurable: true
@@ -9696,7 +9309,6 @@ var PspGpuList = (function () {
         while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
             var instructionPC4 = this.current4++;
             var instruction = mem.readUInt32_2(instructionPC4);
-            //console.log(instruction);
             var op = (instruction >>> 24);
             var params24 = (instruction & 0x00FFFFFF);
             if (showOpcodes)
@@ -9792,7 +9404,6 @@ var PspGpuListRunner = (function () {
             return 0 /* Completed */;
         });
         var result = _peek();
-        //result = Math.floor(Math.random() * 4);
         console.warn('not implemented gpu list peeking -> ' + result);
         return result;
     };
@@ -9825,7 +9436,6 @@ var PspGpu = (function () {
         catch (e) {
             this.driver = new DummyDrawDriver();
         }
-        //this.driver = new Context2dPspDrawDriver(memory, canvas);
         this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
     }
     PspGpu.prototype.startAsync = function () {
@@ -9844,7 +9454,6 @@ var PspGpu = (function () {
         return list.id;
     };
     PspGpu.prototype.listSync = function (displayListId, syncType) {
-        //console.log('listSync');
         return this.listRunner.getById(displayListId).waitAsync();
     };
     PspGpu.prototype.updateStallAddr = function (displayListId, stall) {
@@ -9852,16 +9461,11 @@ var PspGpu = (function () {
         return 0;
     };
     PspGpu.prototype.drawSync = function (syncType) {
-        //console.log('drawSync');
-        //console.warn('Not implemented sceGe_user.sceGeDrawSync');
         return this.listRunner.waitAsync();
         switch (syncType) {
-            case 1 /* Peek */:
-                return this.listRunner.peek();
-            case 0 /* WaitForCompletion */:
-                return this.listRunner.waitAsync();
-            default:
-                throw (new Error("Not implemented SyncType." + syncType));
+            case 1 /* Peek */: return this.listRunner.peek();
+            case 0 /* WaitForCompletion */: return this.listRunner.waitAsync();
+            default: throw (new Error("Not implemented SyncType." + syncType));
         }
     };
     return PspGpu;
@@ -9870,7 +9474,6 @@ exports.PspGpu = PspGpu;
 
 },
 "src/core/gpu/instructions": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 (function (GpuOpCodes) {
     GpuOpCodes[GpuOpCodes["NOP"] = 0x00] = "NOP";
     GpuOpCodes[GpuOpCodes["VADDR"] = 0x01] = "VADDR";
@@ -10133,7 +9736,6 @@ var GpuOpCodes = exports.GpuOpCodes;
 
 },
 "src/core/gpu/state": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _memory = require('../memory');
 var _pixelformat = require('../pixelformat');
 var PixelFormat = _pixelformat.PixelFormat;
@@ -10273,7 +9875,6 @@ var VertexState = (function () {
         this.size = this.getVertexSize();
     };
     Object.defineProperty(VertexState.prototype, "hash", {
-        //getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
         get: function () {
             return this._value + (this.textureComponentCount * Math.pow(2, 24));
         },
@@ -10463,44 +10064,29 @@ var VertexState = (function () {
     });
     VertexState.prototype.IndexEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */:
-                return 0;
-            case 1 /* Byte */:
-                return 1;
-            case 2 /* Short */:
-                return 2;
-            default:
-                throw ("Invalid enum");
+            case 0 /* Void */: return 0;
+            case 1 /* Byte */: return 1;
+            case 2 /* Short */: return 2;
+            default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.NumericEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */:
-                return 0;
-            case 1 /* Byte */:
-                return 1;
-            case 2 /* Short */:
-                return 2;
-            case 3 /* Float */:
-                return 4;
-            default:
-                throw ("Invalid enum");
+            case 0 /* Void */: return 0;
+            case 1 /* Byte */: return 1;
+            case 2 /* Short */: return 2;
+            case 3 /* Float */: return 4;
+            default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.ColorEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */:
-                return 0;
-            case 4 /* Color5650 */:
-                return 2;
-            case 5 /* Color5551 */:
-                return 2;
-            case 6 /* Color4444 */:
-                return 2;
-            case 7 /* Color8888 */:
-                return 4;
-            default:
-                throw ("Invalid enum");
+            case 0 /* Void */: return 0;
+            case 4 /* Color5650 */: return 2;
+            case 5 /* Color5551 */: return 2;
+            case 6 /* Color4444 */: return 2;
+            case 7 /* Color8888 */: return 4;
+            default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.GetMaxAlignment = function () {
@@ -10534,11 +10120,9 @@ var VertexState = (function () {
         size += 3 * this.positionSize;
         var alignmentSize = this.GetMaxAlignment();
         size = MathUtils.nextAligned(size, alignmentSize);
-        //Console.WriteLine("Size:" + Size);
         return size;
     };
     VertexState.prototype.read = function (memory, count) {
-        //console.log('read vertices ' + count);
         var vertices = [];
         for (var n = 0; n < count; n++)
             vertices.push(this.readOne(memory));
@@ -10547,7 +10131,6 @@ var VertexState = (function () {
     VertexState.prototype.readOne = function (memory) {
         var address = this.address;
         var vertex = {};
-        //console.log(vertex);
         this.address += this.size;
         return vertex;
     };
@@ -10558,7 +10141,6 @@ var Matrix4x4 = (function () {
     function Matrix4x4() {
         this.index = 0;
         this.values = mat4.create();
-        //for (var n = 0; n < 16; n++) this.values[n] = -1;
     }
     Matrix4x4.prototype.check = function (value) {
         var check = (this.values[this.index] == value);
@@ -10791,26 +10373,18 @@ var TextureState = (function () {
     }
     TextureState.prototype.getTextureComponentsCount = function () {
         switch (this.textureMapMode) {
-            default:
-                throw (new Error("Invalid textureMapMode"));
-            case 0 /* GU_TEXTURE_COORDS */:
-                return 2;
+            default: throw (new Error("Invalid textureMapMode"));
+            case 0 /* GU_TEXTURE_COORDS */: return 2;
             case 1 /* GU_TEXTURE_MATRIX */:
                 switch (this.textureProjectionMapMode) {
-                    case 3 /* GU_NORMAL */:
-                        return 3;
-                    case 2 /* GU_NORMALIZED_NORMAL */:
-                        return 3;
-                    case 0 /* GU_POSITION */:
-                        return 3;
-                    case 1 /* GU_UV */:
-                        return 2;
-                    default:
-                        return 2;
+                    case 3 /* GU_NORMAL */: return 3;
+                    case 2 /* GU_NORMALIZED_NORMAL */: return 3;
+                    case 0 /* GU_POSITION */: return 3;
+                    case 1 /* GU_UV */: return 2;
+                    default: return 2;
                 }
                 break;
-            case 2 /* GU_ENVIRONMENT_MAP */:
-                return 2;
+            case 2 /* GU_ENVIRONMENT_MAP */: return 2;
         }
     };
     return TextureState;
@@ -11185,7 +10759,6 @@ var PrimitiveType = exports.PrimitiveType;
 
 },
 "src/core/gpu/vertex": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _state = require('./state');
 var _IndentStringGenerator = require('../../util/IndentStringGenerator');
 var ColorEnum = _state.ColorEnum;
@@ -11268,7 +10841,6 @@ var VertexReader = (function () {
         }
         maxDatacount *= this.vertexState.size;
         this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
-        //debugger;
         if (hasIndex) {
             for (var n = 0; n < count; n++) {
                 var index = indices[n];
@@ -11292,7 +10864,6 @@ var VertexReader = (function () {
         this.createColorJs(indentStringGenerator, this.vertexState.color);
         this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
         this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
-        //if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
         return indentStringGenerator.output;
     };
     VertexReader.prototype.readInt8 = function () {
@@ -11339,8 +10910,7 @@ var VertexReader = (function () {
                 alignment = 2;
                 sizes = [5, 6, 5, 0];
                 break;
-            default:
-                throw (new Error("Not implemented color format '" + type + "'"));
+            default: throw (new Error("Not implemented color format '" + type + "'"));
         }
         this.align(alignment);
         indentStringGenerator.write('var temp = (' + ((alignment == 2) ? this.readUInt16() : this.readUInt32()) + ');\n');
@@ -11352,7 +10922,6 @@ var VertexReader = (function () {
             indentStringGenerator.write('\n');
             offset += size;
         }
-        //indentStringGenerator.write('debugger;\n');
     };
     VertexReader.prototype.align = function (count) {
         this.readOffset = MathUtils.nextAligned(this.readOffset, count);
@@ -11390,7 +10959,6 @@ exports.VertexReader = VertexReader;
 
 },
 "src/core/gpu/webgl/driver": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _state = require('../state');
 var _memory = require('../../memory');
 var _shader = require('./shader');
@@ -11429,8 +10997,6 @@ var WebGlPspDrawDriver = (function () {
             alpha: false,
             depth: true,
             stencil: true,
-            //antialias: false,
-            //premultipliedAlpha: false,
             preserveDrawingBuffer: true,
         };
         this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
@@ -11457,7 +11023,6 @@ var WebGlPspDrawDriver = (function () {
     WebGlPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
         this.clearing = clearing;
         this.clearingFlags = flags;
-        //console.log('clearing: ' + clearing + '; ' + flags);
     };
     WebGlPspDrawDriver.prototype.end = function () {
         this.textureHandler.end();
@@ -11466,7 +11031,6 @@ var WebGlPspDrawDriver = (function () {
         this.projectionMatrix = projectionMatrix;
         this.viewMatrix = viewMatrix;
         this.worldMatrix = worldMatrix;
-        //mat4.copy(this.transformMatrix, this.projectionMatrix.values);
         mat4.identity(this.transformMatrix);
         mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
         mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
@@ -11486,7 +11050,7 @@ var WebGlPspDrawDriver = (function () {
         var state = this.state;
         var gl = this.gl;
         if (!this.equationTranslate)
-            this.equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
+            this.equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD];
         if (!this.opsConvertTable)
             this.opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
         if (!this.testConvertTable)
@@ -11556,7 +11120,6 @@ var WebGlPspDrawDriver = (function () {
         if (!this.state.depthTest.updated) {
             this.state.depthTest.updated = true;
             gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
-            //gl.depthRange(0, 1);
             gl.depthMask(state.depthTest.mask == 0);
             if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
                 gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
@@ -11580,7 +11143,6 @@ var WebGlPspDrawDriver = (function () {
         var gl = this.gl;
         var ccolorMask = false, calphaMask = false;
         var clearingFlags = this.clearingFlags;
-        //gl.disable(gl.TEXTURE_2D);
         gl.disable(gl.SCISSOR_TEST);
         state.clipPlane.updated = false;
         gl.disable(gl.BLEND);
@@ -11609,12 +11171,10 @@ var WebGlPspDrawDriver = (function () {
     };
     WebGlPspDrawDriver.prototype.updateCommonState = function (program, vertexState, primitiveType) {
         var viewport = this.state.viewport;
-        //var region = this.state.region;
         var x = 2048 - viewport.x;
         var y = 2048 - viewport.y;
         var width = Math.abs(viewport.width * 2);
         var height = Math.abs(-viewport.height * 2);
-        //debugger;
         var ratio = this.getScaleRatio();
         this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
     };
@@ -11655,7 +11215,6 @@ var WebGlPspDrawDriver = (function () {
         while (vertexPool.length < count * 2)
             vertexPool.push(new _state.Vertex());
         var inCount = 0;
-        //var vertices2 = [];
         this.vertexPool2.length = Math.max(this.vertexPool2.length, count * 3);
         var outCount = 0;
         for (var n = 0; n < count; n += 2) {
@@ -11721,7 +11280,6 @@ var WebGlPspDrawDriver = (function () {
     };
     WebGlPspDrawDriver.prototype.drawElementsInternal = function (originalPrimitiveType, primitiveType, vertices, count, vertexState) {
         var gl = this.gl;
-        //console.log(primitiveType);
         var program = this.cache.getProgram(vertexState, this.state);
         program.use();
         this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
@@ -11751,7 +11309,6 @@ var WebGlPspDrawDriver = (function () {
             program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
         }
         if (vertexState.realWeightCount >= 1) {
-            //debugger;
             program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
             if (vertexState.realWeightCount >= 4) {
                 program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
@@ -11765,7 +11322,6 @@ var WebGlPspDrawDriver = (function () {
         }
         else {
             var ac = this.state.ambientModelColor;
-            //console.log(ac.r, ac.g, ac.b, ac.a);
             program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
         }
         if (vertexState.hasTexture) {
@@ -11815,7 +11371,6 @@ var WebGlPspDrawDriver = (function () {
         if (!this.convertPrimitiveType)
             this.convertPrimitiveType = [gl.POINTS, gl.LINES, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
         gl.drawArrays(this.convertPrimitiveType[primitiveType], 0, count);
-        //if (gl.getError() != gl.NO_ERROR) debugger;
     };
     return WebGlPspDrawDriver;
 })();
@@ -11830,7 +11385,6 @@ module.exports = WebGlPspDrawDriver;
 
 },
 "src/core/gpu/webgl/driver_dummy": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _state = require('../state');
 var _memory = require('../../memory');
 var _shader = require('./shader');
@@ -11844,18 +11398,8 @@ var DummyDrawDriver = (function () {
     DummyDrawDriver.prototype.initAsync = function () {
         return Promise.resolve();
     };
-    /**
-     * Flush texture page-cache.
-     *
-     * Do this if you have copied/rendered into an area currently in the texture-cache
-     */
     DummyDrawDriver.prototype.textureFlush = function (state) {
     };
-    /**
-     * Synchronize rendering pipeline with image upload.
-     *
-     * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
-     */
     DummyDrawDriver.prototype.textureSync = function (state) {
     };
     DummyDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
@@ -11866,7 +11410,6 @@ module.exports = DummyDrawDriver;
 
 },
 "src/core/gpu/webgl/shader": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('./utils');
 var WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 var ShaderCache = (function () {
@@ -11923,7 +11466,6 @@ exports.ShaderCache = ShaderCache;
 
 },
 "src/core/gpu/webgl/texture": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _state = require('../state');
 var _utils = require('./utils');
 var _pixelformat = require('../../pixelformat');
@@ -11965,7 +11507,6 @@ var Texture = (function () {
         this.height = height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-            //gl.generateMipmap(gl.TEXTURE_2D);
         });
     };
     Texture.prototype.fromCanvas = function (canvas) {
@@ -11974,7 +11515,6 @@ var Texture = (function () {
         this.height = canvas.height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-            //gl.generateMipmap(gl.TEXTURE_2D);
         });
     };
     Texture.prototype.bind = function (textureUnit, min, mag, wraps, wrapt) {
@@ -12036,7 +11576,6 @@ var TextureHandler = (function () {
         this.texturesByAddress = {};
         this.textures = [];
         this.recheckTimestamp = 0;
-        //private updatedTextures = new SortedSet<Texture>();
         this.invalidatedAll = false;
         memory.invalidateDataRange.add(function (range) { return _this.invalidatedMemoryRange(range); });
         memory.invalidateDataAll.add(function () { return _this.invalidatedMemoryAll(); });
@@ -12068,21 +11607,15 @@ var TextureHandler = (function () {
         for (var n = 0; n < this.textures.length; n++) {
             var texture = this.textures[n];
             if (texture.address_start >= range.start && texture.address_end <= range.end) {
-                //debugger;
-                //console.info('invalidated texture', range);
                 texture.validHint = false;
             }
             if (texture.clut_start >= range.start && texture.clut_end <= range.end) {
-                //debugger;
-                //console.info('invalidated texture', range);
                 texture.validHint = false;
             }
         }
     };
     TextureHandler.prototype.mustRecheckSlowHash = function (texture) {
-        //return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
         return !texture || !texture.valid;
-        //return !texture;
     };
     TextureHandler.prototype.bindTexture = function (prog, state) {
         var gl = this.gl;
@@ -12095,12 +11628,9 @@ var TextureHandler = (function () {
             return;
         var hash1 = Texture.hashFast(state);
         var texture = this.texturesByHash1[hash1];
-        //if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
         if (this.mustRecheckSlowHash(texture)) {
             var hash2 = Texture.hashSlow(this.memory, state);
-            //console.log(hash);
             texture = this.texturesByHash2[hash2];
-            //if (!texture || !texture.valid) {
             if (!texture) {
                 if (!this.texturesByAddress[mipmap.address]) {
                     this.texturesByAddress[mipmap.address] = texture = new Texture(gl);
@@ -12112,7 +11642,6 @@ var TextureHandler = (function () {
                 texture.hash1 = hash1;
                 texture.hash2 = hash2;
                 texture.valid = true;
-                //this.updatedTextures.add(texture);
                 texture.recheckTimestamp = this.recheckTimestamp;
                 var mipmap = state.texture.mipmaps[0];
                 var h = mipmap.textureHeight;
@@ -12127,21 +11656,16 @@ var TextureHandler = (function () {
                 var paletteU8 = new Uint8Array(paletteBuffer);
                 var palette = new Uint32Array(paletteBuffer);
                 if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-                    //if (clut.pixelFormat == PixelFormat.RGBA_5551) debugger;
                     PixelConverter.decode(clut.pixelFormat, this.memory.getPointerU8Array(clut.adress), paletteU8, 0, clut.numberOfColors, true);
                 }
-                //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
                 var dataBuffer = new ArrayBuffer(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
                 var data = new Uint8Array(dataBuffer);
                 data.set(this.memory.getPointerU8Array(mipmap.address, data.length));
-                //data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
                 if (state.texture.swizzled) {
                     PixelConverter.unswizzleInline(state.texture.pixelFormat, dataBuffer, 0, w2, h);
                 }
                 PixelConverter.decode(state.texture.pixelFormat, data, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
-                //PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
                 if (true) {
-                    //if (false) {
                     texture.fromBytes(data2, w2, h);
                 }
                 else {
@@ -12178,7 +11702,6 @@ exports.TextureHandler = TextureHandler;
 
 },
 "src/core/gpu/webgl/utils": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
 var mat4x3 = mat4.create();
 var WrappedWebGLUniform = (function () {
@@ -12300,7 +11823,6 @@ exports.FastFloat32Buffer = FastFloat32Buffer;
 
 },
 "src/core/interrupt": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var InterruptHandler = (function () {
     function InterruptHandler(no) {
         this.no = no;
@@ -12360,7 +11882,6 @@ var InterruptManager = (function () {
         for (var n in handlers) {
             var handler = handlers[n];
             if (handler.enabled) {
-                //debugger;
                 this.queue.push(handler);
                 this.execute(null);
             }
@@ -12376,7 +11897,6 @@ var InterruptManager = (function () {
                 state.callPCSafe(item.address);
             });
         }
-        //state.callPCSafe();
     };
     return InterruptManager;
 })();
@@ -12414,7 +11934,6 @@ var PspInterrupts = exports.PspInterrupts;
 
 },
 "src/core/kirk": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _kirk = require('./kirk/kirk');
 _kirk.CMD7;
 exports.KIRK_AES128CBC_HEADER = _kirk.KIRK_AES128CBC_HEADER;
@@ -12427,7 +11946,6 @@ var KIRK_AES128CBC_HEADER_struct = exports.KIRK_AES128CBC_HEADER.struct;
 
 },
 "src/core/kirk/crypto": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var jsaes2 = require('./jsaes2');
 function cryptoToArray(info) {
     var words = info.words;
@@ -12442,11 +11960,6 @@ function cryptoToArray(info) {
     }
     return data;
 }
-/*
-function fromCryptoArray(uint8View: Uint8Array) {
-    return CryptoJS.lib.WordArray.create(uint8View);
-}
-*/
 function ab2str(buf) {
     return String.fromCharCode.apply(null, buf);
 }
@@ -12467,21 +11980,6 @@ function str2ab(str) {
     }
     return bufView;
 }
-/*
-export function md5(data: Uint8Array) {
-    return cryptoToArray(CryptoJS.MD5(fromCryptoArray(data)));
-}
-
-export function sha1(data: Uint8Array) {
-    return cryptoToArray(CryptoJS.SHA1(fromCryptoArray(data)));
-}
-
-export function aes_encrypt(data: Uint8Array, key: Uint8Array, iv?: Uint8Array) {
-    var info = { mode: CryptoJS.mode.CFB, padding: CryptoJS.pad.AnsiX923 };
-    if (iv !== undefined) info['iv'] = fromCryptoArray(iv);
-    return cryptoToArray(CryptoJS.AES.encrypt(fromCryptoArray(data), fromCryptoArray(key), info));
-}
-*/
 function uint8array_to_array32(data) {
     var data2 = new Uint32Array(data.buffer);
     var out = new Array(data2.length / 4);
@@ -12528,21 +12026,12 @@ function aes_decrypt(data, key, iv) {
     var keyLength = key.length;
     if (iv === undefined)
         iv = new Uint8Array(keyLength);
-    //return jsaes.Decrypt_Blocks_CBC(data, key, iv);
     return jsaes2.decrypt_aes128_cbc(data, key);
 }
 exports.aes_decrypt = aes_decrypt;
 
 },
 "src/core/kirk/jsaes2": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
-/*
-CryptoJS v3.1.2
-code.google.com/p/crypto-js
-(c) 2009-2013 by Jeff Mott. All rights reserved.
-code.google.com/p/crypto-js/wiki/License
-*/
-// Lookup tables
 var SBOX = new Uint8Array(256);
 var INV_SBOX = new Uint8Array(256);
 var SUB_MIX_0 = new Uint32Array(256);
@@ -12553,41 +12042,33 @@ var INV_SUB_MIX_0 = new Uint32Array(256);
 var INV_SUB_MIX_1 = new Uint32Array(256);
 var INV_SUB_MIX_2 = new Uint32Array(256);
 var INV_SUB_MIX_3 = new Uint32Array(256);
-// Compute lookup tables
 (function () {
-    // Compute double table
     var d = [];
     for (var i = 0; i < 256; i++) {
         d[i] = (i << 1);
         if (i >= 128)
             d[i] ^= 0x11b;
     }
-    // Walk GF(2^8)
     var x = 0;
     var xi = 0;
     for (var i = 0; i < 256; i++) {
-        // Compute sbox
         var sx = xi ^ (xi << 1) ^ (xi << 2) ^ (xi << 3) ^ (xi << 4);
         sx = (sx >>> 8) ^ (sx & 0xff) ^ 0x63;
         SBOX[x] = sx;
         INV_SBOX[sx] = x;
-        // Compute multiplication
         var x2 = d[x];
         var x4 = d[x2];
         var x8 = d[x4];
-        // Compute sub bytes, mix columns tables
         var t = (d[sx] * 0x101) ^ (sx * 0x1010100);
         SUB_MIX_0[x] = (t << 24) | (t >>> 8);
         SUB_MIX_1[x] = (t << 16) | (t >>> 16);
         SUB_MIX_2[x] = (t << 8) | (t >>> 24);
         SUB_MIX_3[x] = (t << 0);
-        // Compute inv sub bytes, inv mix columns tables
         var t = (x8 * 0x1010101) ^ (x4 * 0x10001) ^ (x2 * 0x101) ^ (x * 0x1010100);
         INV_SUB_MIX_0[sx] = (t << 24) | (t >>> 8);
         INV_SUB_MIX_1[sx] = (t << 16) | (t >>> 16);
         INV_SUB_MIX_2[sx] = (t << 8) | (t >>> 24);
         INV_SUB_MIX_3[sx] = (t << 0);
-        // Compute next counter
         if (!x) {
             x = xi = 1;
         }
@@ -12597,29 +12078,23 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
         }
     }
 }());
-// Precomputed Rcon lookup
 var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
-/**
- * AES block cipher algorithm.
- */
 var AES = (function () {
     function AES(key) {
         this._key = new Uint32Array([0, 0, 0, 0]);
         this._nRounds = -1;
         this._keySchedule = [];
         this._invKeySchedule = [];
-        //this.keySize = key.length / 8;
         this._key = uint8array_to_words(key);
         this.reset();
     }
     AES.prototype.reset = function () {
-        // Shortcuts
         var key = this._key;
         var keyWords = key;
-        var keySize = key.length; // number of words
-        var nRounds = this._nRounds = keySize + 6; // Compute number of rounds
-        var ksRows = (nRounds + 1) * 4; // Compute number of key schedule rows
-        var keySchedule = this._keySchedule = []; // Compute key schedule
+        var keySize = key.length;
+        var nRounds = this._nRounds = keySize + 6;
+        var ksRows = (nRounds + 1) * 4;
+        var keySchedule = this._keySchedule = [];
         for (var ksRow = 0; ksRow < ksRows; ksRow++) {
             if (ksRow < keySize) {
                 keySchedule[ksRow] = keyWords[ksRow];
@@ -12627,17 +12102,16 @@ var AES = (function () {
             else {
                 var t = keySchedule[ksRow - 1];
                 if (!(ksRow % keySize)) {
-                    t = (t << 8) | (t >>> 24); // Rot word
-                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff]; // Sub word
-                    t ^= RCON[(ksRow / keySize) | 0] << 24; // Mix Rcon
+                    t = (t << 8) | (t >>> 24);
+                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff];
+                    t ^= RCON[(ksRow / keySize) | 0] << 24;
                 }
                 else if (keySize > 6 && ksRow % keySize == 4) {
-                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff]; // Sub word
+                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff];
                 }
                 keySchedule[ksRow] = keySchedule[ksRow - keySize] ^ t;
             }
         }
-        // Compute inv key schedule
         var invKeySchedule = this._invKeySchedule = [];
         for (var invKsRow = 0; invKsRow < ksRows; invKsRow++) {
             var ksRow = ksRows - invKsRow;
@@ -12659,12 +12133,10 @@ var AES = (function () {
         this._doCryptBlock(M, offset, this._keySchedule, SUB_MIX_0, SUB_MIX_1, SUB_MIX_2, SUB_MIX_3, SBOX);
     };
     AES.prototype.decryptBlock = function (M, offset) {
-        // Swap 2nd and 4th rows
         var t = M[offset + 1];
         M[offset + 1] = M[offset + 3];
         M[offset + 3] = t;
         this._doCryptBlock(M, offset, this._invKeySchedule, INV_SUB_MIX_0, INV_SUB_MIX_1, INV_SUB_MIX_2, INV_SUB_MIX_3, INV_SBOX);
-        // Inv swap 2nd and 4th rows
         var t = M[offset + 1];
         M[offset + 1] = M[offset + 3];
         M[offset + 3] = t;
@@ -12675,26 +12147,21 @@ var AES = (function () {
         var s1 = M[offset + 1] ^ keySchedule[1];
         var s2 = M[offset + 2] ^ keySchedule[2];
         var s3 = M[offset + 3] ^ keySchedule[3];
-        // Key schedule row counter
         var ksRow = 4;
         for (var round = 1; round < nRounds; round++) {
-            // Shift rows, sub bytes, mix columns, add round key
             var t0 = SUB_MIX_0[s0 >>> 24] ^ SUB_MIX_1[(s1 >>> 16) & 0xff] ^ SUB_MIX_2[(s2 >>> 8) & 0xff] ^ SUB_MIX_3[(s3 >>> 0) & 0xff] ^ keySchedule[ksRow++];
             var t1 = SUB_MIX_0[s1 >>> 24] ^ SUB_MIX_1[(s2 >>> 16) & 0xff] ^ SUB_MIX_2[(s3 >>> 8) & 0xff] ^ SUB_MIX_3[(s0 >>> 0) & 0xff] ^ keySchedule[ksRow++];
             var t2 = SUB_MIX_0[s2 >>> 24] ^ SUB_MIX_1[(s3 >>> 16) & 0xff] ^ SUB_MIX_2[(s0 >>> 8) & 0xff] ^ SUB_MIX_3[(s1 >>> 0) & 0xff] ^ keySchedule[ksRow++];
             var t3 = SUB_MIX_0[s3 >>> 24] ^ SUB_MIX_1[(s0 >>> 16) & 0xff] ^ SUB_MIX_2[(s1 >>> 8) & 0xff] ^ SUB_MIX_3[(s2 >>> 0) & 0xff] ^ keySchedule[ksRow++];
-            // Update state
             s0 = t0;
             s1 = t1;
             s2 = t2;
             s3 = t3;
         }
-        // Shift rows, sub bytes, add round key
         var t0 = ((SBOX[s0 >>> 24] << 24) | (SBOX[(s1 >>> 16) & 0xff] << 16) | (SBOX[(s2 >>> 8) & 0xff] << 8) | SBOX[(s3 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
         var t1 = ((SBOX[s1 >>> 24] << 24) | (SBOX[(s2 >>> 16) & 0xff] << 16) | (SBOX[(s3 >>> 8) & 0xff] << 8) | SBOX[(s0 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
         var t2 = ((SBOX[s2 >>> 24] << 24) | (SBOX[(s3 >>> 16) & 0xff] << 16) | (SBOX[(s0 >>> 8) & 0xff] << 8) | SBOX[(s1 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
         var t3 = ((SBOX[s3 >>> 24] << 24) | (SBOX[(s0 >>> 16) & 0xff] << 16) | (SBOX[(s1 >>> 8) & 0xff] << 8) | SBOX[(s2 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
-        // Set output
         M[offset + 0] = t0;
         M[offset + 1] = t1;
         M[offset + 2] = t2;
@@ -12747,7 +12214,6 @@ exports.decrypt_aes128_cbc = decrypt_aes128_cbc;
 
 },
 "src/core/kirk/kirk": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var crypto = require('./crypto');
 var kirk1_key = new Uint8Array([0x98, 0xC9, 0x40, 0x97, 0x5C, 0x1D, 0x10, 0xE8, 0x7F, 0xE6, 0x0E, 0xA3, 0xFD, 0x03, 0xA8, 0xBA]);
 var kirk16_key = new Uint8Array([0x47, 0x5E, 0x09, 0xF4, 0xA2, 0x37, 0xDA, 0x9B, 0xEF, 0xFF, 0x3B, 0xC0, 0x77, 0x14, 0x3D, 0x8A]);
@@ -12775,26 +12241,18 @@ var kirk7_keys = {
     0x63: new Uint8Array([0x9C, 0x9B, 0x13, 0x72, 0xF8, 0xC6, 0x40, 0xCF, 0x1C, 0x62, 0xF5, 0xD5, 0x92, 0xDD, 0xB5, 0x82]),
     0x64: new Uint8Array([0x03, 0xB3, 0x02, 0xE8, 0x5F, 0xF3, 0x81, 0xB1, 0x3B, 0x8D, 0xAA, 0x2A, 0x90, 0xFF, 0x5E, 0x61]),
 };
-// ECC Curves for Kirk 1 and Kirk 0x11
-// Common Curve paramters p and a
 var ec_p = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
-var ec_a = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC]); // mon
-// Kirk 0xC,0xD,0x10,0x11,(likely 0x12)- Unique curve parameters for b, N, and base point G for Kirk 0xC,0xD,0x10,0x11,(likely 0x12) service
-// Since public key is variable, it is not specified here
-var ec_b2 = new Uint8Array([0xA6, 0x8B, 0xED, 0xC3, 0x34, 0x18, 0x02, 0x9C, 0x1D, 0x3C, 0xE3, 0x3B, 0x9A, 0x32, 0x1F, 0xCC, 0xBB, 0x9E, 0x0F, 0x0B]); // mon
+var ec_a = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC]);
+var ec_b2 = new Uint8Array([0xA6, 0x8B, 0xED, 0xC3, 0x34, 0x18, 0x02, 0x9C, 0x1D, 0x3C, 0xE3, 0x3B, 0x9A, 0x32, 0x1F, 0xCC, 0xBB, 0x9E, 0x0F, 0x0B]);
 var ec_N2 = new Uint8Array([0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xB5, 0xAE, 0x3C, 0x52, 0x3E, 0x63, 0x94, 0x4F, 0x21, 0x27]);
 var Gx2 = new Uint8Array([0x12, 0x8E, 0xC4, 0x25, 0x64, 0x87, 0xFD, 0x8F, 0xDF, 0x64, 0xE2, 0x43, 0x7B, 0xC0, 0xA1, 0xF6, 0xD5, 0xAF, 0xDE, 0x2C]);
 var Gy2 = new Uint8Array([0x59, 0x58, 0x55, 0x7E, 0xB1, 0xDB, 0x00, 0x12, 0x60, 0x42, 0x55, 0x24, 0xDB, 0xC3, 0x79, 0xD5, 0xAC, 0x5F, 0x4A, 0xDF]);
-// KIRK 1 - Unique curve parameters for b, N, and base point G
-// Since public key is hard coded, it is also included
 var ec_b1 = new Uint8Array([0x65, 0xD1, 0x48, 0x8C, 0x03, 0x59, 0xE2, 0x34, 0xAD, 0xC9, 0x5B, 0xD3, 0x90, 0x80, 0x14, 0xBD, 0x91, 0xA5, 0x25, 0xF9]);
 var ec_N1 = new Uint8Array([0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0xB5, 0xC6, 0x17, 0xF2, 0x90, 0xEA, 0xE1, 0xDB, 0xAD, 0x8F]);
 var Gx1 = new Uint8Array([0x22, 0x59, 0xAC, 0xEE, 0x15, 0x48, 0x9C, 0xB0, 0x96, 0xA8, 0x82, 0xF0, 0xAE, 0x1C, 0xF9, 0xFD, 0x8E, 0xE5, 0xF8, 0xFA]);
 var Gy1 = new Uint8Array([0x60, 0x43, 0x58, 0x45, 0x6D, 0x0A, 0x1C, 0xB2, 0x90, 0x8D, 0xE9, 0x0F, 0x27, 0xD7, 0x5C, 0x82, 0xBE, 0xC1, 0x08, 0xC0]);
 var Px1 = new Uint8Array([0xED, 0x9C, 0xE5, 0x82, 0x34, 0xE6, 0x1A, 0x53, 0xC6, 0x85, 0xD6, 0x4D, 0x51, 0xD0, 0x23, 0x6B, 0xC3, 0xB5, 0xD4, 0xB9]);
 var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 0x44, 0x85, 0x8B, 0x61, 0xB7, 0x9B, 0x69, 0xA6, 0x3D, 0x2C, 0x39]);
-// ------------------------- KEY VAULT END -------------------------
-// ------------------------- INTERNAL STUFF -------------------------
 var KIRK_AES128CBC_HEADER = (function () {
     function KIRK_AES128CBC_HEADER() {
         this.mode = 0 /* Invalid0 */;
@@ -12833,485 +12291,6 @@ var AES128CMACHeader = (function () {
     return AES128CMACHeader;
 })();
 exports.AES128CMACHeader = AES128CMACHeader;
-//interface KIRK_CMD1_HEADER
-//{
-//	/*
-//	u8  AES_key[16];            //0
-//	u8  CMAC_key[16];           //10
-//	u8  CMAC_header_hash[16];   //20
-//	u8  CMAC_data_hash[16];     //30
-//	u8  unused[32];             //40
-//	u32 mode;                   //60
-//	u8  ecdsa_hash;             //64
-//	u8  unk3[11];               //65
-//	u32 data_size;              //70
-//	u32 data_offset;            //74  
-//	u8  unk4[8];                //78
-//	u8  unk5[16];               //80
-//	//0x90
-//	*/
-//}
-//
-////typedef struct blah
-////{
-////  u8 fuseid[8]; //0
-////  u8 mesh[0x40];  //0x8
-////} kirk16_data; //0x48
-//// 
-////typedef struct header_keys
-////{
-////  u8 AES[16];
-////  u8 CMAC[16];
-////} header_keys;  //small struct for temporary keeping AES & CMAC key from CMD1 header
-////
-////
-////u32 g_fuse90;  // This is to match FuseID HW at BC100090 and BC100094
-////u32 g_fuse94;
-////
-////AES_ctx aes_kirk1; //global
-//var PRNG_DATA = new Uint8Array(0x14);
-//
-//var is_kirk_initialized:number; //"init" emulation
-//
-///* ------------------------- INTERNAL STUFF END ------------------------- */
-//
-//
-///* ------------------------- IMPLEMENTATION ------------------------- */
-//
-//function kirk_CMD0(outbuff: Uint8Array, inbuff: Uint8Array, size: number, generate_trash: number)
-//{
-//	KIRK_CMD1_HEADER * header = (KIRK_CMD1_HEADER*) outbuff;
-//	header_keys * keys = (header_keys *) outbuff; //0-15 AES key, 16-31 CMAC key
-//	var chk_size = 0;
-//	AES_ctx k1;
-//	AES_ctx cmac_key;
-//	u8 cmac_header_hash[16];
-//	u8 cmac_data_hash[16];
-//
-//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
-//
-//	memcpy(outbuff, inbuff, size);
-//
-//	if (header- > mode != KIRK_MODE_CMD1) return KIRK_INVALID_MODE;
-//
-//	//FILL PREDATA WITH RANDOM DATA
-//	if (generate_trash) kirk_CMD14(outbuff + sizeof(KIRK_CMD1_HEADER), header- > data_offset);
-//
-//	//Make sure data is 16 aligned
-//	chk_size = header- > data_size;
-//	if (chk_size % 16) chk_size += 16 - (chk_size % 16);
-//
-//	//ENCRYPT DATA
-//	AES_set_key(&k1, keys- > AES, 128);
-//	AES_cbc_encrypt(&k1, inbuff + sizeof(KIRK_CMD1_HEADER) + header- > data_offset, (u8*) outbuff + sizeof(KIRK_CMD1_HEADER) + header- > data_offset, chk_size);
-//
-//	//CMAC HASHES
-//	AES_set_key(&cmac_key, keys- > CMAC, 128);
-//	AES_CMAC(&cmac_key, outbuff + 0x60, 0x30, cmac_header_hash);
-//	AES_CMAC(&cmac_key, outbuff + 0x60, 0x30 + chk_size + header- > data_offset, cmac_data_hash);
-//
-//	memcpy(header- > CMAC_header_hash, cmac_header_hash, 16);
-//	memcpy(header- > CMAC_data_hash, cmac_data_hash, 16);
-//
-//	//ENCRYPT KEYS
-//	AES_cbc_encrypt(&aes_kirk1, inbuff, outbuff, 16 * 2);
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//function kirk_CMD1(u8 * outbuff, u8 * inbuff, int size)
-//{
-//	KIRK_CMD1_HEADER * header = (KIRK_CMD1_HEADER*) inbuff;
-//  header_keys keys; //0-15 AES key, 16-31 CMAC key
-//  AES_ctx k1;
-//
-//	if (size < 0x90) return KIRK_INVALID_SIZE;
-//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
-//	if (header- > mode != KIRK_MODE_CMD1) return KIRK_INVALID_MODE;
-//
-//	AES_cbc_decrypt(&aes_kirk1, inbuff, (u8*) & keys, 16 * 2); //decrypt AES & CMAC key to temp buffer
-//
-//	if (header- > ecdsa_hash == 1) {
-//        SHA_CTX sha;
-//		KIRK_CMD1_ECDSA_HEADER * eheader = (KIRK_CMD1_ECDSA_HEADER*) inbuff;
-//        u8 kirk1_pub[40];
-//        u8 header_hash[20];u8 data_hash[20];
-//		ecdsa_set_curve(ec_p, ec_a, ec_b1, ec_N1, Gx1, Gy1);
-//		memcpy(kirk1_pub, Px1, 20);
-//		memcpy(kirk1_pub + 20, Py1, 20);
-//		ecdsa_set_pub(kirk1_pub);
-//		//Hash the Header
-//		SHAInit(&sha);
-//		SHAUpdate(&sha, (u8*) eheader + 0x60, 0x30);
-//		SHAFinal(header_hash, &sha);
-//
-//		if (!ecdsa_verify(header_hash,eheader- > header_sig_r,eheader- > header_sig_s)) {
-//			return KIRK_HEADER_HASH_INVALID;
-//		}
-//		SHAInit(&sha);
-//		SHAUpdate(&sha, (u8*) eheader + 0x60, size - 0x60);
-//		SHAFinal(data_hash, &sha);
-//
-//		if (!ecdsa_verify(data_hash,eheader- > data_sig_r,eheader- > data_sig_s)) {
-//			return KIRK_DATA_HASH_INVALID;
-//		}
-//
-//	} else {
-//    int ret = kirk_CMD10(inbuff, size);
-//		if (ret != KIRK_OPERATION_SUCCESS) return ret;
-//	}
-//
-//	AES_set_key(&k1, keys.AES, 128);
-//	AES_cbc_decrypt(&k1, inbuff + sizeof(KIRK_CMD1_HEADER) + header- > data_offset, outbuff, header- > data_size);
-//
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//function kirk_CMD4(u8 * outbuff, u8 * inbuff, int size)
-//{
-//	KIRK_AES128CBC_HEADER * header = (KIRK_AES128CBC_HEADER*) inbuff;
-//	u8 * key;
-//  AES_ctx aesKey;
-//
-//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
-//	if (header- > mode != KIRK_MODE_ENCRYPT_CBC) return KIRK_INVALID_MODE;
-//	if (header- > data_size == 0) return KIRK_DATA_SIZE_ZERO;
-//
-//	key = kirk_4_7_get_key(header- > keyseed);
-//  if(key == (u8*)KIRK_INVALID_SIZE) return KIRK_INVALID_SIZE;
-//
-//	//Set the key
-//	AES_set_key(&aesKey, key, 128);
-//	AES_cbc_encrypt(&aesKey, inbuff + sizeof(KIRK_AES128CBC_HEADER), outbuff + sizeof(KIRK_AES128CBC_HEADER), size);
-//
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//
-//function kirk_CMD10(u8 * inbuff, int insize)
-//{
-//	KIRK_CMD1_HEADER * header = (KIRK_CMD1_HEADER*) inbuff;
-//  header_keys keys; //0-15 AES key, 16-31 CMAC key
-//  u8 cmac_header_hash[16];
-//  u8 cmac_data_hash[16];
-//  AES_ctx cmac_key;
-//  int chk_size;
-//
-//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
-//	if (!(header- > mode == KIRK_MODE_CMD1 || header- > mode == KIRK_MODE_CMD2 || header- > mode == KIRK_MODE_CMD3)) return KIRK_INVALID_MODE;
-//	if (header- > data_size == 0) return KIRK_DATA_SIZE_ZERO;
-//
-//	if (header- > mode == KIRK_MODE_CMD1) {
-//		AES_cbc_decrypt(&aes_kirk1, inbuff, (u8*) & keys, 32); //decrypt AES & CMAC key to temp buffer
-//		AES_set_key(&cmac_key, keys.CMAC, 128);
-//		AES_CMAC(&cmac_key, inbuff + 0x60, 0x30, cmac_header_hash);
-//
-//		//Make sure data is 16 aligned
-//		chk_size = header- > data_size;
-//		if (chk_size % 16) chk_size += 16 - (chk_size % 16);
-//		AES_CMAC(&cmac_key, inbuff + 0x60, 0x30 + chk_size + header- > data_offset, cmac_data_hash);
-//
-//		if (memcmp(cmac_header_hash, header- > CMAC_header_hash, 16) != 0) return KIRK_HEADER_HASH_INVALID;
-//		if (memcmp(cmac_data_hash, header- > CMAC_data_hash, 16) != 0) return KIRK_DATA_HASH_INVALID;
-//
-//		return KIRK_OPERATION_SUCCESS;
-//	}
-//	return KIRK_SIG_CHECK_INVALID; //Checks for cmd 2 & 3 not included right now
-//}
-//
-//function kirk_CMD11(u8 * outbuff, u8 * inbuff, int size)
-//{
-//	KIRK_SHA1_HEADER * header = (KIRK_SHA1_HEADER *) inbuff;
-//  SHA_CTX sha;
-//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
-//	if (header- > data_size == 0 || size == 0) return KIRK_DATA_SIZE_ZERO;
-//
-//	SHAInit(&sha);
-//	SHAUpdate(&sha, inbuff + sizeof(KIRK_SHA1_HEADER), header- > data_size);
-//	SHAFinal(outbuff, &sha);
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//// Generate an ECDSA Key pair
-//// offset 0 = private key (0x14 len)
-//// offset 0x14 = public key point (0x28 len)
-//function kirk_CMD12(u8 * outbuff, int outsize) {
-//  u8 k[0x15];
-//	KIRK_CMD12_BUFFER * keypair = (KIRK_CMD12_BUFFER *) outbuff;
-//
-//	if (outsize != 0x3C) return KIRK_INVALID_SIZE;
-//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
-//	k[0] = 0;
-//	kirk_CMD14(k + 1, 0x14);
-//	ec_priv_to_pub(k, (u8*)keypair- > public_key.x);
-//	memcpy(keypair- > private_key, k + 1, 0x14);
-//
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//// Point multiplication
-//// offset 0 = mulitplication value (0x14 len)
-//// offset 0x14 = point to multiply (0x28 len)
-//function kirk_CMD13(u8 * outbuff, int outsize, u8 * inbuff, int insize) {
-//  u8 k[0x15];
-//	KIRK_CMD13_BUFFER * pointmult = (KIRK_CMD13_BUFFER *) inbuff;
-//	k[0] = 0;
-//	if (outsize != 0x28) return KIRK_INVALID_SIZE;
-//	if (insize != 0x3C) return KIRK_INVALID_SIZE;
-//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
-//	ecdsa_set_pub((u8*)pointmult- > public_key.x);
-//	memcpy(k + 1,pointmult- > multiplier, 0x14);
-//	ec_pub_mult(k, outbuff);
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//function kirk_CMD14(u8 * outbuff, int outsize) {
-//  u8 temp[0x104];
-//	KIRK_SHA1_HEADER * header = (KIRK_SHA1_HEADER *) temp;
-//
-//  // Some randomly selected data for a "key" to add to each randomization
-//  u8 key[0x10] = { 0xA7, 0x2E, 0x4C, 0xB6, 0xC3, 0x34, 0xDF, 0x85, 0x70, 0x01, 0x49, 0xFC, 0xC0, 0x87, 0xC4, 0x77 };
-//  u32 curtime;
-//	//if(outsize != 0x14) return KIRK_INVALID_SIZE; // Need real error code
-//	if (outsize <= 0) return KIRK_OPERATION_SUCCESS;
-//
-//	memcpy(temp + 4, PRNG_DATA, 0x14);
-//	// This uses the standard C time function for portability.
-//	curtime = (u32) time(0);
-//	temp[0x18] = curtime & 0xFF;
-//	temp[0x19] = (curtime >> 8) & 0xFF;
-//	temp[0x1A] = (curtime >> 16) & 0xFF;
-//	temp[0x1B] = (curtime >> 24) & 0xFF;
-//	memcpy(&temp[0x1C], key, 0x10);
-//  //This leaves the remainder of the 0x100 bytes in temp to whatever remains on the stack 
-//  // in an uninitialized state. This should add unpredicableness to the results as well
-//  header- > data_size = 0x100;
-//	kirk_CMD11(PRNG_DATA, temp, 0x104);
-//	while (outsize) {
-//    int blockrem = outsize % 0x14;
-//    int block = outsize / 0x14;
-//
-//		if (block) {
-//			memcpy(outbuff, PRNG_DATA, 0x14);
-//			outbuff += 0x14;
-//			outsize -= 0x14;
-//			kirk_CMD14(outbuff, outsize);
-//		} else {
-//			if (blockrem) {
-//				memcpy(outbuff, PRNG_DATA, blockrem);
-//				outsize -= blockrem;
-//			}
-//		}
-//
-//	}
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//function decrypt_kirk16_private(u8 * dA_out, u8 * dA_enc)
-//{
-//  int i, k;
-//  kirk16_data keydata;
-//  u8 subkey_1[0x10], subkey_2[0x10];
-//  rijndael_ctx aes_ctx;
-//
-//	keydata.fuseid[7] = g_fuse90 & 0xFF;
-//	keydata.fuseid[6] = (g_fuse90 >> 8) & 0xFF;
-//	keydata.fuseid[5] = (g_fuse90 >> 16) & 0xFF;
-//	keydata.fuseid[4] = (g_fuse90 >> 24) & 0xFF;
-//	keydata.fuseid[3] = g_fuse94 & 0xFF;
-//	keydata.fuseid[2] = (g_fuse94 >> 8) & 0xFF;
-//	keydata.fuseid[1] = (g_fuse94 >> 16) & 0xFF;
-//	keydata.fuseid[0] = (g_fuse94 >> 24) & 0xFF;
-//
-//	/* set encryption key */
-//	rijndael_set_key(&aes_ctx, kirk16_key, 128);
-//
-//	/* set the subkeys */
-//	for (i = 0; i < 0x10; i++) {
-//		/* set to the fuseid */
-//		subkey_2[i] = subkey_1[i] = keydata.fuseid[i % 8];
-//	}
-//
-//	/* do aes crypto */
-//	for (i = 0; i < 3; i++) {
-//		/* encrypt + decrypt */
-//		rijndael_encrypt(&aes_ctx, subkey_1, subkey_1);
-//		rijndael_decrypt(&aes_ctx, subkey_2, subkey_2);
-//	}
-//
-//	/* set new key */
-//	rijndael_set_key(&aes_ctx, subkey_1, 128);
-//
-//	/* now lets make the key mesh */
-//	for (i = 0; i < 3; i++) {
-//		/* do encryption in group of 3 */
-//		for (k = 0; k < 3; k++) {
-//			/* crypto */
-//			rijndael_encrypt(&aes_ctx, subkey_2, subkey_2);
-//		}
-//
-//		/* copy to out block */
-//		memcpy(&keydata.mesh[i * 0x10], subkey_2, 0x10);
-//	}
-//
-//	/* set the key to the mesh */
-//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x20], 128);
-//
-//	/* do the encryption routines for the aes key */
-//	for (i = 0; i < 2; i++) {
-//		/* encrypt the data */
-//		rijndael_encrypt(&aes_ctx, &keydata.mesh[0x10], &keydata.mesh[0x10]);
-//	}
-//
-//	/* set the key to that mesh shit */
-//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x10], 128);
-//
-//	/* cbc decrypt the dA */
-//	AES_cbc_decrypt((AES_ctx *) & aes_ctx, dA_enc, dA_out, 0x20);
-//}
-//
-//function encrypt_kirk16_private(u8 * dA_out, u8 * dA_dec)
-//{
-//  int i, k;
-//  kirk16_data keydata;
-//  u8 subkey_1[0x10], subkey_2[0x10];
-//  rijndael_ctx aes_ctx;
-//
-//
-//	keydata.fuseid[7] = g_fuse90 & 0xFF;
-//	keydata.fuseid[6] = (g_fuse90 >> 8) & 0xFF;
-//	keydata.fuseid[5] = (g_fuse90 >> 16) & 0xFF;
-//	keydata.fuseid[4] = (g_fuse90 >> 24) & 0xFF;
-//	keydata.fuseid[3] = g_fuse94 & 0xFF;
-//	keydata.fuseid[2] = (g_fuse94 >> 8) & 0xFF;
-//	keydata.fuseid[1] = (g_fuse94 >> 16) & 0xFF;
-//	keydata.fuseid[0] = (g_fuse94 >> 24) & 0xFF;
-//	/* set encryption key */
-//	rijndael_set_key(&aes_ctx, kirk16_key, 128);
-//
-//	/* set the subkeys */
-//	for (i = 0; i < 0x10; i++) {
-//		/* set to the fuseid */
-//		subkey_2[i] = subkey_1[i] = keydata.fuseid[i % 8];
-//	}
-//
-//	/* do aes crypto */
-//	for (i = 0; i < 3; i++) {
-//		/* encrypt + decrypt */
-//		rijndael_encrypt(&aes_ctx, subkey_1, subkey_1);
-//		rijndael_decrypt(&aes_ctx, subkey_2, subkey_2);
-//	}
-//
-//	/* set new key */
-//	rijndael_set_key(&aes_ctx, subkey_1, 128);
-//
-//	/* now lets make the key mesh */
-//	for (i = 0; i < 3; i++) {
-//		/* do encryption in group of 3 */
-//		for (k = 0; k < 3; k++) {
-//			/* crypto */
-//			rijndael_encrypt(&aes_ctx, subkey_2, subkey_2);
-//		}
-//
-//		/* copy to out block */
-//		memcpy(&keydata.mesh[i * 0x10], subkey_2, 0x10);
-//	}
-//
-//	/* set the key to the mesh */
-//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x20], 128);
-//
-//	/* do the encryption routines for the aes key */
-//	for (i = 0; i < 2; i++) {
-//		/* encrypt the data */
-//		rijndael_encrypt(&aes_ctx, &keydata.mesh[0x10], &keydata.mesh[0x10]);
-//	}
-//
-//	/* set the key to that mesh shit */
-//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x10], 128);
-//
-//	/* cbc encrypt the dA */
-//	AES_cbc_encrypt((AES_ctx *) & aes_ctx, dA_dec, dA_out, 0x20);
-//}
-//
-//function kirk_CMD16(u8 * outbuff, int outsize, u8 * inbuff, int insize) {
-//        u8 dec_private[0x20];
-//	KIRK_CMD16_BUFFER * signbuf = (KIRK_CMD16_BUFFER *) inbuff;
-//	ECDSA_SIG * sig = (ECDSA_SIG *) outbuff;
-//	if (insize != 0x34) return KIRK_INVALID_SIZE;
-//	if (outsize != 0x28) return KIRK_INVALID_SIZE;
-//	decrypt_kirk16_private(dec_private,signbuf- > enc_private);
-//	// Clear out the padding for safety
-//	memset(&dec_private[0x14], 0, 0xC);
-//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
-//	ecdsa_set_priv(dec_private);
-//	ecdsa_sign(signbuf- > message_hash,sig- > r, sig- > s);
-//	return KIRK_OPERATION_SUCCESS;
-//}
-//
-//// ECDSA Verify
-//// inbuff structure:
-//// 00 = public key (0x28 length)
-//// 28 = message hash (0x14 length)
-//// 3C = signature R (0x14 length)
-//// 50 = signature S (0x14 length)
-//function kirk_CMD17(u8 * inbuff, int insize) {
-//	KIRK_CMD17_BUFFER * sig = (KIRK_CMD17_BUFFER *) inbuff;
-//	if (insize != 0x64) return KIRK_INVALID_SIZE;
-//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
-//	ecdsa_set_pub(sig- > public_key.x);
-//	// ecdsa_verify(u8 *hash, u8 *R, u8 *S)
-//	if (ecdsa_verify(sig- > message_hash,sig- > signature.r,sig- > signature.s)) {
-//		return KIRK_OPERATION_SUCCESS;
-//	} else {
-//		return KIRK_SIG_CHECK_INVALID;
-//	}
-//}
-//
-//function kirk_init()
-//{
-//	return kirk_init2((u8*) "Lazy Dev should have initialized!", 33, 0xBABEF00D, 0xDEADBEEF);;
-//}
-//
-//function kirk_init2(u8 * rnd_seed, u32 seed_size, u32 fuseid_90, u32 fuseid_94) {
-//  u8 temp[0x104];
-//
-//	KIRK_SHA1_HEADER * header = (KIRK_SHA1_HEADER *) temp;
-//  // Another randomly selected data for a "key" to add to each randomization
-//  u8 key[0x10] = {0x07, 0xAB, 0xEF, 0xF8, 0x96, 0x8C, 0xF3, 0xD6, 0x14, 0xE0, 0xEB, 0xB2, 0x9D, 0x8B, 0x4E, 0x74 };
-//  u32 curtime;
-//
-//	//Set PRNG_DATA initially, otherwise use what ever uninitialized data is in the buffer
-//	if (seed_size > 0) {
-//		u8 * seedbuf;
-//		KIRK_SHA1_HEADER * seedheader;;
-//		seedbuf = (u8*) malloc(seed_size + 4);
-//		seedheader = (KIRK_SHA1_HEADER *) seedbuf;
-//    seedheader- > data_size = seed_size;
-//		kirk_CMD11(PRNG_DATA, seedbuf, seed_size + 4);
-//		free(seedbuf);
-//	}
-//	memcpy(temp + 4, PRNG_DATA, 0x14);
-//	// This uses the standard C time function for portability.
-//	curtime = (u32) time(0);
-//	temp[0x18] = curtime & 0xFF;
-//	temp[0x19] = (curtime >> 8) & 0xFF;
-//	temp[0x1A] = (curtime >> 16) & 0xFF;
-//	temp[0x1B] = (curtime >> 24) & 0xFF;
-//	memcpy(&temp[0x1C], key, 0x10);
-//  //This leaves the remainder of the 0x100 bytes in temp to whatever remains on the stack 
-//  // in an uninitialized state. This should add unpredicableness to the results as well
-//  header- > data_size = 0x100;
-//	kirk_CMD11(PRNG_DATA, temp, 0x104);
-//
-//	//Set Fuse ID
-//	g_fuse90 = fuseid_90;
-//	g_fuse94 = fuseid_94;
-//
-//	//Set KIRK1 main key
-//	AES_set_key(&aes_kirk1, kirk1_key, 128);
-//
-//
-//	is_kirk_initialized = 1;
-//	return 0;
-//}
 function kirk_4_7_get_key(key_type) {
     var key = kirk7_keys[key_type];
     if (!key)
@@ -13348,17 +12327,6 @@ var KirkMode = exports.KirkMode;
     CommandEnum[CommandEnum["CERT_VERIFY"] = 0x12] = "CERT_VERIFY";
 })(exports.CommandEnum || (exports.CommandEnum = {}));
 var CommandEnum = exports.CommandEnum;
-//function kirk_CMD1_ex(outbuff: Uint8Array, inbuff: Uint8Array, size: number, header: KIRK_CMD1_HEADER)
-//{
-//	var buffer = new Uint8Array(size);
-//
-//	memcpy(buffer, header, sizeof(KIRK_CMD1_HEADER));
-//	memcpy(buffer + sizeof(KIRK_CMD1_HEADER), inbuff, header.data_size);
-//
-//	return kirk_CMD1(outbuff, buffer, size);
-//}
-//
-//
 function CMD7(input) {
     var header = KIRK_AES128CBC_HEADER.struct.read(input.slice());
     if (header.mode != 5 /* DecryptCbc */)
@@ -13373,7 +12341,6 @@ function kirk_CMD7(output, input) {
     output.slice().writeStream(output2);
 }
 function kirk_CMD1(output, input) {
-    //console.log(input.sliceWithLength(0, 128).readAllBytes());
     var header = input.slice().readStruct(AES128CMACHeader.struct);
     if (header.Mode != 1 /* Cmd1 */)
         throw (new Error("Kirk mode != Cmd1"));
@@ -13399,7 +12366,6 @@ exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 
 },
 "src/core/memory": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -13545,7 +12511,6 @@ var LowMemoryBase = (function () {
             return this.videomem;
         if (this.mainmem.contains(address))
             return this.mainmem;
-        // 02203738
         printf("Unmapped: %08X", address);
         return null;
     };
@@ -13653,7 +12618,6 @@ var FastMemory = (function () {
         return new Uint16Array(this.getPointerU8Array(address, size));
     };
     FastMemory.prototype.getPointerStream = function (address, size) {
-        //console.log(sprintf("getPointerStream: %08X", address));
         if (address == 0)
             return null;
         if (size === 0)
@@ -13664,7 +12628,6 @@ var FastMemory = (function () {
             size = this.availableAfterAddress(address & FastMemory.MASK);
         if (size < 0)
             return Stream.INVALID;
-        //if (size > this.u8.length - (address & FastMemory.MASK)) return Stream.INVALID;
         return new Stream(this.getPointerDataView(address & FastMemory.MASK, size));
     };
     FastMemory.prototype.getU8Array = function (address, size) {
@@ -13706,7 +12669,6 @@ var FastMemory = (function () {
         });
     };
     FastMemory.prototype.addBreakpointOnValue = function (address, value) {
-        //Watch: 0x0951044C < - 0x2A000000 
         var _this = this;
         this.addWriteAction(address, function (actualAddress) {
             var actualValue = _this.readUInt32(address);
@@ -13831,7 +12793,6 @@ var Memory = (function (_super) {
     Memory.prototype.copy = function (from, to, length) {
         if (length <= 0)
             return;
-        //console.warn('copy:', from, to, length);
         this.getPointerU8Array(to, length).set(this.getPointerU8Array(from, length));
         this._checkWriteBreakpoints(to, to + length);
     };
@@ -13910,7 +12871,6 @@ exports.Memory = Memory;
 
 },
 "src/core/pixelformat": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _memory = require('./memory');
 var Memory = _memory.Memory;
 var PixelFormatUtils = (function () {
@@ -14011,8 +12971,7 @@ var PixelConverter = (function () {
             case 4 /* PALETTE_T4 */:
                 PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
                 break;
-            default:
-                throw (new Error(sprintf("Unsupported pixel format %d", format)));
+            default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
         }
     };
     PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
@@ -14036,18 +12995,6 @@ var PixelConverter = (function () {
             to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
             to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
         }
-        //var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-        //var orValue = useAlpha ? 0 : 0xFF000000;
-        //count |= 0;
-        //clutStart |= 0;
-        //clutShift |= 0;
-        //clutMask &= 0xF;
-        //
-        //for (var n = 0, m = 0; n < count; n++) {
-        //	var char = from[fromIndex + n];
-        //	to32[m++] = palette[((clutStart + (char >>> 0) & 0xF) >>> clutShift) & clutMask]
-        //	to32[m++] = palette[((clutStart + (char >>> 4) & 0xF) >>> clutShift) & clutMask]
-        //}
     };
     PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
         if (useAlpha === void 0) { useAlpha = true; }
@@ -14117,7 +13064,6 @@ exports.PixelConverter = PixelConverter;
 
 },
 "src/core/rtc": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var PspRtc = (function () {
     function PspRtc() {
     }
@@ -14146,7 +13092,6 @@ exports.MemoryAsyncStream2 = MemoryAsyncStream;
 
 },
 "src/emulator": function(module, exports, require) {
-///<reference path="global.d.ts" />
 var _context = require('./context');
 var _cpu = require('./core/cpu');
 var _gpu = require('./core/gpu');
@@ -14292,22 +13237,16 @@ var Emulator = (function () {
         document.head.appendChild(link);
     };
     Emulator.prototype.loadIcon0 = function (data) {
-        //console.log('loadIcon0---------');
-        //console.log(data);
         if (data.length == 0) {
             this.changeFavicon('icon.png');
         }
         else {
             this.changeFavicon(data.toImageUrl());
         }
-        //var item = document.head.querySelector('link[rel="shortcut icon"]');
-        //item['href'] = ;
     };
     Emulator.prototype.loadPic1 = function (data) {
         if (typeof document == 'undefined')
             return;
-        //console.log('loadPic1---------');
-        //console.log(data);
         document.body.style.backgroundRepeat = 'no-repeat';
         document.body.style.backgroundSize = 'cover';
         document.body.style.backgroundPosition = 'center center';
@@ -14402,15 +13341,12 @@ var Emulator = (function () {
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
                         var argument = arguments.map(function (argument) { return argument + String.fromCharCode(0); }).join('');
                         _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
-                        //console.log(new Uint8Array(executableArrayBuffer));
                         var pspElf = new PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
                         pspElf.load(elfStream);
                         _this.context.symbolLookup = pspElf;
                         _this.context.gameTitle = _this.gameTitle;
                         _this.context.gameId = pspElf.moduleInfo.name;
                         var moduleInfo = pspElf.moduleInfo;
-                        //this.memory.dump(); debugger;
-                        // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
                         thread.state.GP = moduleInfo.gp;
                         thread.state.gpr[4] = argument.length;
@@ -14458,9 +13394,7 @@ var Emulator = (function () {
         return this.loadAndExecuteAsync(asyncStream, url).then(function () {
             if (afterStartCallback)
                 afterStartCallback();
-            //console.error('WAITING!');
             return _this.threadManager.waitExitGameAsync().then(function () {
-                //console.error('STOPPING!');
                 return _this.stopAsync().then(function () {
                     return _this.emulatorVfs.output;
                 });
@@ -14497,7 +13431,6 @@ var Emulator = (function () {
         var _this = this;
         return UrlAsyncStream.fromUrlAsync(url).then(function (stream) {
             setImmediate(function () {
-                // escape try/catch!
                 _this.loadAndExecuteAsync(stream, url);
             });
         });
@@ -14505,7 +13438,6 @@ var Emulator = (function () {
     Emulator.prototype.executeFileAsync = function (file) {
         var _this = this;
         setImmediate(function () {
-            // escape try/catch!
             _this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
         });
     };
@@ -14515,7 +13447,6 @@ exports.Emulator = Emulator;
 
 },
 "src/format/cso": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var zlib = require('./zlib');
 var CSO_MAGIC = 'CISO';
 var Header = (function () {
@@ -14568,7 +13499,7 @@ var Cso = (function () {
             var low = _this.offsets[index + 0] & 0x7FFFFFFF;
             var high = _this.offsets[index + 1] & 0x7FFFFFFF;
             return _this.stream.readChunkAsync(low, high - low).then(function (data) {
-                return (compressed ? zlib.Inflater.inflateRawArrayBuffer(data) : data);
+                return (compressed ? zlib.inflate_raw_arraybuffer(data) : data);
             }).catch(function (e) {
                 console.error(e);
                 throw (e);
@@ -14583,23 +13514,16 @@ var Cso = (function () {
         var maxReadCount = blockHigh - offset;
         var toReadInChunk = Math.min(count, maxReadCount);
         var chunkPromise = this.decodeBlockAsync(blockIndex).then(function (data) {
-            //console.log(data.byteLength);
             var low = offset - blockLow;
             return data.slice(low, low + toReadInChunk);
         });
         if (count <= maxReadCount) {
-            //console.log(sprintf("readChunkAsyncOne: %08X, %d, (%d) : %d, %d", offset, count, blockIndex, toReadInChunk, offset - blockLow));
             return chunkPromise;
         }
         else {
-            //console.log(sprintf("readChunkAsyncSeveral: %08X, %d, (%d)", offset, count, blockIndex), (new Error())['stack']);
-            //var time1 = performance.now();
             return chunkPromise.then(function (chunk1) {
                 return _this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(function (chunk2) {
-                    //var time2 = performance.now();
                     var result = ArrayBufferUtils.concat([chunk1, chunk2]);
-                    //var time3 = performance.now();
-                    //console.log('Cso.readChunkAsync', time1, time2, time3);
                     return result;
                 });
             });
@@ -14625,7 +13549,6 @@ exports.Cso = Cso;
 
 },
 "src/format/elf": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _memory = require('../core/memory');
 var Memory = _memory.Memory;
 var console = logger.named('elf');
@@ -14748,7 +13671,6 @@ var ElfSectionHeaderType = exports.ElfSectionHeaderType;
 var ElfSectionHeaderFlags = exports.ElfSectionHeaderFlags;
 (function (ElfProgramHeaderFlags) {
     ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 0x1] = "Executable";
-    // Note: demo PRX's were found to be not writable
     ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 0x2] = "Writable";
     ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 0x4] = "Readable";
 })(exports.ElfProgramHeaderFlags || (exports.ElfProgramHeaderFlags = {}));
@@ -14906,9 +13828,7 @@ exports.ElfLoader = ElfLoader;
 
 },
 "src/format/elf_dwarf": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var console = logger.named('elf.dwarf');
-// https://github.com/soywiz/pspemu/blob/master/src/pspemu/hle/elf/ElfDwarf.d
 var Uleb128Class = (function () {
     function Uleb128Class() {
     }
@@ -14975,27 +13895,6 @@ var DW_LNE;
     DW_LNE[DW_LNE["set_address"] = 2] = "set_address";
     DW_LNE[DW_LNE["define_file"] = 3] = "define_file";
 })(DW_LNE || (DW_LNE = {}));
-// 6.2.2 State Machine Registers
-/*
-class State {
-    uint address = 0;
-    uint file = 1;
-    uint line = 1;
-    uint column = 0;
-    bool is_stmt = false; // Must be setted by the header.
-    bool basic_block = false;
-    bool end_sequence = false;
-    FileEntry * file_entry;
-
-    string file_full_path() { return file_entry.full_path; }
-
-    //writefln("DW_LNS_copy: %08X, %s/%s:%d", state.address, directories[files[state.file].directory_index], files[state.file].name, state.line);
-    string toString() {
-        //return std.string.format("%08X: is_stmt(%d) basic_block(%d) end_sequence(%d) '%s':%d:%d ", address, is_stmt, basic_block, end_sequence, file_entry.full_path, line, column);
-        return std.string.format("%08X: '%s':%d:%d ", address, file_entry.full_path, line, column);
-    }
-}
-*/
 var FileEntry = (function () {
     function FileEntry() {
         this.name = '';
@@ -15128,7 +14027,6 @@ var ElfDwarfLoader = (function () {
         this.symbolEntries = [];
     }
     ElfDwarfLoader.prototype.parseElfLoader = function (elf) {
-        //this.parseDebugLine(elf);
         this.parseSymtab(elf);
     };
     ElfDwarfLoader.prototype.parseSymtab = function (elf) {
@@ -15160,13 +14058,6 @@ var ElfDwarfLoader = (function () {
             if (entry.contains(address))
                 return entry;
         }
-        /*
-        return this.symbolEntries.binarySearchValue((item) => {
-            if (address < item.value) return +1;
-            if (address >= item.value + item.size) return -1;
-            return 0;
-        });
-        */
         return null;
     };
     ElfDwarfLoader.prototype.parseDebugLine = function (elf) {
@@ -15198,7 +14089,6 @@ exports.ElfDwarfLoader = ElfDwarfLoader;
 
 },
 "src/format/format": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function detectFormatAsync(asyncStream) {
     return asyncStream.readChunkAsync(0, 4).then(function (data) {
         var stream = Stream.fromArrayBuffer(data);
@@ -15212,14 +14102,10 @@ function detectFormatAsync(asyncStream) {
             case 'PK\u0003\u0004':
             case 'PK\u0005\u0006':
                 return 'zip';
-            case '\u0000PBP':
-                return 'pbp';
-            case '\u007FELF':
-                return 'elf';
-            case '~PSP':
-                return 'psp';
-            case 'CISO':
-                return 'ciso';
+            case '\u0000PBP': return 'pbp';
+            case '\u007FELF': return 'elf';
+            case '~PSP': return 'psp';
+            case 'CISO': return 'ciso';
             case '\u0000\u0000\u0000\u0000':
                 return asyncStream.readChunkAsync(0x10 * 0x800, 6).then(function (data) {
                     var stream = Stream.fromArrayBuffer(data);
@@ -15241,7 +14127,6 @@ exports.detectFormatAsync = detectFormatAsync;
 
 },
 "src/format/iso": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var SECTOR_SIZE = 0x800;
 var DirectoryRecordDate = (function () {
     function DirectoryRecordDate() {
@@ -15561,7 +14446,6 @@ var Iso = (function () {
             dr.extent = lba;
             dr.size = size;
             dr.name = '';
-            //console.log(dr);
             return new IsoNode(this, dr, null);
         }
         if (path == '')
@@ -15609,23 +14493,16 @@ var Iso = (function () {
             var directoryStream = Stream.fromArrayBuffer(data);
             while (directoryStream.available) {
                 var directoryRecordSize = directoryStream.readUInt8();
-                // Even if a directory spans multiple sectors, the directory entries are not permitted to cross the sector boundary (unlike the path table).
-                // Where there is not enough space to record an entire directory entry at the end of a sector, that sector is zero-padded and the next
-                // consecutive sector is used.
                 if (directoryRecordSize == 0) {
                     directoryStream.position = MathUtils.nextAligned(directoryStream.position, SECTOR_SIZE);
                     continue;
                 }
                 directoryStream.position = directoryStream.position - 1;
-                //Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
                 var directoryRecordStream = directoryStream.readStream(directoryRecordSize);
                 var directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
                 directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
-                //Console.WriteLine("{0}", name); Console.ReadKey();
                 if (directoryRecord.name == "" || directoryRecord.name == "\x01")
                     continue;
-                //console.log(directoryRecord);
-                //writefln("   %s", name);
                 var child = new IsoNode(_this, directoryRecord, parentIsoNode);
                 parentIsoNode.addChild(child);
                 _this._children.push(child);
@@ -15646,7 +14523,6 @@ exports.Iso = Iso;
 
 },
 "src/format/pbp": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var PbpMagic;
 (function (PbpMagic) {
     PbpMagic[PbpMagic["expected"] = 0x50425000] = "expected";
@@ -15705,7 +14581,6 @@ exports.Pbp = Pbp;
 
 },
 "src/format/psf": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var DataType;
 (function (DataType) {
     DataType[DataType["Binary"] = 0] = "Binary";
@@ -15769,8 +14644,7 @@ var Psf = (function () {
                 case 2 /* Text */:
                     entry.value = valueStream.readUtf8Stringz();
                     break;
-                default:
-                    throw (sprintf("Unknown dataType: %s", entry.dataType));
+                default: throw (sprintf("Unknown dataType: %s", entry.dataType));
             }
             entriesByName[entry.key] = entry.value;
         });
@@ -15783,7 +14657,6 @@ exports.Psf = Psf;
 
 },
 "src/format/riff": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var Riff = (function () {
     function Riff() {
         this.handlers = {};
@@ -15829,7 +14702,6 @@ exports.Riff = Riff;
 
 },
 "src/format/vag": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _audio = require('../core/audio');
 var Sample = _audio.Sample;
 var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];
@@ -15872,7 +14744,6 @@ var VagDecoder = (function () {
         }
         this.blockStream.position = this.currentState.blockIndex * 16;
         this.currentState.blockIndex++;
-        //var block = VagBlock.struct.read(this.blockStream);
         var block = this.blockStream.readBytes(16);
         switch (block[1]) {
             case 6 /* LOOP_START */:
@@ -15914,15 +14785,12 @@ var VagDecoder = (function () {
         this.predict2 = VAG_f[predictIndex * 2 + 1];
         for (var n = 0; n < VagDecoder.COMPRESSED_BYTES_IN_BLOCK; n++) {
             var dataByte = block[n + 2];
-            //debugger;
             var v1 = MathUtils.sextend16((((dataByte >>> 0) & 0xF) << 12)) >> shiftFactor;
             var v2 = MathUtils.sextend16((((dataByte >>> 4) & 0xF) << 12)) >> shiftFactor;
             this.decodedBlockSamples[sampleOffset + 0] = this.handleSampleKeepHistory(v1);
             this.decodedBlockSamples[sampleOffset + 1] = this.handleSampleKeepHistory(v2);
-            //console.log("" + dataByte, ':', block.modificator, shiftFactor, ':', v1, v2, ':', this.currentState.history1, this.currentState.history2, ':', this.predict1, this.predict2, ':', this.decodedBlockSamples[sampleOffset + 0], this.decodedBlockSamples[sampleOffset + 1]);
             sampleOffset += 2;
         }
-        //console.log('--------------> ', this.currentState.history1, this.currentState.history2);
     };
     VagDecoder.prototype.handleSampleKeepHistory = function (unpackedSample) {
         var sample = this.handleSample(unpackedSample);
@@ -15933,13 +14801,12 @@ var VagDecoder = (function () {
     VagDecoder.prototype.handleSample = function (unpackedSample) {
         var sample = 0;
         sample += unpackedSample * 1;
-        sample += ((this.currentState.history1 * this.predict1) / 64) >> 0; // integer divide by 64
+        sample += ((this.currentState.history1 * this.predict1) / 64) >> 0;
         sample += ((this.currentState.history2 * this.predict2) / 64) >> 0;
-        //console.log(unpackedSample, '->', sample, ' : ');
         return MathUtils.clamp(sample, -32768, 32767);
     };
     VagDecoder.COMPRESSED_BYTES_IN_BLOCK = 14;
-    VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK = VagDecoder.COMPRESSED_BYTES_IN_BLOCK * 2; // 28
+    VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK = VagDecoder.COMPRESSED_BYTES_IN_BLOCK * 2;
     return VagDecoder;
 })();
 var VagBlockType;
@@ -15948,23 +14815,9 @@ var VagBlockType;
     VagBlockType[VagBlockType["LOOP_START"] = 6] = "LOOP_START";
     VagBlockType[VagBlockType["END"] = 7] = "END";
 })(VagBlockType || (VagBlockType = {}));
-/*
-class VagBlock {
-    modificator: number;
-    type: VagBlockType;
-    data: number[];
-
-    static struct = StructClass.create<VagBlock>(VagBlock, [
-        { modificator: UInt8 },
-        { type: UInt8 },
-        { data: StructArray<number>(UInt8, 14) },
-    ]);
-}
-*/
 var VagHeader = (function () {
     function VagHeader() {
     }
-    //name: string;
     VagHeader.struct = StructClass.create(VagHeader, [
         { magic: UInt32 },
         { vagVersion: UInt32_b },
@@ -15986,7 +14839,6 @@ var VagSoundSource = (function () {
         else {
             var headerStream = stream.sliceWithLength(0, VagHeader.struct.length);
             var dataStream = stream.sliceWithLength(VagHeader.struct.length);
-            //debugger;
             this.header = VagHeader.struct.read(headerStream);
             this.samplesCount = Math.floor(dataStream.length * 56 / 16);
             this.decoder = new VagDecoder(dataStream, Math.floor(dataStream.length / 16));
@@ -16025,7 +14877,6 @@ var VagState = (function () {
 
 },
 "src/format/zip": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var zlib = require('./zlib');
 var ZipEntry = (function () {
     function ZipEntry(zip, name, parent) {
@@ -16109,7 +14960,7 @@ var ZipEntry = (function () {
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
                 case 8 /* DEFLATE */:
-                    return zlib.Inflater.inflateRaw(data);
+                    return zlib.inflate_raw(data);
                 case 0 /* STORED */:
                     return data;
                 default:
@@ -16131,7 +14982,6 @@ var ZipEntry = (function () {
         if (path == '..')
             return this.parent || this;
         var pathIndex = path.indexOf('/');
-        // Single component
         if (pathIndex < 0) {
             var normalizedName = ZipEntry.normalizeString(path);
             var child = this.children[normalizedName];
@@ -16163,7 +15013,6 @@ var Zip = (function () {
             item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
             item.zipDirEntry = zipDirEntry;
         });
-        //console.log(this.root);
     }
     Zip.prototype.get = function (path) {
         return this.root.access(path);
@@ -16178,10 +15027,8 @@ var Zip = (function () {
         }
     };
     Zip.fromStreamAsync = function (zipStream) {
-        //console.info('zipStream', zipStream);
         return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then(function (data) {
             var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
-            //console.log('zipEndLocator', zipEndLocator);
             return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then(function (data) {
                 var dirEntries = StructArray(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
                 return new Zip(zipStream, dirEntries);
@@ -16272,374 +15119,325 @@ exports.ZipDirEntry = ZipDirEntry;
 
 },
 "src/format/zlib": function(module, exports, require) {
-var HuffmanNode = (function () {
-    function HuffmanNode(value, len, left, right) {
-        this.value = value;
-        this.len = len;
-        this.left = left;
-        this.right = right;
-    }
-    Object.defineProperty(HuffmanNode.prototype, "isLeaf", {
-        get: function () {
-            return this.len != 0;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    HuffmanNode.leaf = function (value, len) {
-        return new HuffmanNode(value, len, null, null);
-    };
-    HuffmanNode.internal = function (left, right) {
-        return new HuffmanNode(-1, 0, left, right);
-    };
-    return HuffmanNode;
-})();
-var ArrayBitReader = (function () {
-    function ArrayBitReader(data) {
-        this.data = data;
-        this.offset = 0;
-        this.bitdata = 0;
-        this.bitsavailable = 0;
-    }
-    ArrayBitReader.prototype.alignbyte = function () {
-        this.bitsavailable = 0;
-    };
-    Object.defineProperty(ArrayBitReader.prototype, "length", {
-        get: function () {
-            return this.data.length;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ArrayBitReader.prototype, "available", {
-        get: function () {
-            return this.length - this.offset;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    ArrayBitReader.prototype.u8 = function () {
-        return this.data[this.offset++];
-    };
-    ArrayBitReader.prototype.u16 = function () {
-        return this.u8() | (this.u8() << 8);
-    };
-    ArrayBitReader.prototype.readBits = function (bitcount) {
-        while (bitcount > this.bitsavailable) {
-            this.bitdata |= this.u8() << this.bitsavailable;
-            this.bitsavailable += 8;
-        }
-        var readed = BitUtils.extract(this.bitdata, 0, bitcount);
-        this.bitdata >>>= bitcount;
-        this.bitsavailable -= bitcount;
-        return readed;
-    };
-    return ArrayBitReader;
-})();
-var HuffmanTree = (function () {
-    function HuffmanTree(root, symbolLimit) {
-        this.root = root;
-        this.symbolLimit = symbolLimit;
-    }
-    HuffmanTree.prototype.readOne = function (reader) {
-        //console.log('-------------');
-        var node = this.root;
-        var bitcount = 0;
-        var bitcode = 0;
-        do {
-            var bbit = reader.readBits(1);
-            var bit = (bbit != 0);
-            bitcode |= bbit << bitcount;
-            bitcount++;
-            //console.log('bit', bit);
-            node = bit ? node.right : node.left;
-        } while (node && node.len == 0);
-        if (!node)
-            throw new Error("NODE = NULL");
-        return { value: node.value, bitcode: bitcode, bitcount: bitcount };
-    };
-    HuffmanTree.prototype.readOneValue = function (reader) {
-        //console.log('-------------');
-        var node = this.root;
-        var bitcount = 0;
-        var bitcode = 0;
-        do {
-            var bbit = reader.readBits(1);
-            var bit = (bbit != 0);
-            bitcode |= bbit << bitcount;
-            bitcount++;
-            //console.log('bit', bit);
-            node = bit ? node.right : node.left;
-        } while (node && node.len == 0);
-        if (!node)
-            throw new Error("NODE = NULL");
-        return node.value;
-    };
-    HuffmanTree.fromLengths = function (codeLengths) {
-        var nodes = [];
-        for (var i = Math.max.apply(null, codeLengths); i >= 1; i--) {
-            var newNodes = [];
-            for (var j = 0; j < codeLengths.length; j++) {
-                if (codeLengths[j] == i)
-                    newNodes.push(HuffmanNode.leaf(j, i));
+'use strict';
+var exported = {};
+var l = exported;
+function p(b, e) {
+    var a = b.split("."), c = l;
+    !(a[0] in c) && c.execScript && c.execScript("var " + a[0]);
+    for (var d; a.length && (d = a.shift());)
+        !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {};
+}
+;
+var q = "undefined" !== typeof Uint8Array && "undefined" !== typeof Uint16Array && "undefined" !== typeof Uint32Array && "undefined" !== typeof DataView;
+function t(b) {
+    var e = b.length, a = 0, c = Number.POSITIVE_INFINITY, d, f, g, h, k, m, r, n, s, J;
+    for (n = 0; n < e; ++n)
+        b[n] > a && (a = b[n]), b[n] < c && (c = b[n]);
+    d = 1 << a;
+    f = new (q ? Uint32Array : Array)(d);
+    g = 1;
+    h = 0;
+    for (k = 2; g <= a;) {
+        for (n = 0; n < e; ++n)
+            if (b[n] === g) {
+                m = 0;
+                r = h;
+                for (s = 0; s < g; ++s)
+                    m = m << 1 | r & 1, r >>= 1;
+                J = g << 16 | n;
+                for (s = m; s < d; s += k)
+                    f[s] = J;
+                ++h;
             }
-            for (var j = 0; j < nodes.length; j += 2) {
-                newNodes.push(HuffmanNode.internal(nodes[j], nodes[j + 1]));
-            }
-            nodes = newNodes;
-            if (nodes.length % 2 != 0)
-                throw new Error("This canonical code does not represent a Huffman code tree");
-        }
-        if (nodes.length != 2)
-            throw new Error("This canonical code does not represent a Huffman code tree");
-        return new HuffmanTree(HuffmanNode.internal(nodes[0], nodes[1]), codeLengths.length);
-    };
-    return HuffmanTree;
-})();
-var Inflater = (function () {
-    function Inflater() {
+        ++g;
+        h <<= 1;
+        k <<= 1;
     }
-    Inflater.inflateZlib = function (data) {
-        return this.inflateZlibBitReader(new ArrayBitReader(data));
-    };
-    Inflater.inflateRaw = function (data) {
-        return this.inflateRawBitReader(new ArrayBitReader(data));
-    };
-    Inflater.inflateRawArrayBuffer = function (data) {
-        return Inflater.inflateRaw(new Uint8Array(data)).buffer;
-    };
-    Inflater.inflateZlibBitReader = function (reader) {
-        var compressionMethod = reader.readBits(4);
-        if (compressionMethod != 8)
-            throw new Error("Invalid zlib stream");
-        var windowSize = 1 << (reader.readBits(4) + 8);
-        var fcheck = reader.readBits(5);
-        var hasDict = reader.readBits(1);
-        var flevel = reader.readBits(2);
-        if (hasDict)
-            throw new Error("Not implemented HAS DICT");
-        this.inflateRawBitReader(reader);
-    };
-    Inflater.inflateRawBitReader = function (reader) {
-        // https://www.ietf.org/rfc/rfc1951.txt
-        if (!Inflater.fixedtree) {
-            var lengths0 = new Array(287);
-            for (var n = 0; n <= 143; n++)
-                lengths0[n] = 8;
-            for (var n = 144; n <= 255; n++)
-                lengths0[n] = 9;
-            for (var n = 256; n <= 279; n++)
-                lengths0[n] = 7;
-            for (var n = 280; n <= 287; n++)
-                lengths0[n] = 8;
-            Inflater.fixedtree = HuffmanTree.fromLengths(lengths0);
-            Inflater.fixeddist = HuffmanTree.fromLengths(Array.apply(null, new Array(32)).map(Number.prototype.valueOf, 5));
+    return [f, a, c];
+}
+;
+function u(b, e) {
+    this.g = [];
+    this.h = 32768;
+    this.c = this.f = this.d = this.k = 0;
+    this.input = q ? new Uint8Array(b) : b;
+    this.l = !1;
+    this.i = v;
+    this.q = !1;
+    if (e || !(e = {}))
+        e.index && (this.d = e.index), e.bufferSize && (this.h = e.bufferSize), e.bufferType && (this.i = e.bufferType), e.resize && (this.q = e.resize);
+    switch (this.i) {
+        case w:
+            this.a = 32768;
+            this.b = new (q ? Uint8Array : Array)(32768 + this.h + 258);
+            break;
+        case v:
+            this.a = 0;
+            this.b = new (q ? Uint8Array : Array)(this.h);
+            this.e = this.v;
+            this.m = this.s;
+            this.j = this.t;
+            break;
+        default:
+            throw Error("invalid inflate mode");
+    }
+}
+var w = 0, v = 1;
+u.prototype.u = function () {
+    for (; !this.l;) {
+        var b = x(this, 3);
+        b & 1 && (this.l = !0);
+        b >>>= 1;
+        switch (b) {
+            case 0:
+                var e = this.input, a = this.d, c = this.b, d = this.a, f = e.length, g = void 0, h = void 0, k = c.length, m = void 0;
+                this.c = this.f = 0;
+                if (a + 1 >= f)
+                    throw Error("invalid uncompressed block header: LEN");
+                g = e[a++] | e[a++] << 8;
+                if (a + 1 >= f)
+                    throw Error("invalid uncompressed block header: NLEN");
+                h = e[a++] | e[a++] << 8;
+                if (g === ~h)
+                    throw Error("invalid uncompressed block header: length verify");
+                if (a + g > e.length)
+                    throw Error("input buffer is broken");
+                switch (this.i) {
+                    case w:
+                        for (; d + g > c.length;) {
+                            m = k - d;
+                            g -= m;
+                            if (q)
+                                c.set(e.subarray(a, a + m), d), d += m, a += m;
+                            else
+                                for (; m--;)
+                                    c[d++] = e[a++];
+                            this.a = d;
+                            c = this.e();
+                            d = this.a;
+                        }
+                        break;
+                    case v:
+                        for (; d + g > c.length;)
+                            c = this.e({
+                                o: 2
+                            });
+                        break;
+                    default:
+                        throw Error("invalid inflate mode");
+                }
+                if (q)
+                    c.set(e.subarray(a, a + g), d), d += g, a += g;
+                else
+                    for (; g--;)
+                        c[d++] = e[a++];
+                this.d = a;
+                this.a = d;
+                this.b = c;
+                break;
+            case 1:
+                this.j(y, z);
+                break;
+            case 2:
+                A(this);
+                break;
+            default:
+                throw Error("unknown BTYPE: " + b);
         }
-        var fixedtree = Inflater.fixedtree;
-        var fixeddist = Inflater.fixeddist;
-        var infos_lz = Inflater.infos_lz;
-        var infos_lz2 = Inflater.infos_lz2;
-        var out = [];
-        var lastBlock = false;
-        while (!lastBlock) {
-            lastBlock = reader.readBits(1) != 0;
-            var btype = reader.readBits(2);
-            console.log(lastBlock);
-            console.log(btype);
-            switch (btype) {
-                case 0:
-                    reader.alignbyte();
-                    var len = reader.u16();
-                    var nlen = reader.u16();
-                    if (len != ~nlen)
-                        throw new Error("Invalid file: len != ~nlen");
-                    for (var n = 0; n < len; n++)
-                        out.push(reader.u8() | 0);
+    }
+    return this.m();
+};
+var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], C = q ? new Uint16Array(B) : B, D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258], E = q ? new Uint16Array(D) : D, F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0], G = q ? new Uint8Array(F) : F, H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577], I = q ? new Uint16Array(H) : H, K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13], L = q ? new Uint8Array(K) : K, M = new (q ? Uint8Array : Array)(288), N, O;
+N = 0;
+for (O = M.length; N < O; ++N)
+    M[N] = 143 >= N ? 8 : 255 >= N ? 9 : 279 >= N ? 7 : 8;
+var y = t(M), P = new (q ? Uint8Array : Array)(30), Q, R;
+Q = 0;
+for (R = P.length; Q < R; ++Q)
+    P[Q] = 5;
+var z = t(P);
+function x(b, e) {
+    for (var a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h; c < e;) {
+        if (f >= g)
+            throw Error("input buffer is broken");
+        a |= d[f++] << c;
+        c += 8;
+    }
+    h = a & (1 << e) - 1;
+    b.f = a >>> e;
+    b.c = c - e;
+    b.d = f;
+    return h;
+}
+function S(b, e) {
+    for (var a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h = e[0], k = e[1], m, r; c < k && !(f >= g);)
+        a |= d[f++] << c, c += 8;
+    m = h[a & (1 << k) - 1];
+    r = m >>> 16;
+    b.f = a >> r;
+    b.c = c - r;
+    b.d = f;
+    return m & 65535;
+}
+function A(b) {
+    function e(a, b, c) {
+        var e, d = this.p, f, g;
+        for (g = 0; g < a;)
+            switch (e = S(this, b), e) {
+                case 16:
+                    for (f = 3 + x(this, 2); f--;)
+                        c[g++] = d;
                     break;
-                case 1:
-                case 2:
-                    if (btype == 1) {
-                        var tree = fixedtree;
-                        var dist = fixeddist;
-                    }
-                    else {
-                        var HCLENPOS = Inflater.HCLENPOS;
-                        var HLIT = reader.readBits(5) + 257; // hlit  + 257
-                        var HDIST = reader.readBits(5) + 1; // hdist +   1
-                        var HCLEN = reader.readBits(4) + 4; // hclen +   4
-                        var codeLenCodeLen = Array.apply(null, new Array(19)).map(function (v, n) {
-                            return 0;
-                        });
-                        for (var i = 0; i < HCLEN; i++)
-                            codeLenCodeLen[HCLENPOS[i]] = reader.readBits(3);
-                        //console.info(codeLenCodeLen);
-                        var codeLen = HuffmanTree.fromLengths(codeLenCodeLen);
-                        var lengths = Array.apply(null, new Array(HLIT + HDIST));
-                        var n = 0;
-                        for (; n < HLIT + HDIST;) {
-                            var value = codeLen.readOneValue(reader);
-                            var len = 1;
-                            if (value < 16) {
-                                len = 1;
-                            }
-                            else if (value == 16) {
-                                value = lengths[n - 1];
-                                len = reader.readBits(2) + 3;
-                            }
-                            else if (value == 17) {
-                                value = 0;
-                                len = reader.readBits(3) + 3;
-                            }
-                            else if (value == 18) {
-                                value = 0;
-                                len = reader.readBits(7) + 11;
-                            }
-                            else {
-                                throw new Error("Invalid");
-                            }
-                            for (var c = 0; c < len; c++)
-                                lengths[n++] = value;
-                        }
-                        tree = HuffmanTree.fromLengths(lengths.slice(0, HLIT));
-                        dist = HuffmanTree.fromLengths(lengths.slice(HLIT, lengths.length));
-                    }
-                    var completed = false;
-                    while (!completed && reader.available > 0) {
-                        var value = tree.readOneValue(reader);
-                        if (value < 256) {
-                            out.push(value | 0);
-                        }
-                        else if (value == 256) {
-                            completed = true;
-                        }
-                        else {
-                            var lengthInfo = infos_lz[value];
-                            var lengthExtra = reader.readBits(lengthInfo.extra);
-                            var length = lengthInfo.offset + lengthExtra;
-                            var distanceData = dist.readOneValue(reader);
-                            var distanceInfo = infos_lz2[distanceData];
-                            var distanceExtra = reader.readBits(distanceInfo.extra);
-                            var distance = distanceInfo.offset + distanceExtra;
-                            for (var n = 0; n < length; n++)
-                                out.push(out[out.length - distance] | 0);
-                        }
-                    }
+                case 17:
+                    for (f = 3 + x(this, 3); f--;)
+                        c[g++] = 0;
+                    d = 0;
                     break;
-                case 3:
-                    throw new Error("invalid bit");
+                case 18:
+                    for (f = 11 + x(this, 7); f--;)
+                        c[g++] = 0;
+                    d = 0;
                     break;
+                default:
+                    d = c[g++] = e;
             }
+        this.p = d;
+        return c;
+    }
+    var a = x(b, 5) + 257, c = x(b, 5) + 1, d = x(b, 4) + 4, f = new (q ? Uint8Array : Array)(C.length), g, h, k, m;
+    for (m = 0; m < d; ++m)
+        f[C[m]] = x(b, 3);
+    if (!q) {
+        m = d;
+        for (d = f.length; m < d; ++m)
+            f[C[m]] = 0;
+    }
+    g = t(f);
+    h = new (q ? Uint8Array : Array)(a);
+    k = new (q ? Uint8Array : Array)(c);
+    b.p = 0;
+    b.j(t(e.call(b, a, g, h)), t(e.call(b, c, g, k)));
+}
+u.prototype.j = function (b, e) {
+    var a = this.b, c = this.a;
+    this.n = b;
+    for (var d = a.length - 258, f, g, h, k; 256 !== (f = S(this, b));)
+        if (256 > f)
+            c >= d && (this.a = c, a = this.e(), c = this.a), a[c++] = f;
+        else {
+            g = f - 257;
+            k = E[g];
+            0 < G[g] && (k += x(this, G[g]));
+            f = S(this, e);
+            h = I[f];
+            0 < L[f] && (h += x(this, L[f]));
+            c >= d && (this.a = c, a = this.e(), c = this.a);
+            for (; k--;)
+                a[c] = a[c++ - h];
         }
-        return new Uint8Array(out);
-    };
-    Inflater.infos_lz = {
-        257: { extra: 0, offset: 3 },
-        258: { extra: 0, offset: 4 },
-        259: { extra: 0, offset: 5 },
-        260: { extra: 0, offset: 6 },
-        261: { extra: 0, offset: 7 },
-        262: { extra: 0, offset: 8 },
-        263: { extra: 0, offset: 9 },
-        264: { extra: 0, offset: 10 },
-        265: { extra: 1, offset: 11 },
-        266: { extra: 1, offset: 13 },
-        267: { extra: 1, offset: 15 },
-        268: { extra: 1, offset: 17 },
-        269: { extra: 2, offset: 19 },
-        270: { extra: 2, offset: 23 },
-        271: { extra: 2, offset: 27 },
-        272: { extra: 2, offset: 31 },
-        273: { extra: 3, offset: 35 },
-        274: { extra: 3, offset: 43 },
-        275: { extra: 3, offset: 51 },
-        276: { extra: 3, offset: 59 },
-        277: { extra: 4, offset: 67 },
-        278: { extra: 4, offset: 83 },
-        279: { extra: 4, offset: 99 },
-        280: { extra: 4, offset: 115 },
-        281: { extra: 5, offset: 131 },
-        282: { extra: 5, offset: 163 },
-        283: { extra: 5, offset: 195 },
-        284: { extra: 5, offset: 227 },
-        285: { extra: 0, offset: 258 }
-    };
-    Inflater.infos_lz2 = {
-        0: { extra: 0, offset: 1 },
-        1: { extra: 0, offset: 2 },
-        2: { extra: 0, offset: 3 },
-        3: { extra: 0, offset: 4 },
-        4: { extra: 1, offset: 5 },
-        5: { extra: 1, offset: 7 },
-        6: { extra: 2, offset: 9 },
-        7: { extra: 2, offset: 13 },
-        8: { extra: 3, offset: 17 },
-        9: { extra: 3, offset: 25 },
-        10: { extra: 4, offset: 33 },
-        11: { extra: 4, offset: 49 },
-        12: { extra: 5, offset: 65 },
-        13: { extra: 5, offset: 97 },
-        14: { extra: 6, offset: 129 },
-        15: { extra: 6, offset: 193 },
-        16: { extra: 7, offset: 257 },
-        17: { extra: 7, offset: 385 },
-        18: { extra: 8, offset: 513 },
-        19: { extra: 8, offset: 769 },
-        20: { extra: 9, offset: 1025 },
-        21: { extra: 9, offset: 1537 },
-        22: { extra: 10, offset: 2049 },
-        23: { extra: 10, offset: 3073 },
-        24: { extra: 11, offset: 4097 },
-        25: { extra: 11, offset: 6145 },
-        26: { extra: 12, offset: 8193 },
-        27: { extra: 12, offset: 12289 },
-        28: { extra: 13, offset: 16385 },
-        29: { extra: 13, offset: 24577 }
-    };
-    Inflater.HCLENPOS = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
-    return Inflater;
-})();
-exports.Inflater = Inflater;
+    for (; 8 <= this.c;)
+        this.c -= 8, this.d--;
+    this.a = c;
+};
+u.prototype.t = function (b, e) {
+    var a = this.b, c = this.a;
+    this.n = b;
+    for (var d = a.length, f, g, h, k; 256 !== (f = S(this, b));)
+        if (256 > f)
+            c >= d && (a = this.e(), d = a.length), a[c++] = f;
+        else {
+            g = f - 257;
+            k = E[g];
+            0 < G[g] && (k += x(this, G[g]));
+            f = S(this, e);
+            h = I[f];
+            0 < L[f] && (h += x(this, L[f]));
+            c + k > d && (a = this.e(), d = a.length);
+            for (; k--;)
+                a[c] = a[c++ - h];
+        }
+    for (; 8 <= this.c;)
+        this.c -= 8, this.d--;
+    this.a = c;
+};
+u.prototype.e = function () {
+    var b = new (q ? Uint8Array : Array)(this.a - 32768), e = this.a - 32768, a, c, d = this.b;
+    if (q)
+        b.set(d.subarray(32768, b.length));
+    else {
+        a = 0;
+        for (c = b.length; a < c; ++a)
+            b[a] = d[a + 32768];
+    }
+    this.g.push(b);
+    this.k += b.length;
+    if (q)
+        d.set(d.subarray(e, e + 32768));
+    else
+        for (a = 0; 32768 > a; ++a)
+            d[a] = d[e + a];
+    this.a = 32768;
+    return d;
+};
+u.prototype.v = function (b) {
+    var e, a = this.input.length / this.d + 1 | 0, c, d, f, g = this.input, h = this.b;
+    b && ("number" === typeof b.o && (a = b.o), "number" === typeof b.r && (a += b.r));
+    2 > a ? (c = (g.length - this.d) / this.n[2], f = 258 * (c / 2) | 0, d = f < h.length ? h.length + f : h.length << 1) : d = h.length * a;
+    q ? (e = new Uint8Array(d), e.set(h)) : e = h;
+    return this.b = e;
+};
+u.prototype.m = function () {
+    var b = 0, e = this.b, a = this.g, c, d = new (q ? Uint8Array : Array)(this.k + (this.a - 32768)), f, g, h, k;
+    if (0 === a.length)
+        return q ? this.b.subarray(32768, this.a) : this.b.slice(32768, this.a);
+    f = 0;
+    for (g = a.length; f < g; ++f) {
+        c = a[f];
+        h = 0;
+        for (k = c.length; h < k; ++h)
+            d[b++] = c[h];
+    }
+    f = 32768;
+    for (g = this.a; f < g; ++f)
+        d[b++] = e[f];
+    this.g = [];
+    return this.buffer = d;
+};
+u.prototype.s = function () {
+    var b, e = this.a;
+    q ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
+    return this.buffer = b;
+};
+p("Zlib.RawInflate", u);
+p("Zlib.RawInflate.prototype.decompress", u.prototype.u);
+var T = {
+    ADAPTIVE: v,
+    BLOCK: w
+}, U, V, W, X;
+if (Object.keys)
+    U = Object.keys(T);
+else
+    for (V in U = [], W = 0, T)
+        U[W++] = V;
+W = 0;
+for (X = U.length; W < X; ++W)
+    V = U[W], p("Zlib.RawInflate.BufferType." + V, T[V]);
+function inflate_raw(data) {
+    var clazz = exported.Zlib.RawInflate;
+    var inflate = new clazz(data);
+    return inflate.decompress();
+}
+exports.inflate_raw = inflate_raw;
+function inflate_raw_arraybuffer(data) {
+    return inflate_raw(new Uint8Array(data)).buffer;
+}
+exports.inflate_raw_arraybuffer = inflate_raw_arraybuffer;
 
 },
 "src/hle/SceKernelErrors": function(module, exports, require) {
 var SceKernelErrors;
 (function (SceKernelErrors) {
-    /*
-     * PSP Errors:
-     * Represented by a 32-bit value with the following scheme:
-     *
-     *  31  30  29  28  27        16  15        0
-     * | 1 | 0 | 0 | 0 | X | ... | X | E |... | E |
-     *
-     * Bits 31 and 30: Can only be 1 or 0.
-     *      -> If both are 0, there's no error (0x0==SUCCESS).
-     *      -> If 31 is 1 but 30 is 0, there's an error (0x80000000).
-     *      -> If both bits are 1, a critical error stops the PSP (0xC0000000).
-     *
-     * Bits 29 and 28: Unknown. Never change.
-     *
-     * Bits 27 to 16 (X): Represent the system area associated with the error.
-     *      -> 0x000 - Null (can be used anywhere).
-     *      -> 0x001 - Errno (PSP's implementation of errno.h).
-     *      -> 0x002 - Kernel.
-     *      -> 0x011 - Utility.
-     *      -> 0x021 - UMD.
-     *      -> 0x022 - MemStick.
-     *      -> 0x026 - Audio.
-     *      -> 0x02b - Power.
-     *      -> 0x041 - Wlan.
-     *      -> 0x042 - SAS.
-     *      -> 0x043 - HTTP(0x0431)/HTTPS/SSL(0x0435).
-     *      -> 0x044 - WAVE.
-     *      -> 0x046 - Font.
-     *      -> 0x061 - MPEG(0x0618)/PSMF(0x0615)/PSMF Player(0x0616).
-     *      -> 0x062 - AVC.
-     *      -> 0x063 - ATRAC.
-     *      -> 0x07f - Codec.
-     *
-     * Bits 15 to 0 (E): Represent the error code itself (different for each area).
-     *      -> E.g.: 0x80110001 - Error -> Utility -> Some unknown error.
-     */
     SceKernelErrors[SceKernelErrors["ERROR_OK"] = 0x00000000] = "ERROR_OK";
     SceKernelErrors[SceKernelErrors["ERROR_ERROR"] = 0x80020001] = "ERROR_ERROR";
     SceKernelErrors[SceKernelErrors["ERROR_NOTIMP"] = 0x80020002] = "ERROR_NOTIMP";
@@ -16826,12 +15624,6 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW"] = 0x800201c7] = "ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED"] = 0x800201c8] = "ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE"] = 0x800201c9] = "ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE";
-    //PSP_LWMUTEX_ERROR_NO_SUCH_LWMUTEX 0x800201CA
-    //PSP_LWMUTEX_ERROR_TRYLOCK_FAILED 0x800201CB
-    //PSP_LWMUTEX_ERROR_NOT_LOCKED 0x800201CC
-    //PSP_LWMUTEX_ERROR_LOCK_OVERFLOW 0x800201CD
-    //PSP_LWMUTEX_ERROR_UNLOCK_UNDERFLOW 0x800201CE
-    //PSP_LWMUTEX_ERROR_ALREADY_LOCKED 0x800201CF
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_NOT_FOUND"] = 0x800201ca] = "ERROR_KERNEL_LWMUTEX_NOT_FOUND";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCKED"] = 0x800201cb] = "ERROR_KERNEL_LWMUTEX_LOCKED";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCKED"] = 0x800201cc] = "ERROR_KERNEL_LWMUTEX_UNLOCKED";
@@ -16980,15 +15772,6 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_CODEC_AUDIO_FATAL"] = 0x807f00fc] = "ERROR_CODEC_AUDIO_FATAL";
     SceKernelErrors[SceKernelErrors["FATAL_UMD_UNKNOWN_MEDIUM"] = 0xC0210004] = "FATAL_UMD_UNKNOWN_MEDIUM";
     SceKernelErrors[SceKernelErrors["FATAL_UMD_HARDWARE_FAILURE"] = 0xC0210005] = "FATAL_UMD_HARDWARE_FAILURE";
-    //ERROR_AUDIO_CHANNEL_NOT_INIT                        = unchecked((int)0x80260001,
-    //ERROR_AUDIO_CHANNEL_BUSY                            = unchecked((int)0x80260002,
-    //ERROR_AUDIO_INVALID_CHANNEL                         = unchecked((int)0x80260003,
-    //ERROR_AUDIO_PRIV_REQUIRED                           = unchecked((int)0x80260004,
-    //ERROR_AUDIO_NO_CHANNELS_AVAILABLE                   = unchecked((int)0x80260005,
-    //ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED     = unchecked((int)0x80260006,
-    //ERROR_AUDIO_INVALID_FORMAT                          = unchecked((int)0x80260007,
-    //ERROR_AUDIO_CHANNEL_NOT_RESERVED                    = unchecked((int)0x80260008,
-    //ERROR_AUDIO_NOT_OUTPUT                              = unchecked((int)0x80260009,
     SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FREQUENCY"] = 0x8026000A] = "ERROR_AUDIO_INVALID_FREQUENCY";
     SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_VOLUME"] = 0x8026000B] = "ERROR_AUDIO_INVALID_VOLUME";
     SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_ALREADY_RESERVED"] = 0x80268002] = "ERROR_AUDIO_CHANNEL_ALREADY_RESERVED";
@@ -17022,10 +15805,8 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE_INDEX"] = 0x80420010] = "ERROR_SAS_INVALID_VOICE_INDEX";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_NOISE_CLOCK"] = 0x80420011] = "ERROR_SAS_INVALID_NOISE_CLOCK";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PITCH_VAL"] = 0x80420012] = "ERROR_SAS_INVALID_PITCH_VAL";
-    //ERROR_SAS_INVALID_ADSR_CURVE_MODE                   = unchecked((int)0x80420013,
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADPCM_SIZE"] = 0x80420014] = "ERROR_SAS_INVALID_ADPCM_SIZE";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_MODE"] = 0x80420015] = "ERROR_SAS_INVALID_LOOP_MODE";
-    //ERROR_SAS_VOICE_PAUSED                              = unchecked((int)0x80420016,
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOLUME_VAL"] = 0x80420018] = "ERROR_SAS_INVALID_VOLUME_VAL";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_VAL"] = 0x80420019] = "ERROR_SAS_INVALID_ADSR_VAL";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SIZE"] = 0x8042001A] = "ERROR_SAS_INVALID_SIZE";
@@ -17033,8 +15814,6 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_FEEDBACK"] = 0x80420021] = "ERROR_SAS_INVALID_FX_FEEDBACK";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_DELAY"] = 0x80420022] = "ERROR_SAS_INVALID_FX_DELAY";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_VOLUME_VAL"] = 0x80420023] = "ERROR_SAS_INVALID_FX_VOLUME_VAL";
-    //ERROR_SAS_BUSY                                      = unchecked((int)0x80420030,
-    //ERROR_SAS_NOT_INIT                                  = unchecked((int)0x80420100,
     SceKernelErrors[SceKernelErrors["ERROR_SAS_ALREADY_INIT"] = 0x80420101] = "ERROR_SAS_ALREADY_INIT";
     SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_TAKEN_SLOT"] = 0x80000020] = "PSP_POWER_ERROR_TAKEN_SLOT";
     SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_SLOTS_FULL"] = 0x80000022] = "PSP_POWER_ERROR_SLOTS_FULL";
@@ -17047,7 +15826,6 @@ module.exports = SceKernelErrors;
 
 },
 "src/hle/config": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var _structs = require('./structs');
 var PspLanguages = _structs.PspLanguages;
 var ButtonPreference = _structs.ButtonPreference;
@@ -17063,32 +15841,19 @@ var Config = (function () {
         if (!navigator.language)
             return 1 /* ENGLISH */;
         switch (navigator.language.split(/[_\-]/g)[0]) {
-            case 'ja':
-                return 0 /* JAPANESE */;
-            case 'en':
-                return 1 /* ENGLISH */;
-            case 'fr':
-                return 2 /* FRENCH */;
-            case 'es':
-                return 3 /* SPANISH */;
-            case 'de':
-                return 4 /* GERMAN */;
-            case 'it':
-                return 5 /* ITALIAN */;
-            case 'nl':
-                return 6 /* DUTCH */;
-            case 'pt':
-                return 7 /* PORTUGUESE */;
-            case 'ru':
-                return 8 /* RUSSIAN */;
-            case 'ko':
-                return 9 /* KOREAN */;
-            case 'zh':
-                return 10 /* TRADITIONAL_CHINESE */;
-            case 'zh2':
-                return 11 /* SIMPLIFIED_CHINESE */;
-            default:
-                return 1 /* ENGLISH */;
+            case 'ja': return 0 /* JAPANESE */;
+            case 'en': return 1 /* ENGLISH */;
+            case 'fr': return 2 /* FRENCH */;
+            case 'es': return 3 /* SPANISH */;
+            case 'de': return 4 /* GERMAN */;
+            case 'it': return 5 /* ITALIAN */;
+            case 'nl': return 6 /* DUTCH */;
+            case 'pt': return 7 /* PORTUGUESE */;
+            case 'ru': return 8 /* RUSSIAN */;
+            case 'ko': return 9 /* KOREAN */;
+            case 'zh': return 10 /* TRADITIONAL_CHINESE */;
+            case 'zh2': return 11 /* SIMPLIFIED_CHINESE */;
+            default: return 1 /* ENGLISH */;
         }
     };
     return Config;
@@ -17164,30 +15929,24 @@ function decrypt1(pbIn) {
     var pti = getTagInfo(header.tag);
     if (!pti)
         throw (new Error("Can't find tag " + header.tag));
-    // build conversion into pbOut
     pbOut.slice().writeStream(pbIn);
     pbOut.slice().writeByteRepeated(0x00, 0x150);
     pbOut.slice().writeByteRepeated(0x55, 0x40);
-    // step3 demangle in place
-    //kirk.KIRK_AES128CBC_HEADER.struct.write();
     var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
     h7_header.mode = 5 /* DecryptCbc */;
     h7_header.unk_4 = 0;
     h7_header.unk_8 = 0;
-    h7_header.keyseed = pti.code; // initial seed for PRX
-    h7_header.data_size = 0x70; // size
+    h7_header.keyseed = pti.code;
+    h7_header.data_size = 0x70;
     kirk.KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
-    // redo part of the SIG check (step2)
     var buffer1 = Stream.fromSize(0x150);
     buffer1.sliceWithLength(0x00).writeStream(pbIn.sliceWithLength(0xD0, 0x80));
     buffer1.sliceWithLength(0x80).writeStream(pbIn.sliceWithLength(0x80, 0x50));
     buffer1.sliceWithLength(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
-    //console.log('buffer1', buffer1.slice().readAllBytes());
     if (pti.codeExtra != 0) {
         var buffer2 = Stream.fromSize(20 + 0xA0);
         buffer2.slice().writeUInt32(5).writeUInt32(0).writeUInt32(0).writeUInt32(pti.codeExtra).writeUInt32(0xA0).writeStream(buffer1.sliceWithLength(0x10, 0xA0));
         kirk.hleUtilsBufferCopyWithRange(buffer2.sliceWithLength(0, 20 + 0xA0), buffer2.sliceWithLength(0, 20 + 0xA0), 7 /* DECRYPT_IV_0 */);
-        // copy result back
         buffer1.slice().writeStream(buffer2.sliceWithLength(0, 0xA0));
     }
     pbOut.sliceFrom(0x40).writeStream(buffer1.sliceWithLength(0x40, 0x40));
@@ -17198,138 +15957,12 @@ function decrypt1(pbIn) {
         pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
     pbOut.sliceFrom(0x80).writeByteRepeated(0, 0x30);
     pbOut.set(0xA0, 1);
-    // copy unscrambled parts from header
-    pbOut.sliceFrom(0xB0).writeStream(pbIn.sliceWithLength(0xB0, 0x20)); // file size + lots of zeros
-    pbOut.sliceFrom(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80)); // ~PSP header
-    // step4: do the actual decryption of code block
-    //  point 0x40 bytes into the buffer to key info
+    pbOut.sliceFrom(0xB0).writeStream(pbIn.sliceWithLength(0xB0, 0x20));
+    pbOut.sliceFrom(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
     kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x00, cbTotal), pbOut.sliceWithLength(0x40, cbTotal - 0x40), 1 /* DECRYPT_PRIVATE */);
-    //File.WriteAllBytes("../../../TestInput/temp.bin", _pbOut);
     var outputSize = pbIn.sliceFrom(0xB0).readUInt32();
     return pbOut.sliceWithLength(0, outputSize);
 }
-/*
-function Scramble(buf: Stream, code: number) {
-    buf[0] = 5;
-    buf[1] = buf[2] = 0;
-    buf[3] = (uint) code;
-    buf[4] = (uint) size;
-
-    if (Kirk.hleUtilsBufferCopyWithRange((byte*) buf, size + 0x14, (byte *) buf, size + 0x14, Kirk.CommandEnum.PSP_KIRK_CMD_DECRYPT) != Kirk.ResultEnum.OK) {
-        return -1;
-    }
-
-    return 0;
-}
-
-function decrypt2(input: Stream) {
-    var size = input.length;
-    var _pbOut = new Uint8Array(size);
-    _pbIn.CopyTo(_pbOut, 0);
-
-    var _tmp1 = new Uint8Array(0x150);
-    var _tmp2 = new Uint8Array(0x90 + 0x14);
-    var _tmp3 = new Uint8Array(0x60 + 0x14);
-
-    var HeaderPointer = (HeaderStruct*) inbuf;
-    this.Header = * (HeaderStruct*) inbuf;
-    var pti = GetTagInfo2(this.Header.Tag);
-    Console.WriteLine("{0}", pti);
-
-                int retsize = * (int *) & inbuf[0xB0];
-
-    PointerUtils.Memset(_tmp1, 0, 0x150);
-    PointerUtils.Memset(_tmp2, 0, 0x90 + 0x14);
-    PointerUtils.Memset(_tmp3, 0, 0x60 + 0x14);
-
-    PointerUtils.Memcpy(outbuf, inbuf, size);
-
-    if (size < 0x160) {
-        throw (new InvalidDataException("buffer not big enough, "));
-    }
-
-    if ((size - 0x150) < retsize) {
-        throw (new InvalidDataException("not enough data, "));
-    }
-
-    PointerUtils.Memcpy(tmp1, outbuf, 0x150);
-
-    for (var i = 0; i < 9; i++) {
-        for (var j = 0; j < 0x10; j++) {
-            _tmp2[0x14 + (i << 4) + j] = pti.key[j];
-        }
-
-        _tmp2[0x14 + (i << 4)] = (byte) i;
-    }
-
-    if (Scramble((uint *) tmp2, 0x90, pti.code) < 0) {
-        throw (new InvalidDataException("error in Scramble#1, "));
-    }
-
-    PointerUtils.Memcpy(outbuf, tmp1 + 0xD0, 0x5C);
-    PointerUtils.Memcpy(outbuf + 0x5C, tmp1 + 0x140, 0x10);
-    PointerUtils.Memcpy(outbuf + 0x6C, tmp1 + 0x12C, 0x14);
-    PointerUtils.Memcpy(outbuf + 0x80, tmp1 + 0x080, 0x30);
-    PointerUtils.Memcpy(outbuf + 0xB0, tmp1 + 0x0C0, 0x10);
-    PointerUtils.Memcpy(outbuf + 0xC0, tmp1 + 0x0B0, 0x10);
-    PointerUtils.Memcpy(outbuf + 0xD0, tmp1 + 0x000, 0x80);
-
-    PointerUtils.Memcpy(tmp3 + 0x14, outbuf + 0x5C, 0x60);
-
-    if (Scramble((uint *) tmp3, 0x60, pti.code) < 0) {
-        throw (new InvalidDataException("error in Scramble#2, "));
-    }
-
-    PointerUtils.Memcpy(outbuf + 0x5C, tmp3, 0x60);
-    PointerUtils.Memcpy(tmp3, outbuf + 0x6C, 0x14);
-    PointerUtils.Memcpy(outbuf + 0x70, outbuf + 0x5C, 0x10);
-    PointerUtils.Memset(outbuf + 0x18, 0, 0x58);
-    PointerUtils.Memcpy(outbuf + 0x04, outbuf, 0x04);
-
-                *((uint *)outbuf) = 0x014C;
-    PointerUtils.Memcpy(outbuf + 0x08, tmp2, 0x10);
-
-    // sha-1
-    if (Kirk.hleUtilsBufferCopyWithRange(outbuf, 3000000, outbuf, 3000000, Core.Crypto.Kirk.CommandEnum.PSP_KIRK_CMD_SHA1_HASH) != Core.Crypto.Kirk.ResultEnum.OK) {
-        throw (new InvalidDataException("error in sceUtilsBufferCopyWithRange 0xB, "));
-    }
-
-    if (PointerUtils.Memcmp(outbuf, tmp3, 0x14) != 0) {
-        throw (new InvalidDataException("WARNING (SHA-1 incorrect), "));
-    }
-    
-    for (var iXOR = 0; iXOR < 0x40; iXOR++) {
-        tmp3[iXOR + 0x14] = (byte)(outbuf[iXOR + 0x80] ^ _tmp2[iXOR + 0x10]);
-    }
-
-    if (Scramble((uint *) tmp3, 0x40, pti.code) != 0) {
-        throw (new InvalidDataException("error in Scramble#3, "));
-    }
-
-    for (var iXOR = 0x3F; iXOR >= 0; iXOR--) {
-        outbuf[iXOR + 0x40] = (byte)(_tmp3[iXOR] ^ _tmp2[iXOR + 0x50]); // uns 8
-    }
-
-    PointerUtils.Memset(outbuf + 0x80, 0, 0x30);
-    *(uint *) & outbuf[0xA0] = 1;
-
-    PointerUtils.Memcpy(outbuf + 0xB0, outbuf + 0xC0, 0x10);
-    PointerUtils.Memset(outbuf + 0xC0, 0, 0x10);
-
-    // the real decryption
-    var ret = Kirk.hleUtilsBufferCopyWithRange(outbuf, size, outbuf + 0x40, size - 0x40, Core.Crypto.Kirk.CommandEnum.PSP_KIRK_CMD_DECRYPT_PRIVATE);
-    if (ret != 0) {
-        throw (new InvalidDataException(String.Format("error in sceUtilsBufferCopyWithRange 0x1 (0x{0:X}), ", ret)));
-    }
-
-    if (retsize < 0x150) {
-        // Fill with 0
-        PointerUtils.Memset(outbuf + retsize, 0, 0x150 - retsize);
-    }
-
-    return _pbOut.Slice(0, retsize).ToArray();
-}
-*/
 function decrypt(input) {
     return decrypt1(input.slice());
 }
@@ -17565,7 +16198,6 @@ var g_key3A = new Uint32Array([
     0x46142158,
     0x749bb492,
 ]);
-// KEYS FROM MESG_LED.PRX (3.52)
 var g_keyEBOOT1xx = new Uint32Array([
     0x18CB69EF,
     0x158E8912,
@@ -18044,77 +16676,77 @@ exports.g_tagInfo2 = [
     { tag: 0x279D10F0, key: oneseg_slim, code: 0x61 },
     { tag: 0x3C2A08F0, key: ms_app_main, code: 0x67 },
 ];
-var keys260_0 = new Uint8Array([0xC3, 0x24, 0x89, 0xD3, 0x80, 0x87, 0xB2, 0x4E, 0x4C, 0xD7, 0x49, 0xE4, 0x9D, 0x1D, 0x34, 0xD1]); // kernel modules 2.60-2.71
-var keys260_1 = new Uint8Array([0xF3, 0xAC, 0x6E, 0x7C, 0x04, 0x0A, 0x23, 0xE7, 0x0D, 0x33, 0xD8, 0x24, 0x73, 0x39, 0x2B, 0x4A]); // user modules 2.60-2.71
-var keys260_2 = new Uint8Array([0x72, 0xB4, 0x39, 0xFF, 0x34, 0x9B, 0xAE, 0x82, 0x30, 0x34, 0x4A, 0x1D, 0xA2, 0xD8, 0xB4, 0x3C]); // vshmain 2.60-2.71
-var keys280_0 = new Uint8Array([0xCA, 0xFB, 0xBF, 0xC7, 0x50, 0xEA, 0xB4, 0x40, 0x8E, 0x44, 0x5C, 0x63, 0x53, 0xCE, 0x80, 0xB1]); // kernel modules 2.80
-var keys280_1 = new Uint8Array([0x40, 0x9B, 0xC6, 0x9B, 0xA9, 0xFB, 0x84, 0x7F, 0x72, 0x21, 0xD2, 0x36, 0x96, 0x55, 0x09, 0x74]); // user modules 2.80
-var keys280_2 = new Uint8Array([0x03, 0xA7, 0xCC, 0x4A, 0x5B, 0x91, 0xC2, 0x07, 0xFF, 0xFC, 0x26, 0x25, 0x1E, 0x42, 0x4B, 0xB5]); // vshmain executable 2.80
-var keys300_0 = new Uint8Array([0x9F, 0x67, 0x1A, 0x7A, 0x22, 0xF3, 0x59, 0x0B, 0xAA, 0x6D, 0xA4, 0xC6, 0x8B, 0xD0, 0x03, 0x77]); // kernel modules 3.00
-var keys300_1 = new Uint8Array([0x15, 0x07, 0x63, 0x26, 0xDB, 0xE2, 0x69, 0x34, 0x56, 0x08, 0x2A, 0x93, 0x4E, 0x4B, 0x8A, 0xB2]); // user modules 3.00
-var keys300_2 = new Uint8Array([0x56, 0x3B, 0x69, 0xF7, 0x29, 0x88, 0x2F, 0x4C, 0xDB, 0xD5, 0xDE, 0x80, 0xC6, 0x5C, 0xC8, 0x73]); // vshmain 3.00
-var keys303_0 = new Uint8Array([0x7b, 0xa1, 0xe2, 0x5a, 0x91, 0xb9, 0xd3, 0x13, 0x77, 0x65, 0x4a, 0xb7, 0xc2, 0x8a, 0x10, 0xaf]); // kernel modules 3.00
-var keys310_0 = new Uint8Array([0xa2, 0x41, 0xe8, 0x39, 0x66, 0x5b, 0xfa, 0xbb, 0x1b, 0x2d, 0x6e, 0x0e, 0x33, 0xe5, 0xd7, 0x3f]); // kernel modules 3.10
-var keys310_1 = new Uint8Array([0xA4, 0x60, 0x8F, 0xAB, 0xAB, 0xDE, 0xA5, 0x65, 0x5D, 0x43, 0x3A, 0xD1, 0x5E, 0xC3, 0xFF, 0xEA]); // user modules 3.10
-var keys310_2 = new Uint8Array([0xE7, 0x5C, 0x85, 0x7A, 0x59, 0xB4, 0xE3, 0x1D, 0xD0, 0x9E, 0xCE, 0xC2, 0xD6, 0xD4, 0xBD, 0x2B]); // vshmain 3.10
-var keys310_3 = new Uint8Array([0x2E, 0x00, 0xF6, 0xF7, 0x52, 0xCF, 0x95, 0x5A, 0xA1, 0x26, 0xB4, 0x84, 0x9B, 0x58, 0x76, 0x2F]); // reboot.bin 3.10
-var keys330_0 = new Uint8Array([0x3B, 0x9B, 0x1A, 0x56, 0x21, 0x80, 0x14, 0xED, 0x8E, 0x8B, 0x08, 0x42, 0xFA, 0x2C, 0xDC, 0x3A]); // kernel modules 3.30
-var keys330_1 = new Uint8Array([0xE8, 0xBE, 0x2F, 0x06, 0xB1, 0x05, 0x2A, 0xB9, 0x18, 0x18, 0x03, 0xE3, 0xEB, 0x64, 0x7D, 0x26]); // user modules 3.30
-var keys330_2 = new Uint8Array([0xAB, 0x82, 0x25, 0xD7, 0x43, 0x6F, 0x6C, 0xC1, 0x95, 0xC5, 0xF7, 0xF0, 0x63, 0x73, 0x3F, 0xE7]); // vshmain 3.30
-var keys330_3 = new Uint8Array([0xA8, 0xB1, 0x47, 0x77, 0xDC, 0x49, 0x6A, 0x6F, 0x38, 0x4C, 0x4D, 0x96, 0xBD, 0x49, 0xEC, 0x9B]); // reboot.bin 3.30
-var keys330_4 = new Uint8Array([0xEC, 0x3B, 0xD2, 0xC0, 0xFA, 0xC1, 0xEE, 0xB9, 0x9A, 0xBC, 0xFF, 0xA3, 0x89, 0xF2, 0x60, 0x1F]); // stdio.prx 3.30
-var demokeys_280 = new Uint8Array([0x12, 0x99, 0x70, 0x5E, 0x24, 0x07, 0x6C, 0xD0, 0x2D, 0x06, 0xFE, 0x7E, 0xB3, 0x0C, 0x11, 0x26]); // demo data.psp 2.80
-var demokeys_3XX_1 = new Uint8Array([0x47, 0x05, 0xD5, 0xE3, 0x56, 0x1E, 0x81, 0x9B, 0x09, 0x2F, 0x06, 0xDB, 0x6B, 0x12, 0x92, 0xE0]); // demo data.psp 3.XX
-var demokeys_3XX_2 = new Uint8Array([0xF6, 0x62, 0x39, 0x6E, 0x26, 0x22, 0x4D, 0xCA, 0x02, 0x64, 0x16, 0x99, 0x7B, 0x9A, 0xE7, 0xB8]); // demo data.psp 3.XX
-var ebootbin_271_new = new Uint8Array([0xF4, 0xAE, 0xF4, 0xE1, 0x86, 0xDD, 0xD2, 0x9C, 0x7C, 0xC5, 0x42, 0xA6, 0x95, 0xA0, 0x83, 0x88]); // new 2.7X eboot.bin
-var ebootbin_280_new = new Uint8Array([0xB8, 0x8C, 0x45, 0x8B, 0xB6, 0xE7, 0x6E, 0xB8, 0x51, 0x59, 0xA6, 0x53, 0x7C, 0x5E, 0x86, 0x31]); // new 2.8X eboot.bin
-var ebootbin_300_new = new Uint8Array([0xED, 0x10, 0xE0, 0x36, 0xC4, 0xFE, 0x83, 0xF3, 0x75, 0x70, 0x5E, 0xF6, 0xA4, 0x40, 0x05, 0xF7]); // new 3.XX eboot.bin
-var ebootbin_310_new = new Uint8Array([0x5C, 0x77, 0x0C, 0xBB, 0xB4, 0xC2, 0x4F, 0xA2, 0x7E, 0x3B, 0x4E, 0xB4, 0xB4, 0xC8, 0x70, 0xAF]); // new 3.XX eboot.bin
-var gameshare_260_271 = new Uint8Array([0xF9, 0x48, 0x38, 0x0C, 0x96, 0x88, 0xA7, 0x74, 0x4F, 0x65, 0xA0, 0x54, 0xC2, 0x76, 0xD9, 0xB8]); // 2.60-2.71 gameshare
-var gameshare_280 = new Uint8Array([0x2D, 0x86, 0x77, 0x3A, 0x56, 0xA4, 0x4F, 0xDD, 0x3C, 0x16, 0x71, 0x93, 0xAA, 0x8E, 0x11, 0x43]); // 2.80 gameshare
-var gameshare_300 = new Uint8Array([0x78, 0x1A, 0xD2, 0x87, 0x24, 0xBD, 0xA2, 0x96, 0x18, 0x3F, 0x89, 0x36, 0x72, 0x90, 0x92, 0x85]); // 3.00 gameshare
-var gameshare_310 = new Uint8Array([0xC9, 0x7D, 0x3E, 0x0A, 0x54, 0x81, 0x6E, 0xC7, 0x13, 0x74, 0x99, 0x74, 0x62, 0x18, 0xE7, 0xDD]); // 3.10 gameshare
-var keys360_0 = new Uint8Array([0x3C, 0x2B, 0x51, 0xD4, 0x2D, 0x85, 0x47, 0xDA, 0x2D, 0xCA, 0x18, 0xDF, 0xFE, 0x54, 0x09, 0xED]); // 3.60 common kernel modules
-var keys360_1 = new Uint8Array([0x31, 0x1F, 0x98, 0xD5, 0x7B, 0x58, 0x95, 0x45, 0x32, 0xAB, 0x3A, 0xE3, 0x89, 0x32, 0x4B, 0x34]); // 3.60 specific slim kernel modules
-var keys370_0 = new Uint8Array([0x26, 0x38, 0x0A, 0xAC, 0xA5, 0xD8, 0x74, 0xD1, 0x32, 0xB7, 0x2A, 0xBF, 0x79, 0x9E, 0x6D, 0xDB]); // 3.70 common and fat kernel modules
-var keys370_1 = new Uint8Array([0x53, 0xE7, 0xAB, 0xB9, 0xC6, 0x4A, 0x4B, 0x77, 0x92, 0x17, 0xB5, 0x74, 0x0A, 0xDA, 0xA9, 0xEA]); // 3.70 slim specific kernel modules
-var keys370_2 = new Uint8Array([0x71, 0x10, 0xF0, 0xA4, 0x16, 0x14, 0xD5, 0x93, 0x12, 0xFF, 0x74, 0x96, 0xDF, 0x1F, 0xDA, 0x89]); // some 3.70 slim user modules
-var oneseg_310 = new Uint8Array([0xC7, 0x27, 0x72, 0x85, 0xAB, 0xA7, 0xF7, 0xF0, 0x4C, 0xC1, 0x86, 0xCC, 0xE3, 0x7F, 0x17, 0xCA]); // 1SEG.PBP keys
+var keys260_0 = new Uint8Array([0xC3, 0x24, 0x89, 0xD3, 0x80, 0x87, 0xB2, 0x4E, 0x4C, 0xD7, 0x49, 0xE4, 0x9D, 0x1D, 0x34, 0xD1]);
+var keys260_1 = new Uint8Array([0xF3, 0xAC, 0x6E, 0x7C, 0x04, 0x0A, 0x23, 0xE7, 0x0D, 0x33, 0xD8, 0x24, 0x73, 0x39, 0x2B, 0x4A]);
+var keys260_2 = new Uint8Array([0x72, 0xB4, 0x39, 0xFF, 0x34, 0x9B, 0xAE, 0x82, 0x30, 0x34, 0x4A, 0x1D, 0xA2, 0xD8, 0xB4, 0x3C]);
+var keys280_0 = new Uint8Array([0xCA, 0xFB, 0xBF, 0xC7, 0x50, 0xEA, 0xB4, 0x40, 0x8E, 0x44, 0x5C, 0x63, 0x53, 0xCE, 0x80, 0xB1]);
+var keys280_1 = new Uint8Array([0x40, 0x9B, 0xC6, 0x9B, 0xA9, 0xFB, 0x84, 0x7F, 0x72, 0x21, 0xD2, 0x36, 0x96, 0x55, 0x09, 0x74]);
+var keys280_2 = new Uint8Array([0x03, 0xA7, 0xCC, 0x4A, 0x5B, 0x91, 0xC2, 0x07, 0xFF, 0xFC, 0x26, 0x25, 0x1E, 0x42, 0x4B, 0xB5]);
+var keys300_0 = new Uint8Array([0x9F, 0x67, 0x1A, 0x7A, 0x22, 0xF3, 0x59, 0x0B, 0xAA, 0x6D, 0xA4, 0xC6, 0x8B, 0xD0, 0x03, 0x77]);
+var keys300_1 = new Uint8Array([0x15, 0x07, 0x63, 0x26, 0xDB, 0xE2, 0x69, 0x34, 0x56, 0x08, 0x2A, 0x93, 0x4E, 0x4B, 0x8A, 0xB2]);
+var keys300_2 = new Uint8Array([0x56, 0x3B, 0x69, 0xF7, 0x29, 0x88, 0x2F, 0x4C, 0xDB, 0xD5, 0xDE, 0x80, 0xC6, 0x5C, 0xC8, 0x73]);
+var keys303_0 = new Uint8Array([0x7b, 0xa1, 0xe2, 0x5a, 0x91, 0xb9, 0xd3, 0x13, 0x77, 0x65, 0x4a, 0xb7, 0xc2, 0x8a, 0x10, 0xaf]);
+var keys310_0 = new Uint8Array([0xa2, 0x41, 0xe8, 0x39, 0x66, 0x5b, 0xfa, 0xbb, 0x1b, 0x2d, 0x6e, 0x0e, 0x33, 0xe5, 0xd7, 0x3f]);
+var keys310_1 = new Uint8Array([0xA4, 0x60, 0x8F, 0xAB, 0xAB, 0xDE, 0xA5, 0x65, 0x5D, 0x43, 0x3A, 0xD1, 0x5E, 0xC3, 0xFF, 0xEA]);
+var keys310_2 = new Uint8Array([0xE7, 0x5C, 0x85, 0x7A, 0x59, 0xB4, 0xE3, 0x1D, 0xD0, 0x9E, 0xCE, 0xC2, 0xD6, 0xD4, 0xBD, 0x2B]);
+var keys310_3 = new Uint8Array([0x2E, 0x00, 0xF6, 0xF7, 0x52, 0xCF, 0x95, 0x5A, 0xA1, 0x26, 0xB4, 0x84, 0x9B, 0x58, 0x76, 0x2F]);
+var keys330_0 = new Uint8Array([0x3B, 0x9B, 0x1A, 0x56, 0x21, 0x80, 0x14, 0xED, 0x8E, 0x8B, 0x08, 0x42, 0xFA, 0x2C, 0xDC, 0x3A]);
+var keys330_1 = new Uint8Array([0xE8, 0xBE, 0x2F, 0x06, 0xB1, 0x05, 0x2A, 0xB9, 0x18, 0x18, 0x03, 0xE3, 0xEB, 0x64, 0x7D, 0x26]);
+var keys330_2 = new Uint8Array([0xAB, 0x82, 0x25, 0xD7, 0x43, 0x6F, 0x6C, 0xC1, 0x95, 0xC5, 0xF7, 0xF0, 0x63, 0x73, 0x3F, 0xE7]);
+var keys330_3 = new Uint8Array([0xA8, 0xB1, 0x47, 0x77, 0xDC, 0x49, 0x6A, 0x6F, 0x38, 0x4C, 0x4D, 0x96, 0xBD, 0x49, 0xEC, 0x9B]);
+var keys330_4 = new Uint8Array([0xEC, 0x3B, 0xD2, 0xC0, 0xFA, 0xC1, 0xEE, 0xB9, 0x9A, 0xBC, 0xFF, 0xA3, 0x89, 0xF2, 0x60, 0x1F]);
+var demokeys_280 = new Uint8Array([0x12, 0x99, 0x70, 0x5E, 0x24, 0x07, 0x6C, 0xD0, 0x2D, 0x06, 0xFE, 0x7E, 0xB3, 0x0C, 0x11, 0x26]);
+var demokeys_3XX_1 = new Uint8Array([0x47, 0x05, 0xD5, 0xE3, 0x56, 0x1E, 0x81, 0x9B, 0x09, 0x2F, 0x06, 0xDB, 0x6B, 0x12, 0x92, 0xE0]);
+var demokeys_3XX_2 = new Uint8Array([0xF6, 0x62, 0x39, 0x6E, 0x26, 0x22, 0x4D, 0xCA, 0x02, 0x64, 0x16, 0x99, 0x7B, 0x9A, 0xE7, 0xB8]);
+var ebootbin_271_new = new Uint8Array([0xF4, 0xAE, 0xF4, 0xE1, 0x86, 0xDD, 0xD2, 0x9C, 0x7C, 0xC5, 0x42, 0xA6, 0x95, 0xA0, 0x83, 0x88]);
+var ebootbin_280_new = new Uint8Array([0xB8, 0x8C, 0x45, 0x8B, 0xB6, 0xE7, 0x6E, 0xB8, 0x51, 0x59, 0xA6, 0x53, 0x7C, 0x5E, 0x86, 0x31]);
+var ebootbin_300_new = new Uint8Array([0xED, 0x10, 0xE0, 0x36, 0xC4, 0xFE, 0x83, 0xF3, 0x75, 0x70, 0x5E, 0xF6, 0xA4, 0x40, 0x05, 0xF7]);
+var ebootbin_310_new = new Uint8Array([0x5C, 0x77, 0x0C, 0xBB, 0xB4, 0xC2, 0x4F, 0xA2, 0x7E, 0x3B, 0x4E, 0xB4, 0xB4, 0xC8, 0x70, 0xAF]);
+var gameshare_260_271 = new Uint8Array([0xF9, 0x48, 0x38, 0x0C, 0x96, 0x88, 0xA7, 0x74, 0x4F, 0x65, 0xA0, 0x54, 0xC2, 0x76, 0xD9, 0xB8]);
+var gameshare_280 = new Uint8Array([0x2D, 0x86, 0x77, 0x3A, 0x56, 0xA4, 0x4F, 0xDD, 0x3C, 0x16, 0x71, 0x93, 0xAA, 0x8E, 0x11, 0x43]);
+var gameshare_300 = new Uint8Array([0x78, 0x1A, 0xD2, 0x87, 0x24, 0xBD, 0xA2, 0x96, 0x18, 0x3F, 0x89, 0x36, 0x72, 0x90, 0x92, 0x85]);
+var gameshare_310 = new Uint8Array([0xC9, 0x7D, 0x3E, 0x0A, 0x54, 0x81, 0x6E, 0xC7, 0x13, 0x74, 0x99, 0x74, 0x62, 0x18, 0xE7, 0xDD]);
+var keys360_0 = new Uint8Array([0x3C, 0x2B, 0x51, 0xD4, 0x2D, 0x85, 0x47, 0xDA, 0x2D, 0xCA, 0x18, 0xDF, 0xFE, 0x54, 0x09, 0xED]);
+var keys360_1 = new Uint8Array([0x31, 0x1F, 0x98, 0xD5, 0x7B, 0x58, 0x95, 0x45, 0x32, 0xAB, 0x3A, 0xE3, 0x89, 0x32, 0x4B, 0x34]);
+var keys370_0 = new Uint8Array([0x26, 0x38, 0x0A, 0xAC, 0xA5, 0xD8, 0x74, 0xD1, 0x32, 0xB7, 0x2A, 0xBF, 0x79, 0x9E, 0x6D, 0xDB]);
+var keys370_1 = new Uint8Array([0x53, 0xE7, 0xAB, 0xB9, 0xC6, 0x4A, 0x4B, 0x77, 0x92, 0x17, 0xB5, 0x74, 0x0A, 0xDA, 0xA9, 0xEA]);
+var keys370_2 = new Uint8Array([0x71, 0x10, 0xF0, 0xA4, 0x16, 0x14, 0xD5, 0x93, 0x12, 0xFF, 0x74, 0x96, 0xDF, 0x1F, 0xDA, 0x89]);
+var oneseg_310 = new Uint8Array([0xC7, 0x27, 0x72, 0x85, 0xAB, 0xA7, 0xF7, 0xF0, 0x4C, 0xC1, 0x86, 0xCC, 0xE3, 0x7F, 0x17, 0xCA]);
 var oneseg_300 = new Uint8Array([0x76, 0x40, 0x9E, 0x08, 0xDB, 0x9B, 0x3B, 0xA1, 0x47, 0x8A, 0x96, 0x8E, 0xF3, 0xF7, 0x62, 0x92]);
 var oneseg_280 = new Uint8Array([0x23, 0xDC, 0x3B, 0xB5, 0xA9, 0x82, 0xD6, 0xEA, 0x63, 0xA3, 0x6E, 0x2B, 0x2B, 0xE9, 0xE1, 0x54]);
 var oneseg_260_271 = new Uint8Array([0x22, 0x43, 0x57, 0x68, 0x2F, 0x41, 0xCE, 0x65, 0x4C, 0xA3, 0x7C, 0xC6, 0xC4, 0xAC, 0xF3, 0x60]);
 var oneseg_slim = new Uint8Array([0x12, 0x57, 0x0D, 0x8A, 0x16, 0x6D, 0x87, 0x06, 0x03, 0x7D, 0xC8, 0x8B, 0x62, 0xA3, 0x32, 0xA9]);
 var ms_app_main = new Uint8Array([0x1E, 0x2E, 0x38, 0x49, 0xDA, 0xD4, 0x16, 0x08, 0x27, 0x2E, 0xF3, 0xBC, 0x37, 0x75, 0x80, 0x93]);
-var keys390_0 = new Uint8Array([0x45, 0xEF, 0x5C, 0x5D, 0xED, 0x81, 0x99, 0x84, 0x12, 0x94, 0x8F, 0xAB, 0xE8, 0x05, 0x6D, 0x7D]); // 3.90 kernel
-var keys390_1 = new Uint8Array([0x70, 0x1B, 0x08, 0x25, 0x22, 0xA1, 0x4D, 0x3B, 0x69, 0x21, 0xF9, 0x71, 0x0A, 0xA8, 0x41, 0xA9]); // 3.90 slim
-var keys500_0 = new Uint8Array([0xEB, 0x1B, 0x53, 0x0B, 0x62, 0x49, 0x32, 0x58, 0x1F, 0x83, 0x0A, 0xF4, 0x99, 0x3D, 0x75, 0xD0]); // 5.00 kernel
-var keys500_1 = new Uint8Array([0xBA, 0xE2, 0xA3, 0x12, 0x07, 0xFF, 0x04, 0x1B, 0x64, 0xA5, 0x11, 0x85, 0xF7, 0x2F, 0x99, 0x5B]); // 5.00 kernel 2000 specific
-var keys500_2 = new Uint8Array([0x2C, 0x8E, 0xAF, 0x1D, 0xFF, 0x79, 0x73, 0x1A, 0xAD, 0x96, 0xAB, 0x09, 0xEA, 0x35, 0x59, 0x8B]); // 5.00 kernel 3000 specific
+var keys390_0 = new Uint8Array([0x45, 0xEF, 0x5C, 0x5D, 0xED, 0x81, 0x99, 0x84, 0x12, 0x94, 0x8F, 0xAB, 0xE8, 0x05, 0x6D, 0x7D]);
+var keys390_1 = new Uint8Array([0x70, 0x1B, 0x08, 0x25, 0x22, 0xA1, 0x4D, 0x3B, 0x69, 0x21, 0xF9, 0x71, 0x0A, 0xA8, 0x41, 0xA9]);
+var keys500_0 = new Uint8Array([0xEB, 0x1B, 0x53, 0x0B, 0x62, 0x49, 0x32, 0x58, 0x1F, 0x83, 0x0A, 0xF4, 0x99, 0x3D, 0x75, 0xD0]);
+var keys500_1 = new Uint8Array([0xBA, 0xE2, 0xA3, 0x12, 0x07, 0xFF, 0x04, 0x1B, 0x64, 0xA5, 0x11, 0x85, 0xF7, 0x2F, 0x99, 0x5B]);
+var keys500_2 = new Uint8Array([0x2C, 0x8E, 0xAF, 0x1D, 0xFF, 0x79, 0x73, 0x1A, 0xAD, 0x96, 0xAB, 0x09, 0xEA, 0x35, 0x59, 0x8B]);
 var keys500_c = new Uint8Array([0xA3, 0x5D, 0x51, 0xE6, 0x56, 0xC8, 0x01, 0xCA, 0xE3, 0x77, 0xBF, 0xCD, 0xFF, 0x24, 0xDA, 0x4D]);
-var keys505_a = new Uint8Array([0x7B, 0x94, 0x72, 0x27, 0x4C, 0xCC, 0x54, 0x3B, 0xAE, 0xDF, 0x46, 0x37, 0xAC, 0x01, 0x4D, 0x87]); // 5.05 kernel specific
+var keys505_a = new Uint8Array([0x7B, 0x94, 0x72, 0x27, 0x4C, 0xCC, 0x54, 0x3B, 0xAE, 0xDF, 0x46, 0x37, 0xAC, 0x01, 0x4D, 0x87]);
 var keys505_0 = new Uint8Array([0x2E, 0x8E, 0x97, 0xA2, 0x85, 0x42, 0x70, 0x73, 0x18, 0xDA, 0xA0, 0x8A, 0xF8, 0x62, 0xA2, 0xB0]);
 var keys505_1 = new Uint8Array([0x58, 0x2A, 0x4C, 0x69, 0x19, 0x7B, 0x83, 0x3D, 0xD2, 0x61, 0x61, 0xFE, 0x14, 0xEE, 0xAA, 0x11]);
-var keys02G_E = new Uint8Array([0x9D, 0x09, 0xFD, 0x20, 0xF3, 0x8F, 0x10, 0x69, 0x0D, 0xB2, 0x6F, 0x00, 0xCC, 0xC5, 0x51, 0x2E]); // for psp 2000 file table and ipl pre-decryption
-var keys03G_E = new Uint8Array([0x4F, 0x44, 0x5C, 0x62, 0xB3, 0x53, 0xC4, 0x30, 0xFC, 0x3A, 0xA4, 0x5B, 0xEC, 0xFE, 0x51, 0xEA]); // for psp 3000 file table and ipl pre-decryption
+var keys02G_E = new Uint8Array([0x9D, 0x09, 0xFD, 0x20, 0xF3, 0x8F, 0x10, 0x69, 0x0D, 0xB2, 0x6F, 0x00, 0xCC, 0xC5, 0x51, 0x2E]);
+var keys03G_E = new Uint8Array([0x4F, 0x44, 0x5C, 0x62, 0xB3, 0x53, 0xC4, 0x30, 0xFC, 0x3A, 0xA4, 0x5B, 0xEC, 0xFE, 0x51, 0xEA]);
 var key_D91609F0 = new Uint8Array([0xD0, 0x36, 0x12, 0x75, 0x80, 0x56, 0x20, 0x43, 0xC4, 0x30, 0x94, 0x3E, 0x1C, 0x75, 0xD1, 0xBF]);
 var key_D9160AF0 = new Uint8Array([0x10, 0xA9, 0xAC, 0x16, 0xAE, 0x19, 0xC0, 0x7E, 0x3B, 0x60, 0x77, 0x86, 0x01, 0x6F, 0xF2, 0x63]);
 var key_D9160BF0 = new Uint8Array([0x83, 0x83, 0xF1, 0x37, 0x53, 0xD0, 0xBE, 0xFC, 0x8D, 0xA7, 0x32, 0x52, 0x46, 0x0A, 0xC2, 0xC2]);
 var key_D91611F0 = new Uint8Array([0x61, 0xB0, 0xC0, 0x58, 0x71, 0x57, 0xD9, 0xFA, 0x74, 0x67, 0x0E, 0x5C, 0x7E, 0x6E, 0x95, 0xB9]);
-var key_D91612F0 = new Uint8Array([0x9E, 0x20, 0xE1, 0xCD, 0xD7, 0x88, 0xDE, 0xC0, 0x31, 0x9B, 0x10, 0xAF, 0xC5, 0xB8, 0x73, 0x23]); // UMD EBOOT.BIN (OPNSSMP.BIN)
+var key_D91612F0 = new Uint8Array([0x9E, 0x20, 0xE1, 0xCD, 0xD7, 0x88, 0xDE, 0xC0, 0x31, 0x9B, 0x10, 0xAF, 0xC5, 0xB8, 0x73, 0x23]);
 var key_D91613F0 = new Uint8Array([0xEB, 0xFF, 0x40, 0xD8, 0xB4, 0x1A, 0xE1, 0x66, 0x91, 0x3B, 0x8F, 0x64, 0xB6, 0xFC, 0xB7, 0x12]);
-var key_2E5E10F0 = new Uint8Array([0x9D, 0x5C, 0x5B, 0xAF, 0x8C, 0xD8, 0x69, 0x7E, 0x51, 0x9F, 0x70, 0x96, 0xE6, 0xD5, 0xC4, 0xE8]); // UMD EBOOT.BIN 2 (OPNSSMP.BIN)
-var key_2E5E12F0 = new Uint8Array([0x8A, 0x7B, 0xC9, 0xD6, 0x52, 0x58, 0x88, 0xEA, 0x51, 0x83, 0x60, 0xCA, 0x16, 0x79, 0xE2, 0x07]); // UMD EBOOT.BIN 3 (OPNSSMP.BIN)
+var key_2E5E10F0 = new Uint8Array([0x9D, 0x5C, 0x5B, 0xAF, 0x8C, 0xD8, 0x69, 0x7E, 0x51, 0x9F, 0x70, 0x96, 0xE6, 0xD5, 0xC4, 0xE8]);
+var key_2E5E12F0 = new Uint8Array([0x8A, 0x7B, 0xC9, 0xD6, 0x52, 0x58, 0x88, 0xEA, 0x51, 0x83, 0x60, 0xCA, 0x16, 0x79, 0xE2, 0x07]);
 var key_2E5E13F0 = new Uint8Array([0xFF, 0xA4, 0x68, 0xC3, 0x31, 0xCA, 0xB7, 0x4C, 0xF1, 0x23, 0xFF, 0x01, 0x65, 0x3D, 0x26, 0x36]);
 var keys600_u1_457B0BF0 = new Uint8Array([0x7B, 0x94, 0x72, 0x27, 0x4C, 0xCC, 0x54, 0x3B, 0xAE, 0xDF, 0x46, 0x37, 0xAC, 0x01, 0x4D, 0x87]);
 var keys600_u1_457B0CF0 = new Uint8Array([0xAC, 0x34, 0xBA, 0xB1, 0x97, 0x8D, 0xAE, 0x6F, 0xBA, 0xE8, 0xB1, 0xD6, 0xDF, 0xDF, 0xF1, 0xA2]);
-var keys05G_E = new Uint8Array([0x5D, 0xAA, 0x72, 0xF2, 0x26, 0x60, 0x4D, 0x1C, 0xE7, 0x2D, 0xC8, 0xA3, 0x2F, 0x79, 0xC5, 0x54]); // for psp go file table and ipl pre-decryption
-var keys570_5k = new Uint8Array([0x6D, 0x72, 0xA4, 0xBA, 0x7F, 0xBF, 0xD1, 0xF1, 0xA9, 0xF3, 0xBB, 0x07, 0x1B, 0xC0, 0xB3, 0x66]); // 5.70 PSPgo kernel
-var keys620_0 = new Uint8Array([0xD6, 0xBD, 0xCE, 0x1E, 0x12, 0xAF, 0x9A, 0xE6, 0x69, 0x30, 0xDE, 0xDA, 0x88, 0xB8, 0xFF, 0xFB]); // 6.00-6.20 kernel and phat
-var keys620_1 = new Uint8Array([0x1D, 0x13, 0xE9, 0x50, 0x04, 0x73, 0x3D, 0xD2, 0xE1, 0xDA, 0xB9, 0xC1, 0xE6, 0x7B, 0x25, 0xA7]); // 6.00-6.20 slim kernel
+var keys05G_E = new Uint8Array([0x5D, 0xAA, 0x72, 0xF2, 0x26, 0x60, 0x4D, 0x1C, 0xE7, 0x2D, 0xC8, 0xA3, 0x2F, 0x79, 0xC5, 0x54]);
+var keys570_5k = new Uint8Array([0x6D, 0x72, 0xA4, 0xBA, 0x7F, 0xBF, 0xD1, 0xF1, 0xA9, 0xF3, 0xBB, 0x07, 0x1B, 0xC0, 0xB3, 0x66]);
+var keys620_0 = new Uint8Array([0xD6, 0xBD, 0xCE, 0x1E, 0x12, 0xAF, 0x9A, 0xE6, 0x69, 0x30, 0xDE, 0xDA, 0x88, 0xB8, 0xFF, 0xFB]);
+var keys620_1 = new Uint8Array([0x1D, 0x13, 0xE9, 0x50, 0x04, 0x73, 0x3D, 0xD2, 0xE1, 0xDA, 0xB9, 0xC1, 0xE6, 0x7B, 0x25, 0xA7]);
 var keys620_3 = new Uint8Array([0xA3, 0x5D, 0x51, 0xE6, 0x56, 0xC8, 0x01, 0xCA, 0xE3, 0x77, 0xBF, 0xCD, 0xFF, 0x24, 0xDA, 0x4D]);
 var keys620_e = new Uint8Array([0xB1, 0xB3, 0x7F, 0x76, 0xC3, 0xFB, 0x88, 0xE6, 0xF8, 0x60, 0xD3, 0x35, 0x3C, 0xA3, 0x4E, 0xF3]);
-var keys620_5 = new Uint8Array([0xF1, 0xBC, 0x17, 0x07, 0xAE, 0xB7, 0xC8, 0x30, 0xD8, 0x34, 0x9D, 0x40, 0x6A, 0x8E, 0xDF, 0x4E]); // PSPgo internal
-var keys620_5k = new Uint8Array([0x41, 0x8A, 0x35, 0x4F, 0x69, 0x3A, 0xDF, 0x04, 0xFD, 0x39, 0x46, 0xA2, 0x5C, 0x2D, 0xF2, 0x21]); // 6.XX PSPgo kernel
+var keys620_5 = new Uint8Array([0xF1, 0xBC, 0x17, 0x07, 0xAE, 0xB7, 0xC8, 0x30, 0xD8, 0x34, 0x9D, 0x40, 0x6A, 0x8E, 0xDF, 0x4E]);
+var keys620_5k = new Uint8Array([0x41, 0x8A, 0x35, 0x4F, 0x69, 0x3A, 0xDF, 0x04, 0xFD, 0x39, 0x46, 0xA2, 0x5C, 0x2D, 0xF2, 0x21]);
 var keys620_5v = new Uint8Array([0xF2, 0x8F, 0x75, 0xA7, 0x31, 0x91, 0xCE, 0x9E, 0x75, 0xBD, 0x27, 0x26, 0xB4, 0xB4, 0x0C, 0x32]);
 
 },
@@ -18137,8 +16769,6 @@ var console = logger.named('elf.psp');
 var ElfPspModuleInfo = (function () {
     function ElfPspModuleInfo() {
     }
-    // http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
-    // 26.2.2.8
     ElfPspModuleInfo.struct = StructClass.create(ElfPspModuleInfo, [
         { moduleAtributes: UInt16 },
         { moduleVersion: UInt16 },
@@ -18210,9 +16840,7 @@ var PspElfLoader = (function () {
         this.baseAddress = 0;
     }
     PspElfLoader.prototype.load = function (stream) {
-        //console.warn('PspElfLoader.load');
         this.elfLoader = ElfLoader.fromStream(stream);
-        //ElfSectionHeaderFlags.Allocate
         this.allocateMemory();
         this.writeToMemory();
         this.relocateFromHeaders();
@@ -18220,9 +16848,6 @@ var PspElfLoader = (function () {
         this.updateModuleImports();
         this.elfDwarfLoader = new ElfDwarfLoader();
         this.elfDwarfLoader.parseElfLoader(this.elfLoader);
-        //this.memory.dump(); debugger;
-        //this.elfDwarfLoader.getSymbolAt();
-        //logger.log(this.moduleInfo);
     };
     PspElfLoader.prototype.getSymbolAt = function (address) {
         return this.elfDwarfLoader.getSymbolAt(address);
@@ -18267,8 +16892,6 @@ var PspElfLoader = (function () {
         });
         var RelocSectionIndex = 0;
         this.elfLoader.sectionHeaders.forEach(function (sectionHeader) {
-            //RelocOutput.WriteLine("Section Header: %d : %s".Sprintf(RelocSectionIndex++, SectionHeader.ToString()));
-            //console.info(sprintf('Section Header: '));
             switch (sectionHeader.type) {
                 case 9 /* Relocation */:
                     console.log(sectionHeader);
@@ -18294,24 +16917,20 @@ var PspElfLoader = (function () {
                 break;
             var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
             var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
-            // Address of data to relocate
             var RelocatedPointerAddress = (baseAddress + reloc.pointerAddress + pointerBaseOffset);
-            // Value of data to relocate
             var instruction = instructionReader.read(RelocatedPointerAddress);
             var S = baseAddress + pointeeBaseOffset;
             var GP_ADDR = (baseAddress + reloc.pointerAddress);
             var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
             switch (reloc.type) {
-                case 0 /* None */:
-                    break;
+                case 0 /* None */: break;
                 case 1 /* Mips16 */:
                     instruction.u_imm16 += S;
                     break;
                 case 2 /* Mips32 */:
                     instruction.data += S;
                     break;
-                case 3 /* MipsRel32 */:
-                    throw ("Not implemented MipsRel32");
+                case 3 /* MipsRel32 */: throw ("Not implemented MipsRel32");
                 case 4 /* Mips26 */:
                     instruction.jump_real = instruction.jump_real + S;
                     break;
@@ -18338,8 +16957,7 @@ var PspElfLoader = (function () {
                     break;
                 case 7 /* MipsGpRel16 */:
                     break;
-                default:
-                    throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
+                default: throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
             }
             instructionReader.write(RelocatedPointerAddress, instruction);
         }
@@ -18347,10 +16965,8 @@ var PspElfLoader = (function () {
     PspElfLoader.prototype.writeToMemory = function () {
         var _this = this;
         var needsRelocate = this.elfLoader.needsRelocation;
-        //var loadAddress = this.elfLoader.programHeaders[0].psysicalAddress;
         var loadAddress = this.baseAddress;
         console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
-        //console.log(moduleInfo);
         this.elfLoader.programHeaders.filter(function (programHeader) { return (programHeader.type == 1); }).forEach(function (programHeader) {
             var fileOffset = programHeader.offset;
             var memOffset = _this.baseAddress + programHeader.virtualAddress;
@@ -18358,7 +16974,6 @@ var PspElfLoader = (function () {
             var memSize = programHeader.memorySize;
             _this.elfLoader.stream.sliceWithLength(fileOffset, fileSize).copyTo(_this.memory.getPointerStream(memOffset, fileSize));
             _this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
-            //this.getSectionHeaderMemoryStream
             console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
         });
         this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & 2 /* Allocate */) != 0); }).forEach(function (sectionHeader) {
@@ -18374,7 +16989,6 @@ var PspElfLoader = (function () {
                 case 1 /* ProgramBits */:
                     var stream = sectionHeader.stream;
                     var length = stream.length;
-                    //console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
                     _this.memory.writeStream(low, stream);
                     break;
             }
@@ -18394,7 +17008,6 @@ var PspElfLoader = (function () {
             _this.updateModuleVars(_import);
             console.info('Imported: ', imported.name, imported.registeredNativeFunctions.map(function (i) { return i.name; }));
         });
-        //console.log(imports);
     };
     PspElfLoader.prototype.updateModuleFunctions = function (moduleImport) {
         var _this = this;
@@ -18422,7 +17035,6 @@ var PspElfLoader = (function () {
             }
             registeredNativeFunctions.push(nfunc);
             var syscallId = _this.syscallManager.register(nfunc);
-            //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
             return syscallId;
         };
         for (var n = 0; n < moduleImport.functionCount; n++) {
@@ -18481,7 +17093,6 @@ exports.NetManager = _net.NetManager;
 
 },
 "src/hle/manager/callback": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _thread = require('./thread');
 var _interop = require('./interop');
 var _cpu = require('../../core/cpu');
@@ -18514,7 +17125,6 @@ var CallbackManager = (function () {
     };
     CallbackManager.prototype.notify = function (id, arg2) {
         var callback = this.get(id);
-        //if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
         this.notifications.push(new CallbackNotification(callback, arg2));
         this.onAdded.dispatch(this.notifications.length);
     };
@@ -18560,7 +17170,6 @@ exports.Callback = Callback;
 
 },
 "src/hle/manager/file": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var Device = (function () {
     function Device(name, vfs) {
         this.name = name;
@@ -18721,7 +17330,6 @@ exports.FileManager = FileManager;
 
 },
 "src/hle/manager/interop": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _cpu = require('../../core/cpu');
 _cpu.CpuState;
 var Interop = (function () {
@@ -18742,7 +17350,6 @@ exports.Interop = Interop;
 
 },
 "src/hle/manager/memory": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var MemoryPartitions;
 (function (MemoryPartitions) {
     MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
@@ -18813,14 +17420,10 @@ var MemoryPartition = (function () {
         if (name === void 0) { name = ''; }
         switch (anchor) {
             case 3 /* LowAligned */:
-            case 0 /* Low */:
-                return this.allocateLow(size, name);
-            case 1 /* High */:
-                return this.allocateHigh(size, name);
-            case 2 /* Address */:
-                return this.allocateSet(size, address, name);
-            default:
-                throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
+            case 0 /* Low */: return this.allocateLow(size, name);
+            case 1 /* High */: return this.allocateHigh(size, name);
+            case 2 /* Address */: return this.allocateSet(size, address, name);
+            default: throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
         }
     };
     MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
@@ -18907,15 +17510,12 @@ var MemoryPartition = (function () {
     };
     MemoryPartition.prototype.cleanup = function () {
         var startTotalFreeMemory = this.getTotalFreeMemory();
-        //this._validateChilds();
-        // join contiguous free memory
         var childs = this.childPartitions;
         if (childs.length >= 2) {
             for (var n = 0; n < childs.length - 1; n++) {
                 var child = childs[n + 0];
                 var c1 = childs[n + 1];
                 if (!child.allocated && !c1.allocated) {
-                    //console.log('joining', child, c1, child.low, c1.high);
                     childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
                     n--;
                 }
@@ -18926,7 +17526,6 @@ var MemoryPartition = (function () {
             if (!child.allocated && child.size == 0)
                 childs.splice(n, 1);
         }
-        //this._validateChilds();
         var endTotalFreeMemory = this.getTotalFreeMemory();
         if (endTotalFreeMemory != startTotalFreeMemory) {
             console.log('assertion failed! : ' + startTotalFreeMemory + ',' + endTotalFreeMemory);
@@ -18957,8 +17556,6 @@ var MemoryManager = (function () {
     }
     MemoryManager.prototype.init = function () {
         this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
-        //this.memoryPartitionsUid[MemoryPartitions.User] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
-        //this.memoryPartitionsUid[MemoryPartitions.UserStacks] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
         this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
         this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
         this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
@@ -18990,7 +17587,6 @@ exports.MemoryManager = MemoryManager;
 
 },
 "src/hle/manager/module": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _cpu = require('../../core/cpu');
 var NativeFunction = _cpu.NativeFunction;
 var ModuleWrapper = (function () {
@@ -19017,7 +17613,6 @@ var ModuleWrapper = (function () {
     };
     ModuleWrapper.prototype.getByNid = function (nid) {
         var result = this.nids[nid];
-        //if (!result) throw (new Error(sprintf("Can't find function '%s':0x%08X", this.moduleName, nid)));
         return result;
     };
     return ModuleWrapper;
@@ -19061,7 +17656,6 @@ exports.ModuleManager = ModuleManager;
 
 },
 "src/hle/manager/net": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var NetManager = (function () {
     function NetManager() {
         this.connected = false;
@@ -19110,7 +17704,6 @@ var NetManager = (function () {
                     mac: string2mac(info.from),
                     payload: Stream.fromBase64(info.payload).toUInt8Array(),
                 };
-                //console.info('NetManager: from_user:', { port: info.port, type: info.type, mac: info.from, payload: Stream.fromBase64(info.payload).toStringAll() });
                 _this.onmessage(info.port).dispatch(packet);
             }
         };
@@ -19125,7 +17718,6 @@ var NetManager = (function () {
     };
     NetManager.prototype.send = function (port, type, toMac, data) {
         this.connectOnce();
-        //console.info('NetManager: send:', { type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toStringAll() });
         this.ws.send(JSON.stringify({ type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toBase64() }));
     };
     return NetManager;
@@ -19134,7 +17726,6 @@ exports.NetManager = NetManager;
 
 },
 "src/hle/manager/thread": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _cpu = require('../../core/cpu');
 var _memory = require('../../core/memory');
 var _display = require('../../core/display');
@@ -19170,7 +17761,6 @@ var ThreadStatus = exports.ThreadStatus;
     PspThreadAttributes[PspThreadAttributes["User"] = 0x80000000] = "User";
     PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 0xa0000000] = "UsbWlan";
     PspThreadAttributes[PspThreadAttributes["Vsh"] = 0xc0000000] = "Vsh";
-    //ScratchRamEnable = 0x00008000, // Allow using scratchpad memory for a thread, NOT USABLE ON V1.0
     PspThreadAttributes[PspThreadAttributes["NoFillStack"] = 0x00100000] = "NoFillStack";
     PspThreadAttributes[PspThreadAttributes["ClearStack"] = 0x00200000] = "ClearStack";
     PspThreadAttributes[PspThreadAttributes["ValidMask"] = PspThreadAttributes.LowFF | PspThreadAttributes.Vfpu | PspThreadAttributes.User | PspThreadAttributes.UsbWlan | PspThreadAttributes.Vsh | PspThreadAttributes.NoFillStack | PspThreadAttributes.ClearStack | PspThreadAttributes.V0x2000 | PspThreadAttributes.V0x4000 | PspThreadAttributes.V0x400000 | PspThreadAttributes.V0x800000 | PspThreadAttributes.V0xf00000 | PspThreadAttributes.V0x8000000 | PspThreadAttributes.V0xf000000] = "ValidMask";
@@ -19189,7 +17779,6 @@ var Thread = (function () {
         this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
-        //exitStatus: number = 0x800201a2;
         this.exitStatus = 2147615138 /* ERROR_KERNEL_THREAD_ALREADY_DORMANT */;
         this.running = false;
         this.preemptionCount = 0;
@@ -19235,7 +17824,6 @@ var Thread = (function () {
     Thread.prototype.wakeupSleepAsync = function (callbacks) {
         this.wakeupCount--;
         this.suspend();
-        //return new Promise((resolve, reject) => { });
         return this.getWakeupPromise();
     };
     Thread.prototype.wakeupWakeupAsync = function () {
@@ -19248,18 +17836,14 @@ var Thread = (function () {
         return Promise.resolve(0);
     };
     Thread.prototype.delayMicrosecondsAsync = function (delayMicroseconds, allowCompensating) {
-        //console.error(delayMicroseconds, this.accumulatedMicroseconds);
-        //return waitAsync(delayMicroseconds / 1000).then(() => 0);
         var _this = this;
         if (allowCompensating === void 0) { allowCompensating = false; }
-        this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000); // Don't accumulate more than 50ms
+        this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000);
         if (allowCompensating) {
-            //debugger;
             var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
             delayMicroseconds -= subtractAccumulatedMicroseconds;
             this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
         }
-        //console.error(delayMicroseconds, this.accumulatedMicroseconds, subtractAccumulatedMicroseconds);
         if (delayMicroseconds <= 0.00001) {
         }
         var start = performance.now();
@@ -19271,7 +17855,6 @@ var Thread = (function () {
         });
     };
     Thread.prototype.suspend = function () {
-        //console.log('suspended ' + this.name);
         this.running = false;
         this.manager.eventOcurred();
     };
@@ -19283,7 +17866,6 @@ var Thread = (function () {
         this._suspendUntilPromiseDone(info.promise, info.compensate);
     };
     Thread.prototype.suspendUntilPromiseDone = function (promise, info) {
-        //this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
         this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
         this.waitingObject = info;
         this._suspendUntilPromiseDone(promise, 0 /* NO */);
@@ -19295,7 +17877,6 @@ var Thread = (function () {
         }
         this.waitingPromise = promise;
         this.suspend();
-        //console.log(promise);
         promise.then(function (result) {
             _this.waitingPromise = null;
             _this.waitingName = null;
@@ -19307,7 +17888,6 @@ var Thread = (function () {
                 var endTime = performance.now();
                 _this.accumulatedMicroseconds += (endTime - startTime) * 1000;
             }
-            //console.error('resumed ' + this.name);
             _this.resume();
         });
     };
@@ -19324,7 +17904,6 @@ var Thread = (function () {
     Thread.prototype.stop = function (reason) {
         this.running = false;
         this.runningStop();
-        //debugger;
         console.info('stopping thread ', this.name, 'reason:', reason);
         this.manager.threads.delete(this);
         this.manager.eventOcurred();
@@ -19395,7 +17974,6 @@ var ThreadManager = (function () {
         this.enqueuedTime = performance.now();
         setImmediate(function () { return _this.eventOcurredCallback(); });
     };
-    //get runningThreads() { return this.threads.filter(thread => thread.running); }
     ThreadManager.getHighestPriority = function (threads) {
         var priority = -9999;
         threads.forEach(function (thread) {
@@ -19408,7 +17986,6 @@ var ThreadManager = (function () {
         if (!this.running)
             return;
         var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
-        //console.log('delayedTime', timeMsToCompensate);
         this.enqueued = false;
         var start = window.performance.now();
         while (true) {
@@ -19443,7 +18020,6 @@ var ThreadManager = (function () {
             if (runningThreadCount != 0) {
                 this.threads.forEach(function (thread) {
                     if (thread.running && (thread.priority == runningPriority)) {
-                        // No callbacks?
                         _this.callbackManager.executeLaterPendingWithinThread(thread);
                         do {
                             thread.runStep();
@@ -19496,7 +18072,6 @@ exports.ThreadManager = ThreadManager;
 
 },
 "src/hle/module/ExceptionManagerForKernel": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var ExceptionManagerForKernel = (function () {
@@ -19512,7 +18087,6 @@ exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
 
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 var _interrupt = require('../../core/interrupt');
@@ -19549,7 +18123,6 @@ var InterruptManager = (function () {
             return 0;
         });
         this.context.display.vblank.add(function () {
-            //this.context.callbackManager.notify(
         });
     }
     return InterruptManager;
@@ -19558,7 +18131,6 @@ exports.InterruptManager = InterruptManager;
 
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var KDebugForKernel = (function () {
@@ -19574,7 +18146,6 @@ exports.KDebugForKernel = KDebugForKernel;
 
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
@@ -19588,10 +18159,6 @@ var Kernel_Library = (function () {
         });
         this.sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint', this, function (thread, flags) {
             _this.context.interruptManager.resume(flags);
-            //return 0;
-            //throw(new CpuBreakException());
-            //thread.state.V0 = 0;
-            //throw (new CpuBreakException());
             if (thread['sceKernelCpuResumeIntrCount'] === undefined)
                 thread['sceKernelCpuResumeIntrCount'] = 0;
             thread['sceKernelCpuResumeIntrCount']++;
@@ -19618,7 +18185,6 @@ exports.Kernel_Library = Kernel_Library;
 
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var LoadCoreForKernel = (function () {
@@ -19639,7 +18205,6 @@ exports.LoadCoreForKernel = LoadCoreForKernel;
 
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var _manager = require('../manager');
@@ -19658,14 +18223,12 @@ var LoadExecForUser = (function () {
         this.sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'Thread', this, function (thread) {
             console.info("Call stack:");
             thread.state.printCallstack(_this.context.symbolLookup);
-            //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.info('sceKernelExitGame2');
             _this.context.threadManager.exitGame();
             thread.stop('sceKernelExitGame2');
             throw (new CpuBreakException());
         });
         this.sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
-            //console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
             return 0;
         });
     }
@@ -19675,7 +18238,6 @@ exports.LoadExecForUser = LoadExecForUser;
 
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 var createNativeFunction = _utils.createNativeFunction;
@@ -19692,7 +18254,6 @@ var ModuleMgrForUser = (function () {
         this.sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread', this, function (unknown, argsize, argp, thread) {
             console.info("Call stack:");
             thread.state.printCallstack(_this.context.symbolLookup);
-            //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
             throw (new Error("sceKernelSelfStopUnloadModule"));
             return 0;
@@ -19715,7 +18276,7 @@ var ModuleMgrForUser = (function () {
         });
         this.sceKernelGetModuleId = createNativeFunction(0xF0A26395, 150, 'uint', '', this, function () {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
-            return 4; // TODO!
+            return 4;
         });
         this.sceKernelLoadModuleByID = createNativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*', this, function (fileId, flags, sceKernelLMOption) {
             console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
@@ -19728,7 +18289,6 @@ exports.ModuleMgrForUser = ModuleMgrForUser;
 
 },
 "src/hle/module/StdioForUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var StdioForUser = (function () {
@@ -19744,7 +18304,6 @@ exports.StdioForUser = StdioForUser;
 
 },
 "src/hle/module/SysMemUserForUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 var createNativeFunction = _utils.createNativeFunction;
@@ -19822,9 +18381,6 @@ var SysMemUserForUser = (function () {
             var block = _this.partitionUids.get(partitionId);
             return block.low;
         });
-        /**
-            * Get the size of the largest free memory block.
-            */
         this.sceKernelMaxFreeMemSize = createNativeFunction(0xA291F107, 150, 'int', '', this, function () {
             return _this.context.memoryManager.userPartition.nonAllocatedPartitions.max(function (partition) { return partition.size; }).size;
         });
@@ -19838,8 +18394,6 @@ var SysMemUserForUser = (function () {
             console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
         });
         this.sceKernelDevkitVersion = createNativeFunction(0x3FC9AE6A, 150, 'int', 'uint', this, function (version) {
-            //var Version = HleConfig.FirmwareVersion;
-            //return (Version.Major << 24) | (Version.Minor << 16) | (Version.Revision << 8) | 0x10;
             return 0x02070110;
         });
         this.sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string', this, function (thread, format) {
@@ -19858,7 +18412,6 @@ var SysMemUserForUser = (function () {
             console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, function (data) {
                 return readParam(data);
             }));
-            //console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
         });
     }
     return SysMemUserForUser;
@@ -19867,7 +18420,6 @@ exports.SysMemUserForUser = SysMemUserForUser;
 
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var UtilsForKernel = (function () {
@@ -19884,7 +18436,6 @@ exports.UtilsForKernel = UtilsForKernel;
 
 },
 "src/hle/module/UtilsForUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _memory = require('../../core/memory');
 var createNativeFunction = _utils.createNativeFunction;
@@ -19897,7 +18448,6 @@ var UtilsForUser = (function () {
             return _this.context.rtc.getClockMicroseconds();
         });
         this.sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', 'void*', this, function (pointer) {
-            //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
             if (pointer == Stream.INVALID)
                 return 0;
             var result = (_this.context.rtc.getCurrentUnixSeconds()) | 0;
@@ -19955,7 +18505,6 @@ var UtilsForUser = (function () {
         this.sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/uint', this, function (pointer, size) {
             if (!MathUtils.isAlignedTo(size, 4))
                 return 2147615820 /* ERROR_KERNEL_NOT_CACHE_ALIGNED */;
-            //if (!this.context.memory.isValidAddress(pointer + size)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
             if (size > 0x7FFFFFFF)
                 return 2147483908 /* ERROR_INVALID_SIZE */;
             if (pointer >= 0x80000000)
@@ -19979,7 +18528,6 @@ exports.UtilsForUser = UtilsForUser;
 
 },
 "src/hle/module/iofilemgr/IoFileMgrForUser": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var _vfs = require('../../vfs');
@@ -20014,7 +18562,6 @@ var IoFileMgrForUser = (function () {
         });
         this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
             console.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
-            //if (filename == '') return Promise.resolve(0);
             return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
                 var file = _this.getFileById(fileId);
                 file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
@@ -20024,16 +18571,13 @@ var IoFileMgrForUser = (function () {
         });
         this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
             console.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
-            //if (filename == '') return Promise.resolve(0);
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
-            //file.setAsyncOperation(Promise.resolve(Integer64.fromInt(fileId)));
             file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
             return 0;
         });
         this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
-            // IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
             console.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
             return 0;
         });
@@ -20047,7 +18591,6 @@ var IoFileMgrForUser = (function () {
         });
         this.sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, function (fileId, input) {
             if (fileId < 3) {
-                // @TODO: Fixme! Create a proper file
                 console.log('STD[' + fileId + ']', input.readString(input.length));
                 return 0;
             }
@@ -20067,19 +18610,14 @@ var IoFileMgrForUser = (function () {
             var file = _this.getFileById(fileId);
             return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
                 file.cursor += readedData.byteLength;
-                //console.log(new Uint8Array(readedData));
                 _this.context.memory.writeBytes(outputPointer, readedData);
-                //console.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d ->%d', fileId, outputPointer, outputLength, file.cursor, readedData.byteLength));
                 return readedData.byteLength;
             });
         });
         this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, function (thread, fileId, outputPointer, outputLength) {
             var file = _this.getFileById(fileId);
-            // SCE_KERNEL_ERROR_ASYNC_BUSY
             file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                //console.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
                 file.cursor += readedData.byteLength;
-                //console.info(thread, 'readed', new Uint8Array(readedData));
                 _this.context.memory.writeBytes(outputPointer, readedData);
                 return Integer64.fromNumber(readedData.byteLength);
             }));
@@ -20092,10 +18630,8 @@ var IoFileMgrForUser = (function () {
             return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
         });
         this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            //console.info('sceIoPollAsync', fileId);
             var file = _this.getFileById(fileId);
             if (file.asyncResult) {
-                //return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
                 if (DebugOnce('sceIoPollAsync', 100))
                     console.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
                 resultPointer.writeInt64(file.asyncResult);
@@ -20104,7 +18640,6 @@ var IoFileMgrForUser = (function () {
             else {
                 if (DebugOnce('sceIoPollAsync', 100))
                     console.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
-                //console.log('not resolved');
                 resultPointer.writeInt64(Integer64.fromInt(0));
                 return 1;
             }
@@ -20141,18 +18676,7 @@ var IoFileMgrForUser = (function () {
                 return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
             }
         });
-        /*
-        [HlePspFunction(NID = 0x71B19E77, FirmwareVersion = 150)]
-        public int sceIoLseekAsync(SceUID FileId, long Offset, SeekAnchor Whence)
-        {
-            var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
-            File.AsyncLastResult = sceIoLseek(FileId, Offset, Whence);
-            _DelayIo(IoDelayType.Seek);
-            return 0;
-        }
-        */
         this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
-            //var file = this.getFileById(fileId);
             var file = _this.getFileById(fileId);
             var result = _this._seek(fileId, offset.getNumber(), whence);
             file.setAsyncOperationNow(Integer64.fromNumber(result));
@@ -20160,12 +18684,10 @@ var IoFileMgrForUser = (function () {
         });
         this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
             var result = _this._seek(fileId, offset.getNumber(), whence);
-            //console.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
             return Integer64.fromNumber(result);
         });
         this.sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
             var result = _this._seek(fileId, offset, whence);
-            //console.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
             return result;
         });
         this.sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, function (path, accessMode) {
@@ -20233,7 +18755,6 @@ var IoFileMgrForUser = (function () {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
                 console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
             return file.asyncOperation.then(function (result) {
-                //debugger;
                 if (DebugOnce('_sceIoWaitAsyncCB', 100))
                     console.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
                 resultPointer.writeInt64(result);
@@ -20247,21 +18768,8 @@ var IoFileMgrForUser = (function () {
             return Promise.resolve(1);
         }
     };
-    /*
-    [HlePspFunction(NID = 0xA0B5A7C2, FirmwareVersion = 150)]
-    public int sceIoReadAsync(SceUID FileId, byte * OutputPointer, int OutputSize)
-    {
-        var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
-        File.AsyncLastResult = sceIoRead(FileId, OutputPointer, OutputSize);
-
-        _DelayIo(IoDelayType.Read, OutputSize);
-
-        return 0;
-    }
-    */
     IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
         var stat2 = new _structs.SceIoStat();
-        //stat2.mode = <_structs.SceMode>parseInt('777', 8)
         stat2.mode = 0;
         stat2.size = stat.size;
         stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
@@ -20271,12 +18779,12 @@ var IoFileMgrForUser = (function () {
         stat2.deviceDependentData[1] = stat.dependentData1 || 0;
         stat2.attributes = 0;
         if (stat.isDirectory) {
-            stat2.mode = 0x1000; // Directory
+            stat2.mode = 0x1000;
             stat2.attributes |= 16 /* Directory */;
             stat2.attributes |= 4 /* CanRead */;
         }
         else {
-            stat2.mode = 0x2000; // File
+            stat2.mode = 0x2000;
             stat2.attributes |= 32 /* File */;
             stat2.attributes |= 1 /* CanExecute */;
             stat2.attributes |= 4 /* CanRead */;
@@ -20305,7 +18813,6 @@ exports.IoFileMgrForUser = IoFileMgrForUser;
 
 },
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
 var _riff = require('../../format/riff');
@@ -20332,7 +18839,6 @@ var sceAtrac3plus = (function () {
             return 2153971746 /* ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED */;
         });
         this.sceAtracSetSecondBuffer = createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
-            //throw (new Error("Not implemented sceAtracSetSecondBuffer"));
             return 0;
         });
         this.sceAtracReleaseAtracID = createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
@@ -20352,10 +18858,8 @@ var sceAtrac3plus = (function () {
                     if (remainingFramesToDecodePtr)
                         remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
                 }
-                //Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
                 if (atrac3.decodingReachedEnd) {
                     if (atrac3.numberOfLoops == 0) {
-                        //if (true) {
                         decodedSamples = 0;
                         reachedEnd = 1;
                         remainingFramesToDecode = 0;
@@ -20366,17 +18870,10 @@ var sceAtrac3plus = (function () {
                         atrac3.numberOfLoops--;
                     atrac3.currentSample = (atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0;
                 }
-                //return Atrac.GetUidIndex(InjectContext);
                 outputPointers();
                 return 0;
             });
         });
-        /**
-         * Gets the remaining (not decoded) number of frames
-         * Pointer to a integer that receives either -1 if all at3 data is already on memory,
-         * or the remaining (not decoded yet) frames at memory if not all at3 data is on memory
-         * @return Less than 0 on error, otherwise 0
-         */
         this.sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
             var atrac3 = _this.getById(id);
             if (remainFramePtr)
@@ -20411,9 +18908,6 @@ var sceAtrac3plus = (function () {
         });
         this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
             var atrac3 = _this.getById(id);
-            //console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
-            //throw (new Error("Not implemented sceAtracAddStreamData"));
-            //return -1;
             return 0;
         });
         this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
@@ -20421,12 +18915,6 @@ var sceAtrac3plus = (function () {
             writePointerPointer.writeInt32(0);
             availableBytesPtr.writeInt32(0);
             readOffsetPtr.writeInt32(0);
-            //WritePointerPointer = Atrac.PrimaryBuffer.Low; // @FIXME!!
-            //AvailableBytes = Atrac.PrimaryBuffer.Size;
-            //ReadOffset = Atrac.PrimaryBufferReaded;
-            //console.warn("Not implemented sceAtracGetStreamDataInfo");
-            //throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
-            //return -1;
             return 0;
         });
         this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
@@ -20442,10 +18930,8 @@ var sceAtrac3plus = (function () {
             var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
             if (endSamplePtr)
                 endSamplePtr.writeInt32(atrac3.fact.endSample);
-            //if (loopStartSamplePtr) loopStartSamplePtr.writeInt32(hasLoops ? atrac3.LoopInfoList[0].StartSample : -1);
             if (loopStartSamplePtr)
                 loopStartSamplePtr.writeInt32(-1);
-            //if (loopEndSamplePtr) *LoopEndSamplePointer = hasLoops ? atrac3.LoopInfoList[0].EndSample : -1;
             if (loopEndSamplePtr)
                 loopEndSamplePtr.writeInt32(-1);
             return 0;
@@ -20475,18 +18961,6 @@ var sceAtrac3plus = (function () {
             return 0;
         });
     }
-    /*
-    [HlePspFunction(NID = 0x780F88D1, FirmwareVersion = 150)]
-    [HlePspNotImplemented]
-    public Atrac sceAtracGetAtracID(CodecType CodecType)
-    {
-        if (CodecType != CodecType.PSP_MODE_AT_3 && CodecType != CodecType.PSP_MODE_AT_3_PLUS) {
-            throw (new SceKernelException(SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE));
-        }
-
-        return TryToAlloc(new Atrac(InjectContext, CodecType));
-    }
-    */
     sceAtrac3plus.prototype.getById = function (id) {
         if (!this._atrac3Ids.has(id))
             throw (new SceKernelException(2153971715 /* ATRAC_ERROR_NO_ATRACID */));
@@ -20510,7 +18984,6 @@ var Atrac3 = (function () {
     Atrac3.prototype.setDataStream = function (data) {
         var _this = this;
         this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
-        //debugger;
         Riff.fromStreamWithHandlers(data, {
             'fmt ': function (stream) {
                 _this.format = At3FormatStruct.struct.read(stream);
@@ -20527,8 +19000,6 @@ var Atrac3 = (function () {
             },
         });
         this.firstDataChunk = this.dataStream.readBytes(this.format.blockSize).subarray(0);
-        //console.log(this.fmt);
-        //console.log(this.fact);
         return this;
     };
     Object.defineProperty(Atrac3.prototype, "bitrate", {
@@ -20548,12 +19019,9 @@ var Atrac3 = (function () {
         get: function () {
             this.format.compressionCode;
             switch (this.codecType) {
-                case 4096 /* PSP_MODE_AT_3_PLUS */:
-                    return 0x800;
-                case 4097 /* PSP_MODE_AT_3 */:
-                    return 0x400;
-                default:
-                    throw (new Error("Unknown codec type"));
+                case 4096 /* PSP_MODE_AT_3_PLUS */: return 0x800;
+                case 4097 /* PSP_MODE_AT_3 */: return 0x400;
+                default: throw (new Error("Unknown codec type"));
             }
         },
         enumerable: true,
@@ -20623,7 +19091,6 @@ var Atrac3 = (function () {
     Atrac3.fromStream = function (data) {
         return new Atrac3(Atrac3.lastId++).setDataStream(data);
     };
-    //private static useWorker = false;
     Atrac3.useWorker = true;
     Atrac3.lastId = 0;
     return Atrac3;
@@ -20713,7 +19180,6 @@ var CodecType;
 
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
 var _audio = require('../../core/audio');
@@ -20744,7 +19210,6 @@ var sceAudio = (function () {
             channel.allocated = true;
             channel.sampleCount = sampleCount;
             channel.format = format;
-            //console.log(this.context);
             channel.channel = _this.context.audio.createChannel();
             channel.channel.start();
             return channelId;
@@ -20781,8 +19246,6 @@ var sceAudio = (function () {
             var channel = _this.getChannelById(channelId);
             var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             return result;
-            //debugger;
-            //return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
         });
         this.sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
             var channel = _this.getChannelById(channelId);
@@ -20831,7 +19294,6 @@ var Channel = (function () {
     Object.defineProperty(Channel.prototype, "totalSampleCount", {
         get: function () {
             return this.sampleCount * this.numberOfChannels;
-            //return this.sampleCount;
         },
         enumerable: true,
         configurable: true
@@ -20848,7 +19310,6 @@ var Channel = (function () {
 
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
@@ -20862,23 +19323,17 @@ var sceCtrl = (function () {
         this.sceCtrlPeekBufferPositive = createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, function (sceCtrlDataPtr, count) {
             for (var n = 0; n < count; n++)
                 _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            //return waitAsync(1).then(v => count);
             return count;
         });
         this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, function (thread, sceCtrlDataPtr, count) {
-            //console.log('sceCtrlReadBufferPositive');
             for (var n = 0; n < count; n++)
                 _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            //return Promise.resolve(0);
             return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread).then(function (v) { return count; }), 0 /* NO */);
-            //return 0;
         });
         this.sceCtrlSetSamplingCycle = createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
-            //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
             return 0;
         });
         this.sceCtrlSetSamplingMode = createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, function (samplingMode) {
-            //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
             return 0;
         });
         this.lastLatchData = new SceCtrlData();
@@ -20899,10 +19354,10 @@ var sceCtrl = (function () {
         var ButtonsNew = this.context.controller.data.buttons;
         var ButtonsOld = this.lastLatchData.buttons;
         var ButtonsChanged = ButtonsOld ^ ButtonsNew;
-        currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged); // uiMake
-        currentLatchPtr.writeInt32(ButtonsOld & ButtonsChanged); // uiBreak
-        currentLatchPtr.writeInt32(ButtonsNew); // uiPress
-        currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged); // uiRelease
+        currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged);
+        currentLatchPtr.writeInt32(ButtonsOld & ButtonsChanged);
+        currentLatchPtr.writeInt32(ButtonsNew);
+        currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged);
         return this.context.controller.latchSamplingCount;
     };
     return sceCtrl;
@@ -20911,7 +19366,6 @@ exports.sceCtrl = sceCtrl;
 
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
@@ -21001,7 +19455,6 @@ exports.sceDisplay = sceDisplay;
 
 },
 "src/hle/module/sceDmac": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -21032,7 +19485,6 @@ exports.sceDmac = sceDmac;
 
 },
 "src/hle/module/sceGe_user": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var _manager = require('../manager');
@@ -21065,11 +19517,9 @@ var sceGe_user = (function () {
             return _this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
         });
         this.sceGeListSync = createNativeFunction(0x03444EB4, 150, 'uint', 'int/int', this, function (displayListId, syncType) {
-            //console.warn('Not implemented sceGe_user.sceGeListSync');
             return _this.context.gpu.listSync(displayListId, syncType);
         });
         this.sceGeListUpdateStallAddr = createNativeFunction(0xE0D68148, 150, 'uint', 'int/int', this, function (displayListId, stall) {
-            //console.warn('Not implemented sceGe_user.sceGeListUpdateStallAddr');
             return _this.context.gpu.updateStallAddr(displayListId, stall);
         });
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
@@ -21088,12 +19538,10 @@ var sceGe_user = (function () {
             return -1;
         });
         this.sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
-            //console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);
             return 0x04000000;
         });
         this.sceGeEdramGetSize = createNativeFunction(0x1F6752AD, 150, 'uint', '', this, function () {
-            //console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
-            return 0x00200000; // 2MB
+            return 0x00200000;
         });
     }
     return sceGe_user;
@@ -21113,7 +19561,6 @@ var CallbackData = (function () {
 
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceHprm = (function () {
@@ -21130,7 +19577,6 @@ exports.sceHprm = sceHprm;
 
 },
 "src/hle/module/sceHttp": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceHttp = (function () {
     function sceHttp(context) {
@@ -21142,7 +19588,6 @@ exports.sceHttp = sceHttp;
 
 },
 "src/hle/module/sceImpose": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceImpose = (function () {
@@ -21183,7 +19628,6 @@ var BatteryStatusEnum;
 
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceLibFont = (function () {
@@ -21209,9 +19653,6 @@ var sceLibFont = (function () {
             return 0;
         });
         this.sceFontSetResolution = createNativeFunction(0x48293280, 150, 'uint', 'int/float/float', this, function (fontLibId, horizontalResolution, verticalResolution) {
-            //var font = this.fontUid.get(fontId);
-            //FontLibrary.HorizontalResolution = HorizontalResolution;
-            //FontLibrary.VerticalResolution = VerticalResolution;
             return 0;
         });
     }
@@ -21231,7 +19672,6 @@ var Font = (function () {
 
 },
 "src/hle/module/sceMp3": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceMp3 = (function () {
     function sceMp3(context) {
@@ -21243,7 +19683,6 @@ exports.sceMp3 = sceMp3;
 
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _memory = require('../../core/memory');
 var createNativeFunction = _utils.createNativeFunction;
@@ -21285,8 +19724,6 @@ var sceMpeg = (function () {
             buf.dataUpperBound = data + numPackets * 2048;
             buf.semaID = 0;
             buf.mpeg = 0;
-            // This isn't in ver 0104, but it is in 0105.
-            //if (mpegLibVersion >= 0x0105) buf.gp = __KernelGetModuleGP(__KernelGetCurThreadModuleId());
             RingBuffer.struct.write(ringbufferAddr, buf);
         });
         this.sceMpegCreate = createNativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint', this, function (mpegAddr, dataPtr, size, ringbufferAddr, mode, ddrTop) {
@@ -21309,22 +19746,14 @@ var sceMpeg = (function () {
             var mpegHandle = _this.context.memory.getPointerStream(dataPtr + 0x30);
             mpegHandle.writeString("LIBMPEG\0" + "001\0");
             mpegHandle.writeInt32(-1);
-            // @TODO: WIP
-            //mpegHandle.writeInt32(mpegAddr);
-            //mpegHandle.write
         });
         this.sceMpegDelete = createNativeFunction(0x606A4649, 150, 'uint', 'int', this, function (sceMpegPointer) {
-            //this.getMpeg(sceMpegPointer).delete();
             return 0;
         });
         this.sceMpegFinish = createNativeFunction(0x874624D6, 150, 'uint', '', this, function () {
-            //this.getMpeg(sceMpegPointer).delete();
             return 0;
         });
         this.sceMpegRingbufferDestruct = createNativeFunction(0x13407F13, 150, 'uint', 'int', this, function (ringBufferPointer) {
-            //Ringbuffer- > PacketsAvailable = Ringbuffer- > PacketsTotal;
-            //Ringbuffer- > PacketsRead = 0;
-            //Ringbuffer- > PacketsWritten = 0;
             return 0;
         });
     }
@@ -21358,7 +19787,6 @@ var RingBuffer = (function () {
 
 },
 "src/hle/module/sceNet": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceNet = (function () {
@@ -21380,17 +19808,14 @@ var sceNet = (function () {
             throw (new Error("Not implemented"));
             return -1;
         });
-        /** Convert string to a Mac address **/
         this.sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]', this, function (string, mac) {
             mac.set(string2mac(string));
             return 0;
         });
-        /** Convert Mac address to a string **/
         this.sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'byte[6]/void*', this, function (mac, outputAddress) {
             outputAddress.writeStringz(mac2string(mac));
             return 0;
         });
-        /** Retrieve the local Mac address **/
         this.sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]', this, function (macOut) {
             console.info("sceNetGetLocalEtherAddr: ", mac2string(_this.context.netManager.mac));
             macOut.set(_this.context.netManager.mac);
@@ -21407,7 +19832,6 @@ exports.sceNet = sceNet;
 
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _context = require('../../context');
 var _manager = require('../manager');
@@ -21416,44 +19840,36 @@ var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
         var _this = this;
         this.context = context;
-        /** Initialise the adhoc library. */
         this.sceNetAdhocInit = createNativeFunction(0xE1D621D7, 150, 'int', '', this, function () {
             _this.partition = _this.context.memoryManager.kernelPartition.allocateLow(0x4000);
             return 0;
         });
-        /** Terminate the adhoc library */
         this.sceNetAdhocTerm = createNativeFunction(0xA62C6F57, 150, 'int', '', this, function () {
             _this.partition.deallocate();
             return 0;
         });
-        /** */
         this.sceNetAdhocPollSocket = createNativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int', this, function (socketAddress, int, timeout, nonblock) {
             throw (new Error("Not implemented sceNetAdhocPollSocket"));
             return -1;
         });
         this.pdps = new UidCollection(1);
-        /** Create a PDP object. */
         this.sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int', this, function (mac, port, bufsize, unk1) {
             var pdp = new Pdp(_this.context, mac, port, bufsize);
             pdp.id = _this.pdps.allocate(pdp);
             return pdp.id;
         });
-        /** Delete a PDP object. */
         this.sceNetAdhocPdpDelete = createNativeFunction(0x7F27BB5E, 150, 'int', 'int/int', this, function (pdpId, unk1) {
             var pdp = _this.pdps.get(pdpId);
             pdp.dispose();
             _this.pdps.remove(pdpId);
             return 0;
         });
-        /** Send a PDP packet to a destination. */
         this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int', this, function (pdpId, destMac, port, dataStream, timeout, nonblock) {
-            //debugger;
             var pdp = _this.pdps.get(pdpId);
             var data = dataStream.readBytes(dataStream.length);
             pdp.send(port, destMac, data);
             return 0;
         });
-        /** Receive a PDP packet */
         this.sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int', this, function (pdpId, srcMac, portPtr, data, dataLengthPtr, timeout, nonblock) {
             var block = !nonblock;
             var pdp = _this.pdps.get(pdpId);
@@ -21464,23 +19880,20 @@ var sceNetAdhoc = (function () {
                 dataLengthPtr.writeInt32(chunk.payload.length);
                 return 0;
             };
-            // block
             if (block) {
                 return pdp.recvOneAsync().then(recvOne);
             }
             else {
                 if (pdp.chunks.length <= 0)
-                    return 0x80410709; // ERROR_NET_ADHOC_NO_DATA_AVAILABLE
+                    return 0x80410709;
                 return recvOne(pdp.chunks.shift());
             }
         });
-        /** Get the status of all PDP objects */
         this.sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, function (sizeStream, pdpStatStruct) {
             var maxSize = sizeStream.sliceWithLength(0).readInt32();
             var pdps = _this.pdps.list();
             var totalSize = pdps.length * PdpStatStruct.struct.length;
             sizeStream.sliceWithLength(0).writeInt32(totalSize);
-            //var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
             var pos = 0;
             pdps.forEach(function (pdp) {
                 var stat = new PdpStatStruct();
@@ -21489,82 +19902,66 @@ var sceNetAdhoc = (function () {
                 stat.port = pdp.port;
                 stat.mac = xrange(0, 6).map(function (index) { return pdp.mac[index]; });
                 stat.rcvdData = pdp.getDataLength();
-                //console.log("sceNetAdhocGetPdpStat:", stat);
                 PdpStatStruct.struct.write(pdpStatStruct, stat);
             });
             return 0;
         });
-        /** Create own game object type data. */
         this.sceNetAdhocGameModeCreateMaster = createNativeFunction(0x7F75C338, 150, 'int', 'byte[]', this, function (data) {
             throw (new Error("Not implemented sceNetAdhocGameModeCreateMaster"));
             return -1;
         });
-        /** Create peer game object type data. */
         this.sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]', this, function (mac, data) {
             throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
             return -1;
         });
-        /** Update own game object type data. */
         this.sceNetAdhocGameModeUpdateMaster = createNativeFunction(0x98C204C8, 150, 'int', '', this, function () {
             throw (new Error("Not implemented sceNetAdhocGameModeUpdateMaster"));
             return -1;
         });
-        /** Update peer game object type data. */
         this.sceNetAdhocGameModeUpdateReplica = createNativeFunction(0xFA324B4E, 150, 'int', 'int/int', this, function (id, unk1) {
             throw (new Error("Not implemented sceNetAdhocGameModeUpdateReplica"));
             return -1;
         });
-        /** Delete own game object type data. */
         this.sceNetAdhocGameModeDeleteMaster = createNativeFunction(0xA0229362, 150, 'int', '', this, function () {
             throw (new Error("Not implemented sceNetAdhocGameModeDeleteMaster"));
             return -1;
         });
-        /** Delete peer game object type data. */
         this.sceNetAdhocGameModeDeleteReplica = createNativeFunction(0x0B2228E9, 150, 'int', 'int', this, function (id) {
             throw (new Error("Not implemented sceNetAdhocGameModeDeleteReplica"));
             return -1;
         });
-        /** Open a PTP (Peer To Peer) connection */
         this.sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int', this, function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
             throw (new Error("Not implemented sceNetAdhocPtpOpen"));
             return -1;
         });
-        /** Wait for an incoming PTP connection */
         this.sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int', this, function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
             throw (new Error("Not implemented sceNetAdhocPtpListen"));
             return -1;
         });
-        /** Wait for connection created by sceNetAdhocPtpOpen */
         this.sceNetAdhocPtpConnect = createNativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int', this, function (id, timeout, nonblock) {
             throw (new Error("Not implemented sceNetAdhocPtpConnect"));
             return -1;
         });
-        /** Accept an incoming PTP connection */
         this.sceNetAdhocPtpAccept = createNativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
             throw (new Error("Not implemented sceNetAdhocPtpAccept"));
             return -1;
         });
-        /** Send data */
         this.sceNetAdhocPtpSend = createNativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
             throw (new Error("Not implemented sceNetAdhocPtpSend"));
             return -1;
         });
-        /** Receive data */
         this.sceNetAdhocPtpRecv = createNativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
             throw (new Error("Not implemented sceNetAdhocPtpRecv"));
             return -1;
         });
-        /** Wait for data in the buffer to be sent */
         this.sceNetAdhocPtpFlush = createNativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int', this, function (id, timeout, nonblock) {
             throw (new Error("Not implemented sceNetAdhocPtpFlush"));
             return -1;
         });
-        /** Close a socket */
         this.sceNetAdhocPtpClose = createNativeFunction(0x157E6225, 150, 'int', 'int/int', this, function (id, unk1) {
             throw (new Error("Not implemented sceNetAdhocPtpClose"));
             return -1;
         });
-        /** Get the status of all PTP objects */
         this.sceNetAdhocGetPtpStat = createNativeFunction(0xB9685118, 150, 'int', 'void*/void*', this, function (size, stat) {
             throw (new Error("Not implemented sceNetAdhocGetPtpStat"));
             return -1;
@@ -21638,7 +20035,6 @@ var PdpStatStruct = (function () {
 
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _context = require('../../context');
 var _manager = require('../manager');
@@ -21649,26 +20045,21 @@ var sceNetAdhocMatching = (function () {
         var _this = this;
         this.context = context;
         this.poolStat = { size: 0, maxsize: 0, freesize: 0 };
-        /** Initialise the Adhoc matching library */
         this.sceNetAdhocMatchingInit = createNativeFunction(0x2A2A1E07, 150, 'int', 'int', this, function (memSize) {
-            //stateOut.writeInt32(this.currentState);
             _this.poolStat.size = memSize;
             _this.poolStat.maxsize = memSize;
             _this.poolStat.freesize = memSize;
             return 0;
         });
-        /** Terminate the Adhoc matching library */
         this.sceNetAdhocMatchingTerm = createNativeFunction(0x7945ECDA, 150, 'int', '', this, function () {
             return 0;
         });
         this.matchings = new UidCollection(1);
-        /** Create an Adhoc matching object */
         this.sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint', this, function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
             var matching = new Matching(_this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
             matching.id = _this.matchings.allocate(matching);
             return matching.id;
         });
-        /** Select a matching target */
         this.sceNetAdhocMatchingSelectTarget = createNativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*', this, function (matchingId, macStream, dataLength, dataPointer) {
             var matching = _this.matchings.get(matchingId);
             var mac = macStream.readBytes(6);
@@ -21680,20 +20071,16 @@ var sceNetAdhocMatching = (function () {
             matching.cancelTarget(mac.readBytes(6));
             return 0;
         });
-        /** Delete an Adhoc matching object */
         this.sceNetAdhocMatchingDelete = createNativeFunction(0xF16EAF4F, 150, 'int', 'int', this, function (matchingId) {
             _this.matchings.remove(matchingId);
             return 0;
         });
-        /** Start a matching object */
         this.sceNetAdhocMatchingStart = createNativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*', this, function (matchingId, evthPri, evthStack, inthPri, inthStack, optLen, optData) {
-            //throw (new Error("sceNetAdhocMatchingStart"));
             var matching = _this.matchings.get(matchingId);
             matching.hello = optData.readBytes(optLen);
             matching.start();
             return 0;
         });
-        /** Stop a matching object */
         this.sceNetAdhocMatchingStop = createNativeFunction(0x32B156B3, 150, 'int', 'int', this, function (matchingId) {
             var matching = _this.matchings.get(matchingId);
             matching.stop();
@@ -21761,7 +20148,6 @@ var Matching = (function () {
     Matching.prototype.selectTarget = function (mac, data) {
         var macstr = mac2string(mac);
         console.info("net.adhoc: selectTarget", macstr);
-        // Accept
         if ((this.state == 1 /* JOIN_WAIT_RESPONSE */) && (macstr == this.joinMac)) {
             this.state = 2 /* JOIN_WAIT_COMPLETE */;
             this.sendMessage(6 /* Accept */, mac, data);
@@ -21772,14 +20158,12 @@ var Matching = (function () {
         }
     };
     Matching.prototype.cancelTarget = function (mac) {
-        // Cancel
         var macstr = mac2string(mac);
         console.info("net.adhoc: cancelTarget", macstr);
         this.state = 0 /* START */;
         this.sendMessage(5 /* Cancel */, mac, null);
     };
     Matching.prototype.sendMessage = function (event, tomac, data) {
-        //this.messageQueue.push({ event: event, tomac: ArrayBufferUtils.cloneBytes(tomac), data: ArrayBufferUtils.cloneBytes(data) });
         if (!data)
             data = new Uint8Array(0);
         if (event != 1 /* Hello */) {
@@ -21805,7 +20189,6 @@ var Matching = (function () {
         var dataPartition = this.context.memoryManager.kernelPartition.allocateLow(Math.max(8, MathUtils.nextAligned(data.length, 8)), 'Matching.data');
         this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
         this.context.memory.writeUint8Array(dataPartition.low, data);
-        //// @TODO: Enqueue callback instead of executing now?
         this.context.callbackManager.executeLater(this.callback, [
             this.id,
             event,
@@ -21813,9 +20196,6 @@ var Matching = (function () {
             data.length,
             data.length ? dataPartition.low : 0
         ]);
-        //this.context.interop.execute(this.thread.state, this.callback, [
-        //	this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
-        //]);
         dataPartition.deallocate();
         macPartition.deallocate();
         switch (event) {
@@ -21867,7 +20247,6 @@ var Mode = exports.Mode;
 
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _context = require('../../context');
 var _manager = require('../manager');
@@ -21878,17 +20257,14 @@ var sceNetAdhocctl = (function () {
         this.context = context;
         this.currentState = 0 /* Disconnected */;
         this.currentName = "noname";
-        /** Initialise the Adhoc control library */
         this.sceNetAdhocctlInit = createNativeFunction(0xE26F226E, 150, 'int', 'int/int/void*', this, function (stacksize, priority, product) {
             _this.currentState = 0 /* Disconnected */;
             return 0;
         });
-        /** Terminate the Adhoc control library */
         this.sceNetAdhocctlTerm = createNativeFunction(0x9D689E13, 150, 'int', '', this, function () {
             return 0;
         });
         this.connectHandlers = [];
-        /** Connect to the Adhoc control */
         this.sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, function (name) {
             _this.currentName = name;
             _this.connectHandlers.push(_this.context.netManager.onopen.add(function () {
@@ -21906,7 +20282,6 @@ var sceNetAdhocctl = (function () {
             _this.context.netManager.connectOnce();
             return 0;
         });
-        /** Disconnect from the Adhoc control */
         this.sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, function () {
             while (_this.connectHandlers.length)
                 _this.connectHandlers.shift().cancel();
@@ -21930,7 +20305,6 @@ var sceNetAdhocctl = (function () {
         if (error === void 0) { error = 0; }
         this.handlers.list().forEach(function (callback) {
             _this.context.callbackManager.executeLater(callback.callback, [event, error, callback.argument]);
-            //this.context.interop.execute(this.context.threadManager.current.state, callback.callback, [event, error, callback.argument]);
         });
     };
     return sceNetAdhocctl;
@@ -21977,7 +20351,6 @@ var MAX_GAME_MODE_MACS = 16;
 
 },
 "src/hle/module/sceNetApctl": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceNetApctl = (function () {
     function sceNetApctl(context) {
@@ -21989,7 +20362,6 @@ exports.sceNetApctl = sceNetApctl;
 
 },
 "src/hle/module/sceNetInet": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceNetInet = (function () {
     function sceNetInet(context) {
@@ -22001,7 +20373,6 @@ exports.sceNetInet = sceNetInet;
 
 },
 "src/hle/module/sceNetResolver": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceNetResolver = (function () {
     function sceNetResolver(context) {
@@ -22013,7 +20384,6 @@ exports.sceNetResolver = sceNetResolver;
 
 },
 "src/hle/module/sceNp": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceNp = (function () {
     function sceNp(context) {
@@ -22025,7 +20395,6 @@ exports.sceNp = sceNp;
 
 },
 "src/hle/module/sceNpAuth": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceNpAuth = (function () {
     function sceNpAuth(context) {
@@ -22037,7 +20406,6 @@ exports.sceNpAuth = sceNpAuth;
 
 },
 "src/hle/module/sceNpService": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceNpService = (function () {
     function sceNpService(context) {
@@ -22049,7 +20417,6 @@ exports.sceNpService = sceNpService;
 
 },
 "src/hle/module/sceOpenPSID": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceOpenPSID = (function () {
     function sceOpenPSID(context) {
@@ -22061,7 +20428,6 @@ exports.sceOpenPSID = sceOpenPSID;
 
 },
 "src/hle/module/sceParseHttp": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceParseHttp = (function () {
     function sceParseHttp(context) {
@@ -22073,7 +20439,6 @@ exports.sceParseHttp = sceParseHttp;
 
 },
 "src/hle/module/sceParseUri": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceParseUri = (function () {
     function sceParseUri(context) {
@@ -22085,7 +20450,6 @@ exports.sceParseUri = sceParseUri;
 
 },
 "src/hle/module/scePower": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -22093,11 +20457,9 @@ var scePower = (function () {
     function scePower(context) {
         var _this = this;
         this.context = context;
-        // 222/111
-        // 333/166
-        this.cpuMult = 511; // 222mhz
+        this.cpuMult = 511;
         this.pllFreq = 222;
-        this.busFreq = 111; // MAX BUS: 166
+        this.busFreq = 111;
         this.scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', 'int/int', this, function (slotIndex, callbackId) {
             _this.context.callbackManager.notify(callbackId, 128 /* BATTERY_EXIST */);
             return 0;
@@ -22138,7 +20500,6 @@ var scePower = (function () {
         this.scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, function (busFreq) {
             if (!_this._isValidBusFreq(busFreq))
                 return 2147484158 /* ERROR_INVALID_VALUE */;
-            //this.busFreq = busFreq;
             _this.busFreq = 111;
             return 0;
         });
@@ -22170,7 +20531,7 @@ var scePower = (function () {
         this.scePowerGetBatteryTemp = createNativeFunction(0x28E12023, 150, 'int', '', this, function () { return 28; });
         this.scePowerLock = createNativeFunction(0xD6D016EF, 150, 'int', 'int', this, function (unknown) { return 0; });
         this.scePowerUnlock = createNativeFunction(0xCA3D34C1, 150, 'int', 'int', this, function (unknown) { return 0; });
-        this.scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, function (type) { return 0; }); // all = 0, suspend = 1, display = 6
+        this.scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, function (type) { return 0; });
         this.scePowerGetBatteryChargingStatus = createNativeFunction(0xB4432BC8, 150, 'int', '', this, function () {
             return 128 /* BatteryExists */ | 4096 /* AcPower */ | 127 /* BatteryPower */;
         });
@@ -22237,7 +20598,6 @@ var PowerFlagsSet;
 
 },
 "src/hle/module/scePspNpDrm_user": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var scePspNpDrm_user = (function () {
     function scePspNpDrm_user(context) {
@@ -22249,7 +20609,6 @@ exports.scePspNpDrm_user = scePspNpDrm_user;
 
 },
 "src/hle/module/sceReg": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceReg = (function () {
@@ -22308,7 +20667,6 @@ var RegParam = (function () {
 
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -22347,8 +20705,6 @@ var sceRtc = (function () {
             }
         });
         this.sceRtcGetCurrentClock = createNativeFunction(0x4CFA57B0, 150, 'int', 'uint/int', this, function (dateAddress, timezone) {
-            //var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
-            //currentDate += timezone * 60 * 1000000;
             var date = new Date();
             var pointer = _this.context.memory.getPointerPointer(ScePspDateTime.struct, dateAddress);
             pointer.write(ScePspDateTime.fromDate(new Date()));
@@ -22361,7 +20717,6 @@ exports.sceRtc = sceRtc;
 
 },
 "src/hle/module/sceSasCore": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _audio = require('../../core/audio');
 var _vag = require('../../format/vag');
@@ -22382,22 +20737,17 @@ var sceSasCore = (function () {
             if (sampleRate != 44100) {
                 return 2151809028 /* ERROR_SAS_INVALID_SAMPLE_RATE */;
             }
-            //CheckGrains(GrainSamples);
             if (maxVoices < 1 || maxVoices > sceSasCore.PSP_SAS_VOICES_MAX) {
                 return 2151809026 /* ERROR_SAS_INVALID_MAX_VOICES */;
             }
             if (outputMode != 0 /* STEREO */ && outputMode != 1 /* MULTICHANNEL */) {
                 return 2151809027 /* ERROR_SAS_INVALID_OUTPUT_MODE */;
             }
-            //var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
             _this.core.grainSamples = grainSamples;
             _this.core.maxVoices = maxVoices;
             _this.core.outputMode = outputMode;
             _this.core.sampleRate = sampleRate;
             _this.core.initialized = true;
-            //BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
-            //BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
-            //MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
             return 0;
         });
         this.__sceSasSetGrain = createNativeFunction(0xD1E0A01E, 150, 'uint', 'int/int', this, function (sasCorePointer, grainSamples) {
@@ -22554,7 +20904,6 @@ var sceSasCore = (function () {
         this.__sceSasRevParam = createNativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', this, function (sasCorePointer, delay, feedback) {
             _this.core.delay = delay;
             _this.core.feedback = feedback;
-            // Not implemented
             return 0;
         });
         this.__sceSasSetSimpleADSR = createNativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', this, function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
@@ -22615,9 +20964,6 @@ var SasCore = (function () {
             var voice = this.voices[n];
             if (!voice.onAndPlaying)
                 continue;
-            //var sampleLeftSum = 0, sampleRightSum = 0;
-            //var sampleLeftMax = 0, sampleRightMax = 0;
-            //var sampleCount = 0;
             var pos = 0;
             while (true) {
                 if ((voice.source != null) && (voice.source.hasMore)) {
@@ -22626,13 +20972,6 @@ var SasCore = (function () {
                         break;
                     var sample = voice.source.getNextSample();
                     for (var m = prevPosDiv + 1; m <= posDiv; m++) {
-                        //sampleLeftSum += voice.leftVolume;
-                        //sampleRightSum += voice.rightVolume;
-                        //
-                        //sampleLeftMax = Math.max(sampleLeftMax, Math.abs(voice.leftVolume));
-                        //sampleRightMax = Math.max(sampleRightMax, Math.abs(voice.rightVolume));
-                        //
-                        //sampleCount++;
                         this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
                     }
                     prevPosDiv = posDiv;
@@ -22684,7 +21023,6 @@ var Voice = (function () {
     };
     Voice.prototype.setPlaying = function (set) {
         this.playing = set;
-        // CHECK. Reset on change?
         if (this.source)
             this.source.reset();
     };
@@ -22772,7 +21110,6 @@ var AdsrFlags;
 
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceSsl = (function () {
     function sceSsl(context) {
@@ -22784,7 +21121,6 @@ exports.sceSsl = sceSsl;
 
 },
 "src/hle/module/sceSuspendForUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -22802,7 +21138,6 @@ var sceSuspendForUser = (function () {
             return 0;
         });
         this.sceKernelPowerTick = createNativeFunction(0x090CCB3F, 150, 'uint', 'uint', this, function (value) {
-            // prevent screen from turning off!
             return 0;
         });
     }
@@ -22812,7 +21147,6 @@ exports.sceSuspendForUser = sceSuspendForUser;
 
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -22863,20 +21197,11 @@ var sceUmdUser = (function () {
     sceUmdUser.prototype._sceUmdWaitDriveStat = function (pspUmdState, acceptCallbacks) {
         this.context.callbackManager.executePendingWithinThread(this.context.threadManager.current);
         return 0;
-        /*
-        return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new Promise((resolve, reject) => {
-            var signalCallback = this.signal.add((result) => {
-                this.signal.remove(signalCallback);
-                resolve();
-            });
-        }), AcceptCallbacks.YES);
-        */
     };
     sceUmdUser.prototype._notify = function (data) {
         var _this = this;
         this.signal.dispatch(data);
         this.callbackIds.forEach(function (callbackId) {
-            //var state = this.context.threadManager.current.state;
             _this.context.callbackManager.notify(callbackId, data);
         });
     };
@@ -22901,7 +21226,6 @@ var PspUmdState;
 
 },
 "src/hle/module/sceUtility": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _vfs = require('../vfs');
 var _structs = require('../structs');
@@ -22926,8 +21250,6 @@ var sceUtility = (function () {
             });
         });
         this.sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
-            //console.log('sceUtilitySavedataShutdownStart');
-            //debugger;
             _this.currentStep = 4 /* SHUTDOWN */;
             return 0;
         });
@@ -22961,7 +21283,6 @@ var sceUtility = (function () {
             return 0;
         });
         this.sceUtilityGetSystemParamInt = createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, function (id, valuePtr) {
-            //console.warn("Not implemented sceUtilityGetSystemParamInt", id, PSP_SYSTEMPARAM_ID[id]);
             var value = parseInt(_this._getKey(id));
             if (valuePtr)
                 valuePtr.writeInt32(value);
@@ -22988,7 +21309,6 @@ var sceUtility = (function () {
         var saveIcon0 = savePathFolder + "/ICON0.PNG";
         var savePic1 = savePathFolder + "/PIC1.PNG";
         this.currentStep = 3 /* SUCCESS */;
-        //debugger;
         params.base.result = 0;
         switch (params.mode) {
             case 0 /* Autoload */:
@@ -23012,18 +21332,15 @@ var sceUtility = (function () {
             case 16 /* Read */:
             case 15 /* ReadSecure */:
                 {
-                    //throw (new SceKernelException(SceKernelErrors.ERROR_SAVEDATA_RW_NO_DATA));
                     console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-                    //return Promise.resolve(-1);
                     return Promise.resolve(0);
                 }
                 break;
             case 8 /* Sizes */:
                 {
                     var SceKernelError = 0 /* ERROR_OK */;
-                    //Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
                     var SectorSize = 1024;
-                    var FreeSize = 32 * 1024 * 1024; // 32 MB
+                    var FreeSize = 32 * 1024 * 1024;
                     var UsedSize = 0;
                     {
                         var sizeFreeInfoPtr = this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
@@ -23066,24 +21383,15 @@ var sceUtility = (function () {
     };
     sceUtility.prototype._getKey = function (id) {
         switch (id) {
-            case 2 /* INT_ADHOC_CHANNEL */:
-                return 0 /* AUTOMATIC */;
-            case 3 /* INT_WLAN_POWERSAVE */:
-                return 1 /* ON */;
-            case 4 /* INT_DATE_FORMAT */:
-                return 0 /* YYYYMMDD */;
-            case 5 /* INT_TIME_FORMAT */:
-                return 0 /* _24HR */;
-            case 6 /* INT_TIMEZONE */:
-                return -5 * 60;
-            case 7 /* INT_DAYLIGHTSAVINGS */:
-                return 0 /* STD */;
-            case 8 /* INT_LANGUAGE */:
-                return this.context.config.language;
-            case 9 /* INT_BUTTON_PREFERENCE */:
-                return 1 /* NA */;
-            case 1 /* STRING_NICKNAME */:
-                return "USERNAME";
+            case 2 /* INT_ADHOC_CHANNEL */: return 0 /* AUTOMATIC */;
+            case 3 /* INT_WLAN_POWERSAVE */: return 1 /* ON */;
+            case 4 /* INT_DATE_FORMAT */: return 0 /* YYYYMMDD */;
+            case 5 /* INT_TIME_FORMAT */: return 0 /* _24HR */;
+            case 6 /* INT_TIMEZONE */: return -5 * 60;
+            case 7 /* INT_DAYLIGHTSAVINGS */: return 0 /* STD */;
+            case 8 /* INT_LANGUAGE */: return this.context.config.language;
+            case 9 /* INT_BUTTON_PREFERENCE */: return 1 /* NA */;
+            case 1 /* STRING_NICKNAME */: return "USERNAME";
         }
         throw (new Error("Invalid key " + id));
     };
@@ -23110,9 +21418,6 @@ var DialogStepEnum;
     DialogStepEnum[DialogStepEnum["SUCCESS"] = 3] = "SUCCESS";
     DialogStepEnum[DialogStepEnum["SHUTDOWN"] = 4] = "SHUTDOWN";
 })(DialogStepEnum || (DialogStepEnum = {}));
-/// <summary>
-/// Valid values for PSP_SYSTEMPARAM_ID_INT_ADHOC_CHANNEL
-/// </summary>
 var PSP_SYSTEMPARAM_ADHOC_CHANNEL;
 (function (PSP_SYSTEMPARAM_ADHOC_CHANNEL) {
     PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["AUTOMATIC"] = 0] = "AUTOMATIC";
@@ -23120,42 +21425,27 @@ var PSP_SYSTEMPARAM_ADHOC_CHANNEL;
     PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C6"] = 6] = "C6";
     PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C11"] = 11] = "C11";
 })(PSP_SYSTEMPARAM_ADHOC_CHANNEL || (PSP_SYSTEMPARAM_ADHOC_CHANNEL = {}));
-/// <summary>
-/// Valid values for PSP_SYSTEMPARAM_ID_INT_WLAN_POWERSAVE
-/// </summary>
 var PSP_SYSTEMPARAM_WLAN_POWERSAVE;
 (function (PSP_SYSTEMPARAM_WLAN_POWERSAVE) {
     PSP_SYSTEMPARAM_WLAN_POWERSAVE[PSP_SYSTEMPARAM_WLAN_POWERSAVE["OFF"] = 0] = "OFF";
     PSP_SYSTEMPARAM_WLAN_POWERSAVE[PSP_SYSTEMPARAM_WLAN_POWERSAVE["ON"] = 1] = "ON";
 })(PSP_SYSTEMPARAM_WLAN_POWERSAVE || (PSP_SYSTEMPARAM_WLAN_POWERSAVE = {}));
-/// <summary>
-/// Valid values for PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT
-/// </summary>
 var PSP_SYSTEMPARAM_DATE_FORMAT;
 (function (PSP_SYSTEMPARAM_DATE_FORMAT) {
     PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["YYYYMMDD"] = 0] = "YYYYMMDD";
     PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["MMDDYYYY"] = 1] = "MMDDYYYY";
     PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["DDMMYYYY"] = 2] = "DDMMYYYY";
 })(PSP_SYSTEMPARAM_DATE_FORMAT || (PSP_SYSTEMPARAM_DATE_FORMAT = {}));
-/// <summary>
-/// Valid values for PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT
-/// </summary>
 var PSP_SYSTEMPARAM_TIME_FORMAT;
 (function (PSP_SYSTEMPARAM_TIME_FORMAT) {
     PSP_SYSTEMPARAM_TIME_FORMAT[PSP_SYSTEMPARAM_TIME_FORMAT["_24HR"] = 0] = "_24HR";
     PSP_SYSTEMPARAM_TIME_FORMAT[PSP_SYSTEMPARAM_TIME_FORMAT["_12HR"] = 1] = "_12HR";
 })(PSP_SYSTEMPARAM_TIME_FORMAT || (PSP_SYSTEMPARAM_TIME_FORMAT = {}));
-/// <summary>
-/// Valid values for PSP_SYSTEMPARAM_ID_INT_DAYLIGHTSAVINGS
-/// </summary>
 var PSP_SYSTEMPARAM_DAYLIGHTSAVINGS;
 (function (PSP_SYSTEMPARAM_DAYLIGHTSAVINGS) {
     PSP_SYSTEMPARAM_DAYLIGHTSAVINGS[PSP_SYSTEMPARAM_DAYLIGHTSAVINGS["STD"] = 0] = "STD";
     PSP_SYSTEMPARAM_DAYLIGHTSAVINGS[PSP_SYSTEMPARAM_DAYLIGHTSAVINGS["SAVING"] = 1] = "SAVING";
 })(PSP_SYSTEMPARAM_DAYLIGHTSAVINGS || (PSP_SYSTEMPARAM_DAYLIGHTSAVINGS = {}));
-/// <summary>
-/// Valid values for PSP_SYSTEMPARAM_ID_INT_LANGUAGE
-/// </summary>
 var PSP_SYSTEMPARAM_LANGUAGE;
 (function (PSP_SYSTEMPARAM_LANGUAGE) {
     PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["JAPANESE"] = 0] = "JAPANESE";
@@ -23171,13 +21461,6 @@ var PSP_SYSTEMPARAM_LANGUAGE;
     PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["CHINESE_TRADITIONAL"] = 10] = "CHINESE_TRADITIONAL";
     PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["CHINESE_SIMPLIFIED"] = 11] = "CHINESE_SIMPLIFIED";
 })(PSP_SYSTEMPARAM_LANGUAGE || (PSP_SYSTEMPARAM_LANGUAGE = {}));
-/// <summary>
-/// #9 seems to be Region or maybe X/O button swap.
-/// It doesn't exist on JAP v1.0
-/// is 1 on NA v1.5s
-/// is 0 on JAP v1.5s
-/// is read-only
-/// </summary>
 var PSP_SYSTEMPARAM_BUTTON_PREFERENCE;
 (function (PSP_SYSTEMPARAM_BUTTON_PREFERENCE) {
     PSP_SYSTEMPARAM_BUTTON_PREFERENCE[PSP_SYSTEMPARAM_BUTTON_PREFERENCE["JAP"] = 0] = "JAP";
@@ -23192,12 +21475,10 @@ var PspModule;
     PspModule[PspModule["PSP_MODULE_NET_PARSEHTTP"] = 0x0104] = "PSP_MODULE_NET_PARSEHTTP";
     PspModule[PspModule["PSP_MODULE_NET_HTTP"] = 0x0105] = "PSP_MODULE_NET_HTTP";
     PspModule[PspModule["PSP_MODULE_NET_SSL"] = 0x0106] = "PSP_MODULE_NET_SSL";
-    // USB Modules
     PspModule[PspModule["PSP_MODULE_USB_PSPCM"] = 0x0200] = "PSP_MODULE_USB_PSPCM";
     PspModule[PspModule["PSP_MODULE_USB_MIC"] = 0x0201] = "PSP_MODULE_USB_MIC";
     PspModule[PspModule["PSP_MODULE_USB_CAM"] = 0x0202] = "PSP_MODULE_USB_CAM";
     PspModule[PspModule["PSP_MODULE_USB_GPS"] = 0x0203] = "PSP_MODULE_USB_GPS";
-    // Audio/video Modules
     PspModule[PspModule["PSP_MODULE_AV_AVCODEC"] = 0x0300] = "PSP_MODULE_AV_AVCODEC";
     PspModule[PspModule["PSP_MODULE_AV_SASCORE"] = 0x0301] = "PSP_MODULE_AV_SASCORE";
     PspModule[PspModule["PSP_MODULE_AV_ATRAC3PLUS"] = 0x0302] = "PSP_MODULE_AV_ATRAC3PLUS";
@@ -23206,25 +21487,23 @@ var PspModule;
     PspModule[PspModule["PSP_MODULE_AV_VAUDIO"] = 0x0305] = "PSP_MODULE_AV_VAUDIO";
     PspModule[PspModule["PSP_MODULE_AV_AAC"] = 0x0306] = "PSP_MODULE_AV_AAC";
     PspModule[PspModule["PSP_MODULE_AV_G729"] = 0x0307] = "PSP_MODULE_AV_G729";
-    // NP
     PspModule[PspModule["PSP_MODULE_NP_COMMON"] = 0x0400] = "PSP_MODULE_NP_COMMON";
     PspModule[PspModule["PSP_MODULE_NP_SERVICE"] = 0x0401] = "PSP_MODULE_NP_SERVICE";
     PspModule[PspModule["PSP_MODULE_NP_MATCHING2"] = 0x0402] = "PSP_MODULE_NP_MATCHING2";
     PspModule[PspModule["PSP_MODULE_NP_DRM"] = 0x0500] = "PSP_MODULE_NP_DRM";
-    // IrDA
     PspModule[PspModule["PSP_MODULE_IRDA"] = 0x0600] = "PSP_MODULE_IRDA";
 })(PspModule || (PspModule = {}));
 var PspUtilityDialogCommon = (function () {
     function PspUtilityDialogCommon() {
-        this.size = 0; // 0000 - Size of the structure
-        this.language = 3 /* SPANISH */; // 0004 - Language
-        this.buttonSwap = 0; // 0008 - Set to 1 for X/O button swap
-        this.graphicsThread = 0; // 000C - Graphics thread priority
-        this.accessThread = 0; // 0010 - Access/fileio thread priority (SceJobThread)
-        this.fontThread = 0; // 0014 - Font thread priority (ScePafThread)
-        this.soundThread = 0; // 0018 - Sound thread priority
-        this.result = 0 /* ERROR_OK */; // 001C - Result
-        this.reserved = [0, 0, 0, 0]; // 0020 - Set to 0
+        this.size = 0;
+        this.language = 3 /* SPANISH */;
+        this.buttonSwap = 0;
+        this.graphicsThread = 0;
+        this.accessThread = 0;
+        this.fontThread = 0;
+        this.soundThread = 0;
+        this.result = 0 /* ERROR_OK */;
+        this.reserved = [0, 0, 0, 0];
     }
     PspUtilityDialogCommon.struct = StructClass.create(PspUtilityDialogCommon, [
         { size: Int32 },
@@ -23279,16 +21558,15 @@ var PspUtilitySavedataFocus;
 })(PspUtilitySavedataFocus || (PspUtilitySavedataFocus = {}));
 var PspUtilitySavedataFileData = (function () {
     function PspUtilitySavedataFileData() {
-        this.bufferPointer = 0; // 0000 -
-        this.bufferSize = 0; // 0004 -
-        this.size = 0; // 0008 - why are there two sizes?
-        this.unknown = 0; // 000C -
+        this.bufferPointer = 0;
+        this.bufferSize = 0;
+        this.size = 0;
+        this.unknown = 0;
     }
     Object.defineProperty(PspUtilitySavedataFileData.prototype, "used", {
         get: function () {
             if (this.bufferPointer == 0)
                 return false;
-            //if (BufferSize == 0) return false;
             if (this.size == 0)
                 return false;
             return true;
@@ -23306,11 +21584,11 @@ var PspUtilitySavedataFileData = (function () {
 })();
 var PspUtilitySavedataSFOParam = (function () {
     function PspUtilitySavedataSFOParam() {
-        this.title = ''; // 0000 -
-        this.savedataTitle = ''; // 0080 -
-        this.detail = ''; // 0100 -
-        this.parentalLevel = 0; // 0500 -
-        this.unknown = [0, 0, 0]; // 0501 -
+        this.title = '';
+        this.savedataTitle = '';
+        this.detail = '';
+        this.parentalLevel = 0;
+        this.unknown = [0, 0, 0];
     }
     PspUtilitySavedataSFOParam.struct = StructClass.create(PspUtilitySavedataSFOParam, [
         { title: Stringz(0x80) },
@@ -23323,38 +21601,36 @@ var PspUtilitySavedataSFOParam = (function () {
 })();
 var SceUtilitySavedataParam = (function () {
     function SceUtilitySavedataParam() {
-        this.base = new PspUtilityDialogCommon(); // 0000 - PspUtilityDialogCommon
-        this.mode = 0; // 0030 - 
-        this.unknown1 = 0; // 0034 -
-        this.overwrite = 0; // 0038 -
-        this.gameName = ''; // 003C - GameName: name used from the game for saves, equal for all saves
-        this.saveName = ''; // 004C - SaveName: name of the particular save, normally a number
-        this.saveNameListPointer = 0; // 0060 - SaveNameList: used by multiple modes (char[20])
-        this.fileName = ''; // 0064 - FileName: Name of the data file of the game for example DATA.BIN
-        this.dataBufPointer = 0; // 0074 - Pointer to a buffer that will contain data file unencrypted data
-        this.dataBufSize = 0; // 0078 - Size of allocated space to dataBuf
-        this.dataSize = 0; // 007C -
-        this.sfoParam = new PspUtilitySavedataSFOParam(); // 0080 - (504?)
-        this.icon0FileData = new PspUtilitySavedataFileData(); // 0584 - (16)
-        this.icon1FileData = new PspUtilitySavedataFileData(); // 0594 - (16)
-        this.pic1FileData = new PspUtilitySavedataFileData(); // 05A4 - (16)
-        this.snd0FileData = new PspUtilitySavedataFileData(); // 05B4 - (16)
-        this.newDataPointer = 0; // 05C4 -Pointer to an PspUtilitySavedataListSaveNewData structure (PspUtilitySavedataListSaveNewData *)
-        this.focus = 0 /* PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN */; // 05C8 -Initial focus for lists
-        this.abortStatus = 0; // 05CC -
-        this.msFreeAddr = 0; // 05D0 -
-        this.msDataAddr = 0; // 05D4 -
-        this.utilityDataAddr = 0; // 05D8 -
-        //#if _PSP_FW_VERSION >= 200
-        this.key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
-        this.secureVersion = 0; // 05F0 -
-        this.multiStatus = 0; // 05F4 -
-        this.idListAddr = 0; // 05F8 -
-        this.fileListAddr = 0; // 05FC -
-        this.sizeAddr = 0; // 0600 -
-        this.unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 0604 -unknown3: ?
+        this.base = new PspUtilityDialogCommon();
+        this.mode = 0;
+        this.unknown1 = 0;
+        this.overwrite = 0;
+        this.gameName = '';
+        this.saveName = '';
+        this.saveNameListPointer = 0;
+        this.fileName = '';
+        this.dataBufPointer = 0;
+        this.dataBufSize = 0;
+        this.dataSize = 0;
+        this.sfoParam = new PspUtilitySavedataSFOParam();
+        this.icon0FileData = new PspUtilitySavedataFileData();
+        this.icon1FileData = new PspUtilitySavedataFileData();
+        this.pic1FileData = new PspUtilitySavedataFileData();
+        this.snd0FileData = new PspUtilitySavedataFileData();
+        this.newDataPointer = 0;
+        this.focus = 0 /* PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN */;
+        this.abortStatus = 0;
+        this.msFreeAddr = 0;
+        this.msDataAddr = 0;
+        this.utilityDataAddr = 0;
+        this.key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        this.secureVersion = 0;
+        this.multiStatus = 0;
+        this.idListAddr = 0;
+        this.fileListAddr = 0;
+        this.sizeAddr = 0;
+        this.unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     }
-    //#endif
     SceUtilitySavedataParam.struct = StructClass.create(SceUtilitySavedataParam, [
         { base: PspUtilityDialogCommon.struct },
         { mode: Int32 },
@@ -23428,7 +21704,6 @@ var SizeRequiredSpaceInfo = (function () {
 
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var sceVaudio = (function () {
     function sceVaudio(context) {
@@ -23440,7 +21715,6 @@ exports.sceVaudio = sceVaudio;
 
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceWlanDrv = (function () {
@@ -23456,7 +21730,6 @@ exports.sceWlanDrv = sceWlanDrv;
 
 },
 "src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -23487,14 +21760,13 @@ var ThreadManForUser = (function () {
             if (stackSize > 2 * 1024 * 1024)
                 return -3;
             if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
-                //console.log(sprintf('Invalid mask %08X, %08X, %08X', attributes, PspThreadAttributes.ValidMask, (attributes & (~PspThreadAttributes.ValidMask))));
                 return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
             }
             attributes |= 2147483648 /* User */;
             attributes |= 255 /* LowFF */;
             try {
-                stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
-                stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
+                stackSize = Math.max(stackSize, 0x200);
+                stackSize = MathUtils.nextAligned(stackSize, 0x100);
                 var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
                 newThread.id = _this.threadUids.allocate(newThread);
                 newThread.status = 16 /* DORMANT */;
@@ -23524,7 +21796,6 @@ var ThreadManForUser = (function () {
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
             var newThread = _this.getThreadById(threadId);
             newThread.exitStatus = 2147615140 /* ERROR_KERNEL_THREAD_IS_NOT_DORMANT */;
-            //if (!newThread) debugger;
             var newState = newThread.state;
             newState.setRA(268435455 /* EXIT_THREAD */);
             var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
@@ -23586,7 +21857,6 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
-            //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
             return _this._getCurrentMicroseconds();
         });
         this.sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, function (timePtr) {
@@ -23596,7 +21866,6 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
-            //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
             return Integer64.fromNumber(_this._getCurrentMicroseconds());
         }, { tryCatch: false });
         this.sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, function (currentThread) {
@@ -23705,7 +21974,6 @@ var SceKernelThreadInfo = (function () {
 
 },
 "src/hle/module/threadman/ThreadManForUser_callbacks": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -23722,13 +21990,7 @@ var ThreadManForUser = (function () {
         this.sceKernelDeleteCallback = createNativeFunction(0xEDBA5844, 150, 'uint', 'int', this, function (callbackId) {
             _this.context.callbackManager.remove(callbackId);
         });
-        /**
-         * Run all peding callbacks and return if executed any.
-         * Callbacks cannot be executed inside a interrupt.
-         * @return 0 no reported callbacks; 1 reported callbacks which were executed successfully.
-         */
         this.sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, function (thread) {
-            //console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
             return _this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
         });
         this.sceKernelNotifyCallback = createNativeFunction(0xC11BA8C4, 150, 'uint', 'Thread/int/int', this, function (thread, callbackId, argument2) {
@@ -23741,7 +22003,6 @@ exports.ThreadManForUser = ThreadManForUser;
 
 },
 "src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -23757,7 +22018,6 @@ var ThreadManForUser = (function () {
                 return 2147614721 /* ERROR_ERROR */;
             if ((attributes & 0x100) != 0 || attributes >= 0x300)
                 return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
-            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
             var eventFlag = new EventFlag();
             eventFlag.name = name;
             eventFlag.attributes = attributes;
@@ -23940,7 +22200,6 @@ var EventFlagWaitTypeSet;
 
 },
 "src/hle/module/threadman/ThreadManForUser_mutex": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -23961,7 +22220,6 @@ exports.ThreadManForUser = ThreadManForUser;
 
 },
 "src/hle/module/threadman/ThreadManForUser_sema": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -24018,7 +22276,6 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int', this, function (currentThread, id, signal) {
-            //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
             if (!_this.semaporesUid.has(id))
                 return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
             var semaphore = _this.semaporesUid.get(id);
@@ -24026,7 +22283,6 @@ var ThreadManForUser = (function () {
             if (semaphore.currentCount + signal > semaphore.maximumCount)
                 return 2147615150 /* ERROR_KERNEL_SEMA_OVERFLOW */;
             var awakeCount = semaphore.incrementCount(signal);
-            //console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
             if (awakeCount > 0) {
                 return Promise.resolve(0);
             }
@@ -24045,7 +22301,6 @@ var ThreadManForUser = (function () {
         });
     }
     ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout, acceptCallbacks) {
-        //console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
         if (!this.semaporesUid.has(id))
             return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
         var semaphore = this.semaporesUid.get(id);
@@ -24111,7 +22366,6 @@ var Semaphore = (function () {
         var awakeCount = 0;
         this.waitingSemaphoreThreadList.forEach(function (item) {
             if (_this.currentCount >= item.expectedCount) {
-                //console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
                 _this.currentCount -= item.expectedCount;
                 item.wakeUp();
                 awakeCount++;
@@ -24128,7 +22382,6 @@ var Semaphore = (function () {
         else {
             var promise = new Promise(function (resolve, reject) {
                 var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
-                    //console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
                     _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
                     resolve();
                 });
@@ -24150,7 +22403,6 @@ var SemaphoreAttribute;
 
 },
 "src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
-///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -24202,7 +22454,6 @@ var VplAttributeFlags;
 
 },
 "src/hle/pspmodules": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel');
 var InterruptManager = require('./module/InterruptManager');
 var KDebugForKernel = require('./module/KDebugForKernel');
@@ -24474,10 +22725,8 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     var maxGprIndex = 12;
     var gprindex = 4;
     var fprindex = 0;
-    //var fprindex = 2;
     function _readGpr32() {
         if (gprindex >= maxGprIndex) {
-            //return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
             return 'state.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
         }
         else {
@@ -24563,7 +22812,6 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         code += '}\n';
     }
     var debugSyscalls = false;
-    //var debugSyscalls = true;
     if (debugSyscalls) {
         code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
         code += "if (DebugOnce(info, 10)) {\n";
@@ -24574,8 +22822,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
     code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
     switch (retval) {
-        case 'void':
-            break;
+        case 'void': break;
         case 'uint':
         case 'int':
             code += 'state.V0 = result | 0;\n';
@@ -24594,20 +22841,17 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
             code += 'state.V0 = result; state.V1 = 0;\n';
             code += '}\n';
             break;
-        default:
-            throw ('Invalid return value "' + retval + '"');
+        default: throw ('Invalid return value "' + retval + '"');
     }
     var nativeFunction = new exports.NativeFunction();
     nativeFunction.name = 'unknown';
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
-    //console.log(code);
     var func = new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
     nativeFunction.call = function (context, state) {
         func(_this, console, internalFunc, context, state, nativeFunction);
     };
     nativeFunction.nativeCall = internalFunc;
-    //console.log(out);
     return nativeFunction;
 }
 exports.createNativeFunction = createNativeFunction;
@@ -24662,8 +22906,6 @@ var MyStorageIndexedDb = (function () {
             var request = indexedDB.open(name, 1);
             request.onupgradeneeded = function (e) {
                 var db = request.result;
-                // A versionchange transaction is started automatically.
-                //request.transaction.onerror = html5rocks.indexedDB.onerror;
                 console.log('upgrade!');
                 if (db.objectStoreNames.contains('items'))
                     db.deleteObjectStore('items');
@@ -24713,9 +22955,6 @@ var MyStorageIndexedDb = (function () {
     MyStorageIndexedDb.prototype.getAsync = function (key) {
         var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
-            //console.log('rr');
-            //var keyRange = IDBKeyRange.only(key);
-            //var keyRange = IDBKeyRange.lowerBound(0);
             var request = store.get(key);
             request.onsuccess = function (e) {
                 var result = e.target['result'];
@@ -24740,7 +22979,6 @@ var MyStorageFake = (function () {
     function MyStorageFake(name) {
         this.name = name;
         this.items = {};
-        //console.log('new MyStorageFake(' + name + ')');
     }
     MyStorageFake.prototype.putAsync = function (key, value) {
         console.log('putAsync', key, value);
@@ -24968,8 +23206,6 @@ var AsyncClient = (function () {
         if (!this.initPromise) {
             this.client = new Dropbox.Client({ key: this.key });
             if (this.client.isAuthenticated()) {
-                //DropboxLogged();
-                // Client is authenticated. Display UI.
                 $('#dropbox').html('logged');
             }
             this.client.authDriver(new Dropbox.AuthDriver.Redirect({
@@ -25104,34 +23340,16 @@ function normalizePath(fullpath) {
     var parts = fullpath.replace(/\\/g, '/').split('/');
     parts.forEach(function (part) {
         switch (part) {
-            case '.':
-                break;
+            case '.': break;
             case '..':
                 out.pop();
                 break;
-            default:
-                out.push(part);
+            default: out.push(part);
         }
     });
     return out.join('/');
 }
 var client = new AsyncClient('4mdwp62ogo4tna1');
-/*
-client.mkdirAsync('PSP').then(() => {
-    console.log('resilt');
-}).catch(e => {
-    console.error(e);
-});
-*/
-//client.mkdirAsync('PSP/GAME');
-//client.mkdirAsync('PSP/GAME/virtual');
-/*
-client.writeFileAsync('/PSP/GAME/virtual/lsdlmidi.bin', new Uint8Array([1, 2, 3, 4]).buffer).then((result) => {
-    console.log(result);
-}).catch((error) => {
-    console.error(error);
-});
-*/
 var DropboxVfs = (function (_super) {
     __extends(DropboxVfs, _super);
     function DropboxVfs() {
@@ -25164,10 +23382,8 @@ var DropboxVfsEntry = (function (_super) {
     DropboxVfsEntry.fromPathAsync = function (path, flags, mode) {
         function readedErrorAsync(e) {
             if (flags & 512 /* Create */) {
-                //console.log('creating file!');
                 var entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
                 return client.writeFileAsync(path, new ArrayBuffer(0)).then(function () {
-                    //console.log('created file!');
                     return entry;
                 }).catch(function (e) {
                     console.error(e);
@@ -25183,7 +23399,6 @@ var DropboxVfsEntry = (function (_super) {
                 return readedErrorAsync(new Error("file not exists"));
             }
             else {
-                //console.log(info);
                 return new DropboxVfsEntry(path, info.name, info.size, info.isFile, info.modifiedAt);
             }
         }).catch(function (e) {
@@ -25194,7 +23409,6 @@ var DropboxVfsEntry = (function (_super) {
         throw (new Error("Must implement DropboxVfsEntry.enumerateAsync"));
     };
     DropboxVfsEntry.prototype.readChunkAsync = function (offset, length) {
-        //console.log('dropbox: read chunk!', this.path, offset, length);
         var _this = this;
         if (this._size < 128 * 1024 * 1024) {
             if (this.cachedContent)
@@ -25205,22 +23419,18 @@ var DropboxVfsEntry = (function (_super) {
             });
         }
         else {
-            //console.log('read dropbox file ' + this.path);
             return client.readFileAsync(this.path, offset, offset + length);
         }
     };
     DropboxVfsEntry.prototype.writeChunkAsync = function (offset, dataToWrite) {
         var _this = this;
         return this.readChunkAsync(0, this._size).then(function (base) {
-            //console.log('dropbox: write chunk!', this.path, offset, dataToWrite.byteLength);
             var newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));
             var newContentArray = new Uint8Array(newContent);
             newContentArray.set(new Uint8Array(base), 0);
             newContentArray.set(new Uint8Array(dataToWrite), offset);
             _this._size = newContent.byteLength;
             _this.cachedContent = newContent;
-            //return client.writeFileAsync(this.path, newContent).then(() => data.byteLength);
-            //console.log(newContentArray);
             clearTimeout(_this.writeTimer);
             _this.writeTimer = setTimeout(function () {
                 client.writeFileAsync(_this.path, newContent);
@@ -25492,7 +23702,6 @@ var MountableVfs = (function (_super) {
         path = this.normalizePath(path);
         for (var n = 0; n < this.mounts.length; n++) {
             var mount = this.mounts[n];
-            //console.log(mount.path + ' -- ' + path);
             if (path.startsWith(mount.path)) {
                 var part = path.substr(mount.path.length);
                 return { mount: mount, part: part };
@@ -25566,8 +23775,6 @@ var MemoryStickVfs = (function (_super) {
             case 37902371 /* CheckInserted */:
                 if (output == null || output.length < 4)
                     return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
-                // 0 - Device is not assigned (callback not registered).
-                // 1 - Device is assigned (callback registered).
                 output.writeInt32(1);
                 return 0;
             case 37836833 /* MScmRegisterMSInsertEjectCallback */:
@@ -25577,7 +23784,6 @@ var MemoryStickVfs = (function (_super) {
                 this.callbackManager.notify(callbackId, 1);
                 return 0;
             case 37836834 /* MScmUnregisterMSInsertEjectCallback */:
-                // Ignore.
                 return 0;
             case 37902360 /* GetMemoryStickCapacity */:
                 if (input == null || input.length < 4)
@@ -25586,7 +23792,6 @@ var MemoryStickVfs = (function (_super) {
                 var structStream = this.memory.getPointerStream(structAddress, SizeInfoStruct.struct.length);
                 var sizeInfo = new SizeInfoStruct();
                 var memoryStickSectorSize = (32 * 1024);
-                //var TotalSpaceInBytes = 2L * 1024 * 1024 * 1024;
                 var freeSpaceInBytes = 1 * 1024 * 1024 * 1024;
                 sizeInfo.sectorSize = 0x200;
                 sizeInfo.sectorCount = (memoryStickSectorSize / sizeInfo.sectorSize);
@@ -25599,8 +23804,6 @@ var MemoryStickVfs = (function (_super) {
                 output.writeInt32(1);
                 return 0;
             case 33708033 /* CheckMemoryStickStatus */:
-                // 0 <- Busy
-                // 1 <- Ready
                 output.writeInt32(4);
                 return 0;
             default:
@@ -25723,7 +23926,6 @@ var StorageVfsEntry = (function (_super) {
         throw (new Error("Must override enumerateAsync : " + this));
     };
     StorageVfsEntry.prototype.readChunkAsync = function (offset, length) {
-        //console.log(this.file);
         return Promise.resolve(this.file.content.buffer.slice(offset, offset + length));
     };
     StorageVfsEntry.prototype.writeChunkAsync = function (offset, data) {
@@ -25880,7 +24082,6 @@ var ZipVfsFile = (function (_super) {
 
 },
 "src/util/IndentStringGenerator": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 var IndentStringGenerator = (function () {
     function IndentStringGenerator() {
         this.indentation = 0;
@@ -25924,8 +24125,6 @@ module.exports = IndentStringGenerator;
 
 },
 "test/_tests": function(module, exports, require) {
-///<reference path="./global.d.ts" />
-//declare function require(name: string): any;
 var pspTest = require('./format/pspTest');
 pspTest.ref();
 var csoTest = require('./format/csoTest');
@@ -25959,10 +24158,9 @@ pspautotests.ref();
 
 },
 "test/format/csoTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _cso = require('../../src/format/cso');
 var _iso = require('../../src/format/iso');
 describe('cso', function () {
@@ -25974,14 +24172,12 @@ describe('cso', function () {
     });
     it('should load fine', function () {
         return _cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
-            //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
             return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
                 var stream = Stream.fromArrayBuffer(data);
                 stream.skip(10);
                 var CD0001 = stream.readStringz(6);
                 assert.equal(CD0001, '\u0001CD001');
             });
-            //console.log(cso);
         });
     });
     it('should work with iso', function () {
@@ -25995,10 +24191,9 @@ describe('cso', function () {
 
 },
 "test/format/isoTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _iso = require('../../src/format/iso');
 describe('iso', function () {
     var isoData;
@@ -26017,10 +24212,9 @@ describe('iso', function () {
 
 },
 "test/format/pbpTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _pbp = require('../../src/format/pbp');
 var Pbp = _pbp.Pbp;
 describe('pbp', function () {
@@ -26040,10 +24234,9 @@ describe('pbp', function () {
 
 },
 "test/format/psfTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _psf = require('../../src/format/psf');
 var Psf = _psf.Psf;
 describe('psf', function () {
@@ -26069,10 +24262,9 @@ describe('psf', function () {
 
 },
 "test/format/pspTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
 describe('psp', function () {
     var testInputStream;
@@ -26099,10 +24291,9 @@ describe('psp', function () {
 
 },
 "test/format/vagTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _vag = require('../../src/format/vag');
 describe('vag', function () {
     var vagData;
@@ -26126,7 +24317,6 @@ describe('vag', function () {
             var sample = vag.getNextSample();
             var expectedLeft = expected.readInt16();
             var expectedRight = expected.readInt16();
-            //console.log(n, sample.left, "=", expectedLeft);
             resultArray.push(sample.left, sample.right);
             expectedArray.push(expectedLeft, expectedRight);
         }
@@ -26136,10 +24326,9 @@ describe('vag', function () {
 
 },
 "test/format/zipTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _zip = require('../../src/format/zip');
 var _vfs = require('../../src/hle/vfs');
 describe('zip', function () {
@@ -26156,7 +24345,6 @@ describe('zip', function () {
             assert.equal(63548, zip.get('/DATA/SOUNDS/Bullet.Wav').uncompressedSize);
             return zip.get('/DATA/SOUNDS/Bullet.Wav').readAsync().then(function (data) {
                 assert.equal(63548, data.length);
-                //console.log(data);
             });
         });
     });
@@ -26173,10 +24361,9 @@ describe('zip', function () {
 
 },
 "test/gpuTest": function(module, exports, require) {
-///<reference path="./global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _state = require('../src/core/gpu/state');
 var _gpu = require('../src/core/gpu');
 var VertexReaderFactory = _gpu.VertexReaderFactory;
@@ -26205,7 +24392,6 @@ describe('gpu', function () {
             vertexInput.setInt16(14, 400, true);
             var vertex1 = new _state.Vertex();
             var vertex2 = new _state.Vertex();
-            //console.log(vertexReader.readCode);
             vertexReader.readCount([vertex1, vertex2], 0, vertexInput, null, 2, vertexState.hasIndex);
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
@@ -26219,10 +24405,9 @@ describe('gpu', function () {
 
 },
 "test/hle/elfTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _memory = require('../../src/core/memory');
 var _cpu = require('../../src/core/cpu');
 var _display = require('../../src/core/display');
@@ -26243,7 +24428,6 @@ describe('elf', function () {
         });
     });
     it('load', function () {
-        //var stream = Stream.fromBase64(minifireElfBase64);
         var memory = _memory.Memory.instance;
         var memoryManager = new _manager.MemoryManager();
         var display = new DummyPspDisplay();
@@ -26259,10 +24443,9 @@ describe('elf', function () {
 
 },
 "test/hle/memorymanagerTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _manager = require('../../src/hle/manager');
 var MemoryAnchor = _manager.MemoryAnchor;
 var MemoryPartition = _manager.MemoryPartition;
@@ -26320,10 +24503,9 @@ describe("memorymanager", function () {
 
 },
 "test/hle/vfsTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _iso = require('../../src/format/iso');
 var _psf = require('../../src/format/psf');
 var _vfs = require('../../src/hle/vfs');
@@ -26424,7 +24606,6 @@ describe('vfs', function () {
             vfs2.writeAllAsync('simple2', new Uint8Array([1, 2, 3, 4, 5]).buffer);
         }).then(function () {
             return msVfs.getStatAsync('simple1').then(function (stat) {
-                //console.log(stat);
                 assert.equal('simple1', stat.name);
                 assert.equal(5, stat.size);
             });
@@ -26439,10 +24620,9 @@ describe('vfs', function () {
 
 },
 "test/instructionTest": function(module, exports, require) {
-///<reference path="./global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _cpu = require('../src/core/cpu');
 var Instructions = _cpu.Instructions;
 describe('instruction lookup', function () {
@@ -26465,10 +24645,9 @@ describe('instruction lookup', function () {
 
 },
 "test/pspautotests": function(module, exports, require) {
-///<reference path="./global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _emulator = require('../src/emulator');
 var _vfs = require('../src/hle/vfs');
 var Emulator = _emulator.Emulator;
@@ -26569,7 +24748,6 @@ describe('pspautotests', function () {
                         var emulator = new Emulator();
                         var file_base = './data/pspautotests_embed/tests/' + testGroupName + '/' + testName;
                         var file_prx = file_base + '.prx';
-                        //var file_prx = file_base + '.iso';
                         var file_expected = file_base + '.expected';
                         if (!groupCollapsed)
                             console.groupEnd();
@@ -26605,10 +24783,9 @@ describe('pspautotests', function () {
 
 },
 "test/testasm": function(module, exports, require) {
-///<reference path="./global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 var _cpu = require('../src/core/cpu');
 var _memory = require('../src/core/memory');
 var Memory = _memory.Memory;
@@ -26768,10 +24945,9 @@ describe('cpu running', function () {
 
 },
 "test/util/utilsTest": function(module, exports, require) {
-///<reference path="../global.d.ts" />
 function ref() {
 }
-exports.ref = ref; // Workaround to allow typescript to include this module
+exports.ref = ref;
 describe('utils', function () {
     describe('string repeat', function () {
         it('simple', function () {
@@ -26790,16 +24966,6 @@ describe('utils', function () {
             assert.equal(Int16.read(stream), 0x0201);
             assert.equal(Int16.read(stream), 0x0403);
         });
-        /*
-        it('should read simple struct', () => {
-            var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
-            var MyStruct = Struct.create([
-                { item1: Int16 },
-                { item2: Int16 }
-            ]);
-            assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
-        });
-        */
     });
     describe('Binary search', function () {
         it('none', function () {

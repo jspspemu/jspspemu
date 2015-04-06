@@ -186,7 +186,7 @@ var BOOTSTRAP_FILE = path.normalize(SOURCE_FOLDER + '/bootstrap.ts');
 // REQUIRED BECAUSE OF THIS BUG: https://github.com/Microsoft/TypeScript/issues/1106
 var BOOTSTRAP_FILE_RELATIVE = path.relative(process.cwd(), BOOTSTRAP_FILE);
 
-var TSC_ARGS = ['--outDir', JS_BASE_PATH, '--target', 'ES5', '--module', 'commonjs', BOOTSTRAP_FILE_RELATIVE];
+var TSC_ARGS = ['--removeComments', '--outDir', JS_BASE_PATH, '--target', 'ES5', '--module', 'commonjs', BOOTSTRAP_FILE_RELATIVE];
 
 exports.ROOT_FOLDER = ROOT_FOLDER;
 exports.JS_BASE_PATH = JS_BASE_PATH;

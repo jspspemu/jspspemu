@@ -46,7 +46,7 @@ export class Cso implements AsyncStream {
 			var low = this.offsets[index + 0] & 0x7FFFFFFF;
 			var high = this.offsets[index + 1] & 0x7FFFFFFF;
 			return this.stream.readChunkAsync(low, high - low).then((data) => {
-				return (compressed ? zlib.Inflater.inflateRawArrayBuffer(data) : data);
+				return (compressed ? zlib.inflate_raw_arraybuffer(data) : data);
 			}).catch(e => {
 				console.error(e);
 				throw (e);
