@@ -338,7 +338,7 @@ class Stream {
 		this.skip(data.length);
 	}
 
-	readBytes(count: number) {
+	readBytes(count: number):Uint8Array {
 		return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
 	}
 

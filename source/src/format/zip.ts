@@ -1,5 +1,7 @@
 ﻿///<reference path="../global.d.ts" />
 
+import zlib = require('./zlib');
+
 export class ZipEntry {
 	private children: StringDictionary<ZipEntry> = {};
 	zipDirEntry: ZipDirEntry;
@@ -52,7 +54,7 @@ export class ZipEntry {
 		return string.toUpperCase();
 	}
 
-	readRawCompressedAsync() {
+	readRawCompressedAsync():Promise<Uint8Array> {
 		if (this.compressedData) return Promise.resolve(this.compressedData);
 		return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then((data) => {
 			var stream = Stream.fromArrayBuffer(data);
@@ -72,7 +74,7 @@ export class ZipEntry {
 		return this.readRawCompressedAsync().then((data) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:
-					return new Zlib.RawInflate(data).decompress();
+					return zlib.Inflater.inflateRaw(data);
 				case ZipCompressionType.STORED:
 					return data;
 				default:

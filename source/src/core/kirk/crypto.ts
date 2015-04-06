@@ -2,8 +2,6 @@
 
 import jsaes2 = require('./jsaes2');
 
-declare var CryptoJS: any;
-
 function cryptoToArray(info) {
 	var words = info.words;
 	var wordsLen = words.length;
@@ -18,9 +16,11 @@ function cryptoToArray(info) {
 	return data;
 }
 
+/*
 function fromCryptoArray(uint8View: Uint8Array) {
 	return CryptoJS.lib.WordArray.create(uint8View);
 }
+*/
 
 function ab2str(buf: Uint8Array) {
 	return String.fromCharCode.apply(null, buf);
@@ -44,6 +44,7 @@ function str2ab(str) {
 	return bufView;
 }
 
+/*
 export function md5(data: Uint8Array) {
 	return cryptoToArray(CryptoJS.MD5(fromCryptoArray(data)));
 }
@@ -57,6 +58,7 @@ export function aes_encrypt(data: Uint8Array, key: Uint8Array, iv?: Uint8Array) 
 	if (iv !== undefined) info['iv'] = fromCryptoArray(iv);
 	return cryptoToArray(CryptoJS.AES.encrypt(fromCryptoArray(data), fromCryptoArray(key), info));
 }
+*/
 
 function uint8array_to_array32(data: Uint8Array) {
 	var data2 = new Uint32Array(data.buffer);
