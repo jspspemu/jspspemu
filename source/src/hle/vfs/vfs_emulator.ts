@@ -3,6 +3,7 @@
 export class EmulatorVfs extends _vfs.Vfs {
 	output = '';
 	screenshot = null;
+	onWrite = new Signal<string>();
 
 	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream) {
 		switch (command) {
@@ -13,7 +14,8 @@ export class EmulatorVfs extends _vfs.Vfs {
 			case EmulatorDevclEnum.SendOutput:
 				var str = input.readString(input.length);
 				this.output += str;
-				$('#output').append(str);
+				this.onWrite.dispatch(str);
+				if (typeof $ != 'undefined') $('#output').append(str);
 				//console.info();
 				break;
 			case EmulatorDevclEnum.IsEmulator:

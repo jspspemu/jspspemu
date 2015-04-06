@@ -134,6 +134,10 @@ class mat4 {
 //declare var global:any;
 //if (typeof self == 'undefined') window = self = global;
 
+declare var global:any;
+if (typeof self == 'undefined') window = self = global;
+if (typeof navigator == 'undefined') navigator = <any>{};
+
 self['polyfills'] = self['polyfills'] || {};
 
 self['polyfills']['log2'] = !Math['log2'];
@@ -417,6 +421,7 @@ class BitUtils {
 	}
 }
 
+
 class MathVfpu {
 	static vqmul0(s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); }
 	static vqmul1(s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); }
@@ -561,6 +566,11 @@ class MathFloat {
 		return v;
 	}
 }
+
+(<any>window).BitUtils = BitUtils;
+(<any>window).MathUtils = MathUtils;
+(<any>window).MathFloat = MathFloat;
+(<any>window).MathVfpu = MathVfpu;
 
 function handleCastInfinite(value: number) {
 	return (value < 0) ? -2147483648 : 2147483647;

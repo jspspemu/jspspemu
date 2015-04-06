@@ -371,7 +371,9 @@ export class Emulator {
 			//console.error('WAITING!');
 			return this.threadManager.waitExitGameAsync().then(() => {
 				//console.error('STOPPING!');
-				return this.stopAsync();
+				return this.stopAsync().then(() => {
+					return this.emulatorVfs.output;
+				});
 			});
 		}).catch(e => {
 			console.error(e);
@@ -379,7 +381,10 @@ export class Emulator {
 			throw(e);
 		});
 	}
-	
+
+	static disableLog() {
+		loggerPolicies.disableAll = true;
+	}
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
 		if (typeof $ != 'undefined') $('#game_menu').fadeOut(100);

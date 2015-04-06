@@ -2,9 +2,9 @@
 ///<reference path="./array.ts" />
 ///<reference path="./math.ts" />
 
-//declare var global:any;
-//if (typeof self == 'undefined') window = self = global;
-//if (typeof navigator == 'undefined') navigator = <any>{};
+declare var global:any;
+if (typeof self == 'undefined') window = self = global;
+if (typeof navigator == 'undefined') navigator = <any>{};
 
 function sprintf(...args:any[]) {
 	//  discuss at: http://phpjs.org/functions/sprintf/
@@ -632,6 +632,10 @@ class SceKernelException implements Error {
 	constructor(public id: number, public name: string = 'SceKernelException', public message: string = 'SceKernelException') {
 	}
 }
+
+(<any>window).WaitingThreadInfo = WaitingThreadInfo;
+(<any>window).CpuBreakException = CpuBreakException;
+(<any>window).SceKernelException = SceKernelException;
 
 var DebugOnceArray = {};
 function DebugOnce(name: string, times: number = 1) {
