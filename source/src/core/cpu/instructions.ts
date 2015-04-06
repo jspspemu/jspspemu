@@ -42,7 +42,7 @@ function VM(format: string): ValueMask {
 		"imm14": 14,
 		"imm16": 16,
 		"imm20": 20,
-		"imm26": 26,
+		"imm26": 26
 	};
 
 	var value: number = 0;

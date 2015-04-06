@@ -405,6 +405,165 @@ var Integer64 = (function () {
     return Integer64;
 })();
 
+var mat4 = (function () {
+    function mat4() {
+    }
+    mat4.create = function () {
+        return new Float32Array([
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+        ]);
+    };
+    mat4.identity = function (data) {
+        data[0] = 1;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 0;
+        data[5] = 1;
+        data[6] = 0;
+        data[7] = 0;
+        data[8] = 0;
+        data[9] = 0;
+        data[10] = 1;
+        data[11] = 0;
+        data[12] = 0;
+        data[13] = 0;
+        data[14] = 0;
+        data[15] = 1;
+    };
+    mat4.ortho = function (out, left, right, bottom, top, near, far) {
+        var lr = 1 / (left - right), bt = 1 / (bottom - top), nf = 1 / (near - far);
+        out[0] = -2 * lr;
+        out[1] = 0;
+        out[2] = 0;
+        out[3] = 0;
+        out[4] = 0;
+        out[5] = -2 * bt;
+        out[6] = 0;
+        out[7] = 0;
+        out[8] = 0;
+        out[9] = 0;
+        out[10] = 2 * nf;
+        out[11] = 0;
+        out[12] = (left + right) * lr;
+        out[13] = (top + bottom) * bt;
+        out[14] = (far + near) * nf;
+        out[15] = 1;
+        return out;
+    };
+    mat4.multiply = function (out, a, b) {
+        var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3], a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7], a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11], a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+        // Cache only the current line of the second matrix
+        var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+        out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[4];
+        b1 = b[5];
+        b2 = b[6];
+        b3 = b[7];
+        out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[8];
+        b1 = b[9];
+        b2 = b[10];
+        b3 = b[11];
+        out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[12];
+        b1 = b[13];
+        b2 = b[14];
+        b3 = b[15];
+        out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        return out;
+    };
+    mat4.scale = function (out, a, v) {
+        var x = v[0], y = v[1], z = v[2];
+        out[0] = a[0] * x;
+        out[1] = a[1] * x;
+        out[2] = a[2] * x;
+        out[3] = a[3] * x;
+        out[4] = a[4] * y;
+        out[5] = a[5] * y;
+        out[6] = a[6] * y;
+        out[7] = a[7] * y;
+        out[8] = a[8] * z;
+        out[9] = a[9] * z;
+        out[10] = a[10] * z;
+        out[11] = a[11] * z;
+        out[12] = a[12];
+        out[13] = a[13];
+        out[14] = a[14];
+        out[15] = a[15];
+        return out;
+    };
+    mat4.translate = function (out, a, v) {
+        var x = v[0], y = v[1], z = v[2], a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23;
+        if (a === out) {
+            out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
+            out[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
+            out[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
+            out[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
+        }
+        else {
+            a00 = a[0];
+            a01 = a[1];
+            a02 = a[2];
+            a03 = a[3];
+            a10 = a[4];
+            a11 = a[5];
+            a12 = a[6];
+            a13 = a[7];
+            a20 = a[8];
+            a21 = a[9];
+            a22 = a[10];
+            a23 = a[11];
+            out[0] = a00;
+            out[1] = a01;
+            out[2] = a02;
+            out[3] = a03;
+            out[4] = a10;
+            out[5] = a11;
+            out[6] = a12;
+            out[7] = a13;
+            out[8] = a20;
+            out[9] = a21;
+            out[10] = a22;
+            out[11] = a23;
+            out[12] = a00 * x + a10 * y + a20 * z + a[12];
+            out[13] = a01 * x + a11 * y + a21 * z + a[13];
+            out[14] = a02 * x + a12 * y + a22 * z + a[14];
+            out[15] = a03 * x + a13 * y + a23 * z + a[15];
+        }
+        return out;
+    };
+    return mat4;
+})();
+//declare var global:any;
+//if (typeof self == 'undefined') window = self = global;
 self['polyfills'] = self['polyfills'] || {};
 self['polyfills']['log2'] = !Math['log2'];
 if (!Math.log2) {
@@ -451,27 +610,22 @@ if (!Math['clz32']) {
             x <<= 16;
             result += 16;
         }
-        ;
         if ((x & 0xFF000000) === 0) {
             x <<= 8;
             result += 8;
         }
-        ;
         if ((x & 0xF0000000) === 0) {
             x <<= 4;
             result += 4;
         }
-        ;
         if ((x & 0xC0000000) === 0) {
             x <<= 2;
             result += 2;
         }
-        ;
         if ((x & 0x80000000) === 0) {
             x <<= 1;
             result += 1;
         }
-        ;
         return result;
     };
 }
@@ -562,11 +716,16 @@ if (!Math.imul32_64) {
     Math.imul32_64 = function (a, b, result) {
         if (result === undefined)
             result = [0, 0];
-        if (a == 0)
-            return result[0] = result[1] = 0, result;
-        if (b == 0)
-            return result[0] = result[1] = 0, result;
-        a |= 0, b |= 0;
+        if (a == 0) {
+            result[0] = result[1] = 0;
+            return result;
+        }
+        if (b == 0) {
+            result[0] = result[1] = 0;
+            return result;
+        }
+        a |= 0;
+        b |= 0;
         if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
             result[0] = a * b;
             result[1] = (result[0] < 0) ? -1 : 0;
@@ -588,7 +747,8 @@ self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
     Math['fround'] = function (x) {
         var f32 = new Float32Array(1);
-        return f32[0] = x, f32[0];
+        f32[0] = x;
+        return f32[0];
     };
 }
 var BitUtils = (function () {
@@ -616,7 +776,7 @@ var BitUtils = (function () {
     };
     BitUtils.seb = function (x) {
         x = x & 0xFF;
-        if (x & 0x80)
+        if ((x & 0x80) != 0)
             x = 0xFFFFFF00 | x;
         return x;
     };
@@ -642,7 +802,7 @@ var BitUtils = (function () {
         var mask = this.mask(length);
         var value = this.extract(data, offset, length);
         var signBit = (1 << (offset + (length - 1)));
-        if (value & signBit)
+        if ((value & signBit) != 0)
             value |= ~mask;
         return value;
     };
@@ -1897,7 +2057,6 @@ var Pointer = (function () {
 })();
 
 ///<reference path="../../typings/promise/promise.d.ts" />
-///<reference path="../../typings/sprintf.d.ts" />
 ///<reference path="./array.ts" />
 ///<reference path="./math.ts" />
 var __extends = this.__extends || function (d, b) {
@@ -1906,6 +2065,200 @@ var __extends = this.__extends || function (d, b) {
     __.prototype = b.prototype;
     d.prototype = new __();
 };
+//declare var global:any;
+//if (typeof self == 'undefined') window = self = global;
+//if (typeof navigator == 'undefined') navigator = <any>{};
+function sprintf() {
+    //  discuss at: http://phpjs.org/functions/sprintf/
+    // original by: Ash Searle (http://hexmen.com/blog/)
+    // improved by: Michael White (http://getsprink.com)
+    // improved by: Jack
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Dj
+    // improved by: Allidylls
+    //    input by: Paulo Freitas
+    //    input by: Brett Zamir (http://brett-zamir.me)
+    //   example 1: sprintf("%01.2f", 123.1);
+    //   returns 1: 123.10
+    //   example 2: sprintf("[%10s]", 'monkey');
+    //   returns 2: '[    monkey]'
+    //   example 3: sprintf("[%'#10s]", 'monkey');
+    //   returns 3: '[####monkey]'
+    //   example 4: sprintf("%d", 123456789012345);
+    //   returns 4: '123456789012345'
+    //   example 5: sprintf('%-03s', 'E');
+    //   returns 5: 'E00'
+    var args = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        args[_i - 0] = arguments[_i];
+    }
+    var regex = /%%|%(\d+\$)?([-+\'#0 ]*)(\*\d+\$|\*|\d+)?(\.(\*\d+\$|\*|\d+))?([scboxXuideEfFgG])/g;
+    var a = arguments;
+    var i = 0;
+    var format = a[i++];
+    // pad()
+    var pad = function (str, len, chr, leftJustify) {
+        if (!chr) {
+            chr = ' ';
+        }
+        var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0).join(chr);
+        return leftJustify ? str + padding : padding + str;
+    };
+    // justify()
+    var justify = function (value, prefix, leftJustify, minWidth, zeroPad, customPadChar) {
+        if (customPadChar === void 0) { customPadChar = undefined; }
+        var diff = minWidth - value.length;
+        if (diff > 0) {
+            if (leftJustify || !zeroPad) {
+                value = pad(value, minWidth, customPadChar, leftJustify);
+            }
+            else {
+                value = value.slice(0, prefix.length) + pad('', diff, '0', true) + value.slice(prefix.length);
+            }
+        }
+        return value;
+    };
+    // formatBaseX()
+    var formatBaseX = function (value, base, prefix, leftJustify, minWidth, precision, zeroPad) {
+        // Note: casts negative numbers to positive ones
+        var number = value >>> 0;
+        prefix = prefix && number && {
+            '2': '0b',
+            '8': '0',
+            '16': '0x'
+        }[base] || '';
+        value = prefix + pad(number.toString(base), precision || 0, '0', false);
+        return justify(value, prefix, leftJustify, minWidth, zeroPad);
+    };
+    // formatString()
+    var formatString = function (value, leftJustify, minWidth, precision, zeroPad, customPadChar) {
+        if (customPadChar === void 0) { customPadChar = undefined; }
+        if (precision != null) {
+            value = value.slice(0, precision);
+        }
+        return justify(value, '', leftJustify, minWidth, zeroPad, customPadChar);
+    };
+    // doFormat()
+    var doFormat = function (substring, valueIndex, flags, minWidth, _, precision, type) {
+        var number, prefix, method, textTransform, value;
+        if (substring === '%%') {
+            return '%';
+        }
+        // parse flags
+        var leftJustify = false;
+        var positivePrefix = '';
+        var zeroPad = false;
+        var prefixBaseX = false;
+        var customPadChar = ' ';
+        var flagsl = flags.length;
+        for (var j = 0; flags && j < flagsl; j++) {
+            switch (flags.charAt(j)) {
+                case ' ':
+                    positivePrefix = ' ';
+                    break;
+                case '+':
+                    positivePrefix = '+';
+                    break;
+                case '-':
+                    leftJustify = true;
+                    break;
+                case "'":
+                    customPadChar = flags.charAt(j + 1);
+                    break;
+                case '0':
+                    zeroPad = true;
+                    customPadChar = '0';
+                    break;
+                case '#':
+                    prefixBaseX = true;
+                    break;
+            }
+        }
+        // parameters may be null, undefined, empty-string or real valued
+        // we want to ignore null, undefined and empty-string values
+        if (!minWidth) {
+            minWidth = 0;
+        }
+        else if (minWidth === '*') {
+            minWidth = +a[i++];
+        }
+        else if (minWidth.charAt(0) == '*') {
+            minWidth = +a[minWidth.slice(1, -1)];
+        }
+        else {
+            minWidth = +minWidth;
+        }
+        // Note: undocumented perl feature:
+        if (minWidth < 0) {
+            minWidth = -minWidth;
+            leftJustify = true;
+        }
+        if (!isFinite(minWidth)) {
+            throw new Error('sprintf: (minimum-)width must be finite');
+        }
+        if (!precision) {
+            precision = 'fFeE'.indexOf(type) > -1 ? 6 : (type === 'd') ? 0 : undefined;
+        }
+        else if (precision === '*') {
+            precision = +a[i++];
+        }
+        else if (precision.charAt(0) == '*') {
+            precision = +a[precision.slice(1, -1)];
+        }
+        else {
+            precision = +precision;
+        }
+        // grab value using valueIndex if required?
+        value = valueIndex ? a[valueIndex.slice(0, -1)] : a[i++];
+        switch (type) {
+            case 's':
+                return formatString(String(value), leftJustify, minWidth, precision, zeroPad, customPadChar);
+            case 'c':
+                return formatString(String.fromCharCode(+value), leftJustify, minWidth, precision, zeroPad);
+            case 'b':
+                return formatBaseX(value, 2, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'o':
+                return formatBaseX(value, 8, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'x':
+                return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'X':
+                return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad).toUpperCase();
+            case 'u':
+                return formatBaseX(value, 10, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'i':
+            case 'd':
+                number = +value || 0;
+                number = Math.round(number - number % 1); // Plain Math.round doesn't just truncate
+                prefix = number < 0 ? '-' : positivePrefix;
+                value = prefix + pad(String(Math.abs(number)), precision, '0', false);
+                return justify(value, prefix, leftJustify, minWidth, zeroPad);
+            case 'e':
+            case 'E':
+            case 'f':
+            case 'F':
+            case 'g':
+            case 'G':
+                number = +value;
+                prefix = number < 0 ? '-' : positivePrefix;
+                method = ['toExponential', 'toFixed', 'toPrecision']['efg'.indexOf(type.toLowerCase())];
+                textTransform = ['toString', 'toUpperCase']['eEfFgG'.indexOf(type) % 2];
+                value = prefix + Math.abs(number)[method](precision);
+                return justify(value, prefix, leftJustify, minWidth, zeroPad)[textTransform]();
+            default:
+                return substring;
+        }
+    };
+    return format.replace(regex, doFormat);
+}
+function printf() {
+    var args = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        args[_i - 0] = arguments[_i];
+    }
+    console.log(sprintf.apply(sprintf, arguments));
+}
 function String_repeat(str, num) {
     return new Array(num + 1).join(str);
 }
@@ -2160,7 +2513,7 @@ if (!ArrayBuffer.prototype.slice) {
     };
 }
 window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
-navigator['getGamepads'] = navigator['getGamepads'] || navigator['webkitGetGamepads'];
+window.navigator['getGamepads'] = window.navigator['getGamepads'] || window.navigator['webkitGetGamepads'];
 if (!window.requestAnimationFrame) {
     window.requestAnimationFrame = function (callback) {
         var start = Date.now();
@@ -2935,6 +3288,8 @@ exports.PspAudio = PspAudio;
 },
 "src/core/controller": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+if (typeof navigator == 'undefined')
+    navigator = {};
 var SceCtrlData = (function () {
     function SceCtrlData() {
         this.timeStamp = 0;
@@ -3040,8 +3395,10 @@ var PspController = (function () {
     };
     PspController.prototype.startAsync = function () {
         var _this = this;
-        document.addEventListener('keydown', function (e) { return _this.keyDown(e); });
-        document.addEventListener('keyup', function (e) { return _this.keyUp(e); });
+        if (typeof document != 'undefined') {
+            document.addEventListener('keydown', this._keyDown = function (e) { return _this.keyDown(e); });
+            document.addEventListener('keyup', this._keyUp = function (e) { return _this.keyUp(e); });
+        }
         this.frame(0);
         return Promise.resolve();
     };
@@ -3070,7 +3427,7 @@ var PspController = (function () {
         this.data.x = this.analogAddX;
         this.data.y = this.analogAddY;
         //console.log('zzzzzzzzz');
-        if (navigator['getGamepads']) {
+        if (window.navigator && window.navigator['getGamepads']) {
             //console.log('bbbbbbbbb');
             var gamepads = (navigator['getGamepads'])();
             if (gamepads[0]) {
@@ -3121,8 +3478,10 @@ var PspController = (function () {
         this.animationTimeId = requestAnimationFrame(function (timestamp) { return _this.frame(timestamp); });
     };
     PspController.prototype.stopAsync = function () {
-        document.removeEventListener('keydown', this.keyDown);
-        document.removeEventListener('keyup', this.keyUp);
+        if (typeof document != 'undefined') {
+            document.removeEventListener('keydown', this._keyDown);
+            document.removeEventListener('keyup', this._keyUp);
+        }
         cancelAnimationFrame(this.animationTimeId);
         return Promise.resolve();
     };
@@ -5855,7 +6214,7 @@ function VM(format) {
         "imm14": 14,
         "imm16": 16,
         "imm20": 20,
-        "imm26": 26,
+        "imm26": 26
     };
     var value = 0;
     var mask = 0;
@@ -7325,6 +7684,7 @@ var CpuState = (function () {
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
         // @TODO
         this.vfpr[0] = 0;
+        throw new Error("Not implemented vfpuSetMatrix!");
     };
     CpuState.prototype.preserveRegisters = function (callback) {
         var temp = new CpuState(this.memory, this.syscallManager);
@@ -7815,9 +8175,15 @@ var PspDisplay = (function (_super) {
         this.secondsLeftForVblankStart = 0;
         this.mustWaitVBlank = true;
         this.lastTimeVblank = 0;
-        this.context = this.canvas.getContext('2d');
-        this.imageData = this.context.createImageData(512, 272);
-        this.setEnabledDisplay(true);
+        if (this.canvas) {
+            this.context = this.canvas.getContext('2d');
+            this.imageData = this.context.createImageData(512, 272);
+            this.setEnabledDisplay(true);
+        }
+        else {
+            this.context = null;
+            this.setEnabledDisplay(false);
+        }
     }
     PspDisplay.prototype.getCurrentMs = function () {
         return performance.now();
@@ -7851,13 +8217,18 @@ var PspDisplay = (function (_super) {
         var imageData = this.imageData;
         var w8 = imageData.data;
         var baseAddress = this.address & 0x0FFFFFFF;
-        PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, w8, 0, count, false);
+        PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w8, 0, count, false);
+        //PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, <Uint8Array><any>w8, 0, count, false);
         this.context.putImageData(imageData, 0, 0);
     };
     PspDisplay.prototype.setEnabledDisplay = function (enable) {
         this.enabled = enable;
-        this.canvas.style.display = enable ? 'block' : 'none';
-        this.webglcanvas.style.display = !enable ? 'block' : 'none';
+        if (this.canvas)
+            this.canvas.style.display = enable ? 'block' : 'none';
+        if (this.webglcanvas)
+            this.webglcanvas.style.display = !enable ? 'block' : 'none';
+        //this.canvas.style.display = 'none';
+        //this.webglcanvas.style.display = 'block';
     };
     PspDisplay.prototype.startAsync = function () {
         var _this = this;
@@ -9308,13 +9679,14 @@ var PspGpuList = (function () {
         configurable: true
     });
     PspGpuList.prototype.runUntilStallInner = function () {
-        var u32 = this.memory.u32;
+        var mem = this.memory;
         var showOpcodes = this.showOpcodes;
         var table = this.executor.table;
         var stall4 = this.stall4;
         while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
             var instructionPC4 = this.current4++;
-            var instruction = u32[instructionPC4];
+            var instruction = mem.readUInt32_2(instructionPC4);
+            //console.log(instruction);
             var op = (instruction >>> 24);
             var params24 = (instruction & 0x00FFFFFF);
             if (showOpcodes)
@@ -11746,16 +12118,18 @@ var TextureHandler = (function () {
                 var palette = new Uint32Array(paletteBuffer);
                 if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
                     //if (clut.pixelFormat == PixelFormat.RGBA_5551) debugger;
-                    PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+                    PixelConverter.decode(clut.pixelFormat, this.memory.getPointerU8Array(clut.adress), paletteU8, 0, clut.numberOfColors, true);
                 }
                 //console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
                 var dataBuffer = new ArrayBuffer(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
                 var data = new Uint8Array(dataBuffer);
-                data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
+                data.set(this.memory.getPointerU8Array(mipmap.address, data.length));
+                //data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
                 if (state.texture.swizzled) {
                     PixelConverter.unswizzleInline(state.texture.pixelFormat, dataBuffer, 0, w2, h);
                 }
-                PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+                PixelConverter.decode(state.texture.pixelFormat, data, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+                //PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
                 if (true) {
                     //if (false) {
                     texture.fromBytes(data2, w2, h);
@@ -13014,13 +13388,20 @@ exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 },
 "src/core/memory": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var Memory = (function () {
-    function Memory() {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var FastMemory = (function () {
+    function FastMemory() {
         this.invalidateDataRange = new Signal();
         this.invalidateDataAll = new Signal();
         this.writeBreakpoints = [];
         //this.buffer = new ArrayBuffer(0x0FFFFFFF + 1);
-        this.buffer = new ArrayBuffer(0xa000000 + 4);
+        this.buffer = new ArrayBuffer(0x0a000000 + 4);
+        //this.buffer = new ArrayBuffer(0x07000000 + 4);
         this.data = new DataView(this.buffer);
         this.s8 = new Int8Array(this.buffer);
         this.u8 = new Uint8Array(this.buffer);
@@ -13031,65 +13412,53 @@ var Memory = (function () {
         this.f32 = new Float32Array(this.buffer);
         this._updateWriteFunctions();
     }
-    Object.defineProperty(Memory, "instance", {
-        get: function () {
-            if (!Memory._instance)
-                Memory._instance = new Memory();
-            return Memory._instance;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Memory.prototype.reset = function () {
-        this.memset(Memory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
+    FastMemory.prototype.availableAfterAddress = function (address) {
+        return this.buffer.byteLength - (address & FastMemory.MASK);
     };
-    Memory.prototype.availableAfterAddress = function (address) {
-        return this.buffer.byteLength - (address & Memory.MASK);
-    };
-    Memory.prototype.getPointerPointer = function (type, address) {
+    FastMemory.prototype.getPointerPointer = function (type, address) {
         if (address == 0)
             return null;
         return new Pointer(type, this, address);
     };
-    Memory.prototype.getPointerDataView = function (address, size) {
+    FastMemory.prototype.getPointerDataView = function (address, size) {
         if (!size)
             size = this.availableAfterAddress(address);
-        return new DataView(this.buffer, address & Memory.MASK, size);
+        return new DataView(this.buffer, address & FastMemory.MASK, size);
     };
-    Memory.prototype.getPointerU8Array = function (address, size) {
+    FastMemory.prototype.getPointerU8Array = function (address, size) {
         if (!size)
             size = this.availableAfterAddress(address);
-        return new Uint8Array(this.buffer, address & Memory.MASK, size);
+        return new Uint8Array(this.buffer, address & FastMemory.MASK, size);
     };
-    Memory.prototype.getPointerU16Array = function (address, size) {
+    FastMemory.prototype.getPointerU16Array = function (address, size) {
         if (!size)
             size = this.availableAfterAddress(address);
-        return new Uint16Array(this.buffer, address & Memory.MASK, size >> 1);
+        return new Uint16Array(this.buffer, address & FastMemory.MASK, size >> 1);
     };
-    Memory.prototype.isAddressInRange = function (address, min, max) {
-        address &= Memory.MASK;
+    FastMemory.prototype.isAddressInRange = function (address, min, max) {
+        address &= FastMemory.MASK;
         address >>>= 0;
-        min &= Memory.MASK;
+        min &= FastMemory.MASK;
         min >>>= 0;
-        max &= Memory.MASK;
+        max &= FastMemory.MASK;
         max >>>= 0;
         return (address >= min) && (address < max);
     };
-    Memory.prototype.isValidAddress = function (address) {
-        address &= Memory.MASK;
+    FastMemory.prototype.isValidAddress = function (address) {
+        address &= FastMemory.MASK;
         if ((address & 0x3E000000) == 0x08000000)
             return true;
         if ((address & 0x3F800000) == 0x04000000)
             return true;
         if ((address & 0xBFFF0000) == 0x00010000)
             return true;
-        if (this.isAddressInRange(address, Memory.DEFAULT_FRAME_ADDRESS, Memory.DEFAULT_FRAME_ADDRESS + 0x200000))
+        if (this.isAddressInRange(address, FastMemory.DEFAULT_FRAME_ADDRESS, FastMemory.DEFAULT_FRAME_ADDRESS + 0x200000))
             return true;
         if (this.isAddressInRange(address, 0x08000000, 0x08000000 + 0x04000000))
             return true;
         return false;
     };
-    Memory.prototype.getPointerStream = function (address, size) {
+    FastMemory.prototype.getPointerStream = function (address, size) {
         //console.log(sprintf("getPointerStream: %08X", address));
         if (address == 0)
             return null;
@@ -13098,32 +13467,32 @@ var Memory = (function () {
         if (!this.isValidAddress(address))
             return Stream.INVALID;
         if (size === undefined)
-            size = this.availableAfterAddress(address & Memory.MASK);
+            size = this.availableAfterAddress(address & FastMemory.MASK);
         if (size < 0)
             return Stream.INVALID;
-        if (size > this.u8.length - (address & Memory.MASK))
+        if (size > this.u8.length - (address & FastMemory.MASK))
             return Stream.INVALID;
-        return new Stream(this.getPointerDataView(address & Memory.MASK, size));
+        return new Stream(this.getPointerDataView(address & FastMemory.MASK, size));
     };
-    Memory.prototype.getU8Array = function (address, size) {
+    FastMemory.prototype.getU8Array = function (address, size) {
         if (address == 0)
             return null;
         if (!this.isValidAddress(address))
             return null;
         if (!size)
-            size = this.availableAfterAddress(address & Memory.MASK);
-        return this.getPointerU8Array(address & Memory.MASK, size);
+            size = this.availableAfterAddress(address & FastMemory.MASK);
+        return this.getPointerU8Array(address & FastMemory.MASK, size);
     };
-    Memory.prototype.getU16Array = function (address, size) {
+    FastMemory.prototype.getU16Array = function (address, size) {
         if (address == 0)
             return null;
         if (!this.isValidAddress(address))
             return null;
         if (!size)
-            size = this.availableAfterAddress(address & Memory.MASK);
-        return this.getPointerU16Array(address & Memory.MASK, size);
+            size = this.availableAfterAddress(address & FastMemory.MASK);
+        return this.getPointerU16Array(address & FastMemory.MASK, size);
     };
-    Memory.prototype._updateWriteFunctions = function () {
+    FastMemory.prototype._updateWriteFunctions = function () {
         if (this.writeBreakpoints.length > 0) {
             this.writeInt8 = this._writeInt8_break;
             this.writeInt16 = this._writeInt16_break;
@@ -13137,13 +13506,13 @@ var Memory = (function () {
             this.writeFloat32 = this._writeFloat32;
         }
     };
-    Memory.prototype.addWatch4 = function (address) {
+    FastMemory.prototype.addWatch4 = function (address) {
         var _this = this;
         this.addWriteAction(address, function (address) {
             console.log(sprintf('Watch:0x%08X <- 0x%08X', address, _this.readUInt32(address)));
         });
     };
-    Memory.prototype.addBreakpointOnValue = function (address, value) {
+    FastMemory.prototype.addBreakpointOnValue = function (address, value) {
         //Watch: 0x0951044C < - 0x2A000000 
         var _this = this;
         this.addWriteAction(address, function (actualAddress) {
@@ -13154,105 +13523,108 @@ var Memory = (function () {
             }
         });
     };
-    Memory.prototype.addWriteAction = function (address, action) {
+    FastMemory.prototype.addWriteAction = function (address, action) {
         this.writeBreakpoints.push({ address: address, action: action });
         this._updateWriteFunctions();
     };
-    Memory.prototype._checkWriteBreakpoints = function (start, end) {
-        start &= Memory.MASK;
-        end &= Memory.MASK;
+    FastMemory.prototype._checkWriteBreakpoints = function (start, end) {
+        start &= FastMemory.MASK;
+        end &= FastMemory.MASK;
         for (var n = 0; n < this.writeBreakpoints.length; n++) {
             var writeBreakpoint = this.writeBreakpoints[n];
-            var addressCheck = writeBreakpoint.address & Memory.MASK;
+            var addressCheck = writeBreakpoint.address & FastMemory.MASK;
             if (addressCheck >= start && addressCheck < end) {
                 writeBreakpoint.action(writeBreakpoint.address);
             }
         }
     };
-    Memory.prototype._writeInt8 = function (address, value) {
-        this.u8[(address & Memory.MASK) >> 0] = value;
+    FastMemory.prototype._writeInt8 = function (address, value) {
+        this.u8[(address & FastMemory.MASK) >> 0] = value;
     };
-    Memory.prototype._writeInt16 = function (address, value) {
-        this.u16[(address & Memory.MASK) >> 1] = value;
+    FastMemory.prototype._writeInt16 = function (address, value) {
+        this.u16[(address & FastMemory.MASK) >> 1] = value;
     };
-    Memory.prototype._writeInt32 = function (address, value) {
-        this.u32[(address & Memory.MASK) >> 2] = value;
+    FastMemory.prototype._writeInt32 = function (address, value) {
+        this.u32[(address & FastMemory.MASK) >> 2] = value;
     };
-    Memory.prototype._writeFloat32 = function (address, value) {
-        this.f32[(address & Memory.MASK) >> 2] = value;
+    FastMemory.prototype._writeFloat32 = function (address, value) {
+        this.f32[(address & FastMemory.MASK) >> 2] = value;
     };
-    Memory.prototype._writeInt8_break = function (address, value) {
+    FastMemory.prototype._writeInt8_break = function (address, value) {
         this._writeInt8(address, value);
         this._checkWriteBreakpoints(address, address + 1);
     };
-    Memory.prototype._writeInt16_break = function (address, value) {
+    FastMemory.prototype._writeInt16_break = function (address, value) {
         this._writeInt16(address, value);
         this._checkWriteBreakpoints(address, address + 2);
     };
-    Memory.prototype._writeInt32_break = function (address, value) {
+    FastMemory.prototype._writeInt32_break = function (address, value) {
         this._writeInt32(address, value);
         this._checkWriteBreakpoints(address, address + 4);
     };
-    Memory.prototype._writeFloat32_break = function (address, value) {
+    FastMemory.prototype._writeFloat32_break = function (address, value) {
         this._writeFloat32(address, value);
         this._checkWriteBreakpoints(address, address + 4);
     };
-    Memory.prototype.writeInt8 = function (address, value) {
+    FastMemory.prototype.writeInt8 = function (address, value) {
         this._writeInt8(address, value);
     };
-    Memory.prototype.writeInt16 = function (address, value) {
+    FastMemory.prototype.writeInt16 = function (address, value) {
         this._writeInt16(address, value);
     };
-    Memory.prototype.writeInt32 = function (address, value) {
+    FastMemory.prototype.writeInt32 = function (address, value) {
         this._writeInt32(address, value);
     };
-    Memory.prototype.writeFloat32 = function (address, value) {
+    FastMemory.prototype.writeFloat32 = function (address, value) {
         this._writeFloat32(address, value);
     };
-    Memory.prototype.readInt8 = function (address) {
-        return this.s8[(address & Memory.MASK) >> 0];
+    FastMemory.prototype.readInt8 = function (address) {
+        return this.s8[(address & FastMemory.MASK) >> 0];
     };
-    Memory.prototype.readUInt8 = function (address) {
-        return this.u8[(address & Memory.MASK) >> 0];
+    FastMemory.prototype.readUInt8 = function (address) {
+        return this.u8[(address & FastMemory.MASK) >> 0];
     };
-    Memory.prototype.readInt16 = function (address) {
-        return this.s16[(address & Memory.MASK) >> 1];
+    FastMemory.prototype.readInt16 = function (address) {
+        return this.s16[(address & FastMemory.MASK) >> 1];
     };
-    Memory.prototype.readUInt16 = function (address) {
-        return this.u16[(address & Memory.MASK) >> 1];
+    FastMemory.prototype.readUInt16 = function (address) {
+        return this.u16[(address & FastMemory.MASK) >> 1];
     };
-    Memory.prototype.readInt32 = function (address) {
-        return this.s32[(address & Memory.MASK) >> 2];
+    FastMemory.prototype.readInt32 = function (address) {
+        return this.s32[(address & FastMemory.MASK) >> 2];
     };
-    Memory.prototype.readUInt32 = function (address) {
-        return this.u32[(address & Memory.MASK) >> 2];
+    FastMemory.prototype.readUInt32 = function (address) {
+        return this.u32[(address & FastMemory.MASK) >> 2];
     };
-    Memory.prototype.readFloat32 = function (address) {
-        return this.f32[(address & Memory.MASK) >> 2];
+    FastMemory.prototype.readFloat32 = function (address) {
+        return this.f32[(address & FastMemory.MASK) >> 2];
     };
-    Memory.prototype.writeBytes = function (address, data) {
-        Memory.memoryCopy(data, 0, this.buffer, address & Memory.MASK, data.byteLength);
+    FastMemory.prototype.readUInt32_2 = function (address) {
+        return this.u32[address];
+    };
+    FastMemory.prototype.writeBytes = function (address, data) {
+        FastMemory.memoryCopy(data, 0, this.buffer, address & FastMemory.MASK, data.byteLength);
         this._checkWriteBreakpoints(address, address + data.byteLength);
     };
-    Memory.prototype.readArrayBuffer = function (address, length) {
+    FastMemory.prototype.readArrayBuffer = function (address, length) {
         return this.buffer.slice(address, address + length);
     };
-    Memory.prototype.readBytes = function (address, length) {
+    FastMemory.prototype.readBytes = function (address, length) {
         return new Uint8Array(this.buffer, address, length);
     };
-    Memory.prototype.writeUint8Array = function (address, data) {
+    FastMemory.prototype.writeUint8Array = function (address, data) {
         for (var n = 0; n < data.length; n++)
             this.writeInt8(address + n, data[n]);
         this._checkWriteBreakpoints(address, address + data.length);
     };
-    Memory.prototype.writeStream = function (address, stream) {
+    FastMemory.prototype.writeStream = function (address, stream) {
         stream = stream.sliceWithLength(0, stream.length);
         while (stream.available > 0) {
             this.writeInt8(address++, stream.readUInt8());
         }
         this._checkWriteBreakpoints(address, address + stream.length);
     };
-    Memory.prototype.readStringz = function (address) {
+    FastMemory.prototype.readStringz = function (address) {
         if (address == 0)
             return null;
         var out = '';
@@ -13264,82 +13636,7 @@ var Memory = (function () {
         }
         return out;
     };
-    Memory.prototype.sliceWithBounds = function (low, high) {
-        return new Stream(new DataView(this.buffer, low & Memory.MASK, high - low));
-    };
-    Memory.prototype.sliceWithSize = function (address, size) {
-        return new Stream(new DataView(this.buffer, address & Memory.MASK, size));
-    };
-    Memory.prototype.copy = function (from, to, length) {
-        this.u8.set(new Uint8Array(this.buffer, from & Memory.MASK, length), to & Memory.MASK);
-        this._checkWriteBreakpoints(to, to + length);
-    };
-    Memory.prototype.memset = function (address, value, length) {
-        address &= Memory.MASK;
-        var start = address;
-        var end = start + length;
-        var value8 = value & 0xFF;
-        while (address < end)
-            this.u8[address++] = value8;
-        this._checkWriteBreakpoints(address, address + length);
-        /*
-        var value16 = value8 | (value8 << 8);
-        var value32 = value16 | (value16 << 16);
-
-        debugger;
-
-        while ((address & 3) && (address < end)) this.u8[address++] = value8;
-
-        var end32 = end & ~3;
-
-        while (address < end32) {
-            this.u32[address >>> 2] = value32;
-            address += 4;
-        }
-
-        // @TODO: Optimize generating 32-bit values
-        while (address < end) this.u8[address++] = value8;
-        */
-    };
-    /*
-    private hashAligned(result:number, address: number, count: number) {
-        var u32 = this.u32;
-        var address4 = (address >> 2);
-        var count4 = (count >> 2);
-        var m = 0;
-        for (var n = 0; n < count4; n++) {
-            var v = u32[address4++];
-            result ^= n << 22;
-            result += (v >> 24) & 0xFF;
-            result += (v >> 16) & 0xFF;
-            result += (v >> 8) & 0xFF;
-            result += (v >> 0) & 0xFF;
-        }
-        return result;
-    }
-
-    hash(address: number, count: number) {
-        var result = 0;
-        var u8 = this.u8;
-        while (address & 3) { result += u8[address++]; count--; }
-        this.hashAligned(result, address, count);
-        return result;
-    }
-    */
-    Memory.prototype.hashWordCount = function (addressAligned, count) {
-        /*
-        addressAligned >>>= 2;
-        count >>>= 2;
-        count >>>= 1;
-
-        var result = 0;
-        var u32 = this.u32;
-        while (count-- > 0) {
-            result += u32[addressAligned++];
-            result ^= u32[addressAligned++];
-        }
-        return result;
-        */
+    FastMemory.prototype.hashWordCount = function (addressAligned, count) {
         addressAligned >>>= 2;
         count >>>= 2;
         var result = 0;
@@ -13349,22 +13646,10 @@ var Memory = (function () {
             result = (result + v ^ n) | 0;
         }
         return result;
-        /*
-        var result1 = 0;
-        var result2 = 0;
-        var u32 = this.u32;
-        for (var n = 0; n < count; n++) {
-            var v = u32[addressAligned + n];
-
-            result1 = (result1 + v * n) | 0;
-            result2 = ((result2 + v + n) ^ (n << 17)) | 0;
-        }
-        return result1 + result2 * Math.pow(2, 24);
-        */
     };
-    Memory.prototype.hash = function (address, count) {
+    FastMemory.prototype.hash = function (address, count) {
         var result = 0;
-        while (address & 3) {
+        while ((address & 3) != 0) {
             result += this.u8[address++];
             count--;
         }
@@ -13372,37 +13657,64 @@ var Memory = (function () {
         result += this.hashWordCount(address, count2);
         address += count2;
         count -= count2;
-        while (address & 3) {
+        while ((address & 3) != 0) {
             result += this.u8[address++] * 7;
             count--;
         }
         return result;
-        /*
-        var result1 = 0;
-        var result2 = 0;
-        var u8 = this.u8;
-        for (var n = 0; n < count; n++) {
-            var byte = u8[address++];
-            result1 = (result1 + Math.imul(byte, n + 1)) | 0;
-            result2 = ((result2 + byte + n) ^ (n << 17)) | 0;
-        }
-        return result1 + result2 * Math.pow(2, 24);
-        */
     };
-    Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
+    FastMemory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
         var _source = new Uint8Array(source, sourcePosition, length);
         var _destination = new Uint8Array(destination, destinationPosition, length);
         _destination.set(_source);
     };
-    Memory.prototype.dump = function (name) {
+    FastMemory.prototype.dump = function (name) {
         if (name === void 0) { name = 'memory.bin'; }
         saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), name);
     };
-    Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
-    Memory.MASK = 0x0FFFFFFF;
-    Memory.MAIN_OFFSET = 0x08000000;
-    return Memory;
+    FastMemory.prototype.sliceWithBounds = function (low, high) {
+        return new Stream(new DataView(this.buffer, low & FastMemory.MASK, high - low));
+    };
+    FastMemory.prototype.sliceWithSize = function (address, size) {
+        return new Stream(new DataView(this.buffer, address & FastMemory.MASK, size));
+    };
+    FastMemory.DEFAULT_FRAME_ADDRESS = 0x04000000;
+    FastMemory.MASK = 0x0FFFFFFF;
+    FastMemory.MAIN_OFFSET = 0x08000000;
+    return FastMemory;
 })();
+var Memory = (function (_super) {
+    __extends(Memory, _super);
+    function Memory() {
+        _super.apply(this, arguments);
+    }
+    Object.defineProperty(Memory, "instance", {
+        get: function () {
+            if (!Memory._instance)
+                Memory._instance = new Memory();
+            return Memory._instance;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Memory.prototype.reset = function () {
+        this.memset(FastMemory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
+    };
+    Memory.prototype.copy = function (from, to, length) {
+        if (length <= 0)
+            return;
+        //console.warn('copy:', from, to, length);
+        this.getPointerU8Array(to, length).set(this.getPointerU8Array(from, length));
+        this._checkWriteBreakpoints(to, to + length);
+    };
+    Memory.prototype.memset = function (address, value, length) {
+        var buffer = this.getPointerU8Array(address, length);
+        for (var n = 0; n < buffer.length; n++)
+            buffer[n] = value & 0xFF;
+        this._checkWriteBreakpoints(address, address + length);
+    };
+    return Memory;
+})(FastMemory);
 exports.Memory = Memory;
 
 },
@@ -13481,12 +13793,14 @@ var PixelConverter = (function () {
             ydest += rowWidth * 8;
         }
     };
-    PixelConverter.decode = function (format, from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+    PixelConverter.decode = function (format, fromArray, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
         if (useAlpha === void 0) { useAlpha = true; }
         if (palette === void 0) { palette = null; }
         if (clutStart === void 0) { clutStart = 0; }
         if (clutShift === void 0) { clutShift = 0; }
         if (clutMask === void 0) { clutMask = 0; }
+        var from = fromArray.buffer;
+        var fromIndex = fromArray.byteOffset;
         switch (format) {
             case 3 /* RGBA_8888 */:
                 PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha);
@@ -13636,6 +13950,10 @@ var PspRtc = (function () {
 exports.PspRtc = PspRtc;
 
 },
+"src/core/stream": function(module, exports, require) {
+exports.MemoryAsyncStream2 = MemoryAsyncStream;
+
+},
 "src/emulator": function(module, exports, require) {
 ///<reference path="global.d.ts" />
 var _context = require('./context');
@@ -13643,6 +13961,8 @@ var _cpu = require('./core/cpu');
 var _gpu = require('./core/gpu');
 var _rtc = require('./core/rtc');
 var _controller = require('./core/controller');
+var _stream = require('./core/stream');
+_stream;
 var _display = require('./core/display');
 var _audio = require('./core/audio');
 var _interrupt = require('./core/interrupt');
@@ -13718,8 +14038,14 @@ var Emulator = (function () {
             _this.memoryManager = new MemoryManager();
             _this.interruptManager = new InterruptManager();
             _this.audio = new PspAudio();
-            _this.canvas = (document.getElementById('canvas'));
-            _this.webgl_canvas = (document.getElementById('webgl_canvas'));
+            if (typeof document != 'undefined') {
+                _this.canvas = (document.getElementById('canvas'));
+                _this.webgl_canvas = (document.getElementById('webgl_canvas'));
+            }
+            else {
+                _this.canvas = null;
+                _this.webgl_canvas = null;
+            }
             _this.controller = new PspController();
             _this.instructionCache = new InstructionCache(_this.memory);
             _this.syscallManager = new SyscallManager(_this.context);
@@ -13763,6 +14089,8 @@ var Emulator = (function () {
         console.log(psf.entriesByName);
     };
     Emulator.prototype.changeFavicon = function (src) {
+        if (typeof document == 'undefined')
+            return;
         var link = document.createElement('link'), oldLink = document.getElementById('dynamic-favicon');
         link.id = 'dynamic-favicon';
         link.rel = 'shortcut icon';
@@ -13785,6 +14113,8 @@ var Emulator = (function () {
         //item['href'] = ;
     };
     Emulator.prototype.loadPic1 = function (data) {
+        if (typeof document == 'undefined')
+            return;
         //console.log('loadPic1---------');
         //console.log(data);
         document.body.style.backgroundRepeat = 'no-repeat';
@@ -13864,11 +14194,13 @@ var Emulator = (function () {
                     });
                 case 'elf':
                     return asyncStream.readChunkAsync(0, asyncStream.size).then(function (executableArrayBuffer) {
-                        if (_this.gameTitle) {
-                            document.title = _this.gameTitle + ' - jspspemu';
-                        }
-                        else {
-                            document.title = 'jspspemu';
+                        if (typeof document != 'undefined') {
+                            if (_this.gameTitle) {
+                                document.title = _this.gameTitle + ' - jspspemu';
+                            }
+                            else {
+                                document.title = 'jspspemu';
+                            }
                         }
                         var mountableVfs = _this.ms0Vfs;
                         mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
@@ -13903,6 +14235,8 @@ var Emulator = (function () {
         this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
     };
     Emulator.prototype.connectToDropbox = function (newValue) {
+        if (typeof $ == 'undefined')
+            return;
         newValue = !!newValue;
         $('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
         var oldValue = (localStorage["dropbox"] == 'true');
@@ -13931,7 +14265,8 @@ var Emulator = (function () {
         var _this = this;
         this.gameTitle = '';
         return this.loadAndExecuteAsync(asyncStream, url).then(function () {
-            afterStartCallback();
+            if (afterStartCallback)
+                afterStartCallback();
             //console.error('WAITING!');
             return _this.threadManager.waitExitGameAsync().then(function () {
                 //console.error('STOPPING!');
@@ -13945,7 +14280,9 @@ var Emulator = (function () {
     };
     Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
         var _this = this;
-        $('#game_menu').fadeOut(100);
+        if (typeof $ != 'undefined')
+            $('#game_menu').fadeOut(100);
+        url = String(url);
         this.gameTitle = '';
         this.loadIcon0(Stream.fromArray([]));
         this.loadPic1(Stream.fromArray([]));
@@ -16193,6 +16530,10 @@ var Config = (function () {
         this.language = this.detectLanguage();
     }
     Config.prototype.detectLanguage = function () {
+        if (typeof navigator == 'undefined')
+            return 1 /* ENGLISH */;
+        if (!navigator.language)
+            return 1 /* ENGLISH */;
         switch (navigator.language.split(/[_\-]/g)[0]) {
             case 'ja':
                 return 0 /* JAPANESE */;
@@ -25976,3 +26317,4 @@ describe('utils', function () {
 
 }});
 })();
+if (typeof exports != "undefined") exports.require2 = require;

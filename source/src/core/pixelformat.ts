@@ -74,7 +74,10 @@ export class PixelConverter {
 		}
 	}
 
-	static decode(format: PixelFormat, from: ArrayBuffer, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
+	static decode(format: PixelFormat, fromArray: Uint8Array, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
+		var from = fromArray.buffer;
+		var fromIndex = fromArray.byteOffset;
+	//static decode(format: PixelFormat, from: ArrayBuffer, fromIndex:number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 		//console.log(format + ':' + PixelFormat[format]);
 		switch (format) {
 			case PixelFormat.RGBA_8888:

@@ -95,6 +95,7 @@ function generateCombinedCommonJs(mapFiles) {
 
 	commonjsFile += '});\n';
 	commonjsFile += '})();\n';
+	commonjsFile += 'if (typeof exports != "undefined") exports.require2 = require;\n';
 	return commonjsFile;
 }
 

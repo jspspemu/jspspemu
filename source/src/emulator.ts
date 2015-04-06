@@ -5,6 +5,7 @@ import _cpu = require('./core/cpu');
 import _gpu = require('./core/gpu');
 import _rtc = require('./core/rtc');
 import _controller = require('./core/controller');
+import _stream = require('./core/stream'); _stream;
 import _display = require('./core/display');
 import _audio = require('./core/audio');
 import _interrupt = require('./core/interrupt');
@@ -115,8 +116,13 @@ export class Emulator {
 			this.memoryManager = new MemoryManager();
 			this.interruptManager = new InterruptManager();
 			this.audio = new PspAudio();
-			this.canvas = <HTMLCanvasElement>(document.getElementById('canvas'));
-			this.webgl_canvas = <HTMLCanvasElement>(document.getElementById('webgl_canvas'));
+			if (typeof document != 'undefined') {
+				this.canvas = <HTMLCanvasElement>(document.getElementById('canvas'));
+				this.webgl_canvas = <HTMLCanvasElement>(document.getElementById('webgl_canvas'));
+			} else {
+				this.canvas = null;
+				this.webgl_canvas = null;
+			}
 			this.controller = new PspController();
 			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new SyscallManager(this.context);
@@ -171,6 +177,7 @@ export class Emulator {
 	}
 
 	private changeFavicon(src) {
+		if (typeof document == 'undefined') return;
 		var link = document.createElement('link'),
 			oldLink = document.getElementById('dynamic-favicon');
 		link.id = 'dynamic-favicon';
@@ -195,6 +202,8 @@ export class Emulator {
 	}
 
 	private loadPic1(data: Stream) {
+		if (typeof document == 'undefined') return;
+
 		//console.log('loadPic1---------');
 		//console.log(data);
 		document.body.style.backgroundRepeat = 'no-repeat';
@@ -275,10 +284,12 @@ export class Emulator {
 					});
 				case 'elf':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						if (this.gameTitle) {
-							document.title = this.gameTitle + ' - jspspemu';
-						} else {
-							document.title = 'jspspemu';
+						if (typeof document != 'undefined') {
+							if (this.gameTitle) {
+								document.title = this.gameTitle + ' - jspspemu';
+							} else {
+								document.title = 'jspspemu';
+							}
 						}
 
 						var mountableVfs = this.ms0Vfs;
@@ -322,6 +333,8 @@ export class Emulator {
 	}
 
 	connectToDropbox(newValue: boolean) {
+		if (typeof $ == 'undefined') return;
+
 		newValue = !!newValue;
 		$('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
 		var oldValue = (localStorage["dropbox"] == 'true');
@@ -353,7 +366,7 @@ export class Emulator {
 	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string, afterStartCallback: () => void) {
 		this.gameTitle = '';
 		return this.loadAndExecuteAsync(asyncStream, url).then(() => {
-			afterStartCallback();
+			if (afterStartCallback) afterStartCallback();
 
 			//console.error('WAITING!');
 			return this.threadManager.waitExitGameAsync().then(() => {
@@ -369,7 +382,8 @@ export class Emulator {
 	
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
-		$('#game_menu').fadeOut(100);
+		if (typeof $ != 'undefined') $('#game_menu').fadeOut(100);
+		url = String(url);
 
 		this.gameTitle = '';
 		this.loadIcon0(Stream.fromArray([]));

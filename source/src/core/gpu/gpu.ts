@@ -1115,7 +1115,7 @@ class PspGpuList {
 	}
 
 	private runUntilStallInner() {
-		var u32 = this.memory.u32;
+		var mem = this.memory;
 		var showOpcodes = this.showOpcodes;
 		var table = this.executor.table;
 		var stall4 = this.stall4;
@@ -1123,7 +1123,8 @@ class PspGpuList {
 		//while (this.hasMoreInstructions) {
 		while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
 			var instructionPC4 = this.current4++;
-			var instruction = u32[instructionPC4];
+			var instruction = mem.readUInt32_2(instructionPC4);
+			//console.log(instruction);
 
 			var op = (instruction >>> 24);
 			var params24 = (instruction & 0x00FFFFFF);

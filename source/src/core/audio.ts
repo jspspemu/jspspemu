@@ -158,7 +158,7 @@ export class PspAudio {
 	}
 
 	stopAsync() {
-		this.playingChannels.forEach((channel) => {
+		this.playingChannels.forEach((channel:PspAudioChannel) => {
 			channel.stop();
 		});
 		return Promise.resolve();

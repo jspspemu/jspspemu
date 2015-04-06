@@ -1,5 +1,7 @@
 ﻿///<reference path="../global.d.ts" />
 
+if (typeof navigator == 'undefined') navigator = <any>{};
+
 export interface IPspController {
 	startAsync();
 	stopAsync();
@@ -103,9 +105,13 @@ export class PspController {
 
 	animationTimeId: number = 0;
 
+	_keyDown;
+	_keyUp;
 	startAsync() {
-		document.addEventListener('keydown', (e) => this.keyDown(e));
-		document.addEventListener('keyup', (e) => this.keyUp(e));
+		if (typeof document != 'undefined') {
+			document.addEventListener('keydown', this._keyDown = (e) => this.keyDown(e));
+			document.addEventListener('keyup', this._keyUp = (e) => this.keyUp(e));
+		}
 		this.frame(0);
 		return Promise.resolve();
 	}
@@ -128,7 +134,7 @@ export class PspController {
 		this.data.y = this.analogAddY;
 
 		//console.log('zzzzzzzzz');
-		if (navigator['getGamepads']) {
+		if (window.navigator && window.navigator['getGamepads']) {
 			//console.log('bbbbbbbbb');
 			var gamepads = (navigator['getGamepads'])();
 			if (gamepads[0]) {
@@ -183,8 +189,10 @@ export class PspController {
 	}
 
 	stopAsync() {
-		document.removeEventListener('keydown', this.keyDown);
-		document.removeEventListener('keyup', this.keyUp);
+		if (typeof document != 'undefined') {
+			document.removeEventListener('keydown', this._keyDown);
+			document.removeEventListener('keyup', this._keyUp);
+		}
 		cancelAnimationFrame(this.animationTimeId);
 		return Promise.resolve();
 	}

@@ -397,6 +397,7 @@ export class CpuState {
 	vfpuSetMatrix(m: number, values: number[]) {
 		// @TODO
 		this.vfpr[0] = 0;
+		throw new Error("Not implemented vfpuSetMatrix!");
 	}
 
 	BRANCHFLAG: boolean = false;

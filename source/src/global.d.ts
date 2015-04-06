@@ -10,4 +10,3 @@
 ///<reference path="../typings/zlib.d.ts" />
 ///<reference path="../typings/jquery/jquery.d.ts" />
 ///<reference path="../typings/underscore/underscore.d.ts" />
-///<reference path="../typings/sprintf.d.ts" />

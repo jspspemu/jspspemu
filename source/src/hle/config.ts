@@ -14,6 +14,8 @@ export class Config {
 	}
 
 	private detectLanguage() {
+		if (typeof navigator == 'undefined') return PspLanguages.ENGLISH;
+		if (!navigator.language) return PspLanguages.ENGLISH;
 		// en_US
 		switch (navigator.language.split(/[_\-]/g)[0]) {
 			case 'ja': return PspLanguages.JAPANESE;

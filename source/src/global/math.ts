@@ -11,23 +11,128 @@
 	log10(x: number): number;
 }
 
-declare var vec4: {
-	create(): Float32Array;
-	fromValues(x: number, y: number, z: number, w: number): Float32Array;
-	transformMat4(out: Float32Array, a: Float32Array, m: Float32Array): Float32Array;
-};
+class mat4 {
+	static create() {
+		return new Float32Array([
+			1,0,0,0,
+			0,1,0,0,
+			0,0,1,0,
+			0,0,0,1
+		]);
+	}
+	static identity(data:Float32Array) {
+		data[0] = 1; data[1] = 0; data[2] = 0; data[3] = 0;
+		data[4] = 0; data[5] = 1; data[6] = 0; data[7] = 0;
+		data[8] = 0; data[9] = 0; data[10] = 1; data[11] = 0;
+		data[12] = 0; data[13] = 0; data[14] = 0; data[15] = 1;
+	}
+	static ortho(out:Float32Array, left:number, right:number, bottom:number, top:number, near:number, far:number) {
+		var lr = 1 / (left - right),
+			bt = 1 / (bottom - top),
+			nf = 1 / (near - far);
+		out[0] = -2 * lr;
+		out[1] = 0;
+		out[2] = 0;
+		out[3] = 0;
+		out[4] = 0;
+		out[5] = -2 * bt;
+		out[6] = 0;
+		out[7] = 0;
+		out[8] = 0;
+		out[9] = 0;
+		out[10] = 2 * nf;
+		out[11] = 0;
+		out[12] = (left + right) * lr;
+		out[13] = (top + bottom) * bt;
+		out[14] = (far + near) * nf;
+		out[15] = 1;
+		return out;
+	}
+	static multiply(out:Float32Array, a:Float32Array, b:Float32Array) {
+		var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
+			a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
+			a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
+			a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
 
-declare var mat4: {
-	create(): Float32Array;
-	clone(a: Float32Array): Float32Array;
-	copy(out: Float32Array, a: Float32Array): Float32Array;
-	identity(a: Float32Array): Float32Array;
-	multiply(out: Float32Array, a: Float32Array, b: Float32Array): Float32Array;
-	scale(out: Float32Array, a: Float32Array, v: Float32Array): Float32Array;
-	translate(out: Float32Array, a: Float32Array, v: Float32Array): Float32Array;
-	rotate(out: Float32Array, a: Float32Array, v: Float32Array): Float32Array;
-	ortho(out: Float32Array, left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array;
-};
+		// Cache only the current line of the second matrix
+		var b0  = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+		out[0] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+		out[1] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+		out[2] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+		out[3] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+		b0 = b[4]; b1 = b[5]; b2 = b[6]; b3 = b[7];
+		out[4] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+		out[5] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+		out[6] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+		out[7] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+		b0 = b[8]; b1 = b[9]; b2 = b[10]; b3 = b[11];
+		out[8] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+		out[9] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+		out[10] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+		out[11] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+		b0 = b[12]; b1 = b[13]; b2 = b[14]; b3 = b[15];
+		out[12] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+		out[13] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+		out[14] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+		out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+		return out;
+	}
+	static scale(out:Float32Array, a:Float32Array, v:Float32Array) {
+		var x = v[0], y = v[1], z = v[2];
+
+		out[0] = a[0] * x;
+		out[1] = a[1] * x;
+		out[2] = a[2] * x;
+		out[3] = a[3] * x;
+		out[4] = a[4] * y;
+		out[5] = a[5] * y;
+		out[6] = a[6] * y;
+		out[7] = a[7] * y;
+		out[8] = a[8] * z;
+		out[9] = a[9] * z;
+		out[10] = a[10] * z;
+		out[11] = a[11] * z;
+		out[12] = a[12];
+		out[13] = a[13];
+		out[14] = a[14];
+		out[15] = a[15];
+		return out;
+	}
+	static translate(out:Float32Array, a:Float32Array, v:Float32Array) {
+		var x = v[0], y = v[1], z = v[2],
+			a00, a01, a02, a03,
+			a10, a11, a12, a13,
+			a20, a21, a22, a23;
+
+		if (a === out) {
+			out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
+			out[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
+			out[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
+			out[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
+		} else {
+			a00 = a[0]; a01 = a[1]; a02 = a[2]; a03 = a[3];
+			a10 = a[4]; a11 = a[5]; a12 = a[6]; a13 = a[7];
+			a20 = a[8]; a21 = a[9]; a22 = a[10]; a23 = a[11];
+
+			out[0] = a00; out[1] = a01; out[2] = a02; out[3] = a03;
+			out[4] = a10; out[5] = a11; out[6] = a12; out[7] = a13;
+			out[8] = a20; out[9] = a21; out[10] = a22; out[11] = a23;
+
+			out[12] = a00 * x + a10 * y + a20 * z + a[12];
+			out[13] = a01 * x + a11 * y + a21 * z + a[13];
+			out[14] = a02 * x + a12 * y + a22 * z + a[14];
+			out[15] = a03 * x + a13 * y + a23 * z + a[15];
+		}
+
+		return out;
+	}
+}
+
+//declare var global:any;
+//if (typeof self == 'undefined') window = self = global;
 
 self['polyfills'] = self['polyfills'] || {};
 
@@ -68,11 +173,11 @@ if (!Math['clz32']) {
 		if (x == 0) return 32;
 		var result = 0;
 		// Binary search.
-		if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; };
-		if ((x & 0xFF000000) === 0) { x <<= 8; result += 8; };
-		if ((x & 0xF0000000) === 0) { x <<= 4; result += 4; };
-		if ((x & 0xC0000000) === 0) { x <<= 2; result += 2; };
-		if ((x & 0x80000000) === 0) { x <<= 1; result += 1; };
+		if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; }
+		if ((x & 0xFF000000) === 0) { x <<= 8; result += 8; }
+		if ((x & 0xF0000000) === 0) { x <<= 4; result += 4; }
+		if ((x & 0xC0000000) === 0) { x <<= 2; result += 2; }
+		if ((x & 0x80000000) === 0) { x <<= 1; result += 1; }
 		return result;
 	};
 }
@@ -172,10 +277,17 @@ if (!Math.imul32_64) {
 	Math.imul32_64 = function (a: number, b: number, result?: number[]) {
 		if (result === undefined) result = [0, 0];
 
-		if (a == 0) return result[0] = result[1] = 0, result;
-		if (b == 0) return result[0] = result[1] = 0, result;
+		if (a == 0) {
+			result[0] = result[1] = 0;
+			return result;
+		}
+		if (b == 0) {
+			result[0] = result[1] = 0;
+			return result;
+		}
 
-		a |= 0, b |= 0;
+		a |= 0;
+		b |= 0;
 
 		if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
 			result[0] = a * b;
@@ -202,7 +314,8 @@ self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
 	Math['fround'] = function (x: number) {
 		var f32 = new Float32Array(1);
-		return f32[0] = x, f32[0];
+		f32[0] = x;
+		return f32[0];
 	}
 }
 
@@ -234,7 +347,7 @@ class BitUtils {
 
 	static seb(x: number) {
 		x = x & 0xFF;
-		if (x & 0x80) x = 0xFFFFFF00 | x;
+		if ((x & 0x80) != 0) x = 0xFFFFFF00 | x;
 		return x;
 	}
 
@@ -270,7 +383,7 @@ class BitUtils {
 		var mask = this.mask(length);
 		var value = this.extract(data, offset, length);
 		var signBit = (1 << (offset + (length - 1)));
-		if (value & signBit) value |= ~mask;
+		if ((value & signBit) != 0) value |= ~mask;
 		return value;
 	}
 

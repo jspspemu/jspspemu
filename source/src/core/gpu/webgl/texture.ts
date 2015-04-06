@@ -258,19 +258,22 @@ export class TextureHandler {
 
 				if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
 					//if (clut.pixelFormat == PixelFormat.RGBA_5551) debugger;
-					PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
+					PixelConverter.decode(clut.pixelFormat, this.memory.getPointerU8Array(clut.adress), paletteU8, 0, clut.numberOfColors, true);
+					//PixelConverter.decode(clut.pixelFormat, this.memory.buffer, clut.adress, paletteU8, 0, clut.numberOfColors, true);
 				}
 
 				//console.info('TextureFormat: ' + PixelFormat[state.texture.pixelFormat] + ', ' + PixelFormat[clut.pixelFormat] + ';' + clut.mask + ';' + clut.start + '; ' + clut.numberOfColors + '; ' + clut.shift);
 
 				var dataBuffer = new ArrayBuffer(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
 				var data = new Uint8Array(dataBuffer);
-				data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
+				data.set(this.memory.getPointerU8Array(mipmap.address, data.length));
+				//data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
 
 				if (state.texture.swizzled) {
 					PixelConverter.unswizzleInline(state.texture.pixelFormat, dataBuffer, 0, w2, h);
 				}
-				PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+				PixelConverter.decode(state.texture.pixelFormat, data, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
+				//PixelConverter.decode(state.texture.pixelFormat, dataBuffer, 0, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
 
 				if (true) {
 				//if (false) {

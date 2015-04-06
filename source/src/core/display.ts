@@ -137,9 +137,14 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 
 	constructor(public memory: Memory, private interruptManager: InterruptManager, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 		super();
-		this.context = this.canvas.getContext('2d');
-		this.imageData = this.context.createImageData(512, 272);
-		this.setEnabledDisplay(true);
+		if (this.canvas) {
+			this.context = this.canvas.getContext('2d');
+			this.imageData = this.context.createImageData(512, 272);
+			this.setEnabledDisplay(true);
+		} else {
+			this.context = null;
+			this.setEnabledDisplay(false);
+		}
 	}
 
 	update() {
@@ -151,14 +156,18 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		var w8 = imageData.data;
 		var baseAddress = this.address & 0x0FFFFFFF;
 
-		PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, <Uint8Array><any>w8, 0, count, false);
+		PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), <Uint8Array><any>w8, 0, count, false);
+		//PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, <Uint8Array><any>w8, 0, count, false);
 		this.context.putImageData(imageData, 0, 0);
 	}
 
 	setEnabledDisplay(enable: boolean) {
 		this.enabled = enable;
-		this.canvas.style.display = enable ? 'block' : 'none';
-		this.webglcanvas.style.display = !enable ? 'block' : 'none';
+		if (this.canvas) this.canvas.style.display = enable ? 'block' : 'none';
+		if (this.webglcanvas) this.webglcanvas.style.display = !enable ? 'block' : 'none';
+
+		//this.canvas.style.display = 'none';
+		//this.webglcanvas.style.display = 'block';
 	}
 
 	startAsync() {
