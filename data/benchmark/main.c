@@ -636,7 +636,7 @@ void runTest()
 
 	//_runTest(runTest29, "zlib", 9999);
 	
-	//printResult("Overall performance index", sumDurationMillis, sumPspDurationMillis);
+	eprintf("score/total ms (the lower the better): %d\n", sumDurationMillis);
 }
 
 

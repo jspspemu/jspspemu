@@ -2629,9 +2629,12 @@ var HalfFloat = (function () {
 function htmlspecialchars(str) {
     return str.replace(/[&<>]/g, function (tag) {
         switch (tag) {
-            case '&': return '&amp;';
-            case '<': return '&lt;';
-            case '>': return '&gt;';
+            case '&':
+                return '&amp;';
+            case '<':
+                return '&lt;';
+            case '>':
+                return '&gt;';
         }
         return tag;
     });
@@ -3561,11 +3564,16 @@ var MipsAssembler = (function () {
                 case '%J':
                 case '%s':
                 case '%d':
-                case '%t': return '([$r]\\d+)';
-                case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
+                case '%t':
+                    return '([$r]\\d+)';
+                case '%i':
+                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%C':
+                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%c':
+                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                default:
+                    throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
         }).replace(/\s+/g, '\\s*');
         var regex = new RegExp('^' + formatPattern + '$', '');
@@ -3616,7 +3624,8 @@ var MipsAssembler = (function () {
             case '%c':
                 instruction.syscall = this.decodeInteger(value);
                 break;
-            default: throw ("MipsAssembler.Update: Unknown type '" + type + "'");
+            default:
+                throw ("MipsAssembler.Update: Unknown type '" + type + "'");
         }
     };
     return MipsAssembler;
@@ -3643,7 +3652,8 @@ var MipsDisassembler = (function () {
                 case '%t':
                     return _this.encodeRegister(instruction.rt);
                     break;
-                default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
+                default:
+                    throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
         return instructionType.name + ' ' + arguments;
@@ -4343,7 +4353,8 @@ function getVectorRegs(vectorReg, N) {
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
-        default: debugger;
+        default:
+            debugger;
     }
     var regs = new Array(length);
     for (var i = 0; i < length; i++) {
@@ -4376,7 +4387,8 @@ function getMatrixRegs(matrixReg, N) {
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
-        default: debugger;
+        default:
+            debugger;
     }
     var transpose = (matrixReg >> 5) & 1;
     var regs = new Array(side * side);
@@ -4411,8 +4423,10 @@ function setMemoryVector(offset, items) {
 }
 function memoryRef(type, address) {
     switch (type) {
-        case 'float': return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
-        default: throw (new Error("Not implemented memoryRef type '" + type + "'"));
+        case 'float':
+            return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
+        default:
+            throw (new Error("Not implemented memoryRef type '" + type + "'"));
     }
 }
 function getMemoryVector(offset, count) {
@@ -4521,7 +4535,8 @@ var VfpuPrefixes = (function () {
                 case 3:
                     value = call('MathFloat.sat1', [value]);
                     break;
-                default: break;
+                default:
+                    break;
             }
             return assign_stm(left, value);
         }
@@ -4785,22 +4800,32 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vbfy1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0: return binop(src[0], '+', src[1]);
-                case 1: return binop(src[0], '-', src[1]);
-                case 2: return binop(src[2], '+', src[3]);
-                case 3: return binop(src[2], '-', src[3]);
-                default: throw (new Error("vbfy1: Invalid operation"));
+                case 0:
+                    return binop(src[0], '+', src[1]);
+                case 1:
+                    return binop(src[0], '-', src[1]);
+                case 2:
+                    return binop(src[2], '+', src[3]);
+                case 3:
+                    return binop(src[2], '-', src[3]);
+                default:
+                    throw (new Error("vbfy1: Invalid operation"));
             }
         });
     };
     InstructionAst.prototype.vbfy2 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0: return binop(src[0], '+', src[2]);
-                case 1: return binop(src[1], '+', src[3]);
-                case 2: return binop(src[0], '-', src[2]);
-                case 3: return binop(src[1], '-', src[3]);
-                default: throw (new Error("vbfy1: Invalid operation"));
+                case 0:
+                    return binop(src[0], '+', src[2]);
+                case 1:
+                    return binop(src[1], '+', src[3]);
+                case 2:
+                    return binop(src[0], '-', src[2]);
+                case 3:
+                    return binop(src[1], '-', src[3]);
+                default:
+                    throw (new Error("vbfy1: Invalid operation"));
             }
         });
     };
@@ -4808,55 +4833,80 @@ var InstructionAst = (function () {
         var vectorSize = i.ONE_TWO;
         return this._vset2(i, function (index, src) {
             switch (index) {
-                case 0: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
-                case 1: return ast.call('MathFloat.sat0', [src[0]]);
-                case 2: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
-                case 3: return ast.call('MathFloat.sat0', [src[1]]);
-                default: throw (new Error("vsocp: " + index));
+                case 0:
+                    return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
+                case 1:
+                    return ast.call('MathFloat.sat0', [src[0]]);
+                case 2:
+                    return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
+                case 3:
+                    return ast.call('MathFloat.sat0', [src[1]]);
+                default:
+                    throw (new Error("vsocp: " + index));
             }
         }, vectorSize * 2, vectorSize);
     };
     InstructionAst.prototype.vsrt1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0: return call('MathFloat.min', [src[0], src[1]]);
-                case 1: return call('MathFloat.max', [src[0], src[1]]);
-                case 2: return call('MathFloat.min', [src[2], src[3]]);
-                case 3: return call('MathFloat.max', [src[2], src[3]]);
-                default: throw (new Error("vsrt1: Invalid operation"));
+                case 0:
+                    return call('MathFloat.min', [src[0], src[1]]);
+                case 1:
+                    return call('MathFloat.max', [src[0], src[1]]);
+                case 2:
+                    return call('MathFloat.min', [src[2], src[3]]);
+                case 3:
+                    return call('MathFloat.max', [src[2], src[3]]);
+                default:
+                    throw (new Error("vsrt1: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt2 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0: return call('MathFloat.min', [src[0], src[3]]);
-                case 1: return call('MathFloat.min', [src[1], src[2]]);
-                case 2: return call('MathFloat.max', [src[1], src[2]]);
-                case 3: return call('MathFloat.max', [src[0], src[3]]);
-                default: throw (new Error("vsrt2: Invalid operation"));
+                case 0:
+                    return call('MathFloat.min', [src[0], src[3]]);
+                case 1:
+                    return call('MathFloat.min', [src[1], src[2]]);
+                case 2:
+                    return call('MathFloat.max', [src[1], src[2]]);
+                case 3:
+                    return call('MathFloat.max', [src[0], src[3]]);
+                default:
+                    throw (new Error("vsrt2: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt3 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0: return call('MathFloat.max', [src[0], src[1]]);
-                case 1: return call('MathFloat.min', [src[0], src[1]]);
-                case 2: return call('MathFloat.max', [src[2], src[3]]);
-                case 3: return call('MathFloat.min', [src[2], src[3]]);
-                default: throw (new Error("vsrt3: Invalid operation"));
+                case 0:
+                    return call('MathFloat.max', [src[0], src[1]]);
+                case 1:
+                    return call('MathFloat.min', [src[0], src[1]]);
+                case 2:
+                    return call('MathFloat.max', [src[2], src[3]]);
+                case 3:
+                    return call('MathFloat.min', [src[2], src[3]]);
+                default:
+                    throw (new Error("vsrt3: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt4 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0: return call('MathFloat.max', [src[0], src[3]]);
-                case 1: return call('MathFloat.max', [src[1], src[2]]);
-                case 2: return call('MathFloat.min', [src[1], src[2]]);
-                case 3: return call('MathFloat.min', [src[0], src[3]]);
-                default: throw (new Error("vsrt4: Invalid operation"));
+                case 0:
+                    return call('MathFloat.max', [src[0], src[3]]);
+                case 1:
+                    return call('MathFloat.max', [src[1], src[2]]);
+                case 2:
+                    return call('MathFloat.min', [src[1], src[2]]);
+                case 3:
+                    return call('MathFloat.min', [src[0], src[3]]);
+                default:
+                    throw (new Error("vsrt4: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
@@ -4906,20 +4956,28 @@ var InstructionAst = (function () {
     InstructionAst.prototype["vcrs.t"] = function (i) {
         return this._vset3(i, function (index, src, target) {
             switch (index) {
-                case 0: return binop(src[1], '*', target[2]);
-                case 1: return binop(src[2], '*', target[0]);
-                case 2: return binop(src[0], '*', target[1]);
-                default: throw (new Error("vcrs_t not implemented"));
+                case 0:
+                    return binop(src[1], '*', target[2]);
+                case 1:
+                    return binop(src[2], '*', target[0]);
+                case 2:
+                    return binop(src[0], '*', target[1]);
+                default:
+                    throw (new Error("vcrs_t not implemented"));
             }
         }, 3, 3, 3);
     };
     InstructionAst.prototype["vcrsp.t"] = function (i) {
         return this._vset3(i, function (index, src, target) {
             switch (index) {
-                case 0: return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
-                case 1: return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
-                case 2: return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
-                default: throw (new Error("vcrs_t assert"));
+                case 0:
+                    return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
+                case 1:
+                    return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
+                case 2:
+                    return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
+                default:
+                    throw (new Error("vcrs_t assert"));
             }
         }, 3, 3, 3);
     };
@@ -4964,10 +5022,14 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vqmul = function (i) {
         return this._vset3(i, function (i, s, t) {
             switch (i) {
-                case 0: return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 1: return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 2: return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 3: return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 0:
+                    return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 1:
+                    return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 2:
+                    return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 3:
+                    return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
             }
         }, 4, 4, 4);
     };
@@ -6942,7 +7004,8 @@ var VfpuPrefixWrite = (function (_super) {
                         case 3:
                             value = MathFloat.sat1(value);
                             break;
-                        default: break;
+                        default:
+                            break;
                     }
                     vfpr[indices[n]] = value;
                 }
@@ -7539,10 +7602,14 @@ var CpuState = (function () {
     };
     CpuState.prototype._cvt_w_s_impl = function (FS) {
         switch (this.fcr31_rm) {
-            case 0: return MathFloat.rint(FS);
-            case 1: return MathFloat.cast(FS);
-            case 2: return MathFloat.ceil(FS);
-            case 3: return MathFloat.floor(FS);
+            case 0:
+                return MathFloat.rint(FS);
+            case 1:
+                return MathFloat.cast(FS);
+            case 2:
+                return MathFloat.ceil(FS);
+            case 3:
+                return MathFloat.floor(FS);
         }
         throw ("RM has an invalid value!!");
     };
@@ -9465,9 +9532,12 @@ var PspGpu = (function () {
     PspGpu.prototype.drawSync = function (syncType) {
         return this.listRunner.waitAsync();
         switch (syncType) {
-            case 1 /* Peek */: return this.listRunner.peek();
-            case 0 /* WaitForCompletion */: return this.listRunner.waitAsync();
-            default: throw (new Error("Not implemented SyncType." + syncType));
+            case 1 /* Peek */:
+                return this.listRunner.peek();
+            case 0 /* WaitForCompletion */:
+                return this.listRunner.waitAsync();
+            default:
+                throw (new Error("Not implemented SyncType." + syncType));
         }
     };
     return PspGpu;
@@ -10066,29 +10136,44 @@ var VertexState = (function () {
     });
     VertexState.prototype.IndexEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */: return 0;
-            case 1 /* Byte */: return 1;
-            case 2 /* Short */: return 2;
-            default: throw ("Invalid enum");
+            case 0 /* Void */:
+                return 0;
+            case 1 /* Byte */:
+                return 1;
+            case 2 /* Short */:
+                return 2;
+            default:
+                throw ("Invalid enum");
         }
     };
     VertexState.prototype.NumericEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */: return 0;
-            case 1 /* Byte */: return 1;
-            case 2 /* Short */: return 2;
-            case 3 /* Float */: return 4;
-            default: throw ("Invalid enum");
+            case 0 /* Void */:
+                return 0;
+            case 1 /* Byte */:
+                return 1;
+            case 2 /* Short */:
+                return 2;
+            case 3 /* Float */:
+                return 4;
+            default:
+                throw ("Invalid enum");
         }
     };
     VertexState.prototype.ColorEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */: return 0;
-            case 4 /* Color5650 */: return 2;
-            case 5 /* Color5551 */: return 2;
-            case 6 /* Color4444 */: return 2;
-            case 7 /* Color8888 */: return 4;
-            default: throw ("Invalid enum");
+            case 0 /* Void */:
+                return 0;
+            case 4 /* Color5650 */:
+                return 2;
+            case 5 /* Color5551 */:
+                return 2;
+            case 6 /* Color4444 */:
+                return 2;
+            case 7 /* Color8888 */:
+                return 4;
+            default:
+                throw ("Invalid enum");
         }
     };
     VertexState.prototype.GetMaxAlignment = function () {
@@ -10375,18 +10460,26 @@ var TextureState = (function () {
     }
     TextureState.prototype.getTextureComponentsCount = function () {
         switch (this.textureMapMode) {
-            default: throw (new Error("Invalid textureMapMode"));
-            case 0 /* GU_TEXTURE_COORDS */: return 2;
+            default:
+                throw (new Error("Invalid textureMapMode"));
+            case 0 /* GU_TEXTURE_COORDS */:
+                return 2;
             case 1 /* GU_TEXTURE_MATRIX */:
                 switch (this.textureProjectionMapMode) {
-                    case 3 /* GU_NORMAL */: return 3;
-                    case 2 /* GU_NORMALIZED_NORMAL */: return 3;
-                    case 0 /* GU_POSITION */: return 3;
-                    case 1 /* GU_UV */: return 2;
-                    default: return 2;
+                    case 3 /* GU_NORMAL */:
+                        return 3;
+                    case 2 /* GU_NORMALIZED_NORMAL */:
+                        return 3;
+                    case 0 /* GU_POSITION */:
+                        return 3;
+                    case 1 /* GU_UV */:
+                        return 2;
+                    default:
+                        return 2;
                 }
                 break;
-            case 2 /* GU_ENVIRONMENT_MAP */: return 2;
+            case 2 /* GU_ENVIRONMENT_MAP */:
+                return 2;
         }
     };
     return TextureState;
@@ -10912,7 +11005,8 @@ var VertexReader = (function () {
                 alignment = 2;
                 sizes = [5, 6, 5, 0];
                 break;
-            default: throw (new Error("Not implemented color format '" + type + "'"));
+            default:
+                throw (new Error("Not implemented color format '" + type + "'"));
         }
         this.align(alignment);
         indentStringGenerator.write('var temp = (' + ((alignment == 2) ? this.readUInt16() : this.readUInt32()) + ');\n');
@@ -12973,7 +13067,8 @@ var PixelConverter = (function () {
             case 4 /* PALETTE_T4 */:
                 PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
                 break;
-            default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
+            default:
+                throw (new Error(sprintf("Unsupported pixel format %d", format)));
         }
     };
     PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
@@ -14104,10 +14199,14 @@ function detectFormatAsync(asyncStream) {
             case 'PK\u0003\u0004':
             case 'PK\u0005\u0006':
                 return 'zip';
-            case '\u0000PBP': return 'pbp';
-            case '\u007FELF': return 'elf';
-            case '~PSP': return 'psp';
-            case 'CISO': return 'ciso';
+            case '\u0000PBP':
+                return 'pbp';
+            case '\u007FELF':
+                return 'elf';
+            case '~PSP':
+                return 'psp';
+            case 'CISO':
+                return 'ciso';
             case '\u0000\u0000\u0000\u0000':
                 return asyncStream.readChunkAsync(0x10 * 0x800, 6).then(function (data) {
                     var stream = Stream.fromArrayBuffer(data);
@@ -14646,7 +14745,8 @@ var Psf = (function () {
                 case 2 /* Text */:
                     entry.value = valueStream.readUtf8Stringz();
                     break;
-                default: throw (sprintf("Unknown dataType: %s", entry.dataType));
+                default:
+                    throw (sprintf("Unknown dataType: %s", entry.dataType));
             }
             entriesByName[entry.key] = entry.value;
         });
@@ -15820,19 +15920,32 @@ var Config = (function () {
         if (!navigator.language)
             return 1 /* ENGLISH */;
         switch (navigator.language.split(/[_\-]/g)[0]) {
-            case 'ja': return 0 /* JAPANESE */;
-            case 'en': return 1 /* ENGLISH */;
-            case 'fr': return 2 /* FRENCH */;
-            case 'es': return 3 /* SPANISH */;
-            case 'de': return 4 /* GERMAN */;
-            case 'it': return 5 /* ITALIAN */;
-            case 'nl': return 6 /* DUTCH */;
-            case 'pt': return 7 /* PORTUGUESE */;
-            case 'ru': return 8 /* RUSSIAN */;
-            case 'ko': return 9 /* KOREAN */;
-            case 'zh': return 10 /* TRADITIONAL_CHINESE */;
-            case 'zh2': return 11 /* SIMPLIFIED_CHINESE */;
-            default: return 1 /* ENGLISH */;
+            case 'ja':
+                return 0 /* JAPANESE */;
+            case 'en':
+                return 1 /* ENGLISH */;
+            case 'fr':
+                return 2 /* FRENCH */;
+            case 'es':
+                return 3 /* SPANISH */;
+            case 'de':
+                return 4 /* GERMAN */;
+            case 'it':
+                return 5 /* ITALIAN */;
+            case 'nl':
+                return 6 /* DUTCH */;
+            case 'pt':
+                return 7 /* PORTUGUESE */;
+            case 'ru':
+                return 8 /* RUSSIAN */;
+            case 'ko':
+                return 9 /* KOREAN */;
+            case 'zh':
+                return 10 /* TRADITIONAL_CHINESE */;
+            case 'zh2':
+                return 11 /* SIMPLIFIED_CHINESE */;
+            default:
+                return 1 /* ENGLISH */;
         }
     };
     return Config;
@@ -16902,14 +17015,16 @@ var PspElfLoader = (function () {
             var GP_ADDR = (baseAddress + reloc.pointerAddress);
             var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
             switch (reloc.type) {
-                case 0 /* None */: break;
+                case 0 /* None */:
+                    break;
                 case 1 /* Mips16 */:
                     instruction.u_imm16 += S;
                     break;
                 case 2 /* Mips32 */:
                     instruction.data += S;
                     break;
-                case 3 /* MipsRel32 */: throw ("Not implemented MipsRel32");
+                case 3 /* MipsRel32 */:
+                    throw ("Not implemented MipsRel32");
                 case 4 /* Mips26 */:
                     instruction.jump_real = instruction.jump_real + S;
                     break;
@@ -16936,7 +17051,8 @@ var PspElfLoader = (function () {
                     break;
                 case 7 /* MipsGpRel16 */:
                     break;
-                default: throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
+                default:
+                    throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
             }
             instructionReader.write(RelocatedPointerAddress, instruction);
         }
@@ -17399,10 +17515,14 @@ var MemoryPartition = (function () {
         if (name === void 0) { name = ''; }
         switch (anchor) {
             case 3 /* LowAligned */:
-            case 0 /* Low */: return this.allocateLow(size, name);
-            case 1 /* High */: return this.allocateHigh(size, name);
-            case 2 /* Address */: return this.allocateSet(size, address, name);
-            default: throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
+            case 0 /* Low */:
+                return this.allocateLow(size, name);
+            case 1 /* High */:
+                return this.allocateHigh(size, name);
+            case 2 /* Address */:
+                return this.allocateSet(size, address, name);
+            default:
+                throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
         }
     };
     MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
@@ -18793,293 +18913,6 @@ var IoFileMgrForUser = (function () {
 exports.IoFileMgrForUser = IoFileMgrForUser;
 
 },
-"src/hle/module/iofilemgr/iofilemgrforuser": function(module, exports, require) {
-var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
-var _vfs = require('../../vfs');
-var _structs = require('../../structs');
-var SceKernelErrors = require('../../SceKernelErrors');
-var _manager = require('../../manager');
-_manager.Thread;
-var FileOpenFlags = _vfs.FileOpenFlags;
-var log = logger.named('module.IoFileMgrForUser');
-var IoFileMgrForUser = (function () {
-    function IoFileMgrForUser(context) {
-        var _this = this;
-        this.context = context;
-        this.sceIoDevctl = createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, function (deviceName, command, inputPointer, inputLength, outputPointer, outputLength) {
-            var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
-            var output = _this.context.memory.getPointerStream(outputPointer, outputLength);
-            return _this.context.fileManager.devctlAsync(deviceName, command, input, output);
-        }, { tryCatch: false });
-        this.fileUids = new UidCollection(3);
-        this.directoryUids = new UidCollection(1);
-        this.sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            return _this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
-                var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
-                if (result == 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */) {
-                    log.error(str, result);
-                }
-                else {
-                    log.info(str, result);
-                }
-                return result;
-            });
-        });
-        this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
-            return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
-                var file = _this.getFileById(fileId);
-                file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
-                log.info('-->', fileId);
-                return fileId;
-            });
-        });
-        this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
-            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
-            var file = _this.getFileById(fileId);
-            if (file)
-                file.close();
-            file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
-            return 0;
-        });
-        this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
-            log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
-            return 0;
-        });
-        this.sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
-            var file = _this.getFileById(fileId);
-            if (file)
-                file.close();
-            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
-            _this.fileUids.remove(fileId);
-            return 0;
-        });
-        this.sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, function (fileId, input) {
-            if (fileId < 3) {
-                var str = input.readString(input.length);
-                log.log('STD[' + fileId + ']', str);
-                _this.context.onStdout.dispatch(str);
-                return 0;
-            }
-            else {
-                var file = _this.getFileById(fileId);
-                return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
-                    log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
-                    file.cursor += writtenCount;
-                    return writtenCount;
-                }).catch(function (e) {
-                    log.error(e);
-                    return 2147614721 /* ERROR_ERROR */;
-                });
-            }
-        });
-        this.sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
-            var file = _this.getFileById(fileId);
-            return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                file.cursor += readedData.byteLength;
-                _this.context.memory.writeBytes(outputPointer, readedData);
-                return readedData.byteLength;
-            });
-        });
-        this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, function (thread, fileId, outputPointer, outputLength) {
-            var file = _this.getFileById(fileId);
-            file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                file.cursor += readedData.byteLength;
-                _this.context.memory.writeBytes(outputPointer, readedData);
-                return Integer64.fromNumber(readedData.byteLength);
-            }));
-            return 0;
-        });
-        this.sceIoWaitAsync = createNativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-        });
-        this.sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-        });
-        this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            var file = _this.getFileById(fileId);
-            if (file.asyncResult) {
-                if (DebugOnce('sceIoPollAsync', 100))
-                    log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
-                resultPointer.writeInt64(file.asyncResult);
-                return 0;
-            }
-            else {
-                if (DebugOnce('sceIoPollAsync', 100))
-                    log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
-                resultPointer.writeInt64(Integer64.fromInt(0));
-                return 1;
-            }
-        });
-        this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
-            if (sceIoStatPointer) {
-                sceIoStatPointer.position = 0;
-                _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
-            }
-            try {
-                return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
-                    var stat2 = _this._vfsStatToSceIoStat(stat);
-                    log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-                    if (sceIoStatPointer) {
-                        sceIoStatPointer.position = 0;
-                        _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
-                    }
-                    return 0;
-                }).catch(function (error) { return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */; });
-            }
-            catch (e) {
-                log.error(e);
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
-            }
-        });
-        this.sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
-            log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
-            try {
-                _this.context.fileManager.chdir(path);
-                return 0;
-            }
-            catch (e) {
-                log.error(e);
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
-            }
-        });
-        this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
-            var file = _this.getFileById(fileId);
-            var result = _this._seek(fileId, offset.getNumber(), whence);
-            file.setAsyncOperationNow(Integer64.fromNumber(result));
-            return 0;
-        });
-        this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
-            var result = _this._seek(fileId, offset.getNumber(), whence);
-            return Integer64.fromNumber(result);
-        });
-        this.sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
-            var result = _this._seek(fileId, offset, whence);
-            return result;
-        });
-        this.sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, function (path, accessMode) {
-            log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
-            return 0;
-        });
-        this.sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (path) {
-            log.log('sceIoDopen("' + path + '")');
-            return _this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
-                log.log('opened directory "' + path + '"');
-                return _this.directoryUids.allocate(directory);
-            }).catch(function (error) {
-                log.error(error);
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
-            });
-        });
-        this.sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
-            if (!_this.directoryUids.has(fileId))
-                return -1;
-            _this.directoryUids.get(fileId).close();
-            _this.directoryUids.remove(fileId);
-            return 0;
-        });
-        this.sceIoDread = createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, function (fileId, hleIoDirentPtr) {
-            if (!_this.directoryUids.has(fileId))
-                return -1;
-            var directory = _this.directoryUids.get(fileId);
-            if (directory.left > 0) {
-                var stat = directory.read();
-                var hleIoDirent = new _structs.HleIoDirent();
-                hleIoDirent.name = stat.name;
-                hleIoDirent.stat = _this._vfsStatToSceIoStat(stat);
-                hleIoDirent.privateData = 0;
-                _structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
-            }
-            return directory.left;
-        });
-        this.sceIoChangeAsyncPriority = createNativeFunction(0xB293727F, 150, 'int', 'int/int', this, function (fileId, priority) {
-            return 0;
-        });
-    }
-    IoFileMgrForUser.prototype.getFileById = function (id) {
-        if (!this.fileUids.has(id))
-            throw (new SceKernelException(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */));
-        return this.fileUids.get(id);
-    };
-    IoFileMgrForUser.prototype._sceIoOpenAsync = function (filename, flags, mode) {
-        var _this = this;
-        return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
-            return _this.fileUids.allocate(file);
-        }).catch(function (e) {
-            log.error('Not found', filename, e);
-            return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
-        });
-    };
-    IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
-        thread.state.LO = fileId;
-        if (!this.fileUids.has(fileId)) {
-            if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
-            return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
-        }
-        var file = this.getFileById(fileId);
-        if (file.asyncOperation) {
-            if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
-            return file.asyncOperation.then(function (result) {
-                if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                    log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
-                resultPointer.writeInt64(result);
-                return 0;
-            });
-        }
-        else {
-            if (DebugOnce('_sceIoWaitAsyncCB', 100))
-                log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
-            resultPointer.writeInt64(Integer64.fromNumber(0));
-            return Promise.resolve(1);
-        }
-    };
-    IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
-        var stat2 = new _structs.SceIoStat();
-        stat2.mode = 0;
-        stat2.size = stat.size;
-        stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
-        stat2.timeLastAccess = _structs.ScePspDateTime.fromDate(stat.timeLastAccess);
-        stat2.timeLastModification = _structs.ScePspDateTime.fromDate(stat.timeLastModification);
-        stat2.deviceDependentData[0] = stat.dependentData0 || 0;
-        stat2.deviceDependentData[1] = stat.dependentData1 || 0;
-        stat2.attributes = 0;
-        if (stat.isDirectory) {
-            stat2.mode = 0x1000;
-            stat2.attributes |= 16 /* Directory */;
-            stat2.attributes |= 4 /* CanRead */;
-        }
-        else {
-            stat2.mode = 0x2000;
-            stat2.attributes |= 32 /* File */;
-            stat2.attributes |= 1 /* CanExecute */;
-            stat2.attributes |= 4 /* CanRead */;
-            stat2.attributes |= 2 /* CanWrite */;
-        }
-        return stat2;
-    };
-    IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
-        var file = this.getFileById(fileId);
-        switch (whence) {
-            case 0 /* Set */:
-                file.cursor = 0 + offset;
-                break;
-            case 1 /* Cursor */:
-                file.cursor = file.cursor + offset;
-                break;
-            case 2 /* End */:
-                file.cursor = file.entry.size + offset;
-                break;
-        }
-        return file.cursor;
-    };
-    return IoFileMgrForUser;
-})();
-exports.IoFileMgrForUser = IoFileMgrForUser;
-
-},
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
@@ -19287,9 +19120,12 @@ var Atrac3 = (function () {
         get: function () {
             this.format.compressionCode;
             switch (this.codecType) {
-                case 4096 /* PSP_MODE_AT_3_PLUS */: return 0x800;
-                case 4097 /* PSP_MODE_AT_3 */: return 0x400;
-                default: throw (new Error("Unknown codec type"));
+                case 4096 /* PSP_MODE_AT_3_PLUS */:
+                    return 0x800;
+                case 4097 /* PSP_MODE_AT_3 */:
+                    return 0x400;
+                default:
+                    throw (new Error("Unknown codec type"));
             }
         },
         enumerable: true,
@@ -21651,15 +21487,24 @@ var sceUtility = (function () {
     };
     sceUtility.prototype._getKey = function (id) {
         switch (id) {
-            case 2 /* INT_ADHOC_CHANNEL */: return 0 /* AUTOMATIC */;
-            case 3 /* INT_WLAN_POWERSAVE */: return 1 /* ON */;
-            case 4 /* INT_DATE_FORMAT */: return 0 /* YYYYMMDD */;
-            case 5 /* INT_TIME_FORMAT */: return 0 /* _24HR */;
-            case 6 /* INT_TIMEZONE */: return -5 * 60;
-            case 7 /* INT_DAYLIGHTSAVINGS */: return 0 /* STD */;
-            case 8 /* INT_LANGUAGE */: return this.context.config.language;
-            case 9 /* INT_BUTTON_PREFERENCE */: return 1 /* NA */;
-            case 1 /* STRING_NICKNAME */: return "USERNAME";
+            case 2 /* INT_ADHOC_CHANNEL */:
+                return 0 /* AUTOMATIC */;
+            case 3 /* INT_WLAN_POWERSAVE */:
+                return 1 /* ON */;
+            case 4 /* INT_DATE_FORMAT */:
+                return 0 /* YYYYMMDD */;
+            case 5 /* INT_TIME_FORMAT */:
+                return 0 /* _24HR */;
+            case 6 /* INT_TIMEZONE */:
+                return -5 * 60;
+            case 7 /* INT_DAYLIGHTSAVINGS */:
+                return 0 /* STD */;
+            case 8 /* INT_LANGUAGE */:
+                return this.context.config.language;
+            case 9 /* INT_BUTTON_PREFERENCE */:
+                return 1 /* NA */;
+            case 1 /* STRING_NICKNAME */:
+                return "USERNAME";
         }
         throw (new Error("Invalid key " + id));
     };
@@ -23090,7 +22935,8 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
     code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
     switch (retval) {
-        case 'void': break;
+        case 'void':
+            break;
         case 'uint':
         case 'int':
             code += 'state.V0 = result | 0;\n';
@@ -23109,7 +22955,8 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
             code += 'state.V0 = result; state.V1 = 0;\n';
             code += '}\n';
             break;
-        default: throw ('Invalid return value "' + retval + '"');
+        default:
+            throw ('Invalid return value "' + retval + '"');
     }
     var nativeFunction = new exports.NativeFunction();
     nativeFunction.name = 'unknown';
@@ -23608,11 +23455,13 @@ function normalizePath(fullpath) {
     var parts = fullpath.replace(/\\/g, '/').split('/');
     parts.forEach(function (part) {
         switch (part) {
-            case '.': break;
+            case '.':
+                break;
             case '..':
                 out.pop();
                 break;
-            default: out.push(part);
+            default:
+                out.push(part);
         }
     });
     return out.join('/');
