@@ -1,9 +1,9 @@
 var fs = require("fs");
 var path = require("path");
-var watch = require("node-watch");
+var watch = require("./watch");
 var child_process = require("child_process");
-var dir = require("node-dir");
-var wrench = require('wrench');
+var wrench = require('./wrench');
+var _ = require('./underscore');
 
 function processDirectorySync(dir, matcher, out, basePath) {
 	if (matcher === undefined) matcher = function(fname) {return true; };
@@ -70,15 +70,33 @@ function generateCombinedCommonJs(mapFiles) {
 	var moduleNames = [];
 	for (var moduleName in mapFiles) moduleNames.push(moduleName);
 	moduleNames.sort();
-	
+
+	var references = /reference path="(.*?)"/g;
+	var globals = mapFiles['src/global.js'];
+	var result;
+	var globalModules = [];
+	while (result = references.exec(globals)) globalModules.push('src/' + result[1].replace('.ts', '.js'));
+	//console.log(globalModules);
+
+	//console.log(mapFiles['src/global.js']);
+
 	function isGlobal(moduleName) {
 		return moduleName.match(/^src\/global/);
 	}
-	
+
+	//console.log(mapFiles);
+
+	globalModules.forEach(function(moduleName) {
+		if (!isGlobal(moduleName)) return;
+		commonjsFile += mapFiles[moduleName] + "\n";
+	});
+
+	/*
 	moduleNames.forEach(function(moduleName) {
 		if (!isGlobal(moduleName)) return;
 		commonjsFile += mapFiles[moduleName] + "\n";
 	});
+	*/
 
 	commonjsFile += 'var require = (function() {\n';
 	commonjsFile += String(requireModules);

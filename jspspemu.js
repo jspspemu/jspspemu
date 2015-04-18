@@ -1,2007 +1,6 @@
-function identity(a) {
-    return a;
-}
-function funcTrue(a) {
-    return true;
-}
-function compareNumbers(a, b) {
-    if (a < b)
-        return -1;
-    if (a > b)
-        return +1;
-    return 0;
-}
-Array.prototype.contains = function (item) {
-    return this.indexOf(item) >= 0;
-};
-Array.prototype.binarySearchValue = function (selector) {
-    var array = this;
-    var index = array.binarySearchIndex(selector);
-    if (index < 0)
-        return null;
-    return array[index];
-};
-Array.prototype.binarySearchIndex = function (selector) {
-    var array = this;
-    var min = 0;
-    var max = array.length - 1;
-    var step = 0;
-    if (array.length == 0)
-        return -1;
-    while (true) {
-        var current = Math.floor((min + max) / 2);
-        var item = array[current];
-        var result = selector(item);
-        if (result == 0) {
-            return current;
-        }
-        if (((current == min) || (current == max))) {
-            if (min != max) {
-                min = max = current = (current != min) ? min : max;
-            }
-            else {
-                break;
-            }
-        }
-        else {
-            if (result < 0) {
-                max = current;
-            }
-            else if (result > 0) {
-                min = current;
-            }
-        }
-        step++;
-        if (step >= 64)
-            throw (new Error("Too much steps"));
-    }
-    return -1;
-};
-Array.prototype.min = (function (selector) {
-    var array = this;
-    if (!selector)
-        selector = function (a) { return a; };
-    if (array.length == 0)
-        return null;
-    return array.reduce(function (previous, current) {
-        return (selector(previous) < selector(current) ? previous : current);
-    }, array[0]);
-});
-Array.prototype.max = (function (selector) {
-    var array = this;
-    if (!selector)
-        selector = function (a) { return a; };
-    if (array.length == 0)
-        return null;
-    return array.reduce(function (previous, current) {
-        return (selector(previous) > selector(current) ? previous : current);
-    }, array[0]);
-});
-Array.prototype.sortBy = function (selector) {
-    return this.slice(0).sort(function (a, b) { return compare(selector(a), selector(b)); });
-};
-Array.prototype.cast = (function () {
-    return this;
-});
-Array.prototype.count = (function (selector) {
-    var array = this;
-    if (!selector)
-        selector = funcTrue;
-    var result = 0;
-    for (var n = 0; n < array.length; n++)
-        if (selector(array[n]))
-            result++;
-    return result;
-});
-Array.prototype.any = (function (selector) {
-    var array = this;
-    if (!selector)
-        selector = funcTrue;
-    for (var n = 0; n < array.length; n++)
-        if (selector(array[n]))
-            return true;
-    return false;
-});
-Array.prototype.first = (function (selector) {
-    var array = this;
-    if (!selector)
-        selector = identity;
-    for (var n = 0; n < array.length; n++)
-        if (selector(array[n]))
-            return array[n];
-    return undefined;
-});
-Array.prototype.sum = (function (selector) {
-    var array = this;
-    if (!selector)
-        selector = function (a) { return a; };
-    return array.reduce(function (previous, current) {
-        return previous + selector(current);
-    }, 0);
-});
-Array.prototype.remove = function (item) {
-    var array = this;
-    var index = array.indexOf(item);
-    if (index >= 0)
-        array.splice(index, 1);
-};
-Array.prototype.toLookupMap = function () {
-    var array = this;
-    var lookup = {};
-    for (var n = 0; n < array.length; n++) {
-        lookup[array[n]] = n;
-    }
-    return lookup;
-};
-Object.defineProperty(Array.prototype, "contains", { enumerable: false });
-Object.defineProperty(Array.prototype, "toLookupMap", { enumerable: false });
-Object.defineProperty(Array.prototype, "cast", { enumerable: false });
-Object.defineProperty(Array.prototype, "count", { enumerable: false });
-Object.defineProperty(Array.prototype, "any", { enumerable: false });
-Object.defineProperty(Array.prototype, "sum", { enumerable: false });
-Object.defineProperty(Array.prototype, "min", { enumerable: false });
-Object.defineProperty(Array.prototype, "max", { enumerable: false });
-Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
-Object.defineProperty(Array.prototype, "first", { enumerable: false });
-Object.defineProperty(Array.prototype, "remove", { enumerable: false });
-Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
-Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
-
-function waitAsync(timems) {
-    return new Promise(function (resolve, reject) {
-        setTimeout(resolve, timems);
-    });
-}
-function _downloadFileAsync(method, url, headers) {
-    return new Promise(function (resolve, reject) {
-        var request = new XMLHttpRequest();
-        request.open(method, url, true);
-        request.overrideMimeType("text/plain; charset=x-user-defined");
-        if (headers) {
-            for (var headerKey in headers) {
-                request.setRequestHeader(headerKey, headers[headerKey]);
-            }
-        }
-        request.responseType = "arraybuffer";
-        request.onerror = function (e) {
-            reject(e['error']);
-        };
-        request.onload = function (e) {
-            if (request.status < 400) {
-                resolve(request);
-            }
-            else {
-                reject(new Error("HTTP " + request.status));
-            }
-        };
-        request.send();
-    });
-}
-function downloadFileAsync(url, headers) {
-    return _downloadFileAsync('GET', url, headers).then(function (request) {
-        var arraybuffer = request.response;
-        return arraybuffer;
-    });
-}
-function downloadFileChunkAsync(url, from, count) {
-    var to = (from + count) - 1;
-    return downloadFileAsync(url, {
-        'Range': 'bytes=' + from + '-' + to
-    });
-}
-function statFileAsync(url) {
-    return _downloadFileAsync('HEAD', url).then(function (request) {
-        var size = parseInt(request.getResponseHeader('content-length'));
-        var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
-        return { size: size, date: date };
-    });
-}
-
-var Integer64 = (function () {
-    function Integer64(low, high) {
-        this._low = low | 0;
-        this._high = high | 0;
-    }
-    Integer64.fromInt = function (value) {
-        return new Integer64(value | 0, value < 0 ? -1 : 0);
-    };
-    Integer64.fromUnsignedInt = function (value) {
-        return new Integer64(value | 0, 0);
-    };
-    Integer64.fromBits = function (low, high) {
-        return new Integer64(low, high);
-    };
-    Integer64.fromNumber = function (value) {
-        if (isNaN(value) || !isFinite(value)) {
-            return Integer64.ZERO;
-        }
-        else if (value <= -Integer64._TWO_PWR_63_DBL) {
-            return Integer64.MIN_VALUE;
-        }
-        else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
-            return Integer64.MAX_VALUE;
-        }
-        else if (value < 0) {
-            return Integer64.fromNumber(-value).negate();
-        }
-        else {
-            return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
-        }
-    };
-    Object.defineProperty(Integer64.prototype, "low", {
-        get: function () {
-            return this._low;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Integer64.prototype, "lowUnsigned", {
-        get: function () {
-            return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Integer64.prototype, "high", {
-        get: function () {
-            return this._high;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Integer64.prototype, "number", {
-        get: function () {
-            return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Integer64.prototype.getNumber = function () {
-        return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
-    };
-    Integer64.prototype.equals = function (other) {
-        return (this._high == other._high) && (this._low == other._low);
-    };
-    Integer64.prototype.negate = function () {
-        if (this.equals(Integer64.MIN_VALUE))
-            return Integer64.MIN_VALUE;
-        return this.not().add(Integer64.ONE);
-    };
-    Integer64.prototype.not = function () {
-        return Integer64.fromBits(~this._low, ~this._high);
-    };
-    Integer64.prototype.isZero = function () {
-        return this._high == 0 && this._low == 0;
-    };
-    Integer64.prototype.isNegative = function () {
-        return this._high < 0;
-    };
-    Integer64.prototype.isOdd = function () {
-        return (this._low & 1) == 1;
-    };
-    Integer64.prototype.sub = function (other) {
-        return this.add(other.negate());
-    };
-    Integer64.prototype.add = function (other) {
-        var a48 = this._high >>> 16;
-        var a32 = this._high & 0xFFFF;
-        var a16 = this._low >>> 16;
-        var a00 = this._low & 0xFFFF;
-        var b48 = other._high >>> 16;
-        var b32 = other._high & 0xFFFF;
-        var b16 = other._low >>> 16;
-        var b00 = other._low & 0xFFFF;
-        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
-        c00 += a00 + b00;
-        c16 += c00 >>> 16;
-        c00 &= 0xFFFF;
-        c16 += a16 + b16;
-        c32 += c16 >>> 16;
-        c16 &= 0xFFFF;
-        c32 += a32 + b32;
-        c48 += c32 >>> 16;
-        c32 &= 0xFFFF;
-        c48 += a48 + b48;
-        c48 &= 0xFFFF;
-        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
-    };
-    Integer64.prototype.lessThan = function (other) {
-        return this.compare(other) < 0;
-    };
-    Integer64.prototype.compare = function (other) {
-        if (this.equals(other)) {
-            return 0;
-        }
-        var thisNeg = this.isNegative();
-        var otherNeg = other.isNegative();
-        if (thisNeg && !otherNeg) {
-            return -1;
-        }
-        if (!thisNeg && otherNeg) {
-            return 1;
-        }
-        if (this.sub(other).isNegative()) {
-            return -1;
-        }
-        else {
-            return 1;
-        }
-    };
-    Integer64.prototype.isLowEnoughForMul = function () {
-        if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL)
-            return true;
-        if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL)
-            return true;
-        return false;
-    };
-    Integer64.prototype.multiply = function (other) {
-        if (this.isZero())
-            return Integer64.ZERO;
-        if (other.isZero())
-            return Integer64.ZERO;
-        if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
-            return Integer64.fromNumber(this.getNumber() * other.getNumber());
-        }
-        if (this.equals(Integer64.MIN_VALUE))
-            return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
-        if (other.equals(Integer64.MIN_VALUE))
-            return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
-        if (this.isNegative()) {
-            if (other.isNegative())
-                return this.negate().multiply(other.negate());
-            return this.negate().multiply(other).negate();
-        }
-        if (other.isNegative())
-            return this.multiply(other.negate()).negate();
-        var a48 = this._high >>> 16;
-        var a32 = this._high & 0xFFFF;
-        var a16 = this._low >>> 16;
-        var a00 = this._low & 0xFFFF;
-        var b48 = other._high >>> 16;
-        var b32 = other._high & 0xFFFF;
-        var b16 = other._low >>> 16;
-        var b00 = other._low & 0xFFFF;
-        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
-        c00 += a00 * b00;
-        c16 += c00 >>> 16;
-        c00 &= 0xFFFF;
-        c16 += a16 * b00;
-        c32 += c16 >>> 16;
-        c16 &= 0xFFFF;
-        c16 += a00 * b16;
-        c32 += c16 >>> 16;
-        c16 &= 0xFFFF;
-        c32 += a32 * b00;
-        c48 += c32 >>> 16;
-        c32 &= 0xFFFF;
-        c32 += a16 * b16;
-        c48 += c32 >>> 16;
-        c32 &= 0xFFFF;
-        c32 += a00 * b32;
-        c48 += c32 >>> 16;
-        c32 &= 0xFFFF;
-        c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
-        c48 &= 0xFFFF;
-        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
-    };
-    Integer64.ZERO = Integer64.fromInt(0);
-    Integer64.ONE = Integer64.fromInt(1);
-    Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
-    Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
-    Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
-    Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
-    Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
-    Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
-    Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
-    Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
-    return Integer64;
-})();
-
-var mat4 = (function () {
-    function mat4() {
-    }
-    mat4.create = function () {
-        return new Float32Array([
-            1,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            1
-        ]);
-    };
-    mat4.identity = function (data) {
-        data[0] = 1;
-        data[1] = 0;
-        data[2] = 0;
-        data[3] = 0;
-        data[4] = 0;
-        data[5] = 1;
-        data[6] = 0;
-        data[7] = 0;
-        data[8] = 0;
-        data[9] = 0;
-        data[10] = 1;
-        data[11] = 0;
-        data[12] = 0;
-        data[13] = 0;
-        data[14] = 0;
-        data[15] = 1;
-    };
-    mat4.ortho = function (out, left, right, bottom, top, near, far) {
-        var lr = 1 / (left - right), bt = 1 / (bottom - top), nf = 1 / (near - far);
-        out[0] = -2 * lr;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
-        out[4] = 0;
-        out[5] = -2 * bt;
-        out[6] = 0;
-        out[7] = 0;
-        out[8] = 0;
-        out[9] = 0;
-        out[10] = 2 * nf;
-        out[11] = 0;
-        out[12] = (left + right) * lr;
-        out[13] = (top + bottom) * bt;
-        out[14] = (far + near) * nf;
-        out[15] = 1;
-        return out;
-    };
-    mat4.multiply = function (out, a, b) {
-        var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3], a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7], a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11], a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
-        var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
-        out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-        out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-        out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-        out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-        b0 = b[4];
-        b1 = b[5];
-        b2 = b[6];
-        b3 = b[7];
-        out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-        out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-        out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-        out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-        b0 = b[8];
-        b1 = b[9];
-        b2 = b[10];
-        b3 = b[11];
-        out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-        out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-        out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-        out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-        b0 = b[12];
-        b1 = b[13];
-        b2 = b[14];
-        b3 = b[15];
-        out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-        out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-        out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-        out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-        return out;
-    };
-    mat4.scale = function (out, a, v) {
-        var x = v[0], y = v[1], z = v[2];
-        out[0] = a[0] * x;
-        out[1] = a[1] * x;
-        out[2] = a[2] * x;
-        out[3] = a[3] * x;
-        out[4] = a[4] * y;
-        out[5] = a[5] * y;
-        out[6] = a[6] * y;
-        out[7] = a[7] * y;
-        out[8] = a[8] * z;
-        out[9] = a[9] * z;
-        out[10] = a[10] * z;
-        out[11] = a[11] * z;
-        out[12] = a[12];
-        out[13] = a[13];
-        out[14] = a[14];
-        out[15] = a[15];
-        return out;
-    };
-    mat4.translate = function (out, a, v) {
-        var x = v[0], y = v[1], z = v[2], a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23;
-        if (a === out) {
-            out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
-            out[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
-            out[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
-            out[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
-        }
-        else {
-            a00 = a[0];
-            a01 = a[1];
-            a02 = a[2];
-            a03 = a[3];
-            a10 = a[4];
-            a11 = a[5];
-            a12 = a[6];
-            a13 = a[7];
-            a20 = a[8];
-            a21 = a[9];
-            a22 = a[10];
-            a23 = a[11];
-            out[0] = a00;
-            out[1] = a01;
-            out[2] = a02;
-            out[3] = a03;
-            out[4] = a10;
-            out[5] = a11;
-            out[6] = a12;
-            out[7] = a13;
-            out[8] = a20;
-            out[9] = a21;
-            out[10] = a22;
-            out[11] = a23;
-            out[12] = a00 * x + a10 * y + a20 * z + a[12];
-            out[13] = a01 * x + a11 * y + a21 * z + a[13];
-            out[14] = a02 * x + a12 * y + a22 * z + a[14];
-            out[15] = a03 * x + a13 * y + a23 * z + a[15];
-        }
-        return out;
-    };
-    return mat4;
-})();
-if (typeof self == 'undefined')
-    window = self = global;
-if (typeof navigator == 'undefined')
-    navigator = {};
-self['polyfills'] = self['polyfills'] || {};
-self['polyfills']['log2'] = !Math['log2'];
-if (!Math.log2) {
-    Math.log2 = function (x) {
-        return Math.log(x) / Math.LN2;
-    };
-}
-self['polyfills']['log10'] = !Math['log10'];
-if (!Math.log10) {
-    Math.log10 = function (x) {
-        return Math.log(x) / Math.LN10;
-    };
-}
-self['polyfills']['sign'] = !Math['sign'];
-if (!Math['sign']) {
-    Math['sign'] = function (x) {
-        if (x < 0)
-            return -1;
-        if (x > 0)
-            return +1;
-        return 0;
-    };
-}
-self['polyfills']['rint'] = !Math['rint'];
-if (!Math['rint']) {
-    Math['rint'] = function (value) {
-        var twoToThe52 = Math.pow(2, 52);
-        var sign = Math.sign(value);
-        value = Math.abs(value);
-        if (value < twoToThe52)
-            value = ((twoToThe52 + value) - twoToThe52);
-        return sign * value;
-    };
-}
-self['polyfills']['clz32'] = !Math['clz32'];
-if (!Math['clz32']) {
-    Math['clz32'] = function (x) {
-        x >>>= 0;
-        if (x == 0)
-            return 32;
-        var result = 0;
-        if ((x & 0xFFFF0000) === 0) {
-            x <<= 16;
-            result += 16;
-        }
-        if ((x & 0xFF000000) === 0) {
-            x <<= 8;
-            result += 8;
-        }
-        if ((x & 0xF0000000) === 0) {
-            x <<= 4;
-            result += 4;
-        }
-        if ((x & 0xC0000000) === 0) {
-            x <<= 2;
-            result += 2;
-        }
-        if ((x & 0x80000000) === 0) {
-            x <<= 1;
-            result += 1;
-        }
-        return result;
-    };
-}
-self['polyfills']['trunc'] = !Math['trunc'];
-if (!Math['trunc']) {
-    Math['trunc'] = function (x) {
-        if (x < 0) {
-            return Math.ceil(x) | 0;
-        }
-        else {
-            return Math.floor(x) | 0;
-        }
-    };
-}
-self['polyfills']['imul'] = !Math['imul'];
-if (!Math['imul']) {
-    Math['imul'] = function (a, b) {
-        var ah = (a >>> 16) & 0xffff;
-        var al = a & 0xffff;
-        var bh = (b >>> 16) & 0xffff;
-        var bl = b & 0xffff;
-        return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
-    };
-}
-self['polyfills']['umul32_64'] = !Math['umul32_64'];
-if (!Math.umul32_64) {
-    Math.umul32_64 = function (a, b, result) {
-        if (result === undefined)
-            result = [0, 0];
-        a >>>= 0;
-        b >>>= 0;
-        if (a < 32767 && b < 65536) {
-            result[0] = a * b;
-            result[1] = (result[0] < 0) ? -1 : 0;
-            return result;
-        }
-        var a00 = a & 0xFFFF, a16 = a >>> 16;
-        var b00 = b & 0xFFFF, b16 = b >>> 16;
-        var c00 = a00 * b00;
-        var c16 = (c00 >>> 16) + (a16 * b00);
-        var c32 = c16 >>> 16;
-        c16 = (c16 & 0xFFFF) + (a00 * b16);
-        c32 += c16 >>> 16;
-        var c48 = c32 >>> 16;
-        c32 = (c32 & 0xFFFF) + (a16 * b16);
-        c48 += c32 >>> 16;
-        result[0] = ((c16 & 0xFFFF) << 16) | (c00 & 0xFFFF);
-        result[1] = ((c48 & 0xFFFF) << 16) | (c32 & 0xFFFF);
-        return result;
-    };
-}
-self['polyfills']['imul32_64'] = !Math['imul32_64'];
-if (!Math.imul32_64) {
-    Math.imul32_64 = function (a, b, result) {
-        if (result === undefined)
-            result = [0, 0];
-        if (a == 0) {
-            result[0] = result[1] = 0;
-            return result;
-        }
-        if (b == 0) {
-            result[0] = result[1] = 0;
-            return result;
-        }
-        a |= 0;
-        b |= 0;
-        if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
-            result[0] = a * b;
-            result[1] = (result[0] < 0) ? -1 : 0;
-            return result;
-        }
-        var doNegate = (a < 0) ^ (b < 0);
-        Math.umul32_64(Math.abs(a), Math.abs(b), result);
-        if (doNegate) {
-            result[0] = ~result[0];
-            result[1] = ~result[1];
-            result[0] = (result[0] + 1) | 0;
-            if (result[0] == 0)
-                result[1] = (result[1] + 1) | 0;
-        }
-        return result;
-    };
-}
-self['polyfills']['fround'] = !Math['fround'];
-if (!Math['fround']) {
-    Math['fround'] = function (x) {
-        var f32 = new Float32Array(1);
-        f32[0] = x;
-        return f32[0];
-    };
-}
-var BitUtils = (function () {
-    function BitUtils() {
-    }
-    BitUtils.mask = function (value) {
-        return (1 << value) - 1;
-    };
-    BitUtils.bitrev32 = function (v) {
-        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1);
-        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2);
-        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4);
-        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8);
-        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16);
-        return v;
-    };
-    BitUtils.rotr = function (value, offset) {
-        return (value >>> offset) | (value << (32 - offset));
-    };
-    BitUtils.clo = function (x) {
-        return Math['clz32'](~x);
-    };
-    BitUtils.clz = function (x) {
-        return Math['clz32'](x);
-    };
-    BitUtils.seb = function (x) {
-        x = x & 0xFF;
-        if ((x & 0x80) != 0)
-            x = 0xFFFFFF00 | x;
-        return x;
-    };
-    BitUtils.seh = function (x) {
-        return (((x & 0xFFFF) << 16) >> 16);
-    };
-    BitUtils.wsbh = function (v) {
-        return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
-    };
-    BitUtils.wsbw = function (v) {
-        return (((v & 0xFF000000) >>> 24) | ((v & 0x00FF0000) >>> 8) | ((v & 0x0000FF00) << 8) | ((v & 0x000000FF) << 24));
-    };
-    BitUtils.extract = function (data, offset, length) {
-        return (data >> offset) & ((1 << length) - 1);
-    };
-    BitUtils.extractBool = function (data, offset) {
-        return (this.extract(data, offset, 1) != 0);
-    };
-    BitUtils.extractSigned = function (data, offset, length) {
-        var mask = this.mask(length);
-        var value = this.extract(data, offset, length);
-        var signBit = (1 << (offset + (length - 1)));
-        if ((value & signBit) != 0)
-            value |= ~mask;
-        return value;
-    };
-    BitUtils.extractScale1f = function (data, offset, length) {
-        var mask = (1 << length) - 1;
-        return (((data >>> offset) & mask) / mask);
-    };
-    BitUtils.extractScalef = function (data, offset, length, scale) {
-        return BitUtils.extractScale1f(data, offset, length) * scale;
-    };
-    BitUtils.extractScalei = function (data, offset, length, scale) {
-        return this.extractScalef(data, offset, length, scale) | 0;
-    };
-    BitUtils.extractEnum = function (data, offset, length) {
-        return this.extract(data, offset, length);
-    };
-    BitUtils.clear = function (data, offset, length) {
-        data &= ~(BitUtils.mask(length) << offset);
-        return data;
-    };
-    BitUtils.insert = function (data, offset, length, value) {
-        value &= BitUtils.mask(length);
-        data = BitUtils.clear(data, offset, length);
-        data |= value << offset;
-        return data;
-    };
-    return BitUtils;
-})();
-var MathVfpu = (function () {
-    function MathVfpu() {
-    }
-    MathVfpu.vqmul0 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
-        return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0);
-    };
-    MathVfpu.vqmul1 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
-        return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1);
-    };
-    MathVfpu.vqmul2 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
-        return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2);
-    };
-    MathVfpu.vqmul3 = function (s0, s1, s2, s3, t0, t1, t2, t3) {
-        return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3);
-    };
-    MathVfpu.vc2i = function (index, value) {
-        return (value << ((3 - index) * 8)) & 0xFF000000;
-    };
-    MathVfpu.vuc2i = function (index, value) {
-        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
-    };
-    MathVfpu.vs2i = function (index, value) {
-        if ((index % 2) == 0)
-            value <<= 16;
-        return value & 0xFFFF0000;
-    };
-    MathVfpu.vi2f = function (value, count) {
-        return MathFloat.scalb(value, count);
-    };
-    MathVfpu.vi2uc = function (x, y, z, w) {
-        return (0 | ((x < 0) ? 0 : ((x >>> 23) << 0)) | ((y < 0) ? 0 : ((y >>> 23) << 8)) | ((z < 0) ? 0 : ((z >>> 23) << 16)) | ((w < 0) ? 0 : ((w >>> 23) << 24)));
-    };
-    MathVfpu.vf2id = function (value, count) {
-        return MathFloat.floor(MathFloat.scalb(value, count));
-    };
-    MathVfpu.vf2in = function (value, count) {
-        return MathFloat.rint(MathFloat.scalb(value, count));
-    };
-    MathVfpu.vf2iu = function (value, count) {
-        return MathFloat.ceil(MathFloat.scalb(value, count));
-    };
-    MathVfpu.vf2iz = function (Value, count) {
-        var ScalabValue = MathFloat.scalb(Value, count);
-        var DoubleValue = (Value >= 0) ? MathFloat.floor(ScalabValue) : MathFloat.ceil(ScalabValue);
-        return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
-    };
-    MathVfpu.vf2h = function () {
-        return 0;
-    };
-    MathVfpu.vh2f = function () {
-        return 0;
-    };
-    return MathVfpu;
-})();
-var MathFloat = (function () {
-    function MathFloat() {
-    }
-    MathFloat.reinterpretFloatAsInt = function (floatValue) {
-        MathFloat.floatArray[0] = floatValue;
-        return MathFloat.intArray[0];
-    };
-    MathFloat.reinterpretIntAsFloat = function (integerValue) {
-        MathFloat.intArray[0] = integerValue;
-        return MathFloat.floatArray[0];
-    };
-    MathFloat.scalb = function (value, count) {
-        return value * Math.pow(2, count);
-    };
-    MathFloat.min = function (a, b) {
-        return (a < b) ? a : b;
-    };
-    MathFloat.max = function (a, b) {
-        return (a > b) ? a : b;
-    };
-    MathFloat.isnan = function (n) {
-        return isNaN(n);
-    };
-    MathFloat.isinf = function (n) {
-        return n === n / 0;
-    };
-    MathFloat.isnanorinf = function (n) {
-        return MathFloat.isnan(n) || MathFloat.isinf(n);
-    };
-    MathFloat.abs = function (value) {
-        return Math.abs(value);
-    };
-    MathFloat.neg = function (value) {
-        return -value;
-    };
-    MathFloat.ocp = function (value) {
-        return 1 - value;
-    };
-    MathFloat.nrcp = function (value) {
-        return -(1 / value);
-    };
-    MathFloat.sat0 = function (value) {
-        return MathUtils.clamp(value, 0, +1);
-    };
-    MathFloat.sat1 = function (value) {
-        return MathUtils.clamp(value, -1, +1);
-    };
-    MathFloat.rsq = function (value) {
-        return 1 / Math.sqrt(value);
-    };
-    MathFloat.sqrt = function (value) {
-        return Math.sqrt(value);
-    };
-    MathFloat.rint = function (value) {
-        if (!isFinite(value))
-            return handleCastInfinite(value);
-        return Math.rint(value);
-    };
-    MathFloat.cast = function (value) {
-        if (!isFinite(value))
-            return handleCastInfinite(value);
-        return (value < 0) ? Math.ceil(value) : Math.floor(value);
-    };
-    MathFloat.trunc = function (value) {
-        if (!isFinite(value))
-            return handleCastInfinite(value);
-        return Math.trunc(value);
-    };
-    MathFloat.round = function (value) {
-        if (!isFinite(value))
-            return handleCastInfinite(value);
-        return Math.round(value);
-    };
-    MathFloat.floor = function (value) {
-        if (!isFinite(value))
-            return handleCastInfinite(value);
-        return Math.floor(value);
-    };
-    MathFloat.ceil = function (value) {
-        if (!isFinite(value))
-            return handleCastInfinite(value);
-        return Math.ceil(value);
-    };
-    MathFloat.cosv1 = function (value) {
-        return Math.cos(value * Math.PI * 0.5);
-    };
-    MathFloat.sinv1 = function (value) {
-        return Math.sin(value * Math.PI * 0.5);
-    };
-    MathFloat.nsinv1 = function (value) {
-        return -Math.sin(value * Math.PI * 0.5);
-    };
-    MathFloat.asinv1 = function (value) {
-        return Math.asin(value) / (Math.PI * 0.5);
-    };
-    MathFloat.exp2 = function (value) {
-        return Math.pow(2.0, value);
-    };
-    MathFloat.rexp2 = function (value) {
-        return 1 / Math.pow(2.0, value);
-    };
-    MathFloat.log2 = function (value) {
-        return Math.log2(value);
-    };
-    MathFloat.sign = function (value) {
-        return Math.sign(value);
-    };
-    MathFloat.sign2 = function (left, right) {
-        var a = left - right;
-        return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0));
-    };
-    MathFloat.vslt = function (a, b) {
-        if (isNaN(a) || isNaN(b))
-            return 0;
-        return (a < b) ? 1 : 0;
-    };
-    MathFloat.vsle = function (a, b) {
-        if (isNaN(a) || isNaN(b))
-            return 0;
-        return (a <= b) ? 1 : 0;
-    };
-    MathFloat.vsgt = function (a, b) {
-        if (isNaN(a) || isNaN(b))
-            return 0;
-        return (a > b) ? 1 : 0;
-    };
-    MathFloat.vsge = function (a, b) {
-        if (isNaN(a) || isNaN(b))
-            return 0;
-        return (a >= b) ? 1 : 0;
-    };
-    MathFloat.clamp = function (v, min, max) {
-        if (v < min)
-            return min;
-        if (v > max)
-            return max;
-        return v;
-    };
-    MathFloat.reinterpretBuffer = new ArrayBuffer(4);
-    MathFloat.floatArray = new Float32Array(MathFloat.reinterpretBuffer);
-    MathFloat.intArray = new Int32Array(MathFloat.reinterpretBuffer);
-    return MathFloat;
-})();
-window.BitUtils = BitUtils;
-window.MathUtils = MathUtils;
-window.MathFloat = MathFloat;
-window.MathVfpu = MathVfpu;
-function handleCastInfinite(value) {
-    return (value < 0) ? -2147483648 : 2147483647;
-}
-function compare(a, b) {
-    if (a < b)
-        return -1;
-    if (a > b)
-        return +1;
-    return 0;
-}
-function parseIntFormat(str) {
-    str = str.replace(/_/g, '');
-    if (str.substr(0, 2) == '0b')
-        return parseInt(str.substr(2), 2);
-    if (str.substr(0, 2) == '0x')
-        return parseInt(str.substr(2), 16);
-    return parseInt(str, 10);
-}
-var MathUtils = (function () {
-    function MathUtils() {
-    }
-    MathUtils.sextend16 = function (value) {
-        return (((value & 0xFFFF) << 16) >> 16);
-    };
-    MathUtils.prevAligned = function (value, alignment) {
-        return Math.floor(value / alignment) * alignment;
-    };
-    MathUtils.isAlignedTo = function (value, alignment) {
-        return (value % alignment) == 0;
-    };
-    MathUtils.requiredBlocks = function (size, blockSize) {
-        if ((size % blockSize) != 0) {
-            return (size / blockSize) + 1;
-        }
-        else {
-            return size / blockSize;
-        }
-    };
-    MathUtils.isPowerOfTwo = function (x) {
-        return (x != 0) && ((x & (x - 1)) == 0);
-    };
-    MathUtils.nextAligned = function (value, alignment) {
-        if (alignment <= 1)
-            return value;
-        if ((value % alignment) == 0)
-            return value;
-        return value + (alignment - (value % alignment));
-    };
-    MathUtils.clamp = function (v, min, max) {
-        if (v < min)
-            return min;
-        if (v > max)
-            return max;
-        return v;
-    };
-    return MathUtils;
-})();
-var IntUtils = (function () {
-    function IntUtils() {
-    }
-    IntUtils.toHexString = function (value, padCount) {
-        var str = (value >>> 0).toString(16);
-        while (str.length < padCount)
-            str = '0' + str;
-        return str;
-    };
-    return IntUtils;
-})();
-var StringUtils = (function () {
-    function StringUtils() {
-    }
-    StringUtils.padLeft = function (text, padchar, length) {
-        while (text.length < length)
-            text = padchar + text;
-        return text;
-    };
-    return StringUtils;
-})();
-function ToUint32(x) {
-    return x >>> 0;
-}
-function ToInt32(x) {
-    return x | 0;
-}
-var ArrayUtils = (function () {
-    function ArrayUtils() {
-    }
-    ArrayUtils.create2D = function (w, h, generator) {
-        if (!generator)
-            generator = function (x, y) { return null; };
-        var matrix = [];
-        for (var y = 0; y < h; y++) {
-            var row = [];
-            for (var x = 0; x < w; x++) {
-                row.push(generator(x, y));
-            }
-            matrix.push(row);
-        }
-        return matrix;
-    };
-    ArrayUtils.range = function (start, end) {
-        var array = [];
-        for (var n = start; n < end; n++)
-            array.push(n);
-        return array;
-    };
-    return ArrayUtils;
-})();
-function xrange(start, end) {
-    return ArrayUtils.range(start, end);
-}
-
-var __extends = this.__extends || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
-};
-var ProxyAsyncStream = (function () {
-    function ProxyAsyncStream(stream) {
-        this.stream = stream;
-    }
-    Object.defineProperty(ProxyAsyncStream.prototype, "name", {
-        get: function () {
-            return this.stream.name;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ProxyAsyncStream.prototype, "date", {
-        get: function () {
-            return this.stream.date;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ProxyAsyncStream.prototype, "size", {
-        get: function () {
-            return this.stream.size;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    ProxyAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        return this.stream.readChunkAsync(offset, count);
-    };
-    return ProxyAsyncStream;
-})();
-var BufferedAsyncStream = (function (_super) {
-    __extends(BufferedAsyncStream, _super);
-    function BufferedAsyncStream(stream, bufferSize) {
-        if (bufferSize === void 0) { bufferSize = 131072; }
-        _super.call(this, stream);
-        this.bufferSize = bufferSize;
-        this.cache = { start: 0, end: 0, data: new ArrayBuffer(0) };
-    }
-    Object.defineProperty(BufferedAsyncStream.prototype, "name", {
-        get: function () {
-            return this.stream.name + '+buffered';
-        },
-        enumerable: true,
-        configurable: true
-    });
-    BufferedAsyncStream.prototype.getCachedEntry = function (start, end) {
-        if (start >= this.cache.start && end <= this.cache.end) {
-            return this.cache;
-        }
-        else {
-            return null;
-        }
-    };
-    BufferedAsyncStream.prototype.putCacheEntry = function (start, data) {
-        this.cache.start = start;
-        this.cache.end = start + data.byteLength;
-        this.cache.data = data;
-    };
-    BufferedAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        var _this = this;
-        var availableFromOffset = this.size - offset;
-        var start = offset;
-        var end = offset + count;
-        var cache = this.getCachedEntry(start, end);
-        if (cache) {
-            return Promise.resolve(cache.data.slice(start - cache.start, end - cache.start));
-        }
-        else {
-            var bigCount = Math.max(count, this.bufferSize);
-            bigCount = Math.min(bigCount, availableFromOffset);
-            end = start + bigCount;
-            return this.stream.readChunkAsync(offset, bigCount).then(function (data) {
-                _this.putCacheEntry(start, data);
-                return _this.readChunkAsync(offset, count);
-            });
-        }
-    };
-    return BufferedAsyncStream;
-})(ProxyAsyncStream);
-var MemoryAsyncStream = (function () {
-    function MemoryAsyncStream(data, name, date) {
-        if (name === void 0) { name = 'memory'; }
-        if (date === void 0) { date = new Date(); }
-        this.data = data;
-        this.name = name;
-        this.date = date;
-    }
-    MemoryAsyncStream.fromArrayBuffer = function (data) {
-        return new MemoryAsyncStream(data);
-    };
-    Object.defineProperty(MemoryAsyncStream.prototype, "size", {
-        get: function () {
-            return this.data.byteLength;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    MemoryAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        return Promise.resolve(this.data.slice(offset, offset + count));
-    };
-    return MemoryAsyncStream;
-})();
-var UrlAsyncStream = (function () {
-    function UrlAsyncStream(url, stat) {
-        this.url = url;
-        this.stat = stat;
-        this.name = url;
-        this.date = stat.date;
-    }
-    UrlAsyncStream.fromUrlAsync = function (url) {
-        console.info('open ', url);
-        return statFileAsync(url).then(function (stat) {
-            console.info('fromUrlAsync', stat);
-            if (stat.size == 0) {
-                console.error("Invalid file with size '" + stat.size + "'", stat);
-                throw (new Error("Invalid file with size '" + stat.size + "'"));
-            }
-            if (stat.size < 5 * 1024 * 1024) {
-                return downloadFileAsync(url).then(function (data) { return MemoryAsyncStream.fromArrayBuffer(data); });
-            }
-            else {
-                return Promise.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
-            }
-        });
-    };
-    Object.defineProperty(UrlAsyncStream.prototype, "size", {
-        get: function () {
-            return this.stat.size;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
-        return downloadFileChunkAsync(this.url, offset, count);
-    };
-    return UrlAsyncStream;
-})();
-var FileAsyncStream = (function () {
-    function FileAsyncStream(file) {
-        this.file = file;
-        this.date = file.lastModifiedDate;
-    }
-    Object.defineProperty(FileAsyncStream.prototype, "name", {
-        get: function () {
-            return this.file.name;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(FileAsyncStream.prototype, "size", {
-        get: function () {
-            return this.file.size;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    FileAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        var _this = this;
-        return new Promise(function (resolve, reject) {
-            var fileReader = new FileReader();
-            fileReader.onload = function (e) {
-                resolve(fileReader.result);
-            };
-            fileReader.onerror = function (e) {
-                reject(e['error']);
-            };
-            fileReader.readAsArrayBuffer(_this.file.slice(offset, offset + count));
-        });
-    };
-    return FileAsyncStream;
-})();
-var Stream = (function () {
-    function Stream(data, offset) {
-        if (offset === void 0) { offset = 0; }
-        this.data = data;
-        this.offset = offset;
-    }
-    Stream.fromArrayBuffer = function (data) {
-        return new Stream(new DataView(data));
-    };
-    Stream.fromDataView = function (data, offset) {
-        if (offset === void 0) { offset = 0; }
-        return new Stream(data);
-    };
-    Stream.fromBase64 = function (data) {
-        var outstr = atob(data);
-        var out = new ArrayBuffer(outstr.length);
-        var ia = new Uint8Array(out);
-        for (var n = 0; n < outstr.length; n++)
-            ia[n] = outstr.charCodeAt(n);
-        return new Stream(new DataView(out));
-    };
-    Stream.fromUint8Array = function (array) {
-        return Stream.fromArray(array);
-    };
-    Stream.fromSize = function (size) {
-        return Stream.fromUint8Array(new Uint8Array(size));
-    };
-    Stream.fromArray = function (array) {
-        var buffer = new ArrayBuffer(array.length);
-        var w8 = new Uint8Array(buffer);
-        for (var n = 0; n < array.length; n++)
-            w8[n] = array[n];
-        return new Stream(new DataView(buffer));
-    };
-    Stream.prototype.toImageUrl = function () {
-        try {
-            var urlCreator = window['URL'] || window['webkitURL'];
-            var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
-            return urlCreator.createObjectURL(blob);
-        }
-        catch (e) {
-            return 'data:image/png;base64,' + this.toBase64();
-        }
-    };
-    Stream.prototype.toBase64 = function () {
-        var out = '';
-        var array = this.toUInt8Array();
-        for (var n = 0; n < array.length; n++) {
-            out += String.fromCharCode(array[n]);
-        }
-        return btoa(out);
-    };
-    Stream.prototype.toStringAll = function () {
-        return this.sliceWithLength(0).readString(this.length);
-    };
-    Stream.prototype.toUInt8Array = function () {
-        return new Uint8Array(this.toArrayBuffer());
-    };
-    Stream.prototype.toArrayBuffer = function () {
-        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
-    };
-    Stream.prototype.clone = function () {
-        return this.sliceWithLowHigh(this.position, this.length);
-    };
-    Stream.prototype.slice = function () {
-        return this.clone();
-    };
-    Stream.prototype.sliceFrom = function (low) {
-        return this.sliceWithLength(low);
-    };
-    Stream.prototype.sliceWithLength = function (low, count) {
-        if (count === undefined)
-            count = this.length - low;
-        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
-    };
-    Stream.prototype.sliceWithLowHigh = function (low, high) {
-        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, high - low));
-    };
-    Object.defineProperty(Stream.prototype, "available", {
-        get: function () {
-            return this.length - this.offset;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Stream.prototype, "length", {
-        get: function () {
-            return this.data.byteLength;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Stream.prototype, "position", {
-        get: function () {
-            return this.offset;
-        },
-        set: function (value) {
-            this.offset = value;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Stream.prototype.skip = function (count, pass) {
-        this.offset += count;
-        return pass;
-    };
-    Stream.prototype.set = function (index, value) {
-        this.data.setInt8(index, value);
-        return this;
-    };
-    Stream.prototype.get = function (index) {
-        return this.data.getUint8(index);
-    };
-    Stream.prototype.readInt8 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(1, this.data.getInt8(this.offset));
-    };
-    Stream.prototype.readInt16 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(2, this.data.getInt16(this.offset, (endian == 0 /* LITTLE */)));
-    };
-    Stream.prototype.readInt32 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(4, this.data.getInt32(this.offset, (endian == 0 /* LITTLE */)));
-    };
-    Stream.prototype.readInt64 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        var items = [this.readUInt32(endian), this.readUInt32(endian)];
-        var low = items[(endian == 0 /* LITTLE */) ? 0 : 1];
-        var high = items[(endian == 0 /* LITTLE */) ? 1 : 0];
-        return Integer64.fromBits(low, high);
-    };
-    Stream.prototype.readFloat32 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(4, this.data.getFloat32(this.offset, (endian == 0 /* LITTLE */)));
-    };
-    Stream.prototype.readUInt8 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(1, this.data.getUint8(this.offset));
-    };
-    Stream.prototype.readUInt16 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(2, this.data.getUint16(this.offset, (endian == 0 /* LITTLE */)));
-    };
-    Stream.prototype.readUInt32 = function (endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this.skip(4, this.data.getUint32(this.offset, (endian == 0 /* LITTLE */)));
-    };
-    Stream.prototype.readStruct = function (struct) {
-        return struct.read(this);
-    };
-    Stream.prototype.copyTo = function (other) {
-        other.writeBytes(this.readBytes(this.available));
-    };
-    Stream.prototype.writeByteRepeated = function (value, count) {
-        if (count === void 0) { count = -1; }
-        if (count < 0)
-            count = this.available;
-        for (var n = 0; n < count; n++)
-            this.data.setInt8(this.offset + n, value);
-        this.skip(n);
-        return this;
-    };
-    Stream.prototype.writeInt8 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setInt8(this.offset, value);
-        return this.skip(1, this);
-    };
-    Stream.prototype.writeInt16 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setInt16(this.offset, value, (endian == 0 /* LITTLE */));
-        return this.skip(2, this);
-    };
-    Stream.prototype.writeInt32 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setInt32(this.offset, value, (endian == 0 /* LITTLE */));
-        return this.skip(4, this);
-    };
-    Stream.prototype.writeInt64 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this._writeUInt64(value, endian);
-    };
-    Stream.prototype.writeFloat32 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setFloat32(this.offset, value, (endian == 0 /* LITTLE */));
-        return this.skip(4, this);
-    };
-    Stream.prototype.writeUInt8 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setUint8(this.offset, value);
-        return this.skip(1, this);
-    };
-    Stream.prototype.writeUInt16 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setUint16(this.offset, value, (endian == 0 /* LITTLE */));
-        return this.skip(2, this);
-    };
-    Stream.prototype.writeUInt32 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.data.setUint32(this.offset, value, (endian == 0 /* LITTLE */));
-        return this.skip(4, this);
-    };
-    Stream.prototype.writeUInt64 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        return this._writeUInt64(value, endian);
-    };
-    Stream.prototype._writeUInt64 = function (value, endian) {
-        if (endian === void 0) { endian = 0 /* LITTLE */; }
-        this.writeUInt32((endian == 0 /* LITTLE */) ? value.low : value.high, endian);
-        this.writeUInt32((endian == 0 /* LITTLE */) ? value.high : value.low, endian);
-        return this;
-    };
-    Stream.prototype.writeStruct = function (struct, value) {
-        struct.write(this, value);
-    };
-    Stream.prototype.writeStream = function (stream) {
-        return this.writeBytes(stream.slice().readBytes(stream.available));
-    };
-    Stream.prototype.writeString = function (str) {
-        var _this = this;
-        try {
-            str.split('').forEach(function (char) {
-                _this.writeUInt8(char.charCodeAt(0));
-            });
-        }
-        catch (e) {
-            console.log("Can't write string '" + str + "'");
-            debugger;
-            console.warn(this.data);
-            console.error(e);
-            throw (e);
-        }
-    };
-    Stream.prototype.writeStringz = function (str) {
-        return this.writeString(str + String.fromCharCode(0));
-    };
-    Stream.prototype.writeBytes = function (data) {
-        var out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
-        out.set(data, this.offset);
-        this.skip(data.length);
-    };
-    Stream.prototype.readBytes = function (count) {
-        return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
-    };
-    Stream.prototype.readAllBytes = function () {
-        return this.readBytes(this.available);
-    };
-    Stream.prototype.readInt16Array = function (count) {
-        return this.skip(count, new Int16Array(this.data.buffer, this.data.byteOffset + this.offset, count));
-    };
-    Stream.prototype.readFloat32Array = function (count) {
-        return new Float32Array(this.readBytes(count));
-    };
-    Stream.prototype.readStream = function (count) {
-        return Stream.fromUint8Array(this.readBytes(count));
-    };
-    Stream.prototype.readUtf8String = function (count) {
-        return Utf8.decode(this.readString(count));
-    };
-    Stream.prototype.readString = function (count) {
-        if (count > 1 * 1024 * 1024)
-            throw (new Error("Trying to read a string larger than 128KB"));
-        var str = '';
-        for (var n = 0; n < count; n++) {
-            str += String.fromCharCode(this.readUInt8());
-        }
-        return str;
-    };
-    Stream.prototype.readUtf8Stringz = function (maxCount) {
-        if (maxCount === void 0) { maxCount = 131072; }
-        return Utf8.decode(this.readStringz(maxCount));
-    };
-    Stream.prototype.readStringz = function (maxCount) {
-        if (maxCount === void 0) { maxCount = 131072; }
-        var str = '';
-        for (var n = 0; n < maxCount; n++) {
-            if (this.available <= 0)
-                break;
-            var char = this.readUInt8();
-            if (char == 0)
-                break;
-            str += String.fromCharCode(char);
-        }
-        return str;
-    };
-    Stream.INVALID = Stream.fromArray([]);
-    return Stream;
-})();
-
-var Int64Type = (function () {
-    function Int64Type(endian) {
-        this.endian = endian;
-    }
-    Int64Type.prototype.read = function (stream) {
-        if (this.endian == 0 /* LITTLE */) {
-            var low = stream.readUInt32(this.endian);
-            var high = stream.readUInt32(this.endian);
-        }
-        else {
-            var high = stream.readUInt32(this.endian);
-            var low = stream.readUInt32(this.endian);
-        }
-        return high * Math.pow(2, 32) + low;
-    };
-    Int64Type.prototype.write = function (stream, value) {
-        var low = Math.floor(value % Math.pow(2, 32));
-        var high = Math.floor(value / Math.pow(2, 32));
-        if (this.endian == 0 /* LITTLE */) {
-            stream.writeInt32(low, this.endian);
-            stream.writeInt32(high, this.endian);
-        }
-        else {
-            stream.writeInt32(high, this.endian);
-            stream.writeInt32(low, this.endian);
-        }
-    };
-    Object.defineProperty(Int64Type.prototype, "length", {
-        get: function () {
-            return 8;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return Int64Type;
-})();
-var Int32Type = (function () {
-    function Int32Type(endian) {
-        this.endian = endian;
-    }
-    Int32Type.prototype.read = function (stream) {
-        return stream.readInt32(this.endian);
-    };
-    Int32Type.prototype.write = function (stream, value) {
-        stream.writeInt32(value, this.endian);
-    };
-    Object.defineProperty(Int32Type.prototype, "length", {
-        get: function () {
-            return 4;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return Int32Type;
-})();
-var Int16Type = (function () {
-    function Int16Type(endian) {
-        this.endian = endian;
-    }
-    Int16Type.prototype.read = function (stream) {
-        return stream.readInt16(this.endian);
-    };
-    Int16Type.prototype.write = function (stream, value) {
-        stream.writeInt16(value, this.endian);
-    };
-    Object.defineProperty(Int16Type.prototype, "length", {
-        get: function () {
-            return 2;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return Int16Type;
-})();
-var Int8Type = (function () {
-    function Int8Type(endian) {
-        this.endian = endian;
-    }
-    Int8Type.prototype.read = function (stream) {
-        return stream.readInt8(this.endian);
-    };
-    Int8Type.prototype.write = function (stream, value) {
-        stream.writeInt8(value, this.endian);
-    };
-    Object.defineProperty(Int8Type.prototype, "length", {
-        get: function () {
-            return 1;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return Int8Type;
-})();
-var UInt32Type = (function () {
-    function UInt32Type(endian) {
-        this.endian = endian;
-    }
-    UInt32Type.prototype.read = function (stream) {
-        return stream.readUInt32(this.endian);
-    };
-    UInt32Type.prototype.write = function (stream, value) {
-        stream.writeUInt32(value, this.endian);
-    };
-    Object.defineProperty(UInt32Type.prototype, "length", {
-        get: function () {
-            return 4;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return UInt32Type;
-})();
-var UInt16Type = (function () {
-    function UInt16Type(endian) {
-        this.endian = endian;
-    }
-    UInt16Type.prototype.read = function (stream) {
-        return stream.readUInt16(this.endian);
-    };
-    UInt16Type.prototype.write = function (stream, value) {
-        stream.writeUInt16(value, this.endian);
-    };
-    Object.defineProperty(UInt16Type.prototype, "length", {
-        get: function () {
-            return 2;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return UInt16Type;
-})();
-var UInt8Type = (function () {
-    function UInt8Type(endian) {
-        this.endian = endian;
-    }
-    UInt8Type.prototype.read = function (stream) {
-        return stream.readUInt8(this.endian);
-    };
-    UInt8Type.prototype.write = function (stream, value) {
-        stream.writeUInt8(value, this.endian);
-    };
-    Object.defineProperty(UInt8Type.prototype, "length", {
-        get: function () {
-            return 1;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return UInt8Type;
-})();
-var StructClass = (function () {
-    function StructClass(_class, items) {
-        this._class = _class;
-        this.items = items;
-        this.processedItems = [];
-        this.processedItems = items.map(function (item) {
-            for (var key in item)
-                return { name: key, type: item[key] };
-            throw (new Error("Entry must have one item"));
-        });
-    }
-    StructClass.create = function (_class, items) {
-        return new StructClass(_class, items);
-    };
-    StructClass.prototype.read = function (stream) {
-        var _class = this._class;
-        var out = new _class();
-        for (var n = 0; n < this.processedItems.length; n++) {
-            var item = this.processedItems[n];
-            out[item.name] = item.type.read(stream, out);
-        }
-        return out;
-    };
-    StructClass.prototype.write = function (stream, value) {
-        for (var n = 0; n < this.processedItems.length; n++) {
-            var item = this.processedItems[n];
-            item.type.write(stream, value[item.name], value);
-        }
-    };
-    StructClass.prototype.offsetOfField = function (name) {
-        var offset = 0;
-        for (var n = 0; n < this.processedItems.length; n++) {
-            var item = this.processedItems[n];
-            if (item.name == name)
-                return offset;
-            offset += item.type.length;
-        }
-        return -1;
-    };
-    Object.defineProperty(StructClass.prototype, "length", {
-        get: function () {
-            var sum = 0;
-            for (var n = 0; n < this.processedItems.length; n++) {
-                var item = this.processedItems[n];
-                if (!item)
-                    throw ("Invalid item!!");
-                if (!item.type) {
-                    console.log(item);
-                    throw ("Invalid item type!!");
-                }
-                sum += item.type.length;
-            }
-            return sum;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructClass;
-})();
-var StructArrayClass = (function () {
-    function StructArrayClass(elementType, count) {
-        this.elementType = elementType;
-        this.count = count;
-    }
-    StructArrayClass.prototype.read = function (stream) {
-        var out = [];
-        for (var n = 0; n < this.count; n++) {
-            out.push(this.elementType.read(stream, out));
-        }
-        return out;
-    };
-    StructArrayClass.prototype.write = function (stream, value) {
-        for (var n = 0; n < this.count; n++)
-            this.elementType.write(stream, value[n], value);
-    };
-    Object.defineProperty(StructArrayClass.prototype, "length", {
-        get: function () {
-            return this.elementType.length * this.count;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructArrayClass;
-})();
-function StructArray(elementType, count) {
-    return new StructArrayClass(elementType, count);
-}
-var StructStringn = (function () {
-    function StructStringn(count) {
-        this.count = count;
-    }
-    StructStringn.prototype.read = function (stream) {
-        var out = '';
-        for (var n = 0; n < this.count; n++) {
-            out += String.fromCharCode(stream.readUInt8());
-        }
-        return out;
-    };
-    StructStringn.prototype.write = function (stream, value) {
-        throw ("Not implemented StructStringn.write");
-    };
-    Object.defineProperty(StructStringn.prototype, "length", {
-        get: function () {
-            return this.count;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructStringn;
-})();
-var StructStringz = (function () {
-    function StructStringz(count) {
-        this.count = count;
-        this.stringn = new StructStringn(count);
-    }
-    StructStringz.prototype.read = function (stream) {
-        return this.stringn.read(stream).split(String.fromCharCode(0))[0];
-    };
-    StructStringz.prototype.write = function (stream, value) {
-        if (!value)
-            value = '';
-        var items = value.split('').map(function (char) { return char.charCodeAt(0); });
-        while (items.length < this.count)
-            items.push(0);
-        for (var n = 0; n < items.length; n++)
-            stream.writeUInt8(items[n]);
-    };
-    Object.defineProperty(StructStringz.prototype, "length", {
-        get: function () {
-            return this.count;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructStringz;
-})();
-var StructStringzVariable = (function () {
-    function StructStringzVariable() {
-    }
-    StructStringzVariable.prototype.read = function (stream) {
-        return stream.readStringz();
-    };
-    StructStringzVariable.prototype.write = function (stream, value) {
-        stream.writeString(value);
-        stream.writeUInt8(0);
-    };
-    Object.defineProperty(StructStringzVariable.prototype, "length", {
-        get: function () {
-            return 0;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructStringzVariable;
-})();
-var UInt32_2lbStruct = (function () {
-    function UInt32_2lbStruct() {
-    }
-    UInt32_2lbStruct.prototype.read = function (stream) {
-        var l = stream.readUInt32(0 /* LITTLE */);
-        var b = stream.readUInt32(1 /* BIG */);
-        return l;
-    };
-    UInt32_2lbStruct.prototype.write = function (stream, value) {
-        stream.writeUInt32(value, 0 /* LITTLE */);
-        stream.writeUInt32(value, 1 /* BIG */);
-    };
-    Object.defineProperty(UInt32_2lbStruct.prototype, "length", {
-        get: function () {
-            return 8;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return UInt32_2lbStruct;
-})();
-var UInt16_2lbStruct = (function () {
-    function UInt16_2lbStruct() {
-    }
-    UInt16_2lbStruct.prototype.read = function (stream) {
-        var l = stream.readUInt16(0 /* LITTLE */);
-        var b = stream.readUInt16(1 /* BIG */);
-        return l;
-    };
-    UInt16_2lbStruct.prototype.write = function (stream, value) {
-        stream.writeUInt16(value, 0 /* LITTLE */);
-        stream.writeUInt16(value, 1 /* BIG */);
-    };
-    Object.defineProperty(UInt16_2lbStruct.prototype, "length", {
-        get: function () {
-            return 4;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return UInt16_2lbStruct;
-})();
-var StructStringWithSize = (function () {
-    function StructStringWithSize(getStringSize) {
-        this.getStringSize = getStringSize;
-    }
-    StructStringWithSize.prototype.read = function (stream, context) {
-        return stream.readString(this.getStringSize(context));
-    };
-    StructStringWithSize.prototype.write = function (stream, value, context) {
-        stream.writeString(value);
-    };
-    Object.defineProperty(StructStringWithSize.prototype, "length", {
-        get: function () {
-            return 0;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructStringWithSize;
-})();
-var Int16 = new Int16Type(0 /* LITTLE */);
-var Int32 = new Int32Type(0 /* LITTLE */);
-var Int64 = new Int64Type(0 /* LITTLE */);
-var Int8 = new Int8Type(0 /* LITTLE */);
-var UInt16 = new UInt16Type(0 /* LITTLE */);
-var UInt32 = new UInt32Type(0 /* LITTLE */);
-var UInt8 = new UInt8Type(0 /* LITTLE */);
-var UInt16_b = new UInt16Type(1 /* BIG */);
-var UInt32_b = new UInt32Type(1 /* BIG */);
-var UInt32_2lb = new UInt32_2lbStruct();
-var UInt16_2lb = new UInt16_2lbStruct();
-var StringzVariable = new StructStringzVariable();
-function Stringn(count) {
-    return new StructStringn(count);
-}
-function Stringz(count) {
-    return new StructStringz(count);
-}
-function StringWithSize(callback) {
-    return new StructStringWithSize(callback);
-}
-var StructPointerStruct = (function () {
-    function StructPointerStruct(elementType) {
-        this.elementType = elementType;
-    }
-    StructPointerStruct.prototype.read = function (stream, context) {
-        var address = stream.readInt32(0 /* LITTLE */);
-        return new Pointer(this.elementType, context['memory'], address);
-    };
-    StructPointerStruct.prototype.write = function (stream, value, context) {
-        var address = value.address;
-        stream.writeInt32(address, 0 /* LITTLE */);
-    };
-    Object.defineProperty(StructPointerStruct.prototype, "length", {
-        get: function () {
-            return 4;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StructPointerStruct;
-})();
-function StructPointer(type) {
-    return new StructPointerStruct(type);
-}
-var Pointer = (function () {
-    function Pointer(type, memory, address) {
-        this.type = type;
-        this.memory = memory;
-        this.address = address;
-        this.stream = memory.getPointerStream(this.address);
-    }
-    Pointer.prototype.readWrite = function (callback) {
-        var value = this.read();
-        try {
-            callback(value);
-        }
-        finally {
-            this.write(value);
-        }
-    };
-    Pointer.prototype.read = function () {
-        return this.type.read(this.stream.clone());
-    };
-    Pointer.prototype.write = function (value) {
-        this.type.write(this.stream.clone(), value);
-    };
-    return Pointer;
-})();
-
+///<reference path="../../typings/promise/promise.d.ts" />
+///<reference path="./array.ts" />
+///<reference path="./math.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -2013,6 +12,27 @@ if (typeof self == 'undefined')
 if (typeof navigator == 'undefined')
     navigator = {};
 function sprintf() {
+    //  discuss at: http://phpjs.org/functions/sprintf/
+    // original by: Ash Searle (http://hexmen.com/blog/)
+    // improved by: Michael White (http://getsprink.com)
+    // improved by: Jack
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Dj
+    // improved by: Allidylls
+    //    input by: Paulo Freitas
+    //    input by: Brett Zamir (http://brett-zamir.me)
+    //   example 1: sprintf("%01.2f", 123.1);
+    //   returns 1: 123.10
+    //   example 2: sprintf("[%10s]", 'monkey');
+    //   returns 2: '[    monkey]'
+    //   example 3: sprintf("[%'#10s]", 'monkey');
+    //   returns 3: '[####monkey]'
+    //   example 4: sprintf("%d", 123456789012345);
+    //   returns 4: '123456789012345'
+    //   example 5: sprintf('%-03s', 'E');
+    //   returns 5: 'E00'
     var args = [];
     for (var _i = 0; _i < arguments.length; _i++) {
         args[_i - 0] = arguments[_i];
@@ -2025,7 +45,8 @@ function sprintf() {
         if (!chr) {
             chr = ' ';
         }
-        var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0).join(chr);
+        var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0)
+            .join(chr);
         return leftJustify ? str + padding : padding + str;
     };
     var justify = function (value, prefix, leftJustify, minWidth, zeroPad, customPadChar) {
@@ -2136,7 +157,8 @@ function sprintf() {
             case 'x':
                 return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
             case 'X':
-                return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad).toUpperCase();
+                return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad)
+                    .toUpperCase();
             case 'u':
                 return formatBaseX(value, 10, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
             case 'i':
@@ -2264,9 +286,7 @@ var SortedSet = (function () {
         return element;
     };
     Object.defineProperty(SortedSet.prototype, "length", {
-        get: function () {
-            return this.elements.length;
-        },
+        get: function () { return this.elements.length; },
         enumerable: true,
         configurable: true
     });
@@ -2522,7 +542,7 @@ var Compensate;
 })(Compensate || (Compensate = {}));
 var WaitingThreadInfo = (function () {
     function WaitingThreadInfo(name, object, promise, callbacks, compensate) {
-        if (compensate === void 0) { compensate = 1 /* YES */; }
+        if (compensate === void 0) { compensate = Compensate.YES; }
         this.name = name;
         this.object = object;
         this.promise = promise;
@@ -2629,12 +649,9 @@ var HalfFloat = (function () {
 function htmlspecialchars(str) {
     return str.replace(/[&<>]/g, function (tag) {
         switch (tag) {
-            case '&':
-                return '&amp;';
-            case '<':
-                return '&lt;';
-            case '>':
-                return '&gt;';
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
         }
         return tag;
     });
@@ -2778,6 +795,1862 @@ var LoggerPolicies = (function () {
 var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 
+///<reference path="./math.ts" />
+function identity(a) { return a; }
+function funcTrue(a) { return true; }
+function compareNumbers(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+Array.prototype.contains = function (item) {
+    return this.indexOf(item) >= 0;
+};
+Array.prototype.binarySearchValue = function (selector) {
+    var array = this;
+    var index = array.binarySearchIndex(selector);
+    if (index < 0)
+        return null;
+    return array[index];
+};
+Array.prototype.binarySearchIndex = function (selector) {
+    var array = this;
+    var min = 0;
+    var max = array.length - 1;
+    var step = 0;
+    if (array.length == 0)
+        return -1;
+    while (true) {
+        var current = Math.floor((min + max) / 2);
+        var item = array[current];
+        var result = selector(item);
+        if (result == 0) {
+            return current;
+        }
+        if (((current == min) || (current == max))) {
+            if (min != max) {
+                min = max = current = (current != min) ? min : max;
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            if (result < 0) {
+                max = current;
+            }
+            else if (result > 0) {
+                min = current;
+            }
+        }
+        step++;
+        if (step >= 64)
+            throw (new Error("Too much steps"));
+    }
+    return -1;
+};
+Array.prototype.min = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) { return a; };
+    if (array.length == 0)
+        return null;
+    return array.reduce(function (previous, current) { return (selector(previous) < selector(current) ? previous : current); }, array[0]);
+});
+Array.prototype.max = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) { return a; };
+    if (array.length == 0)
+        return null;
+    return array.reduce(function (previous, current) { return (selector(previous) > selector(current) ? previous : current); }, array[0]);
+});
+Array.prototype.sortBy = function (selector) {
+    return this.slice(0).sort(function (a, b) { return compare(selector(a), selector(b)); });
+};
+Array.prototype.cast = (function () {
+    return this;
+});
+Array.prototype.count = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = funcTrue;
+    var result = 0;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            result++;
+    return result;
+});
+Array.prototype.any = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = funcTrue;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            return true;
+    return false;
+});
+Array.prototype.first = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = identity;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            return array[n];
+    return undefined;
+});
+Array.prototype.sum = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) { return a; };
+    return array.reduce(function (previous, current) { return previous + selector(current); }, 0);
+});
+Array.prototype.remove = function (item) {
+    var array = this;
+    var index = array.indexOf(item);
+    if (index >= 0)
+        array.splice(index, 1);
+};
+Array.prototype.toLookupMap = function () {
+    var array = this;
+    var lookup = {};
+    for (var n = 0; n < array.length; n++) {
+        lookup[array[n]] = n;
+    }
+    return lookup;
+};
+Object.defineProperty(Array.prototype, "contains", { enumerable: false });
+Object.defineProperty(Array.prototype, "toLookupMap", { enumerable: false });
+Object.defineProperty(Array.prototype, "cast", { enumerable: false });
+Object.defineProperty(Array.prototype, "count", { enumerable: false });
+Object.defineProperty(Array.prototype, "any", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "min", { enumerable: false });
+Object.defineProperty(Array.prototype, "max", { enumerable: false });
+Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
+Object.defineProperty(Array.prototype, "first", { enumerable: false });
+Object.defineProperty(Array.prototype, "remove", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
+
+function waitAsync(timems) {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timems);
+    });
+}
+function _downloadFileAsync(method, url, headers) {
+    return new Promise(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+        request.open(method, url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        if (headers) {
+            for (var headerKey in headers) {
+                request.setRequestHeader(headerKey, headers[headerKey]);
+            }
+        }
+        request.responseType = "arraybuffer";
+        request.onerror = function (e) { reject(e['error']); };
+        request.onload = function (e) {
+            if (request.status < 400) {
+                resolve(request);
+            }
+            else {
+                reject(new Error("HTTP " + request.status));
+            }
+        };
+        request.send();
+    });
+}
+function downloadFileAsync(url, headers) {
+    return _downloadFileAsync('GET', url, headers).then(function (request) {
+        var arraybuffer = request.response;
+        return arraybuffer;
+    });
+}
+function downloadFileChunkAsync(url, from, count) {
+    var to = (from + count) - 1;
+    return downloadFileAsync(url, {
+        'Range': 'bytes=' + from + '-' + to
+    });
+}
+function statFileAsync(url) {
+    return _downloadFileAsync('HEAD', url).then(function (request) {
+        //console.error('content-type', request.getResponseHeader('content-type'));
+        //console.log(request.getAllResponseHeaders());
+        var size = parseInt(request.getResponseHeader('content-length'));
+        var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
+        return { size: size, date: date };
+    });
+}
+
+var Integer64 = (function () {
+    function Integer64(low, high) {
+        this._low = low | 0;
+        this._high = high | 0;
+    }
+    Integer64.fromInt = function (value) {
+        return new Integer64(value | 0, value < 0 ? -1 : 0);
+    };
+    Integer64.fromUnsignedInt = function (value) {
+        return new Integer64(value | 0, 0);
+    };
+    Integer64.fromBits = function (low, high) {
+        return new Integer64(low, high);
+    };
+    Integer64.fromNumber = function (value) {
+        if (isNaN(value) || !isFinite(value)) {
+            return Integer64.ZERO;
+        }
+        else if (value <= -Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MIN_VALUE;
+        }
+        else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MAX_VALUE;
+        }
+        else if (value < 0) {
+            return Integer64.fromNumber(-value).negate();
+        }
+        else {
+            return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
+        }
+    };
+    Object.defineProperty(Integer64.prototype, "low", {
+        get: function () { return this._low; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "lowUnsigned", {
+        get: function () { return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "high", {
+        get: function () { return this._high; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "number", {
+        get: function () {
+            return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Integer64.prototype.getNumber = function () {
+        return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+    };
+    Integer64.prototype.equals = function (other) {
+        return (this._high == other._high) && (this._low == other._low);
+    };
+    Integer64.prototype.negate = function () {
+        if (this.equals(Integer64.MIN_VALUE))
+            return Integer64.MIN_VALUE;
+        return this.not().add(Integer64.ONE);
+    };
+    Integer64.prototype.not = function () {
+        return Integer64.fromBits(~this._low, ~this._high);
+    };
+    Integer64.prototype.isZero = function () {
+        return this._high == 0 && this._low == 0;
+    };
+    Integer64.prototype.isNegative = function () {
+        return this._high < 0;
+    };
+    Integer64.prototype.isOdd = function () {
+        return (this._low & 1) == 1;
+    };
+    Integer64.prototype.sub = function (other) {
+        return this.add(other.negate());
+    };
+    Integer64.prototype.add = function (other) {
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 + b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 + b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 + b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 + b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    Integer64.prototype.lessThan = function (other) {
+        return this.compare(other) < 0;
+    };
+    Integer64.prototype.compare = function (other) {
+        if (this.equals(other)) {
+            return 0;
+        }
+        var thisNeg = this.isNegative();
+        var otherNeg = other.isNegative();
+        if (thisNeg && !otherNeg) {
+            return -1;
+        }
+        if (!thisNeg && otherNeg) {
+            return 1;
+        }
+        if (this.sub(other).isNegative()) {
+            return -1;
+        }
+        else {
+            return 1;
+        }
+    };
+    Integer64.prototype.isLowEnoughForMul = function () {
+        if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        return false;
+    };
+    Integer64.prototype.multiply = function (other) {
+        if (this.isZero())
+            return Integer64.ZERO;
+        if (other.isZero())
+            return Integer64.ZERO;
+        if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
+            return Integer64.fromNumber(this.getNumber() * other.getNumber());
+        }
+        if (this.equals(Integer64.MIN_VALUE))
+            return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (other.equals(Integer64.MIN_VALUE))
+            return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (this.isNegative()) {
+            if (other.isNegative())
+                return this.negate().multiply(other.negate());
+            return this.negate().multiply(other).negate();
+        }
+        if (other.isNegative())
+            return this.multiply(other.negate()).negate();
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 * b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 * b00;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c16 += a00 * b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 * b00;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a16 * b16;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a00 * b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    Integer64.ZERO = Integer64.fromInt(0);
+    Integer64.ONE = Integer64.fromInt(1);
+    Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+    Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+    Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
+    Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
+    Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
+    Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
+    Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
+    Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
+    return Integer64;
+})();
+
+var mat4 = (function () {
+    function mat4() {
+    }
+    mat4.create = function () {
+        return new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+    };
+    mat4.identity = function (data) {
+        data[0] = 1;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 0;
+        data[5] = 1;
+        data[6] = 0;
+        data[7] = 0;
+        data[8] = 0;
+        data[9] = 0;
+        data[10] = 1;
+        data[11] = 0;
+        data[12] = 0;
+        data[13] = 0;
+        data[14] = 0;
+        data[15] = 1;
+    };
+    mat4.ortho = function (out, left, right, bottom, top, near, far) {
+        var lr = 1 / (left - right), bt = 1 / (bottom - top), nf = 1 / (near - far);
+        out[0] = -2 * lr;
+        out[1] = 0;
+        out[2] = 0;
+        out[3] = 0;
+        out[4] = 0;
+        out[5] = -2 * bt;
+        out[6] = 0;
+        out[7] = 0;
+        out[8] = 0;
+        out[9] = 0;
+        out[10] = 2 * nf;
+        out[11] = 0;
+        out[12] = (left + right) * lr;
+        out[13] = (top + bottom) * bt;
+        out[14] = (far + near) * nf;
+        out[15] = 1;
+        return out;
+    };
+    mat4.multiply = function (out, a, b) {
+        var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3], a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7], a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11], a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+        var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+        out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[4];
+        b1 = b[5];
+        b2 = b[6];
+        b3 = b[7];
+        out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[8];
+        b1 = b[9];
+        b2 = b[10];
+        b3 = b[11];
+        out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[12];
+        b1 = b[13];
+        b2 = b[14];
+        b3 = b[15];
+        out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        return out;
+    };
+    mat4.scale = function (out, a, v) {
+        var x = v[0], y = v[1], z = v[2];
+        out[0] = a[0] * x;
+        out[1] = a[1] * x;
+        out[2] = a[2] * x;
+        out[3] = a[3] * x;
+        out[4] = a[4] * y;
+        out[5] = a[5] * y;
+        out[6] = a[6] * y;
+        out[7] = a[7] * y;
+        out[8] = a[8] * z;
+        out[9] = a[9] * z;
+        out[10] = a[10] * z;
+        out[11] = a[11] * z;
+        out[12] = a[12];
+        out[13] = a[13];
+        out[14] = a[14];
+        out[15] = a[15];
+        return out;
+    };
+    mat4.translate = function (out, a, v) {
+        var x = v[0], y = v[1], z = v[2], a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23;
+        if (a === out) {
+            out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
+            out[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
+            out[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
+            out[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
+        }
+        else {
+            a00 = a[0];
+            a01 = a[1];
+            a02 = a[2];
+            a03 = a[3];
+            a10 = a[4];
+            a11 = a[5];
+            a12 = a[6];
+            a13 = a[7];
+            a20 = a[8];
+            a21 = a[9];
+            a22 = a[10];
+            a23 = a[11];
+            out[0] = a00;
+            out[1] = a01;
+            out[2] = a02;
+            out[3] = a03;
+            out[4] = a10;
+            out[5] = a11;
+            out[6] = a12;
+            out[7] = a13;
+            out[8] = a20;
+            out[9] = a21;
+            out[10] = a22;
+            out[11] = a23;
+            out[12] = a00 * x + a10 * y + a20 * z + a[12];
+            out[13] = a01 * x + a11 * y + a21 * z + a[13];
+            out[14] = a02 * x + a12 * y + a22 * z + a[14];
+            out[15] = a03 * x + a13 * y + a23 * z + a[15];
+        }
+        return out;
+    };
+    return mat4;
+})();
+if (typeof self == 'undefined')
+    window = self = global;
+if (typeof navigator == 'undefined')
+    navigator = {};
+self['polyfills'] = self['polyfills'] || {};
+self['polyfills']['log2'] = !Math['log2'];
+if (!Math.log2) {
+    Math.log2 = function (x) { return Math.log(x) / Math.LN2; };
+}
+self['polyfills']['log10'] = !Math['log10'];
+if (!Math.log10) {
+    Math.log10 = function (x) { return Math.log(x) / Math.LN10; };
+}
+self['polyfills']['sign'] = !Math['sign'];
+if (!Math['sign']) {
+    Math['sign'] = function (x) {
+        if (x < 0)
+            return -1;
+        if (x > 0)
+            return +1;
+        return 0;
+    };
+}
+self['polyfills']['rint'] = !Math['rint'];
+if (!Math['rint']) {
+    Math['rint'] = function (value) {
+        var twoToThe52 = Math.pow(2, 52);
+        var sign = Math.sign(value);
+        value = Math.abs(value);
+        if (value < twoToThe52)
+            value = ((twoToThe52 + value) - twoToThe52);
+        return sign * value;
+    };
+}
+self['polyfills']['clz32'] = !Math['clz32'];
+if (!Math['clz32']) {
+    Math['clz32'] = function (x) {
+        x >>>= 0;
+        if (x == 0)
+            return 32;
+        var result = 0;
+        if ((x & 0xFFFF0000) === 0) {
+            x <<= 16;
+            result += 16;
+        }
+        if ((x & 0xFF000000) === 0) {
+            x <<= 8;
+            result += 8;
+        }
+        if ((x & 0xF0000000) === 0) {
+            x <<= 4;
+            result += 4;
+        }
+        if ((x & 0xC0000000) === 0) {
+            x <<= 2;
+            result += 2;
+        }
+        if ((x & 0x80000000) === 0) {
+            x <<= 1;
+            result += 1;
+        }
+        return result;
+    };
+}
+self['polyfills']['trunc'] = !Math['trunc'];
+if (!Math['trunc']) {
+    Math['trunc'] = function (x) {
+        if (x < 0) {
+            return Math.ceil(x) | 0;
+        }
+        else {
+            return Math.floor(x) | 0;
+        }
+    };
+}
+self['polyfills']['imul'] = !Math['imul'];
+if (!Math['imul']) {
+    Math['imul'] = function (a, b) {
+        var ah = (a >>> 16) & 0xffff;
+        var al = a & 0xffff;
+        var bh = (b >>> 16) & 0xffff;
+        var bl = b & 0xffff;
+        return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+    };
+}
+self['polyfills']['umul32_64'] = !Math['umul32_64'];
+if (!Math.umul32_64) {
+    Math.umul32_64 = function (a, b, result) {
+        if (result === undefined)
+            result = [0, 0];
+        a >>>= 0;
+        b >>>= 0;
+        if (a < 32767 && b < 65536) {
+            result[0] = a * b;
+            result[1] = (result[0] < 0) ? -1 : 0;
+            return result;
+        }
+        var a00 = a & 0xFFFF, a16 = a >>> 16;
+        var b00 = b & 0xFFFF, b16 = b >>> 16;
+        var c00 = a00 * b00;
+        var c16 = (c00 >>> 16) + (a16 * b00);
+        var c32 = c16 >>> 16;
+        c16 = (c16 & 0xFFFF) + (a00 * b16);
+        c32 += c16 >>> 16;
+        var c48 = c32 >>> 16;
+        c32 = (c32 & 0xFFFF) + (a16 * b16);
+        c48 += c32 >>> 16;
+        result[0] = ((c16 & 0xFFFF) << 16) | (c00 & 0xFFFF);
+        result[1] = ((c48 & 0xFFFF) << 16) | (c32 & 0xFFFF);
+        return result;
+    };
+}
+self['polyfills']['imul32_64'] = !Math['imul32_64'];
+if (!Math.imul32_64) {
+    Math.imul32_64 = function (a, b, result) {
+        if (result === undefined)
+            result = [0, 0];
+        if (a == 0) {
+            result[0] = result[1] = 0;
+            return result;
+        }
+        if (b == 0) {
+            result[0] = result[1] = 0;
+            return result;
+        }
+        a |= 0;
+        b |= 0;
+        if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
+            result[0] = a * b;
+            result[1] = (result[0] < 0) ? -1 : 0;
+            return result;
+        }
+        var doNegate = (a < 0) ^ (b < 0);
+        Math.umul32_64(Math.abs(a), Math.abs(b), result);
+        if (doNegate) {
+            result[0] = ~result[0];
+            result[1] = ~result[1];
+            result[0] = (result[0] + 1) | 0;
+            if (result[0] == 0)
+                result[1] = (result[1] + 1) | 0;
+        }
+        return result;
+    };
+}
+self['polyfills']['fround'] = !Math['fround'];
+if (!Math['fround']) {
+    Math['fround'] = function (x) {
+        var f32 = new Float32Array(1);
+        f32[0] = x;
+        return f32[0];
+    };
+}
+var BitUtils = (function () {
+    function BitUtils() {
+    }
+    BitUtils.mask = function (value) {
+        return (1 << value) - 1;
+    };
+    BitUtils.bitrev32 = function (v) {
+        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1);
+        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2);
+        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4);
+        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8);
+        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16);
+        return v;
+    };
+    BitUtils.rotr = function (value, offset) {
+        return (value >>> offset) | (value << (32 - offset));
+    };
+    BitUtils.clo = function (x) {
+        return Math['clz32'](~x);
+    };
+    BitUtils.clz = function (x) {
+        return Math['clz32'](x);
+    };
+    BitUtils.seb = function (x) {
+        x = x & 0xFF;
+        if ((x & 0x80) != 0)
+            x = 0xFFFFFF00 | x;
+        return x;
+    };
+    BitUtils.seh = function (x) {
+        return (((x & 0xFFFF) << 16) >> 16);
+    };
+    BitUtils.wsbh = function (v) {
+        return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
+    };
+    BitUtils.wsbw = function (v) {
+        return (((v & 0xFF000000) >>> 24) |
+            ((v & 0x00FF0000) >>> 8) |
+            ((v & 0x0000FF00) << 8) |
+            ((v & 0x000000FF) << 24));
+    };
+    BitUtils.extract = function (data, offset, length) {
+        return (data >> offset) & ((1 << length) - 1);
+    };
+    BitUtils.extractBool = function (data, offset) {
+        return (this.extract(data, offset, 1) != 0);
+    };
+    BitUtils.extractSigned = function (data, offset, length) {
+        var mask = this.mask(length);
+        var value = this.extract(data, offset, length);
+        var signBit = (1 << (offset + (length - 1)));
+        if ((value & signBit) != 0)
+            value |= ~mask;
+        return value;
+    };
+    BitUtils.extractScale1f = function (data, offset, length) {
+        var mask = (1 << length) - 1;
+        return (((data >>> offset) & mask) / mask);
+    };
+    BitUtils.extractScalef = function (data, offset, length, scale) {
+        return BitUtils.extractScale1f(data, offset, length) * scale;
+    };
+    BitUtils.extractScalei = function (data, offset, length, scale) {
+        return this.extractScalef(data, offset, length, scale) | 0;
+    };
+    BitUtils.extractEnum = function (data, offset, length) {
+        return this.extract(data, offset, length);
+    };
+    BitUtils.clear = function (data, offset, length) {
+        data &= ~(BitUtils.mask(length) << offset);
+        return data;
+    };
+    BitUtils.insert = function (data, offset, length, value) {
+        value &= BitUtils.mask(length);
+        data = BitUtils.clear(data, offset, length);
+        data |= value << offset;
+        return data;
+    };
+    return BitUtils;
+})();
+var MathVfpu = (function () {
+    function MathVfpu() {
+    }
+    MathVfpu.vqmul0 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); };
+    MathVfpu.vqmul1 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); };
+    MathVfpu.vqmul2 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); };
+    MathVfpu.vqmul3 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3); };
+    MathVfpu.vc2i = function (index, value) {
+        return (value << ((3 - index) * 8)) & 0xFF000000;
+    };
+    MathVfpu.vuc2i = function (index, value) {
+        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
+    };
+    MathVfpu.vs2i = function (index, value) {
+        if ((index % 2) == 0)
+            value <<= 16;
+        return value & 0xFFFF0000;
+    };
+    MathVfpu.vi2f = function (value, count) {
+        return MathFloat.scalb(value, count);
+    };
+    MathVfpu.vi2uc = function (x, y, z, w) {
+        return (0
+            | ((x < 0) ? 0 : ((x >>> 23) << 0))
+            | ((y < 0) ? 0 : ((y >>> 23) << 8))
+            | ((z < 0) ? 0 : ((z >>> 23) << 16))
+            | ((w < 0) ? 0 : ((w >>> 23) << 24)));
+    };
+    MathVfpu.vf2id = function (value, count) {
+        return MathFloat.floor(MathFloat.scalb(value, count));
+    };
+    MathVfpu.vf2in = function (value, count) {
+        return MathFloat.rint(MathFloat.scalb(value, count));
+    };
+    MathVfpu.vf2iu = function (value, count) {
+        return MathFloat.ceil(MathFloat.scalb(value, count));
+    };
+    MathVfpu.vf2iz = function (Value, count) {
+        var ScalabValue = MathFloat.scalb(Value, count);
+        var DoubleValue = (Value >= 0) ? MathFloat.floor(ScalabValue) : MathFloat.ceil(ScalabValue);
+        return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
+    };
+    MathVfpu.vf2h = function () {
+        return 0;
+    };
+    MathVfpu.vh2f = function () {
+        return 0;
+    };
+    return MathVfpu;
+})();
+var MathFloat = (function () {
+    function MathFloat() {
+    }
+    MathFloat.reinterpretFloatAsInt = function (floatValue) {
+        MathFloat.floatArray[0] = floatValue;
+        return MathFloat.intArray[0];
+    };
+    MathFloat.reinterpretIntAsFloat = function (integerValue) {
+        MathFloat.intArray[0] = integerValue;
+        return MathFloat.floatArray[0];
+    };
+    MathFloat.scalb = function (value, count) {
+        return value * Math.pow(2, count);
+    };
+    MathFloat.min = function (a, b) { return (a < b) ? a : b; };
+    MathFloat.max = function (a, b) { return (a > b) ? a : b; };
+    MathFloat.isnan = function (n) { return isNaN(n); };
+    MathFloat.isinf = function (n) { return n === n / 0; };
+    MathFloat.isnanorinf = function (n) { return MathFloat.isnan(n) || MathFloat.isinf(n); };
+    MathFloat.abs = function (value) { return Math.abs(value); };
+    MathFloat.neg = function (value) {
+        return -value;
+    };
+    MathFloat.ocp = function (value) { return 1 - value; };
+    MathFloat.nrcp = function (value) { return -(1 / value); };
+    MathFloat.sat0 = function (value) { return MathUtils.clamp(value, 0, +1); };
+    MathFloat.sat1 = function (value) { return MathUtils.clamp(value, -1, +1); };
+    MathFloat.rsq = function (value) { return 1 / Math.sqrt(value); };
+    MathFloat.sqrt = function (value) { return Math.sqrt(value); };
+    MathFloat.rint = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.rint(value);
+    };
+    MathFloat.cast = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return (value < 0) ? Math.ceil(value) : Math.floor(value);
+    };
+    MathFloat.trunc = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.trunc(value);
+    };
+    MathFloat.round = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.round(value);
+    };
+    MathFloat.floor = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.floor(value);
+    };
+    MathFloat.ceil = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.ceil(value);
+    };
+    MathFloat.cosv1 = function (value) { return Math.cos(value * Math.PI * 0.5); };
+    MathFloat.sinv1 = function (value) { return Math.sin(value * Math.PI * 0.5); };
+    MathFloat.nsinv1 = function (value) { return -Math.sin(value * Math.PI * 0.5); };
+    MathFloat.asinv1 = function (value) { return Math.asin(value) / (Math.PI * 0.5); };
+    MathFloat.exp2 = function (value) { return Math.pow(2.0, value); };
+    MathFloat.rexp2 = function (value) { return 1 / Math.pow(2.0, value); };
+    MathFloat.log2 = function (value) { return Math.log2(value); };
+    MathFloat.sign = function (value) { return Math.sign(value); };
+    MathFloat.sign2 = function (left, right) { var a = left - right; return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0)); };
+    MathFloat.vslt = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a < b) ? 1 : 0; };
+    MathFloat.vsle = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a <= b) ? 1 : 0; };
+    MathFloat.vsgt = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a > b) ? 1 : 0; };
+    MathFloat.vsge = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a >= b) ? 1 : 0; };
+    MathFloat.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
+    MathFloat.reinterpretBuffer = new ArrayBuffer(4);
+    MathFloat.floatArray = new Float32Array(MathFloat.reinterpretBuffer);
+    MathFloat.intArray = new Int32Array(MathFloat.reinterpretBuffer);
+    return MathFloat;
+})();
+window.BitUtils = BitUtils;
+window.MathUtils = MathUtils;
+window.MathFloat = MathFloat;
+window.MathVfpu = MathVfpu;
+function handleCastInfinite(value) {
+    return (value < 0) ? -2147483648 : 2147483647;
+}
+function compare(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+function parseIntFormat(str) {
+    str = str.replace(/_/g, '');
+    if (str.substr(0, 2) == '0b')
+        return parseInt(str.substr(2), 2);
+    if (str.substr(0, 2) == '0x')
+        return parseInt(str.substr(2), 16);
+    return parseInt(str, 10);
+}
+var MathUtils = (function () {
+    function MathUtils() {
+    }
+    MathUtils.sextend16 = function (value) {
+        return (((value & 0xFFFF) << 16) >> 16);
+    };
+    MathUtils.prevAligned = function (value, alignment) {
+        return Math.floor(value / alignment) * alignment;
+    };
+    MathUtils.isAlignedTo = function (value, alignment) {
+        return (value % alignment) == 0;
+    };
+    MathUtils.requiredBlocks = function (size, blockSize) {
+        if ((size % blockSize) != 0) {
+            return (size / blockSize) + 1;
+        }
+        else {
+            return size / blockSize;
+        }
+    };
+    MathUtils.isPowerOfTwo = function (x) {
+        return (x != 0) && ((x & (x - 1)) == 0);
+    };
+    MathUtils.nextAligned = function (value, alignment) {
+        if (alignment <= 1)
+            return value;
+        if ((value % alignment) == 0)
+            return value;
+        return value + (alignment - (value % alignment));
+    };
+    MathUtils.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
+    return MathUtils;
+})();
+var IntUtils = (function () {
+    function IntUtils() {
+    }
+    IntUtils.toHexString = function (value, padCount) {
+        var str = (value >>> 0).toString(16);
+        while (str.length < padCount)
+            str = '0' + str;
+        return str;
+    };
+    return IntUtils;
+})();
+var StringUtils = (function () {
+    function StringUtils() {
+    }
+    StringUtils.padLeft = function (text, padchar, length) {
+        while (text.length < length)
+            text = padchar + text;
+        return text;
+    };
+    return StringUtils;
+})();
+function ToUint32(x) {
+    return x >>> 0;
+}
+function ToInt32(x) {
+    return x | 0;
+}
+var ArrayUtils = (function () {
+    function ArrayUtils() {
+    }
+    ArrayUtils.create2D = function (w, h, generator) {
+        if (!generator)
+            generator = function (x, y) { return null; };
+        var matrix = [];
+        for (var y = 0; y < h; y++) {
+            var row = [];
+            for (var x = 0; x < w; x++) {
+                row.push(generator(x, y));
+            }
+            matrix.push(row);
+        }
+        return matrix;
+    };
+    ArrayUtils.range = function (start, end) {
+        var array = [];
+        for (var n = start; n < end; n++)
+            array.push(n);
+        return array;
+    };
+    return ArrayUtils;
+})();
+function xrange(start, end) {
+    return ArrayUtils.range(start, end);
+}
+
+undefined
+///<reference path="./utils.ts" />
+///<reference path="./int64.ts" />
+///<reference path="./async.ts" />
+///<reference path="./struct.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var ProxyAsyncStream = (function () {
+    function ProxyAsyncStream(stream) {
+        this.stream = stream;
+    }
+    Object.defineProperty(ProxyAsyncStream.prototype, "name", {
+        get: function () { return this.stream.name; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ProxyAsyncStream.prototype, "date", {
+        get: function () { return this.stream.date; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ProxyAsyncStream.prototype, "size", {
+        get: function () { return this.stream.size; },
+        enumerable: true,
+        configurable: true
+    });
+    ProxyAsyncStream.prototype.readChunkAsync = function (offset, count) { return this.stream.readChunkAsync(offset, count); };
+    return ProxyAsyncStream;
+})();
+var BufferedAsyncStream = (function (_super) {
+    __extends(BufferedAsyncStream, _super);
+    function BufferedAsyncStream(stream, bufferSize) {
+        if (bufferSize === void 0) { bufferSize = 131072; }
+        _super.call(this, stream);
+        this.bufferSize = bufferSize;
+        this.cache = { start: 0, end: 0, data: new ArrayBuffer(0) };
+    }
+    Object.defineProperty(BufferedAsyncStream.prototype, "name", {
+        get: function () { return this.stream.name + '+buffered'; },
+        enumerable: true,
+        configurable: true
+    });
+    BufferedAsyncStream.prototype.getCachedEntry = function (start, end) {
+        if (start >= this.cache.start && end <= this.cache.end) {
+            return this.cache;
+        }
+        else {
+            return null;
+        }
+    };
+    BufferedAsyncStream.prototype.putCacheEntry = function (start, data) {
+        this.cache.start = start;
+        this.cache.end = start + data.byteLength;
+        this.cache.data = data;
+    };
+    BufferedAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        var availableFromOffset = this.size - offset;
+        var start = offset;
+        var end = offset + count;
+        var cache = this.getCachedEntry(start, end);
+        if (cache) {
+            return Promise.resolve(cache.data.slice(start - cache.start, end - cache.start));
+        }
+        else {
+            var bigCount = Math.max(count, this.bufferSize);
+            bigCount = Math.min(bigCount, availableFromOffset);
+            end = start + bigCount;
+            return this.stream.readChunkAsync(offset, bigCount).then(function (data) {
+                _this.putCacheEntry(start, data);
+                return _this.readChunkAsync(offset, count);
+            });
+        }
+    };
+    return BufferedAsyncStream;
+})(ProxyAsyncStream);
+var MemoryAsyncStream = (function () {
+    function MemoryAsyncStream(data, name, date) {
+        if (name === void 0) { name = 'memory'; }
+        if (date === void 0) { date = new Date(); }
+        this.data = data;
+        this.name = name;
+        this.date = date;
+    }
+    MemoryAsyncStream.fromArrayBuffer = function (data) {
+        return new MemoryAsyncStream(data);
+    };
+    Object.defineProperty(MemoryAsyncStream.prototype, "size", {
+        get: function () { return this.data.byteLength; },
+        enumerable: true,
+        configurable: true
+    });
+    MemoryAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        return Promise.resolve(this.data.slice(offset, offset + count));
+    };
+    return MemoryAsyncStream;
+})();
+var UrlAsyncStream = (function () {
+    function UrlAsyncStream(url, stat) {
+        this.url = url;
+        this.stat = stat;
+        this.name = url;
+        this.date = stat.date;
+    }
+    UrlAsyncStream.fromUrlAsync = function (url) {
+        console.info('open ', url);
+        return statFileAsync(url).then(function (stat) {
+            console.info('fromUrlAsync', stat);
+            if (stat.size == 0) {
+                console.error("Invalid file with size '" + stat.size + "'", stat);
+                throw (new Error("Invalid file with size '" + stat.size + "'"));
+            }
+            if (stat.size < 5 * 1024 * 1024) {
+                return downloadFileAsync(url).then(function (data) { return MemoryAsyncStream.fromArrayBuffer(data); });
+            }
+            else {
+                return Promise.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
+            }
+        });
+    };
+    Object.defineProperty(UrlAsyncStream.prototype, "size", {
+        get: function () { return this.stat.size; },
+        enumerable: true,
+        configurable: true
+    });
+    UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
+        return downloadFileChunkAsync(this.url, offset, count);
+    };
+    return UrlAsyncStream;
+})();
+var FileAsyncStream = (function () {
+    function FileAsyncStream(file) {
+        this.file = file;
+        this.date = file.lastModifiedDate;
+    }
+    Object.defineProperty(FileAsyncStream.prototype, "name", {
+        get: function () { return this.file.name; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(FileAsyncStream.prototype, "size", {
+        get: function () { return this.file.size; },
+        enumerable: true,
+        configurable: true
+    });
+    FileAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            var fileReader = new FileReader();
+            fileReader.onload = function (e) { resolve(fileReader.result); };
+            fileReader.onerror = function (e) { reject(e['error']); };
+            fileReader.readAsArrayBuffer(_this.file.slice(offset, offset + count));
+        });
+    };
+    return FileAsyncStream;
+})();
+var Stream = (function () {
+    function Stream(data, offset) {
+        if (offset === void 0) { offset = 0; }
+        this.data = data;
+        this.offset = offset;
+    }
+    Stream.fromArrayBuffer = function (data) {
+        return new Stream(new DataView(data));
+    };
+    Stream.fromDataView = function (data, offset) {
+        if (offset === void 0) { offset = 0; }
+        return new Stream(data);
+    };
+    Stream.fromBase64 = function (data) {
+        var outstr = atob(data);
+        var out = new ArrayBuffer(outstr.length);
+        var ia = new Uint8Array(out);
+        for (var n = 0; n < outstr.length; n++)
+            ia[n] = outstr.charCodeAt(n);
+        return new Stream(new DataView(out));
+    };
+    Stream.fromUint8Array = function (array) {
+        return Stream.fromArray(array);
+    };
+    Stream.fromSize = function (size) {
+        return Stream.fromUint8Array(new Uint8Array(size));
+    };
+    Stream.fromArray = function (array) {
+        var buffer = new ArrayBuffer(array.length);
+        var w8 = new Uint8Array(buffer);
+        for (var n = 0; n < array.length; n++)
+            w8[n] = array[n];
+        return new Stream(new DataView(buffer));
+    };
+    Stream.prototype.toImageUrl = function () {
+        try {
+            var urlCreator = window['URL'] || window['webkitURL'];
+            var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
+            return urlCreator.createObjectURL(blob);
+        }
+        catch (e) {
+            return 'data:image/png;base64,' + this.toBase64();
+        }
+    };
+    Stream.prototype.toBase64 = function () {
+        var out = '';
+        var array = this.toUInt8Array();
+        for (var n = 0; n < array.length; n++) {
+            out += String.fromCharCode(array[n]);
+        }
+        return btoa(out);
+    };
+    Stream.prototype.toStringAll = function () {
+        return this.sliceWithLength(0).readString(this.length);
+    };
+    Stream.prototype.toUInt8Array = function () {
+        return new Uint8Array(this.toArrayBuffer());
+    };
+    Stream.prototype.toArrayBuffer = function () {
+        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+    };
+    Stream.prototype.clone = function () {
+        return this.sliceWithLowHigh(this.position, this.length);
+    };
+    Stream.prototype.slice = function () {
+        return this.clone();
+    };
+    Stream.prototype.sliceFrom = function (low) {
+        return this.sliceWithLength(low);
+    };
+    Stream.prototype.sliceWithLength = function (low, count) {
+        if (count === undefined)
+            count = this.length - low;
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
+    };
+    Stream.prototype.sliceWithLowHigh = function (low, high) {
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, high - low));
+    };
+    Object.defineProperty(Stream.prototype, "available", {
+        get: function () {
+            return this.length - this.offset;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Stream.prototype, "length", {
+        get: function () {
+            return this.data.byteLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Stream.prototype, "position", {
+        get: function () {
+            return this.offset;
+        },
+        set: function (value) {
+            this.offset = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Stream.prototype.skip = function (count, pass) {
+        this.offset += count;
+        return pass;
+    };
+    Stream.prototype.set = function (index, value) {
+        this.data.setInt8(index, value);
+        return this;
+    };
+    Stream.prototype.get = function (index) {
+        return this.data.getUint8(index);
+    };
+    Stream.prototype.readInt8 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(1, this.data.getInt8(this.offset));
+    };
+    Stream.prototype.readInt16 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(2, this.data.getInt16(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readInt32 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(4, this.data.getInt32(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readInt64 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        var items = [this.readUInt32(endian), this.readUInt32(endian)];
+        var low = items[(endian == Endian.LITTLE) ? 0 : 1];
+        var high = items[(endian == Endian.LITTLE) ? 1 : 0];
+        return Integer64.fromBits(low, high);
+    };
+    Stream.prototype.readFloat32 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(4, this.data.getFloat32(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readUInt8 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(1, this.data.getUint8(this.offset));
+    };
+    Stream.prototype.readUInt16 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(2, this.data.getUint16(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readUInt32 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(4, this.data.getUint32(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readStruct = function (struct) {
+        return struct.read(this);
+    };
+    Stream.prototype.copyTo = function (other) {
+        other.writeBytes(this.readBytes(this.available));
+    };
+    Stream.prototype.writeByteRepeated = function (value, count) {
+        if (count === void 0) { count = -1; }
+        if (count < 0)
+            count = this.available;
+        for (var n = 0; n < count; n++)
+            this.data.setInt8(this.offset + n, value);
+        this.skip(n);
+        return this;
+    };
+    Stream.prototype.writeInt8 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setInt8(this.offset, value);
+        return this.skip(1, this);
+    };
+    Stream.prototype.writeInt16 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setInt16(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(2, this);
+    };
+    Stream.prototype.writeInt32 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setInt32(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(4, this);
+    };
+    Stream.prototype.writeInt64 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this._writeUInt64(value, endian);
+    };
+    Stream.prototype.writeFloat32 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setFloat32(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(4, this);
+    };
+    Stream.prototype.writeUInt8 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setUint8(this.offset, value);
+        return this.skip(1, this);
+    };
+    Stream.prototype.writeUInt16 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setUint16(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(2, this);
+    };
+    Stream.prototype.writeUInt32 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setUint32(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(4, this);
+    };
+    Stream.prototype.writeUInt64 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this._writeUInt64(value, endian);
+    };
+    Stream.prototype._writeUInt64 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.writeUInt32((endian == Endian.LITTLE) ? value.low : value.high, endian);
+        this.writeUInt32((endian == Endian.LITTLE) ? value.high : value.low, endian);
+        return this;
+    };
+    Stream.prototype.writeStruct = function (struct, value) {
+        struct.write(this, value);
+    };
+    Stream.prototype.writeStream = function (stream) {
+        return this.writeBytes(stream.slice().readBytes(stream.available));
+    };
+    Stream.prototype.writeString = function (str) {
+        var _this = this;
+        try {
+            str.split('').forEach(function (char) {
+                _this.writeUInt8(char.charCodeAt(0));
+            });
+        }
+        catch (e) {
+            console.log("Can't write string '" + str + "'");
+            debugger;
+            console.warn(this.data);
+            console.error(e);
+            throw (e);
+        }
+    };
+    Stream.prototype.writeStringz = function (str) {
+        return this.writeString(str + String.fromCharCode(0));
+    };
+    Stream.prototype.writeBytes = function (data) {
+        var out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
+        out.set(data, this.offset);
+        this.skip(data.length);
+    };
+    Stream.prototype.readBytes = function (count) {
+        return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+    Stream.prototype.readAllBytes = function () {
+        return this.readBytes(this.available);
+    };
+    Stream.prototype.readInt16Array = function (count) {
+        return this.skip(count, new Int16Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+    Stream.prototype.readFloat32Array = function (count) {
+        return new Float32Array(this.readBytes(count));
+    };
+    Stream.prototype.readStream = function (count) {
+        return Stream.fromUint8Array(this.readBytes(count));
+    };
+    Stream.prototype.readUtf8String = function (count) {
+        return Utf8.decode(this.readString(count));
+    };
+    Stream.prototype.readString = function (count) {
+        if (count > 1 * 1024 * 1024)
+            throw (new Error("Trying to read a string larger than 128KB"));
+        var str = '';
+        for (var n = 0; n < count; n++) {
+            str += String.fromCharCode(this.readUInt8());
+        }
+        return str;
+    };
+    Stream.prototype.readUtf8Stringz = function (maxCount) {
+        if (maxCount === void 0) { maxCount = 131072; }
+        return Utf8.decode(this.readStringz(maxCount));
+    };
+    Stream.prototype.readStringz = function (maxCount) {
+        if (maxCount === void 0) { maxCount = 131072; }
+        var str = '';
+        for (var n = 0; n < maxCount; n++) {
+            if (this.available <= 0)
+                break;
+            var char = this.readUInt8();
+            if (char == 0)
+                break;
+            str += String.fromCharCode(char);
+        }
+        return str;
+    };
+    Stream.INVALID = Stream.fromArray([]);
+    return Stream;
+})();
+
+///<reference path="./utils.ts" />
+///<reference path="./stream.ts" />
+var Int64Type = (function () {
+    function Int64Type(endian) {
+        this.endian = endian;
+    }
+    Int64Type.prototype.read = function (stream) {
+        if (this.endian == Endian.LITTLE) {
+            var low = stream.readUInt32(this.endian);
+            var high = stream.readUInt32(this.endian);
+        }
+        else {
+            var high = stream.readUInt32(this.endian);
+            var low = stream.readUInt32(this.endian);
+        }
+        return high * Math.pow(2, 32) + low;
+    };
+    Int64Type.prototype.write = function (stream, value) {
+        var low = Math.floor(value % Math.pow(2, 32));
+        var high = Math.floor(value / Math.pow(2, 32));
+        if (this.endian == Endian.LITTLE) {
+            stream.writeInt32(low, this.endian);
+            stream.writeInt32(high, this.endian);
+        }
+        else {
+            stream.writeInt32(high, this.endian);
+            stream.writeInt32(low, this.endian);
+        }
+    };
+    Object.defineProperty(Int64Type.prototype, "length", {
+        get: function () { return 8; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int64Type;
+})();
+var Int32Type = (function () {
+    function Int32Type(endian) {
+        this.endian = endian;
+    }
+    Int32Type.prototype.read = function (stream) { return stream.readInt32(this.endian); };
+    Int32Type.prototype.write = function (stream, value) { stream.writeInt32(value, this.endian); };
+    Object.defineProperty(Int32Type.prototype, "length", {
+        get: function () { return 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int32Type;
+})();
+var Int16Type = (function () {
+    function Int16Type(endian) {
+        this.endian = endian;
+    }
+    Int16Type.prototype.read = function (stream) { return stream.readInt16(this.endian); };
+    Int16Type.prototype.write = function (stream, value) { stream.writeInt16(value, this.endian); };
+    Object.defineProperty(Int16Type.prototype, "length", {
+        get: function () { return 2; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int16Type;
+})();
+var Int8Type = (function () {
+    function Int8Type(endian) {
+        this.endian = endian;
+    }
+    Int8Type.prototype.read = function (stream) { return stream.readInt8(this.endian); };
+    Int8Type.prototype.write = function (stream, value) { stream.writeInt8(value, this.endian); };
+    Object.defineProperty(Int8Type.prototype, "length", {
+        get: function () { return 1; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int8Type;
+})();
+var UInt32Type = (function () {
+    function UInt32Type(endian) {
+        this.endian = endian;
+    }
+    UInt32Type.prototype.read = function (stream) { return stream.readUInt32(this.endian); };
+    UInt32Type.prototype.write = function (stream, value) { stream.writeUInt32(value, this.endian); };
+    Object.defineProperty(UInt32Type.prototype, "length", {
+        get: function () { return 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32Type;
+})();
+var UInt16Type = (function () {
+    function UInt16Type(endian) {
+        this.endian = endian;
+    }
+    UInt16Type.prototype.read = function (stream) { return stream.readUInt16(this.endian); };
+    UInt16Type.prototype.write = function (stream, value) { stream.writeUInt16(value, this.endian); };
+    Object.defineProperty(UInt16Type.prototype, "length", {
+        get: function () { return 2; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16Type;
+})();
+var UInt8Type = (function () {
+    function UInt8Type(endian) {
+        this.endian = endian;
+    }
+    UInt8Type.prototype.read = function (stream) { return stream.readUInt8(this.endian); };
+    UInt8Type.prototype.write = function (stream, value) { stream.writeUInt8(value, this.endian); };
+    Object.defineProperty(UInt8Type.prototype, "length", {
+        get: function () { return 1; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt8Type;
+})();
+var StructClass = (function () {
+    function StructClass(_class, items) {
+        this._class = _class;
+        this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
+    }
+    StructClass.create = function (_class, items) {
+        return new StructClass(_class, items);
+    };
+    StructClass.prototype.read = function (stream) {
+        var _class = this._class;
+        var out = new _class();
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            out[item.name] = item.type.read(stream, out);
+        }
+        return out;
+    };
+    StructClass.prototype.write = function (stream, value) {
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            item.type.write(stream, value[item.name], value);
+        }
+    };
+    StructClass.prototype.offsetOfField = function (name) {
+        var offset = 0;
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            if (item.name == name)
+                return offset;
+            offset += item.type.length;
+        }
+        return -1;
+    };
+    Object.defineProperty(StructClass.prototype, "length", {
+        get: function () {
+            var sum = 0;
+            for (var n = 0; n < this.processedItems.length; n++) {
+                var item = this.processedItems[n];
+                if (!item)
+                    throw ("Invalid item!!");
+                if (!item.type) {
+                    console.log(item);
+                    throw ("Invalid item type!!");
+                }
+                sum += item.type.length;
+            }
+            return sum;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructClass;
+})();
+var StructArrayClass = (function () {
+    function StructArrayClass(elementType, count) {
+        this.elementType = elementType;
+        this.count = count;
+    }
+    StructArrayClass.prototype.read = function (stream) {
+        var out = [];
+        for (var n = 0; n < this.count; n++) {
+            out.push(this.elementType.read(stream, out));
+        }
+        return out;
+    };
+    StructArrayClass.prototype.write = function (stream, value) {
+        for (var n = 0; n < this.count; n++)
+            this.elementType.write(stream, value[n], value);
+    };
+    Object.defineProperty(StructArrayClass.prototype, "length", {
+        get: function () {
+            return this.elementType.length * this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructArrayClass;
+})();
+function StructArray(elementType, count) {
+    return new StructArrayClass(elementType, count);
+}
+var StructStringn = (function () {
+    function StructStringn(count) {
+        this.count = count;
+    }
+    StructStringn.prototype.read = function (stream) {
+        var out = '';
+        for (var n = 0; n < this.count; n++) {
+            out += String.fromCharCode(stream.readUInt8());
+        }
+        return out;
+    };
+    StructStringn.prototype.write = function (stream, value) {
+        throw ("Not implemented StructStringn.write");
+    };
+    Object.defineProperty(StructStringn.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringn;
+})();
+var StructStringz = (function () {
+    function StructStringz(count) {
+        this.count = count;
+        this.stringn = new StructStringn(count);
+    }
+    StructStringz.prototype.read = function (stream) {
+        return this.stringn.read(stream).split(String.fromCharCode(0))[0];
+    };
+    StructStringz.prototype.write = function (stream, value) {
+        if (!value)
+            value = '';
+        var items = value.split('').map(function (char) { return char.charCodeAt(0); });
+        while (items.length < this.count)
+            items.push(0);
+        for (var n = 0; n < items.length; n++)
+            stream.writeUInt8(items[n]);
+    };
+    Object.defineProperty(StructStringz.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringz;
+})();
+var StructStringzVariable = (function () {
+    function StructStringzVariable() {
+    }
+    StructStringzVariable.prototype.read = function (stream) {
+        return stream.readStringz();
+    };
+    StructStringzVariable.prototype.write = function (stream, value) {
+        stream.writeString(value);
+        stream.writeUInt8(0);
+    };
+    Object.defineProperty(StructStringzVariable.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringzVariable;
+})();
+var UInt32_2lbStruct = (function () {
+    function UInt32_2lbStruct() {
+    }
+    UInt32_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt32(Endian.LITTLE);
+        var b = stream.readUInt32(Endian.BIG);
+        return l;
+    };
+    UInt32_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt32(value, Endian.LITTLE);
+        stream.writeUInt32(value, Endian.BIG);
+    };
+    Object.defineProperty(UInt32_2lbStruct.prototype, "length", {
+        get: function () { return 8; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32_2lbStruct;
+})();
+var UInt16_2lbStruct = (function () {
+    function UInt16_2lbStruct() {
+    }
+    UInt16_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt16(Endian.LITTLE);
+        var b = stream.readUInt16(Endian.BIG);
+        return l;
+    };
+    UInt16_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt16(value, Endian.LITTLE);
+        stream.writeUInt16(value, Endian.BIG);
+    };
+    Object.defineProperty(UInt16_2lbStruct.prototype, "length", {
+        get: function () { return 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16_2lbStruct;
+})();
+var StructStringWithSize = (function () {
+    function StructStringWithSize(getStringSize) {
+        this.getStringSize = getStringSize;
+    }
+    StructStringWithSize.prototype.read = function (stream, context) {
+        return stream.readString(this.getStringSize(context));
+    };
+    StructStringWithSize.prototype.write = function (stream, value, context) {
+        stream.writeString(value);
+    };
+    Object.defineProperty(StructStringWithSize.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringWithSize;
+})();
+var Int16 = new Int16Type(Endian.LITTLE);
+var Int32 = new Int32Type(Endian.LITTLE);
+var Int64 = new Int64Type(Endian.LITTLE);
+var Int8 = new Int8Type(Endian.LITTLE);
+var UInt16 = new UInt16Type(Endian.LITTLE);
+var UInt32 = new UInt32Type(Endian.LITTLE);
+var UInt8 = new UInt8Type(Endian.LITTLE);
+var UInt16_b = new UInt16Type(Endian.BIG);
+var UInt32_b = new UInt32Type(Endian.BIG);
+var UInt32_2lb = new UInt32_2lbStruct();
+var UInt16_2lb = new UInt16_2lbStruct();
+var StringzVariable = new StructStringzVariable();
+function Stringn(count) { return new StructStringn(count); }
+function Stringz(count) { return new StructStringz(count); }
+function StringWithSize(callback) {
+    return new StructStringWithSize(callback);
+}
+var StructPointerStruct = (function () {
+    function StructPointerStruct(elementType) {
+        this.elementType = elementType;
+    }
+    StructPointerStruct.prototype.read = function (stream, context) {
+        var address = stream.readInt32(Endian.LITTLE);
+        return new Pointer(this.elementType, context['memory'], address);
+    };
+    StructPointerStruct.prototype.write = function (stream, value, context) {
+        var address = value.address;
+        stream.writeInt32(address, Endian.LITTLE);
+    };
+    Object.defineProperty(StructPointerStruct.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructPointerStruct;
+})();
+function StructPointer(type) {
+    return new StructPointerStruct(type);
+}
+var Pointer = (function () {
+    function Pointer(type, memory, address) {
+        this.type = type;
+        this.memory = memory;
+        this.address = address;
+        this.stream = memory.getPointerStream(this.address);
+    }
+    Pointer.prototype.readWrite = function (callback) {
+        var value = this.read();
+        try {
+            callback(value);
+        }
+        finally {
+            this.write(value);
+        }
+    };
+    Pointer.prototype.read = function () {
+        return this.type.read(this.stream.clone());
+    };
+    Pointer.prototype.write = function (value) {
+        this.type.write(this.stream.clone(), value);
+    };
+    return Pointer;
+})();
+
 var require = (function() {
 function requireModules(moduleFiles) {
 	var modules = {};
@@ -2818,9 +2691,12 @@ function requireModules(moduleFiles) {
 	return getRequireForPath('');
 }return requireModules({
 "bootstrap": function(module, exports, require) {
+///<reference path="./src/app.ts" />
+///<reference path="./test/_tests.ts" />
 
 },
 "src/app": function(module, exports, require) {
+///<reference path="global.d.ts" />
 var _controller = require('./core/controller');
 var _emulator = require('./emulator');
 var PspCtrlButtons = _controller.PspCtrlButtons;
@@ -2833,18 +2709,18 @@ function controllerRegister() {
         var overlay_width = overlay_query.width(), overlay_height = overlay_query.height();
         [
             { query: '#button_menu', button: 0 },
-            { query: '#button_select', button: 1 /* select */ },
-            { query: '#button_start', button: 8 /* start */ },
-            { query: '#button_up', button: 16 /* up */ },
-            { query: '#button_left', button: 128 /* left */ },
-            { query: '#button_down', button: 64 /* down */ },
-            { query: '#button_right', button: 32 /* right */ },
-            { query: '#button_l', button: 256 /* leftTrigger */ },
-            { query: '#button_r', button: 512 /* rightTrigger */ },
-            { query: '#button_cross', button: 16384 /* cross */ },
-            { query: '#button_circle', button: 8192 /* circle */ },
-            { query: '#button_square', button: 32768 /* square */ },
-            { query: '#button_triangle', button: 4096 /* triangle */ },
+            { query: '#button_select', button: PspCtrlButtons.select },
+            { query: '#button_start', button: PspCtrlButtons.start },
+            { query: '#button_up', button: PspCtrlButtons.up },
+            { query: '#button_left', button: PspCtrlButtons.left },
+            { query: '#button_down', button: PspCtrlButtons.down },
+            { query: '#button_right', button: PspCtrlButtons.right },
+            { query: '#button_l', button: PspCtrlButtons.leftTrigger },
+            { query: '#button_r', button: PspCtrlButtons.rightTrigger },
+            { query: '#button_cross', button: PspCtrlButtons.cross },
+            { query: '#button_circle', button: PspCtrlButtons.circle },
+            { query: '#button_square', button: PspCtrlButtons.square },
+            { query: '#button_triangle', button: PspCtrlButtons.triangle },
         ].forEach(function (button) {
             var query = $(button.query);
             var item_pos = query.offset();
@@ -2934,9 +2810,7 @@ function controllerRegister() {
         e.preventDefault();
     });
     var pressing = false;
-    function generateTouchEvent(x, y) {
-        return { clientX: x, clientY: y, identifier: 0 };
-    }
+    function generateTouchEvent(x, y) { return { clientX: x, clientY: y, identifier: 0 }; }
     $('#touch_overlay').mousedown(function (e) {
         pressing = true;
         touchStart([generateTouchEvent(e.clientX, e.clientY)]);
@@ -2972,6 +2846,8 @@ $(window).load(function () {
 
 },
 "src/context": function(module, exports, require) {
+///<reference path="global.ts" />
+///<reference path="global.d.ts" />
 var EmulatorContext = (function () {
     function EmulatorContext() {
         this.onStdout = new Signal();
@@ -3004,6 +2880,7 @@ exports.EmulatorContext = EmulatorContext;
 
 },
 "src/core/audio": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var PspAudioBuffer = (function () {
     function PspAudioBuffer(readedCallback, data) {
         this.readedCallback = readedCallback;
@@ -3016,26 +2893,18 @@ var PspAudioBuffer = (function () {
         this.readedCallback = null;
     };
     Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
-        get: function () {
-            return this.offset < this.length;
-        },
+        get: function () { return this.offset < this.length; },
         enumerable: true,
         configurable: true
     });
-    PspAudioBuffer.prototype.read = function () {
-        return this.data[this.offset++];
-    };
+    PspAudioBuffer.prototype.read = function () { return this.data[this.offset++]; };
     Object.defineProperty(PspAudioBuffer.prototype, "available", {
-        get: function () {
-            return this.length - this.offset;
-        },
+        get: function () { return this.length - this.offset; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(PspAudioBuffer.prototype, "length", {
-        get: function () {
-            return this.data.length;
-        },
+        get: function () { return this.data.length; },
         enumerable: true,
         configurable: true
     });
@@ -3073,9 +2942,7 @@ var PspAudioChannel = (function () {
         this.buffers = [];
         if (this.context) {
             this.node = this.context.createScriptProcessor(1024, 2, 2);
-            this.node.onaudioprocess = function (e) {
-                _this.process(e);
-            };
+            this.node.onaudioprocess = function (e) { _this.process(e); };
         }
     }
     PspAudioChannel.prototype.start = function () {
@@ -3176,12 +3043,13 @@ exports.PspAudio = PspAudio;
 
 },
 "src/core/controller": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 if (typeof navigator == 'undefined')
     navigator = {};
 var SceCtrlData = (function () {
     function SceCtrlData() {
         this.timeStamp = 0;
-        this.buttons = 0 /* none */;
+        this.buttons = PspCtrlButtons.none;
         this.lx = 0;
         this.ly = 0;
         this._rsrv = [0, 0, 0, 0, 0];
@@ -3189,22 +3057,14 @@ var SceCtrlData = (function () {
         this.y = 0;
     }
     Object.defineProperty(SceCtrlData.prototype, "x", {
-        get: function () {
-            return ((this.lx / 255.0) - 0.5) * 2.0;
-        },
-        set: function (value) {
-            this.lx = (((value / 2.0) + 0.5) * 255.0);
-        },
+        get: function () { return ((this.lx / 255.0) - 0.5) * 2.0; },
+        set: function (value) { this.lx = (((value / 2.0) + 0.5) * 255.0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(SceCtrlData.prototype, "y", {
-        get: function () {
-            return ((this.ly / 255.0) - 0.5) * 2.0;
-        },
-        set: function (value) {
-            this.ly = (((value / 2.0) + 0.5) * 255.0);
-        },
+        get: function () { return ((this.ly / 255.0) - 0.5) * 2.0; },
+        set: function (value) { this.ly = (((value / 2.0) + 0.5) * 255.0); },
         enumerable: true,
         configurable: true
     });
@@ -3233,22 +3093,22 @@ var PspController = (function () {
         this.animationTimeId = 0;
         this.gamepadsButtons = [];
         this.buttonMapping = {};
-        this.buttonMapping[38 /* up */] = 16 /* up */;
-        this.buttonMapping[37 /* left */] = 128 /* left */;
-        this.buttonMapping[39 /* right */] = 32 /* right */;
-        this.buttonMapping[40 /* down */] = 64 /* down */;
-        this.buttonMapping[13 /* enter */] = 8 /* start */;
-        this.buttonMapping[32 /* space */] = 1 /* select */;
-        this.buttonMapping[81 /* q */] = 256 /* leftTrigger */;
-        this.buttonMapping[69 /* e */] = 512 /* rightTrigger */;
-        this.buttonMapping[87 /* w */] = 4096 /* triangle */;
-        this.buttonMapping[83 /* s */] = 16384 /* cross */;
-        this.buttonMapping[65 /* a */] = 32768 /* square */;
-        this.buttonMapping[68 /* d */] = 8192 /* circle */;
-        this.fieldMapping[73 /* i */] = 'analogUp';
-        this.fieldMapping[75 /* k */] = 'analogDown';
-        this.fieldMapping[74 /* j */] = 'analogLeft';
-        this.fieldMapping[76 /* l */] = 'analogRight';
+        this.buttonMapping[HtmlKeyCodes.up] = PspCtrlButtons.up;
+        this.buttonMapping[HtmlKeyCodes.left] = PspCtrlButtons.left;
+        this.buttonMapping[HtmlKeyCodes.right] = PspCtrlButtons.right;
+        this.buttonMapping[HtmlKeyCodes.down] = PspCtrlButtons.down;
+        this.buttonMapping[HtmlKeyCodes.enter] = PspCtrlButtons.start;
+        this.buttonMapping[HtmlKeyCodes.space] = PspCtrlButtons.select;
+        this.buttonMapping[HtmlKeyCodes.q] = PspCtrlButtons.leftTrigger;
+        this.buttonMapping[HtmlKeyCodes.e] = PspCtrlButtons.rightTrigger;
+        this.buttonMapping[HtmlKeyCodes.w] = PspCtrlButtons.triangle;
+        this.buttonMapping[HtmlKeyCodes.s] = PspCtrlButtons.cross;
+        this.buttonMapping[HtmlKeyCodes.a] = PspCtrlButtons.square;
+        this.buttonMapping[HtmlKeyCodes.d] = PspCtrlButtons.circle;
+        this.fieldMapping[HtmlKeyCodes.i] = 'analogUp';
+        this.fieldMapping[HtmlKeyCodes.k] = 'analogDown';
+        this.fieldMapping[HtmlKeyCodes.j] = 'analogLeft';
+        this.fieldMapping[HtmlKeyCodes.l] = 'analogRight';
     }
     PspController.prototype.keyDown = function (e) {
         var button = this.buttonMapping[e.keyCode];
@@ -3275,9 +3135,7 @@ var PspController = (function () {
     PspController.prototype.simulateButtonPress = function (button) {
         var _this = this;
         this.simulateButtonDown(button);
-        setTimeout(function () {
-            _this.simulateButtonUp(button);
-        }, 60);
+        setTimeout(function () { _this.simulateButtonUp(button); }, 60);
     };
     PspController.prototype.startAsync = function () {
         var _this = this;
@@ -3316,22 +3174,22 @@ var PspController = (function () {
             var gamepads = (navigator['getGamepads'])();
             if (gamepads[0]) {
                 var buttonMapping = [
-                    16384 /* cross */,
-                    8192 /* circle */,
-                    32768 /* square */,
-                    4096 /* triangle */,
-                    256 /* leftTrigger */,
-                    512 /* rightTrigger */,
-                    1048576 /* volumeUp */,
-                    2097152 /* volumeDown */,
-                    1 /* select */,
-                    8 /* start */,
-                    65536 /* home */,
-                    8388608 /* note */,
-                    16 /* up */,
-                    64 /* down */,
-                    128 /* left */,
-                    32 /* right */,
+                    PspCtrlButtons.cross,
+                    PspCtrlButtons.circle,
+                    PspCtrlButtons.square,
+                    PspCtrlButtons.triangle,
+                    PspCtrlButtons.leftTrigger,
+                    PspCtrlButtons.rightTrigger,
+                    PspCtrlButtons.volumeUp,
+                    PspCtrlButtons.volumeDown,
+                    PspCtrlButtons.select,
+                    PspCtrlButtons.start,
+                    PspCtrlButtons.home,
+                    PspCtrlButtons.note,
+                    PspCtrlButtons.up,
+                    PspCtrlButtons.down,
+                    PspCtrlButtons.left,
+                    PspCtrlButtons.right,
                 ];
                 var gamepad = gamepads[0];
                 var buttons = gamepad['buttons'];
@@ -3372,29 +3230,29 @@ var PspController = (function () {
 })();
 exports.PspController = PspController;
 (function (PspCtrlButtons) {
-    PspCtrlButtons[PspCtrlButtons["none"] = 0x0000000] = "none";
-    PspCtrlButtons[PspCtrlButtons["select"] = 0x0000001] = "select";
-    PspCtrlButtons[PspCtrlButtons["start"] = 0x0000008] = "start";
-    PspCtrlButtons[PspCtrlButtons["up"] = 0x0000010] = "up";
-    PspCtrlButtons[PspCtrlButtons["right"] = 0x0000020] = "right";
-    PspCtrlButtons[PspCtrlButtons["down"] = 0x0000040] = "down";
-    PspCtrlButtons[PspCtrlButtons["left"] = 0x0000080] = "left";
-    PspCtrlButtons[PspCtrlButtons["leftTrigger"] = 0x0000100] = "leftTrigger";
-    PspCtrlButtons[PspCtrlButtons["rightTrigger"] = 0x0000200] = "rightTrigger";
-    PspCtrlButtons[PspCtrlButtons["triangle"] = 0x0001000] = "triangle";
-    PspCtrlButtons[PspCtrlButtons["circle"] = 0x0002000] = "circle";
-    PspCtrlButtons[PspCtrlButtons["cross"] = 0x0004000] = "cross";
-    PspCtrlButtons[PspCtrlButtons["square"] = 0x0008000] = "square";
-    PspCtrlButtons[PspCtrlButtons["home"] = 0x0010000] = "home";
-    PspCtrlButtons[PspCtrlButtons["hold"] = 0x0020000] = "hold";
-    PspCtrlButtons[PspCtrlButtons["wirelessLanUp"] = 0x0040000] = "wirelessLanUp";
-    PspCtrlButtons[PspCtrlButtons["remote"] = 0x0080000] = "remote";
-    PspCtrlButtons[PspCtrlButtons["volumeUp"] = 0x0100000] = "volumeUp";
-    PspCtrlButtons[PspCtrlButtons["volumeDown"] = 0x0200000] = "volumeDown";
-    PspCtrlButtons[PspCtrlButtons["screen"] = 0x0400000] = "screen";
-    PspCtrlButtons[PspCtrlButtons["note"] = 0x0800000] = "note";
-    PspCtrlButtons[PspCtrlButtons["discPresent"] = 0x1000000] = "discPresent";
-    PspCtrlButtons[PspCtrlButtons["memoryStickPresent"] = 0x2000000] = "memoryStickPresent";
+    PspCtrlButtons[PspCtrlButtons["none"] = 0] = "none";
+    PspCtrlButtons[PspCtrlButtons["select"] = 1] = "select";
+    PspCtrlButtons[PspCtrlButtons["start"] = 8] = "start";
+    PspCtrlButtons[PspCtrlButtons["up"] = 16] = "up";
+    PspCtrlButtons[PspCtrlButtons["right"] = 32] = "right";
+    PspCtrlButtons[PspCtrlButtons["down"] = 64] = "down";
+    PspCtrlButtons[PspCtrlButtons["left"] = 128] = "left";
+    PspCtrlButtons[PspCtrlButtons["leftTrigger"] = 256] = "leftTrigger";
+    PspCtrlButtons[PspCtrlButtons["rightTrigger"] = 512] = "rightTrigger";
+    PspCtrlButtons[PspCtrlButtons["triangle"] = 4096] = "triangle";
+    PspCtrlButtons[PspCtrlButtons["circle"] = 8192] = "circle";
+    PspCtrlButtons[PspCtrlButtons["cross"] = 16384] = "cross";
+    PspCtrlButtons[PspCtrlButtons["square"] = 32768] = "square";
+    PspCtrlButtons[PspCtrlButtons["home"] = 65536] = "home";
+    PspCtrlButtons[PspCtrlButtons["hold"] = 131072] = "hold";
+    PspCtrlButtons[PspCtrlButtons["wirelessLanUp"] = 262144] = "wirelessLanUp";
+    PspCtrlButtons[PspCtrlButtons["remote"] = 524288] = "remote";
+    PspCtrlButtons[PspCtrlButtons["volumeUp"] = 1048576] = "volumeUp";
+    PspCtrlButtons[PspCtrlButtons["volumeDown"] = 2097152] = "volumeDown";
+    PspCtrlButtons[PspCtrlButtons["screen"] = 4194304] = "screen";
+    PspCtrlButtons[PspCtrlButtons["note"] = 8388608] = "note";
+    PspCtrlButtons[PspCtrlButtons["discPresent"] = 16777216] = "discPresent";
+    PspCtrlButtons[PspCtrlButtons["memoryStickPresent"] = 33554432] = "memoryStickPresent";
 })(exports.PspCtrlButtons || (exports.PspCtrlButtons = {}));
 var PspCtrlButtons = exports.PspCtrlButtons;
 (function (HtmlKeyCodes) {
@@ -3502,6 +3360,7 @@ var HtmlKeyCodes = exports.HtmlKeyCodes;
 
 },
 "src/core/cpu": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _assembler = require('./cpu/assembler');
 _assembler.MipsAssembler;
 var _state = require('./cpu/state');
@@ -3528,7 +3387,7 @@ exports.NativeFunction = _syscall.NativeFunction;
 
 },
 "src/core/cpu/assembler": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var instructions = require('./instructions');
 var Instructions = instructions.Instructions;
 var Instruction = instructions.Instruction;
@@ -3547,6 +3406,7 @@ var MipsAssembler = (function () {
         }
     };
     MipsAssembler.prototype.assemble = function (PC, line) {
+        //console.log(line);
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
@@ -3558,24 +3418,23 @@ var MipsAssembler = (function () {
         var instructionType = this.instructions.findByName(instructionName);
         var instruction = new Instruction(PC, instructionType.vm.value);
         var types = [];
-        var formatPattern = instructionType.format.replace('(', '\\(').replace(')', '\\)').replace(/(%\w+)/g, function (type) {
+        var formatPattern = instructionType.format
+            .replace('(', '\\(')
+            .replace(')', '\\)')
+            .replace(/(%\w+)/g, function (type) {
             types.push(type);
             switch (type) {
                 case '%J':
                 case '%s':
                 case '%d':
-                case '%t':
-                    return '([$r]\\d+)';
-                case '%i':
-                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%C':
-                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%c':
-                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                default:
-                    throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
+                case '%t': return '([$r]\\d+)';
+                case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
-        }).replace(/\s+/g, '\\s*');
+        })
+            .replace(/\s+/g, '\\s*');
         var regex = new RegExp('^' + formatPattern + '$', '');
         var matches = instructionArguments.match(regex);
         if (matches === null) {
@@ -3624,8 +3483,7 @@ var MipsAssembler = (function () {
             case '%c':
                 instruction.syscall = this.decodeInteger(value);
                 break;
-            default:
-                throw ("MipsAssembler.Update: Unknown type '" + type + "'");
+            default: throw ("MipsAssembler.Update: Unknown type '" + type + "'");
         }
     };
     return MipsAssembler;
@@ -3652,8 +3510,7 @@ var MipsDisassembler = (function () {
                 case '%t':
                     return _this.encodeRegister(instruction.rt);
                     break;
-                default:
-                    throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
+                default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
         return instructionType.name + ' ' + arguments;
@@ -3664,22 +3521,18 @@ exports.MipsDisassembler = MipsDisassembler;
 
 },
 "src/core/cpu/ast_builder": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var state = require('./state');
 var ANode = (function () {
     function ANode() {
     }
-    ANode.prototype.toJs = function () {
-        return '';
-    };
-    ANode.prototype.optimize = function () {
-        return this;
-    };
+    ANode.prototype.toJs = function () { return ''; };
+    ANode.prototype.optimize = function () { return this; };
     return ANode;
 })();
 exports.ANode = ANode;
@@ -3705,9 +3558,7 @@ var ANodeStmReturn = (function (_super) {
     function ANodeStmReturn() {
         _super.apply(this, arguments);
     }
-    ANodeStmReturn.prototype.toJs = function () {
-        return 'return;';
-    };
+    ANodeStmReturn.prototype.toJs = function () { return 'return;'; };
     return ANodeStmReturn;
 })(ANodeStm);
 exports.ANodeStmReturn = ANodeStmReturn;
@@ -3759,9 +3610,7 @@ var ANodeStmRaw = (function (_super) {
         _super.call(this);
         this.content = content;
     }
-    ANodeStmRaw.prototype.toJs = function () {
-        return this.content;
-    };
+    ANodeStmRaw.prototype.toJs = function () { return this.content; };
     return ANodeStmRaw;
 })(ANodeStm);
 exports.ANodeStmRaw = ANodeStmRaw;
@@ -3771,9 +3620,7 @@ var ANodeStmExpr = (function (_super) {
         _super.call(this);
         this.expr = expr;
     }
-    ANodeStmExpr.prototype.toJs = function () {
-        return this.expr.toJs() + ';';
-    };
+    ANodeStmExpr.prototype.toJs = function () { return this.expr.toJs() + ';'; };
     return ANodeStmExpr;
 })(ANodeStm);
 exports.ANodeStmExpr = ANodeStmExpr;
@@ -3784,9 +3631,7 @@ var ANodeAllocVarStm = (function (_super) {
         this.name = name;
         this.initialValue = initialValue;
     }
-    ANodeAllocVarStm.prototype.toJs = function () {
-        return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';';
-    };
+    ANodeAllocVarStm.prototype.toJs = function () { return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';'; };
     return ANodeAllocVarStm;
 })(ANodeStm);
 exports.ANodeAllocVarStm = ANodeAllocVarStm;
@@ -3803,9 +3648,7 @@ var ANodeExprLValue = (function (_super) {
     function ANodeExprLValue() {
         _super.apply(this, arguments);
     }
-    ANodeExprLValue.prototype.toAssignJs = function (right) {
-        return '';
-    };
+    ANodeExprLValue.prototype.toAssignJs = function (right) { return ''; };
     return ANodeExprLValue;
 })(ANodeExpr);
 exports.ANodeExprLValue = ANodeExprLValue;
@@ -3843,12 +3686,8 @@ var ANodeExprLValueVar = (function (_super) {
         _super.call(this);
         this.name = name;
     }
-    ANodeExprLValueVar.prototype.toAssignJs = function (right) {
-        return this.name + ' = ' + right.toJs();
-    };
-    ANodeExprLValueVar.prototype.toJs = function () {
-        return this.name;
-    };
+    ANodeExprLValueVar.prototype.toAssignJs = function (right) { return this.name + ' = ' + right.toJs(); };
+    ANodeExprLValueVar.prototype.toJs = function () { return this.name; };
     return ANodeExprLValueVar;
 })(ANodeExprLValue);
 exports.ANodeExprLValueVar = ANodeExprLValueVar;
@@ -3858,9 +3697,7 @@ var ANodeExprI32 = (function (_super) {
         _super.call(this);
         this.value = value;
     }
-    ANodeExprI32.prototype.toJs = function () {
-        return String(this.value);
-    };
+    ANodeExprI32.prototype.toJs = function () { return String(this.value); };
     return ANodeExprI32;
 })(ANodeExpr);
 exports.ANodeExprI32 = ANodeExprI32;
@@ -3906,9 +3743,7 @@ var ANodeExprBinop = (function (_super) {
         if (!this.right || !this.right.toJs)
             debugger;
     }
-    ANodeExprBinop.prototype.toJs = function () {
-        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
-    };
+    ANodeExprBinop.prototype.toJs = function () { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; };
     return ANodeExprBinop;
 })(ANodeExpr);
 exports.ANodeExprBinop = ANodeExprBinop;
@@ -3919,9 +3754,7 @@ var ANodeExprUnop = (function (_super) {
         this.op = op;
         this.right = right;
     }
-    ANodeExprUnop.prototype.toJs = function () {
-        return '(' + this.op + '(' + this.right.toJs() + '))';
-    };
+    ANodeExprUnop.prototype.toJs = function () { return '(' + this.op + '(' + this.right.toJs() + '))'; };
     return ANodeExprUnop;
 })(ANodeExpr);
 exports.ANodeExprUnop = ANodeExprUnop;
@@ -3936,9 +3769,7 @@ var ANodeExprAssign = (function (_super) {
         if (!this.right)
             debugger;
     }
-    ANodeExprAssign.prototype.toJs = function () {
-        return this.left.toAssignJs(this.right);
-    };
+    ANodeExprAssign.prototype.toJs = function () { return this.left.toAssignJs(this.right); };
     return ANodeExprAssign;
 })(ANodeExpr);
 exports.ANodeExprAssign = ANodeExprAssign;
@@ -3948,9 +3779,7 @@ var ANodeExprArray = (function (_super) {
         _super.call(this);
         this._items = _items;
     }
-    ANodeExprArray.prototype.toJs = function () {
-        return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']';
-    };
+    ANodeExprArray.prototype.toJs = function () { return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']'; };
     return ANodeExprArray;
 })(ANodeExpr);
 exports.ANodeExprArray = ANodeExprArray;
@@ -3967,9 +3796,7 @@ var ANodeExprCall = (function (_super) {
                 debugger;
         });
     }
-    ANodeExprCall.prototype.toJs = function () {
-        return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')';
-    };
+    ANodeExprCall.prototype.toJs = function () { return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')'; };
     return ANodeExprCall;
 })(ANodeExpr);
 exports.ANodeExprCall = ANodeExprCall;
@@ -3995,61 +3822,27 @@ exports.ANodeStmIf = ANodeStmIf;
 var AstBuilder = (function () {
     function AstBuilder() {
     }
-    AstBuilder.prototype.assign = function (ref, value) {
-        return new ANodeExprAssign(ref, value);
-    };
-    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
-        return new ANodeStmIf(cond, codeTrue, codeFalse);
-    };
-    AstBuilder.prototype.binop = function (left, op, right) {
-        return new ANodeExprBinop(left, op, right);
-    };
-    AstBuilder.prototype.unop = function (op, right) {
-        return new ANodeExprUnop(op, right);
-    };
-    AstBuilder.prototype.binop_i = function (left, op, right) {
-        return this.binop(left, op, this.imm32(right));
-    };
-    AstBuilder.prototype.imm32 = function (value) {
-        return new ANodeExprI32(value);
-    };
-    AstBuilder.prototype.imm_f = function (value) {
-        return new ANodeExprFloat(value);
-    };
-    AstBuilder.prototype.u_imm32 = function (value) {
-        return new ANodeExprU32(value);
-    };
-    AstBuilder.prototype.stm = function (expr) {
-        return expr ? (new ANodeStmExpr(expr)) : new ANodeStm();
-    };
-    AstBuilder.prototype.stms = function (stms) {
-        return new ANodeStmList(stms);
-    };
-    AstBuilder.prototype.array = function (exprList) {
-        return new ANodeExprArray(exprList);
-    };
+    AstBuilder.prototype.assign = function (ref, value) { return new ANodeExprAssign(ref, value); };
+    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) { return new ANodeStmIf(cond, codeTrue, codeFalse); };
+    AstBuilder.prototype.binop = function (left, op, right) { return new ANodeExprBinop(left, op, right); };
+    AstBuilder.prototype.unop = function (op, right) { return new ANodeExprUnop(op, right); };
+    AstBuilder.prototype.binop_i = function (left, op, right) { return this.binop(left, op, this.imm32(right)); };
+    AstBuilder.prototype.imm32 = function (value) { return new ANodeExprI32(value); };
+    AstBuilder.prototype.imm_f = function (value) { return new ANodeExprFloat(value); };
+    AstBuilder.prototype.u_imm32 = function (value) { return new ANodeExprU32(value); };
+    AstBuilder.prototype.stm = function (expr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); };
+    AstBuilder.prototype.stms = function (stms) { return new ANodeStmList(stms); };
+    AstBuilder.prototype.array = function (exprList) { return new ANodeExprArray(exprList); };
     AstBuilder.prototype.arrayNumbers = function (values) {
         var _this = this;
         return this.array(values.map(function (value) { return _this.imm_f(value); }));
     };
-    AstBuilder.prototype.call = function (name, exprList) {
-        return new ANodeExprCall(name, exprList);
-    };
-    AstBuilder.prototype.jump = function (label) {
-        return new ANodeStmJump(label);
-    };
-    AstBuilder.prototype._return = function () {
-        return new ANodeStmReturn();
-    };
-    AstBuilder.prototype.raw_stm = function (content) {
-        return new ANodeStmRaw(content);
-    };
-    AstBuilder.prototype.raw = function (content) {
-        return new ANodeExprLValueVar(content);
-    };
-    AstBuilder.prototype.allocVar = function (name, initialValue) {
-        return new ANodeAllocVarStm(name, initialValue);
-    };
+    AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
+    AstBuilder.prototype.jump = function (label) { return new ANodeStmJump(label); };
+    AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
+    AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
+    AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
+    AstBuilder.prototype.allocVar = function (name, initialValue) { return new ANodeAllocVarStm(name, initialValue); };
     return AstBuilder;
 })();
 exports.AstBuilder = AstBuilder;
@@ -4062,9 +3855,7 @@ var MipsAstBuilder = (function (_super) {
         if (comment === void 0) { comment = '-'; }
         return new ANodeStmRaw("debugger; // " + comment + "\n");
     };
-    MipsAstBuilder.prototype.functionPrefix = function () {
-        return this.stm();
-    };
+    MipsAstBuilder.prototype.functionPrefix = function () { return this.stm(); };
     MipsAstBuilder.prototype.gpr = function (index) {
         if (index === 0)
             return new ANodeExprLValueVar('0');
@@ -4075,191 +3866,79 @@ var MipsAstBuilder = (function (_super) {
             return new ANodeExprLValueVar('0');
         return new ANodeExprLValueVar('state.gpr_f[' + index + ']');
     };
-    MipsAstBuilder.prototype.tempr = function (index) {
-        return new ANodeExprLValueVar('state.temp[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vector_vs = function (index) {
-        return new ANodeExprLValueVar('state.vector_vs[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vector_vt = function (index) {
-        return new ANodeExprLValueVar('state.vector_vt[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfpr = function (index) {
-        return new ANodeExprLValueVar('state.vfpr[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfprc = function (index) {
-        return new ANodeExprLValueVar('state.vfprc[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfpr_i = function (index) {
-        return new ANodeExprLValueVar('state.vfpr_i[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fpr = function (index) {
-        return new ANodeExprLValueVar('state.fpr[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fpr_i = function (index) {
-        return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fcr31_cc = function () {
-        return new ANodeExprLValueVar('state.fcr31_cc');
-    };
-    MipsAstBuilder.prototype.lo = function () {
-        return new ANodeExprLValueVar('state.LO');
-    };
-    MipsAstBuilder.prototype.hi = function () {
-        return new ANodeExprLValueVar('state.HI');
-    };
-    MipsAstBuilder.prototype.ic = function () {
-        return new ANodeExprLValueVar('state.IC');
-    };
-    MipsAstBuilder.prototype.pc = function () {
-        return new ANodeExprLValueVar('state.PC');
-    };
+    MipsAstBuilder.prototype.tempr = function (index) { return new ANodeExprLValueVar('state.temp[' + index + ']'); };
+    MipsAstBuilder.prototype.vector_vs = function (index) { return new ANodeExprLValueVar('state.vector_vs[' + index + ']'); };
+    MipsAstBuilder.prototype.vector_vt = function (index) { return new ANodeExprLValueVar('state.vector_vt[' + index + ']'); };
+    MipsAstBuilder.prototype.vfpr = function (index) { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); };
+    MipsAstBuilder.prototype.vfprc = function (index) { return new ANodeExprLValueVar('state.vfprc[' + index + ']'); };
+    MipsAstBuilder.prototype.vfpr_i = function (index) { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); };
+    MipsAstBuilder.prototype.fpr = function (index) { return new ANodeExprLValueVar('state.fpr[' + index + ']'); };
+    MipsAstBuilder.prototype.fpr_i = function (index) { return new ANodeExprLValueVar('state.fpr_i[' + index + ']'); };
+    MipsAstBuilder.prototype.fcr31_cc = function () { return new ANodeExprLValueVar('state.fcr31_cc'); };
+    MipsAstBuilder.prototype.lo = function () { return new ANodeExprLValueVar('state.LO'); };
+    MipsAstBuilder.prototype.hi = function () { return new ANodeExprLValueVar('state.HI'); };
+    MipsAstBuilder.prototype.ic = function () { return new ANodeExprLValueVar('state.IC'); };
+    MipsAstBuilder.prototype.pc = function () { return new ANodeExprLValueVar('state.PC'); };
     MipsAstBuilder.prototype.VCC = function (index) {
         return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
     };
-    MipsAstBuilder.prototype.ra = function () {
-        return new ANodeExprLValueVar('state.gpr[31]');
-    };
-    MipsAstBuilder.prototype.branchflag = function () {
-        return new ANodeExprLValueVar('state.BRANCHFLAG');
-    };
-    MipsAstBuilder.prototype.branchpc = function () {
-        return new ANodeExprLValueVar('state.BRANCHPC');
-    };
+    MipsAstBuilder.prototype.ra = function () { return new ANodeExprLValueVar('state.gpr[31]'); };
+    MipsAstBuilder.prototype.branchflag = function () { return new ANodeExprLValueVar('state.BRANCHFLAG'); };
+    MipsAstBuilder.prototype.branchpc = function () { return new ANodeExprLValueVar('state.BRANCHPC'); };
     MipsAstBuilder.prototype.assignGpr = function (index, expr) {
         if (index == 0)
             return this.stm();
         return this.stm(this.assign(this.gpr(index), expr));
     };
-    MipsAstBuilder.prototype.assignIC = function (expr) {
-        return this.stm(this.assign(this.ic(), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
-        return this.stm(this.assign(this.fpr_i(index), expr));
-    };
+    MipsAstBuilder.prototype.assignIC = function (expr) { return this.stm(this.assign(this.ic(), expr)); };
+    MipsAstBuilder.prototype.assignFpr = function (index, expr) { return this.stm(this.assign(this.fpr(index), expr)); };
+    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) { return this.stm(this.assign(this.fpr_i(index), expr)); };
     return MipsAstBuilder;
 })(AstBuilder);
 exports.MipsAstBuilder = MipsAstBuilder;
 
 },
 "src/core/cpu/codegen": function(module, exports, require) {
-var instructions = require('./instructions');
+///<reference path="../../global.d.ts" />
 var _ast = require('./ast_builder');
 var ast;
-function assignGpr(index, expr) {
-    return ast.assignGpr(index, expr);
-}
-function assignFpr(index, expr) {
-    return ast.assignFpr(index, expr);
-}
-function assignFpr_I(index, expr) {
-    return ast.assignFpr_I(index, expr);
-}
-function assignIC(expr) {
-    return ast.assignIC(expr);
-}
-function fcr31_cc() {
-    return ast.fcr31_cc();
-}
-function fpr(index) {
-    return ast.fpr(index);
-}
-function fpr_i(index) {
-    return ast.fpr_i(index);
-}
-function gpr(index) {
-    return ast.gpr(index);
-}
-function gpr_f(index) {
-    return ast.gpr_f(index);
-}
-function tempr(index) {
-    return ast.tempr(index);
-}
-function vfpr(reg) {
-    return ast.vfpr(reg);
-}
-function vfprc(reg) {
-    return ast.vfprc(reg);
-}
-function vfpr_i(index) {
-    return ast.vfpr_i(index);
-}
-function immBool(value) {
-    return ast.imm32(value ? 1 : 0);
-}
-function imm32(value) {
-    return ast.imm32(value);
-}
-function imm_f(value) {
-    return ast.imm_f(value);
-}
-function u_imm32(value) {
-    return ast.u_imm32(value);
-}
-function unop(op, right) {
-    return ast.unop(op, right);
-}
-function binop(left, op, right) {
-    return ast.binop(left, op, right);
-}
-function binop_i(left, op, right) {
-    return ast.binop_i(left, op, right);
-}
-function _if(cond, codeTrue, codeFalse) {
-    return ast._if(cond, codeTrue, codeFalse);
-}
-function call(name, exprList) {
-    return ast.call(name, exprList);
-}
-function call_stm(name, exprList) {
-    return stm(ast.call(name, exprList));
-}
-function stm(expr) {
-    return ast.stm(expr);
-}
-function stms(stms) {
-    return ast.stms(stms);
-}
-function pc() {
-    return ast.pc();
-}
-function lo() {
-    return ast.lo();
-}
-function hi() {
-    return ast.hi();
-}
-function ic() {
-    return ast.ic();
-}
-function branchflag() {
-    return ast.branchflag();
-}
-function branchpc() {
-    return ast.branchpc();
-}
-function assign(ref, value) {
-    return ast.assign(ref, value);
-}
-function assign_stm(ref, value) {
-    return stm(ast.assign(ref, value));
-}
-function i_simm16(i) {
-    return imm32(i.imm16);
-}
-function i_uimm16(i) {
-    return u_imm32(i.u_imm16);
-}
-function rs_imm16(i) {
-    return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0));
-}
-function cast_uint(expr) {
-    return binop(expr, '>>>', ast.imm32(0));
-}
+function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
+function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
+function assignFpr_I(index, expr) { return ast.assignFpr_I(index, expr); }
+function assignIC(expr) { return ast.assignIC(expr); }
+function fcr31_cc() { return ast.fcr31_cc(); }
+function fpr(index) { return ast.fpr(index); }
+function fpr_i(index) { return ast.fpr_i(index); }
+function gpr(index) { return ast.gpr(index); }
+function gpr_f(index) { return ast.gpr_f(index); }
+function tempr(index) { return ast.tempr(index); }
+function vfpr(reg) { return ast.vfpr(reg); }
+function vfprc(reg) { return ast.vfprc(reg); }
+function vfpr_i(index) { return ast.vfpr_i(index); }
+function immBool(value) { return ast.imm32(value ? 1 : 0); }
+function imm32(value) { return ast.imm32(value); }
+function imm_f(value) { return ast.imm_f(value); }
+function u_imm32(value) { return ast.u_imm32(value); }
+function unop(op, right) { return ast.unop(op, right); }
+function binop(left, op, right) { return ast.binop(left, op, right); }
+function binop_i(left, op, right) { return ast.binop_i(left, op, right); }
+function _if(cond, codeTrue, codeFalse) { return ast._if(cond, codeTrue, codeFalse); }
+function call(name, exprList) { return ast.call(name, exprList); }
+function call_stm(name, exprList) { return stm(ast.call(name, exprList)); }
+function stm(expr) { return ast.stm(expr); }
+function stms(stms) { return ast.stms(stms); }
+function pc() { return ast.pc(); }
+function lo() { return ast.lo(); }
+function hi() { return ast.hi(); }
+function ic() { return ast.ic(); }
+function branchflag() { return ast.branchflag(); }
+function branchpc() { return ast.branchpc(); }
+function assign(ref, value) { return ast.assign(ref, value); }
+function assign_stm(ref, value) { return stm(ast.assign(ref, value)); }
+function i_simm16(i) { return imm32(i.imm16); }
+function i_uimm16(i) { return u_imm32(i.u_imm16); }
+function rs_imm16(i) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
+function cast_uint(expr) { return binop(expr, '>>>', ast.imm32(0)); }
 var VMatRegClass = (function () {
     function VMatRegClass(reg) {
         this.reg = reg;
@@ -4294,7 +3973,7 @@ var VVecRegClass = (function () {
     VVecRegClass.prototype._setVector = function (generator) {
         var array = [];
         var statements = [];
-        var regs = getVectorRegs(this.reg, 4 /* Quad */);
+        var regs = getVectorRegs(this.reg, VectorSize.Quad);
         statements.push(stm(ast.call('state.vfpuStore', [
             ast.array(regs.map(function (item) { return imm32(item); })),
             ast.array([0, 1, 2, 3].map(function (index) { return generator(index); }))
@@ -4336,25 +4015,24 @@ function getVectorRegs(vectorReg, N) {
     var length = 0;
     var transpose = (vectorReg >>> 5) & 1;
     switch (N) {
-        case 1 /* Single */:
+        case VectorSize.Single:
             transpose = 0;
             row = (vectorReg >>> 5) & 3;
             length = 1;
             break;
-        case 2 /* Pair */:
+        case VectorSize.Pair:
             row = (vectorReg >>> 5) & 2;
             length = 2;
             break;
-        case 3 /* Triple */:
+        case VectorSize.Triple:
             row = (vectorReg >>> 6) & 1;
             length = 3;
             break;
-        case 4 /* Quad */:
+        case VectorSize.Quad:
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
-        default:
-            debugger;
+        default: debugger;
     }
     var regs = new Array(length);
     for (var i = 0; i < length; i++) {
@@ -4375,20 +4053,19 @@ function getMatrixRegs(matrixReg, N) {
     var row = 0;
     var side = 0;
     switch (N) {
-        case 2 /* M_2x2 */:
+        case MatrixSize.M_2x2:
             row = (matrixReg >> 5) & 2;
             side = 2;
             break;
-        case 3 /* M_3x3 */:
+        case MatrixSize.M_3x3:
             row = (matrixReg >> 6) & 1;
             side = 3;
             break;
-        case 4 /* M_4x4 */:
+        case MatrixSize.M_4x4:
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
-        default:
-            debugger;
+        default: debugger;
     }
     var transpose = (matrixReg >> 5) & 1;
     var regs = new Array(side * side);
@@ -4423,10 +4100,8 @@ function setMemoryVector(offset, items) {
 }
 function memoryRef(type, address) {
     switch (type) {
-        case 'float':
-            return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
-        default:
-            throw (new Error("Not implemented memoryRef type '" + type + "'"));
+        case 'float': return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
+        default: throw (new Error("Not implemented memoryRef type '" + type + "'"));
     }
 }
 function getMemoryVector(offset, count) {
@@ -4535,8 +4210,7 @@ var VfpuPrefixes = (function () {
                 case 3:
                     value = call('MathFloat.sat1', [value]);
                     break;
-                default:
-                    break;
+                default: break;
             }
             return assign_stm(left, value);
         }
@@ -4585,9 +4259,7 @@ var InstructionAst = (function () {
         this._vpfxt.eat();
         this._vpfxd.eat();
     };
-    InstructionAst.prototype.lui = function (i) {
-        return assignGpr(i.rt, u_imm32(i.imm16 << 16));
-    };
+    InstructionAst.prototype.lui = function (i) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); };
     InstructionAst.prototype._vset1 = function (i, generate, destSize, destType) {
         if (destSize === void 0) { destSize = 0; }
         if (destType === void 0) { destType = 'float'; }
@@ -4680,39 +4352,17 @@ var InstructionAst = (function () {
             call_stm('state.setVpfxd', [imm32(i.data)]),
         ]);
     };
-    InstructionAst.prototype["lv.s"] = function (i) {
-        return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)]));
-    };
-    InstructionAst.prototype["sv.s"] = function (i) {
-        return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]);
-    };
-    InstructionAst.prototype["lv.q"] = function (i) {
-        return setItems(readVector_f(i.VT5_1, 4 /* Quad */), getMemoryVector(address_RS_IMM14(i), 4));
-    };
-    InstructionAst.prototype["lvl.q"] = function (i) {
-        return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["lvr.q"] = function (i) {
-        return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["sv.q"] = function (i) {
-        return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, 4 /* Quad */));
-    };
-    InstructionAst.prototype["svl.q"] = function (i) {
-        return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["svr.q"] = function (i) {
-        return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype.viim = function (i) {
-        return assign_stm(vfpr(i.VT), imm32(i.imm16));
-    };
-    InstructionAst.prototype.vfim = function (i) {
-        return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF));
-    };
-    InstructionAst.prototype.vcst = function (i) {
-        return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value));
-    };
+    InstructionAst.prototype["lv.s"] = function (i) { return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)])); };
+    InstructionAst.prototype["sv.s"] = function (i) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); };
+    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); };
+    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, VectorSize.Quad)); };
+    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype.viim = function (i) { return assign_stm(vfpr(i.VT), imm32(i.imm16)); };
+    InstructionAst.prototype.vfim = function (i) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); };
+    InstructionAst.prototype.vcst = function (i) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); };
     InstructionAst.prototype.vhdp = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -4722,15 +4372,9 @@ var InstructionAst = (function () {
             });
         }, 1, vectorSize, vectorSize);
     };
-    InstructionAst.prototype.vmidt = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32((c == r) ? 1 : 0); });
-    };
-    InstructionAst.prototype.vmzero = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(0); });
-    };
-    InstructionAst.prototype.vmone = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(1); });
-    };
+    InstructionAst.prototype.vmidt = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32((c == r) ? 1 : 0); }); };
+    InstructionAst.prototype.vmzero = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(0); }); };
+    InstructionAst.prototype.vmone = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(1); }); };
     InstructionAst.prototype._vtfm_x = function (i, vectorSize) {
         var _this = this;
         var srcMat = readMatrix(i.VS, vectorSize);
@@ -4759,73 +4403,41 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return stms(st);
     };
-    InstructionAst.prototype.vtfm2 = function (i) {
-        return this._vtfm_x(i, 2);
-    };
-    InstructionAst.prototype.vtfm3 = function (i) {
-        return this._vtfm_x(i, 3);
-    };
-    InstructionAst.prototype.vtfm4 = function (i) {
-        return this._vtfm_x(i, 4);
-    };
-    InstructionAst.prototype.vhtfm2 = function (i) {
-        return this._vhtfm_x(i, 2);
-    };
-    InstructionAst.prototype.vhtfm3 = function (i) {
-        return this._vhtfm_x(i, 3);
-    };
-    InstructionAst.prototype.vhtfm4 = function (i) {
-        return this._vhtfm_x(i, 4);
-    };
+    InstructionAst.prototype.vtfm2 = function (i) { return this._vtfm_x(i, 2); };
+    InstructionAst.prototype.vtfm3 = function (i) { return this._vtfm_x(i, 3); };
+    InstructionAst.prototype.vtfm4 = function (i) { return this._vtfm_x(i, 4); };
+    InstructionAst.prototype.vhtfm2 = function (i) { return this._vhtfm_x(i, 2); };
+    InstructionAst.prototype.vhtfm3 = function (i) { return this._vhtfm_x(i, 3); };
+    InstructionAst.prototype.vhtfm4 = function (i) { return this._vhtfm_x(i, 4); };
     InstructionAst.prototype.vmscl = function (i) {
         var vectorSize = i.ONE_TWO;
         var src = readMatrix(i.VS, vectorSize);
         return setMatrix(getMatrixRegsVD(i), function (c, r, index) { return binop(src[index], '*', vfpr(i.VT)); });
     };
-    InstructionAst.prototype.vzero = function (i) {
-        return this._vset1(i, function (i) { return imm_f(0); });
-    };
-    InstructionAst.prototype.vone = function (i) {
-        return this._vset1(i, function (i) { return imm_f(1); });
-    };
-    InstructionAst.prototype.vmov = function (i) {
-        return this._vset3(i, function (i, s, t) { return s[i]; });
-    };
-    InstructionAst.prototype.vrcp = function (i) {
-        return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); });
-    };
-    InstructionAst.prototype.vmul = function (i) {
-        return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); });
-    };
+    InstructionAst.prototype.vzero = function (i) { return this._vset1(i, function (i) { return imm_f(0); }); };
+    InstructionAst.prototype.vone = function (i) { return this._vset1(i, function (i) { return imm_f(1); }); };
+    InstructionAst.prototype.vmov = function (i) { return this._vset3(i, function (i, s, t) { return s[i]; }); };
+    InstructionAst.prototype.vrcp = function (i) { return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); }); };
+    InstructionAst.prototype.vmul = function (i) { return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); }); };
     InstructionAst.prototype.vbfy1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return binop(src[0], '+', src[1]);
-                case 1:
-                    return binop(src[0], '-', src[1]);
-                case 2:
-                    return binop(src[2], '+', src[3]);
-                case 3:
-                    return binop(src[2], '-', src[3]);
-                default:
-                    throw (new Error("vbfy1: Invalid operation"));
+                case 0: return binop(src[0], '+', src[1]);
+                case 1: return binop(src[0], '-', src[1]);
+                case 2: return binop(src[2], '+', src[3]);
+                case 3: return binop(src[2], '-', src[3]);
+                default: throw (new Error("vbfy1: Invalid operation"));
             }
         });
     };
     InstructionAst.prototype.vbfy2 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return binop(src[0], '+', src[2]);
-                case 1:
-                    return binop(src[1], '+', src[3]);
-                case 2:
-                    return binop(src[0], '-', src[2]);
-                case 3:
-                    return binop(src[1], '-', src[3]);
-                default:
-                    throw (new Error("vbfy1: Invalid operation"));
+                case 0: return binop(src[0], '+', src[2]);
+                case 1: return binop(src[1], '+', src[3]);
+                case 2: return binop(src[0], '-', src[2]);
+                case 3: return binop(src[1], '-', src[3]);
+                default: throw (new Error("vbfy1: Invalid operation"));
             }
         });
     };
@@ -4833,109 +4445,70 @@ var InstructionAst = (function () {
         var vectorSize = i.ONE_TWO;
         return this._vset2(i, function (index, src) {
             switch (index) {
-                case 0:
-                    return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
-                case 1:
-                    return ast.call('MathFloat.sat0', [src[0]]);
-                case 2:
-                    return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
-                case 3:
-                    return ast.call('MathFloat.sat0', [src[1]]);
-                default:
-                    throw (new Error("vsocp: " + index));
+                case 0: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
+                case 1: return ast.call('MathFloat.sat0', [src[0]]);
+                case 2: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[1])]);
+                case 3: return ast.call('MathFloat.sat0', [src[1]]);
+                default: throw (new Error("vsocp: " + index));
             }
         }, vectorSize * 2, vectorSize);
     };
     InstructionAst.prototype.vsrt1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.min', [src[0], src[1]]);
-                case 1:
-                    return call('MathFloat.max', [src[0], src[1]]);
-                case 2:
-                    return call('MathFloat.min', [src[2], src[3]]);
-                case 3:
-                    return call('MathFloat.max', [src[2], src[3]]);
-                default:
-                    throw (new Error("vsrt1: Invalid operation"));
+                case 0: return call('MathFloat.min', [src[0], src[1]]);
+                case 1: return call('MathFloat.max', [src[0], src[1]]);
+                case 2: return call('MathFloat.min', [src[2], src[3]]);
+                case 3: return call('MathFloat.max', [src[2], src[3]]);
+                default: throw (new Error("vsrt1: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt2 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.min', [src[0], src[3]]);
-                case 1:
-                    return call('MathFloat.min', [src[1], src[2]]);
-                case 2:
-                    return call('MathFloat.max', [src[1], src[2]]);
-                case 3:
-                    return call('MathFloat.max', [src[0], src[3]]);
-                default:
-                    throw (new Error("vsrt2: Invalid operation"));
+                case 0: return call('MathFloat.min', [src[0], src[3]]);
+                case 1: return call('MathFloat.min', [src[1], src[2]]);
+                case 2: return call('MathFloat.max', [src[1], src[2]]);
+                case 3: return call('MathFloat.max', [src[0], src[3]]);
+                default: throw (new Error("vsrt2: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt3 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.max', [src[0], src[1]]);
-                case 1:
-                    return call('MathFloat.min', [src[0], src[1]]);
-                case 2:
-                    return call('MathFloat.max', [src[2], src[3]]);
-                case 3:
-                    return call('MathFloat.min', [src[2], src[3]]);
-                default:
-                    throw (new Error("vsrt3: Invalid operation"));
+                case 0: return call('MathFloat.max', [src[0], src[1]]);
+                case 1: return call('MathFloat.min', [src[0], src[1]]);
+                case 2: return call('MathFloat.max', [src[2], src[3]]);
+                case 3: return call('MathFloat.min', [src[2], src[3]]);
+                default: throw (new Error("vsrt3: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
     InstructionAst.prototype.vsrt4 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
-                case 0:
-                    return call('MathFloat.max', [src[0], src[3]]);
-                case 1:
-                    return call('MathFloat.max', [src[1], src[2]]);
-                case 2:
-                    return call('MathFloat.min', [src[1], src[2]]);
-                case 3:
-                    return call('MathFloat.min', [src[0], src[3]]);
-                default:
-                    throw (new Error("vsrt4: Invalid operation"));
+                case 0: return call('MathFloat.max', [src[0], src[3]]);
+                case 1: return call('MathFloat.max', [src[1], src[2]]);
+                case 2: return call('MathFloat.min', [src[1], src[2]]);
+                case 3: return call('MathFloat.min', [src[0], src[3]]);
+                default: throw (new Error("vsrt4: Invalid operation"));
             }
         }, i.ONE_TWO, 4);
     };
-    InstructionAst.prototype.vrnds = function (i) {
-        return call_stm('state.vrnds', []);
-    };
-    InstructionAst.prototype.vrndi = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int');
-    };
-    InstructionAst.prototype.vrndf1 = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndf1', []); });
-    };
-    InstructionAst.prototype.vrndf2 = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndf2', []); });
-    };
+    InstructionAst.prototype.vrnds = function (i) { return call_stm('state.vrnds', []); };
+    InstructionAst.prototype.vrndi = function (i) { return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int'); };
+    InstructionAst.prototype.vrndf1 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf1', []); }); };
+    InstructionAst.prototype.vrndf2 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf2', []); }); };
     InstructionAst.prototype._aggregateV = function (val, size, generator) {
         for (var n = 0; n < size; n++)
             val = generator(val, n);
         return val;
     };
-    InstructionAst.prototype.vnop = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsync = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vflush = function (i) {
-        return ast.stm();
-    };
+    InstructionAst.prototype.vnop = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vsync = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vflush = function (i) { return ast.stm(); };
     InstructionAst.prototype.vfad = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -4956,64 +4529,34 @@ var InstructionAst = (function () {
     InstructionAst.prototype["vcrs.t"] = function (i) {
         return this._vset3(i, function (index, src, target) {
             switch (index) {
-                case 0:
-                    return binop(src[1], '*', target[2]);
-                case 1:
-                    return binop(src[2], '*', target[0]);
-                case 2:
-                    return binop(src[0], '*', target[1]);
-                default:
-                    throw (new Error("vcrs_t not implemented"));
+                case 0: return binop(src[1], '*', target[2]);
+                case 1: return binop(src[2], '*', target[0]);
+                case 2: return binop(src[0], '*', target[1]);
+                default: throw (new Error("vcrs_t not implemented"));
             }
         }, 3, 3, 3);
     };
     InstructionAst.prototype["vcrsp.t"] = function (i) {
         return this._vset3(i, function (index, src, target) {
             switch (index) {
-                case 0:
-                    return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
-                case 1:
-                    return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
-                case 2:
-                    return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
-                default:
-                    throw (new Error("vcrs_t assert"));
+                case 0: return binop(binop(src[1], '*', target[2]), '-', binop(src[2], '*', target[1]));
+                case 1: return binop(binop(src[2], '*', target[0]), '-', binop(src[0], '*', target[2]));
+                case 2: return binop(binop(src[0], '*', target[1]), '-', binop(src[1], '*', target[0]));
+                default: throw (new Error("vcrs_t assert"));
             }
         }, 3, 3, 3);
     };
-    InstructionAst.prototype.vc2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int');
-    };
-    InstructionAst.prototype.vuc2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vuc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int');
-    };
-    InstructionAst.prototype.vs2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]); }, i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int');
-    };
-    InstructionAst.prototype.vi2f = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]); }, 0, 0, 'float', 'int');
-    };
-    InstructionAst.prototype.vi2uc = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]); }, 1, 4, 'int', 'int');
-    };
-    InstructionAst.prototype.vf2id = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2in = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2iu = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2iz = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2h = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2h', [imm32(index), src[index]]); }, 0, 0, 'float', 'float');
-    };
-    InstructionAst.prototype.vh2f = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vh2f', [imm32(index), src[index]]); }, 0, 0, 'float', 'float');
-    };
+    InstructionAst.prototype.vc2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int'); };
+    InstructionAst.prototype.vuc2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vuc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int'); };
+    InstructionAst.prototype.vs2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]); }, i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int'); };
+    InstructionAst.prototype.vi2f = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]); }, 0, 0, 'float', 'int'); };
+    InstructionAst.prototype.vi2uc = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]); }, 1, 4, 'int', 'int'); };
+    InstructionAst.prototype.vf2id = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2in = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2iu = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2iz = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2h = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2h', [imm32(index), src[index]]); }, 0, 0, 'float', 'float'); };
+    InstructionAst.prototype.vh2f = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vh2f', [imm32(index), src[index]]); }, 0, 0, 'float', 'float'); };
     InstructionAst.prototype.vdet = function (i) {
         return this._vset3(i, function (i, s, t) {
             return binop(binop(s[0], '*', t[1]), '-', binop(s[1], '*', t[0]));
@@ -5022,32 +4565,18 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vqmul = function (i) {
         return this._vset3(i, function (i, s, t) {
             switch (i) {
-                case 0:
-                    return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 1:
-                    return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 2:
-                    return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-                case 3:
-                    return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 0: return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 1: return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 2: return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                case 3: return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
             }
         }, 4, 4, 4);
     };
-    InstructionAst.prototype.vslt = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vslt', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsle = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsle', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsge = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsge', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsgt = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsgt', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vscmp = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.sign2', [s[i], t[i]]); });
-    };
+    InstructionAst.prototype.vslt = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vslt', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsle = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsle', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsge = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsge', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsgt = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsgt', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vscmp = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.sign2', [s[i], t[i]]); }); };
     InstructionAst.prototype._bvtf = function (i, cond) {
         var reg = i.IMM3;
         var branchExpr = ast.VCC(reg);
@@ -5055,24 +4584,12 @@ var InstructionAst = (function () {
             branchExpr = unop("!", branchExpr);
         return this._branch(i, branchExpr);
     };
-    InstructionAst.prototype.bvf = function (i) {
-        return this._bvtf(i, false);
-    };
-    InstructionAst.prototype.bvt = function (i) {
-        return this._bvtf(i, true);
-    };
-    InstructionAst.prototype.bvfl = function (i) {
-        return this.bvf(i);
-    };
-    InstructionAst.prototype.bvtl = function (i) {
-        return this.bvt(i);
-    };
-    InstructionAst.prototype.mtv = function (i) {
-        return this._vset1(i, function (_) { return gpr(i.rt); }, 1, 'int');
-    };
-    InstructionAst.prototype.mfv = function (i) {
-        return assign_stm(gpr(i.rt), vfpr_i(i.VD));
-    };
+    InstructionAst.prototype.bvf = function (i) { return this._bvtf(i, false); };
+    InstructionAst.prototype.bvt = function (i) { return this._bvtf(i, true); };
+    InstructionAst.prototype.bvfl = function (i) { return this.bvf(i); };
+    InstructionAst.prototype.bvtl = function (i) { return this.bvt(i); };
+    InstructionAst.prototype.mtv = function (i) { return this._vset1(i, function (_) { return gpr(i.rt); }, 1, 'int'); };
+    InstructionAst.prototype.mfv = function (i) { return assign_stm(gpr(i.rt), vfpr_i(i.VD)); };
     InstructionAst.prototype.mtvc = function (i) {
         switch (i.IMM7) {
             case 0:
@@ -5100,12 +4617,8 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.vcmovt = function (i) {
-        return this._vcmovtf(i, true);
-    };
-    InstructionAst.prototype.vcmovf = function (i) {
-        return this._vcmovtf(i, false);
-    };
+    InstructionAst.prototype.vcmovt = function (i) { return this._vcmovtf(i, true); };
+    InstructionAst.prototype.vcmovf = function (i) { return this._vcmovtf(i, false); };
     InstructionAst.prototype.vcmp = function (i) {
         var result = call_stm('state.vcmp', [
             imm32(i.IMM4),
@@ -5115,80 +4628,34 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.vwbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vabs = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); });
-    };
-    InstructionAst.prototype.vocp = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.ocp', [src[i]]); });
-    };
-    InstructionAst.prototype.vneg = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.neg', [src[i]]); });
-    };
-    InstructionAst.prototype.vsgn = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sign', [src[i]]); });
-    };
-    InstructionAst.prototype.vsat0 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sat0', [src[i]]); });
-    };
-    InstructionAst.prototype.vsat1 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sat1', [src[i]]); });
-    };
-    InstructionAst.prototype.vrsq = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.rsq', [src[i]]); });
-    };
-    InstructionAst.prototype.vsin = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sinv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vcos = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.cosv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vexp2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.exp2', [src[i]]); });
-    };
-    InstructionAst.prototype.vrexp2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.rexp2', [src[i]]); });
-    };
-    InstructionAst.prototype.vlog2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); });
-    };
-    InstructionAst.prototype.vsqrt = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); });
-    };
+    InstructionAst.prototype.vwbn = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vsbn = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vabs = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); }); };
+    InstructionAst.prototype.vocp = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.ocp', [src[i]]); }); };
+    InstructionAst.prototype.vneg = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.neg', [src[i]]); }); };
+    InstructionAst.prototype.vsgn = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sign', [src[i]]); }); };
+    InstructionAst.prototype.vsat0 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sat0', [src[i]]); }); };
+    InstructionAst.prototype.vsat1 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sat1', [src[i]]); }); };
+    InstructionAst.prototype.vrsq = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.rsq', [src[i]]); }); };
+    InstructionAst.prototype.vsin = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sinv1', [src[i]]); }); };
+    InstructionAst.prototype.vcos = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.cosv1', [src[i]]); }); };
+    InstructionAst.prototype.vexp2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.exp2', [src[i]]); }); };
+    InstructionAst.prototype.vrexp2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.rexp2', [src[i]]); }); };
+    InstructionAst.prototype.vlog2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); }); };
+    InstructionAst.prototype.vsqrt = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); }); };
     InstructionAst.prototype.vasin = function (i) {
         return stms([
             this._vset2(i, function (i, src) { return call('MathFloat.asinv1', [src[i]]); }),
         ]);
     };
-    InstructionAst.prototype.vnsin = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.nsinv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vnrcp = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.nrcp', [src[i]]); });
-    };
-    InstructionAst.prototype.vmin = function (i) {
-        return this._vset3(i, function (i, src, target) { return call('MathFloat.min', [src[i], target[i]]); });
-    };
-    InstructionAst.prototype.vmax = function (i) {
-        return this._vset3(i, function (i, src, target) { return call('MathFloat.max', [src[i], target[i]]); });
-    };
-    InstructionAst.prototype.vdiv = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '/', target[i]); });
-    };
-    InstructionAst.prototype.vadd = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '+', target[i]); });
-    };
-    InstructionAst.prototype.vsub = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '-', target[i]); });
-    };
-    InstructionAst.prototype.vscl = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '*', target[0]); }, 0, 0, 1);
-    };
+    InstructionAst.prototype.vnsin = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.nsinv1', [src[i]]); }); };
+    InstructionAst.prototype.vnrcp = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.nrcp', [src[i]]); }); };
+    InstructionAst.prototype.vmin = function (i) { return this._vset3(i, function (i, src, target) { return call('MathFloat.min', [src[i], target[i]]); }); };
+    InstructionAst.prototype.vmax = function (i) { return this._vset3(i, function (i, src, target) { return call('MathFloat.max', [src[i], target[i]]); }); };
+    InstructionAst.prototype.vdiv = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '/', target[i]); }); };
+    InstructionAst.prototype.vadd = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '+', target[i]); }); };
+    InstructionAst.prototype.vsub = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '-', target[i]); }); };
+    InstructionAst.prototype.vscl = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '*', target[0]); }, 0, 0, 1); };
     InstructionAst.prototype.vdot = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -5240,15 +4707,9 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return stms(st);
     };
-    InstructionAst.prototype['vt4444.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt4444_step');
-    };
-    InstructionAst.prototype['vt5551.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt5551_step');
-    };
-    InstructionAst.prototype['vt5650.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt5650_step');
-    };
+    InstructionAst.prototype['vt4444.q'] = function (i) { return this._vtXXX_q(i, '_vt4444_step'); };
+    InstructionAst.prototype['vt5551.q'] = function (i) { return this._vtXXX_q(i, '_vt5551_step'); };
+    InstructionAst.prototype['vt5650.q'] = function (i) { return this._vtXXX_q(i, '_vt5650_step'); };
     InstructionAst.prototype._vtXXX_q = function (i, func) {
         var size = i.ONE_TWO;
         if (size != 4)
@@ -5259,201 +4720,71 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.add = function (i) {
-        return this.addu(i);
-    };
-    InstructionAst.prototype.addu = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt)));
-    };
-    InstructionAst.prototype.addi = function (i) {
-        return this.addiu(i);
-    };
-    InstructionAst.prototype.addiu = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '+', imm32(i.imm16)));
-    };
-    InstructionAst.prototype.sub = function (i) {
-        return this.subu(i);
-    };
-    InstructionAst.prototype.subu = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt)));
-    };
-    InstructionAst.prototype.sll = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos)));
-    };
-    InstructionAst.prototype.sra = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos)));
-    };
-    InstructionAst.prototype.srl = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos)));
-    };
-    InstructionAst.prototype.rotr = function (i) {
-        return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)]));
-    };
-    InstructionAst.prototype.sllv = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.srav = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.srlv = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.rotrv = function (i) {
-        return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
-    };
-    InstructionAst.prototype.bitrev = function (i) {
-        return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.and = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt)));
-    };
-    InstructionAst.prototype.or = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt)));
-    };
-    InstructionAst.prototype.xor = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt)));
-    };
-    InstructionAst.prototype.nor = function (i) {
-        return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt))));
-    };
-    InstructionAst.prototype.andi = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.ori = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.xori = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '^', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.mflo = function (i) {
-        return assignGpr(i.rd, lo());
-    };
-    InstructionAst.prototype.mfhi = function (i) {
-        return assignGpr(i.rd, hi());
-    };
-    InstructionAst.prototype.mfic = function (i) {
-        return assignGpr(i.rt, ic());
-    };
-    InstructionAst.prototype.mtlo = function (i) {
-        return assign(lo(), gpr(i.rs));
-    };
-    InstructionAst.prototype.mthi = function (i) {
-        return assign(hi(), gpr(i.rs));
-    };
-    InstructionAst.prototype.mtic = function (i) {
-        return assignIC(gpr(i.rt));
-    };
-    InstructionAst.prototype.slt = function (i) {
-        return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.sltu = function (i) {
-        return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.slti = function (i) {
-        return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.sltiu = function (i) {
-        return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.movz = function (i) {
-        return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs)));
-    };
-    InstructionAst.prototype.movn = function (i) {
-        return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs)));
-    };
-    InstructionAst.prototype.ext = function (i) {
-        return assignGpr(i.rt, call('BitUtils.extract', [gpr(i.rs), imm32(i.pos), imm32(i.size_e)]));
-    };
-    InstructionAst.prototype.ins = function (i) {
-        return assignGpr(i.rt, call('BitUtils.insert', [gpr(i.rt), imm32(i.pos), imm32(i.size_i), gpr(i.rs)]));
-    };
-    InstructionAst.prototype.clz = function (i) {
-        return assignGpr(i.rd, call('BitUtils.clz', [gpr(i.rs)]));
-    };
-    InstructionAst.prototype.clo = function (i) {
-        return assignGpr(i.rd, call('BitUtils.clo', [gpr(i.rs)]));
-    };
-    InstructionAst.prototype.seb = function (i) {
-        return assignGpr(i.rd, call('BitUtils.seb', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.seh = function (i) {
-        return assignGpr(i.rd, call('BitUtils.seh', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.wsbh = function (i) {
-        return assignGpr(i.rd, call('BitUtils.wsbh', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.wsbw = function (i) {
-        return assignGpr(i.rd, call('BitUtils.wsbw', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype._trace_state = function () {
-        return stm(ast.call('state._trace_state', []));
-    };
-    InstructionAst.prototype["mov.s"] = function (i) {
-        return assignFpr(i.fd, fpr(i.fs));
-    };
-    InstructionAst.prototype["add.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '+', fpr(i.ft)));
-    };
-    InstructionAst.prototype["sub.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '-', fpr(i.ft)));
-    };
-    InstructionAst.prototype["mul.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '*', fpr(i.ft)));
-    };
-    InstructionAst.prototype["div.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '/', fpr(i.ft)));
-    };
-    InstructionAst.prototype["abs.s"] = function (i) {
-        return assignFpr(i.fd, call('Math.abs', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["sqrt.s"] = function (i) {
-        return assignFpr(i.fd, call('Math.sqrt', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["neg.s"] = function (i) {
-        return assignFpr(i.fd, unop('-', fpr(i.fs)));
-    };
-    InstructionAst.prototype.min = function (i) {
-        return assignGpr(i.rd, call('state.min', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.max = function (i) {
-        return assignGpr(i.rd, call('state.max', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.div = function (i) {
-        return stm(call('state.div', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.divu = function (i) {
-        return stm(call('state.divu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.mult = function (i) {
-        return stm(call('state.mult', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.multu = function (i) {
-        return stm(call('state.multu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.madd = function (i) {
-        return stm(call('state.madd', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.maddu = function (i) {
-        return stm(call('state.maddu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.msub = function (i) {
-        return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.msubu = function (i) {
-        return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.cache = function (i) {
-        return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.syscall = function (i) {
-        return stm(call('state.syscall', [imm32(i.syscall)]));
-    };
-    InstructionAst.prototype["break"] = function (i) {
-        return stm(call('state.break', []));
-    };
-    InstructionAst.prototype.dbreak = function (i) {
-        return ast.debugger("dbreak");
-    };
+    InstructionAst.prototype.add = function (i) { return this.addu(i); };
+    InstructionAst.prototype.addu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); };
+    InstructionAst.prototype.addi = function (i) { return this.addiu(i); };
+    InstructionAst.prototype.addiu = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '+', imm32(i.imm16))); };
+    InstructionAst.prototype.sub = function (i) { return this.subu(i); };
+    InstructionAst.prototype.subu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt))); };
+    InstructionAst.prototype.sll = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos))); };
+    InstructionAst.prototype.sra = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos))); };
+    InstructionAst.prototype.srl = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos))); };
+    InstructionAst.prototype.rotr = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)])); };
+    InstructionAst.prototype.sllv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.srav = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.srlv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.rotrv = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); };
+    InstructionAst.prototype.bitrev = function (i) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); };
+    InstructionAst.prototype.and = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt))); };
+    InstructionAst.prototype.or = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt))); };
+    InstructionAst.prototype.xor = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt))); };
+    InstructionAst.prototype.nor = function (i) { return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt)))); };
+    InstructionAst.prototype.andi = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.ori = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.xori = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '^', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.mflo = function (i) { return assignGpr(i.rd, lo()); };
+    InstructionAst.prototype.mfhi = function (i) { return assignGpr(i.rd, hi()); };
+    InstructionAst.prototype.mfic = function (i) { return assignGpr(i.rt, ic()); };
+    InstructionAst.prototype.mtlo = function (i) { return assign(lo(), gpr(i.rs)); };
+    InstructionAst.prototype.mthi = function (i) { return assign(hi(), gpr(i.rs)); };
+    InstructionAst.prototype.mtic = function (i) { return assignIC(gpr(i.rt)); };
+    InstructionAst.prototype.slt = function (i) { return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.sltu = function (i) { return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.slti = function (i) { return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)])); };
+    InstructionAst.prototype.sltiu = function (i) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)])); };
+    InstructionAst.prototype.movz = function (i) { return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs))); };
+    InstructionAst.prototype.movn = function (i) { return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs))); };
+    InstructionAst.prototype.ext = function (i) { return assignGpr(i.rt, call('BitUtils.extract', [gpr(i.rs), imm32(i.pos), imm32(i.size_e)])); };
+    InstructionAst.prototype.ins = function (i) { return assignGpr(i.rt, call('BitUtils.insert', [gpr(i.rt), imm32(i.pos), imm32(i.size_i), gpr(i.rs)])); };
+    InstructionAst.prototype.clz = function (i) { return assignGpr(i.rd, call('BitUtils.clz', [gpr(i.rs)])); };
+    InstructionAst.prototype.clo = function (i) { return assignGpr(i.rd, call('BitUtils.clo', [gpr(i.rs)])); };
+    InstructionAst.prototype.seb = function (i) { return assignGpr(i.rd, call('BitUtils.seb', [gpr(i.rt)])); };
+    InstructionAst.prototype.seh = function (i) { return assignGpr(i.rd, call('BitUtils.seh', [gpr(i.rt)])); };
+    InstructionAst.prototype.wsbh = function (i) { return assignGpr(i.rd, call('BitUtils.wsbh', [gpr(i.rt)])); };
+    InstructionAst.prototype.wsbw = function (i) { return assignGpr(i.rd, call('BitUtils.wsbw', [gpr(i.rt)])); };
+    InstructionAst.prototype._trace_state = function () { return stm(ast.call('state._trace_state', [])); };
+    InstructionAst.prototype["mov.s"] = function (i) { return assignFpr(i.fd, fpr(i.fs)); };
+    InstructionAst.prototype["add.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '+', fpr(i.ft))); };
+    InstructionAst.prototype["sub.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '-', fpr(i.ft))); };
+    InstructionAst.prototype["mul.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '*', fpr(i.ft))); };
+    InstructionAst.prototype["div.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '/', fpr(i.ft))); };
+    InstructionAst.prototype["abs.s"] = function (i) { return assignFpr(i.fd, call('Math.abs', [fpr(i.fs)])); };
+    InstructionAst.prototype["sqrt.s"] = function (i) { return assignFpr(i.fd, call('Math.sqrt', [fpr(i.fs)])); };
+    InstructionAst.prototype["neg.s"] = function (i) { return assignFpr(i.fd, unop('-', fpr(i.fs))); };
+    InstructionAst.prototype.min = function (i) { return assignGpr(i.rd, call('state.min', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.max = function (i) { return assignGpr(i.rd, call('state.max', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.div = function (i) { return stm(call('state.div', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.divu = function (i) { return stm(call('state.divu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.mult = function (i) { return stm(call('state.mult', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.multu = function (i) { return stm(call('state.multu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.madd = function (i) { return stm(call('state.madd', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.maddu = function (i) { return stm(call('state.maddu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.msub = function (i) { return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.msubu = function (i) { return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.cache = function (i) { return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)])); };
+    InstructionAst.prototype.syscall = function (i) { return stm(call('state.syscall', [imm32(i.syscall)])); };
+    InstructionAst.prototype["break"] = function (i) { return stm(call('state.break', [])); };
+    InstructionAst.prototype.dbreak = function (i) { return ast.debugger("dbreak"); };
     InstructionAst.prototype._likely = function (isLikely, code) {
         return isLikely ? _if(branchflag(), code) : code;
     };
@@ -5469,147 +4800,57 @@ var InstructionAst = (function () {
             stm(assign(branchpc(), u_imm32(i.PC + i.imm16 * 4 + 4)))
         ]);
     };
-    InstructionAst.prototype.beq = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt)));
-    };
-    InstructionAst.prototype.bne = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt)));
-    };
-    InstructionAst.prototype.bltz = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "<", imm32(0)));
-    };
-    InstructionAst.prototype.blez = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "<=", imm32(0)));
-    };
-    InstructionAst.prototype.bgtz = function (i) {
-        return this._branch(i, binop(gpr(i.rs), ">", imm32(0)));
-    };
-    InstructionAst.prototype.bgez = function (i) {
-        return this._branch(i, binop(gpr(i.rs), ">=", imm32(0)));
-    };
-    InstructionAst.prototype.beql = function (i) {
-        return this.beq(i);
-    };
-    InstructionAst.prototype.bnel = function (i) {
-        return this.bne(i);
-    };
-    InstructionAst.prototype.bltzl = function (i) {
-        return this.bltz(i);
-    };
-    InstructionAst.prototype.blezl = function (i) {
-        return this.blez(i);
-    };
-    InstructionAst.prototype.bgtzl = function (i) {
-        return this.bgtz(i);
-    };
-    InstructionAst.prototype.bgezl = function (i) {
-        return this.bgez(i);
-    };
-    InstructionAst.prototype.bltzal = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltz(i)]);
-    };
-    InstructionAst.prototype.bltzall = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltzl(i)]);
-    };
-    InstructionAst.prototype.bgezal = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgez(i)]);
-    };
-    InstructionAst.prototype.bgezall = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgezl(i)]);
-    };
-    InstructionAst.prototype.bc1t = function (i) {
-        return this._branch(i, fcr31_cc());
-    };
-    InstructionAst.prototype.bc1f = function (i) {
-        return this._branch(i, unop("!", fcr31_cc()));
-    };
-    InstructionAst.prototype.bc1tl = function (i) {
-        return this.bc1t(i);
-    };
-    InstructionAst.prototype.bc1fl = function (i) {
-        return this.bc1f(i);
-    };
-    InstructionAst.prototype.sb = function (i) {
-        return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.sh = function (i) {
-        return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.sw = function (i) {
-        return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.swc1 = function (i) {
-        return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lwc1 = function (i) {
-        return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.mfc1 = function (i) {
-        return assignGpr(i.rt, ast.fpr_i(i.fs));
-    };
-    InstructionAst.prototype.mtc1 = function (i) {
-        return assignFpr_I(i.fs, ast.gpr(i.rt));
-    };
-    InstructionAst.prototype.cfc1 = function (i) {
-        return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)]));
-    };
-    InstructionAst.prototype.ctc1 = function (i) {
-        return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)]));
-    };
-    InstructionAst.prototype["trunc.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["round.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["ceil.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["floor.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["cvt.s.w"] = function (i) {
-        return assignFpr(i.fd, fpr_i(i.fs));
-    };
-    InstructionAst.prototype["cvt.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype.lb = function (i) {
-        return assignGpr(i.rt, call('state.lb', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lbu = function (i) {
-        return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lh = function (i) {
-        return assignGpr(i.rt, call('state.lh', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lhu = function (i) {
-        return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lw = function (i) {
-        return assignGpr(i.rt, call('state.lw', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lwl = function (i) {
-        return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.lwr = function (i) {
-        return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.swl = function (i) {
-        return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.swr = function (i) {
-        return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
+    InstructionAst.prototype.beq = function (i) { return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt))); };
+    InstructionAst.prototype.bne = function (i) { return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt))); };
+    InstructionAst.prototype.bltz = function (i) { return this._branch(i, binop(gpr(i.rs), "<", imm32(0))); };
+    InstructionAst.prototype.blez = function (i) { return this._branch(i, binop(gpr(i.rs), "<=", imm32(0))); };
+    InstructionAst.prototype.bgtz = function (i) { return this._branch(i, binop(gpr(i.rs), ">", imm32(0))); };
+    InstructionAst.prototype.bgez = function (i) { return this._branch(i, binop(gpr(i.rs), ">=", imm32(0))); };
+    InstructionAst.prototype.beql = function (i) { return this.beq(i); };
+    InstructionAst.prototype.bnel = function (i) { return this.bne(i); };
+    InstructionAst.prototype.bltzl = function (i) { return this.bltz(i); };
+    InstructionAst.prototype.blezl = function (i) { return this.blez(i); };
+    InstructionAst.prototype.bgtzl = function (i) { return this.bgtz(i); };
+    InstructionAst.prototype.bgezl = function (i) { return this.bgez(i); };
+    InstructionAst.prototype.bltzal = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltz(i)]); };
+    InstructionAst.prototype.bltzall = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltzl(i)]); };
+    InstructionAst.prototype.bgezal = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgez(i)]); };
+    InstructionAst.prototype.bgezall = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgezl(i)]); };
+    InstructionAst.prototype.bc1t = function (i) { return this._branch(i, fcr31_cc()); };
+    InstructionAst.prototype.bc1f = function (i) { return this._branch(i, unop("!", fcr31_cc())); };
+    InstructionAst.prototype.bc1tl = function (i) { return this.bc1t(i); };
+    InstructionAst.prototype.bc1fl = function (i) { return this.bc1f(i); };
+    InstructionAst.prototype.sb = function (i) { return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.sh = function (i) { return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.sw = function (i) { return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.swc1 = function (i) { return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)])); };
+    InstructionAst.prototype.lwc1 = function (i) { return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)])); };
+    InstructionAst.prototype.mfc1 = function (i) { return assignGpr(i.rt, ast.fpr_i(i.fs)); };
+    InstructionAst.prototype.mtc1 = function (i) { return assignFpr_I(i.fs, ast.gpr(i.rt)); };
+    InstructionAst.prototype.cfc1 = function (i) { return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)])); };
+    InstructionAst.prototype.ctc1 = function (i) { return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)])); };
+    InstructionAst.prototype["trunc.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)])); };
+    InstructionAst.prototype["round.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)])); };
+    InstructionAst.prototype["ceil.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)])); };
+    InstructionAst.prototype["floor.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)])); };
+    InstructionAst.prototype["cvt.s.w"] = function (i) { return assignFpr(i.fd, fpr_i(i.fs)); };
+    InstructionAst.prototype["cvt.w.s"] = function (i) { return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)])); };
+    InstructionAst.prototype.lb = function (i) { return assignGpr(i.rt, call('state.lb', [rs_imm16(i)])); };
+    InstructionAst.prototype.lbu = function (i) { return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)])); };
+    InstructionAst.prototype.lh = function (i) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); };
+    InstructionAst.prototype.lhu = function (i) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); };
+    InstructionAst.prototype.lw = function (i) { return assignGpr(i.rt, call('state.lw', [rs_imm16(i)])); };
+    InstructionAst.prototype.lwl = function (i) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.lwr = function (i) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.swl = function (i) { return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.swr = function (i) { return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
     InstructionAst.prototype._callstackPush = function (i) {
         return ast.stm();
     };
     InstructionAst.prototype._callstackPop = function (i) {
         return ast.stm();
     };
-    InstructionAst.prototype.j = function (i) {
-        return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]);
-    };
+    InstructionAst.prototype.j = function (i) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); };
     InstructionAst.prototype.jr = function (i) {
         var statements = [];
         statements.push(stm(assign(branchflag(), imm32(1))));
@@ -5619,12 +4860,8 @@ var InstructionAst = (function () {
         }
         return stms(statements);
     };
-    InstructionAst.prototype.jal = function (i) {
-        return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]);
-    };
-    InstructionAst.prototype.jalr = function (i) {
-        return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]);
-    };
+    InstructionAst.prototype.jal = function (i) { return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]); };
+    InstructionAst.prototype.jalr = function (i) { return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); };
     InstructionAst.prototype._comp = function (i, fc02, fc3) {
         var fc_unordererd = ((fc02 & 1) != 0);
         var fc_equal = ((fc02 & 2) != 0);
@@ -5632,62 +4869,29 @@ var InstructionAst = (function () {
         var fc_inv_qnan = (fc3 != 0);
         return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
     };
-    InstructionAst.prototype["c.f.s"] = function (i) {
-        return this._comp(i, 0, 0);
-    };
-    InstructionAst.prototype["c.un.s"] = function (i) {
-        return this._comp(i, 1, 0);
-    };
-    InstructionAst.prototype["c.eq.s"] = function (i) {
-        return this._comp(i, 2, 0);
-    };
-    InstructionAst.prototype["c.ueq.s"] = function (i) {
-        return this._comp(i, 3, 0);
-    };
-    InstructionAst.prototype["c.olt.s"] = function (i) {
-        return this._comp(i, 4, 0);
-    };
-    InstructionAst.prototype["c.ult.s"] = function (i) {
-        return this._comp(i, 5, 0);
-    };
-    InstructionAst.prototype["c.ole.s"] = function (i) {
-        return this._comp(i, 6, 0);
-    };
-    InstructionAst.prototype["c.ule.s"] = function (i) {
-        return this._comp(i, 7, 0);
-    };
-    InstructionAst.prototype["c.sf.s"] = function (i) {
-        return this._comp(i, 0, 1);
-    };
-    InstructionAst.prototype["c.ngle.s"] = function (i) {
-        return this._comp(i, 1, 1);
-    };
-    InstructionAst.prototype["c.seq.s"] = function (i) {
-        return this._comp(i, 2, 1);
-    };
-    InstructionAst.prototype["c.ngl.s"] = function (i) {
-        return this._comp(i, 3, 1);
-    };
-    InstructionAst.prototype["c.lt.s"] = function (i) {
-        return this._comp(i, 4, 1);
-    };
-    InstructionAst.prototype["c.nge.s"] = function (i) {
-        return this._comp(i, 5, 1);
-    };
-    InstructionAst.prototype["c.le.s"] = function (i) {
-        return this._comp(i, 6, 1);
-    };
-    InstructionAst.prototype["c.ngt.s"] = function (i) {
-        return this._comp(i, 7, 1);
-    };
+    InstructionAst.prototype["c.f.s"] = function (i) { return this._comp(i, 0, 0); };
+    InstructionAst.prototype["c.un.s"] = function (i) { return this._comp(i, 1, 0); };
+    InstructionAst.prototype["c.eq.s"] = function (i) { return this._comp(i, 2, 0); };
+    InstructionAst.prototype["c.ueq.s"] = function (i) { return this._comp(i, 3, 0); };
+    InstructionAst.prototype["c.olt.s"] = function (i) { return this._comp(i, 4, 0); };
+    InstructionAst.prototype["c.ult.s"] = function (i) { return this._comp(i, 5, 0); };
+    InstructionAst.prototype["c.ole.s"] = function (i) { return this._comp(i, 6, 0); };
+    InstructionAst.prototype["c.ule.s"] = function (i) { return this._comp(i, 7, 0); };
+    InstructionAst.prototype["c.sf.s"] = function (i) { return this._comp(i, 0, 1); };
+    InstructionAst.prototype["c.ngle.s"] = function (i) { return this._comp(i, 1, 1); };
+    InstructionAst.prototype["c.seq.s"] = function (i) { return this._comp(i, 2, 1); };
+    InstructionAst.prototype["c.ngl.s"] = function (i) { return this._comp(i, 3, 1); };
+    InstructionAst.prototype["c.lt.s"] = function (i) { return this._comp(i, 4, 1); };
+    InstructionAst.prototype["c.nge.s"] = function (i) { return this._comp(i, 5, 1); };
+    InstructionAst.prototype["c.le.s"] = function (i) { return this._comp(i, 6, 1); };
+    InstructionAst.prototype["c.ngt.s"] = function (i) { return this._comp(i, 7, 1); };
     return InstructionAst;
 })();
 exports.InstructionAst = InstructionAst;
 
 },
 "src/core/cpu/executor": function(module, exports, require) {
-var state = require('./state');
-var icache = require('./icache');
+///<reference path="../../global.d.ts" />
 var ProgramExecutor = (function () {
     function ProgramExecutor(state, instructionCache) {
         this.state = state;
@@ -5743,14 +4947,13 @@ exports.ProgramExecutor = ProgramExecutor;
 
 },
 "src/core/cpu/generator": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var memory = require('../memory');
-var state = require('./state');
 var codegen = require('./codegen');
 var ast_builder = require('./ast_builder');
 var instructions = require('./instructions');
@@ -5770,9 +4973,7 @@ var PspInstructionStm = (function (_super) {
     PspInstructionStm.prototype.toJs = function () {
         return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
     };
-    PspInstructionStm.prototype.optimize = function () {
-        return new PspInstructionStm(this.PC, this.code.optimize(), this.di);
-    };
+    PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.PC, this.code.optimize(), this.di); };
     return PspInstructionStm;
 })(ast_builder.ANodeStm);
 var FunctionGenerator = (function () {
@@ -5926,7 +5127,7 @@ exports.FunctionGenerator = FunctionGenerator;
 
 },
 "src/core/cpu/icache": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var generator = require('./generator');
 var state = require('./state');
 var FunctionGenerator = generator.FunctionGenerator;
@@ -5948,8 +5149,11 @@ var InstructionCache = (function () {
         var item = this.cache[address];
         if (item)
             return item;
-        if (address == 268435455 /* EXIT_THREAD */) {
+        if (address == CpuSpecialAddresses.EXIT_THREAD) {
             return this.cache[address] = function (state) {
+                //console.log(state);
+                //console.log(state.thread);
+                //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
                 state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
                 throw new CpuBreakException();
             };
@@ -5964,7 +5168,7 @@ exports.InstructionCache = InstructionCache;
 
 },
 "src/core/cpu/instructions": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var IndentStringGenerator = require('../../util/IndentStringGenerator');
 var ADDR_TYPE_NONE = 0;
 var ADDR_TYPE_REG = 1;
@@ -5979,56 +5183,20 @@ var INSTR_TYPE_JUMP = (1 << 5);
 var INSTR_TYPE_BREAK = (1 << 6);
 function VM(format) {
     var counts = {
-        "cstw": 1,
-        "cstz": 1,
-        "csty": 1,
-        "cstx": 1,
-        "absw": 1,
-        "absz": 1,
-        "absy": 1,
-        "absx": 1,
-        "mskw": 1,
-        "mskz": 1,
-        "msky": 1,
-        "mskx": 1,
-        "negw": 1,
-        "negz": 1,
-        "negy": 1,
-        "negx": 1,
-        "one": 1,
-        "two": 1,
-        "vt1": 1,
+        "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
+        "absw": 1, "absz": 1, "absy": 1, "absx": 1,
+        "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
+        "negw": 1, "negz": 1, "negy": 1, "negx": 1,
+        "one": 1, "two": 1, "vt1": 1,
         "vt2": 2,
-        "satw": 2,
-        "satz": 2,
-        "saty": 2,
-        "satx": 2,
-        "swzw": 2,
-        "swzz": 2,
-        "swzy": 2,
-        "swzx": 2,
+        "satw": 2, "satz": 2, "saty": 2, "satx": 2,
+        "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
         "imm3": 3,
         "imm4": 4,
         "fcond": 4,
-        "c0dr": 5,
-        "c0cr": 5,
-        "c1dr": 5,
-        "c1cr": 5,
-        "imm5": 5,
-        "vt5": 5,
-        "rs": 5,
-        "rd": 5,
-        "rt": 5,
-        "sa": 5,
-        "lsb": 5,
-        "msb": 5,
-        "fs": 5,
-        "fd": 5,
-        "ft": 5,
-        "vs": 7,
-        "vt": 7,
-        "vd": 7,
-        "imm7": 7,
+        "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
+        "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
+        "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
         "imm8": 8,
         "imm14": 14,
         "imm16": 16,
@@ -6140,9 +5308,7 @@ var Instructions = (function () {
         var _this = this;
         this.instructionTypeListByName = {};
         this.instructionTypeList = [];
-        var ID = function (name, vm, format, addressType, instructionType) {
-            _this.add(name, vm, format, addressType, instructionType);
-        };
+        var ID = function (name, vm, format, addressType, instructionType) { _this.add(name, vm, format, addressType, instructionType); };
         ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
@@ -6508,374 +5674,222 @@ var Instruction = (function () {
         this.PC = PC;
         this.data = data;
     }
-    Instruction.fromMemoryAndPC = function (memory, PC) {
-        return new Instruction(PC, memory.readInt32(PC));
-    };
-    Instruction.prototype.extract = function (offset, length) {
-        return BitUtils.extract(this.data, offset, length);
-    };
-    Instruction.prototype.extract_s = function (offset, length) {
-        return BitUtils.extractSigned(this.data, offset, length);
-    };
-    Instruction.prototype.insert = function (offset, length, value) {
-        this.data = BitUtils.insert(this.data, offset, length, value);
-    };
+    Instruction.fromMemoryAndPC = function (memory, PC) { return new Instruction(PC, memory.readInt32(PC)); };
+    Instruction.prototype.extract = function (offset, length) { return BitUtils.extract(this.data, offset, length); };
+    Instruction.prototype.extract_s = function (offset, length) { return BitUtils.extractSigned(this.data, offset, length); };
+    Instruction.prototype.insert = function (offset, length, value) { this.data = BitUtils.insert(this.data, offset, length, value); };
     Object.defineProperty(Instruction.prototype, "rd", {
-        get: function () {
-            return this.extract(11 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 0, 5); },
+        set: function (value) { this.insert(11 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "rt", {
-        get: function () {
-            return this.extract(11 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 1, 5); },
+        set: function (value) { this.insert(11 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "rs", {
-        get: function () {
-            return this.extract(11 + 5 * 2, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 2, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 2, 5); },
+        set: function (value) { this.insert(11 + 5 * 2, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "fd", {
-        get: function () {
-            return this.extract(6 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "fs", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ft", {
-        get: function () {
-            return this.extract(6 + 5 * 2, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 2, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 2, 5); },
+        set: function (value) { this.insert(6 + 5 * 2, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VD", {
-        get: function () {
-            return this.extract(0, 7);
-        },
-        set: function (value) {
-            this.insert(0, 7, value);
-        },
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VS", {
-        get: function () {
-            return this.extract(8, 7);
-        },
-        set: function (value) {
-            this.insert(8, 7, value);
-        },
+        get: function () { return this.extract(8, 7); },
+        set: function (value) { this.insert(8, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT", {
-        get: function () {
-            return this.extract(16, 7);
-        },
-        set: function (value) {
-            this.insert(16, 7, value);
-        },
+        get: function () { return this.extract(16, 7); },
+        set: function (value) { this.insert(16, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5_1", {
-        get: function () {
-            return this.VT5 | (this.VT1 << 5);
-        },
-        set: function (value) {
-            this.VT5 = value;
-            this.VT1 = (value >>> 5);
-        },
+        get: function () { return this.VT5 | (this.VT1 << 5); },
+        set: function (value) { this.VT5 = value; this.VT1 = (value >>> 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM14", {
-        get: function () {
-            return this.extract_s(2, 14);
-        },
-        set: function (value) {
-            this.insert(2, 14, value);
-        },
+        get: function () { return this.extract_s(2, 14); },
+        set: function (value) { this.insert(2, 14, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ONE", {
-        get: function () {
-            return this.extract(7, 1);
-        },
-        set: function (value) {
-            this.insert(7, 1, value);
-        },
+        get: function () { return this.extract(7, 1); },
+        set: function (value) { this.insert(7, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "TWO", {
-        get: function () {
-            return this.extract(15, 1);
-        },
-        set: function (value) {
-            this.insert(15, 1, value);
-        },
+        get: function () { return this.extract(15, 1); },
+        set: function (value) { this.insert(15, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ONE_TWO", {
-        get: function () {
-            return (1 + 1 * this.ONE + 2 * this.TWO);
-        },
-        set: function (value) {
-            this.ONE = (((value - 1) >>> 0) & 1);
-            this.TWO = (((value - 1) >>> 1) & 1);
-        },
+        get: function () { return (1 + 1 * this.ONE + 2 * this.TWO); },
+        set: function (value) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM8", {
-        get: function () {
-            return this.extract(16, 8);
-        },
-        set: function (value) {
-            this.insert(16, 8, value);
-        },
+        get: function () { return this.extract(16, 8); },
+        set: function (value) { this.insert(16, 8, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM5", {
-        get: function () {
-            return this.extract(16, 5);
-        },
-        set: function (value) {
-            this.insert(16, 5, value);
-        },
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM3", {
-        get: function () {
-            return this.extract(18, 3);
-        },
-        set: function (value) {
-            this.insert(18, 3, value);
-        },
+        get: function () { return this.extract(18, 3); },
+        set: function (value) { this.insert(18, 3, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM7", {
-        get: function () {
-            return this.extract(0, 7);
-        },
-        set: function (value) {
-            this.insert(0, 7, value);
-        },
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM4", {
-        get: function () {
-            return this.extract(0, 4);
-        },
-        set: function (value) {
-            this.insert(0, 4, value);
-        },
+        get: function () { return this.extract(0, 4); },
+        set: function (value) { this.insert(0, 4, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT1", {
-        get: function () {
-            return this.extract(0, 1);
-        },
-        set: function (value) {
-            this.insert(0, 1, value);
-        },
+        get: function () { return this.extract(0, 1); },
+        set: function (value) { this.insert(0, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT2", {
-        get: function () {
-            return this.extract(0, 2);
-        },
-        set: function (value) {
-            this.insert(0, 2, value);
-        },
+        get: function () { return this.extract(0, 2); },
+        set: function (value) { this.insert(0, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5", {
-        get: function () {
-            return this.extract(16, 5);
-        },
-        set: function (value) {
-            this.insert(16, 5, value);
-        },
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5_2", {
-        get: function () {
-            return this.VT5 | (this.VT2 << 5);
-        },
+        get: function () { return this.VT5 | (this.VT2 << 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM_HF", {
-        get: function () {
-            return HalfFloat.toFloat(this.imm16);
-        },
+        get: function () { return HalfFloat.toFloat(this.imm16); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "pos", {
-        get: function () {
-            return this.lsb;
-        },
-        set: function (value) {
-            this.lsb = value;
-        },
+        get: function () { return this.lsb; },
+        set: function (value) { this.lsb = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "size_e", {
-        get: function () {
-            return this.msb + 1;
-        },
-        set: function (value) {
-            this.msb = value - 1;
-        },
+        get: function () { return this.msb + 1; },
+        set: function (value) { this.msb = value - 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "size_i", {
-        get: function () {
-            return this.msb - this.lsb + 1;
-        },
-        set: function (value) {
-            this.msb = this.lsb + value - 1;
-        },
+        get: function () { return this.msb - this.lsb + 1; },
+        set: function (value) { this.msb = this.lsb + value - 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "lsb", {
-        get: function () {
-            return this.extract(6 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "msb", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "c1cr", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "syscall", {
-        get: function () {
-            return this.extract(6, 20);
-        },
-        set: function (value) {
-            this.insert(6, 20, value);
-        },
+        get: function () { return this.extract(6, 20); },
+        set: function (value) { this.insert(6, 20, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "imm16", {
-        get: function () {
-            var res = this.u_imm16;
-            if (res & 0x8000)
-                res |= 0xFFFF0000;
-            return res;
-        },
-        set: function (value) {
-            this.insert(0, 16, value);
-        },
+        get: function () { var res = this.u_imm16; if (res & 0x8000)
+            res |= 0xFFFF0000; return res; },
+        set: function (value) { this.insert(0, 16, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "u_imm16", {
-        get: function () {
-            return this.extract(0, 16);
-        },
-        set: function (value) {
-            this.insert(0, 16, value);
-        },
+        get: function () { return this.extract(0, 16); },
+        set: function (value) { this.insert(0, 16, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "u_imm26", {
-        get: function () {
-            return this.extract(0, 26);
-        },
-        set: function (value) {
-            this.insert(0, 26, value);
-        },
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_bits", {
-        get: function () {
-            return this.extract(0, 26);
-        },
-        set: function (value) {
-            this.insert(0, 26, value);
-        },
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_real", {
-        get: function () {
-            return (this.jump_bits * 4) >>> 0;
-        },
-        set: function (value) {
-            this.jump_bits = (value / 4) >>> 0;
-        },
+        get: function () { return (this.jump_bits * 4) >>> 0; },
+        set: function (value) { this.jump_bits = (value / 4) >>> 0; },
         enumerable: true,
         configurable: true
     });
@@ -6893,15 +5907,15 @@ exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/cpu/state": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var memory = require('../memory');
 (function (CpuSpecialAddresses) {
-    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
+    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 268435455] = "EXIT_THREAD";
 })(exports.CpuSpecialAddresses || (exports.CpuSpecialAddresses = {}));
 var CpuSpecialAddresses = exports.CpuSpecialAddresses;
 var VfpuPrefixBase = (function () {
@@ -7004,8 +6018,7 @@ var VfpuPrefixWrite = (function (_super) {
                         case 3:
                             value = MathFloat.sat1(value);
                             break;
-                        default:
-                            break;
+                        default: break;
                     }
                     vfpr[indices[n]] = value;
                 }
@@ -7069,9 +6082,9 @@ var CpuState = (function () {
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
         this.vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
-        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0 /* SPREFIX */);
-        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1 /* TPREFIX */);
-        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2 /* DPREFIX */);
+        this.vpfxs = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.SPREFIX);
+        this.vpfxt = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.TPREFIX);
+        this.vpfxd = new VfpuPrefixWrite(this.vfprc, VFPU_CTRL.DPREFIX);
         this.vector_vs = [0, 0, 0, 0];
         this.vector_vt = [0, 0, 0, 0];
         this.vector_vd = [0, 0, 0, 0];
@@ -7094,14 +6107,13 @@ var CpuState = (function () {
     }
     CpuState.prototype.setVfrCc = function (index, value) {
         if (value) {
-            this.vfprc[3 /* CC */] |= (1 << index);
+            this.vfprc[VFPU_CTRL.CC] |= (1 << index);
         }
         else {
-            this.vfprc[3 /* CC */] &= ~(1 << index);
+            this.vfprc[VFPU_CTRL.CC] &= ~(1 << index);
         }
     };
-    CpuState.prototype.vrnds = function () {
-    };
+    CpuState.prototype.vrnds = function () { };
     CpuState.prototype.vrndi = function () {
         var v = 0;
         for (var n = 0; n < 4; n++) {
@@ -7110,14 +6122,10 @@ var CpuState = (function () {
         }
         return v;
     };
-    CpuState.prototype.vrndf1 = function () {
-        return Math.random() * 2;
-    };
-    CpuState.prototype.vrndf2 = function () {
-        return Math.random() * 4;
-    };
+    CpuState.prototype.vrndf1 = function () { return Math.random() * 2; };
+    CpuState.prototype.vrndf2 = function () { return Math.random() * 4; };
     CpuState.prototype.getVfrCc = function (index) {
-        return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
+        return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
     };
     CpuState.prototype.vcmp = function (cond, vsValues, vtValues) {
         var vectorSize = vsValues.length;
@@ -7132,52 +6140,52 @@ var CpuState = (function () {
         for (var i = 0; i < vectorSize; i++) {
             var c = false;
             switch (cond) {
-                case 0 /* FL */:
+                case VCondition.FL:
                     c = false;
                     break;
-                case 1 /* EQ */:
+                case VCondition.EQ:
                     c = s[i] == t[i];
                     break;
-                case 2 /* LT */:
+                case VCondition.LT:
                     c = s[i] < t[i];
                     break;
-                case 3 /* LE */:
+                case VCondition.LE:
                     c = s[i] <= t[i];
                     break;
-                case 4 /* TR */:
+                case VCondition.TR:
                     c = true;
                     break;
-                case 5 /* NE */:
+                case VCondition.NE:
                     c = s[i] != t[i];
                     break;
-                case 6 /* GE */:
+                case VCondition.GE:
                     c = s[i] >= t[i];
                     break;
-                case 7 /* GT */:
+                case VCondition.GT:
                     c = s[i] > t[i];
                     break;
-                case 8 /* EZ */:
+                case VCondition.EZ:
                     c = s[i] == 0.0 || s[i] == -0.0;
                     break;
-                case 9 /* EN */:
+                case VCondition.EN:
                     c = MathFloat.isnan(s[i]);
                     break;
-                case 10 /* EI */:
+                case VCondition.EI:
                     c = MathFloat.isinf(s[i]);
                     break;
-                case 11 /* ES */:
+                case VCondition.ES:
                     c = MathFloat.isnanorinf(s[i]);
                     break;
-                case 12 /* NZ */:
+                case VCondition.NZ:
                     c = s[i] != 0;
                     break;
-                case 13 /* NN */:
+                case VCondition.NN:
                     c = !MathFloat.isnan(s[i]);
                     break;
-                case 14 /* NI */:
+                case VCondition.NI:
                     c = !MathFloat.isinf(s[i]);
                     break;
-                case 15 /* NS */:
+                case VCondition.NS:
                     c = !(MathFloat.isnanorinf(s[i]));
                     break;
             }
@@ -7187,7 +6195,7 @@ var CpuState = (function () {
             and_val &= c_i;
             affected_bits |= 1 << i;
         }
-        this.vfprc[3 /* CC */] = (this.vfprc[3 /* CC */] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.vfprc[VFPU_CTRL.CC] = (this.vfprc[VFPU_CTRL.CC] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
         this.eatPrefixes();
     };
     CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
@@ -7196,7 +6204,7 @@ var CpuState = (function () {
         this.loadVs_prefixed(vsRegs.map(function (reg) { return _this.vfpr[reg]; }));
         this.loadVdRegs(vdRegs);
         var compare = _true ? 1 : 0;
-        var cc = this.vfprc[3 /* CC */];
+        var cc = this.vfprc[VFPU_CTRL.CC];
         if (register < 6) {
             if (((cc >> register) & 1) == compare) {
                 for (var n = 0; n < vectorSize; n++) {
@@ -7215,68 +6223,46 @@ var CpuState = (function () {
         }
         this.storeVdRegsWithPrefix(vdRegs);
     };
-    CpuState.prototype.setVpfxt = function (value) {
-        this.vpfxt.setInfo(value);
-    };
-    CpuState.prototype.setVpfxs = function (value) {
-        this.vpfxs.setInfo(value);
-    };
-    CpuState.prototype.setVpfxd = function (value) {
-        this.vpfxd.setInfo(value);
-    };
+    CpuState.prototype.setVpfxt = function (value) { this.vpfxt.setInfo(value); };
+    CpuState.prototype.setVpfxs = function (value) { this.vpfxs.setInfo(value); };
+    CpuState.prototype.setVpfxd = function (value) { this.vpfxd.setInfo(value); };
     Object.defineProperty(CpuState.prototype, "vfpumatrix0", {
-        get: function () {
-            return this.getVfpumatrix(0);
-        },
+        get: function () { return this.getVfpumatrix(0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix1", {
-        get: function () {
-            return this.getVfpumatrix(1);
-        },
+        get: function () { return this.getVfpumatrix(1); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix2", {
-        get: function () {
-            return this.getVfpumatrix(2);
-        },
+        get: function () { return this.getVfpumatrix(2); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix3", {
-        get: function () {
-            return this.getVfpumatrix(3);
-        },
+        get: function () { return this.getVfpumatrix(3); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix4", {
-        get: function () {
-            return this.getVfpumatrix(4);
-        },
+        get: function () { return this.getVfpumatrix(4); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix5", {
-        get: function () {
-            return this.getVfpumatrix(5);
-        },
+        get: function () { return this.getVfpumatrix(5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix6", {
-        get: function () {
-            return this.getVfpumatrix(6);
-        },
+        get: function () { return this.getVfpumatrix(6); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix7", {
-        get: function () {
-            return this.getVfpumatrix(7);
-        },
+        get: function () { return this.getVfpumatrix(7); },
         enumerable: true,
         configurable: true
     });
@@ -7390,14 +6376,10 @@ var CpuState = (function () {
             this.memory.writeFloat32(address + n * 4, values[n]);
         }
     };
-    CpuState.prototype.vfpuStore = function (indices, values) {
-        for (var n = 0; n < indices.length; n++)
-            this.vfpr[indices[n]] = values[n];
-    };
-    CpuState.prototype.vfpuStore_i = function (indices, values) {
-        for (var n = 0; n < indices.length; n++)
-            this.vfpr_i[indices[n]] = values[n];
-    };
+    CpuState.prototype.vfpuStore = function (indices, values) { for (var n = 0; n < indices.length; n++)
+        this.vfpr[indices[n]] = values[n]; };
+    CpuState.prototype.vfpuStore_i = function (indices, values) { for (var n = 0; n < indices.length; n++)
+        this.vfpr_i[indices[n]] = values[n]; };
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
         this.vfpr[0] = 0;
         throw new Error("Not implemented vfpuSetMatrix!");
@@ -7427,81 +6409,49 @@ var CpuState = (function () {
             this.vfprc[n] = other.vfprc[n];
     };
     Object.defineProperty(CpuState.prototype, "V0", {
-        get: function () {
-            return this.gpr[2];
-        },
-        set: function (value) {
-            this.gpr[2] = value;
-        },
+        get: function () { return this.gpr[2]; },
+        set: function (value) { this.gpr[2] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "V1", {
-        get: function () {
-            return this.gpr[3];
-        },
-        set: function (value) {
-            this.gpr[3] = value;
-        },
+        get: function () { return this.gpr[3]; },
+        set: function (value) { this.gpr[3] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "K0", {
-        get: function () {
-            return this.gpr[26];
-        },
-        set: function (value) {
-            this.gpr[26] = value;
-        },
+        get: function () { return this.gpr[26]; },
+        set: function (value) { this.gpr[26] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "GP", {
-        get: function () {
-            return this.gpr[28];
-        },
-        set: function (value) {
-            this.gpr[28] = value;
-        },
+        get: function () { return this.gpr[28]; },
+        set: function (value) { this.gpr[28] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "SP", {
-        get: function () {
-            return this.gpr[29];
-        },
-        set: function (value) {
-            this.gpr[29] = value;
-        },
+        get: function () { return this.gpr[29]; },
+        set: function (value) { this.gpr[29] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "FP", {
-        get: function () {
-            return this.gpr[30];
-        },
-        set: function (value) {
-            this.gpr[30] = value;
-        },
+        get: function () { return this.gpr[30]; },
+        set: function (value) { this.gpr[30] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "RA", {
-        get: function () {
-            return this.gpr[31];
-        },
-        set: function (value) {
-            this.gpr[31] = value;
-        },
+        get: function () { return this.gpr[31]; },
+        set: function (value) { this.gpr[31] = value; },
         enumerable: true,
         configurable: true
     });
-    CpuState.prototype.getRA = function () {
-        return this.gpr[31];
-    };
-    CpuState.prototype.setRA = function (value) {
-        this.gpr[31] = value;
-    };
+    CpuState.prototype.getRA = function () { return this.gpr[31]; };
+    CpuState.prototype.setRA = function (value) { this.gpr[31] = value; };
     CpuState.prototype.callstackPush = function (PC) {
     };
     CpuState.prototype.callstackPop = function () {
@@ -7557,16 +6507,12 @@ var CpuState = (function () {
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "fcr0_rev", {
-        get: function () {
-            return BitUtils.extract(this.fcr0, 0, 8);
-        },
+        get: function () { return BitUtils.extract(this.fcr0, 0, 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "fcr0_imp", {
-        get: function () {
-            return BitUtils.extract(this.fcr0, 8, 24);
-        },
+        get: function () { return BitUtils.extract(this.fcr0, 8, 24); },
         enumerable: true,
         configurable: true
     });
@@ -7602,64 +6548,30 @@ var CpuState = (function () {
     };
     CpuState.prototype._cvt_w_s_impl = function (FS) {
         switch (this.fcr31_rm) {
-            case 0:
-                return MathFloat.rint(FS);
-            case 1:
-                return MathFloat.cast(FS);
-            case 2:
-                return MathFloat.ceil(FS);
-            case 3:
-                return MathFloat.floor(FS);
+            case 0: return MathFloat.rint(FS);
+            case 1: return MathFloat.cast(FS);
+            case 2: return MathFloat.ceil(FS);
+            case 3: return MathFloat.floor(FS);
         }
         throw ("RM has an invalid value!!");
     };
     CpuState.prototype.cache = function (rs, type, offset) {
     };
-    CpuState.prototype.syscall = function (id) {
-        this.syscallManager.call(this, id);
-    };
-    CpuState.prototype.sb = function (value, address) {
-        this.memory.writeInt8(address, value);
-    };
-    CpuState.prototype.sh = function (value, address) {
-        this.memory.writeInt16(address, value);
-    };
-    CpuState.prototype.sw = function (value, address) {
-        this.memory.writeInt32(address, value);
-    };
-    CpuState.prototype.swc1 = function (value, address) {
-        this.memory.writeFloat32(address, value);
-    };
-    CpuState.prototype.lb = function (address) {
-        return this.memory.readInt8(address);
-    };
-    CpuState.prototype.lbu = function (address) {
-        return this.memory.readUInt8(address);
-    };
-    CpuState.prototype.lh = function (address) {
-        return this.memory.readInt16(address);
-    };
-    CpuState.prototype.lhu = function (address) {
-        return this.memory.readUInt16(address);
-    };
-    CpuState.prototype.lw = function (address) {
-        return this.memory.readInt32(address);
-    };
-    CpuState.prototype.lwc1 = function (address) {
-        return this.memory.readFloat32(address);
-    };
-    CpuState.prototype.min = function (a, b) {
-        return ((a | 0) < (b | 0)) ? a : b;
-    };
-    CpuState.prototype.max = function (a, b) {
-        return ((a | 0) > (b | 0)) ? a : b;
-    };
-    CpuState.prototype.slt = function (a, b) {
-        return ((a | 0) < (b | 0)) ? 1 : 0;
-    };
-    CpuState.prototype.sltu = function (a, b) {
-        return ((a >>> 0) < (b >>> 0)) ? 1 : 0;
-    };
+    CpuState.prototype.syscall = function (id) { this.syscallManager.call(this, id); };
+    CpuState.prototype.sb = function (value, address) { this.memory.writeInt8(address, value); };
+    CpuState.prototype.sh = function (value, address) { this.memory.writeInt16(address, value); };
+    CpuState.prototype.sw = function (value, address) { this.memory.writeInt32(address, value); };
+    CpuState.prototype.swc1 = function (value, address) { this.memory.writeFloat32(address, value); };
+    CpuState.prototype.lb = function (address) { return this.memory.readInt8(address); };
+    CpuState.prototype.lbu = function (address) { return this.memory.readUInt8(address); };
+    CpuState.prototype.lh = function (address) { return this.memory.readInt16(address); };
+    CpuState.prototype.lhu = function (address) { return this.memory.readUInt16(address); };
+    CpuState.prototype.lw = function (address) { return this.memory.readInt32(address); };
+    CpuState.prototype.lwc1 = function (address) { return this.memory.readFloat32(address); };
+    CpuState.prototype.min = function (a, b) { return ((a | 0) < (b | 0)) ? a : b; };
+    CpuState.prototype.max = function (a, b) { return ((a | 0) > (b | 0)) ? a : b; };
+    CpuState.prototype.slt = function (a, b) { return ((a | 0) < (b | 0)) ? 1 : 0; };
+    CpuState.prototype.sltu = function (a, b) { return ((a >>> 0) < (b >>> 0)) ? 1 : 0; };
     CpuState.prototype.lwl = function (RS, Offset, ValueToWrite) {
         var Address = (RS + Offset);
         var AddressAlign = Address & 3;
@@ -7757,9 +6669,7 @@ var CpuState = (function () {
             }
         }
     };
-    CpuState.prototype.break = function () {
-        throw (new CpuBreakException());
-    };
+    CpuState.prototype.break = function () { throw (new CpuBreakException()); };
     CpuState.LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
     CpuState.LwrShift = [0, 8, 16, 24];
     CpuState.LwlMask = [0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000];
@@ -7775,7 +6685,7 @@ exports.CpuState = CpuState;
 
 },
 "src/core/cpu/syscall": function(module, exports, require) {
-var state = require('./state');
+///<reference path="../../global.d.ts" />
 var NativeFunction = (function () {
     function NativeFunction() {
     }
@@ -7807,6 +6717,7 @@ exports.SyscallManager = SyscallManager;
 
 },
 "src/core/display": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -7824,7 +6735,7 @@ var BasePspDisplay = (function () {
     function BasePspDisplay() {
         this.address = Memory.DEFAULT_FRAME_ADDRESS;
         this.bufferWidth = 512;
-        this.pixelFormat = 3 /* RGBA_8888 */;
+        this.pixelFormat = PixelFormat.RGBA_8888;
         this.sync = 1;
     }
     return BasePspDisplay;
@@ -7941,7 +6852,7 @@ var PspDisplay = (function (_super) {
             _this.vblankCount++;
             _this.update();
             _this.vblank.dispatch(_this.vblankCount);
-            _this.interruptManager.interrupt(30 /* PSP_VBLANK_INT */);
+            _this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
         }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
         return Promise.resolve();
     };
@@ -7990,6 +6901,7 @@ exports.PspDisplay = PspDisplay;
 
 },
 "src/core/gpu": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _gpu = require('./gpu/gpu');
 _gpu.PspGpu;
 var _state = require('./gpu/state');
@@ -8007,11 +6919,12 @@ exports.VertexReaderFactory = _vertex.VertexReaderFactory;
 
 },
 "src/core/gpu/driver": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 
 },
 "src/core/gpu/gpu": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _memory = require('../memory');
-var _pixelformat = require('../pixelformat');
 var _instructions = require('./instructions');
 var _state = require('./state');
 var _vertex = require('./vertex');
@@ -8024,36 +6937,16 @@ var WebGlPspDrawDriver = require('./webgl/driver');
 var DummyDrawDriver = require('./webgl/driver_dummy');
 var vertexBuffer = new _vertex.VertexBuffer();
 var singleCallTest = false;
-function bool1(p) {
-    return p != 0;
-}
-function param1(p, offset) {
-    return (p >> offset) & 0x1;
-}
-function param2(p, offset) {
-    return (p >> offset) & 0x3;
-}
-function param3(p, offset) {
-    return (p >> offset) & 0x7;
-}
-function param4(p, offset) {
-    return (p >> offset) & 0xF;
-}
-function param5(p, offset) {
-    return (p >> offset) & 0x1F;
-}
-function param8(p, offset) {
-    return (p >> offset) & 0xFF;
-}
-function param10(p, offset) {
-    return (p >> offset) & 0x3FF;
-}
-function param16(p, offset) {
-    return (p >> offset) & 0xFFFF;
-}
-function float1(p) {
-    return MathFloat.reinterpretIntAsFloat(p << 8);
-}
+function bool1(p) { return p != 0; }
+function param1(p, offset) { return (p >> offset) & 0x1; }
+function param2(p, offset) { return (p >> offset) & 0x3; }
+function param3(p, offset) { return (p >> offset) & 0x7; }
+function param4(p, offset) { return (p >> offset) & 0xF; }
+function param5(p, offset) { return (p >> offset) & 0x1F; }
+function param8(p, offset) { return (p >> offset) & 0xFF; }
+function param10(p, offset) { return (p >> offset) & 0x3FF; }
+function param16(p, offset) { return (p >> offset) & 0xFFFF; }
+function float1(p) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 var PspGpuExecutor = (function () {
     function PspGpuExecutor() {
         this.table = new Array(0x100);
@@ -8067,22 +6960,12 @@ var PspGpuExecutor = (function () {
         this.list = list;
         this.state = list.state;
     };
-    PspGpuExecutor.prototype.NOP = function (p) {
-    };
-    PspGpuExecutor.prototype.DUMMY = function (p) {
-    };
-    PspGpuExecutor.prototype.IADDR = function (p) {
-        this.state.indexAddress = p;
-    };
-    PspGpuExecutor.prototype.OFFSETADDR = function (p) {
-        this.state.baseOffset = (p << 8);
-    };
-    PspGpuExecutor.prototype.FRAMEBUFPTR = function (p) {
-        this.state.frameBuffer.lowAddress = p;
-    };
-    PspGpuExecutor.prototype.BASE = function (p) {
-        this.state.baseAddress = ((p << 8) & 0xff000000);
-    };
+    PspGpuExecutor.prototype.NOP = function (p) { };
+    PspGpuExecutor.prototype.DUMMY = function (p) { };
+    PspGpuExecutor.prototype.IADDR = function (p) { this.state.indexAddress = p; };
+    PspGpuExecutor.prototype.OFFSETADDR = function (p) { this.state.baseOffset = (p << 8); };
+    PspGpuExecutor.prototype.FRAMEBUFPTR = function (p) { this.state.frameBuffer.lowAddress = p; };
+    PspGpuExecutor.prototype.BASE = function (p) { this.state.baseAddress = ((p << 8) & 0xff000000); };
     PspGpuExecutor.prototype.JUMP = function (p) {
         this.list.jumpRelativeOffset(p & ~3);
     };
@@ -8242,60 +7125,32 @@ var PspGpuExecutor = (function () {
     PspGpuExecutor.prototype.invalidatePrim = function () {
         this.list.finishPrimBatch();
     };
-    PspGpuExecutor.prototype.FOGENABLE = function (p) {
-        if (this.state.fog.enabled != bool1(p)) {
-            this.invalidatePrim();
-            this.state.fog.enabled = bool1(p);
-        }
-    };
-    PspGpuExecutor.prototype.VIEWPORTX1 = function (p) {
-        if (this.state.viewport.width != float1(p)) {
-            this.invalidatePrim();
-            this.state.viewport.width = float1(p);
-        }
-    };
-    PspGpuExecutor.prototype.VIEWPORTY1 = function (p) {
-        if (this.state.viewport.height != float1(p)) {
-            this.invalidatePrim();
-            this.state.viewport.height = float1(p);
-        }
-    };
-    PspGpuExecutor.prototype.VIEWPORTZ1 = function (p) {
-        if (this.state.viewport.depth != float1(p)) {
-            this.invalidatePrim();
-            this.state.viewport.depth = float1(p);
-        }
-    };
-    PspGpuExecutor.prototype.VIEWPORTX2 = function (p) {
-        if (this.state.viewport.x == float1(p))
-            return;
+    PspGpuExecutor.prototype.FOGENABLE = function (p) { if (this.state.fog.enabled != bool1(p)) {
         this.invalidatePrim();
-        this.state.viewport.x = float1(p);
-    };
-    PspGpuExecutor.prototype.VIEWPORTY2 = function (p) {
-        if (this.state.viewport.y == float1(p))
-            return;
+        this.state.fog.enabled = bool1(p);
+    } };
+    PspGpuExecutor.prototype.VIEWPORTX1 = function (p) { if (this.state.viewport.width != float1(p)) {
         this.invalidatePrim();
-        this.state.viewport.y = float1(p);
-    };
-    PspGpuExecutor.prototype.VIEWPORTZ2 = function (p) {
-        if (this.state.viewport.z == float1(p))
-            return;
+        this.state.viewport.width = float1(p);
+    } };
+    PspGpuExecutor.prototype.VIEWPORTY1 = function (p) { if (this.state.viewport.height != float1(p)) {
         this.invalidatePrim();
-        this.state.viewport.z = float1(p);
-    };
-    PspGpuExecutor.prototype.OFFSETX = function (p) {
-        if (this.state.offset.x == param4(p, 0))
-            return;
+        this.state.viewport.height = float1(p);
+    } };
+    PspGpuExecutor.prototype.VIEWPORTZ1 = function (p) { if (this.state.viewport.depth != float1(p)) {
         this.invalidatePrim();
-        this.state.offset.x = param4(p, 0);
-    };
-    PspGpuExecutor.prototype.OFFSETY = function (p) {
-        if (this.state.offset.y == param4(p, 0))
-            return;
-        this.invalidatePrim();
-        this.state.offset.y = param4(p, 0);
-    };
+        this.state.viewport.depth = float1(p);
+    } };
+    PspGpuExecutor.prototype.VIEWPORTX2 = function (p) { if (this.state.viewport.x == float1(p))
+        return; this.invalidatePrim(); this.state.viewport.x = float1(p); };
+    PspGpuExecutor.prototype.VIEWPORTY2 = function (p) { if (this.state.viewport.y == float1(p))
+        return; this.invalidatePrim(); this.state.viewport.y = float1(p); };
+    PspGpuExecutor.prototype.VIEWPORTZ2 = function (p) { if (this.state.viewport.z == float1(p))
+        return; this.invalidatePrim(); this.state.viewport.z = float1(p); };
+    PspGpuExecutor.prototype.OFFSETX = function (p) { if (this.state.offset.x == param4(p, 0))
+        return; this.invalidatePrim(); this.state.offset.x = param4(p, 0); };
+    PspGpuExecutor.prototype.OFFSETY = function (p) { if (this.state.offset.y == param4(p, 0))
+        return; this.invalidatePrim(); this.state.offset.y = param4(p, 0); };
     PspGpuExecutor.prototype.REGION1 = function (p) {
         if (this.state.region._xy1 == p)
             return;
@@ -8711,78 +7566,30 @@ var PspGpuExecutor = (function () {
         this.invalidatePrim();
         this.state.stencil.enabled = bool1(p);
     };
-    PspGpuExecutor.prototype.TSIZE0 = function (p) {
-        this.TSIZE_(p, 0);
-    };
-    PspGpuExecutor.prototype.TSIZE1 = function (p) {
-        this.TSIZE_(p, 1);
-    };
-    PspGpuExecutor.prototype.TSIZE2 = function (p) {
-        this.TSIZE_(p, 2);
-    };
-    PspGpuExecutor.prototype.TSIZE3 = function (p) {
-        this.TSIZE_(p, 3);
-    };
-    PspGpuExecutor.prototype.TSIZE4 = function (p) {
-        this.TSIZE_(p, 4);
-    };
-    PspGpuExecutor.prototype.TSIZE5 = function (p) {
-        this.TSIZE_(p, 5);
-    };
-    PspGpuExecutor.prototype.TSIZE6 = function (p) {
-        this.TSIZE_(p, 6);
-    };
-    PspGpuExecutor.prototype.TSIZE7 = function (p) {
-        this.TSIZE_(p, 7);
-    };
-    PspGpuExecutor.prototype.TEXADDR0 = function (p) {
-        this.TEXADDR_(p, 0);
-    };
-    PspGpuExecutor.prototype.TEXADDR1 = function (p) {
-        this.TEXADDR_(p, 1);
-    };
-    PspGpuExecutor.prototype.TEXADDR2 = function (p) {
-        this.TEXADDR_(p, 2);
-    };
-    PspGpuExecutor.prototype.TEXADDR3 = function (p) {
-        this.TEXADDR_(p, 3);
-    };
-    PspGpuExecutor.prototype.TEXADDR4 = function (p) {
-        this.TEXADDR_(p, 4);
-    };
-    PspGpuExecutor.prototype.TEXADDR5 = function (p) {
-        this.TEXADDR_(p, 5);
-    };
-    PspGpuExecutor.prototype.TEXADDR6 = function (p) {
-        this.TEXADDR_(p, 6);
-    };
-    PspGpuExecutor.prototype.TEXADDR7 = function (p) {
-        this.TEXADDR_(p, 7);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH0 = function (p) {
-        return this.TEXBUFWIDTH_(p, 0);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH1 = function (p) {
-        return this.TEXBUFWIDTH_(p, 1);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH2 = function (p) {
-        return this.TEXBUFWIDTH_(p, 2);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH3 = function (p) {
-        return this.TEXBUFWIDTH_(p, 3);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH4 = function (p) {
-        return this.TEXBUFWIDTH_(p, 4);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH5 = function (p) {
-        return this.TEXBUFWIDTH_(p, 5);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH6 = function (p) {
-        return this.TEXBUFWIDTH_(p, 6);
-    };
-    PspGpuExecutor.prototype.TEXBUFWIDTH7 = function (p) {
-        return this.TEXBUFWIDTH_(p, 7);
-    };
+    PspGpuExecutor.prototype.TSIZE0 = function (p) { this.TSIZE_(p, 0); };
+    PspGpuExecutor.prototype.TSIZE1 = function (p) { this.TSIZE_(p, 1); };
+    PspGpuExecutor.prototype.TSIZE2 = function (p) { this.TSIZE_(p, 2); };
+    PspGpuExecutor.prototype.TSIZE3 = function (p) { this.TSIZE_(p, 3); };
+    PspGpuExecutor.prototype.TSIZE4 = function (p) { this.TSIZE_(p, 4); };
+    PspGpuExecutor.prototype.TSIZE5 = function (p) { this.TSIZE_(p, 5); };
+    PspGpuExecutor.prototype.TSIZE6 = function (p) { this.TSIZE_(p, 6); };
+    PspGpuExecutor.prototype.TSIZE7 = function (p) { this.TSIZE_(p, 7); };
+    PspGpuExecutor.prototype.TEXADDR0 = function (p) { this.TEXADDR_(p, 0); };
+    PspGpuExecutor.prototype.TEXADDR1 = function (p) { this.TEXADDR_(p, 1); };
+    PspGpuExecutor.prototype.TEXADDR2 = function (p) { this.TEXADDR_(p, 2); };
+    PspGpuExecutor.prototype.TEXADDR3 = function (p) { this.TEXADDR_(p, 3); };
+    PspGpuExecutor.prototype.TEXADDR4 = function (p) { this.TEXADDR_(p, 4); };
+    PspGpuExecutor.prototype.TEXADDR5 = function (p) { this.TEXADDR_(p, 5); };
+    PspGpuExecutor.prototype.TEXADDR6 = function (p) { this.TEXADDR_(p, 6); };
+    PspGpuExecutor.prototype.TEXADDR7 = function (p) { this.TEXADDR_(p, 7); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH0 = function (p) { return this.TEXBUFWIDTH_(p, 0); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH1 = function (p) { return this.TEXBUFWIDTH_(p, 1); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH2 = function (p) { return this.TEXBUFWIDTH_(p, 2); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH3 = function (p) { return this.TEXBUFWIDTH_(p, 3); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH4 = function (p) { return this.TEXBUFWIDTH_(p, 4); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH5 = function (p) { return this.TEXBUFWIDTH_(p, 5); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH6 = function (p) { return this.TEXBUFWIDTH_(p, 6); };
+    PspGpuExecutor.prototype.TEXBUFWIDTH7 = function (p) { return this.TEXBUFWIDTH_(p, 7); };
     PspGpuExecutor.prototype.MORPHWEIGHT_ = function (p, index) {
         var morphWeight = float1(p);
         if (this.state.morphWeights[index] == morphWeight)
@@ -8790,30 +7597,14 @@ var PspGpuExecutor = (function () {
         this.invalidatePrim();
         this.state.morphWeights[index] = morphWeight;
     };
-    PspGpuExecutor.prototype.MORPHWEIGHT0 = function (p) {
-        return this.MORPHWEIGHT_(p, 0);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT1 = function (p) {
-        return this.MORPHWEIGHT_(p, 1);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT2 = function (p) {
-        return this.MORPHWEIGHT_(p, 2);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT3 = function (p) {
-        return this.MORPHWEIGHT_(p, 3);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT4 = function (p) {
-        return this.MORPHWEIGHT_(p, 4);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT5 = function (p) {
-        return this.MORPHWEIGHT_(p, 5);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT6 = function (p) {
-        return this.MORPHWEIGHT_(p, 6);
-    };
-    PspGpuExecutor.prototype.MORPHWEIGHT7 = function (p) {
-        return this.MORPHWEIGHT_(p, 7);
-    };
+    PspGpuExecutor.prototype.MORPHWEIGHT0 = function (p) { return this.MORPHWEIGHT_(p, 0); };
+    PspGpuExecutor.prototype.MORPHWEIGHT1 = function (p) { return this.MORPHWEIGHT_(p, 1); };
+    PspGpuExecutor.prototype.MORPHWEIGHT2 = function (p) { return this.MORPHWEIGHT_(p, 2); };
+    PspGpuExecutor.prototype.MORPHWEIGHT3 = function (p) { return this.MORPHWEIGHT_(p, 3); };
+    PspGpuExecutor.prototype.MORPHWEIGHT4 = function (p) { return this.MORPHWEIGHT_(p, 4); };
+    PspGpuExecutor.prototype.MORPHWEIGHT5 = function (p) { return this.MORPHWEIGHT_(p, 5); };
+    PspGpuExecutor.prototype.MORPHWEIGHT6 = function (p) { return this.MORPHWEIGHT_(p, 6); };
+    PspGpuExecutor.prototype.MORPHWEIGHT7 = function (p) { return this.MORPHWEIGHT_(p, 7); };
     PspGpuExecutor.prototype.CLEAR = function (p) {
         if (this.state._clearingWord == p)
             return;
@@ -8891,10 +7682,10 @@ var PspGpuExecutor = (function () {
         var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
         var indices = null;
         switch (vertexState.index) {
-            case 1 /* Byte */:
+            case _state.IndexEnum.Byte:
                 indices = list.memory.getU8Array(indicesAddress);
                 break;
-            case 2 /* Short */:
+            case _state.IndexEnum.Short:
                 indices = list.memory.getU16Array(indicesAddress);
                 break;
         }
@@ -8904,28 +7695,28 @@ var PspGpuExecutor = (function () {
                 vertexState.address += vertexState.size * vertexCount;
             }
         }
-        var drawType = 0 /* SINGLE_DRAW */;
+        var drawType = PrimDrawType.SINGLE_DRAW;
         switch (primitiveType) {
-            case 1 /* Lines */:
-            case 0 /* Points */:
-            case 3 /* Triangles */:
-            case 6 /* Sprites */:
-                drawType = 1 /* BATCH_DRAW */;
+            case _state.PrimitiveType.Lines:
+            case _state.PrimitiveType.Points:
+            case _state.PrimitiveType.Triangles:
+            case _state.PrimitiveType.Sprites:
+                drawType = PrimDrawType.BATCH_DRAW;
                 break;
-            case 4 /* TriangleStrip */:
-            case 2 /* LineStrip */:
-                drawType = 2 /* BATCH_DRAW_DEGENERATE */;
+            case _state.PrimitiveType.TriangleStrip:
+            case _state.PrimitiveType.LineStrip:
+                drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
                 break;
         }
-        if ((list.batchPrimCount > 0) && (drawType == 2 /* BATCH_DRAW_DEGENERATE */))
+        if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE))
             vertexBuffer.startDegenerateTriangleStrip();
         {
             var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
             vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, indices, vertexCount, vertexState.hasIndex);
         }
-        if ((list.batchPrimCount > 0) && (drawType == 2 /* BATCH_DRAW_DEGENERATE */))
+        if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE))
             vertexBuffer.endDegenerateTriangleStrip();
-        if (drawType == 0 /* SINGLE_DRAW */) {
+        if (drawType == PrimDrawType.SINGLE_DRAW) {
             list.finishPrimBatch();
         }
         else {
@@ -8952,7 +7743,7 @@ var PspGpuExecutor = (function () {
         var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
         var vertexInput = this.list.memory.getPointerDataView(vertexAddress);
         var vertexState2 = vertexState.clone();
-        vertexState2.texture = 3 /* Float */;
+        vertexState2.texture = _state.NumericEnum.Float;
         var getBezierControlPoints = function (ucount, vcount) {
             var controlPoints = ArrayUtils.create2D(ucount, vcount);
             var mipmap = _this.state.texture.mipmaps[0];
@@ -8976,7 +7767,7 @@ var PspGpuExecutor = (function () {
         vertices2.push(controlPoints[ucount - 1][0]);
         vertices2.push(controlPoints[ucount - 1][vcount - 1]);
         vertices2.push(controlPoints[0][vcount - 1]);
-        this.list.drawDriver.drawElements(_state, 3 /* Triangles */, vertices2, vertices2.length, vertexState2);
+        this.list.drawDriver.drawElements(_state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
     };
     PspGpuExecutor.prototype.light = function (index) {
         return this.state.lightning.lights[index];
@@ -9004,14 +7795,14 @@ var PspGpuExecutor = (function () {
         light.kind = kind;
         light.type = type;
         switch (light.type) {
-            case 0 /* Directional */:
+            case _state.LightTypeEnum.Directional:
                 light.pw = 0;
                 break;
-            case 1 /* PointLight */:
+            case _state.LightTypeEnum.PointLight:
                 light.pw = 1;
                 light.cutoff = 180;
                 break;
-            case 2 /* SpotLight */:
+            case _state.LightTypeEnum.SpotLight:
                 light.pw = 1;
                 break;
         }
@@ -9051,204 +7842,70 @@ var PspGpuExecutor = (function () {
         this.invalidatePrim();
         this.light(index).spotCutoff = v;
     };
-    PspGpuExecutor.prototype.LXP_ = function (p, index) {
-        var v = float1(p);
-        if (this.light(index).px == float1(p))
-            return;
-        this.invalidatePrim();
-        this.light(index).px = float1(p);
-    };
-    PspGpuExecutor.prototype.LYP_ = function (p, index) {
-        var v = float1(p);
-        if (this.light(index).py == float1(p))
-            return;
-        this.invalidatePrim();
-        this.light(index).py = float1(p);
-    };
-    PspGpuExecutor.prototype.LZP_ = function (p, index) {
-        var v = float1(p);
-        if (this.light(index).pz == float1(p))
-            return;
-        this.invalidatePrim();
-        this.light(index).pz = float1(p);
-    };
-    PspGpuExecutor.prototype.LXD_ = function (p, index) {
-        var v = float1(p);
-        if (this.light(index).dx == float1(p))
-            return;
-        this.invalidatePrim();
-        this.light(index).dx = float1(p);
-    };
-    PspGpuExecutor.prototype.LYD_ = function (p, index) {
-        var v = float1(p);
-        if (this.light(index).dy == float1(p))
-            return;
-        this.invalidatePrim();
-        this.light(index).dy = float1(p);
-    };
-    PspGpuExecutor.prototype.LZD_ = function (p, index) {
-        var v = float1(p);
-        if (this.light(index).dz == float1(p))
-            return;
-        this.invalidatePrim();
-        this.light(index).dz = float1(p);
-    };
-    PspGpuExecutor.prototype.LIGHTENABLE0 = function (p) {
-        this.LIGHTENABLE_(p, 0);
-    };
-    PspGpuExecutor.prototype.LIGHTENABLE1 = function (p) {
-        this.LIGHTENABLE_(p, 1);
-    };
-    PspGpuExecutor.prototype.LIGHTENABLE2 = function (p) {
-        this.LIGHTENABLE_(p, 2);
-    };
-    PspGpuExecutor.prototype.LIGHTENABLE3 = function (p) {
-        this.LIGHTENABLE_(p, 3);
-    };
-    PspGpuExecutor.prototype.LIGHTTYPE0 = function (p) {
-        this.LIGHTTYPE_(p, 0);
-    };
-    PspGpuExecutor.prototype.LIGHTTYPE1 = function (p) {
-        this.LIGHTTYPE_(p, 1);
-    };
-    PspGpuExecutor.prototype.LIGHTTYPE2 = function (p) {
-        this.LIGHTTYPE_(p, 2);
-    };
-    PspGpuExecutor.prototype.LIGHTTYPE3 = function (p) {
-        this.LIGHTTYPE_(p, 3);
-    };
-    PspGpuExecutor.prototype.LCA0 = function (p) {
-        this.LCA_(p, 0);
-    };
-    PspGpuExecutor.prototype.LCA1 = function (p) {
-        this.LCA_(p, 1);
-    };
-    PspGpuExecutor.prototype.LCA2 = function (p) {
-        this.LCA_(p, 2);
-    };
-    PspGpuExecutor.prototype.LCA3 = function (p) {
-        this.LCA_(p, 3);
-    };
-    PspGpuExecutor.prototype.LLA0 = function (p) {
-        this.LLA_(p, 0);
-    };
-    PspGpuExecutor.prototype.LLA1 = function (p) {
-        this.LLA_(p, 1);
-    };
-    PspGpuExecutor.prototype.LLA2 = function (p) {
-        this.LLA_(p, 2);
-    };
-    PspGpuExecutor.prototype.LLA3 = function (p) {
-        this.LLA_(p, 3);
-    };
-    PspGpuExecutor.prototype.LQA0 = function (p) {
-        this.LQA_(p, 0);
-    };
-    PspGpuExecutor.prototype.LQA1 = function (p) {
-        this.LQA_(p, 1);
-    };
-    PspGpuExecutor.prototype.LQA2 = function (p) {
-        this.LQA_(p, 2);
-    };
-    PspGpuExecutor.prototype.LQA3 = function (p) {
-        this.LQA_(p, 3);
-    };
-    PspGpuExecutor.prototype.SPOTEXP0 = function (p) {
-        this.SPOTEXP_(p, 0);
-    };
-    PspGpuExecutor.prototype.SPOTEXP1 = function (p) {
-        this.SPOTEXP_(p, 1);
-    };
-    PspGpuExecutor.prototype.SPOTEXP2 = function (p) {
-        this.SPOTEXP_(p, 2);
-    };
-    PspGpuExecutor.prototype.SPOTEXP3 = function (p) {
-        this.SPOTEXP_(p, 3);
-    };
-    PspGpuExecutor.prototype.SPOTCUT0 = function (p) {
-        this.SPOTCUT_(p, 0);
-    };
-    PspGpuExecutor.prototype.SPOTCUT1 = function (p) {
-        this.SPOTCUT_(p, 1);
-    };
-    PspGpuExecutor.prototype.SPOTCUT2 = function (p) {
-        this.SPOTCUT_(p, 2);
-    };
-    PspGpuExecutor.prototype.SPOTCUT3 = function (p) {
-        this.SPOTCUT_(p, 3);
-    };
-    PspGpuExecutor.prototype.LXP0 = function (p) {
-        this.LXP_(p, 0);
-    };
-    PspGpuExecutor.prototype.LXP1 = function (p) {
-        this.LXP_(p, 1);
-    };
-    PspGpuExecutor.prototype.LXP2 = function (p) {
-        this.LXP_(p, 2);
-    };
-    PspGpuExecutor.prototype.LXP3 = function (p) {
-        this.LXP_(p, 3);
-    };
-    PspGpuExecutor.prototype.LYP0 = function (p) {
-        this.LYP_(p, 0);
-    };
-    PspGpuExecutor.prototype.LYP1 = function (p) {
-        this.LYP_(p, 1);
-    };
-    PspGpuExecutor.prototype.LYP2 = function (p) {
-        this.LYP_(p, 2);
-    };
-    PspGpuExecutor.prototype.LYP3 = function (p) {
-        this.LYP_(p, 3);
-    };
-    PspGpuExecutor.prototype.LZP0 = function (p) {
-        this.LZP_(p, 0);
-    };
-    PspGpuExecutor.prototype.LZP1 = function (p) {
-        this.LZP_(p, 1);
-    };
-    PspGpuExecutor.prototype.LZP2 = function (p) {
-        this.LZP_(p, 2);
-    };
-    PspGpuExecutor.prototype.LZP3 = function (p) {
-        this.LZP_(p, 3);
-    };
-    PspGpuExecutor.prototype.LXD0 = function (p) {
-        this.LXD_(p, 0);
-    };
-    PspGpuExecutor.prototype.LXD1 = function (p) {
-        this.LXD_(p, 1);
-    };
-    PspGpuExecutor.prototype.LXD2 = function (p) {
-        this.LXD_(p, 2);
-    };
-    PspGpuExecutor.prototype.LXD3 = function (p) {
-        this.LXD_(p, 3);
-    };
-    PspGpuExecutor.prototype.LYD0 = function (p) {
-        this.LYD_(p, 0);
-    };
-    PspGpuExecutor.prototype.LYD1 = function (p) {
-        this.LYD_(p, 1);
-    };
-    PspGpuExecutor.prototype.LYD2 = function (p) {
-        this.LYD_(p, 2);
-    };
-    PspGpuExecutor.prototype.LYD3 = function (p) {
-        this.LYD_(p, 3);
-    };
-    PspGpuExecutor.prototype.LZD0 = function (p) {
-        this.LZD_(p, 0);
-    };
-    PspGpuExecutor.prototype.LZD1 = function (p) {
-        this.LZD_(p, 1);
-    };
-    PspGpuExecutor.prototype.LZD2 = function (p) {
-        this.LZD_(p, 2);
-    };
-    PspGpuExecutor.prototype.LZD3 = function (p) {
-        this.LZD_(p, 3);
-    };
+    PspGpuExecutor.prototype.LXP_ = function (p, index) { var v = float1(p); if (this.light(index).px == float1(p))
+        return; this.invalidatePrim(); this.light(index).px = float1(p); };
+    PspGpuExecutor.prototype.LYP_ = function (p, index) { var v = float1(p); if (this.light(index).py == float1(p))
+        return; this.invalidatePrim(); this.light(index).py = float1(p); };
+    PspGpuExecutor.prototype.LZP_ = function (p, index) { var v = float1(p); if (this.light(index).pz == float1(p))
+        return; this.invalidatePrim(); this.light(index).pz = float1(p); };
+    PspGpuExecutor.prototype.LXD_ = function (p, index) { var v = float1(p); if (this.light(index).dx == float1(p))
+        return; this.invalidatePrim(); this.light(index).dx = float1(p); };
+    PspGpuExecutor.prototype.LYD_ = function (p, index) { var v = float1(p); if (this.light(index).dy == float1(p))
+        return; this.invalidatePrim(); this.light(index).dy = float1(p); };
+    PspGpuExecutor.prototype.LZD_ = function (p, index) { var v = float1(p); if (this.light(index).dz == float1(p))
+        return; this.invalidatePrim(); this.light(index).dz = float1(p); };
+    PspGpuExecutor.prototype.LIGHTENABLE0 = function (p) { this.LIGHTENABLE_(p, 0); };
+    PspGpuExecutor.prototype.LIGHTENABLE1 = function (p) { this.LIGHTENABLE_(p, 1); };
+    PspGpuExecutor.prototype.LIGHTENABLE2 = function (p) { this.LIGHTENABLE_(p, 2); };
+    PspGpuExecutor.prototype.LIGHTENABLE3 = function (p) { this.LIGHTENABLE_(p, 3); };
+    PspGpuExecutor.prototype.LIGHTTYPE0 = function (p) { this.LIGHTTYPE_(p, 0); };
+    PspGpuExecutor.prototype.LIGHTTYPE1 = function (p) { this.LIGHTTYPE_(p, 1); };
+    PspGpuExecutor.prototype.LIGHTTYPE2 = function (p) { this.LIGHTTYPE_(p, 2); };
+    PspGpuExecutor.prototype.LIGHTTYPE3 = function (p) { this.LIGHTTYPE_(p, 3); };
+    PspGpuExecutor.prototype.LCA0 = function (p) { this.LCA_(p, 0); };
+    PspGpuExecutor.prototype.LCA1 = function (p) { this.LCA_(p, 1); };
+    PspGpuExecutor.prototype.LCA2 = function (p) { this.LCA_(p, 2); };
+    PspGpuExecutor.prototype.LCA3 = function (p) { this.LCA_(p, 3); };
+    PspGpuExecutor.prototype.LLA0 = function (p) { this.LLA_(p, 0); };
+    PspGpuExecutor.prototype.LLA1 = function (p) { this.LLA_(p, 1); };
+    PspGpuExecutor.prototype.LLA2 = function (p) { this.LLA_(p, 2); };
+    PspGpuExecutor.prototype.LLA3 = function (p) { this.LLA_(p, 3); };
+    PspGpuExecutor.prototype.LQA0 = function (p) { this.LQA_(p, 0); };
+    PspGpuExecutor.prototype.LQA1 = function (p) { this.LQA_(p, 1); };
+    PspGpuExecutor.prototype.LQA2 = function (p) { this.LQA_(p, 2); };
+    PspGpuExecutor.prototype.LQA3 = function (p) { this.LQA_(p, 3); };
+    PspGpuExecutor.prototype.SPOTEXP0 = function (p) { this.SPOTEXP_(p, 0); };
+    PspGpuExecutor.prototype.SPOTEXP1 = function (p) { this.SPOTEXP_(p, 1); };
+    PspGpuExecutor.prototype.SPOTEXP2 = function (p) { this.SPOTEXP_(p, 2); };
+    PspGpuExecutor.prototype.SPOTEXP3 = function (p) { this.SPOTEXP_(p, 3); };
+    PspGpuExecutor.prototype.SPOTCUT0 = function (p) { this.SPOTCUT_(p, 0); };
+    PspGpuExecutor.prototype.SPOTCUT1 = function (p) { this.SPOTCUT_(p, 1); };
+    PspGpuExecutor.prototype.SPOTCUT2 = function (p) { this.SPOTCUT_(p, 2); };
+    PspGpuExecutor.prototype.SPOTCUT3 = function (p) { this.SPOTCUT_(p, 3); };
+    PspGpuExecutor.prototype.LXP0 = function (p) { this.LXP_(p, 0); };
+    PspGpuExecutor.prototype.LXP1 = function (p) { this.LXP_(p, 1); };
+    PspGpuExecutor.prototype.LXP2 = function (p) { this.LXP_(p, 2); };
+    PspGpuExecutor.prototype.LXP3 = function (p) { this.LXP_(p, 3); };
+    PspGpuExecutor.prototype.LYP0 = function (p) { this.LYP_(p, 0); };
+    PspGpuExecutor.prototype.LYP1 = function (p) { this.LYP_(p, 1); };
+    PspGpuExecutor.prototype.LYP2 = function (p) { this.LYP_(p, 2); };
+    PspGpuExecutor.prototype.LYP3 = function (p) { this.LYP_(p, 3); };
+    PspGpuExecutor.prototype.LZP0 = function (p) { this.LZP_(p, 0); };
+    PspGpuExecutor.prototype.LZP1 = function (p) { this.LZP_(p, 1); };
+    PspGpuExecutor.prototype.LZP2 = function (p) { this.LZP_(p, 2); };
+    PspGpuExecutor.prototype.LZP3 = function (p) { this.LZP_(p, 3); };
+    PspGpuExecutor.prototype.LXD0 = function (p) { this.LXD_(p, 0); };
+    PspGpuExecutor.prototype.LXD1 = function (p) { this.LXD_(p, 1); };
+    PspGpuExecutor.prototype.LXD2 = function (p) { this.LXD_(p, 2); };
+    PspGpuExecutor.prototype.LXD3 = function (p) { this.LXD_(p, 3); };
+    PspGpuExecutor.prototype.LYD0 = function (p) { this.LYD_(p, 0); };
+    PspGpuExecutor.prototype.LYD1 = function (p) { this.LYD_(p, 1); };
+    PspGpuExecutor.prototype.LYD2 = function (p) { this.LYD_(p, 2); };
+    PspGpuExecutor.prototype.LYD3 = function (p) { this.LYD_(p, 3); };
+    PspGpuExecutor.prototype.LZD0 = function (p) { this.LZD_(p, 0); };
+    PspGpuExecutor.prototype.LZD1 = function (p) { this.LZD_(p, 1); };
+    PspGpuExecutor.prototype.LZD2 = function (p) { this.LZD_(p, 2); };
+    PspGpuExecutor.prototype.LZD3 = function (p) { this.LZD_(p, 3); };
     PspGpuExecutor.prototype.ALC_ = function (p, index) {
         if (this.light(index)._ambientColor == p)
             return;
@@ -9270,42 +7927,18 @@ var PspGpuExecutor = (function () {
         this.light(index)._specularColor = p;
         this.light(index).specularColor.setRGB(p);
     };
-    PspGpuExecutor.prototype.ALC0 = function (p) {
-        this.ALC_(p, 0);
-    };
-    PspGpuExecutor.prototype.ALC1 = function (p) {
-        this.ALC_(p, 1);
-    };
-    PspGpuExecutor.prototype.ALC2 = function (p) {
-        this.ALC_(p, 2);
-    };
-    PspGpuExecutor.prototype.ALC3 = function (p) {
-        this.ALC_(p, 3);
-    };
-    PspGpuExecutor.prototype.DLC0 = function (p) {
-        this.DLC_(p, 0);
-    };
-    PspGpuExecutor.prototype.DLC1 = function (p) {
-        this.DLC_(p, 1);
-    };
-    PspGpuExecutor.prototype.DLC2 = function (p) {
-        this.DLC_(p, 2);
-    };
-    PspGpuExecutor.prototype.DLC3 = function (p) {
-        this.DLC_(p, 3);
-    };
-    PspGpuExecutor.prototype.SLC0 = function (p) {
-        this.SLC_(p, 0);
-    };
-    PspGpuExecutor.prototype.SLC1 = function (p) {
-        this.SLC_(p, 1);
-    };
-    PspGpuExecutor.prototype.SLC2 = function (p) {
-        this.SLC_(p, 2);
-    };
-    PspGpuExecutor.prototype.SLC3 = function (p) {
-        this.SLC_(p, 3);
-    };
+    PspGpuExecutor.prototype.ALC0 = function (p) { this.ALC_(p, 0); };
+    PspGpuExecutor.prototype.ALC1 = function (p) { this.ALC_(p, 1); };
+    PspGpuExecutor.prototype.ALC2 = function (p) { this.ALC_(p, 2); };
+    PspGpuExecutor.prototype.ALC3 = function (p) { this.ALC_(p, 3); };
+    PspGpuExecutor.prototype.DLC0 = function (p) { this.DLC_(p, 0); };
+    PspGpuExecutor.prototype.DLC1 = function (p) { this.DLC_(p, 1); };
+    PspGpuExecutor.prototype.DLC2 = function (p) { this.DLC_(p, 2); };
+    PspGpuExecutor.prototype.DLC3 = function (p) { this.DLC_(p, 3); };
+    PspGpuExecutor.prototype.SLC0 = function (p) { this.SLC_(p, 0); };
+    PspGpuExecutor.prototype.SLC1 = function (p) { this.SLC_(p, 1); };
+    PspGpuExecutor.prototype.SLC2 = function (p) { this.SLC_(p, 2); };
+    PspGpuExecutor.prototype.SLC3 = function (p) { this.SLC_(p, 3); };
     return PspGpuExecutor;
 })();
 var PspGpuList = (function () {
@@ -9319,7 +7952,7 @@ var PspGpuList = (function () {
         this.cpuExecutor = cpuExecutor;
         this.state = state;
         this.completed = false;
-        this.status = 4 /* Paused */;
+        this.status = DisplayListStatus.Paused;
         this.errorCount = 0;
         this.callstack = new Int32Array(1024);
         this.callstackIndex = 0;
@@ -9385,10 +8018,10 @@ var PspGpuList = (function () {
             if (table[op](params24, instructionPC4, op))
                 return;
         }
-        this.status = (this.isStalled) ? 3 /* Stalling */ : 0 /* Completed */;
+        this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
     };
     PspGpuList.prototype.runUntilStall = function () {
-        this.status = 2 /* Drawing */;
+        this.status = DisplayListStatus.Drawing;
         this.executor.setList(this);
         while (this.hasMoreInstructions) {
             try {
@@ -9412,7 +8045,7 @@ var PspGpuList = (function () {
     };
     PspGpuList.prototype.start = function () {
         var _this = this;
-        this.status = 1 /* Queued */;
+        this.status = DisplayListStatus.Queued;
         this.promise = new Promise(function (resolve, reject) {
             _this.promiseResolve = resolve;
             _this.promiseReject = reject;
@@ -9467,17 +8100,17 @@ var PspGpuListRunner = (function () {
         var _peek = (function () {
             for (var n = 0; n < _this.runningLists.length; n++) {
                 var list = _this.runningLists[n];
-                if (list.status != 0 /* Completed */)
+                if (list.status != DisplayListStatus.Completed)
                     return list.status;
             }
-            return 0 /* Completed */;
+            return DisplayListStatus.Completed;
         });
         var result = _peek();
         console.warn('not implemented gpu list peeking -> ' + result);
         return result;
     };
     PspGpuListRunner.prototype.waitAsync = function () {
-        return Promise.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return 0 /* Completed */; });
+        return Promise.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return _state.DisplayListStatus.Completed; });
     };
     return PspGpuListRunner;
 })();
@@ -9532,12 +8165,9 @@ var PspGpu = (function () {
     PspGpu.prototype.drawSync = function (syncType) {
         return this.listRunner.waitAsync();
         switch (syncType) {
-            case 1 /* Peek */:
-                return this.listRunner.peek();
-            case 0 /* WaitForCompletion */:
-                return this.listRunner.waitAsync();
-            default:
-                throw (new Error("Not implemented SyncType." + syncType));
+            case _state.SyncType.Peek: return this.listRunner.peek();
+            case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();
+            default: throw (new Error("Not implemented SyncType." + syncType));
         }
     };
     return PspGpu;
@@ -9546,269 +8176,270 @@ exports.PspGpu = PspGpu;
 
 },
 "src/core/gpu/instructions": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 (function (GpuOpCodes) {
-    GpuOpCodes[GpuOpCodes["NOP"] = 0x00] = "NOP";
-    GpuOpCodes[GpuOpCodes["VADDR"] = 0x01] = "VADDR";
-    GpuOpCodes[GpuOpCodes["IADDR"] = 0x02] = "IADDR";
-    GpuOpCodes[GpuOpCodes["Unknown0x03"] = 0x03] = "Unknown0x03";
-    GpuOpCodes[GpuOpCodes["PRIM"] = 0x04] = "PRIM";
-    GpuOpCodes[GpuOpCodes["BEZIER"] = 0x05] = "BEZIER";
-    GpuOpCodes[GpuOpCodes["SPLINE"] = 0x06] = "SPLINE";
-    GpuOpCodes[GpuOpCodes["BOUNDINGBOX"] = 0x07] = "BOUNDINGBOX";
-    GpuOpCodes[GpuOpCodes["JUMP"] = 0x08] = "JUMP";
-    GpuOpCodes[GpuOpCodes["BJUMP"] = 0x09] = "BJUMP";
-    GpuOpCodes[GpuOpCodes["CALL"] = 0x0A] = "CALL";
-    GpuOpCodes[GpuOpCodes["RET"] = 0x0B] = "RET";
-    GpuOpCodes[GpuOpCodes["END"] = 0x0C] = "END";
-    GpuOpCodes[GpuOpCodes["Unknown0x0D"] = 0x0D] = "Unknown0x0D";
-    GpuOpCodes[GpuOpCodes["SIGNAL"] = 0x0E] = "SIGNAL";
-    GpuOpCodes[GpuOpCodes["FINISH"] = 0x0F] = "FINISH";
-    GpuOpCodes[GpuOpCodes["BASE"] = 0x10] = "BASE";
-    GpuOpCodes[GpuOpCodes["Unknown0x11"] = 0x11] = "Unknown0x11";
-    GpuOpCodes[GpuOpCodes["VERTEXTYPE"] = 0x12] = "VERTEXTYPE";
-    GpuOpCodes[GpuOpCodes["OFFSETADDR"] = 0x13] = "OFFSETADDR";
-    GpuOpCodes[GpuOpCodes["ORIGIN"] = 0x14] = "ORIGIN";
-    GpuOpCodes[GpuOpCodes["REGION1"] = 0x15] = "REGION1";
-    GpuOpCodes[GpuOpCodes["REGION2"] = 0x16] = "REGION2";
-    GpuOpCodes[GpuOpCodes["LIGHTINGENABLE"] = 0x17] = "LIGHTINGENABLE";
-    GpuOpCodes[GpuOpCodes["LIGHTENABLE0"] = 0x18] = "LIGHTENABLE0";
-    GpuOpCodes[GpuOpCodes["LIGHTENABLE1"] = 0x19] = "LIGHTENABLE1";
-    GpuOpCodes[GpuOpCodes["LIGHTENABLE2"] = 0x1A] = "LIGHTENABLE2";
-    GpuOpCodes[GpuOpCodes["LIGHTENABLE3"] = 0x1B] = "LIGHTENABLE3";
-    GpuOpCodes[GpuOpCodes["CLIPENABLE"] = 0x1C] = "CLIPENABLE";
-    GpuOpCodes[GpuOpCodes["CULLFACEENABLE"] = 0x1D] = "CULLFACEENABLE";
-    GpuOpCodes[GpuOpCodes["TEXTUREMAPENABLE"] = 0x1E] = "TEXTUREMAPENABLE";
-    GpuOpCodes[GpuOpCodes["FOGENABLE"] = 0x1F] = "FOGENABLE";
-    GpuOpCodes[GpuOpCodes["DITHERENABLE"] = 0x20] = "DITHERENABLE";
-    GpuOpCodes[GpuOpCodes["ALPHABLENDENABLE"] = 0x21] = "ALPHABLENDENABLE";
-    GpuOpCodes[GpuOpCodes["ALPHATESTENABLE"] = 0x22] = "ALPHATESTENABLE";
-    GpuOpCodes[GpuOpCodes["ZTESTENABLE"] = 0x23] = "ZTESTENABLE";
-    GpuOpCodes[GpuOpCodes["STENCILTESTENABLE"] = 0x24] = "STENCILTESTENABLE";
-    GpuOpCodes[GpuOpCodes["ANTIALIASENABLE"] = 0x25] = "ANTIALIASENABLE";
-    GpuOpCodes[GpuOpCodes["PATCHCULLENABLE"] = 0x26] = "PATCHCULLENABLE";
-    GpuOpCodes[GpuOpCodes["COLORTESTENABLE"] = 0x27] = "COLORTESTENABLE";
-    GpuOpCodes[GpuOpCodes["LOGICOPENABLE"] = 0x28] = "LOGICOPENABLE";
-    GpuOpCodes[GpuOpCodes["Unknown0x29"] = 0x29] = "Unknown0x29";
-    GpuOpCodes[GpuOpCodes["BONEMATRIXNUMBER"] = 0x2A] = "BONEMATRIXNUMBER";
-    GpuOpCodes[GpuOpCodes["BONEMATRIXDATA"] = 0x2B] = "BONEMATRIXDATA";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT0"] = 0x2C] = "MORPHWEIGHT0";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT1"] = 0x2D] = "MORPHWEIGHT1";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT2"] = 0x2E] = "MORPHWEIGHT2";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT3"] = 0x2F] = "MORPHWEIGHT3";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT4"] = 0x30] = "MORPHWEIGHT4";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT5"] = 0x31] = "MORPHWEIGHT5";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT6"] = 0x32] = "MORPHWEIGHT6";
-    GpuOpCodes[GpuOpCodes["MORPHWEIGHT7"] = 0x33] = "MORPHWEIGHT7";
-    GpuOpCodes[GpuOpCodes["Unknown0x34"] = 0x34] = "Unknown0x34";
-    GpuOpCodes[GpuOpCodes["Unknown0x35"] = 0x35] = "Unknown0x35";
-    GpuOpCodes[GpuOpCodes["PATCHDIVISION"] = 0x36] = "PATCHDIVISION";
-    GpuOpCodes[GpuOpCodes["PATCHPRIMITIVE"] = 0x37] = "PATCHPRIMITIVE";
-    GpuOpCodes[GpuOpCodes["PATCHFACING"] = 0x38] = "PATCHFACING";
-    GpuOpCodes[GpuOpCodes["Unknown0x39"] = 0x39] = "Unknown0x39";
-    GpuOpCodes[GpuOpCodes["WORLDMATRIXNUMBER"] = 0x3A] = "WORLDMATRIXNUMBER";
-    GpuOpCodes[GpuOpCodes["WORLDMATRIXDATA"] = 0x3B] = "WORLDMATRIXDATA";
-    GpuOpCodes[GpuOpCodes["VIEWMATRIXNUMBER"] = 0x3C] = "VIEWMATRIXNUMBER";
-    GpuOpCodes[GpuOpCodes["VIEWMATRIXDATA"] = 0x3D] = "VIEWMATRIXDATA";
-    GpuOpCodes[GpuOpCodes["PROJMATRIXNUMBER"] = 0x3E] = "PROJMATRIXNUMBER";
-    GpuOpCodes[GpuOpCodes["PROJMATRIXDATA"] = 0x3F] = "PROJMATRIXDATA";
-    GpuOpCodes[GpuOpCodes["TGENMATRIXNUMBER"] = 0x40] = "TGENMATRIXNUMBER";
-    GpuOpCodes[GpuOpCodes["TGENMATRIXDATA"] = 0x41] = "TGENMATRIXDATA";
-    GpuOpCodes[GpuOpCodes["VIEWPORTX1"] = 0x42] = "VIEWPORTX1";
-    GpuOpCodes[GpuOpCodes["VIEWPORTY1"] = 0x43] = "VIEWPORTY1";
-    GpuOpCodes[GpuOpCodes["VIEWPORTZ1"] = 0x44] = "VIEWPORTZ1";
-    GpuOpCodes[GpuOpCodes["VIEWPORTX2"] = 0x45] = "VIEWPORTX2";
-    GpuOpCodes[GpuOpCodes["VIEWPORTY2"] = 0x46] = "VIEWPORTY2";
-    GpuOpCodes[GpuOpCodes["VIEWPORTZ2"] = 0x47] = "VIEWPORTZ2";
-    GpuOpCodes[GpuOpCodes["TEXSCALEU"] = 0x48] = "TEXSCALEU";
-    GpuOpCodes[GpuOpCodes["TEXSCALEV"] = 0x49] = "TEXSCALEV";
-    GpuOpCodes[GpuOpCodes["TEXOFFSETU"] = 0x4A] = "TEXOFFSETU";
-    GpuOpCodes[GpuOpCodes["TEXOFFSETV"] = 0x4B] = "TEXOFFSETV";
-    GpuOpCodes[GpuOpCodes["OFFSETX"] = 0x4C] = "OFFSETX";
-    GpuOpCodes[GpuOpCodes["OFFSETY"] = 0x4D] = "OFFSETY";
-    GpuOpCodes[GpuOpCodes["Unknown0x4E"] = 0x4E] = "Unknown0x4E";
-    GpuOpCodes[GpuOpCodes["Unknown0x4F"] = 0x4F] = "Unknown0x4F";
-    GpuOpCodes[GpuOpCodes["SHADEMODE"] = 0x50] = "SHADEMODE";
-    GpuOpCodes[GpuOpCodes["REVERSENORMAL"] = 0x51] = "REVERSENORMAL";
-    GpuOpCodes[GpuOpCodes["Unknown0x52"] = 0x52] = "Unknown0x52";
-    GpuOpCodes[GpuOpCodes["MATERIALUPDATE"] = 0x53] = "MATERIALUPDATE";
-    GpuOpCodes[GpuOpCodes["MATERIALEMISSIVE"] = 0x54] = "MATERIALEMISSIVE";
-    GpuOpCodes[GpuOpCodes["MATERIALAMBIENT"] = 0x55] = "MATERIALAMBIENT";
-    GpuOpCodes[GpuOpCodes["MATERIALDIFFUSE"] = 0x56] = "MATERIALDIFFUSE";
-    GpuOpCodes[GpuOpCodes["MATERIALSPECULAR"] = 0x57] = "MATERIALSPECULAR";
-    GpuOpCodes[GpuOpCodes["MATERIALALPHA"] = 0x58] = "MATERIALALPHA";
-    GpuOpCodes[GpuOpCodes["Unknown0x59"] = 0x59] = "Unknown0x59";
-    GpuOpCodes[GpuOpCodes["Unknown0x5A"] = 0x5A] = "Unknown0x5A";
-    GpuOpCodes[GpuOpCodes["MATERIALSPECULARCOEF"] = 0x5B] = "MATERIALSPECULARCOEF";
-    GpuOpCodes[GpuOpCodes["AMBIENTCOLOR"] = 0x5C] = "AMBIENTCOLOR";
-    GpuOpCodes[GpuOpCodes["AMBIENTALPHA"] = 0x5D] = "AMBIENTALPHA";
-    GpuOpCodes[GpuOpCodes["LIGHTMODE"] = 0x5E] = "LIGHTMODE";
-    GpuOpCodes[GpuOpCodes["LIGHTTYPE0"] = 0x5F] = "LIGHTTYPE0";
-    GpuOpCodes[GpuOpCodes["LIGHTTYPE1"] = 0x60] = "LIGHTTYPE1";
-    GpuOpCodes[GpuOpCodes["LIGHTTYPE2"] = 0x61] = "LIGHTTYPE2";
-    GpuOpCodes[GpuOpCodes["LIGHTTYPE3"] = 0x62] = "LIGHTTYPE3";
-    GpuOpCodes[GpuOpCodes["LXP0"] = 0x63] = "LXP0";
-    GpuOpCodes[GpuOpCodes["LYP0"] = 0x64] = "LYP0";
-    GpuOpCodes[GpuOpCodes["LZP0"] = 0x65] = "LZP0";
-    GpuOpCodes[GpuOpCodes["LXP1"] = 0x66] = "LXP1";
-    GpuOpCodes[GpuOpCodes["LYP1"] = 0x67] = "LYP1";
-    GpuOpCodes[GpuOpCodes["LZP1"] = 0x68] = "LZP1";
-    GpuOpCodes[GpuOpCodes["LXP2"] = 0x69] = "LXP2";
-    GpuOpCodes[GpuOpCodes["LYP2"] = 0x6A] = "LYP2";
-    GpuOpCodes[GpuOpCodes["LZP2"] = 0x6B] = "LZP2";
-    GpuOpCodes[GpuOpCodes["LXP3"] = 0x6C] = "LXP3";
-    GpuOpCodes[GpuOpCodes["LYP3"] = 0x6D] = "LYP3";
-    GpuOpCodes[GpuOpCodes["LZP3"] = 0x6E] = "LZP3";
-    GpuOpCodes[GpuOpCodes["LXD0"] = 0x6F] = "LXD0";
-    GpuOpCodes[GpuOpCodes["LYD0"] = 0x70] = "LYD0";
-    GpuOpCodes[GpuOpCodes["LZD0"] = 0x71] = "LZD0";
-    GpuOpCodes[GpuOpCodes["LXD1"] = 0x72] = "LXD1";
-    GpuOpCodes[GpuOpCodes["LYD1"] = 0x73] = "LYD1";
-    GpuOpCodes[GpuOpCodes["LZD1"] = 0x74] = "LZD1";
-    GpuOpCodes[GpuOpCodes["LXD2"] = 0x75] = "LXD2";
-    GpuOpCodes[GpuOpCodes["LYD2"] = 0x76] = "LYD2";
-    GpuOpCodes[GpuOpCodes["LZD2"] = 0x77] = "LZD2";
-    GpuOpCodes[GpuOpCodes["LXD3"] = 0x78] = "LXD3";
-    GpuOpCodes[GpuOpCodes["LYD3"] = 0x79] = "LYD3";
-    GpuOpCodes[GpuOpCodes["LZD3"] = 0x7A] = "LZD3";
-    GpuOpCodes[GpuOpCodes["LCA0"] = 0x7B] = "LCA0";
-    GpuOpCodes[GpuOpCodes["LLA0"] = 0x7C] = "LLA0";
-    GpuOpCodes[GpuOpCodes["LQA0"] = 0x7D] = "LQA0";
-    GpuOpCodes[GpuOpCodes["LCA1"] = 0x7E] = "LCA1";
-    GpuOpCodes[GpuOpCodes["LLA1"] = 0x7F] = "LLA1";
-    GpuOpCodes[GpuOpCodes["LQA1"] = 0x80] = "LQA1";
-    GpuOpCodes[GpuOpCodes["LCA2"] = 0x81] = "LCA2";
-    GpuOpCodes[GpuOpCodes["LLA2"] = 0x82] = "LLA2";
-    GpuOpCodes[GpuOpCodes["LQA2"] = 0x83] = "LQA2";
-    GpuOpCodes[GpuOpCodes["LCA3"] = 0x84] = "LCA3";
-    GpuOpCodes[GpuOpCodes["LLA3"] = 0x85] = "LLA3";
-    GpuOpCodes[GpuOpCodes["LQA3"] = 0x86] = "LQA3";
-    GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 0x87] = "SPOTEXP0";
-    GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 0x88] = "SPOTEXP1";
-    GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 0x89] = "SPOTEXP2";
-    GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 0x8A] = "SPOTEXP3";
-    GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 0x8B] = "SPOTCUT0";
-    GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 0x8C] = "SPOTCUT1";
-    GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 0x8D] = "SPOTCUT2";
-    GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 0x8E] = "SPOTCUT3";
-    GpuOpCodes[GpuOpCodes["ALC0"] = 0x8F] = "ALC0";
-    GpuOpCodes[GpuOpCodes["DLC0"] = 0x90] = "DLC0";
-    GpuOpCodes[GpuOpCodes["SLC0"] = 0x91] = "SLC0";
-    GpuOpCodes[GpuOpCodes["ALC1"] = 0x92] = "ALC1";
-    GpuOpCodes[GpuOpCodes["DLC1"] = 0x93] = "DLC1";
-    GpuOpCodes[GpuOpCodes["SLC1"] = 0x94] = "SLC1";
-    GpuOpCodes[GpuOpCodes["ALC2"] = 0x95] = "ALC2";
-    GpuOpCodes[GpuOpCodes["DLC2"] = 0x96] = "DLC2";
-    GpuOpCodes[GpuOpCodes["SLC2"] = 0x97] = "SLC2";
-    GpuOpCodes[GpuOpCodes["ALC3"] = 0x98] = "ALC3";
-    GpuOpCodes[GpuOpCodes["DLC3"] = 0x99] = "DLC3";
-    GpuOpCodes[GpuOpCodes["SLC3"] = 0x9A] = "SLC3";
-    GpuOpCodes[GpuOpCodes["CULL"] = 0x9B] = "CULL";
-    GpuOpCodes[GpuOpCodes["FRAMEBUFPTR"] = 0x9C] = "FRAMEBUFPTR";
-    GpuOpCodes[GpuOpCodes["FRAMEBUFWIDTH"] = 0x9D] = "FRAMEBUFWIDTH";
-    GpuOpCodes[GpuOpCodes["ZBUFPTR"] = 0x9E] = "ZBUFPTR";
-    GpuOpCodes[GpuOpCodes["ZBUFWIDTH"] = 0x9F] = "ZBUFWIDTH";
-    GpuOpCodes[GpuOpCodes["TEXADDR0"] = 0xA0] = "TEXADDR0";
-    GpuOpCodes[GpuOpCodes["TEXADDR1"] = 0xA1] = "TEXADDR1";
-    GpuOpCodes[GpuOpCodes["TEXADDR2"] = 0xA2] = "TEXADDR2";
-    GpuOpCodes[GpuOpCodes["TEXADDR3"] = 0xA3] = "TEXADDR3";
-    GpuOpCodes[GpuOpCodes["TEXADDR4"] = 0xA4] = "TEXADDR4";
-    GpuOpCodes[GpuOpCodes["TEXADDR5"] = 0xA5] = "TEXADDR5";
-    GpuOpCodes[GpuOpCodes["TEXADDR6"] = 0xA6] = "TEXADDR6";
-    GpuOpCodes[GpuOpCodes["TEXADDR7"] = 0xA7] = "TEXADDR7";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH0"] = 0xA8] = "TEXBUFWIDTH0";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH1"] = 0xA9] = "TEXBUFWIDTH1";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH2"] = 0xAA] = "TEXBUFWIDTH2";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH3"] = 0xAB] = "TEXBUFWIDTH3";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH4"] = 0xAC] = "TEXBUFWIDTH4";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH5"] = 0xAD] = "TEXBUFWIDTH5";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH6"] = 0xAE] = "TEXBUFWIDTH6";
-    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH7"] = 0xAF] = "TEXBUFWIDTH7";
-    GpuOpCodes[GpuOpCodes["CLUTADDR"] = 0xB0] = "CLUTADDR";
-    GpuOpCodes[GpuOpCodes["CLUTADDRUPPER"] = 0xB1] = "CLUTADDRUPPER";
-    GpuOpCodes[GpuOpCodes["TRXSBP"] = 0xB2] = "TRXSBP";
-    GpuOpCodes[GpuOpCodes["TRXSBW"] = 0xB3] = "TRXSBW";
-    GpuOpCodes[GpuOpCodes["TRXDBP"] = 0xB4] = "TRXDBP";
-    GpuOpCodes[GpuOpCodes["TRXDBW"] = 0xB5] = "TRXDBW";
-    GpuOpCodes[GpuOpCodes["Unknown0xB6"] = 0xB6] = "Unknown0xB6";
-    GpuOpCodes[GpuOpCodes["Unknown0xB7"] = 0xB7] = "Unknown0xB7";
-    GpuOpCodes[GpuOpCodes["TSIZE0"] = 0xB8] = "TSIZE0";
-    GpuOpCodes[GpuOpCodes["TSIZE1"] = 0xB9] = "TSIZE1";
-    GpuOpCodes[GpuOpCodes["TSIZE2"] = 0xBA] = "TSIZE2";
-    GpuOpCodes[GpuOpCodes["TSIZE3"] = 0xBB] = "TSIZE3";
-    GpuOpCodes[GpuOpCodes["TSIZE4"] = 0xBC] = "TSIZE4";
-    GpuOpCodes[GpuOpCodes["TSIZE5"] = 0xBD] = "TSIZE5";
-    GpuOpCodes[GpuOpCodes["TSIZE6"] = 0xBE] = "TSIZE6";
-    GpuOpCodes[GpuOpCodes["TSIZE7"] = 0xBF] = "TSIZE7";
-    GpuOpCodes[GpuOpCodes["TMAP"] = 0xC0] = "TMAP";
-    GpuOpCodes[GpuOpCodes["TEXTURE_ENV_MAP_MATRIX"] = 0xC1] = "TEXTURE_ENV_MAP_MATRIX";
-    GpuOpCodes[GpuOpCodes["TMODE"] = 0xC2] = "TMODE";
-    GpuOpCodes[GpuOpCodes["TPSM"] = 0xC3] = "TPSM";
-    GpuOpCodes[GpuOpCodes["CLOAD"] = 0xC4] = "CLOAD";
-    GpuOpCodes[GpuOpCodes["CMODE"] = 0xC5] = "CMODE";
-    GpuOpCodes[GpuOpCodes["TFLT"] = 0xC6] = "TFLT";
-    GpuOpCodes[GpuOpCodes["TWRAP"] = 0xC7] = "TWRAP";
-    GpuOpCodes[GpuOpCodes["TBIAS"] = 0xC8] = "TBIAS";
-    GpuOpCodes[GpuOpCodes["TFUNC"] = 0xC9] = "TFUNC";
-    GpuOpCodes[GpuOpCodes["TEC"] = 0xCA] = "TEC";
-    GpuOpCodes[GpuOpCodes["TFLUSH"] = 0xCB] = "TFLUSH";
-    GpuOpCodes[GpuOpCodes["TSYNC"] = 0xCC] = "TSYNC";
-    GpuOpCodes[GpuOpCodes["FFAR"] = 0xCD] = "FFAR";
-    GpuOpCodes[GpuOpCodes["FDIST"] = 0xCE] = "FDIST";
-    GpuOpCodes[GpuOpCodes["FCOL"] = 0xCF] = "FCOL";
-    GpuOpCodes[GpuOpCodes["TSLOPE"] = 0xD0] = "TSLOPE";
-    GpuOpCodes[GpuOpCodes["Unknown0xD1"] = 0xD1] = "Unknown0xD1";
-    GpuOpCodes[GpuOpCodes["PSM"] = 0xD2] = "PSM";
-    GpuOpCodes[GpuOpCodes["CLEAR"] = 0xD3] = "CLEAR";
-    GpuOpCodes[GpuOpCodes["SCISSOR1"] = 0xD4] = "SCISSOR1";
-    GpuOpCodes[GpuOpCodes["SCISSOR2"] = 0xD5] = "SCISSOR2";
-    GpuOpCodes[GpuOpCodes["MINZ"] = 0xD6] = "MINZ";
-    GpuOpCodes[GpuOpCodes["MAXZ"] = 0xD7] = "MAXZ";
-    GpuOpCodes[GpuOpCodes["CTST"] = 0xD8] = "CTST";
-    GpuOpCodes[GpuOpCodes["CREF"] = 0xD9] = "CREF";
-    GpuOpCodes[GpuOpCodes["CMSK"] = 0xDA] = "CMSK";
-    GpuOpCodes[GpuOpCodes["ATST"] = 0xDB] = "ATST";
-    GpuOpCodes[GpuOpCodes["STST"] = 0xDC] = "STST";
-    GpuOpCodes[GpuOpCodes["SOP"] = 0xDD] = "SOP";
-    GpuOpCodes[GpuOpCodes["ZTST"] = 0xDE] = "ZTST";
-    GpuOpCodes[GpuOpCodes["ALPHA"] = 0xDF] = "ALPHA";
-    GpuOpCodes[GpuOpCodes["SFIX"] = 0xE0] = "SFIX";
-    GpuOpCodes[GpuOpCodes["DFIX"] = 0xE1] = "DFIX";
-    GpuOpCodes[GpuOpCodes["DTH0"] = 0xE2] = "DTH0";
-    GpuOpCodes[GpuOpCodes["DTH1"] = 0xE3] = "DTH1";
-    GpuOpCodes[GpuOpCodes["DTH2"] = 0xE4] = "DTH2";
-    GpuOpCodes[GpuOpCodes["DTH3"] = 0xE5] = "DTH3";
-    GpuOpCodes[GpuOpCodes["LOP"] = 0xE6] = "LOP";
-    GpuOpCodes[GpuOpCodes["ZMSK"] = 0xE7] = "ZMSK";
-    GpuOpCodes[GpuOpCodes["PMSKC"] = 0xE8] = "PMSKC";
-    GpuOpCodes[GpuOpCodes["PMSKA"] = 0xE9] = "PMSKA";
-    GpuOpCodes[GpuOpCodes["TRXKICK"] = 0xEA] = "TRXKICK";
-    GpuOpCodes[GpuOpCodes["TRXSPOS"] = 0xEB] = "TRXSPOS";
-    GpuOpCodes[GpuOpCodes["TRXDPOS"] = 0xEC] = "TRXDPOS";
-    GpuOpCodes[GpuOpCodes["Unknown0xED"] = 0xED] = "Unknown0xED";
-    GpuOpCodes[GpuOpCodes["TRXSIZE"] = 0xEE] = "TRXSIZE";
-    GpuOpCodes[GpuOpCodes["Unknown0xEF"] = 0xEF] = "Unknown0xEF";
-    GpuOpCodes[GpuOpCodes["Unknown0xF0"] = 0xF0] = "Unknown0xF0";
-    GpuOpCodes[GpuOpCodes["Unknown0xF1"] = 0xF1] = "Unknown0xF1";
-    GpuOpCodes[GpuOpCodes["Unknown0xF2"] = 0xF2] = "Unknown0xF2";
-    GpuOpCodes[GpuOpCodes["Unknown0xF3"] = 0xF3] = "Unknown0xF3";
-    GpuOpCodes[GpuOpCodes["Unknown0xF4"] = 0xF4] = "Unknown0xF4";
-    GpuOpCodes[GpuOpCodes["Unknown0xF5"] = 0xF5] = "Unknown0xF5";
-    GpuOpCodes[GpuOpCodes["Unknown0xF6"] = 0xF6] = "Unknown0xF6";
-    GpuOpCodes[GpuOpCodes["Unknown0xF7"] = 0xF7] = "Unknown0xF7";
-    GpuOpCodes[GpuOpCodes["Unknown0xF8"] = 0xF8] = "Unknown0xF8";
-    GpuOpCodes[GpuOpCodes["Unknown0xF9"] = 0xF9] = "Unknown0xF9";
-    GpuOpCodes[GpuOpCodes["Unknown0xFA"] = 0xFA] = "Unknown0xFA";
-    GpuOpCodes[GpuOpCodes["Unknown0xFB"] = 0xFB] = "Unknown0xFB";
-    GpuOpCodes[GpuOpCodes["Unknown0xFC"] = 0xFC] = "Unknown0xFC";
-    GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 0xFD] = "Unknown0xFD";
-    GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 0xFE] = "Unknown0xFE";
-    GpuOpCodes[GpuOpCodes["DUMMY"] = 0xFF] = "DUMMY";
+    GpuOpCodes[GpuOpCodes["NOP"] = 0] = "NOP";
+    GpuOpCodes[GpuOpCodes["VADDR"] = 1] = "VADDR";
+    GpuOpCodes[GpuOpCodes["IADDR"] = 2] = "IADDR";
+    GpuOpCodes[GpuOpCodes["Unknown0x03"] = 3] = "Unknown0x03";
+    GpuOpCodes[GpuOpCodes["PRIM"] = 4] = "PRIM";
+    GpuOpCodes[GpuOpCodes["BEZIER"] = 5] = "BEZIER";
+    GpuOpCodes[GpuOpCodes["SPLINE"] = 6] = "SPLINE";
+    GpuOpCodes[GpuOpCodes["BOUNDINGBOX"] = 7] = "BOUNDINGBOX";
+    GpuOpCodes[GpuOpCodes["JUMP"] = 8] = "JUMP";
+    GpuOpCodes[GpuOpCodes["BJUMP"] = 9] = "BJUMP";
+    GpuOpCodes[GpuOpCodes["CALL"] = 10] = "CALL";
+    GpuOpCodes[GpuOpCodes["RET"] = 11] = "RET";
+    GpuOpCodes[GpuOpCodes["END"] = 12] = "END";
+    GpuOpCodes[GpuOpCodes["Unknown0x0D"] = 13] = "Unknown0x0D";
+    GpuOpCodes[GpuOpCodes["SIGNAL"] = 14] = "SIGNAL";
+    GpuOpCodes[GpuOpCodes["FINISH"] = 15] = "FINISH";
+    GpuOpCodes[GpuOpCodes["BASE"] = 16] = "BASE";
+    GpuOpCodes[GpuOpCodes["Unknown0x11"] = 17] = "Unknown0x11";
+    GpuOpCodes[GpuOpCodes["VERTEXTYPE"] = 18] = "VERTEXTYPE";
+    GpuOpCodes[GpuOpCodes["OFFSETADDR"] = 19] = "OFFSETADDR";
+    GpuOpCodes[GpuOpCodes["ORIGIN"] = 20] = "ORIGIN";
+    GpuOpCodes[GpuOpCodes["REGION1"] = 21] = "REGION1";
+    GpuOpCodes[GpuOpCodes["REGION2"] = 22] = "REGION2";
+    GpuOpCodes[GpuOpCodes["LIGHTINGENABLE"] = 23] = "LIGHTINGENABLE";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE0"] = 24] = "LIGHTENABLE0";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE1"] = 25] = "LIGHTENABLE1";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE2"] = 26] = "LIGHTENABLE2";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE3"] = 27] = "LIGHTENABLE3";
+    GpuOpCodes[GpuOpCodes["CLIPENABLE"] = 28] = "CLIPENABLE";
+    GpuOpCodes[GpuOpCodes["CULLFACEENABLE"] = 29] = "CULLFACEENABLE";
+    GpuOpCodes[GpuOpCodes["TEXTUREMAPENABLE"] = 30] = "TEXTUREMAPENABLE";
+    GpuOpCodes[GpuOpCodes["FOGENABLE"] = 31] = "FOGENABLE";
+    GpuOpCodes[GpuOpCodes["DITHERENABLE"] = 32] = "DITHERENABLE";
+    GpuOpCodes[GpuOpCodes["ALPHABLENDENABLE"] = 33] = "ALPHABLENDENABLE";
+    GpuOpCodes[GpuOpCodes["ALPHATESTENABLE"] = 34] = "ALPHATESTENABLE";
+    GpuOpCodes[GpuOpCodes["ZTESTENABLE"] = 35] = "ZTESTENABLE";
+    GpuOpCodes[GpuOpCodes["STENCILTESTENABLE"] = 36] = "STENCILTESTENABLE";
+    GpuOpCodes[GpuOpCodes["ANTIALIASENABLE"] = 37] = "ANTIALIASENABLE";
+    GpuOpCodes[GpuOpCodes["PATCHCULLENABLE"] = 38] = "PATCHCULLENABLE";
+    GpuOpCodes[GpuOpCodes["COLORTESTENABLE"] = 39] = "COLORTESTENABLE";
+    GpuOpCodes[GpuOpCodes["LOGICOPENABLE"] = 40] = "LOGICOPENABLE";
+    GpuOpCodes[GpuOpCodes["Unknown0x29"] = 41] = "Unknown0x29";
+    GpuOpCodes[GpuOpCodes["BONEMATRIXNUMBER"] = 42] = "BONEMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["BONEMATRIXDATA"] = 43] = "BONEMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT0"] = 44] = "MORPHWEIGHT0";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT1"] = 45] = "MORPHWEIGHT1";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT2"] = 46] = "MORPHWEIGHT2";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT3"] = 47] = "MORPHWEIGHT3";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT4"] = 48] = "MORPHWEIGHT4";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT5"] = 49] = "MORPHWEIGHT5";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT6"] = 50] = "MORPHWEIGHT6";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT7"] = 51] = "MORPHWEIGHT7";
+    GpuOpCodes[GpuOpCodes["Unknown0x34"] = 52] = "Unknown0x34";
+    GpuOpCodes[GpuOpCodes["Unknown0x35"] = 53] = "Unknown0x35";
+    GpuOpCodes[GpuOpCodes["PATCHDIVISION"] = 54] = "PATCHDIVISION";
+    GpuOpCodes[GpuOpCodes["PATCHPRIMITIVE"] = 55] = "PATCHPRIMITIVE";
+    GpuOpCodes[GpuOpCodes["PATCHFACING"] = 56] = "PATCHFACING";
+    GpuOpCodes[GpuOpCodes["Unknown0x39"] = 57] = "Unknown0x39";
+    GpuOpCodes[GpuOpCodes["WORLDMATRIXNUMBER"] = 58] = "WORLDMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["WORLDMATRIXDATA"] = 59] = "WORLDMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["VIEWMATRIXNUMBER"] = 60] = "VIEWMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["VIEWMATRIXDATA"] = 61] = "VIEWMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["PROJMATRIXNUMBER"] = 62] = "PROJMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["PROJMATRIXDATA"] = 63] = "PROJMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["TGENMATRIXNUMBER"] = 64] = "TGENMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["TGENMATRIXDATA"] = 65] = "TGENMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["VIEWPORTX1"] = 66] = "VIEWPORTX1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTY1"] = 67] = "VIEWPORTY1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTZ1"] = 68] = "VIEWPORTZ1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTX2"] = 69] = "VIEWPORTX2";
+    GpuOpCodes[GpuOpCodes["VIEWPORTY2"] = 70] = "VIEWPORTY2";
+    GpuOpCodes[GpuOpCodes["VIEWPORTZ2"] = 71] = "VIEWPORTZ2";
+    GpuOpCodes[GpuOpCodes["TEXSCALEU"] = 72] = "TEXSCALEU";
+    GpuOpCodes[GpuOpCodes["TEXSCALEV"] = 73] = "TEXSCALEV";
+    GpuOpCodes[GpuOpCodes["TEXOFFSETU"] = 74] = "TEXOFFSETU";
+    GpuOpCodes[GpuOpCodes["TEXOFFSETV"] = 75] = "TEXOFFSETV";
+    GpuOpCodes[GpuOpCodes["OFFSETX"] = 76] = "OFFSETX";
+    GpuOpCodes[GpuOpCodes["OFFSETY"] = 77] = "OFFSETY";
+    GpuOpCodes[GpuOpCodes["Unknown0x4E"] = 78] = "Unknown0x4E";
+    GpuOpCodes[GpuOpCodes["Unknown0x4F"] = 79] = "Unknown0x4F";
+    GpuOpCodes[GpuOpCodes["SHADEMODE"] = 80] = "SHADEMODE";
+    GpuOpCodes[GpuOpCodes["REVERSENORMAL"] = 81] = "REVERSENORMAL";
+    GpuOpCodes[GpuOpCodes["Unknown0x52"] = 82] = "Unknown0x52";
+    GpuOpCodes[GpuOpCodes["MATERIALUPDATE"] = 83] = "MATERIALUPDATE";
+    GpuOpCodes[GpuOpCodes["MATERIALEMISSIVE"] = 84] = "MATERIALEMISSIVE";
+    GpuOpCodes[GpuOpCodes["MATERIALAMBIENT"] = 85] = "MATERIALAMBIENT";
+    GpuOpCodes[GpuOpCodes["MATERIALDIFFUSE"] = 86] = "MATERIALDIFFUSE";
+    GpuOpCodes[GpuOpCodes["MATERIALSPECULAR"] = 87] = "MATERIALSPECULAR";
+    GpuOpCodes[GpuOpCodes["MATERIALALPHA"] = 88] = "MATERIALALPHA";
+    GpuOpCodes[GpuOpCodes["Unknown0x59"] = 89] = "Unknown0x59";
+    GpuOpCodes[GpuOpCodes["Unknown0x5A"] = 90] = "Unknown0x5A";
+    GpuOpCodes[GpuOpCodes["MATERIALSPECULARCOEF"] = 91] = "MATERIALSPECULARCOEF";
+    GpuOpCodes[GpuOpCodes["AMBIENTCOLOR"] = 92] = "AMBIENTCOLOR";
+    GpuOpCodes[GpuOpCodes["AMBIENTALPHA"] = 93] = "AMBIENTALPHA";
+    GpuOpCodes[GpuOpCodes["LIGHTMODE"] = 94] = "LIGHTMODE";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE0"] = 95] = "LIGHTTYPE0";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE1"] = 96] = "LIGHTTYPE1";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE2"] = 97] = "LIGHTTYPE2";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE3"] = 98] = "LIGHTTYPE3";
+    GpuOpCodes[GpuOpCodes["LXP0"] = 99] = "LXP0";
+    GpuOpCodes[GpuOpCodes["LYP0"] = 100] = "LYP0";
+    GpuOpCodes[GpuOpCodes["LZP0"] = 101] = "LZP0";
+    GpuOpCodes[GpuOpCodes["LXP1"] = 102] = "LXP1";
+    GpuOpCodes[GpuOpCodes["LYP1"] = 103] = "LYP1";
+    GpuOpCodes[GpuOpCodes["LZP1"] = 104] = "LZP1";
+    GpuOpCodes[GpuOpCodes["LXP2"] = 105] = "LXP2";
+    GpuOpCodes[GpuOpCodes["LYP2"] = 106] = "LYP2";
+    GpuOpCodes[GpuOpCodes["LZP2"] = 107] = "LZP2";
+    GpuOpCodes[GpuOpCodes["LXP3"] = 108] = "LXP3";
+    GpuOpCodes[GpuOpCodes["LYP3"] = 109] = "LYP3";
+    GpuOpCodes[GpuOpCodes["LZP3"] = 110] = "LZP3";
+    GpuOpCodes[GpuOpCodes["LXD0"] = 111] = "LXD0";
+    GpuOpCodes[GpuOpCodes["LYD0"] = 112] = "LYD0";
+    GpuOpCodes[GpuOpCodes["LZD0"] = 113] = "LZD0";
+    GpuOpCodes[GpuOpCodes["LXD1"] = 114] = "LXD1";
+    GpuOpCodes[GpuOpCodes["LYD1"] = 115] = "LYD1";
+    GpuOpCodes[GpuOpCodes["LZD1"] = 116] = "LZD1";
+    GpuOpCodes[GpuOpCodes["LXD2"] = 117] = "LXD2";
+    GpuOpCodes[GpuOpCodes["LYD2"] = 118] = "LYD2";
+    GpuOpCodes[GpuOpCodes["LZD2"] = 119] = "LZD2";
+    GpuOpCodes[GpuOpCodes["LXD3"] = 120] = "LXD3";
+    GpuOpCodes[GpuOpCodes["LYD3"] = 121] = "LYD3";
+    GpuOpCodes[GpuOpCodes["LZD3"] = 122] = "LZD3";
+    GpuOpCodes[GpuOpCodes["LCA0"] = 123] = "LCA0";
+    GpuOpCodes[GpuOpCodes["LLA0"] = 124] = "LLA0";
+    GpuOpCodes[GpuOpCodes["LQA0"] = 125] = "LQA0";
+    GpuOpCodes[GpuOpCodes["LCA1"] = 126] = "LCA1";
+    GpuOpCodes[GpuOpCodes["LLA1"] = 127] = "LLA1";
+    GpuOpCodes[GpuOpCodes["LQA1"] = 128] = "LQA1";
+    GpuOpCodes[GpuOpCodes["LCA2"] = 129] = "LCA2";
+    GpuOpCodes[GpuOpCodes["LLA2"] = 130] = "LLA2";
+    GpuOpCodes[GpuOpCodes["LQA2"] = 131] = "LQA2";
+    GpuOpCodes[GpuOpCodes["LCA3"] = 132] = "LCA3";
+    GpuOpCodes[GpuOpCodes["LLA3"] = 133] = "LLA3";
+    GpuOpCodes[GpuOpCodes["LQA3"] = 134] = "LQA3";
+    GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 135] = "SPOTEXP0";
+    GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 136] = "SPOTEXP1";
+    GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 137] = "SPOTEXP2";
+    GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 138] = "SPOTEXP3";
+    GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 139] = "SPOTCUT0";
+    GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 140] = "SPOTCUT1";
+    GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 141] = "SPOTCUT2";
+    GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 142] = "SPOTCUT3";
+    GpuOpCodes[GpuOpCodes["ALC0"] = 143] = "ALC0";
+    GpuOpCodes[GpuOpCodes["DLC0"] = 144] = "DLC0";
+    GpuOpCodes[GpuOpCodes["SLC0"] = 145] = "SLC0";
+    GpuOpCodes[GpuOpCodes["ALC1"] = 146] = "ALC1";
+    GpuOpCodes[GpuOpCodes["DLC1"] = 147] = "DLC1";
+    GpuOpCodes[GpuOpCodes["SLC1"] = 148] = "SLC1";
+    GpuOpCodes[GpuOpCodes["ALC2"] = 149] = "ALC2";
+    GpuOpCodes[GpuOpCodes["DLC2"] = 150] = "DLC2";
+    GpuOpCodes[GpuOpCodes["SLC2"] = 151] = "SLC2";
+    GpuOpCodes[GpuOpCodes["ALC3"] = 152] = "ALC3";
+    GpuOpCodes[GpuOpCodes["DLC3"] = 153] = "DLC3";
+    GpuOpCodes[GpuOpCodes["SLC3"] = 154] = "SLC3";
+    GpuOpCodes[GpuOpCodes["CULL"] = 155] = "CULL";
+    GpuOpCodes[GpuOpCodes["FRAMEBUFPTR"] = 156] = "FRAMEBUFPTR";
+    GpuOpCodes[GpuOpCodes["FRAMEBUFWIDTH"] = 157] = "FRAMEBUFWIDTH";
+    GpuOpCodes[GpuOpCodes["ZBUFPTR"] = 158] = "ZBUFPTR";
+    GpuOpCodes[GpuOpCodes["ZBUFWIDTH"] = 159] = "ZBUFWIDTH";
+    GpuOpCodes[GpuOpCodes["TEXADDR0"] = 160] = "TEXADDR0";
+    GpuOpCodes[GpuOpCodes["TEXADDR1"] = 161] = "TEXADDR1";
+    GpuOpCodes[GpuOpCodes["TEXADDR2"] = 162] = "TEXADDR2";
+    GpuOpCodes[GpuOpCodes["TEXADDR3"] = 163] = "TEXADDR3";
+    GpuOpCodes[GpuOpCodes["TEXADDR4"] = 164] = "TEXADDR4";
+    GpuOpCodes[GpuOpCodes["TEXADDR5"] = 165] = "TEXADDR5";
+    GpuOpCodes[GpuOpCodes["TEXADDR6"] = 166] = "TEXADDR6";
+    GpuOpCodes[GpuOpCodes["TEXADDR7"] = 167] = "TEXADDR7";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH0"] = 168] = "TEXBUFWIDTH0";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH1"] = 169] = "TEXBUFWIDTH1";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH2"] = 170] = "TEXBUFWIDTH2";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH3"] = 171] = "TEXBUFWIDTH3";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH4"] = 172] = "TEXBUFWIDTH4";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH5"] = 173] = "TEXBUFWIDTH5";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH6"] = 174] = "TEXBUFWIDTH6";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH7"] = 175] = "TEXBUFWIDTH7";
+    GpuOpCodes[GpuOpCodes["CLUTADDR"] = 176] = "CLUTADDR";
+    GpuOpCodes[GpuOpCodes["CLUTADDRUPPER"] = 177] = "CLUTADDRUPPER";
+    GpuOpCodes[GpuOpCodes["TRXSBP"] = 178] = "TRXSBP";
+    GpuOpCodes[GpuOpCodes["TRXSBW"] = 179] = "TRXSBW";
+    GpuOpCodes[GpuOpCodes["TRXDBP"] = 180] = "TRXDBP";
+    GpuOpCodes[GpuOpCodes["TRXDBW"] = 181] = "TRXDBW";
+    GpuOpCodes[GpuOpCodes["Unknown0xB6"] = 182] = "Unknown0xB6";
+    GpuOpCodes[GpuOpCodes["Unknown0xB7"] = 183] = "Unknown0xB7";
+    GpuOpCodes[GpuOpCodes["TSIZE0"] = 184] = "TSIZE0";
+    GpuOpCodes[GpuOpCodes["TSIZE1"] = 185] = "TSIZE1";
+    GpuOpCodes[GpuOpCodes["TSIZE2"] = 186] = "TSIZE2";
+    GpuOpCodes[GpuOpCodes["TSIZE3"] = 187] = "TSIZE3";
+    GpuOpCodes[GpuOpCodes["TSIZE4"] = 188] = "TSIZE4";
+    GpuOpCodes[GpuOpCodes["TSIZE5"] = 189] = "TSIZE5";
+    GpuOpCodes[GpuOpCodes["TSIZE6"] = 190] = "TSIZE6";
+    GpuOpCodes[GpuOpCodes["TSIZE7"] = 191] = "TSIZE7";
+    GpuOpCodes[GpuOpCodes["TMAP"] = 192] = "TMAP";
+    GpuOpCodes[GpuOpCodes["TEXTURE_ENV_MAP_MATRIX"] = 193] = "TEXTURE_ENV_MAP_MATRIX";
+    GpuOpCodes[GpuOpCodes["TMODE"] = 194] = "TMODE";
+    GpuOpCodes[GpuOpCodes["TPSM"] = 195] = "TPSM";
+    GpuOpCodes[GpuOpCodes["CLOAD"] = 196] = "CLOAD";
+    GpuOpCodes[GpuOpCodes["CMODE"] = 197] = "CMODE";
+    GpuOpCodes[GpuOpCodes["TFLT"] = 198] = "TFLT";
+    GpuOpCodes[GpuOpCodes["TWRAP"] = 199] = "TWRAP";
+    GpuOpCodes[GpuOpCodes["TBIAS"] = 200] = "TBIAS";
+    GpuOpCodes[GpuOpCodes["TFUNC"] = 201] = "TFUNC";
+    GpuOpCodes[GpuOpCodes["TEC"] = 202] = "TEC";
+    GpuOpCodes[GpuOpCodes["TFLUSH"] = 203] = "TFLUSH";
+    GpuOpCodes[GpuOpCodes["TSYNC"] = 204] = "TSYNC";
+    GpuOpCodes[GpuOpCodes["FFAR"] = 205] = "FFAR";
+    GpuOpCodes[GpuOpCodes["FDIST"] = 206] = "FDIST";
+    GpuOpCodes[GpuOpCodes["FCOL"] = 207] = "FCOL";
+    GpuOpCodes[GpuOpCodes["TSLOPE"] = 208] = "TSLOPE";
+    GpuOpCodes[GpuOpCodes["Unknown0xD1"] = 209] = "Unknown0xD1";
+    GpuOpCodes[GpuOpCodes["PSM"] = 210] = "PSM";
+    GpuOpCodes[GpuOpCodes["CLEAR"] = 211] = "CLEAR";
+    GpuOpCodes[GpuOpCodes["SCISSOR1"] = 212] = "SCISSOR1";
+    GpuOpCodes[GpuOpCodes["SCISSOR2"] = 213] = "SCISSOR2";
+    GpuOpCodes[GpuOpCodes["MINZ"] = 214] = "MINZ";
+    GpuOpCodes[GpuOpCodes["MAXZ"] = 215] = "MAXZ";
+    GpuOpCodes[GpuOpCodes["CTST"] = 216] = "CTST";
+    GpuOpCodes[GpuOpCodes["CREF"] = 217] = "CREF";
+    GpuOpCodes[GpuOpCodes["CMSK"] = 218] = "CMSK";
+    GpuOpCodes[GpuOpCodes["ATST"] = 219] = "ATST";
+    GpuOpCodes[GpuOpCodes["STST"] = 220] = "STST";
+    GpuOpCodes[GpuOpCodes["SOP"] = 221] = "SOP";
+    GpuOpCodes[GpuOpCodes["ZTST"] = 222] = "ZTST";
+    GpuOpCodes[GpuOpCodes["ALPHA"] = 223] = "ALPHA";
+    GpuOpCodes[GpuOpCodes["SFIX"] = 224] = "SFIX";
+    GpuOpCodes[GpuOpCodes["DFIX"] = 225] = "DFIX";
+    GpuOpCodes[GpuOpCodes["DTH0"] = 226] = "DTH0";
+    GpuOpCodes[GpuOpCodes["DTH1"] = 227] = "DTH1";
+    GpuOpCodes[GpuOpCodes["DTH2"] = 228] = "DTH2";
+    GpuOpCodes[GpuOpCodes["DTH3"] = 229] = "DTH3";
+    GpuOpCodes[GpuOpCodes["LOP"] = 230] = "LOP";
+    GpuOpCodes[GpuOpCodes["ZMSK"] = 231] = "ZMSK";
+    GpuOpCodes[GpuOpCodes["PMSKC"] = 232] = "PMSKC";
+    GpuOpCodes[GpuOpCodes["PMSKA"] = 233] = "PMSKA";
+    GpuOpCodes[GpuOpCodes["TRXKICK"] = 234] = "TRXKICK";
+    GpuOpCodes[GpuOpCodes["TRXSPOS"] = 235] = "TRXSPOS";
+    GpuOpCodes[GpuOpCodes["TRXDPOS"] = 236] = "TRXDPOS";
+    GpuOpCodes[GpuOpCodes["Unknown0xED"] = 237] = "Unknown0xED";
+    GpuOpCodes[GpuOpCodes["TRXSIZE"] = 238] = "TRXSIZE";
+    GpuOpCodes[GpuOpCodes["Unknown0xEF"] = 239] = "Unknown0xEF";
+    GpuOpCodes[GpuOpCodes["Unknown0xF0"] = 240] = "Unknown0xF0";
+    GpuOpCodes[GpuOpCodes["Unknown0xF1"] = 241] = "Unknown0xF1";
+    GpuOpCodes[GpuOpCodes["Unknown0xF2"] = 242] = "Unknown0xF2";
+    GpuOpCodes[GpuOpCodes["Unknown0xF3"] = 243] = "Unknown0xF3";
+    GpuOpCodes[GpuOpCodes["Unknown0xF4"] = 244] = "Unknown0xF4";
+    GpuOpCodes[GpuOpCodes["Unknown0xF5"] = 245] = "Unknown0xF5";
+    GpuOpCodes[GpuOpCodes["Unknown0xF6"] = 246] = "Unknown0xF6";
+    GpuOpCodes[GpuOpCodes["Unknown0xF7"] = 247] = "Unknown0xF7";
+    GpuOpCodes[GpuOpCodes["Unknown0xF8"] = 248] = "Unknown0xF8";
+    GpuOpCodes[GpuOpCodes["Unknown0xF9"] = 249] = "Unknown0xF9";
+    GpuOpCodes[GpuOpCodes["Unknown0xFA"] = 250] = "Unknown0xFA";
+    GpuOpCodes[GpuOpCodes["Unknown0xFB"] = 251] = "Unknown0xFB";
+    GpuOpCodes[GpuOpCodes["Unknown0xFC"] = 252] = "Unknown0xFC";
+    GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 253] = "Unknown0xFD";
+    GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 254] = "Unknown0xFE";
+    GpuOpCodes[GpuOpCodes["DUMMY"] = 255] = "DUMMY";
 })(exports.GpuOpCodes || (exports.GpuOpCodes = {}));
 var GpuOpCodes = exports.GpuOpCodes;
 
 },
 "src/core/gpu/state": function(module, exports, require) {
-var _memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var _pixelformat = require('../pixelformat');
 var PixelFormat = _pixelformat.PixelFormat;
 (function (CullingDirection) {
@@ -9939,9 +8570,7 @@ var VertexState = (function () {
         that.size = this.size;
         return that;
     };
-    VertexState.prototype.getValue = function () {
-        return this._value;
-    };
+    VertexState.prototype.getValue = function () { return this._value; };
     VertexState.prototype.setValue = function (value) {
         this._value = value;
         this.size = this.getVertexSize();
@@ -9968,212 +8597,139 @@ var VertexState = (function () {
         }) + ')';
     };
     Object.defineProperty(VertexState.prototype, "hasTexture", {
-        get: function () {
-            return this.texture != 0 /* Void */;
-        },
+        get: function () { return this.texture != NumericEnum.Void; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasColor", {
-        get: function () {
-            return this.color != 0 /* Void */;
-        },
+        get: function () { return this.color != ColorEnum.Void; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasNormal", {
-        get: function () {
-            return this.normal != 0 /* Void */;
-        },
+        get: function () { return this.normal != NumericEnum.Void; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasPosition", {
-        get: function () {
-            return this.position != 0 /* Void */;
-        },
+        get: function () { return this.position != NumericEnum.Void; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasWeight", {
-        get: function () {
-            return this.weight != 0 /* Void */;
-        },
+        get: function () { return this.weight != NumericEnum.Void; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasIndex", {
-        get: function () {
-            return this.index != 0 /* Void */;
-        },
+        get: function () { return this.index != IndexEnum.Void; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "texture", {
-        get: function () {
-            return BitUtils.extractEnum(this._value, 0, 2);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 0, 2, value);
-        },
+        get: function () { return BitUtils.extractEnum(this._value, 0, 2); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 0, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "color", {
-        get: function () {
-            return BitUtils.extractEnum(this._value, 2, 3);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 2, 3, value);
-        },
+        get: function () { return BitUtils.extractEnum(this._value, 2, 3); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 2, 3, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "normal", {
-        get: function () {
-            return BitUtils.extractEnum(this._value, 5, 2);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 5, 2, value);
-        },
+        get: function () { return BitUtils.extractEnum(this._value, 5, 2); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 5, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "position", {
-        get: function () {
-            return BitUtils.extractEnum(this._value, 7, 2);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 7, 2, value);
-        },
+        get: function () { return BitUtils.extractEnum(this._value, 7, 2); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 7, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weight", {
-        get: function () {
-            return BitUtils.extractEnum(this._value, 9, 2);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 9, 2, value);
-        },
+        get: function () { return BitUtils.extractEnum(this._value, 9, 2); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 9, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "index", {
-        get: function () {
-            return BitUtils.extractEnum(this._value, 11, 2);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 11, 2, value);
-        },
+        get: function () { return BitUtils.extractEnum(this._value, 11, 2); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 11, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weightCount", {
-        get: function () {
-            return BitUtils.extract(this._value, 14, 3);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 14, 3, value);
-        },
+        get: function () { return BitUtils.extract(this._value, 14, 3); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 14, 3, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
-        get: function () {
-            return BitUtils.extract(this._value, 18, 2);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 18, 2, value);
-        },
+        get: function () { return BitUtils.extract(this._value, 18, 2); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 18, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "transform2D", {
-        get: function () {
-            return BitUtils.extractBool(this._value, 23);
-        },
-        set: function (value) {
-            this._value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0);
-        },
+        get: function () { return BitUtils.extractBool(this._value, 23); },
+        set: function (value) { this._value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weightSize", {
-        get: function () {
-            return this.NumericEnumGetSize(this.weight);
-        },
+        get: function () { return this.NumericEnumGetSize(this.weight); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "colorSize", {
-        get: function () {
-            return this.ColorEnumGetSize(this.color);
-        },
+        get: function () { return this.ColorEnumGetSize(this.color); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "textureSize", {
-        get: function () {
-            return this.NumericEnumGetSize(this.texture);
-        },
+        get: function () { return this.NumericEnumGetSize(this.texture); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "positionSize", {
-        get: function () {
-            return this.NumericEnumGetSize(this.position);
-        },
+        get: function () { return this.NumericEnumGetSize(this.position); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "normalSize", {
-        get: function () {
-            return this.NumericEnumGetSize(this.normal);
-        },
+        get: function () { return this.NumericEnumGetSize(this.normal); },
         enumerable: true,
         configurable: true
     });
     VertexState.prototype.IndexEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */:
-                return 0;
-            case 1 /* Byte */:
-                return 1;
-            case 2 /* Short */:
-                return 2;
-            default:
-                throw ("Invalid enum");
+            case IndexEnum.Void: return 0;
+            case IndexEnum.Byte: return 1;
+            case IndexEnum.Short: return 2;
+            default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.NumericEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */:
-                return 0;
-            case 1 /* Byte */:
-                return 1;
-            case 2 /* Short */:
-                return 2;
-            case 3 /* Float */:
-                return 4;
-            default:
-                throw ("Invalid enum");
+            case NumericEnum.Void: return 0;
+            case NumericEnum.Byte: return 1;
+            case NumericEnum.Short: return 2;
+            case NumericEnum.Float: return 4;
+            default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.ColorEnumGetSize = function (item) {
         switch (item) {
-            case 0 /* Void */:
-                return 0;
-            case 4 /* Color5650 */:
-                return 2;
-            case 5 /* Color5551 */:
-                return 2;
-            case 6 /* Color4444 */:
-                return 2;
-            case 7 /* Color8888 */:
-                return 4;
-            default:
-                throw ("Invalid enum");
+            case ColorEnum.Void: return 0;
+            case ColorEnum.Color5650: return 2;
+            case ColorEnum.Color5551: return 2;
+            case ColorEnum.Color4444: return 2;
+            case ColorEnum.Color8888: return 4;
+            default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.GetMaxAlignment = function () {
@@ -10274,18 +8830,10 @@ var Matrix4x3 = (function () {
         this.index = startIndex;
     };
     Matrix4x3.indices = new Int32Array([
-        0,
-        1,
-        2,
-        4,
-        5,
-        6,
-        8,
-        9,
-        10,
-        12,
-        13,
-        14
+        0, 1, 2,
+        4, 5, 6,
+        8, 9, 10,
+        12, 13, 14
     ]);
     return Matrix4x3;
 })();
@@ -10321,8 +8869,8 @@ var Light = (function () {
         this._diffuseColor = -1;
         this._ambientColor = -1;
         this.enabled = false;
-        this.kind = 0 /* SingleColor */;
-        this.type = 0 /* Directional */;
+        this.kind = LightModelEnum.SingleColor;
+        this.type = LightTypeEnum.Directional;
         this.cutoff = 0;
         this.px = 0;
         this.py = 0;
@@ -10361,7 +8909,7 @@ var Lightning = (function () {
         this._ambientLightColorAlpha = -1;
         this.enabled = false;
         this.lights = [new Light(), new Light(), new Light(), new Light()];
-        this.lightModel = 1 /* SeparateSpecularColor */;
+        this.lightModel = LightModelEnum.SeparateSpecularColor;
         this.specularPower = 1;
         this.ambientLightColor = new ColorState();
     }
@@ -10393,7 +8941,7 @@ var ClutState = (function () {
     function ClutState() {
         this.adress = 0;
         this.numberOfColors = 0;
-        this.pixelFormat = 3 /* RGBA_8888 */;
+        this.pixelFormat = PixelFormat.RGBA_8888;
         this.shift = 0;
         this.mask = 0x00;
         this.start = 0;
@@ -10435,51 +8983,43 @@ var TextureState = (function () {
         this.matrix = new Matrix4x4();
         this.mipmapShareClut = false;
         this.mipmapMaxLevel = 0;
-        this.filterMinification = 0 /* Nearest */;
-        this.filterMagnification = 0 /* Nearest */;
-        this.wrapU = 0 /* Repeat */;
+        this.filterMinification = TextureFilter.Nearest;
+        this.filterMagnification = TextureFilter.Nearest;
+        this.wrapU = WrapMode.Repeat;
         this.offsetU = 0;
         this.offsetV = 0;
         this.scaleU = 1;
         this.scaleV = 1;
         this.shadeU = 0;
         this.shadeV = 0;
-        this.wrapV = 0 /* Repeat */;
-        this.effect = 0 /* Modulate */;
-        this.colorComponent = 0 /* Rgb */;
+        this.wrapV = WrapMode.Repeat;
+        this.effect = TextureEffect.Modulate;
+        this.colorComponent = TextureColorComponent.Rgb;
         this.envColor = new ColorState();
         this.fragment2X = false;
-        this.pixelFormat = 3 /* RGBA_8888 */;
+        this.pixelFormat = PixelFormat.RGBA_8888;
         this.clut = new ClutState();
         this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
-        this.textureProjectionMapMode = 3 /* GU_NORMAL */;
-        this.textureMapMode = 0 /* GU_TEXTURE_COORDS */;
+        this.textureProjectionMapMode = TextureProjectionMapMode.GU_NORMAL;
+        this.textureMapMode = TextureMapMode.GU_TEXTURE_COORDS;
         this.slopeLevel = 0;
-        this.levelMode = 0 /* Auto */;
+        this.levelMode = TextureLevelMode.Auto;
         this.mipmapBias = 1.0;
     }
     TextureState.prototype.getTextureComponentsCount = function () {
         switch (this.textureMapMode) {
-            default:
-                throw (new Error("Invalid textureMapMode"));
-            case 0 /* GU_TEXTURE_COORDS */:
-                return 2;
-            case 1 /* GU_TEXTURE_MATRIX */:
+            default: throw (new Error("Invalid textureMapMode"));
+            case TextureMapMode.GU_TEXTURE_COORDS: return 2;
+            case TextureMapMode.GU_TEXTURE_MATRIX:
                 switch (this.textureProjectionMapMode) {
-                    case 3 /* GU_NORMAL */:
-                        return 3;
-                    case 2 /* GU_NORMALIZED_NORMAL */:
-                        return 3;
-                    case 0 /* GU_POSITION */:
-                        return 3;
-                    case 1 /* GU_UV */:
-                        return 2;
-                    default:
-                        return 2;
+                    case TextureProjectionMapMode.GU_NORMAL: return 3;
+                    case TextureProjectionMapMode.GU_NORMALIZED_NORMAL: return 3;
+                    case TextureProjectionMapMode.GU_POSITION: return 3;
+                    case TextureProjectionMapMode.GU_UV: return 2;
+                    default: return 2;
                 }
                 break;
-            case 2 /* GU_ENVIRONMENT_MAP */:
-                return 2;
+            case TextureMapMode.GU_ENVIRONMENT_MAP: return 2;
         }
     };
     return TextureState;
@@ -10488,7 +9028,7 @@ exports.TextureState = TextureState;
 var CullingState = (function () {
     function CullingState() {
         this.enabled = false;
-        this.direction = 1 /* ClockWise */;
+        this.direction = CullingDirection.ClockWise;
     }
     return CullingState;
 })();
@@ -10508,7 +9048,7 @@ var DepthTestState = (function () {
     function DepthTestState() {
         this.updated = false;
         this.enabled = false;
-        this.func = 1 /* Always */;
+        this.func = TestFunctionEnum.Always;
         this.mask = 0;
         this.rangeFar = 1;
         this.rangeNear = 0;
@@ -10588,9 +9128,9 @@ var Blending = (function () {
         this._colorMaskA = -1;
         this.enabled = false;
         this.updated = false;
-        this.functionSource = 2 /* GU_SRC_ALPHA */;
-        this.functionDestination = 5 /* GU_ONE_MINUS_DST_ALPHA */;
-        this.equation = 0 /* Add */;
+        this.functionSource = GuBlendingFactor.GU_SRC_ALPHA;
+        this.functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
+        this.equation = GuBlendingEquation.Add;
         this._fixColorSourceWord = -1;
         this._fixColorDestinationWord = -1;
         this.fixColorSource = new Color();
@@ -10606,7 +9146,7 @@ var AlphaTest = (function () {
         this.enabled = false;
         this.value = 0;
         this.mask = 0xFF;
-        this.func = 1 /* Always */;
+        this.func = TestFunctionEnum.Always;
     }
     return AlphaTest;
 })();
@@ -10619,16 +9159,12 @@ var Rectangle = (function () {
         this.bottom = bottom;
     }
     Object.defineProperty(Rectangle.prototype, "width", {
-        get: function () {
-            return this.right - this.left;
-        },
+        get: function () { return this.right - this.left; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Rectangle.prototype, "height", {
-        get: function () {
-            return this.bottom - this.top;
-        },
+        get: function () { return this.bottom - this.top; },
         enumerable: true,
         configurable: true
     });
@@ -10695,10 +9231,10 @@ var StencilState = (function () {
         this.stst = -1;
         this.sop = -1;
         this.enabled = false;
-        this.fail = 0 /* Keep */;
-        this.zpass = 0 /* Keep */;
-        this.zfail = 0 /* Keep */;
-        this.func = 1 /* Always */;
+        this.fail = StencilOperationEnum.Keep;
+        this.zpass = StencilOperationEnum.Keep;
+        this.zfail = StencilOperationEnum.Keep;
+        this.func = TestFunctionEnum.Always;
         this.funcRef = 0;
         this.funcMask = 0;
     }
@@ -10760,7 +9296,7 @@ var GpuState = (function () {
         this.baseAddress = 0;
         this.baseOffset = 0;
         this.indexAddress = 0;
-        this.shadeModel = 0 /* Flat */;
+        this.shadeModel = ShadingModelEnum.Flat;
         this.frameBuffer = new GpuFrameBufferState();
         this.vertex = new VertexState();
         this.stencil = new StencilState();
@@ -10789,14 +9325,10 @@ var GpuState = (function () {
         this.dithering = new DitheringState();
         this.colorTest = new ColorTestState();
         this.depthTest = new DepthTestState();
-        this.drawPixelFormat = 3 /* RGBA_8888 */;
+        this.drawPixelFormat = PixelFormat.RGBA_8888;
     }
-    GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) {
-        return (this.baseAddress | relativeAddress);
-    };
-    GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) {
-        return ((this.baseAddress | relativeAddress) + this.baseOffset);
-    };
+    GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) { return (this.baseAddress | relativeAddress); };
+    GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) { return ((this.baseAddress | relativeAddress) + this.baseOffset); };
     return GpuState;
 })();
 exports.GpuState = GpuState;
@@ -10854,6 +9386,7 @@ var PrimitiveType = exports.PrimitiveType;
 
 },
 "src/core/gpu/vertex": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _state = require('./state');
 var _IndentStringGenerator = require('../../util/IndentStringGenerator');
 var ColorEnum = _state.ColorEnum;
@@ -10961,52 +9494,37 @@ var VertexReader = (function () {
         this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
         return indentStringGenerator.output;
     };
-    VertexReader.prototype.readInt8 = function () {
-        return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])';
-    };
-    VertexReader.prototype.readInt16 = function () {
-        return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])';
-    };
-    VertexReader.prototype.readInt32 = function () {
-        return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])';
-    };
-    VertexReader.prototype.readFloat32 = function () {
-        return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])';
-    };
-    VertexReader.prototype.readUInt8 = function () {
-        return '((' + this.readInt8() + ' & 0xFF) >>> 0)';
-    };
-    VertexReader.prototype.readUInt16 = function () {
-        return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)';
-    };
-    VertexReader.prototype.readUInt32 = function () {
-        return '((' + this.readInt32() + ' & 0xFFFFFFFF) >>> 0)';
-    };
+    VertexReader.prototype.readInt8 = function () { return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])'; };
+    VertexReader.prototype.readInt16 = function () { return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])'; };
+    VertexReader.prototype.readInt32 = function () { return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; };
+    VertexReader.prototype.readFloat32 = function () { return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; };
+    VertexReader.prototype.readUInt8 = function () { return '((' + this.readInt8() + ' & 0xFF) >>> 0)'; };
+    VertexReader.prototype.readUInt16 = function () { return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)'; };
+    VertexReader.prototype.readUInt32 = function () { return '((' + this.readInt32() + ' & 0xFFFFFFFF) >>> 0)'; };
     VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
-        if (type == 0 /* Void */)
+        if (type == ColorEnum.Void)
             return;
         var alignment = 4;
         var sizes = [8, 8, 8, 8];
         var components = ['r', 'g', 'b', 'a'];
         switch (type) {
-            case 7 /* Color8888 */:
+            case ColorEnum.Color8888:
                 alignment = 4;
                 sizes = [8, 8, 8, 8];
                 break;
-            case 5 /* Color5551 */:
+            case ColorEnum.Color5551:
                 alignment = 2;
                 sizes = [5, 5, 5, 1];
                 break;
-            case 6 /* Color4444 */:
+            case ColorEnum.Color4444:
                 alignment = 2;
                 sizes = [4, 4, 4, 4];
                 break;
-            case 4 /* Color5650 */:
+            case ColorEnum.Color5650:
                 alignment = 2;
                 sizes = [5, 6, 5, 0];
                 break;
-            default:
-                throw (new Error("Not implemented color format '" + type + "'"));
+            default: throw (new Error("Not implemented color format '" + type + "'"));
         }
         this.align(alignment);
         indentStringGenerator.write('var temp = (' + ((alignment == 2) ? this.readUInt16() : this.readUInt32()) + ');\n');
@@ -11030,17 +9548,17 @@ var VertexReader = (function () {
     };
     VertexReader.prototype.createNumberJs = function (scales, signed, indentStringGenerator, components, type, normalize) {
         var _this = this;
-        if (type == 0 /* Void */)
+        if (type == _state.NumericEnum.Void)
             return;
         components.forEach(function (component) {
             switch (type) {
-                case 1 /* Byte */:
+                case _state.NumericEnum.Byte:
                     indentStringGenerator.write('output.' + component + ' = ' + (signed ? _this.readInt8() : _this.readUInt8()));
                     break;
-                case 2 /* Short */:
+                case _state.NumericEnum.Short:
                     indentStringGenerator.write('output.' + component + ' = ' + (signed ? _this.readInt16() : _this.readUInt16()));
                     break;
-                case 3 /* Float */:
+                case _state.NumericEnum.Float:
                     indentStringGenerator.write('output.' + component + ' = ' + (_this.readFloat32()));
                     break;
             }
@@ -11055,8 +9573,8 @@ exports.VertexReader = VertexReader;
 
 },
 "src/core/gpu/webgl/driver": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _state = require('../state');
-var _memory = require('../../memory');
 var _shader = require('./shader');
 var _texture = require('./texture');
 var _utils = require('./utils');
@@ -11153,8 +9671,8 @@ var WebGlPspDrawDriver = (function () {
             this.testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
         if (!this.testConvertTable_inv)
             this.testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
-        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != 6 /* Sprites */))) {
-            gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
+        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
+            gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
         }
         if (!state.clipPlane.updated) {
             state.clipPlane.updated = true;
@@ -11177,10 +9695,10 @@ var WebGlPspDrawDriver = (function () {
                 };
                 var sfactor = gl.SRC_COLOR + blending.functionSource;
                 var dfactor = gl.SRC_COLOR + blending.functionDestination;
-                if (blending.functionSource == 10 /* GU_FIX */) {
+                if (blending.functionSource == _state.GuBlendingFactor.GU_FIX) {
                     sfactor = getBlendFix(blending.fixColorSource);
                 }
-                if (blending.functionDestination == 10 /* GU_FIX */) {
+                if (blending.functionDestination == _state.GuBlendingFactor.GU_FIX) {
                     if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
                         dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
                     }
@@ -11191,16 +9709,16 @@ var WebGlPspDrawDriver = (function () {
                 gl.blendEquation(this.equationTranslate[blending.equation]);
                 gl.blendFunc(sfactor, dfactor);
                 switch (blending.equation) {
-                    case 5 /* Abs */:
-                    case 4 /* Max */:
-                    case 3 /* Min */:
-                    case 0 /* Add */:
+                    case _state.GuBlendingEquation.Abs:
+                    case _state.GuBlendingEquation.Max:
+                    case _state.GuBlendingEquation.Min:
+                    case _state.GuBlendingEquation.Add:
                         gl.blendEquation(gl.FUNC_ADD);
                         break;
-                    case 1 /* Substract */:
+                    case _state.GuBlendingEquation.Substract:
                         gl.blendEquation(gl.FUNC_SUBTRACT);
                         break;
-                    case 2 /* ReverseSubstract */:
+                    case _state.GuBlendingEquation.ReverseSubstract:
                         gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
                         break;
                 }
@@ -11248,16 +9766,16 @@ var WebGlPspDrawDriver = (function () {
         gl.disable(gl.STENCIL_TEST);
         gl.disable(gl.CULL_FACE);
         gl.depthMask(false);
-        if (clearingFlags & 1 /* ColorBuffer */) {
+        if (clearingFlags & ClearBufferSet.ColorBuffer) {
             ccolorMask = true;
         }
-        if (clearingFlags & 2 /* StencilBuffer */) {
+        if (clearingFlags & ClearBufferSet.StencilBuffer) {
             calphaMask = true;
             gl.enable(gl.STENCIL_TEST);
             gl.stencilFunc(gl.ALWAYS, 0x00, 0xFF);
             gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
         }
-        if (clearingFlags & 4 /* DepthBuffer */) {
+        if (clearingFlags & ClearBufferSet.DepthBuffer) {
             gl.enable(gl.DEPTH_TEST);
             gl.depthFunc(gl.ALWAYS);
             gl.depthMask(true);
@@ -11293,7 +9811,7 @@ var WebGlPspDrawDriver = (function () {
         this.setClearMode(state.clearing, state.clearFlags);
         this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
         this.display.setEnabledDisplay(false);
-        if (primitiveType == 6 /* Sprites */) {
+        if (primitiveType == _state.PrimitiveType.Sprites) {
             return this.drawSprites(vertices, count, vertexState);
         }
         else {
@@ -11337,7 +9855,7 @@ var WebGlPspDrawDriver = (function () {
             this.vertexPool2[outCount++] = br;
             this.vertexPool2[outCount++] = vbl;
         }
-        this.drawElementsInternal(6 /* Sprites */, 3 /* Triangles */, this.vertexPool2, outCount, vertexState);
+        this.drawElementsInternal(_state.PrimitiveType.Sprites, _state.PrimitiveType.Triangles, this.vertexPool2, outCount, vertexState);
     };
     WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType, originalPrimitiveType) {
         var textureState = this.state.texture;
@@ -11433,7 +9951,7 @@ var WebGlPspDrawDriver = (function () {
             }
             else {
                 switch (texture.textureMapMode) {
-                    case 0 /* GU_TEXTURE_COORDS */:
+                    case _state.TextureMapMode.GU_TEXTURE_COORDS:
                         t[0] = texture.offsetU;
                         t[1] = texture.offsetV;
                         t[2] = 0.0;
@@ -11481,11 +9999,7 @@ module.exports = WebGlPspDrawDriver;
 
 },
 "src/core/gpu/webgl/driver_dummy": function(module, exports, require) {
-var _state = require('../state');
-var _memory = require('../../memory');
-var _shader = require('./shader');
-var _texture = require('./texture');
-var _utils = require('./utils');
+///<reference path="../../../global.d.ts" />
 var DummyDrawDriver = (function () {
     function DummyDrawDriver() {
     }
@@ -11506,6 +10020,7 @@ module.exports = DummyDrawDriver;
 
 },
 "src/core/gpu/webgl/shader": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('./utils');
 var WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 var ShaderCache = (function () {
@@ -11562,10 +10077,9 @@ exports.ShaderCache = ShaderCache;
 
 },
 "src/core/gpu/webgl/texture": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _state = require('../state');
-var _utils = require('./utils');
 var _pixelformat = require('../../pixelformat');
-var _memory = require('../../memory');
 var PixelFormatUtils = _pixelformat.PixelFormatUtils;
 var PixelConverter = _pixelformat.PixelConverter;
 var Texture = (function () {
@@ -11777,13 +10291,15 @@ var TextureHandler = (function () {
                         u8[n] = data2[n];
                     ctx.putImageData(imageData, 0, 0);
                     console.error('generated texture!' + texture.toString());
-                    $(document.body).append($('<div style="color:white;" />').append(canvas).append(texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h));
+                    $(document.body).append($('<div style="color:white;" />')
+                        .append(canvas)
+                        .append(texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h));
                     texture.fromCanvas(canvas);
                 }
             }
         }
         this.lastTexture = texture;
-        texture.bind(0, (state.texture.filterMinification == 1 /* Linear */) ? gl.LINEAR : gl.NEAREST, (state.texture.filterMagnification == 1 /* Linear */) ? gl.LINEAR : gl.NEAREST, (state.texture.wrapU == 1 /* Clamp */) ? gl.CLAMP_TO_EDGE : gl.REPEAT, (state.texture.wrapV == 1 /* Clamp */) ? gl.CLAMP_TO_EDGE : gl.REPEAT);
+        texture.bind(0, (state.texture.filterMinification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST, (state.texture.filterMagnification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST, (state.texture.wrapU == _state.WrapMode.Clamp) ? gl.CLAMP_TO_EDGE : gl.REPEAT, (state.texture.wrapV == _state.WrapMode.Clamp) ? gl.CLAMP_TO_EDGE : gl.REPEAT);
         prog.getUniform('uSampler').set1i(0);
         prog.getUniform('samplerClut').set1i(1);
     };
@@ -11798,6 +10314,7 @@ exports.TextureHandler = TextureHandler;
 
 },
 "src/core/gpu/webgl/utils": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
 var mat4x3 = mat4.create();
 var WrappedWebGLUniform = (function () {
@@ -11919,6 +10436,7 @@ exports.FastFloat32Buffer = FastFloat32Buffer;
 
 },
 "src/core/interrupt": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var InterruptHandler = (function () {
     function InterruptHandler(no) {
         this.no = no;
@@ -12030,18 +10548,20 @@ var PspInterrupts = exports.PspInterrupts;
 
 },
 "src/core/kirk": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _kirk = require('./kirk/kirk');
 _kirk.CMD7;
 exports.KIRK_AES128CBC_HEADER = _kirk.KIRK_AES128CBC_HEADER;
 exports.KirkMode = _kirk.KirkMode;
 exports.CommandEnum = _kirk.CommandEnum;
 exports.hleUtilsBufferCopyWithRange = _kirk.hleUtilsBufferCopyWithRange;
-var Cmd1 = 1 /* Cmd1 */;
-var CERT_VERIFY = 18 /* CERT_VERIFY */;
+var Cmd1 = exports.KirkMode.Cmd1;
+var CERT_VERIFY = exports.CommandEnum.CERT_VERIFY;
 var KIRK_AES128CBC_HEADER_struct = exports.KIRK_AES128CBC_HEADER.struct;
 
 },
 "src/core/kirk/crypto": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var jsaes2 = require('./jsaes2');
 function cryptoToArray(info) {
     var words = info.words;
@@ -12128,6 +10648,7 @@ exports.aes_decrypt = aes_decrypt;
 
 },
 "src/core/kirk/jsaes2": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var SBOX = new Uint8Array(256);
 var INV_SBOX = new Uint8Array(256);
 var SUB_MIX_0 = new Uint32Array(256);
@@ -12221,7 +10742,8 @@ var AES = (function () {
                 invKeySchedule[invKsRow] = t;
             }
             else {
-                invKeySchedule[invKsRow] = INV_SUB_MIX_0[SBOX[t >>> 24]] ^ INV_SUB_MIX_1[SBOX[(t >>> 16) & 0xff]] ^ INV_SUB_MIX_2[SBOX[(t >>> 8) & 0xff]] ^ INV_SUB_MIX_3[SBOX[t & 0xff]];
+                invKeySchedule[invKsRow] = INV_SUB_MIX_0[SBOX[t >>> 24]] ^ INV_SUB_MIX_1[SBOX[(t >>> 16) & 0xff]] ^
+                    INV_SUB_MIX_2[SBOX[(t >>> 8) & 0xff]] ^ INV_SUB_MIX_3[SBOX[t & 0xff]];
             }
         }
     };
@@ -12310,6 +10832,7 @@ exports.decrypt_aes128_cbc = decrypt_aes128_cbc;
 
 },
 "src/core/kirk/kirk": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var crypto = require('./crypto');
 var kirk1_key = new Uint8Array([0x98, 0xC9, 0x40, 0x97, 0x5C, 0x1D, 0x10, 0xE8, 0x7F, 0xE6, 0x0E, 0xA3, 0xFD, 0x03, 0xA8, 0xBA]);
 var kirk16_key = new Uint8Array([0x47, 0x5E, 0x09, 0xF4, 0xA2, 0x37, 0xDA, 0x9B, 0xEF, 0xFF, 0x3B, 0xC0, 0x77, 0x14, 0x3D, 0x8A]);
@@ -12351,7 +10874,7 @@ var Px1 = new Uint8Array([0xED, 0x9C, 0xE5, 0x82, 0x34, 0xE6, 0x1A, 0x53, 0xC6, 
 var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 0x44, 0x85, 0x8B, 0x61, 0xB7, 0x9B, 0x69, 0xA6, 0x3D, 0x2C, 0x39]);
 var KIRK_AES128CBC_HEADER = (function () {
     function KIRK_AES128CBC_HEADER() {
-        this.mode = 0 /* Invalid0 */;
+        this.mode = KirkMode.Invalid0;
         this.unk_4 = 0;
         this.unk_8 = 0;
         this.keyseed = 0;
@@ -12403,29 +10926,29 @@ function kirk_4_7_get_key(key_type) {
 })(exports.KirkMode || (exports.KirkMode = {}));
 var KirkMode = exports.KirkMode;
 (function (CommandEnum) {
-    CommandEnum[CommandEnum["DECRYPT_PRIVATE"] = 0x1] = "DECRYPT_PRIVATE";
-    CommandEnum[CommandEnum["ENCRYPT_SIGN"] = 0x2] = "ENCRYPT_SIGN";
-    CommandEnum[CommandEnum["DECRYPT_SIGN"] = 0x3] = "DECRYPT_SIGN";
-    CommandEnum[CommandEnum["ENCRYPT_IV_0"] = 0x4] = "ENCRYPT_IV_0";
-    CommandEnum[CommandEnum["ENCRYPT_IV_FUSE"] = 0x5] = "ENCRYPT_IV_FUSE";
-    CommandEnum[CommandEnum["ENCRYPT_IV_USER"] = 0x6] = "ENCRYPT_IV_USER";
-    CommandEnum[CommandEnum["DECRYPT_IV_0"] = 0x7] = "DECRYPT_IV_0";
-    CommandEnum[CommandEnum["DECRYPT_IV_FUSE"] = 0x8] = "DECRYPT_IV_FUSE";
-    CommandEnum[CommandEnum["DECRYPT_IV_USER"] = 0x9] = "DECRYPT_IV_USER";
-    CommandEnum[CommandEnum["PRIV_SIG_CHECK"] = 0xA] = "PRIV_SIG_CHECK";
-    CommandEnum[CommandEnum["SHA1_HASH"] = 0xB] = "SHA1_HASH";
-    CommandEnum[CommandEnum["ECDSA_GEN_KEYS"] = 0xC] = "ECDSA_GEN_KEYS";
-    CommandEnum[CommandEnum["ECDSA_MULTIPLY_POINT"] = 0xD] = "ECDSA_MULTIPLY_POINT";
-    CommandEnum[CommandEnum["PRNG"] = 0xE] = "PRNG";
-    CommandEnum[CommandEnum["INIT"] = 0xF] = "INIT";
-    CommandEnum[CommandEnum["ECDSA_SIGN"] = 0x10] = "ECDSA_SIGN";
-    CommandEnum[CommandEnum["ECDSA_VERIFY"] = 0x11] = "ECDSA_VERIFY";
-    CommandEnum[CommandEnum["CERT_VERIFY"] = 0x12] = "CERT_VERIFY";
+    CommandEnum[CommandEnum["DECRYPT_PRIVATE"] = 1] = "DECRYPT_PRIVATE";
+    CommandEnum[CommandEnum["ENCRYPT_SIGN"] = 2] = "ENCRYPT_SIGN";
+    CommandEnum[CommandEnum["DECRYPT_SIGN"] = 3] = "DECRYPT_SIGN";
+    CommandEnum[CommandEnum["ENCRYPT_IV_0"] = 4] = "ENCRYPT_IV_0";
+    CommandEnum[CommandEnum["ENCRYPT_IV_FUSE"] = 5] = "ENCRYPT_IV_FUSE";
+    CommandEnum[CommandEnum["ENCRYPT_IV_USER"] = 6] = "ENCRYPT_IV_USER";
+    CommandEnum[CommandEnum["DECRYPT_IV_0"] = 7] = "DECRYPT_IV_0";
+    CommandEnum[CommandEnum["DECRYPT_IV_FUSE"] = 8] = "DECRYPT_IV_FUSE";
+    CommandEnum[CommandEnum["DECRYPT_IV_USER"] = 9] = "DECRYPT_IV_USER";
+    CommandEnum[CommandEnum["PRIV_SIG_CHECK"] = 10] = "PRIV_SIG_CHECK";
+    CommandEnum[CommandEnum["SHA1_HASH"] = 11] = "SHA1_HASH";
+    CommandEnum[CommandEnum["ECDSA_GEN_KEYS"] = 12] = "ECDSA_GEN_KEYS";
+    CommandEnum[CommandEnum["ECDSA_MULTIPLY_POINT"] = 13] = "ECDSA_MULTIPLY_POINT";
+    CommandEnum[CommandEnum["PRNG"] = 14] = "PRNG";
+    CommandEnum[CommandEnum["INIT"] = 15] = "INIT";
+    CommandEnum[CommandEnum["ECDSA_SIGN"] = 16] = "ECDSA_SIGN";
+    CommandEnum[CommandEnum["ECDSA_VERIFY"] = 17] = "ECDSA_VERIFY";
+    CommandEnum[CommandEnum["CERT_VERIFY"] = 18] = "CERT_VERIFY";
 })(exports.CommandEnum || (exports.CommandEnum = {}));
 var CommandEnum = exports.CommandEnum;
 function CMD7(input) {
     var header = KIRK_AES128CBC_HEADER.struct.read(input.slice());
-    if (header.mode != 5 /* DecryptCbc */)
+    if (header.mode != KirkMode.DecryptCbc)
         throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
     if (header.data_size == 0)
         throw (new Error("Kirk data size == 0"));
@@ -12438,7 +10961,7 @@ function kirk_CMD7(output, input) {
 }
 function kirk_CMD1(output, input) {
     var header = input.slice().readStruct(AES128CMACHeader.struct);
-    if (header.Mode != 1 /* Cmd1 */)
+    if (header.Mode != KirkMode.Cmd1)
         throw (new Error("Kirk mode != Cmd1"));
     var Keys = crypto.aes_decrypt(input.sliceWithLength(0, 16 * 2).readAllBytes(), kirk1_key);
     var KeyAes = Keys.subarray(0, 16);
@@ -12449,10 +10972,10 @@ function kirk_CMD1(output, input) {
 }
 function hleUtilsBufferCopyWithRange(output, input, command) {
     switch (command) {
-        case 1 /* DECRYPT_PRIVATE */:
+        case CommandEnum.DECRYPT_PRIVATE:
             return kirk_CMD1(output, input);
             break;
-        case 7 /* DECRYPT_IV_0 */:
+        case CommandEnum.DECRYPT_IV_0:
             return kirk_CMD7(output, input);
             break;
     }
@@ -12462,6 +10985,7 @@ exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 
 },
 "src/core/memory": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -12479,42 +11003,18 @@ var FastMemoryBase = (function () {
         this.u32 = new Uint32Array(this.buffer);
         this.f32 = new Float32Array(this.buffer);
     }
-    FastMemoryBase.prototype.writeInt8 = function (address, value) {
-        this.u8[(address & FastMemory.MASK) >> 0] = value;
-    };
-    FastMemoryBase.prototype.writeInt16 = function (address, value) {
-        this.u16[(address & FastMemory.MASK) >> 1] = value;
-    };
-    FastMemoryBase.prototype.writeInt32 = function (address, value) {
-        this.u32[(address & FastMemory.MASK) >> 2] = value;
-    };
-    FastMemoryBase.prototype.writeFloat32 = function (address, value) {
-        this.f32[(address & FastMemory.MASK) >> 2] = value;
-    };
-    FastMemoryBase.prototype.readInt8 = function (address) {
-        return this.s8[(address & FastMemory.MASK) >> 0];
-    };
-    FastMemoryBase.prototype.readUInt8 = function (address) {
-        return this.u8[(address & FastMemory.MASK) >> 0];
-    };
-    FastMemoryBase.prototype.readInt16 = function (address) {
-        return this.s16[(address & FastMemory.MASK) >> 1];
-    };
-    FastMemoryBase.prototype.readUInt16 = function (address) {
-        return this.u16[(address & FastMemory.MASK) >> 1];
-    };
-    FastMemoryBase.prototype.readInt32 = function (address) {
-        return this.s32[(address & FastMemory.MASK) >> 2];
-    };
-    FastMemoryBase.prototype.readUInt32 = function (address) {
-        return this.u32[(address & FastMemory.MASK) >> 2];
-    };
-    FastMemoryBase.prototype.readFloat32 = function (address) {
-        return this.f32[(address & FastMemory.MASK) >> 2];
-    };
-    FastMemoryBase.prototype.readUInt32_2 = function (address) {
-        return this.u32[address];
-    };
+    FastMemoryBase.prototype.writeInt8 = function (address, value) { this.u8[(address & FastMemory.MASK) >> 0] = value; };
+    FastMemoryBase.prototype.writeInt16 = function (address, value) { this.u16[(address & FastMemory.MASK) >> 1] = value; };
+    FastMemoryBase.prototype.writeInt32 = function (address, value) { this.u32[(address & FastMemory.MASK) >> 2] = value; };
+    FastMemoryBase.prototype.writeFloat32 = function (address, value) { this.f32[(address & FastMemory.MASK) >> 2] = value; };
+    FastMemoryBase.prototype.readInt8 = function (address) { return this.s8[(address & FastMemory.MASK) >> 0]; };
+    FastMemoryBase.prototype.readUInt8 = function (address) { return this.u8[(address & FastMemory.MASK) >> 0]; };
+    FastMemoryBase.prototype.readInt16 = function (address) { return this.s16[(address & FastMemory.MASK) >> 1]; };
+    FastMemoryBase.prototype.readUInt16 = function (address) { return this.u16[(address & FastMemory.MASK) >> 1]; };
+    FastMemoryBase.prototype.readInt32 = function (address) { return this.s32[(address & FastMemory.MASK) >> 2]; };
+    FastMemoryBase.prototype.readUInt32 = function (address) { return this.u32[(address & FastMemory.MASK) >> 2]; };
+    FastMemoryBase.prototype.readFloat32 = function (address) { return this.f32[(address & FastMemory.MASK) >> 2]; };
+    FastMemoryBase.prototype.readUInt32_2 = function (address) { return this.u32[address]; };
     FastMemoryBase.prototype.slice = function (low, high) {
         low &= FastMemory.MASK;
         high &= FastMemory.MASK;
@@ -12543,45 +11043,20 @@ var LowMemorySegment = (function () {
         this.f32 = new Float32Array(this.buffer);
     }
     LowMemorySegment.prototype.contains = function (address) {
-        address &= FastMemory.MASK;
         return address >= this.low && address < this.high;
     };
-    LowMemorySegment.prototype.writeInt8 = function (address, value) {
-        this.u8[(address & FastMemory.MASK - this.offset) >> 0] = value;
-    };
-    LowMemorySegment.prototype.writeInt16 = function (address, value) {
-        this.u16[(address & FastMemory.MASK - this.offset) >> 1] = value;
-    };
-    LowMemorySegment.prototype.writeInt32 = function (address, value) {
-        this.u32[(address & FastMemory.MASK - this.offset) >> 2] = value;
-    };
-    LowMemorySegment.prototype.writeFloat32 = function (address, value) {
-        this.f32[(address & FastMemory.MASK - this.offset) >> 2] = value;
-    };
-    LowMemorySegment.prototype.readInt8 = function (address) {
-        return this.s8[(address & FastMemory.MASK - this.offset) >> 0];
-    };
-    LowMemorySegment.prototype.readUInt8 = function (address) {
-        return this.u8[(address & FastMemory.MASK - this.offset) >> 0];
-    };
-    LowMemorySegment.prototype.readInt16 = function (address) {
-        return this.s16[(address & FastMemory.MASK - this.offset) >> 1];
-    };
-    LowMemorySegment.prototype.readUInt16 = function (address) {
-        return this.u16[(address & FastMemory.MASK - this.offset) >> 1];
-    };
-    LowMemorySegment.prototype.readInt32 = function (address) {
-        return this.s32[(address & FastMemory.MASK - this.offset) >> 2];
-    };
-    LowMemorySegment.prototype.readUInt32 = function (address) {
-        return this.u32[(address & FastMemory.MASK - this.offset) >> 2];
-    };
-    LowMemorySegment.prototype.readFloat32 = function (address) {
-        return this.f32[(address & FastMemory.MASK - this.offset) >> 2];
-    };
-    LowMemorySegment.prototype.readUInt32_2 = function (address) {
-        return this.u32[address - this.offset4];
-    };
+    LowMemorySegment.prototype.writeInt8 = function (address, value) { this.u8[(address & FastMemory.MASK - this.offset) >> 0] = value; };
+    LowMemorySegment.prototype.writeInt16 = function (address, value) { this.u16[(address & FastMemory.MASK - this.offset) >> 1] = value; };
+    LowMemorySegment.prototype.writeInt32 = function (address, value) { this.u32[(address & FastMemory.MASK - this.offset) >> 2] = value; };
+    LowMemorySegment.prototype.writeFloat32 = function (address, value) { this.f32[(address & FastMemory.MASK - this.offset) >> 2] = value; };
+    LowMemorySegment.prototype.readInt8 = function (address) { return this.s8[(address & FastMemory.MASK - this.offset) >> 0]; };
+    LowMemorySegment.prototype.readUInt8 = function (address) { return this.u8[(address & FastMemory.MASK - this.offset) >> 0]; };
+    LowMemorySegment.prototype.readInt16 = function (address) { return this.s16[(address & FastMemory.MASK - this.offset) >> 1]; };
+    LowMemorySegment.prototype.readUInt16 = function (address) { return this.u16[(address & FastMemory.MASK - this.offset) >> 1]; };
+    LowMemorySegment.prototype.readInt32 = function (address) { return this.s32[(address & FastMemory.MASK - this.offset) >> 2]; };
+    LowMemorySegment.prototype.readUInt32 = function (address) { return this.u32[(address & FastMemory.MASK - this.offset) >> 2]; };
+    LowMemorySegment.prototype.readFloat32 = function (address) { return this.f32[(address & FastMemory.MASK - this.offset) >> 2]; };
+    LowMemorySegment.prototype.readUInt32_2 = function (address) { return this.u32[address - this.offset4]; };
     LowMemorySegment.prototype.slice = function (low, high) {
         low &= FastMemory.MASK;
         high &= FastMemory.MASK;
@@ -12601,51 +11076,33 @@ var LowMemoryBase = (function () {
         this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
     }
     LowMemoryBase.prototype.getMemRange = function (address) {
-        if (this.scratchpad.contains(address))
-            return this.scratchpad;
-        if (this.videomem.contains(address))
-            return this.videomem;
-        if (this.mainmem.contains(address))
+        address &= FastMemory.MASK;
+        if (address >= 0x08000000) {
             return this.mainmem;
-        printf("Unmapped: %08X", address);
-        return null;
+        }
+        else {
+            if (this.scratchpad.contains(address))
+                return this.scratchpad;
+            if (this.videomem.contains(address))
+                return this.videomem;
+            if (this.mainmem.contains(address))
+                return this.mainmem;
+            printf("Unmapped: %08X", address);
+            return null;
+        }
     };
-    LowMemoryBase.prototype.writeInt8 = function (address, value) {
-        this.getMemRange(address).writeInt8(address, value);
-    };
-    LowMemoryBase.prototype.writeInt16 = function (address, value) {
-        this.getMemRange(address).writeInt16(address, value);
-    };
-    LowMemoryBase.prototype.writeInt32 = function (address, value) {
-        this.getMemRange(address).writeInt32(address, value);
-    };
-    LowMemoryBase.prototype.writeFloat32 = function (address, value) {
-        this.getMemRange(address).writeFloat32(address, value);
-    };
-    LowMemoryBase.prototype.readInt8 = function (address) {
-        return this.getMemRange(address).readInt8(address);
-    };
-    LowMemoryBase.prototype.readUInt8 = function (address) {
-        return this.getMemRange(address).readUInt8(address);
-    };
-    LowMemoryBase.prototype.readInt16 = function (address) {
-        return this.getMemRange(address).readInt16(address);
-    };
-    LowMemoryBase.prototype.readUInt16 = function (address) {
-        return this.getMemRange(address).readUInt16(address);
-    };
-    LowMemoryBase.prototype.readInt32 = function (address) {
-        return this.getMemRange(address).readInt32(address);
-    };
-    LowMemoryBase.prototype.readUInt32 = function (address) {
-        return this.getMemRange(address).readUInt32(address);
-    };
-    LowMemoryBase.prototype.readFloat32 = function (address) {
-        return this.getMemRange(address).readFloat32(address);
-    };
-    LowMemoryBase.prototype.readUInt32_2 = function (address) {
-        return this.getMemRange(address).readUInt32_2(address);
-    };
+    LowMemoryBase.prototype.writeInt8 = function (address, value) { this.getMemRange(address).writeInt8(address, value); };
+    LowMemoryBase.prototype.writeInt16 = function (address, value) { this.getMemRange(address).writeInt16(address, value); };
+    LowMemoryBase.prototype.writeInt32 = function (address, value) { this.getMemRange(address).writeInt32(address, value); };
+    LowMemoryBase.prototype.writeFloat32 = function (address, value) { this.getMemRange(address).writeFloat32(address, value); };
+    LowMemoryBase.prototype.readInt8 = function (address) { return this.getMemRange(address).readInt8(address); };
+    LowMemoryBase.prototype.readUInt8 = function (address) { return this.getMemRange(address).readUInt8(address); };
+    LowMemoryBase.prototype.readInt16 = function (address) { return this.getMemRange(address).readInt16(address); };
+    LowMemoryBase.prototype.readUInt16 = function (address) { return this.getMemRange(address).readUInt16(address); };
+    LowMemoryBase.prototype.readInt32 = function (address) { return this.getMemRange(address).readInt32(address); };
+    LowMemoryBase.prototype.readUInt32 = function (address) { return this.getMemRange(address).readUInt32(address); };
+    LowMemoryBase.prototype.readFloat32 = function (address) { return this.getMemRange(address).readFloat32(address); };
+    LowMemoryBase.prototype.readUInt32_2 = function (address) { return this.getMemRange(address).readUInt32_2(address); };
     LowMemoryBase.prototype.slice = function (low, high) {
         return this.getMemRange(low).slice(low, high);
     };
@@ -12657,16 +11114,28 @@ var LowMemoryBase = (function () {
 function isNodeJs() {
     return typeof process != 'undefined';
 }
+function allowBigAlloc() {
+    try {
+        var ab = new ArrayBuffer(0x0a000000 + 4);
+        return true;
+    }
+    catch (e) {
+        return false;
+    }
+}
+function supportFastMemory() {
+    return !isNodeJs() && allowBigAlloc();
+}
 var FastMemory = (function () {
     function FastMemory() {
         this.invalidateDataRange = new Signal();
         this.invalidateDataAll = new Signal();
         this.writeBreakpoints = [];
-        if (isNodeJs()) {
-            this.base = new LowMemoryBase();
+        if (supportFastMemory()) {
+            this.base = new FastMemoryBase();
         }
         else {
-            this.base = new FastMemoryBase();
+            this.base = new LowMemoryBase();
         }
         this._updateWriteFunctions();
     }
@@ -12765,6 +11234,7 @@ var FastMemory = (function () {
         });
     };
     FastMemory.prototype.addBreakpointOnValue = function (address, value) {
+        //Watch: 0x0951044C < - 0x2A000000 
         var _this = this;
         this.addWriteAction(address, function (actualAddress) {
             var actualValue = _this.readUInt32(address);
@@ -12789,70 +11259,26 @@ var FastMemory = (function () {
             }
         }
     };
-    FastMemory.prototype._writeInt8 = function (address, value) {
-        this.base.writeInt8(address, value);
-    };
-    FastMemory.prototype._writeInt16 = function (address, value) {
-        this.base.writeInt16(address, value);
-    };
-    FastMemory.prototype._writeInt32 = function (address, value) {
-        this.base.writeInt32(address, value);
-    };
-    FastMemory.prototype._writeFloat32 = function (address, value) {
-        this.base.writeFloat32(address, value);
-    };
-    FastMemory.prototype._writeInt8_break = function (address, value) {
-        this._writeInt8(address, value);
-        this._checkWriteBreakpoints(address, address + 1);
-    };
-    FastMemory.prototype._writeInt16_break = function (address, value) {
-        this._writeInt16(address, value);
-        this._checkWriteBreakpoints(address, address + 2);
-    };
-    FastMemory.prototype._writeInt32_break = function (address, value) {
-        this._writeInt32(address, value);
-        this._checkWriteBreakpoints(address, address + 4);
-    };
-    FastMemory.prototype._writeFloat32_break = function (address, value) {
-        this._writeFloat32(address, value);
-        this._checkWriteBreakpoints(address, address + 4);
-    };
-    FastMemory.prototype.writeInt8 = function (address, value) {
-        this._writeInt8(address, value);
-    };
-    FastMemory.prototype.writeInt16 = function (address, value) {
-        this._writeInt16(address, value);
-    };
-    FastMemory.prototype.writeInt32 = function (address, value) {
-        this._writeInt32(address, value);
-    };
-    FastMemory.prototype.writeFloat32 = function (address, value) {
-        this._writeFloat32(address, value);
-    };
-    FastMemory.prototype.readInt8 = function (address) {
-        return this.base.readInt8(address);
-    };
-    FastMemory.prototype.readUInt8 = function (address) {
-        return this.base.readUInt8(address);
-    };
-    FastMemory.prototype.readInt16 = function (address) {
-        return this.base.readInt16(address);
-    };
-    FastMemory.prototype.readUInt16 = function (address) {
-        return this.base.readUInt16(address);
-    };
-    FastMemory.prototype.readInt32 = function (address) {
-        return this.base.readInt32(address);
-    };
-    FastMemory.prototype.readUInt32 = function (address) {
-        return this.base.readUInt32(address);
-    };
-    FastMemory.prototype.readFloat32 = function (address) {
-        return this.base.readFloat32(address);
-    };
-    FastMemory.prototype.readUInt32_2 = function (address) {
-        return this.base.readUInt32_2(address);
-    };
+    FastMemory.prototype._writeInt8 = function (address, value) { this.base.writeInt8(address, value); };
+    FastMemory.prototype._writeInt16 = function (address, value) { this.base.writeInt16(address, value); };
+    FastMemory.prototype._writeInt32 = function (address, value) { this.base.writeInt32(address, value); };
+    FastMemory.prototype._writeFloat32 = function (address, value) { this.base.writeFloat32(address, value); };
+    FastMemory.prototype._writeInt8_break = function (address, value) { this._writeInt8(address, value); this._checkWriteBreakpoints(address, address + 1); };
+    FastMemory.prototype._writeInt16_break = function (address, value) { this._writeInt16(address, value); this._checkWriteBreakpoints(address, address + 2); };
+    FastMemory.prototype._writeInt32_break = function (address, value) { this._writeInt32(address, value); this._checkWriteBreakpoints(address, address + 4); };
+    FastMemory.prototype._writeFloat32_break = function (address, value) { this._writeFloat32(address, value); this._checkWriteBreakpoints(address, address + 4); };
+    FastMemory.prototype.writeInt8 = function (address, value) { this._writeInt8(address, value); };
+    FastMemory.prototype.writeInt16 = function (address, value) { this._writeInt16(address, value); };
+    FastMemory.prototype.writeInt32 = function (address, value) { this._writeInt32(address, value); };
+    FastMemory.prototype.writeFloat32 = function (address, value) { this._writeFloat32(address, value); };
+    FastMemory.prototype.readInt8 = function (address) { return this.base.readInt8(address); };
+    FastMemory.prototype.readUInt8 = function (address) { return this.base.readUInt8(address); };
+    FastMemory.prototype.readInt16 = function (address) { return this.base.readInt16(address); };
+    FastMemory.prototype.readUInt16 = function (address) { return this.base.readUInt16(address); };
+    FastMemory.prototype.readInt32 = function (address) { return this.base.readInt32(address); };
+    FastMemory.prototype.readUInt32 = function (address) { return this.base.readUInt32(address); };
+    FastMemory.prototype.readFloat32 = function (address) { return this.base.readFloat32(address); };
+    FastMemory.prototype.readUInt32_2 = function (address) { return this.base.readUInt32_2(address); };
     FastMemory.prototype.readArrayBuffer = function (address, length) {
         var out = new Uint8Array(length);
         out.set(this.getPointerU8Array(address, length));
@@ -12967,13 +11393,14 @@ exports.Memory = Memory;
 
 },
 "src/core/pixelformat": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _memory = require('./memory');
 var Memory = _memory.Memory;
 var PixelFormatUtils = (function () {
     function PixelFormatUtils() {
     }
     PixelFormatUtils.hasClut = function (pixelFormat) {
-        return ((pixelFormat >= 4 /* PALETTE_T4 */) && (pixelFormat <= 7 /* PALETTE_T32 */));
+        return ((pixelFormat >= PixelFormat.PALETTE_T4) && (pixelFormat <= PixelFormat.PALETTE_T32));
     };
     return PixelFormatUtils;
 })();
@@ -12994,18 +11421,18 @@ exports.PixelFormatUtils = PixelFormatUtils;
 })(exports.PixelFormat || (exports.PixelFormat = {}));
 var PixelFormat = exports.PixelFormat;
 var sizes = {};
-sizes[8 /* COMPRESSED_DXT1 */] = 0.5;
-sizes[9 /* COMPRESSED_DXT3 */] = 1;
-sizes[10 /* COMPRESSED_DXT5 */] = 1;
-sizes[-1 /* NONE */] = 0;
-sizes[6 /* PALETTE_T16 */] = 2;
-sizes[7 /* PALETTE_T32 */] = 4;
-sizes[5 /* PALETTE_T8 */] = 1;
-sizes[4 /* PALETTE_T4 */] = 0.5;
-sizes[2 /* RGBA_4444 */] = 2;
-sizes[1 /* RGBA_5551 */] = 2;
-sizes[0 /* RGBA_5650 */] = 2;
-sizes[3 /* RGBA_8888 */] = 4;
+sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
+sizes[PixelFormat.COMPRESSED_DXT3] = 1;
+sizes[PixelFormat.COMPRESSED_DXT5] = 1;
+sizes[PixelFormat.NONE] = 0;
+sizes[PixelFormat.PALETTE_T16] = 2;
+sizes[PixelFormat.PALETTE_T32] = 4;
+sizes[PixelFormat.PALETTE_T8] = 1;
+sizes[PixelFormat.PALETTE_T4] = 0.5;
+sizes[PixelFormat.RGBA_4444] = 2;
+sizes[PixelFormat.RGBA_5551] = 2;
+sizes[PixelFormat.RGBA_5650] = 2;
+sizes[PixelFormat.RGBA_8888] = 4;
 var PixelConverter = (function () {
     function PixelConverter() {
     }
@@ -13049,26 +11476,25 @@ var PixelConverter = (function () {
         var from = fromArray.buffer;
         var fromIndex = fromArray.byteOffset;
         switch (format) {
-            case 3 /* RGBA_8888 */:
+            case PixelFormat.RGBA_8888:
                 PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha);
                 break;
-            case 1 /* RGBA_5551 */:
+            case PixelFormat.RGBA_5551:
                 PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
                 break;
-            case 0 /* RGBA_5650 */:
+            case PixelFormat.RGBA_5650:
                 PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
                 break;
-            case 2 /* RGBA_4444 */:
+            case PixelFormat.RGBA_4444:
                 PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
                 break;
-            case 5 /* PALETTE_T8 */:
+            case PixelFormat.PALETTE_T8:
                 PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
                 break;
-            case 4 /* PALETTE_T4 */:
+            case PixelFormat.PALETTE_T4:
                 PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
                 break;
-            default:
-                throw (new Error(sprintf("Unsupported pixel format %d", format)));
+            default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
         }
     };
     PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
@@ -13161,6 +11587,7 @@ exports.PixelConverter = PixelConverter;
 
 },
 "src/core/rtc": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var PspRtc = (function () {
     function PspRtc() {
     }
@@ -13189,6 +11616,7 @@ exports.MemoryAsyncStream2 = MemoryAsyncStream;
 
 },
 "src/emulator": function(module, exports, require) {
+///<reference path="global.d.ts" />
 var _context = require('./context');
 var _cpu = require('./core/cpu');
 var _gpu = require('./core/gpu');
@@ -13376,7 +11804,7 @@ var Emulator = (function () {
                         mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
                         var availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(function (item) { return zip.has(item); });
                         console.log('elf: ' + availableElf);
-                        return zipFs.openAsync(availableElf, 1 /* Read */, parseInt('0777', 8)).then(function (node) {
+                        return zipFs.openAsync(availableElf, FileOpenFlags.Read, parseInt('0777', 8)).then(function (node) {
                             return node.readAllAsync().then(function (data) {
                                 return _this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'ms0:/PSP/GAME/virtual/EBOOT.ELF');
                             });
@@ -13401,14 +11829,8 @@ var Emulator = (function () {
                                 return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(function (paramSfoData) {
                                     var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
                                     _this.processParamsPsf(psf);
-                                    var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (data) {
-                                        _this.loadIcon0(Stream.fromArrayBuffer(data));
-                                    }).catch(function () {
-                                    });
-                                    var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (data) {
-                                        _this.loadPic1(Stream.fromArrayBuffer(data));
-                                    }).catch(function () {
-                                    });
+                                    var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(function (data) { _this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(function () { });
+                                    var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(function (data) { _this.loadPic1(Stream.fromArrayBuffer(data)); }).catch(function () { });
                                     return isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN').then(function (exists) {
                                         var path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
                                         return isoFs.readAllAsync(path).then(function (bootBinData) {
@@ -13544,15 +11966,14 @@ exports.Emulator = Emulator;
 
 },
 "src/format/cso": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var zlib = require('./zlib');
 var CSO_MAGIC = 'CISO';
 var Header = (function () {
     function Header() {
     }
     Object.defineProperty(Header.prototype, "numberOfBlocks", {
-        get: function () {
-            return Math.floor(this.totalBytes / this.blockSize);
-        },
+        get: function () { return Math.floor(this.totalBytes / this.blockSize); },
         enumerable: true,
         configurable: true
     });
@@ -13576,16 +11997,12 @@ var Cso = (function () {
         return new Cso().loadAsync(stream);
     };
     Object.defineProperty(Cso.prototype, "name", {
-        get: function () {
-            return this.stream.name;
-        },
+        get: function () { return this.stream.name; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Cso.prototype, "size", {
-        get: function () {
-            return this.header.totalBytes;
-        },
+        get: function () { return this.header.totalBytes; },
         enumerable: true,
         configurable: true
     });
@@ -13646,6 +12063,7 @@ exports.Cso = Cso;
 
 },
 "src/format/elf": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _memory = require('../core/memory');
 var Memory = _memory.Memory;
 var console = logger.named('elf');
@@ -13661,14 +12079,14 @@ var ElfHeader = (function () {
     });
     Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
         get: function () {
-            return this.machine == 8 /* ALLEGREX */;
+            return this.machine == ElfMachine.ALLEGREX;
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfHeader.prototype, "hasValidType", {
         get: function () {
-            return [2 /* Executable */, 65440 /* Prx */].indexOf(this.type) >= 0;
+            return [ElfType.Executable, ElfType.Prx].indexOf(this.type) >= 0;
         },
         enumerable: true,
         configurable: true
@@ -13734,8 +12152,8 @@ exports.ElfSectionHeader = ElfSectionHeader;
 (function (ElfProgramHeaderType) {
     ElfProgramHeaderType[ElfProgramHeaderType["NoLoad"] = 0] = "NoLoad";
     ElfProgramHeaderType[ElfProgramHeaderType["Load"] = 1] = "Load";
-    ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 0x700000A0] = "Reloc1";
-    ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 0x700000A1] = "Reloc2";
+    ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 1879048352] = "Reloc1";
+    ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 1879048353] = "Reloc2";
 })(exports.ElfProgramHeaderType || (exports.ElfProgramHeaderType = {}));
 var ElfProgramHeaderType = exports.ElfProgramHeaderType;
 (function (ElfSectionHeaderType) {
@@ -13751,12 +12169,12 @@ var ElfProgramHeaderType = exports.ElfProgramHeaderType;
     ElfSectionHeaderType[ElfSectionHeaderType["Relocation"] = 9] = "Relocation";
     ElfSectionHeaderType[ElfSectionHeaderType["SHLIB"] = 10] = "SHLIB";
     ElfSectionHeaderType[ElfSectionHeaderType["DYNSYM"] = 11] = "DYNSYM";
-    ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 0x70000000] = "LOPROC";
-    ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 0x7FFFFFFF] = "HIPROC";
-    ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 0x80000000] = "LOUSER";
-    ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 0xFFFFFFFF] = "HIUSER";
-    ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = (ElfSectionHeaderType.LOPROC | 0xA0)] = "PrxRelocation";
-    ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = (ElfSectionHeaderType.LOPROC | 0xA1)] = "PrxRelocation_FW5";
+    ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 1879048192] = "LOPROC";
+    ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 2147483647] = "HIPROC";
+    ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 2147483648] = "LOUSER";
+    ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 4294967295] = "HIUSER";
+    ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = 1879048352] = "PrxRelocation";
+    ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = 1879048353] = "PrxRelocation_FW5";
 })(exports.ElfSectionHeaderType || (exports.ElfSectionHeaderType = {}));
 var ElfSectionHeaderType = exports.ElfSectionHeaderType;
 (function (ElfSectionHeaderFlags) {
@@ -13767,14 +12185,14 @@ var ElfSectionHeaderType = exports.ElfSectionHeaderType;
 })(exports.ElfSectionHeaderFlags || (exports.ElfSectionHeaderFlags = {}));
 var ElfSectionHeaderFlags = exports.ElfSectionHeaderFlags;
 (function (ElfProgramHeaderFlags) {
-    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 0x1] = "Executable";
-    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 0x2] = "Writable";
-    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 0x4] = "Readable";
+    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 1] = "Executable";
+    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 2] = "Writable";
+    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 4] = "Readable";
 })(exports.ElfProgramHeaderFlags || (exports.ElfProgramHeaderFlags = {}));
 var ElfProgramHeaderFlags = exports.ElfProgramHeaderFlags;
 (function (ElfType) {
-    ElfType[ElfType["Executable"] = 0x0002] = "Executable";
-    ElfType[ElfType["Prx"] = 0xFFA0] = "Prx";
+    ElfType[ElfType["Executable"] = 2] = "Executable";
+    ElfType[ElfType["Prx"] = 65440] = "Prx";
 })(exports.ElfType || (exports.ElfType = {}));
 var ElfType = exports.ElfType;
 (function (ElfMachine) {
@@ -13782,24 +12200,24 @@ var ElfType = exports.ElfType;
 })(exports.ElfMachine || (exports.ElfMachine = {}));
 var ElfMachine = exports.ElfMachine;
 (function (ElfPspModuleFlags) {
-    ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0x0000] = "User";
-    ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 0x1000] = "Kernel";
+    ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0] = "User";
+    ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 4096] = "Kernel";
 })(exports.ElfPspModuleFlags || (exports.ElfPspModuleFlags = {}));
 var ElfPspModuleFlags = exports.ElfPspModuleFlags;
 (function (ElfPspLibFlags) {
-    ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 0x0001] = "DirectJump";
-    ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 0x4000] = "Syscall";
-    ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 0x8000] = "SysLib";
+    ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 1] = "DirectJump";
+    ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 16384] = "Syscall";
+    ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 32768] = "SysLib";
 })(exports.ElfPspLibFlags || (exports.ElfPspLibFlags = {}));
 var ElfPspLibFlags = exports.ElfPspLibFlags;
 (function (ElfPspModuleNids) {
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 0xF01D73A7] = "MODULE_INFO";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 0xD3744BE0] = "MODULE_BOOTSTART";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 0x2F064FA6] = "MODULE_REBOOT_BEFORE";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 0xD632ACDB] = "MODULE_START";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 0x0F7C276C] = "MODULE_START_THREAD_PARAMETER";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 0xCEE8593C] = "MODULE_STOP";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 0xCF0CC697] = "MODULE_STOP_THREAD_PARAMETER";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 4028461991] = "MODULE_INFO";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 3547614176] = "MODULE_BOOTSTART";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 788942758] = "MODULE_REBOOT_BEFORE";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 3593645275] = "MODULE_START";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 259794796] = "MODULE_START_THREAD_PARAMETER";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 3471333692] = "MODULE_STOP";
+    ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 3473720983] = "MODULE_STOP_THREAD_PARAMETER";
 })(exports.ElfPspModuleNids || (exports.ElfPspModuleNids = {}));
 var ElfPspModuleNids = exports.ElfPspModuleNids;
 (function (ElfRelocType) {
@@ -13816,30 +12234,24 @@ var ElfPspModuleNids = exports.ElfPspModuleNids;
     ElfRelocType[ElfRelocType["MipsPc16"] = 10] = "MipsPc16";
     ElfRelocType[ElfRelocType["MipsCall16"] = 11] = "MipsCall16";
     ElfRelocType[ElfRelocType["MipsGpRel32"] = 12] = "MipsGpRel32";
-    ElfRelocType[ElfRelocType["StopRelocation"] = 0xFF] = "StopRelocation";
+    ElfRelocType[ElfRelocType["StopRelocation"] = 255] = "StopRelocation";
 })(exports.ElfRelocType || (exports.ElfRelocType = {}));
 var ElfRelocType = exports.ElfRelocType;
 var ElfReloc = (function () {
     function ElfReloc() {
     }
     Object.defineProperty(ElfReloc.prototype, "pointeeSectionHeaderBase", {
-        get: function () {
-            return (this.info >> 16) & 0xFF;
-        },
+        get: function () { return (this.info >> 16) & 0xFF; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfReloc.prototype, "pointerSectionHeaderBase", {
-        get: function () {
-            return (this.info >> 8) & 0xFF;
-        },
+        get: function () { return (this.info >> 8) & 0xFF; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfReloc.prototype, "type", {
-        get: function () {
-            return ((this.info >> 0) & 0xFF);
-        },
+        get: function () { return ((this.info >> 0) & 0xFF); },
         enumerable: true,
         configurable: true
     });
@@ -13869,7 +12281,7 @@ var ElfLoader = (function () {
         this.sectionHeaders.forEach(function (sectionHeader) {
             var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
             sectionHeader.name = name;
-            if (sectionHeader.type != 0 /* Null */) {
+            if (sectionHeader.type != ElfSectionHeaderType.Null) {
                 sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
             }
             _this.sectionHeadersByName[name] = sectionHeader;
@@ -13892,8 +12304,8 @@ var ElfLoader = (function () {
     };
     ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
         switch (sectionHeader.type) {
-            case 8 /* NoBits */:
-            case 0 /* Null */:
+            case ElfSectionHeaderType.NoBits:
+            case ElfSectionHeaderType.Null:
                 return this.stream.sliceWithLength(0, 0);
                 break;
             default:
@@ -13906,16 +12318,12 @@ var ElfLoader = (function () {
         return elf;
     };
     Object.defineProperty(ElfLoader.prototype, "isPrx", {
-        get: function () {
-            return (this.header.type & 65440 /* Prx */) != 0;
-        },
+        get: function () { return (this.header.type & ElfType.Prx) != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfLoader.prototype, "needsRelocation", {
-        get: function () {
-            return this.isPrx || (this.header.entryPoint < Memory.MAIN_OFFSET);
-        },
+        get: function () { return this.isPrx || (this.header.entryPoint < Memory.MAIN_OFFSET); },
         enumerable: true,
         configurable: true
     });
@@ -13925,6 +12333,7 @@ exports.ElfLoader = ElfLoader;
 
 },
 "src/format/elf_dwarf": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var console = logger.named('elf.dwarf');
 var Uleb128Class = (function () {
     function Uleb128Class() {
@@ -13942,9 +12351,7 @@ var Uleb128Class = (function () {
         throw (new Error("Not implemented"));
     };
     Object.defineProperty(Uleb128Class.prototype, "length", {
-        get: function () {
-            return 0;
-        },
+        get: function () { return 0; },
         enumerable: true,
         configurable: true
     });
@@ -13955,9 +12362,7 @@ var ElfDwarfHeader = (function () {
     function ElfDwarfHeader() {
     }
     Object.defineProperty(ElfDwarfHeader.prototype, "total_length_real", {
-        get: function () {
-            return this.total_length + 4;
-        },
+        get: function () { return this.total_length + 4; },
         enumerable: true,
         configurable: true
     });
@@ -14028,51 +12433,37 @@ var ElfSymbol = (function () {
         this.shndx = 0;
     }
     Object.defineProperty(ElfSymbol.prototype, "type", {
-        get: function () {
-            return BitUtils.extract(this.info, 0, 4);
-        },
+        get: function () { return BitUtils.extract(this.info, 0, 4); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfSymbol.prototype, "bind", {
-        get: function () {
-            return BitUtils.extract(this.info, 4, 4);
-        },
+        get: function () { return BitUtils.extract(this.info, 4, 4); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfSymbol.prototype, "typeName", {
-        get: function () {
-            return SymInfoType[this.type];
-        },
+        get: function () { return SymInfoType[this.type]; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfSymbol.prototype, "bindName", {
-        get: function () {
-            return SymInfoBind[this.bind];
-        },
+        get: function () { return SymInfoBind[this.bind]; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfSymbol.prototype, "address", {
-        get: function () {
-            return this.value;
-        },
+        get: function () { return this.value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfSymbol.prototype, "low", {
-        get: function () {
-            return this.value;
-        },
+        get: function () { return this.value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfSymbol.prototype, "high", {
-        get: function () {
-            return this.value + this.size;
-        },
+        get: function () { return this.value + this.size; },
         enumerable: true,
         configurable: true
     });
@@ -14186,6 +12577,7 @@ exports.ElfDwarfLoader = ElfDwarfLoader;
 
 },
 "src/format/format": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 function detectFormatAsync(asyncStream) {
     return asyncStream.readChunkAsync(0, 4).then(function (data) {
         var stream = Stream.fromArrayBuffer(data);
@@ -14199,14 +12591,10 @@ function detectFormatAsync(asyncStream) {
             case 'PK\u0003\u0004':
             case 'PK\u0005\u0006':
                 return 'zip';
-            case '\u0000PBP':
-                return 'pbp';
-            case '\u007FELF':
-                return 'elf';
-            case '~PSP':
-                return 'psp';
-            case 'CISO':
-                return 'ciso';
+            case '\u0000PBP': return 'pbp';
+            case '\u007FELF': return 'elf';
+            case '~PSP': return 'psp';
+            case 'CISO': return 'ciso';
             case '\u0000\u0000\u0000\u0000':
                 return asyncStream.readChunkAsync(0x10 * 0x800, 6).then(function (data) {
                     var stream = Stream.fromArrayBuffer(data);
@@ -14228,6 +12616,7 @@ exports.detectFormatAsync = detectFormatAsync;
 
 },
 "src/format/iso": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var SECTOR_SIZE = 0x800;
 var DirectoryRecordDate = (function () {
     function DirectoryRecordDate() {
@@ -14261,58 +12650,42 @@ var IsoStringDate = (function () {
     function IsoStringDate() {
     }
     Object.defineProperty(IsoStringDate.prototype, "year", {
-        get: function () {
-            return parseInt(this.data.substr(0, 4));
-        },
+        get: function () { return parseInt(this.data.substr(0, 4)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "month", {
-        get: function () {
-            return parseInt(this.data.substr(4, 2));
-        },
+        get: function () { return parseInt(this.data.substr(4, 2)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "day", {
-        get: function () {
-            return parseInt(this.data.substr(6, 2));
-        },
+        get: function () { return parseInt(this.data.substr(6, 2)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "hour", {
-        get: function () {
-            return parseInt(this.data.substr(8, 2));
-        },
+        get: function () { return parseInt(this.data.substr(8, 2)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "minute", {
-        get: function () {
-            return parseInt(this.data.substr(10, 2));
-        },
+        get: function () { return parseInt(this.data.substr(10, 2)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "second", {
-        get: function () {
-            return parseInt(this.data.substr(12, 2));
-        },
+        get: function () { return parseInt(this.data.substr(12, 2)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "hsecond", {
-        get: function () {
-            return parseInt(this.data.substr(14, 2));
-        },
+        get: function () { return parseInt(this.data.substr(14, 2)); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoStringDate.prototype, "offset", {
-        get: function () {
-            return parseInt(this.data.substr(16, 1));
-        },
+        get: function () { return parseInt(this.data.substr(16, 1)); },
         enumerable: true,
         configurable: true
     });
@@ -14323,11 +12696,11 @@ var IsoStringDate = (function () {
 })();
 var VolumeDescriptorHeaderType;
 (function (VolumeDescriptorHeaderType) {
-    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["BootRecord"] = 0x00] = "BootRecord";
-    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionSetTerminator"] = 0xFF] = "VolumePartitionSetTerminator";
-    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["PrimaryVolumeDescriptor"] = 0x01] = "PrimaryVolumeDescriptor";
-    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["SupplementaryVolumeDescriptor"] = 0x02] = "SupplementaryVolumeDescriptor";
-    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionDescriptor"] = 0x03] = "VolumePartitionDescriptor";
+    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["BootRecord"] = 0] = "BootRecord";
+    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionSetTerminator"] = 255] = "VolumePartitionSetTerminator";
+    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["PrimaryVolumeDescriptor"] = 1] = "PrimaryVolumeDescriptor";
+    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["SupplementaryVolumeDescriptor"] = 2] = "SupplementaryVolumeDescriptor";
+    VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["VolumePartitionDescriptor"] = 3] = "VolumePartitionDescriptor";
 })(VolumeDescriptorHeaderType || (VolumeDescriptorHeaderType = {}));
 var VolumeDescriptorHeader = (function () {
     function VolumeDescriptorHeader() {
@@ -14341,12 +12714,12 @@ var VolumeDescriptorHeader = (function () {
 })();
 var DirectoryRecordFlags;
 (function (DirectoryRecordFlags) {
-    DirectoryRecordFlags[DirectoryRecordFlags["Unknown1"] = 1 << 0] = "Unknown1";
-    DirectoryRecordFlags[DirectoryRecordFlags["Directory"] = 1 << 1] = "Directory";
-    DirectoryRecordFlags[DirectoryRecordFlags["Unknown2"] = 1 << 2] = "Unknown2";
-    DirectoryRecordFlags[DirectoryRecordFlags["Unknown3"] = 1 << 3] = "Unknown3";
-    DirectoryRecordFlags[DirectoryRecordFlags["Unknown4"] = 1 << 4] = "Unknown4";
-    DirectoryRecordFlags[DirectoryRecordFlags["Unknown5"] = 1 << 5] = "Unknown5";
+    DirectoryRecordFlags[DirectoryRecordFlags["Unknown1"] = 1] = "Unknown1";
+    DirectoryRecordFlags[DirectoryRecordFlags["Directory"] = 2] = "Directory";
+    DirectoryRecordFlags[DirectoryRecordFlags["Unknown2"] = 4] = "Unknown2";
+    DirectoryRecordFlags[DirectoryRecordFlags["Unknown3"] = 8] = "Unknown3";
+    DirectoryRecordFlags[DirectoryRecordFlags["Unknown4"] = 16] = "Unknown4";
+    DirectoryRecordFlags[DirectoryRecordFlags["Unknown5"] = 32] = "Unknown5";
 })(DirectoryRecordFlags || (DirectoryRecordFlags = {}));
 var DirectoryRecord = (function () {
     function DirectoryRecord() {
@@ -14363,16 +12736,12 @@ var DirectoryRecord = (function () {
         this.name = '';
     }
     Object.defineProperty(DirectoryRecord.prototype, "offset", {
-        get: function () {
-            return this.extent * SECTOR_SIZE;
-        },
+        get: function () { return this.extent * SECTOR_SIZE; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(DirectoryRecord.prototype, "isDirectory", {
-        get: function () {
-            return (this.flags & DirectoryRecordFlags.Directory) != 0;
-        },
+        get: function () { return (this.flags & DirectoryRecordFlags.Directory) != 0; },
         enumerable: true,
         configurable: true
     });
@@ -14439,51 +12808,37 @@ var IsoNode = (function () {
         this.childsByName = {};
     }
     Object.defineProperty(IsoNode.prototype, "isRoot", {
-        get: function () {
-            return this.parent == null;
-        },
+        get: function () { return this.parent == null; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoNode.prototype, "size", {
-        get: function () {
-            return this.directoryRecord.size;
-        },
+        get: function () { return this.directoryRecord.size; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoNode.prototype, "path", {
-        get: function () {
-            return (this.parent && !this.parent.isRoot) ? (this.parent.path + '/' + this.name) : this.name;
-        },
+        get: function () { return (this.parent && !this.parent.isRoot) ? (this.parent.path + '/' + this.name) : this.name; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoNode.prototype, "name", {
-        get: function () {
-            return this.directoryRecord.name;
-        },
+        get: function () { return this.directoryRecord.name; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoNode.prototype, "isDirectory", {
-        get: function () {
-            return this.directoryRecord.isDirectory;
-        },
+        get: function () { return this.directoryRecord.isDirectory; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoNode.prototype, "date", {
-        get: function () {
-            return this.directoryRecord.date.date;
-        },
+        get: function () { return this.directoryRecord.date.date; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoNode.prototype, "extent", {
-        get: function () {
-            return this.directoryRecord.extent;
-        },
+        get: function () { return this.directoryRecord.extent; },
         enumerable: true,
         configurable: true
     });
@@ -14507,30 +12862,22 @@ var Iso = (function () {
         this.date = new Date();
     }
     Object.defineProperty(Iso.prototype, "name", {
-        get: function () {
-            return this.asyncStream.name;
-        },
+        get: function () { return this.asyncStream.name; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Iso.prototype, "root", {
-        get: function () {
-            return this._root;
-        },
+        get: function () { return this._root; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Iso.prototype, "childrenByPath", {
-        get: function () {
-            return this._childrenByPath;
-        },
+        get: function () { return this._childrenByPath; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Iso.prototype, "children", {
-        get: function () {
-            return this._children.slice(0);
-        },
+        get: function () { return this._children.slice(0); },
         enumerable: true,
         configurable: true
     });
@@ -14558,9 +12905,7 @@ var Iso = (function () {
         return node;
     };
     Object.defineProperty(Iso.prototype, "size", {
-        get: function () {
-            return this.asyncStream.size;
-        },
+        get: function () { return this.asyncStream.size; },
         enumerable: true,
         configurable: true
     });
@@ -14576,7 +12921,7 @@ var Iso = (function () {
         return asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800).then(function (arrayBuffer) {
             var stream = Stream.fromArrayBuffer(arrayBuffer);
             var pvd = PrimaryVolumeDescriptor.struct.read(stream);
-            if (pvd.header.type != 1 /* PrimaryVolumeDescriptor */)
+            if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor)
                 throw ("Not an ISO file");
             if (pvd.header.id != 'CD001')
                 throw ("Not an ISO file");
@@ -14624,9 +12969,10 @@ exports.Iso = Iso;
 
 },
 "src/format/pbp": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var PbpMagic;
 (function (PbpMagic) {
-    PbpMagic[PbpMagic["expected"] = 0x50425000] = "expected";
+    PbpMagic[PbpMagic["expected"] = 1346523136] = "expected";
 })(PbpMagic || (PbpMagic = {}));
 var PbpHeader = (function () {
     function PbpHeader() {
@@ -14663,7 +13009,7 @@ var Pbp = (function () {
     Pbp.prototype.load = function (stream) {
         this.stream = stream;
         this.header = PbpHeader.struct.read(stream);
-        if (this.header.magic != 1346523136 /* expected */)
+        if (this.header.magic != PbpMagic.expected)
             throw ("Not a PBP file");
         this.header.offsets.push(stream.length);
     };
@@ -14682,6 +13028,7 @@ exports.Pbp = Pbp;
 
 },
 "src/format/psf": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var DataType;
 (function (DataType) {
     DataType[DataType["Binary"] = 0] = "Binary";
@@ -14736,17 +13083,16 @@ var Psf = (function () {
             var valueStream = valuesStream.sliceWithLength(entry.valueOffset, entry.valueSize);
             entry.key = key;
             switch (entry.dataType) {
-                case 0 /* Binary */:
+                case DataType.Binary:
                     entry.value = valueStream.sliceWithLength(0);
                     break;
-                case 4 /* Int */:
+                case DataType.Int:
                     entry.value = valueStream.readInt32();
                     break;
-                case 2 /* Text */:
+                case DataType.Text:
                     entry.value = valueStream.readUtf8Stringz();
                     break;
-                default:
-                    throw (sprintf("Unknown dataType: %s", entry.dataType));
+                default: throw (sprintf("Unknown dataType: %s", entry.dataType));
             }
             entriesByName[entry.key] = entry.value;
         });
@@ -14759,6 +13105,7 @@ exports.Psf = Psf;
 
 },
 "src/format/riff": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var Riff = (function () {
     function Riff() {
         this.handlers = {};
@@ -14804,6 +13151,7 @@ exports.Riff = Riff;
 
 },
 "src/format/vag": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _audio = require('../core/audio');
 var Sample = _audio.Sample;
 var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];
@@ -14822,9 +13170,7 @@ var VagDecoder = (function () {
         this.reset();
     }
     Object.defineProperty(VagDecoder.prototype, "hasMore", {
-        get: function () {
-            return !this.reachedEnd;
-        },
+        get: function () { return !this.reachedEnd; },
         enumerable: true,
         configurable: true
     });
@@ -14848,12 +13194,12 @@ var VagDecoder = (function () {
         this.currentState.blockIndex++;
         var block = this.blockStream.readBytes(16);
         switch (block[1]) {
-            case 6 /* LOOP_START */:
+            case VagBlockType.LOOP_START:
                 var copyState = this.currentState.clone();
                 copyState.blockIndex--;
                 this.loopStack.push(copyState);
                 break;
-            case 3 /* LOOP_END */:
+            case VagBlockType.LOOP_END:
                 if (this.currentLoopCount++ < this.totalLoopCount) {
                     this.currentState = this.loopStack.pop();
                 }
@@ -14861,7 +13207,7 @@ var VagDecoder = (function () {
                     this.loopStack.pop();
                 }
                 break;
-            case 7 /* END */:
+            case VagBlockType.END:
                 this.reachedEnd = true;
                 return;
         }
@@ -14979,6 +13325,7 @@ var VagState = (function () {
 
 },
 "src/format/zip": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var zlib = require('./zlib');
 var ZipEntry = (function () {
     function ZipEntry(zip, name, parent) {
@@ -15061,9 +13408,9 @@ var ZipEntry = (function () {
             return Promise.resolve(this.uncompressedData);
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
-                case 8 /* DEFLATE */:
+                case ZipCompressionType.DEFLATE:
                     return zlib.inflate_raw(data);
-                case 0 /* STORED */:
+                case ZipCompressionType.STORED:
                     return data;
                 default:
                     throw (new Error("Unsupported compression type '" + _this.compressionType + "'"));
@@ -15129,6 +13476,7 @@ var Zip = (function () {
         }
     };
     Zip.fromStreamAsync = function (zipStream) {
+        //console.info('zipStream', zipStream);
         return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then(function (data) {
             var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
             return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then(function (data) {
@@ -15306,7 +13654,8 @@ u.prototype.u = function () {
                     throw Error("input buffer is broken");
                 switch (this.i) {
                     case w:
-                        for (; d + g > c.length;) {
+                        for (; d +
+                            g > c.length;) {
                             m = k - d;
                             g -= m;
                             c.set(e.subarray(a, a + m), d), d += m, a += m;
@@ -15341,7 +13690,9 @@ u.prototype.u = function () {
     }
     return this.m();
 };
-var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], C = new Uint16Array(B), D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258], E = new Uint16Array(D), F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0], G = new Uint8Array(F), H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577], I = new Uint16Array(H), K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13], L = new Uint8Array(K), M = new Uint8Array(288), N, O;
+var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], C = new Uint16Array(B), D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258], E = new Uint16Array(D), F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0], G = new Uint8Array(F), H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577], I = new Uint16Array(H), K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13,
+    13
+], L = new Uint8Array(K), M = new Uint8Array(288), N, O;
 N = 0;
 for (O = M.length; N < O; ++N)
     M[N] = 143 >= N ? 8 : 255 >= N ? 9 : 279 >= N ? 7 : 8;
@@ -15517,435 +13868,423 @@ exports.inflate_raw_arraybuffer = inflate_raw_arraybuffer;
 "src/hle/SceKernelErrors": function(module, exports, require) {
 var SceKernelErrors;
 (function (SceKernelErrors) {
-    SceKernelErrors[SceKernelErrors["ERROR_OK"] = 0x00000000] = "ERROR_OK";
-    SceKernelErrors[SceKernelErrors["ERROR_ERROR"] = 0x80020001] = "ERROR_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_NOTIMP"] = 0x80020002] = "ERROR_NOTIMP";
-    SceKernelErrors[SceKernelErrors["ERROR_ALREADY"] = 0x80000020] = "ERROR_ALREADY";
-    SceKernelErrors[SceKernelErrors["ERROR_BUSY"] = 0x80000021] = "ERROR_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_OUT_OF_MEMORY"] = 0x80000022] = "ERROR_OUT_OF_MEMORY";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_ID"] = 0x80000100] = "ERROR_INVALID_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_NAME"] = 0x80000101] = "ERROR_INVALID_NAME";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_INDEX"] = 0x80000102] = "ERROR_INVALID_INDEX";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_POINTER"] = 0x80000103] = "ERROR_INVALID_POINTER";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_SIZE"] = 0x80000104] = "ERROR_INVALID_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_FLAG"] = 0x80000105] = "ERROR_INVALID_FLAG";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_COMMAND"] = 0x80000106] = "ERROR_INVALID_COMMAND";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_MODE"] = 0x80000107] = "ERROR_INVALID_MODE";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_FORMAT"] = 0x80000108] = "ERROR_INVALID_FORMAT";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_VALUE"] = 0x800001FE] = "ERROR_INVALID_VALUE";
-    SceKernelErrors[SceKernelErrors["ERROR_INVALID_ARGUMENT"] = 0x800001FF] = "ERROR_INVALID_ARGUMENT";
-    SceKernelErrors[SceKernelErrors["ERROR_BAD_FILE"] = 0x80000209] = "ERROR_BAD_FILE";
-    SceKernelErrors[SceKernelErrors["ERROR_ACCESS_ERROR"] = 0x8000020D] = "ERROR_ACCESS_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_OPERATION_NOT_PERMITTED"] = 0x80010001] = "ERROR_ERRNO_OPERATION_NOT_PERMITTED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_NOT_FOUND"] = 0x80010002] = "ERROR_ERRNO_FILE_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_OPEN_ERROR"] = 0x80010003] = "ERROR_ERRNO_FILE_OPEN_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IO_ERROR"] = 0x80010005] = "ERROR_ERRNO_IO_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ARG_LIST_TOO_LONG"] = 0x80010007] = "ERROR_ERRNO_ARG_LIST_TOO_LONG";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FILE_DESCRIPTOR"] = 0x80010009] = "ERROR_ERRNO_INVALID_FILE_DESCRIPTOR";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_RESOURCE_UNAVAILABLE"] = 0x8001000B] = "ERROR_ERRNO_RESOURCE_UNAVAILABLE";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_MEMORY"] = 0x8001000C] = "ERROR_ERRNO_NO_MEMORY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_PERM"] = 0x8001000D] = "ERROR_ERRNO_NO_PERM";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_INVALID_ADDR"] = 0x8001000E] = "ERROR_ERRNO_FILE_INVALID_ADDR";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_BUSY"] = 0x80010010] = "ERROR_ERRNO_DEVICE_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_ALREADY_EXISTS"] = 0x80010011] = "ERROR_ERRNO_FILE_ALREADY_EXISTS";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CROSS_DEV_LINK"] = 0x80010012] = "ERROR_ERRNO_CROSS_DEV_LINK";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_NOT_FOUND"] = 0x80010013] = "ERROR_ERRNO_DEVICE_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NOT_A_DIRECTORY"] = 0x80010014] = "ERROR_ERRNO_NOT_A_DIRECTORY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IS_DIRECTORY"] = 0x80010015] = "ERROR_ERRNO_IS_DIRECTORY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_ARGUMENT"] = 0x80010016] = "ERROR_ERRNO_INVALID_ARGUMENT";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_TOO_MANY_OPEN_SYSTEM_FILES"] = 0x80010018] = "ERROR_ERRNO_TOO_MANY_OPEN_SYSTEM_FILES";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_IS_TOO_BIG"] = 0x8001001B] = "ERROR_ERRNO_FILE_IS_TOO_BIG";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_NO_FREE_SPACE"] = 0x8001001C] = "ERROR_ERRNO_DEVICE_NO_FREE_SPACE";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_READ_ONLY"] = 0x8001001E] = "ERROR_ERRNO_READ_ONLY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CLOSED"] = 0x80010020] = "ERROR_ERRNO_CLOSED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_PATH_TOO_LONG"] = 0x80010024] = "ERROR_ERRNO_FILE_PATH_TOO_LONG";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_PROTOCOL"] = 0x80010047] = "ERROR_ERRNO_FILE_PROTOCOL";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DIRECTORY_IS_NOT_EMPTY"] = 0x8001005A] = "ERROR_ERRNO_DIRECTORY_IS_NOT_EMPTY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_TOO_MANY_SYMBOLIC_LINKS"] = 0x8001005C] = "ERROR_ERRNO_TOO_MANY_SYMBOLIC_LINKS";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_ADDR_IN_USE"] = 0x80010062] = "ERROR_ERRNO_FILE_ADDR_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CONNECTION_ABORTED"] = 0x80010067] = "ERROR_ERRNO_CONNECTION_ABORTED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CONNECTION_RESET"] = 0x80010068] = "ERROR_ERRNO_CONNECTION_RESET";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_FREE_BUF_SPACE"] = 0x80010069] = "ERROR_ERRNO_NO_FREE_BUF_SPACE";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_TIMEOUT"] = 0x8001006E] = "ERROR_ERRNO_FILE_TIMEOUT";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IN_PROGRESS"] = 0x80010077] = "ERROR_ERRNO_IN_PROGRESS";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ALREADY"] = 0x80010078] = "ERROR_ERRNO_ALREADY";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_MEDIA"] = 0x8001007B] = "ERROR_ERRNO_NO_MEDIA";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_MEDIUM"] = 0x8001007C] = "ERROR_ERRNO_INVALID_MEDIUM";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ADDRESS_NOT_AVAILABLE"] = 0x8001007D] = "ERROR_ERRNO_ADDRESS_NOT_AVAILABLE";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IS_ALREADY_CONNECTED"] = 0x8001007F] = "ERROR_ERRNO_IS_ALREADY_CONNECTED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NOT_CONNECTED"] = 0x80010080] = "ERROR_ERRNO_NOT_CONNECTED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_QUOTA_EXCEEDED"] = 0x80010084] = "ERROR_ERRNO_FILE_QUOTA_EXCEEDED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FUNCTION_NOT_SUPPORTED"] = 0x8001B000] = "ERROR_ERRNO_FUNCTION_NOT_SUPPORTED";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ADDR_OUT_OF_MAIN_MEM"] = 0x8001B001] = "ERROR_ERRNO_ADDR_OUT_OF_MAIN_MEM";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_UNIT_NUM"] = 0x8001B002] = "ERROR_ERRNO_INVALID_UNIT_NUM";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FILE_SIZE"] = 0x8001B003] = "ERROR_ERRNO_INVALID_FILE_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FLAG"] = 0x8001B004] = "ERROR_ERRNO_INVALID_FLAG";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT"] = 0x80020064] = "ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_INTERRUPTS_ALREADY_DISABLED"] = 0x80020066] = "ERROR_KERNEL_INTERRUPTS_ALREADY_DISABLED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_UID"] = 0x800200cb] = "ERROR_KERNEL_UNKNOWN_UID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNMATCH_TYPE_UID"] = 0x800200cc] = "ERROR_KERNEL_UNMATCH_TYPE_UID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_EXIST_ID"] = 0x800200cd] = "ERROR_KERNEL_NOT_EXIST_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_FUNCTION_UID"] = 0x800200ce] = "ERROR_KERNEL_NOT_FOUND_FUNCTION_UID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ALREADY_HOLDER_UID"] = 0x800200cf] = "ERROR_KERNEL_ALREADY_HOLDER_UID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_HOLDER_UID"] = 0x800200d0] = "ERROR_KERNEL_NOT_HOLDER_UID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PERMISSION"] = 0x800200d1] = "ERROR_KERNEL_ILLEGAL_PERMISSION";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ARGUMENT"] = 0x800200d2] = "ERROR_KERNEL_ILLEGAL_ARGUMENT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ADDR"] = 0x800200d3] = "ERROR_KERNEL_ILLEGAL_ADDR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_AREA_OUT_OF_RANGE"] = 0x800200d4] = "ERROR_KERNEL_MEMORY_AREA_OUT_OF_RANGE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_AREA_IS_OVERLAP"] = 0x800200d5] = "ERROR_KERNEL_MEMORY_AREA_IS_OVERLAP";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PARTITION_ID"] = 0x800200d6] = "ERROR_KERNEL_ILLEGAL_PARTITION_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PARTITION_IN_USE"] = 0x800200d7] = "ERROR_KERNEL_PARTITION_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE"] = 0x800200d8] = "ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK"] = 0x800200d9] = "ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_INHIBITED_RESIZE_MEMBLOCK"] = 0x800200da] = "ERROR_KERNEL_INHIBITED_RESIZE_MEMBLOCK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_RESIZE_MEMBLOCK"] = 0x800200db] = "ERROR_KERNEL_FAILED_RESIZE_MEMBLOCK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_HEAPBLOCK"] = 0x800200dc] = "ERROR_KERNEL_FAILED_ALLOC_HEAPBLOCK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_HEAP"] = 0x800200dd] = "ERROR_KERNEL_FAILED_ALLOC_HEAP";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_CHUNK_ID"] = 0x800200de] = "ERROR_KERNEL_ILLEGAL_CHUNK_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_FIND_CHUNK_NAME"] = 0x800200df] = "ERROR_KERNEL_CANNOT_FIND_CHUNK_NAME";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_FREE_CHUNK"] = 0x800200e0] = "ERROR_KERNEL_NO_FREE_CHUNK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_FRAGMENTED"] = 0x800200e1] = "ERROR_KERNEL_MEMBLOCK_FRAGMENTED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_CANNOT_JOINT"] = 0x800200e2] = "ERROR_KERNEL_MEMBLOCK_CANNOT_JOINT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_CANNOT_SEPARATE"] = 0x800200e3] = "ERROR_KERNEL_MEMBLOCK_CANNOT_SEPARATE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ALIGNMENT_SIZE"] = 0x800200e4] = "ERROR_KERNEL_ILLEGAL_ALIGNMENT_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_DEVKIT_VER"] = 0x800200e5] = "ERROR_KERNEL_ILLEGAL_DEVKIT_VER";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_LINK_ERROR"] = 0x8002012c] = "ERROR_KERNEL_MODULE_LINK_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_OBJECT_FORMAT"] = 0x8002012d] = "ERROR_KERNEL_ILLEGAL_OBJECT_FORMAT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_MODULE"] = 0x8002012e] = "ERROR_KERNEL_UNKNOWN_MODULE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_MODULE_FILE"] = 0x8002012f] = "ERROR_KERNEL_UNKNOWN_MODULE_FILE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FILE_READ_ERROR"] = 0x80020130] = "ERROR_KERNEL_FILE_READ_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_IN_USE"] = 0x80020131] = "ERROR_KERNEL_MEMORY_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PARTITION_MISMATCH"] = 0x80020132] = "ERROR_KERNEL_PARTITION_MISMATCH";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STARTED"] = 0x80020133] = "ERROR_KERNEL_MODULE_ALREADY_STARTED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_NOT_STARTED"] = 0x80020134] = "ERROR_KERNEL_MODULE_NOT_STARTED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STOPPED"] = 0x80020135] = "ERROR_KERNEL_MODULE_ALREADY_STOPPED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_CANNOT_STOP"] = 0x80020136] = "ERROR_KERNEL_MODULE_CANNOT_STOP";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_NOT_STOPPED"] = 0x80020137] = "ERROR_KERNEL_MODULE_NOT_STOPPED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_CANNOT_REMOVE"] = 0x80020138] = "ERROR_KERNEL_MODULE_CANNOT_REMOVE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EXCLUSIVE_LOAD"] = 0x80020139] = "ERROR_KERNEL_EXCLUSIVE_LOAD";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_IS_NOT_LINKED"] = 0x8002013a] = "ERROR_KERNEL_LIBRARY_IS_NOT_LINKED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_ALREADY_EXISTS"] = 0x8002013b] = "ERROR_KERNEL_LIBRARY_ALREADY_EXISTS";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_NOT_FOUND"] = 0x8002013c] = "ERROR_KERNEL_LIBRARY_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LIBRARY_HEADER"] = 0x8002013d] = "ERROR_KERNEL_ILLEGAL_LIBRARY_HEADER";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_IN_USE"] = 0x8002013e] = "ERROR_KERNEL_LIBRARY_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STOPPING"] = 0x8002013f] = "ERROR_KERNEL_MODULE_ALREADY_STOPPING";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_OFFSET_VALUE"] = 0x80020140] = "ERROR_KERNEL_ILLEGAL_OFFSET_VALUE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_POSITION_CODE"] = 0x80020141] = "ERROR_KERNEL_ILLEGAL_POSITION_CODE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ACCESS_CODE"] = 0x80020142] = "ERROR_KERNEL_ILLEGAL_ACCESS_CODE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_MANAGER_BUSY"] = 0x80020143] = "ERROR_KERNEL_MODULE_MANAGER_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_FLAG"] = 0x80020144] = "ERROR_KERNEL_ILLEGAL_FLAG";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_GET_MODULE_LIST"] = 0x80020145] = "ERROR_KERNEL_CANNOT_GET_MODULE_LIST";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PROHIBIT_LOADMODULE_DEVICE"] = 0x80020146] = "ERROR_KERNEL_PROHIBIT_LOADMODULE_DEVICE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PROHIBIT_LOADEXEC_DEVICE"] = 0x80020147] = "ERROR_KERNEL_PROHIBIT_LOADEXEC_DEVICE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNSUPPORTED_PRX_TYPE"] = 0x80020148] = "ERROR_KERNEL_UNSUPPORTED_PRX_TYPE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PERMISSION_CALL"] = 0x80020149] = "ERROR_KERNEL_ILLEGAL_PERMISSION_CALL";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_GET_MODULE_INFO"] = 0x8002014a] = "ERROR_KERNEL_CANNOT_GET_MODULE_INFO";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LOADEXEC_BUFFER"] = 0x8002014b] = "ERROR_KERNEL_ILLEGAL_LOADEXEC_BUFFER";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LOADEXEC_FILENAME"] = 0x8002014c] = "ERROR_KERNEL_ILLEGAL_LOADEXEC_FILENAME";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_EXIT_CALLBACK"] = 0x8002014d] = "ERROR_KERNEL_NO_EXIT_CALLBACK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEDIA_CHANGED"] = 0x8002014e] = "ERROR_KERNEL_MEDIA_CHANGED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_USE_BETA_VER_MODULE"] = 0x8002014f] = "ERROR_KERNEL_CANNOT_USE_BETA_VER_MODULE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_MEMORY"] = 0x80020190] = "ERROR_KERNEL_NO_MEMORY";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ATTR"] = 0x80020191] = "ERROR_KERNEL_ILLEGAL_ATTR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR"] = 0x80020192] = "ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PRIORITY"] = 0x80020193] = "ERROR_KERNEL_ILLEGAL_PRIORITY";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_STACK_SIZE"] = 0x80020194] = "ERROR_KERNEL_ILLEGAL_STACK_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MODE"] = 0x80020195] = "ERROR_KERNEL_ILLEGAL_MODE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MASK"] = 0x80020196] = "ERROR_KERNEL_ILLEGAL_MASK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_THREAD"] = 0x80020197] = "ERROR_KERNEL_ILLEGAL_THREAD";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_THREAD"] = 0x80020198] = "ERROR_KERNEL_NOT_FOUND_THREAD";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_SEMAPHORE"] = 0x80020199] = "ERROR_KERNEL_NOT_FOUND_SEMAPHORE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_EVENT_FLAG"] = 0x8002019a] = "ERROR_KERNEL_NOT_FOUND_EVENT_FLAG";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_MESSAGE_BOX"] = 0x8002019b] = "ERROR_KERNEL_NOT_FOUND_MESSAGE_BOX";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_VPOOL"] = 0x8002019c] = "ERROR_KERNEL_NOT_FOUND_VPOOL";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_FPOOL"] = 0x8002019d] = "ERROR_KERNEL_NOT_FOUND_FPOOL";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_MESSAGE_PIPE"] = 0x8002019e] = "ERROR_KERNEL_NOT_FOUND_MESSAGE_PIPE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_ALARM"] = 0x8002019f] = "ERROR_KERNEL_NOT_FOUND_ALARM";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_THREAD_EVENT_HANDLER"] = 0x800201a0] = "ERROR_KERNEL_NOT_FOUND_THREAD_EVENT_HANDLER";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_CALLBACK"] = 0x800201a1] = "ERROR_KERNEL_NOT_FOUND_CALLBACK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_ALREADY_DORMANT"] = 0x800201a2] = "ERROR_KERNEL_THREAD_ALREADY_DORMANT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_ALREADY_SUSPEND"] = 0x800201a3] = "ERROR_KERNEL_THREAD_ALREADY_SUSPEND";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_DORMANT"] = 0x800201a4] = "ERROR_KERNEL_THREAD_IS_NOT_DORMANT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_SUSPEND"] = 0x800201a5] = "ERROR_KERNEL_THREAD_IS_NOT_SUSPEND";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_WAIT"] = 0x800201a6] = "ERROR_KERNEL_THREAD_IS_NOT_WAIT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_CAN_NOT_WAIT"] = 0x800201a7] = "ERROR_KERNEL_WAIT_CAN_NOT_WAIT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_TIMEOUT"] = 0x800201a8] = "ERROR_KERNEL_WAIT_TIMEOUT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_CANCELLED"] = 0x800201a9] = "ERROR_KERNEL_WAIT_CANCELLED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_STATUS_RELEASED"] = 0x800201aa] = "ERROR_KERNEL_WAIT_STATUS_RELEASED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_STATUS_RELEASED_CALLBACK"] = 0x800201ab] = "ERROR_KERNEL_WAIT_STATUS_RELEASED_CALLBACK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_TERMINATED"] = 0x800201ac] = "ERROR_KERNEL_THREAD_IS_TERMINATED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SEMA_ZERO"] = 0x800201ad] = "ERROR_KERNEL_SEMA_ZERO";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SEMA_OVERFLOW"] = 0x800201ae] = "ERROR_KERNEL_SEMA_OVERFLOW";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_POLL_FAILED"] = 0x800201af] = "ERROR_KERNEL_EVENT_FLAG_POLL_FAILED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_NO_MULTI_PERM"] = 0x800201b0] = "ERROR_KERNEL_EVENT_FLAG_NO_MULTI_PERM";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN"] = 0x800201b1] = "ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_NO_MESSAGE"] = 0x800201b2] = "ERROR_KERNEL_MESSAGEBOX_NO_MESSAGE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGE_PIPE_FULL"] = 0x800201b3] = "ERROR_KERNEL_MESSAGE_PIPE_FULL";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGE_PIPE_EMPTY"] = 0x800201b4] = "ERROR_KERNEL_MESSAGE_PIPE_EMPTY";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_DELETE"] = 0x800201b5] = "ERROR_KERNEL_WAIT_DELETE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMBLOCK"] = 0x800201b6] = "ERROR_KERNEL_ILLEGAL_MEMBLOCK";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMSIZE"] = 0x800201b7] = "ERROR_KERNEL_ILLEGAL_MEMSIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_SCRATCHPAD_ADDR"] = 0x800201b8] = "ERROR_KERNEL_ILLEGAL_SCRATCHPAD_ADDR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SCRATCHPAD_IN_USE"] = 0x800201b9] = "ERROR_KERNEL_SCRATCHPAD_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SCRATCHPAD_NOT_IN_USE"] = 0x800201ba] = "ERROR_KERNEL_SCRATCHPAD_NOT_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_TYPE"] = 0x800201bb] = "ERROR_KERNEL_ILLEGAL_TYPE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_SIZE"] = 0x800201bc] = "ERROR_KERNEL_ILLEGAL_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_COUNT"] = 0x800201bd] = "ERROR_KERNEL_ILLEGAL_COUNT";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_VTIMER"] = 0x800201be] = "ERROR_KERNEL_NOT_FOUND_VTIMER";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_VTIMER"] = 0x800201bf] = "ERROR_KERNEL_ILLEGAL_VTIMER";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_KTLS"] = 0x800201c0] = "ERROR_KERNEL_ILLEGAL_KTLS";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_KTLS_IS_FULL"] = 0x800201c1] = "ERROR_KERNEL_KTLS_IS_FULL";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_KTLS_IS_BUSY"] = 0x800201c2] = "ERROR_KERNEL_KTLS_IS_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_NOT_FOUND"] = 0x800201c3] = "ERROR_KERNEL_MUTEX_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_LOCKED"] = 0x800201c4] = "ERROR_KERNEL_MUTEX_LOCKED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCKED"] = 0x800201c5] = "ERROR_KERNEL_MUTEX_UNLOCKED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_LOCK_OVERFLOW"] = 0x800201c6] = "ERROR_KERNEL_MUTEX_LOCK_OVERFLOW";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW"] = 0x800201c7] = "ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED"] = 0x800201c8] = "ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE"] = 0x800201c9] = "ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_NOT_FOUND"] = 0x800201ca] = "ERROR_KERNEL_LWMUTEX_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCKED"] = 0x800201cb] = "ERROR_KERNEL_LWMUTEX_LOCKED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCKED"] = 0x800201cc] = "ERROR_KERNEL_LWMUTEX_UNLOCKED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCK_OVERFLOW"] = 0x800201cd] = "ERROR_KERNEL_LWMUTEX_LOCK_OVERFLOW";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCK_UNDERFLOW"] = 0x800201ce] = "ERROR_KERNEL_LWMUTEX_UNLOCK_UNDERFLOW";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_RECURSIVE_NOT_ALLOWED"] = 0x800201cf] = "ERROR_KERNEL_LWMUTEX_RECURSIVE_NOT_ALLOWED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_POWER_CANNOT_CANCEL"] = 0x80020261] = "ERROR_KERNEL_POWER_CANNOT_CANCEL";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_TOO_MANY_OPEN_FILES"] = 0x80020320] = "ERROR_KERNEL_TOO_MANY_OPEN_FILES";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_SUCH_DEVICE"] = 0x80020321] = "ERROR_KERNEL_NO_SUCH_DEVICE";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_BAD_FILE_DESCRIPTOR"] = 0x80020323] = "ERROR_KERNEL_BAD_FILE_DESCRIPTOR";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNSUPPORTED_OPERATION"] = 0x80020325] = "ERROR_KERNEL_UNSUPPORTED_OPERATION";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOCWD"] = 0x8002032c] = "ERROR_KERNEL_NOCWD";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FILENAME_TOO_LONG"] = 0x8002032d] = "ERROR_KERNEL_FILENAME_TOO_LONG";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ASYNC_BUSY"] = 0x80020329] = "ERROR_KERNEL_ASYNC_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_ASYNC_OP"] = 0x8002032a] = "ERROR_KERNEL_NO_ASYNC_OP";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_CACHE_ALIGNED"] = 0x8002044c] = "ERROR_KERNEL_NOT_CACHE_ALIGNED";
-    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MAX_ERROR"] = 0x8002044d] = "ERROR_KERNEL_MAX_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_STATUS"] = 0x80110001] = "ERROR_UTILITY_INVALID_STATUS";
-    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_PARAM_ADDR"] = 0x80110002] = "ERROR_UTILITY_INVALID_PARAM_ADDR";
-    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_IS_UNKNOWN"] = 0x80110003] = "ERROR_UTILITY_IS_UNKNOWN";
-    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_PARAM_SIZE"] = 0x80110004] = "ERROR_UTILITY_INVALID_PARAM_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_WRONG_TYPE"] = 0x80110005] = "ERROR_UTILITY_WRONG_TYPE";
-    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_MODULE_NOT_FOUND"] = 0x80110006] = "ERROR_UTILITY_MODULE_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_MEMSTICK"] = 0x80110301] = "ERROR_SAVEDATA_LOAD_NO_MEMSTICK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_MEMSTICK_REMOVED"] = 0x80110302] = "ERROR_SAVEDATA_LOAD_MEMSTICK_REMOVED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_ACCESS_ERROR"] = 0x80110305] = "ERROR_SAVEDATA_LOAD_ACCESS_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_DATA_BROKEN"] = 0x80110306] = "ERROR_SAVEDATA_LOAD_DATA_BROKEN";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_DATA"] = 0x80110307] = "ERROR_SAVEDATA_LOAD_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_BAD_PARAMS"] = 0x80110308] = "ERROR_SAVEDATA_LOAD_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_UMD"] = 0x80110309] = "ERROR_SAVEDATA_LOAD_NO_UMD";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_INTERNAL_ERROR"] = 0x80110309] = "ERROR_SAVEDATA_LOAD_INTERNAL_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_NO_MEMSTICK"] = 0x80110321] = "ERROR_SAVEDATA_RW_NO_MEMSTICK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_REMOVED"] = 0x80110322] = "ERROR_SAVEDATA_RW_MEMSTICK_REMOVED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_FULL"] = 0x80110323] = "ERROR_SAVEDATA_RW_MEMSTICK_FULL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_PROTECTED"] = 0x80110324] = "ERROR_SAVEDATA_RW_MEMSTICK_PROTECTED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_ACCESS_ERROR"] = 0x80110325] = "ERROR_SAVEDATA_RW_ACCESS_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_DATA_BROKEN"] = 0x80110326] = "ERROR_SAVEDATA_RW_DATA_BROKEN";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_NO_DATA"] = 0x80110327] = "ERROR_SAVEDATA_RW_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_BAD_PARAMS"] = 0x80110328] = "ERROR_SAVEDATA_RW_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_FILE_NOT_FOUND"] = 0x80110329] = "ERROR_SAVEDATA_RW_FILE_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_CAN_NOT_SUSPEND"] = 0x8011032a] = "ERROR_SAVEDATA_RW_CAN_NOT_SUSPEND";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_INTERNAL_ERROR"] = 0x8011032b] = "ERROR_SAVEDATA_RW_INTERNAL_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_BAD_STATUS"] = 0x8011032c] = "ERROR_SAVEDATA_RW_BAD_STATUS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_SECURE_FILE_FULL"] = 0x8011032d] = "ERROR_SAVEDATA_RW_SECURE_FILE_FULL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_NO_MEMSTICK"] = 0x80110341] = "ERROR_SAVEDATA_DELETE_NO_MEMSTICK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_MEMSTICK_REMOVED"] = 0x80110342] = "ERROR_SAVEDATA_DELETE_MEMSTICK_REMOVED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_MEMSTICK_PROTECTED"] = 0x80110344] = "ERROR_SAVEDATA_DELETE_MEMSTICK_PROTECTED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_ACCESS_ERROR"] = 0x80110345] = "ERROR_SAVEDATA_DELETE_ACCESS_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_DATA_BROKEN"] = 0x80110346] = "ERROR_SAVEDATA_DELETE_DATA_BROKEN";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_NO_DATA"] = 0x80110347] = "ERROR_SAVEDATA_DELETE_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_BAD_PARAMS"] = 0x80110348] = "ERROR_SAVEDATA_DELETE_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_INTERNAL_ERROR"] = 0x8011034b] = "ERROR_SAVEDATA_DELETE_INTERNAL_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_MEMSTICK"] = 0x80110381] = "ERROR_SAVEDATA_SAVE_NO_MEMSTICK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_MEMSTICK_REMOVED"] = 0x80110382] = "ERROR_SAVEDATA_SAVE_MEMSTICK_REMOVED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_SPACE"] = 0x80110383] = "ERROR_SAVEDATA_SAVE_NO_SPACE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_MEMSTICK_PROTECTED"] = 0x80110384] = "ERROR_SAVEDATA_SAVE_MEMSTICK_PROTECTED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_ACCESS_ERROR"] = 0x80110385] = "ERROR_SAVEDATA_SAVE_ACCESS_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_BAD_PARAMS"] = 0x80110388] = "ERROR_SAVEDATA_SAVE_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_UMD"] = 0x80110389] = "ERROR_SAVEDATA_SAVE_NO_UMD";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_WRONG_UMD"] = 0x8011038a] = "ERROR_SAVEDATA_SAVE_WRONG_UMD";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_INTERNAL_ERROR"] = 0x8011038b] = "ERROR_SAVEDATA_SAVE_INTERNAL_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_NO_MEMSTICK"] = 0x801103c1] = "ERROR_SAVEDATA_SIZES_NO_MEMSTICK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_MEMSTICK_REMOVED"] = 0x801103c2] = "ERROR_SAVEDATA_SIZES_MEMSTICK_REMOVED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_ACCESS_ERROR"] = 0x801103c5] = "ERROR_SAVEDATA_SIZES_ACCESS_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_DATA_BROKEN"] = 0x801103c6] = "ERROR_SAVEDATA_SIZES_DATA_BROKEN";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_NO_DATA"] = 0x801103c7] = "ERROR_SAVEDATA_SIZES_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_BAD_PARAMS"] = 0x801103c8] = "ERROR_SAVEDATA_SIZES_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_INTERNAL_ERROR"] = 0x801103cb] = "ERROR_SAVEDATA_SIZES_INTERNAL_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_NETPARAM_BAD_NETCONF"] = 0x80110601] = "ERROR_NETPARAM_BAD_NETCONF";
-    SceKernelErrors[SceKernelErrors["ERROR_NETPARAM_BAD_PARAM"] = 0x80110604] = "ERROR_NETPARAM_BAD_PARAM";
-    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_BAD_ID"] = 0x80110801] = "ERROR_NET_MODULE_BAD_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_ALREADY_LOADED"] = 0x80110802] = "ERROR_NET_MODULE_ALREADY_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_NOT_LOADED"] = 0x80110803] = "ERROR_NET_MODULE_NOT_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_BAD_ID"] = 0x80110901] = "ERROR_AV_MODULE_BAD_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_ALREADY_LOADED"] = 0x80110902] = "ERROR_AV_MODULE_ALREADY_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_NOT_LOADED"] = 0x80110903] = "ERROR_AV_MODULE_NOT_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_MODULE_BAD_ID"] = 0x80111101] = "ERROR_MODULE_BAD_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_MODULE_ALREADY_LOADED"] = 0x80111102] = "ERROR_MODULE_ALREADY_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_MODULE_NOT_LOADED"] = 0x80111103] = "ERROR_MODULE_NOT_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_SCREENSHOT_CONT_MODE_NOT_INIT"] = 0x80111229] = "ERROR_SCREENSHOT_CONT_MODE_NOT_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_UMD_NOT_READY"] = 0x80210001] = "ERROR_UMD_NOT_READY";
-    SceKernelErrors[SceKernelErrors["ERROR_UMD_LBA_OUT_OF_BOUNDS"] = 0x80210002] = "ERROR_UMD_LBA_OUT_OF_BOUNDS";
-    SceKernelErrors[SceKernelErrors["ERROR_UMD_NO_DISC"] = 0x80210003] = "ERROR_UMD_NO_DISC";
-    SceKernelErrors[SceKernelErrors["ERROR_MEMSTICK_DEVCTL_BAD_PARAMS"] = 0x80220081] = "ERROR_MEMSTICK_DEVCTL_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_MEMSTICK_DEVCTL_TOO_MANY_CALLBACKS"] = 0x80220082] = "ERROR_MEMSTICK_DEVCTL_TOO_MANY_CALLBACKS";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_NOT_INIT"] = 0x80260001] = "ERROR_AUDIO_CHANNEL_NOT_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_BUSY"] = 0x80260002] = "ERROR_AUDIO_CHANNEL_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_CHANNEL"] = 0x80260003] = "ERROR_AUDIO_INVALID_CHANNEL";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_PRIV_REQUIRED"] = 0x80260004] = "ERROR_AUDIO_PRIV_REQUIRED";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_NO_CHANNELS_AVAILABLE"] = 0x80260005] = "ERROR_AUDIO_NO_CHANNELS_AVAILABLE";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED"] = 0x80260006] = "ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FORMAT"] = 0x80260007] = "ERROR_AUDIO_INVALID_FORMAT";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_NOT_RESERVED"] = 0x80260008] = "ERROR_AUDIO_CHANNEL_NOT_RESERVED";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_NOT_OUTPUT"] = 0x80260009] = "ERROR_AUDIO_NOT_OUTPUT";
-    SceKernelErrors[SceKernelErrors["ERROR_POWER_VMEM_IN_USE"] = 0x802b0200] = "ERROR_POWER_VMEM_IN_USE";
-    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_BAD_ID"] = 0x80410408] = "ERROR_NET_RESOLVER_BAD_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_ALREADY_STOPPED"] = 0x8041040a] = "ERROR_NET_RESOLVER_ALREADY_STOPPED";
-    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_INVALID_HOST"] = 0x80410414] = "ERROR_NET_RESOLVER_INVALID_HOST";
-    SceKernelErrors[SceKernelErrors["ERROR_WLAN_BAD_PARAMS"] = 0x80410d13] = "ERROR_WLAN_BAD_PARAMS";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTP_NOT_INIT"] = 0x80431001] = "ERROR_HTTP_NOT_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTP_ALREADY_INIT"] = 0x80431020] = "ERROR_HTTP_ALREADY_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTP_NO_MEMORY"] = 0x80431077] = "ERROR_HTTP_NO_MEMORY";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTP_SYSTEM_COOKIE_NOT_LOADED"] = 0x80431078] = "ERROR_HTTP_SYSTEM_COOKIE_NOT_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTP_INVALID_PARAMETER"] = 0x804311FE] = "ERROR_HTTP_INVALID_PARAMETER";
-    SceKernelErrors[SceKernelErrors["ERROR_SSL_NOT_INIT"] = 0x80435001] = "ERROR_SSL_NOT_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_SSL_ALREADY_INIT"] = 0x80435020] = "ERROR_SSL_ALREADY_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_SSL_OUT_OF_MEMORY"] = 0x80435022] = "ERROR_SSL_OUT_OF_MEMORY";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_CERT_ERROR"] = 0x80435060] = "ERROR_HTTPS_CERT_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_HANDSHAKE_ERROR"] = 0x80435061] = "ERROR_HTTPS_HANDSHAKE_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_IO_ERROR"] = 0x80435062] = "ERROR_HTTPS_IO_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_INTERNAL_ERROR"] = 0x80435063] = "ERROR_HTTPS_INTERNAL_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_PROXY_ERROR"] = 0x80435064] = "ERROR_HTTPS_PROXY_ERROR";
-    SceKernelErrors[SceKernelErrors["ERROR_SSL_INVALID_PARAMETER"] = 0x804351FE] = "ERROR_SSL_INVALID_PARAMETER";
-    SceKernelErrors[SceKernelErrors["ERROR_WAVE_NOT_INIT"] = 0x80440001] = "ERROR_WAVE_NOT_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_WAVE_FAILED_EXIT"] = 0x80440002] = "ERROR_WAVE_FAILED_EXIT";
-    SceKernelErrors[SceKernelErrors["ERROR_WAVE_BAD_VOL"] = 0x8044000a] = "ERROR_WAVE_BAD_VOL";
-    SceKernelErrors[SceKernelErrors["ERROR_WAVE_INVALID_CHANNEL"] = 0x80440010] = "ERROR_WAVE_INVALID_CHANNEL";
-    SceKernelErrors[SceKernelErrors["ERROR_WAVE_INVALID_SAMPLE_COUNT"] = 0x80440011] = "ERROR_WAVE_INVALID_SAMPLE_COUNT";
-    SceKernelErrors[SceKernelErrors["ERROR_FONT_INVALID_LIBID"] = 0x80460002] = "ERROR_FONT_INVALID_LIBID";
-    SceKernelErrors[SceKernelErrors["ERROR_FONT_INVALID_PARAMETER"] = 0x80460003] = "ERROR_FONT_INVALID_PARAMETER";
-    SceKernelErrors[SceKernelErrors["ERROR_FONT_TOO_MANY_OPEN_FONTS"] = 0x80460009] = "ERROR_FONT_TOO_MANY_OPEN_FONTS";
-    SceKernelErrors[SceKernelErrors["ERROR_MPEG_BAD_VERSION"] = 0x80610002] = "ERROR_MPEG_BAD_VERSION";
-    SceKernelErrors[SceKernelErrors["ERROR_MPEG_NO_MEMORY"] = 0x80610022] = "ERROR_MPEG_NO_MEMORY";
-    SceKernelErrors[SceKernelErrors["ERROR_MPEG_INVALID_ADDR"] = 0x80610103] = "ERROR_MPEG_INVALID_ADDR";
-    SceKernelErrors[SceKernelErrors["ERROR_MPEG_INVALID_VALUE"] = 0x806101fe] = "ERROR_MPEG_INVALID_VALUE";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_NOT_INITIALIZED"] = 0x80615001] = "ERROR_PSMF_NOT_INITIALIZED";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_BAD_VERSION"] = 0x80615002] = "ERROR_PSMF_BAD_VERSION";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_NOT_FOUND"] = 0x80615025] = "ERROR_PSMF_NOT_FOUND";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_ID"] = 0x80615100] = "ERROR_PSMF_INVALID_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_VALUE"] = 0x806151fe] = "ERROR_PSMF_INVALID_VALUE";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_TIMESTAMP"] = 0x80615500] = "ERROR_PSMF_INVALID_TIMESTAMP";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_PSMF"] = 0x80615501] = "ERROR_PSMF_INVALID_PSMF";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMFPLAYER_NOT_INITIALIZED"] = 0x80616001] = "ERROR_PSMFPLAYER_NOT_INITIALIZED";
-    SceKernelErrors[SceKernelErrors["ERROR_PSMFPLAYER_NO_MORE_DATA"] = 0x8061600c] = "ERROR_PSMFPLAYER_NO_MORE_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_MPEG_NO_DATA"] = 0x80618001] = "ERROR_MPEG_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_AVC_VIDEO_FATAL"] = 0x80628002] = "ERROR_AVC_VIDEO_FATAL";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_NO_ID"] = 0x80630003] = "ERROR_ATRAC_NO_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_INVALID_CODEC"] = 0x80630004] = "ERROR_ATRAC_INVALID_CODEC";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_BAD_ID"] = 0x80630005] = "ERROR_ATRAC_BAD_ID";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_ALL_DATA_LOADED"] = 0x80630009] = "ERROR_ATRAC_ALL_DATA_LOADED";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_NO_DATA"] = 0x80630010] = "ERROR_ATRAC_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_SECOND_BUFFER_NEEDED"] = 0x80630012] = "ERROR_ATRAC_SECOND_BUFFER_NEEDED";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED"] = 0x80630022] = "ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_BUFFER_IS_EMPTY"] = 0x80630023] = "ERROR_ATRAC_BUFFER_IS_EMPTY";
-    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_ALL_DATA_DECODED"] = 0x80630024] = "ERROR_ATRAC_ALL_DATA_DECODED";
-    SceKernelErrors[SceKernelErrors["ERROR_CODEC_AUDIO_FATAL"] = 0x807f00fc] = "ERROR_CODEC_AUDIO_FATAL";
-    SceKernelErrors[SceKernelErrors["FATAL_UMD_UNKNOWN_MEDIUM"] = 0xC0210004] = "FATAL_UMD_UNKNOWN_MEDIUM";
-    SceKernelErrors[SceKernelErrors["FATAL_UMD_HARDWARE_FAILURE"] = 0xC0210005] = "FATAL_UMD_HARDWARE_FAILURE";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FREQUENCY"] = 0x8026000A] = "ERROR_AUDIO_INVALID_FREQUENCY";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_VOLUME"] = 0x8026000B] = "ERROR_AUDIO_INVALID_VOLUME";
-    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_ALREADY_RESERVED"] = 0x80268002] = "ERROR_AUDIO_CHANNEL_ALREADY_RESERVED";
-    SceKernelErrors[SceKernelErrors["PSP_AUDIO_ERROR_SRC_FORMAT_4"] = 0x80000003] = "PSP_AUDIO_ERROR_SRC_FORMAT_4";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_API_FAIL"] = 0x80630002] = "ATRAC_ERROR_API_FAIL";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_NO_ATRACID"] = 0x80630003] = "ATRAC_ERROR_NO_ATRACID";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_INVALID_CODECTYPE"] = 0x80630004] = "ATRAC_ERROR_INVALID_CODECTYPE";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_BAD_ATRACID"] = 0x80630005] = "ATRAC_ERROR_BAD_ATRACID";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ALL_DATA_LOADED"] = 0x80630009] = "ATRAC_ERROR_ALL_DATA_LOADED";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_NO_DATA"] = 0x80630010] = "ATRAC_ERROR_NO_DATA";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_SECOND_BUFFER_NEEDED"] = 0x80630012] = "ATRAC_ERROR_SECOND_BUFFER_NEEDED";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_INCORRECT_READ_SIZE"] = 0x80630013] = "ATRAC_ERROR_INCORRECT_READ_SIZE";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ADD_DATA_IS_TOO_BIG"] = 0x80630018] = "ATRAC_ERROR_ADD_DATA_IS_TOO_BIG";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_UNSET_PARAM"] = 0x80630021] = "ATRAC_ERROR_UNSET_PARAM";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_SECOND_BUFFER_NOT_NEEDED"] = 0x80630022] = "ATRAC_ERROR_SECOND_BUFFER_NOT_NEEDED";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_BUFFER_IS_EMPTY"] = 0x80630023] = "ATRAC_ERROR_BUFFER_IS_EMPTY";
-    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ALL_DATA_DECODED"] = 0x80630024] = "ATRAC_ERROR_ALL_DATA_DECODED";
-    SceKernelErrors[SceKernelErrors["PSP_SYSTEMPARAM_RETVAL"] = 0x80110103] = "PSP_SYSTEMPARAM_RETVAL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE"] = 0x80420010] = "ERROR_SAS_INVALID_VOICE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_CURVE_MODE"] = 0x80420013] = "ERROR_SAS_INVALID_ADSR_CURVE_MODE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PARAMETER"] = 0x80420014] = "ERROR_SAS_INVALID_PARAMETER";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_POS"] = 0x80420015] = "ERROR_SAS_INVALID_LOOP_POS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_VOICE_PAUSED"] = 0x80420016] = "ERROR_SAS_VOICE_PAUSED";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_BUSY"] = 0x80420030] = "ERROR_SAS_BUSY";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_NOT_INIT"] = 0x80420100] = "ERROR_SAS_NOT_INIT";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_GRAIN"] = 0x80420001] = "ERROR_SAS_INVALID_GRAIN";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_MAX_VOICES"] = 0x80420002] = "ERROR_SAS_INVALID_MAX_VOICES";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_OUTPUT_MODE"] = 0x80420003] = "ERROR_SAS_INVALID_OUTPUT_MODE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SAMPLE_RATE"] = 0x80420004] = "ERROR_SAS_INVALID_SAMPLE_RATE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADDRESS"] = 0x80420005] = "ERROR_SAS_INVALID_ADDRESS";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE_INDEX"] = 0x80420010] = "ERROR_SAS_INVALID_VOICE_INDEX";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_NOISE_CLOCK"] = 0x80420011] = "ERROR_SAS_INVALID_NOISE_CLOCK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PITCH_VAL"] = 0x80420012] = "ERROR_SAS_INVALID_PITCH_VAL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADPCM_SIZE"] = 0x80420014] = "ERROR_SAS_INVALID_ADPCM_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_MODE"] = 0x80420015] = "ERROR_SAS_INVALID_LOOP_MODE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOLUME_VAL"] = 0x80420018] = "ERROR_SAS_INVALID_VOLUME_VAL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_VAL"] = 0x80420019] = "ERROR_SAS_INVALID_ADSR_VAL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SIZE"] = 0x8042001A] = "ERROR_SAS_INVALID_SIZE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_TYPE"] = 0x80420020] = "ERROR_SAS_INVALID_FX_TYPE";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_FEEDBACK"] = 0x80420021] = "ERROR_SAS_INVALID_FX_FEEDBACK";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_DELAY"] = 0x80420022] = "ERROR_SAS_INVALID_FX_DELAY";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_VOLUME_VAL"] = 0x80420023] = "ERROR_SAS_INVALID_FX_VOLUME_VAL";
-    SceKernelErrors[SceKernelErrors["ERROR_SAS_ALREADY_INIT"] = 0x80420101] = "ERROR_SAS_ALREADY_INIT";
-    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_TAKEN_SLOT"] = 0x80000020] = "PSP_POWER_ERROR_TAKEN_SLOT";
-    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_SLOTS_FULL"] = 0x80000022] = "PSP_POWER_ERROR_SLOTS_FULL";
-    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_PRIVATE_SLOT"] = 0x80000023] = "PSP_POWER_ERROR_PRIVATE_SLOT";
-    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_EMPTY_SLOT"] = 0x80000025] = "PSP_POWER_ERROR_EMPTY_SLOT";
-    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_INVALID_CB"] = 0x80000100] = "PSP_POWER_ERROR_INVALID_CB";
-    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_INVALID_SLOT"] = 0x80000102] = "PSP_POWER_ERROR_INVALID_SLOT";
+    SceKernelErrors[SceKernelErrors["ERROR_OK"] = 0] = "ERROR_OK";
+    SceKernelErrors[SceKernelErrors["ERROR_ERROR"] = 2147614721] = "ERROR_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_NOTIMP"] = 2147614722] = "ERROR_NOTIMP";
+    SceKernelErrors[SceKernelErrors["ERROR_ALREADY"] = 2147483680] = "ERROR_ALREADY";
+    SceKernelErrors[SceKernelErrors["ERROR_BUSY"] = 2147483681] = "ERROR_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_OUT_OF_MEMORY"] = 2147483682] = "ERROR_OUT_OF_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_ID"] = 2147483904] = "ERROR_INVALID_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_NAME"] = 2147483905] = "ERROR_INVALID_NAME";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_INDEX"] = 2147483906] = "ERROR_INVALID_INDEX";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_POINTER"] = 2147483907] = "ERROR_INVALID_POINTER";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_SIZE"] = 2147483908] = "ERROR_INVALID_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_FLAG"] = 2147483909] = "ERROR_INVALID_FLAG";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_COMMAND"] = 2147483910] = "ERROR_INVALID_COMMAND";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_MODE"] = 2147483911] = "ERROR_INVALID_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_FORMAT"] = 2147483912] = "ERROR_INVALID_FORMAT";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_VALUE"] = 2147484158] = "ERROR_INVALID_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_INVALID_ARGUMENT"] = 2147484159] = "ERROR_INVALID_ARGUMENT";
+    SceKernelErrors[SceKernelErrors["ERROR_BAD_FILE"] = 2147484169] = "ERROR_BAD_FILE";
+    SceKernelErrors[SceKernelErrors["ERROR_ACCESS_ERROR"] = 2147484173] = "ERROR_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_OPERATION_NOT_PERMITTED"] = 2147549185] = "ERROR_ERRNO_OPERATION_NOT_PERMITTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_NOT_FOUND"] = 2147549186] = "ERROR_ERRNO_FILE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_OPEN_ERROR"] = 2147549187] = "ERROR_ERRNO_FILE_OPEN_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IO_ERROR"] = 2147549189] = "ERROR_ERRNO_IO_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ARG_LIST_TOO_LONG"] = 2147549191] = "ERROR_ERRNO_ARG_LIST_TOO_LONG";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FILE_DESCRIPTOR"] = 2147549193] = "ERROR_ERRNO_INVALID_FILE_DESCRIPTOR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_RESOURCE_UNAVAILABLE"] = 2147549195] = "ERROR_ERRNO_RESOURCE_UNAVAILABLE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_MEMORY"] = 2147549196] = "ERROR_ERRNO_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_PERM"] = 2147549197] = "ERROR_ERRNO_NO_PERM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_INVALID_ADDR"] = 2147549198] = "ERROR_ERRNO_FILE_INVALID_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_BUSY"] = 2147549200] = "ERROR_ERRNO_DEVICE_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_ALREADY_EXISTS"] = 2147549201] = "ERROR_ERRNO_FILE_ALREADY_EXISTS";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CROSS_DEV_LINK"] = 2147549202] = "ERROR_ERRNO_CROSS_DEV_LINK";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_NOT_FOUND"] = 2147549203] = "ERROR_ERRNO_DEVICE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NOT_A_DIRECTORY"] = 2147549204] = "ERROR_ERRNO_NOT_A_DIRECTORY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IS_DIRECTORY"] = 2147549205] = "ERROR_ERRNO_IS_DIRECTORY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_ARGUMENT"] = 2147549206] = "ERROR_ERRNO_INVALID_ARGUMENT";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_TOO_MANY_OPEN_SYSTEM_FILES"] = 2147549208] = "ERROR_ERRNO_TOO_MANY_OPEN_SYSTEM_FILES";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_IS_TOO_BIG"] = 2147549211] = "ERROR_ERRNO_FILE_IS_TOO_BIG";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DEVICE_NO_FREE_SPACE"] = 2147549212] = "ERROR_ERRNO_DEVICE_NO_FREE_SPACE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_READ_ONLY"] = 2147549214] = "ERROR_ERRNO_READ_ONLY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CLOSED"] = 2147549216] = "ERROR_ERRNO_CLOSED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_PATH_TOO_LONG"] = 2147549220] = "ERROR_ERRNO_FILE_PATH_TOO_LONG";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_PROTOCOL"] = 2147549255] = "ERROR_ERRNO_FILE_PROTOCOL";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_DIRECTORY_IS_NOT_EMPTY"] = 2147549274] = "ERROR_ERRNO_DIRECTORY_IS_NOT_EMPTY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_TOO_MANY_SYMBOLIC_LINKS"] = 2147549276] = "ERROR_ERRNO_TOO_MANY_SYMBOLIC_LINKS";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_ADDR_IN_USE"] = 2147549282] = "ERROR_ERRNO_FILE_ADDR_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CONNECTION_ABORTED"] = 2147549287] = "ERROR_ERRNO_CONNECTION_ABORTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_CONNECTION_RESET"] = 2147549288] = "ERROR_ERRNO_CONNECTION_RESET";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_FREE_BUF_SPACE"] = 2147549289] = "ERROR_ERRNO_NO_FREE_BUF_SPACE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_TIMEOUT"] = 2147549294] = "ERROR_ERRNO_FILE_TIMEOUT";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IN_PROGRESS"] = 2147549303] = "ERROR_ERRNO_IN_PROGRESS";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ALREADY"] = 2147549304] = "ERROR_ERRNO_ALREADY";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NO_MEDIA"] = 2147549307] = "ERROR_ERRNO_NO_MEDIA";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_MEDIUM"] = 2147549308] = "ERROR_ERRNO_INVALID_MEDIUM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ADDRESS_NOT_AVAILABLE"] = 2147549309] = "ERROR_ERRNO_ADDRESS_NOT_AVAILABLE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_IS_ALREADY_CONNECTED"] = 2147549311] = "ERROR_ERRNO_IS_ALREADY_CONNECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_NOT_CONNECTED"] = 2147549312] = "ERROR_ERRNO_NOT_CONNECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FILE_QUOTA_EXCEEDED"] = 2147549316] = "ERROR_ERRNO_FILE_QUOTA_EXCEEDED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_FUNCTION_NOT_SUPPORTED"] = 2147594240] = "ERROR_ERRNO_FUNCTION_NOT_SUPPORTED";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_ADDR_OUT_OF_MAIN_MEM"] = 2147594241] = "ERROR_ERRNO_ADDR_OUT_OF_MAIN_MEM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_UNIT_NUM"] = 2147594242] = "ERROR_ERRNO_INVALID_UNIT_NUM";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FILE_SIZE"] = 2147594243] = "ERROR_ERRNO_INVALID_FILE_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_ERRNO_INVALID_FLAG"] = 2147594244] = "ERROR_ERRNO_INVALID_FLAG";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT"] = 2147614820] = "ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_INTERRUPTS_ALREADY_DISABLED"] = 2147614822] = "ERROR_KERNEL_INTERRUPTS_ALREADY_DISABLED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_UID"] = 2147614923] = "ERROR_KERNEL_UNKNOWN_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNMATCH_TYPE_UID"] = 2147614924] = "ERROR_KERNEL_UNMATCH_TYPE_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_EXIST_ID"] = 2147614925] = "ERROR_KERNEL_NOT_EXIST_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_FUNCTION_UID"] = 2147614926] = "ERROR_KERNEL_NOT_FOUND_FUNCTION_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ALREADY_HOLDER_UID"] = 2147614927] = "ERROR_KERNEL_ALREADY_HOLDER_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_HOLDER_UID"] = 2147614928] = "ERROR_KERNEL_NOT_HOLDER_UID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PERMISSION"] = 2147614929] = "ERROR_KERNEL_ILLEGAL_PERMISSION";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ARGUMENT"] = 2147614930] = "ERROR_KERNEL_ILLEGAL_ARGUMENT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ADDR"] = 2147614931] = "ERROR_KERNEL_ILLEGAL_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_AREA_OUT_OF_RANGE"] = 2147614932] = "ERROR_KERNEL_MEMORY_AREA_OUT_OF_RANGE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_AREA_IS_OVERLAP"] = 2147614933] = "ERROR_KERNEL_MEMORY_AREA_IS_OVERLAP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PARTITION_ID"] = 2147614934] = "ERROR_KERNEL_ILLEGAL_PARTITION_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PARTITION_IN_USE"] = 2147614935] = "ERROR_KERNEL_PARTITION_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE"] = 2147614936] = "ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK"] = 2147614937] = "ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_INHIBITED_RESIZE_MEMBLOCK"] = 2147614938] = "ERROR_KERNEL_INHIBITED_RESIZE_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_RESIZE_MEMBLOCK"] = 2147614939] = "ERROR_KERNEL_FAILED_RESIZE_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_HEAPBLOCK"] = 2147614940] = "ERROR_KERNEL_FAILED_ALLOC_HEAPBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FAILED_ALLOC_HEAP"] = 2147614941] = "ERROR_KERNEL_FAILED_ALLOC_HEAP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_CHUNK_ID"] = 2147614942] = "ERROR_KERNEL_ILLEGAL_CHUNK_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_FIND_CHUNK_NAME"] = 2147614943] = "ERROR_KERNEL_CANNOT_FIND_CHUNK_NAME";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_FREE_CHUNK"] = 2147614944] = "ERROR_KERNEL_NO_FREE_CHUNK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_FRAGMENTED"] = 2147614945] = "ERROR_KERNEL_MEMBLOCK_FRAGMENTED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_CANNOT_JOINT"] = 2147614946] = "ERROR_KERNEL_MEMBLOCK_CANNOT_JOINT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMBLOCK_CANNOT_SEPARATE"] = 2147614947] = "ERROR_KERNEL_MEMBLOCK_CANNOT_SEPARATE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ALIGNMENT_SIZE"] = 2147614948] = "ERROR_KERNEL_ILLEGAL_ALIGNMENT_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_DEVKIT_VER"] = 2147614949] = "ERROR_KERNEL_ILLEGAL_DEVKIT_VER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_LINK_ERROR"] = 2147615020] = "ERROR_KERNEL_MODULE_LINK_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_OBJECT_FORMAT"] = 2147615021] = "ERROR_KERNEL_ILLEGAL_OBJECT_FORMAT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_MODULE"] = 2147615022] = "ERROR_KERNEL_UNKNOWN_MODULE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNKNOWN_MODULE_FILE"] = 2147615023] = "ERROR_KERNEL_UNKNOWN_MODULE_FILE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FILE_READ_ERROR"] = 2147615024] = "ERROR_KERNEL_FILE_READ_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEMORY_IN_USE"] = 2147615025] = "ERROR_KERNEL_MEMORY_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PARTITION_MISMATCH"] = 2147615026] = "ERROR_KERNEL_PARTITION_MISMATCH";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STARTED"] = 2147615027] = "ERROR_KERNEL_MODULE_ALREADY_STARTED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_NOT_STARTED"] = 2147615028] = "ERROR_KERNEL_MODULE_NOT_STARTED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STOPPED"] = 2147615029] = "ERROR_KERNEL_MODULE_ALREADY_STOPPED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_CANNOT_STOP"] = 2147615030] = "ERROR_KERNEL_MODULE_CANNOT_STOP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_NOT_STOPPED"] = 2147615031] = "ERROR_KERNEL_MODULE_NOT_STOPPED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_CANNOT_REMOVE"] = 2147615032] = "ERROR_KERNEL_MODULE_CANNOT_REMOVE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EXCLUSIVE_LOAD"] = 2147615033] = "ERROR_KERNEL_EXCLUSIVE_LOAD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_IS_NOT_LINKED"] = 2147615034] = "ERROR_KERNEL_LIBRARY_IS_NOT_LINKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_ALREADY_EXISTS"] = 2147615035] = "ERROR_KERNEL_LIBRARY_ALREADY_EXISTS";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_NOT_FOUND"] = 2147615036] = "ERROR_KERNEL_LIBRARY_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LIBRARY_HEADER"] = 2147615037] = "ERROR_KERNEL_ILLEGAL_LIBRARY_HEADER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LIBRARY_IN_USE"] = 2147615038] = "ERROR_KERNEL_LIBRARY_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_ALREADY_STOPPING"] = 2147615039] = "ERROR_KERNEL_MODULE_ALREADY_STOPPING";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_OFFSET_VALUE"] = 2147615040] = "ERROR_KERNEL_ILLEGAL_OFFSET_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_POSITION_CODE"] = 2147615041] = "ERROR_KERNEL_ILLEGAL_POSITION_CODE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ACCESS_CODE"] = 2147615042] = "ERROR_KERNEL_ILLEGAL_ACCESS_CODE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MODULE_MANAGER_BUSY"] = 2147615043] = "ERROR_KERNEL_MODULE_MANAGER_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_FLAG"] = 2147615044] = "ERROR_KERNEL_ILLEGAL_FLAG";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_GET_MODULE_LIST"] = 2147615045] = "ERROR_KERNEL_CANNOT_GET_MODULE_LIST";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PROHIBIT_LOADMODULE_DEVICE"] = 2147615046] = "ERROR_KERNEL_PROHIBIT_LOADMODULE_DEVICE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_PROHIBIT_LOADEXEC_DEVICE"] = 2147615047] = "ERROR_KERNEL_PROHIBIT_LOADEXEC_DEVICE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNSUPPORTED_PRX_TYPE"] = 2147615048] = "ERROR_KERNEL_UNSUPPORTED_PRX_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PERMISSION_CALL"] = 2147615049] = "ERROR_KERNEL_ILLEGAL_PERMISSION_CALL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_GET_MODULE_INFO"] = 2147615050] = "ERROR_KERNEL_CANNOT_GET_MODULE_INFO";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LOADEXEC_BUFFER"] = 2147615051] = "ERROR_KERNEL_ILLEGAL_LOADEXEC_BUFFER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_LOADEXEC_FILENAME"] = 2147615052] = "ERROR_KERNEL_ILLEGAL_LOADEXEC_FILENAME";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_EXIT_CALLBACK"] = 2147615053] = "ERROR_KERNEL_NO_EXIT_CALLBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MEDIA_CHANGED"] = 2147615054] = "ERROR_KERNEL_MEDIA_CHANGED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_CANNOT_USE_BETA_VER_MODULE"] = 2147615055] = "ERROR_KERNEL_CANNOT_USE_BETA_VER_MODULE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_MEMORY"] = 2147615120] = "ERROR_KERNEL_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_ATTR"] = 2147615121] = "ERROR_KERNEL_ILLEGAL_ATTR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR"] = 2147615122] = "ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_PRIORITY"] = 2147615123] = "ERROR_KERNEL_ILLEGAL_PRIORITY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_STACK_SIZE"] = 2147615124] = "ERROR_KERNEL_ILLEGAL_STACK_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MODE"] = 2147615125] = "ERROR_KERNEL_ILLEGAL_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MASK"] = 2147615126] = "ERROR_KERNEL_ILLEGAL_MASK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_THREAD"] = 2147615127] = "ERROR_KERNEL_ILLEGAL_THREAD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_THREAD"] = 2147615128] = "ERROR_KERNEL_NOT_FOUND_THREAD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_SEMAPHORE"] = 2147615129] = "ERROR_KERNEL_NOT_FOUND_SEMAPHORE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_EVENT_FLAG"] = 2147615130] = "ERROR_KERNEL_NOT_FOUND_EVENT_FLAG";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_MESSAGE_BOX"] = 2147615131] = "ERROR_KERNEL_NOT_FOUND_MESSAGE_BOX";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_VPOOL"] = 2147615132] = "ERROR_KERNEL_NOT_FOUND_VPOOL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_FPOOL"] = 2147615133] = "ERROR_KERNEL_NOT_FOUND_FPOOL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_MESSAGE_PIPE"] = 2147615134] = "ERROR_KERNEL_NOT_FOUND_MESSAGE_PIPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_ALARM"] = 2147615135] = "ERROR_KERNEL_NOT_FOUND_ALARM";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_THREAD_EVENT_HANDLER"] = 2147615136] = "ERROR_KERNEL_NOT_FOUND_THREAD_EVENT_HANDLER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_CALLBACK"] = 2147615137] = "ERROR_KERNEL_NOT_FOUND_CALLBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_ALREADY_DORMANT"] = 2147615138] = "ERROR_KERNEL_THREAD_ALREADY_DORMANT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_ALREADY_SUSPEND"] = 2147615139] = "ERROR_KERNEL_THREAD_ALREADY_SUSPEND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_DORMANT"] = 2147615140] = "ERROR_KERNEL_THREAD_IS_NOT_DORMANT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_SUSPEND"] = 2147615141] = "ERROR_KERNEL_THREAD_IS_NOT_SUSPEND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_NOT_WAIT"] = 2147615142] = "ERROR_KERNEL_THREAD_IS_NOT_WAIT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_CAN_NOT_WAIT"] = 2147615143] = "ERROR_KERNEL_WAIT_CAN_NOT_WAIT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_TIMEOUT"] = 2147615144] = "ERROR_KERNEL_WAIT_TIMEOUT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_CANCELLED"] = 2147615145] = "ERROR_KERNEL_WAIT_CANCELLED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_STATUS_RELEASED"] = 2147615146] = "ERROR_KERNEL_WAIT_STATUS_RELEASED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_STATUS_RELEASED_CALLBACK"] = 2147615147] = "ERROR_KERNEL_WAIT_STATUS_RELEASED_CALLBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_THREAD_IS_TERMINATED"] = 2147615148] = "ERROR_KERNEL_THREAD_IS_TERMINATED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SEMA_ZERO"] = 2147615149] = "ERROR_KERNEL_SEMA_ZERO";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SEMA_OVERFLOW"] = 2147615150] = "ERROR_KERNEL_SEMA_OVERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_POLL_FAILED"] = 2147615151] = "ERROR_KERNEL_EVENT_FLAG_POLL_FAILED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_NO_MULTI_PERM"] = 2147615152] = "ERROR_KERNEL_EVENT_FLAG_NO_MULTI_PERM";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN"] = 2147615153] = "ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_NO_MESSAGE"] = 2147615154] = "ERROR_KERNEL_MESSAGEBOX_NO_MESSAGE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGE_PIPE_FULL"] = 2147615155] = "ERROR_KERNEL_MESSAGE_PIPE_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGE_PIPE_EMPTY"] = 2147615156] = "ERROR_KERNEL_MESSAGE_PIPE_EMPTY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_WAIT_DELETE"] = 2147615157] = "ERROR_KERNEL_WAIT_DELETE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMBLOCK"] = 2147615158] = "ERROR_KERNEL_ILLEGAL_MEMBLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_MEMSIZE"] = 2147615159] = "ERROR_KERNEL_ILLEGAL_MEMSIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_SCRATCHPAD_ADDR"] = 2147615160] = "ERROR_KERNEL_ILLEGAL_SCRATCHPAD_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SCRATCHPAD_IN_USE"] = 2147615161] = "ERROR_KERNEL_SCRATCHPAD_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_SCRATCHPAD_NOT_IN_USE"] = 2147615162] = "ERROR_KERNEL_SCRATCHPAD_NOT_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_TYPE"] = 2147615163] = "ERROR_KERNEL_ILLEGAL_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_SIZE"] = 2147615164] = "ERROR_KERNEL_ILLEGAL_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_COUNT"] = 2147615165] = "ERROR_KERNEL_ILLEGAL_COUNT";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_FOUND_VTIMER"] = 2147615166] = "ERROR_KERNEL_NOT_FOUND_VTIMER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_VTIMER"] = 2147615167] = "ERROR_KERNEL_ILLEGAL_VTIMER";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ILLEGAL_KTLS"] = 2147615168] = "ERROR_KERNEL_ILLEGAL_KTLS";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_KTLS_IS_FULL"] = 2147615169] = "ERROR_KERNEL_KTLS_IS_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_KTLS_IS_BUSY"] = 2147615170] = "ERROR_KERNEL_KTLS_IS_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_NOT_FOUND"] = 2147615171] = "ERROR_KERNEL_MUTEX_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_LOCKED"] = 2147615172] = "ERROR_KERNEL_MUTEX_LOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCKED"] = 2147615173] = "ERROR_KERNEL_MUTEX_UNLOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_LOCK_OVERFLOW"] = 2147615174] = "ERROR_KERNEL_MUTEX_LOCK_OVERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW"] = 2147615175] = "ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED"] = 2147615176] = "ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE"] = 2147615177] = "ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_NOT_FOUND"] = 2147615178] = "ERROR_KERNEL_LWMUTEX_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCKED"] = 2147615179] = "ERROR_KERNEL_LWMUTEX_LOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCKED"] = 2147615180] = "ERROR_KERNEL_LWMUTEX_UNLOCKED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCK_OVERFLOW"] = 2147615181] = "ERROR_KERNEL_LWMUTEX_LOCK_OVERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCK_UNDERFLOW"] = 2147615182] = "ERROR_KERNEL_LWMUTEX_UNLOCK_UNDERFLOW";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_RECURSIVE_NOT_ALLOWED"] = 2147615183] = "ERROR_KERNEL_LWMUTEX_RECURSIVE_NOT_ALLOWED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_POWER_CANNOT_CANCEL"] = 2147615329] = "ERROR_KERNEL_POWER_CANNOT_CANCEL";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_TOO_MANY_OPEN_FILES"] = 2147615520] = "ERROR_KERNEL_TOO_MANY_OPEN_FILES";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_SUCH_DEVICE"] = 2147615521] = "ERROR_KERNEL_NO_SUCH_DEVICE";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_BAD_FILE_DESCRIPTOR"] = 2147615523] = "ERROR_KERNEL_BAD_FILE_DESCRIPTOR";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_UNSUPPORTED_OPERATION"] = 2147615525] = "ERROR_KERNEL_UNSUPPORTED_OPERATION";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOCWD"] = 2147615532] = "ERROR_KERNEL_NOCWD";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_FILENAME_TOO_LONG"] = 2147615533] = "ERROR_KERNEL_FILENAME_TOO_LONG";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_ASYNC_BUSY"] = 2147615529] = "ERROR_KERNEL_ASYNC_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NO_ASYNC_OP"] = 2147615530] = "ERROR_KERNEL_NO_ASYNC_OP";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_NOT_CACHE_ALIGNED"] = 2147615820] = "ERROR_KERNEL_NOT_CACHE_ALIGNED";
+    SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MAX_ERROR"] = 2147615821] = "ERROR_KERNEL_MAX_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_STATUS"] = 2148597761] = "ERROR_UTILITY_INVALID_STATUS";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_PARAM_ADDR"] = 2148597762] = "ERROR_UTILITY_INVALID_PARAM_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_IS_UNKNOWN"] = 2148597763] = "ERROR_UTILITY_IS_UNKNOWN";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_INVALID_PARAM_SIZE"] = 2148597764] = "ERROR_UTILITY_INVALID_PARAM_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_WRONG_TYPE"] = 2148597765] = "ERROR_UTILITY_WRONG_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_UTILITY_MODULE_NOT_FOUND"] = 2148597766] = "ERROR_UTILITY_MODULE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_MEMSTICK"] = 2148598529] = "ERROR_SAVEDATA_LOAD_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_MEMSTICK_REMOVED"] = 2148598530] = "ERROR_SAVEDATA_LOAD_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_ACCESS_ERROR"] = 2148598533] = "ERROR_SAVEDATA_LOAD_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_DATA_BROKEN"] = 2148598534] = "ERROR_SAVEDATA_LOAD_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_DATA"] = 2148598535] = "ERROR_SAVEDATA_LOAD_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_BAD_PARAMS"] = 2148598536] = "ERROR_SAVEDATA_LOAD_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_NO_UMD"] = 2148598537] = "ERROR_SAVEDATA_LOAD_NO_UMD";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_LOAD_INTERNAL_ERROR"] = 2148598537] = "ERROR_SAVEDATA_LOAD_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_NO_MEMSTICK"] = 2148598561] = "ERROR_SAVEDATA_RW_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_REMOVED"] = 2148598562] = "ERROR_SAVEDATA_RW_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_FULL"] = 2148598563] = "ERROR_SAVEDATA_RW_MEMSTICK_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_MEMSTICK_PROTECTED"] = 2148598564] = "ERROR_SAVEDATA_RW_MEMSTICK_PROTECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_ACCESS_ERROR"] = 2148598565] = "ERROR_SAVEDATA_RW_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_DATA_BROKEN"] = 2148598566] = "ERROR_SAVEDATA_RW_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_NO_DATA"] = 2148598567] = "ERROR_SAVEDATA_RW_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_BAD_PARAMS"] = 2148598568] = "ERROR_SAVEDATA_RW_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_FILE_NOT_FOUND"] = 2148598569] = "ERROR_SAVEDATA_RW_FILE_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_CAN_NOT_SUSPEND"] = 2148598570] = "ERROR_SAVEDATA_RW_CAN_NOT_SUSPEND";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_INTERNAL_ERROR"] = 2148598571] = "ERROR_SAVEDATA_RW_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_BAD_STATUS"] = 2148598572] = "ERROR_SAVEDATA_RW_BAD_STATUS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_RW_SECURE_FILE_FULL"] = 2148598573] = "ERROR_SAVEDATA_RW_SECURE_FILE_FULL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_NO_MEMSTICK"] = 2148598593] = "ERROR_SAVEDATA_DELETE_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_MEMSTICK_REMOVED"] = 2148598594] = "ERROR_SAVEDATA_DELETE_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_MEMSTICK_PROTECTED"] = 2148598596] = "ERROR_SAVEDATA_DELETE_MEMSTICK_PROTECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_ACCESS_ERROR"] = 2148598597] = "ERROR_SAVEDATA_DELETE_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_DATA_BROKEN"] = 2148598598] = "ERROR_SAVEDATA_DELETE_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_NO_DATA"] = 2148598599] = "ERROR_SAVEDATA_DELETE_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_BAD_PARAMS"] = 2148598600] = "ERROR_SAVEDATA_DELETE_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_DELETE_INTERNAL_ERROR"] = 2148598603] = "ERROR_SAVEDATA_DELETE_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_MEMSTICK"] = 2148598657] = "ERROR_SAVEDATA_SAVE_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_MEMSTICK_REMOVED"] = 2148598658] = "ERROR_SAVEDATA_SAVE_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_SPACE"] = 2148598659] = "ERROR_SAVEDATA_SAVE_NO_SPACE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_MEMSTICK_PROTECTED"] = 2148598660] = "ERROR_SAVEDATA_SAVE_MEMSTICK_PROTECTED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_ACCESS_ERROR"] = 2148598661] = "ERROR_SAVEDATA_SAVE_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_BAD_PARAMS"] = 2148598664] = "ERROR_SAVEDATA_SAVE_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_NO_UMD"] = 2148598665] = "ERROR_SAVEDATA_SAVE_NO_UMD";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_WRONG_UMD"] = 2148598666] = "ERROR_SAVEDATA_SAVE_WRONG_UMD";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SAVE_INTERNAL_ERROR"] = 2148598667] = "ERROR_SAVEDATA_SAVE_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_NO_MEMSTICK"] = 2148598721] = "ERROR_SAVEDATA_SIZES_NO_MEMSTICK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_MEMSTICK_REMOVED"] = 2148598722] = "ERROR_SAVEDATA_SIZES_MEMSTICK_REMOVED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_ACCESS_ERROR"] = 2148598725] = "ERROR_SAVEDATA_SIZES_ACCESS_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_DATA_BROKEN"] = 2148598726] = "ERROR_SAVEDATA_SIZES_DATA_BROKEN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_NO_DATA"] = 2148598727] = "ERROR_SAVEDATA_SIZES_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_BAD_PARAMS"] = 2148598728] = "ERROR_SAVEDATA_SIZES_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAVEDATA_SIZES_INTERNAL_ERROR"] = 2148598731] = "ERROR_SAVEDATA_SIZES_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_NETPARAM_BAD_NETCONF"] = 2148599297] = "ERROR_NETPARAM_BAD_NETCONF";
+    SceKernelErrors[SceKernelErrors["ERROR_NETPARAM_BAD_PARAM"] = 2148599300] = "ERROR_NETPARAM_BAD_PARAM";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_BAD_ID"] = 2148599809] = "ERROR_NET_MODULE_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_ALREADY_LOADED"] = 2148599810] = "ERROR_NET_MODULE_ALREADY_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_MODULE_NOT_LOADED"] = 2148599811] = "ERROR_NET_MODULE_NOT_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_BAD_ID"] = 2148600065] = "ERROR_AV_MODULE_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_ALREADY_LOADED"] = 2148600066] = "ERROR_AV_MODULE_ALREADY_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_AV_MODULE_NOT_LOADED"] = 2148600067] = "ERROR_AV_MODULE_NOT_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_MODULE_BAD_ID"] = 2148602113] = "ERROR_MODULE_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_MODULE_ALREADY_LOADED"] = 2148602114] = "ERROR_MODULE_ALREADY_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_MODULE_NOT_LOADED"] = 2148602115] = "ERROR_MODULE_NOT_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_SCREENSHOT_CONT_MODE_NOT_INIT"] = 2148602409] = "ERROR_SCREENSHOT_CONT_MODE_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_UMD_NOT_READY"] = 2149646337] = "ERROR_UMD_NOT_READY";
+    SceKernelErrors[SceKernelErrors["ERROR_UMD_LBA_OUT_OF_BOUNDS"] = 2149646338] = "ERROR_UMD_LBA_OUT_OF_BOUNDS";
+    SceKernelErrors[SceKernelErrors["ERROR_UMD_NO_DISC"] = 2149646339] = "ERROR_UMD_NO_DISC";
+    SceKernelErrors[SceKernelErrors["ERROR_MEMSTICK_DEVCTL_BAD_PARAMS"] = 2149712001] = "ERROR_MEMSTICK_DEVCTL_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_MEMSTICK_DEVCTL_TOO_MANY_CALLBACKS"] = 2149712002] = "ERROR_MEMSTICK_DEVCTL_TOO_MANY_CALLBACKS";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_NOT_INIT"] = 2149974017] = "ERROR_AUDIO_CHANNEL_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_BUSY"] = 2149974018] = "ERROR_AUDIO_CHANNEL_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_CHANNEL"] = 2149974019] = "ERROR_AUDIO_INVALID_CHANNEL";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_PRIV_REQUIRED"] = 2149974020] = "ERROR_AUDIO_PRIV_REQUIRED";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_NO_CHANNELS_AVAILABLE"] = 2149974021] = "ERROR_AUDIO_NO_CHANNELS_AVAILABLE";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED"] = 2149974022] = "ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FORMAT"] = 2149974023] = "ERROR_AUDIO_INVALID_FORMAT";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_NOT_RESERVED"] = 2149974024] = "ERROR_AUDIO_CHANNEL_NOT_RESERVED";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_NOT_OUTPUT"] = 2149974025] = "ERROR_AUDIO_NOT_OUTPUT";
+    SceKernelErrors[SceKernelErrors["ERROR_POWER_VMEM_IN_USE"] = 2150302208] = "ERROR_POWER_VMEM_IN_USE";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_BAD_ID"] = 2151744520] = "ERROR_NET_RESOLVER_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_ALREADY_STOPPED"] = 2151744522] = "ERROR_NET_RESOLVER_ALREADY_STOPPED";
+    SceKernelErrors[SceKernelErrors["ERROR_NET_RESOLVER_INVALID_HOST"] = 2151744532] = "ERROR_NET_RESOLVER_INVALID_HOST";
+    SceKernelErrors[SceKernelErrors["ERROR_WLAN_BAD_PARAMS"] = 2151746835] = "ERROR_WLAN_BAD_PARAMS";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_NOT_INIT"] = 2151878657] = "ERROR_HTTP_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_ALREADY_INIT"] = 2151878688] = "ERROR_HTTP_ALREADY_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_NO_MEMORY"] = 2151878775] = "ERROR_HTTP_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_SYSTEM_COOKIE_NOT_LOADED"] = 2151878776] = "ERROR_HTTP_SYSTEM_COOKIE_NOT_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTP_INVALID_PARAMETER"] = 2151879166] = "ERROR_HTTP_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_NOT_INIT"] = 2151895041] = "ERROR_SSL_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_ALREADY_INIT"] = 2151895072] = "ERROR_SSL_ALREADY_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_OUT_OF_MEMORY"] = 2151895074] = "ERROR_SSL_OUT_OF_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_CERT_ERROR"] = 2151895136] = "ERROR_HTTPS_CERT_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_HANDSHAKE_ERROR"] = 2151895137] = "ERROR_HTTPS_HANDSHAKE_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_IO_ERROR"] = 2151895138] = "ERROR_HTTPS_IO_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_INTERNAL_ERROR"] = 2151895139] = "ERROR_HTTPS_INTERNAL_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_HTTPS_PROXY_ERROR"] = 2151895140] = "ERROR_HTTPS_PROXY_ERROR";
+    SceKernelErrors[SceKernelErrors["ERROR_SSL_INVALID_PARAMETER"] = 2151895550] = "ERROR_SSL_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_NOT_INIT"] = 2151940097] = "ERROR_WAVE_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_FAILED_EXIT"] = 2151940098] = "ERROR_WAVE_FAILED_EXIT";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_BAD_VOL"] = 2151940106] = "ERROR_WAVE_BAD_VOL";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_INVALID_CHANNEL"] = 2151940112] = "ERROR_WAVE_INVALID_CHANNEL";
+    SceKernelErrors[SceKernelErrors["ERROR_WAVE_INVALID_SAMPLE_COUNT"] = 2151940113] = "ERROR_WAVE_INVALID_SAMPLE_COUNT";
+    SceKernelErrors[SceKernelErrors["ERROR_FONT_INVALID_LIBID"] = 2152071170] = "ERROR_FONT_INVALID_LIBID";
+    SceKernelErrors[SceKernelErrors["ERROR_FONT_INVALID_PARAMETER"] = 2152071171] = "ERROR_FONT_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_FONT_TOO_MANY_OPEN_FONTS"] = 2152071177] = "ERROR_FONT_TOO_MANY_OPEN_FONTS";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_BAD_VERSION"] = 2153840642] = "ERROR_MPEG_BAD_VERSION";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_NO_MEMORY"] = 2153840674] = "ERROR_MPEG_NO_MEMORY";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_INVALID_ADDR"] = 2153840899] = "ERROR_MPEG_INVALID_ADDR";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_INVALID_VALUE"] = 2153841150] = "ERROR_MPEG_INVALID_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_NOT_INITIALIZED"] = 2153861121] = "ERROR_PSMF_NOT_INITIALIZED";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_BAD_VERSION"] = 2153861122] = "ERROR_PSMF_BAD_VERSION";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_NOT_FOUND"] = 2153861157] = "ERROR_PSMF_NOT_FOUND";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_ID"] = 2153861376] = "ERROR_PSMF_INVALID_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_VALUE"] = 2153861630] = "ERROR_PSMF_INVALID_VALUE";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_TIMESTAMP"] = 2153862400] = "ERROR_PSMF_INVALID_TIMESTAMP";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMF_INVALID_PSMF"] = 2153862401] = "ERROR_PSMF_INVALID_PSMF";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMFPLAYER_NOT_INITIALIZED"] = 2153865217] = "ERROR_PSMFPLAYER_NOT_INITIALIZED";
+    SceKernelErrors[SceKernelErrors["ERROR_PSMFPLAYER_NO_MORE_DATA"] = 2153865228] = "ERROR_PSMFPLAYER_NO_MORE_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_MPEG_NO_DATA"] = 2153873409] = "ERROR_MPEG_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_AVC_VIDEO_FATAL"] = 2153938946] = "ERROR_AVC_VIDEO_FATAL";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_NO_ID"] = 2153971715] = "ERROR_ATRAC_NO_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_INVALID_CODEC"] = 2153971716] = "ERROR_ATRAC_INVALID_CODEC";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_BAD_ID"] = 2153971717] = "ERROR_ATRAC_BAD_ID";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_ALL_DATA_LOADED"] = 2153971721] = "ERROR_ATRAC_ALL_DATA_LOADED";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_NO_DATA"] = 2153971728] = "ERROR_ATRAC_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_SECOND_BUFFER_NEEDED"] = 2153971730] = "ERROR_ATRAC_SECOND_BUFFER_NEEDED";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED"] = 2153971746] = "ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_BUFFER_IS_EMPTY"] = 2153971747] = "ERROR_ATRAC_BUFFER_IS_EMPTY";
+    SceKernelErrors[SceKernelErrors["ERROR_ATRAC_ALL_DATA_DECODED"] = 2153971748] = "ERROR_ATRAC_ALL_DATA_DECODED";
+    SceKernelErrors[SceKernelErrors["ERROR_CODEC_AUDIO_FATAL"] = 2155806972] = "ERROR_CODEC_AUDIO_FATAL";
+    SceKernelErrors[SceKernelErrors["FATAL_UMD_UNKNOWN_MEDIUM"] = 3223388164] = "FATAL_UMD_UNKNOWN_MEDIUM";
+    SceKernelErrors[SceKernelErrors["FATAL_UMD_HARDWARE_FAILURE"] = 3223388165] = "FATAL_UMD_HARDWARE_FAILURE";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FREQUENCY"] = 2149974026] = "ERROR_AUDIO_INVALID_FREQUENCY";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_VOLUME"] = 2149974027] = "ERROR_AUDIO_INVALID_VOLUME";
+    SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_ALREADY_RESERVED"] = 2150006786] = "ERROR_AUDIO_CHANNEL_ALREADY_RESERVED";
+    SceKernelErrors[SceKernelErrors["PSP_AUDIO_ERROR_SRC_FORMAT_4"] = 2147483651] = "PSP_AUDIO_ERROR_SRC_FORMAT_4";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_API_FAIL"] = 2153971714] = "ATRAC_ERROR_API_FAIL";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_NO_ATRACID"] = 2153971715] = "ATRAC_ERROR_NO_ATRACID";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_INVALID_CODECTYPE"] = 2153971716] = "ATRAC_ERROR_INVALID_CODECTYPE";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_BAD_ATRACID"] = 2153971717] = "ATRAC_ERROR_BAD_ATRACID";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ALL_DATA_LOADED"] = 2153971721] = "ATRAC_ERROR_ALL_DATA_LOADED";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_NO_DATA"] = 2153971728] = "ATRAC_ERROR_NO_DATA";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_SECOND_BUFFER_NEEDED"] = 2153971730] = "ATRAC_ERROR_SECOND_BUFFER_NEEDED";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_INCORRECT_READ_SIZE"] = 2153971731] = "ATRAC_ERROR_INCORRECT_READ_SIZE";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ADD_DATA_IS_TOO_BIG"] = 2153971736] = "ATRAC_ERROR_ADD_DATA_IS_TOO_BIG";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_UNSET_PARAM"] = 2153971745] = "ATRAC_ERROR_UNSET_PARAM";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_SECOND_BUFFER_NOT_NEEDED"] = 2153971746] = "ATRAC_ERROR_SECOND_BUFFER_NOT_NEEDED";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_BUFFER_IS_EMPTY"] = 2153971747] = "ATRAC_ERROR_BUFFER_IS_EMPTY";
+    SceKernelErrors[SceKernelErrors["ATRAC_ERROR_ALL_DATA_DECODED"] = 2153971748] = "ATRAC_ERROR_ALL_DATA_DECODED";
+    SceKernelErrors[SceKernelErrors["PSP_SYSTEMPARAM_RETVAL"] = 2148598019] = "PSP_SYSTEMPARAM_RETVAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE"] = 2151809040] = "ERROR_SAS_INVALID_VOICE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_CURVE_MODE"] = 2151809043] = "ERROR_SAS_INVALID_ADSR_CURVE_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PARAMETER"] = 2151809044] = "ERROR_SAS_INVALID_PARAMETER";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_POS"] = 2151809045] = "ERROR_SAS_INVALID_LOOP_POS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_VOICE_PAUSED"] = 2151809046] = "ERROR_SAS_VOICE_PAUSED";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_BUSY"] = 2151809072] = "ERROR_SAS_BUSY";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_NOT_INIT"] = 2151809280] = "ERROR_SAS_NOT_INIT";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_GRAIN"] = 2151809025] = "ERROR_SAS_INVALID_GRAIN";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_MAX_VOICES"] = 2151809026] = "ERROR_SAS_INVALID_MAX_VOICES";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_OUTPUT_MODE"] = 2151809027] = "ERROR_SAS_INVALID_OUTPUT_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SAMPLE_RATE"] = 2151809028] = "ERROR_SAS_INVALID_SAMPLE_RATE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADDRESS"] = 2151809029] = "ERROR_SAS_INVALID_ADDRESS";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE_INDEX"] = 2151809040] = "ERROR_SAS_INVALID_VOICE_INDEX";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_NOISE_CLOCK"] = 2151809041] = "ERROR_SAS_INVALID_NOISE_CLOCK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PITCH_VAL"] = 2151809042] = "ERROR_SAS_INVALID_PITCH_VAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADPCM_SIZE"] = 2151809044] = "ERROR_SAS_INVALID_ADPCM_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_MODE"] = 2151809045] = "ERROR_SAS_INVALID_LOOP_MODE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOLUME_VAL"] = 2151809048] = "ERROR_SAS_INVALID_VOLUME_VAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_VAL"] = 2151809049] = "ERROR_SAS_INVALID_ADSR_VAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SIZE"] = 2151809050] = "ERROR_SAS_INVALID_SIZE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_TYPE"] = 2151809056] = "ERROR_SAS_INVALID_FX_TYPE";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_FEEDBACK"] = 2151809057] = "ERROR_SAS_INVALID_FX_FEEDBACK";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_DELAY"] = 2151809058] = "ERROR_SAS_INVALID_FX_DELAY";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_VOLUME_VAL"] = 2151809059] = "ERROR_SAS_INVALID_FX_VOLUME_VAL";
+    SceKernelErrors[SceKernelErrors["ERROR_SAS_ALREADY_INIT"] = 2151809281] = "ERROR_SAS_ALREADY_INIT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_TAKEN_SLOT"] = 2147483680] = "PSP_POWER_ERROR_TAKEN_SLOT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_SLOTS_FULL"] = 2147483682] = "PSP_POWER_ERROR_SLOTS_FULL";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_PRIVATE_SLOT"] = 2147483683] = "PSP_POWER_ERROR_PRIVATE_SLOT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_EMPTY_SLOT"] = 2147483685] = "PSP_POWER_ERROR_EMPTY_SLOT";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_INVALID_CB"] = 2147483904] = "PSP_POWER_ERROR_INVALID_CB";
+    SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_INVALID_SLOT"] = 2147483906] = "PSP_POWER_ERROR_INVALID_SLOT";
 })(SceKernelErrors || (SceKernelErrors = {}));
 module.exports = SceKernelErrors;
 
 },
 "src/hle/config": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var _structs = require('./structs');
 var PspLanguages = _structs.PspLanguages;
 var ButtonPreference = _structs.ButtonPreference;
 var Config = (function () {
     function Config() {
-        this.language = 1 /* ENGLISH */;
-        this.buttonPreference = 1 /* NA */;
+        this.language = PspLanguages.ENGLISH;
+        this.buttonPreference = ButtonPreference.NA;
         this.language = this.detectLanguage();
     }
     Config.prototype.detectLanguage = function () {
         if (typeof navigator == 'undefined')
-            return 1 /* ENGLISH */;
+            return PspLanguages.ENGLISH;
         if (!navigator.language)
-            return 1 /* ENGLISH */;
+            return PspLanguages.ENGLISH;
         switch (navigator.language.split(/[_\-]/g)[0]) {
-            case 'ja':
-                return 0 /* JAPANESE */;
-            case 'en':
-                return 1 /* ENGLISH */;
-            case 'fr':
-                return 2 /* FRENCH */;
-            case 'es':
-                return 3 /* SPANISH */;
-            case 'de':
-                return 4 /* GERMAN */;
-            case 'it':
-                return 5 /* ITALIAN */;
-            case 'nl':
-                return 6 /* DUTCH */;
-            case 'pt':
-                return 7 /* PORTUGUESE */;
-            case 'ru':
-                return 8 /* RUSSIAN */;
-            case 'ko':
-                return 9 /* KOREAN */;
-            case 'zh':
-                return 10 /* TRADITIONAL_CHINESE */;
-            case 'zh2':
-                return 11 /* SIMPLIFIED_CHINESE */;
-            default:
-                return 1 /* ENGLISH */;
+            case 'ja': return PspLanguages.JAPANESE;
+            case 'en': return PspLanguages.ENGLISH;
+            case 'fr': return PspLanguages.FRENCH;
+            case 'es': return PspLanguages.SPANISH;
+            case 'de': return PspLanguages.GERMAN;
+            case 'it': return PspLanguages.ITALIAN;
+            case 'nl': return PspLanguages.DUTCH;
+            case 'pt': return PspLanguages.PORTUGUESE;
+            case 'ru': return PspLanguages.RUSSIAN;
+            case 'ko': return PspLanguages.KOREAN;
+            case 'zh': return PspLanguages.TRADITIONAL_CHINESE;
+            case 'zh2': return PspLanguages.SIMPLIFIED_CHINESE;
+            default: return PspLanguages.ENGLISH;
         }
     };
     return Config;
@@ -16025,7 +14364,7 @@ function decrypt1(pbIn) {
     pbOut.slice().writeByteRepeated(0x00, 0x150);
     pbOut.slice().writeByteRepeated(0x55, 0x40);
     var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
-    h7_header.mode = 5 /* DecryptCbc */;
+    h7_header.mode = kirk.KirkMode.DecryptCbc;
     h7_header.unk_4 = 0;
     h7_header.unk_8 = 0;
     h7_header.keyseed = pti.code;
@@ -16037,21 +14376,27 @@ function decrypt1(pbIn) {
     buffer1.sliceWithLength(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
     if (pti.codeExtra != 0) {
         var buffer2 = Stream.fromSize(20 + 0xA0);
-        buffer2.slice().writeUInt32(5).writeUInt32(0).writeUInt32(0).writeUInt32(pti.codeExtra).writeUInt32(0xA0).writeStream(buffer1.sliceWithLength(0x10, 0xA0));
-        kirk.hleUtilsBufferCopyWithRange(buffer2.sliceWithLength(0, 20 + 0xA0), buffer2.sliceWithLength(0, 20 + 0xA0), 7 /* DECRYPT_IV_0 */);
+        buffer2.slice()
+            .writeUInt32(5)
+            .writeUInt32(0)
+            .writeUInt32(0)
+            .writeUInt32(pti.codeExtra)
+            .writeUInt32(0xA0)
+            .writeStream(buffer1.sliceWithLength(0x10, 0xA0));
+        kirk.hleUtilsBufferCopyWithRange(buffer2.sliceWithLength(0, 20 + 0xA0), buffer2.sliceWithLength(0, 20 + 0xA0), kirk.CommandEnum.DECRYPT_IV_0);
         buffer1.slice().writeStream(buffer2.sliceWithLength(0, 0xA0));
     }
     pbOut.sliceFrom(0x40).writeStream(buffer1.sliceWithLength(0x40, 0x40));
     for (var iXOR = 0; iXOR < 0x70; iXOR++)
         pbOut.set(0x40 + iXOR, ((pbOut.get(0x40 + iXOR) ^ pti.key[0x14 + iXOR]) & 0xFF));
-    kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x2C, 20 + 0x70), pbOut.sliceWithLength(0x2C, 20 + 0x70), 7 /* DECRYPT_IV_0 */);
+    kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x2C, 20 + 0x70), pbOut.sliceWithLength(0x2C, 20 + 0x70), kirk.CommandEnum.DECRYPT_IV_0);
     for (var iXOR = 0x6F; iXOR >= 0; iXOR--)
         pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
     pbOut.sliceFrom(0x80).writeByteRepeated(0, 0x30);
     pbOut.set(0xA0, 1);
     pbOut.sliceFrom(0xB0).writeStream(pbIn.sliceWithLength(0xB0, 0x20));
     pbOut.sliceFrom(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
-    kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x00, cbTotal), pbOut.sliceWithLength(0x40, cbTotal - 0x40), 1 /* DECRYPT_PRIVATE */);
+    kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x00, cbTotal), pbOut.sliceWithLength(0x40, cbTotal - 0x40), kirk.CommandEnum.DECRYPT_PRIVATE);
     var outputSize = pbIn.sliceFrom(0xB0).readUInt32();
     return pbOut.sliceWithLength(0, outputSize);
 }
@@ -16063,612 +14408,132 @@ exports.decrypt = decrypt;
 },
 "src/hle/elf_crypted_prx_keys_144": function(module, exports, require) {
 var g_key0 = new Uint32Array([
-    0x7b21f3be,
-    0x299c5e1d,
-    0x1c9c5e71,
-    0x96cb4645,
-    0x3c9b1be0,
-    0xeb85de3d,
-    0x4a7f2022,
-    0xc2206eaa,
-    0xd50b3265,
-    0x55770567,
-    0x3c080840,
-    0x981d55f2,
-    0x5fd8f6f3,
-    0xee8eb0c5,
-    0x944d8152,
-    0xf8278651,
-    0x2705bafa,
-    0x8420e533,
-    0x27154ae9,
-    0x4819aa32,
-    0x59a3aa40,
-    0x2cb3cf65,
-    0xf274466d,
-    0x3a655605,
-    0x21b0f88f,
-    0xc5b18d26,
-    0x64c19051,
-    0xd669c94e,
-    0xe87035f2,
-    0x9d3a5909,
-    0x6f4e7102,
-    0xdca946ce,
-    0x8416881b,
-    0xbab097a5,
-    0x249125c6,
-    0xb34c0872,
+    0x7b21f3be, 0x299c5e1d, 0x1c9c5e71, 0x96cb4645, 0x3c9b1be0, 0xeb85de3d,
+    0x4a7f2022, 0xc2206eaa, 0xd50b3265, 0x55770567, 0x3c080840, 0x981d55f2,
+    0x5fd8f6f3, 0xee8eb0c5, 0x944d8152, 0xf8278651, 0x2705bafa, 0x8420e533,
+    0x27154ae9, 0x4819aa32, 0x59a3aa40, 0x2cb3cf65, 0xf274466d, 0x3a655605,
+    0x21b0f88f, 0xc5b18d26, 0x64c19051, 0xd669c94e, 0xe87035f2, 0x9d3a5909,
+    0x6f4e7102, 0xdca946ce, 0x8416881b, 0xbab097a5, 0x249125c6, 0xb34c0872,
 ]);
 var g_key2 = new Uint32Array([
-    0xccfda932,
-    0x51c06f76,
-    0x046dcccf,
-    0x49e1821e,
-    0x7d3b024c,
-    0x9dda5865,
-    0xcc8c9825,
-    0xd1e97db5,
-    0x6874d8cb,
-    0x3471c987,
-    0x72edb3fc,
-    0x81c8365d,
-    0xe161e33a,
-    0xfc92db59,
-    0x2009b1ec,
-    0xb1a94ce4,
-    0x2f03696b,
-    0x87e236d8,
-    0x3b2b8ce9,
-    0x0305e784,
-    0xf9710883,
-    0xb039db39,
-    0x893bea37,
-    0xe74d6805,
-    0x2a5c38bd,
-    0xb08dc813,
-    0x15b32375,
-    0x46be4525,
-    0x0103fd90,
-    0xa90e87a2,
-    0x52aba66a,
-    0x85bf7b80,
-    0x45e8ce63,
-    0x4dd716d3,
-    0xf5e30d2d,
-    0xaf3ae456,
+    0xccfda932, 0x51c06f76, 0x046dcccf, 0x49e1821e, 0x7d3b024c, 0x9dda5865,
+    0xcc8c9825, 0xd1e97db5, 0x6874d8cb, 0x3471c987, 0x72edb3fc, 0x81c8365d,
+    0xe161e33a, 0xfc92db59, 0x2009b1ec, 0xb1a94ce4, 0x2f03696b, 0x87e236d8,
+    0x3b2b8ce9, 0x0305e784, 0xf9710883, 0xb039db39, 0x893bea37, 0xe74d6805,
+    0x2a5c38bd, 0xb08dc813, 0x15b32375, 0x46be4525, 0x0103fd90, 0xa90e87a2,
+    0x52aba66a, 0x85bf7b80, 0x45e8ce63, 0x4dd716d3, 0xf5e30d2d, 0xaf3ae456,
 ]);
 var g_key3 = new Uint32Array([
-    0xa6c8f5ca,
-    0x6d67c080,
-    0x924f4d3a,
-    0x047ca06a,
-    0x08640297,
-    0x4fd4a758,
-    0xbd685a87,
-    0x9b2701c2,
-    0x83b62a35,
-    0x726b533c,
-    0xe522fa0c,
-    0xc24b06b4,
-    0x459d1cac,
-    0xa8c5417b,
-    0x4fea62a2,
-    0x0615d742,
-    0x30628d09,
-    0xc44fab14,
-    0x69ff715e,
-    0xd2d8837d,
-    0xbeed0b8b,
-    0x1e6e57ae,
-    0x61e8c402,
-    0xbe367a06,
-    0x543f2b5e,
-    0xdb3ec058,
-    0xbe852075,
-    0x1e7e4dcc,
-    0x1564ea55,
-    0xec7825b4,
-    0xc0538cad,
-    0x70f72c7f,
-    0x49e8c3d0,
-    0xeda97ec5,
-    0xf492b0a4,
-    0xe05eb02a,
+    0xa6c8f5ca, 0x6d67c080, 0x924f4d3a, 0x047ca06a, 0x08640297, 0x4fd4a758,
+    0xbd685a87, 0x9b2701c2, 0x83b62a35, 0x726b533c, 0xe522fa0c, 0xc24b06b4,
+    0x459d1cac, 0xa8c5417b, 0x4fea62a2, 0x0615d742, 0x30628d09, 0xc44fab14,
+    0x69ff715e, 0xd2d8837d, 0xbeed0b8b, 0x1e6e57ae, 0x61e8c402, 0xbe367a06,
+    0x543f2b5e, 0xdb3ec058, 0xbe852075, 0x1e7e4dcc, 0x1564ea55, 0xec7825b4,
+    0xc0538cad, 0x70f72c7f, 0x49e8c3d0, 0xeda97ec5, 0xf492b0a4, 0xe05eb02a,
 ]);
 var g_key44 = new Uint32Array([
-    0xef80e005,
-    0x3a54689f,
-    0x43c99ccd,
-    0x1b7727be,
-    0x5cb80038,
-    0xdd2efe62,
-    0xf369f92c,
-    0x160f94c5,
-    0x29560019,
-    0xbf3c10c5,
-    0xf2ce5566,
-    0xcea2c626,
-    0xb601816f,
-    0x64e7481e,
-    0x0c34debd,
-    0x98f29cb0,
-    0x3fc504d7,
-    0xc8fb39f0,
-    0x0221b3d8,
-    0x63f936a2,
-    0x9a3a4800,
-    0x6ecc32e3,
-    0x8e120cfd,
-    0xb0361623,
-    0xaee1e689,
-    0x745502eb,
-    0xe4a6c61c,
-    0x74f23eb4,
-    0xd7fa5813,
-    0xb01916eb,
-    0x12328457,
-    0xd2bc97d2,
-    0x646425d8,
-    0x328380a5,
-    0x43da8ab1,
-    0x4b122ac9,
+    0xef80e005, 0x3a54689f, 0x43c99ccd, 0x1b7727be, 0x5cb80038, 0xdd2efe62,
+    0xf369f92c, 0x160f94c5, 0x29560019, 0xbf3c10c5, 0xf2ce5566, 0xcea2c626,
+    0xb601816f, 0x64e7481e, 0x0c34debd, 0x98f29cb0, 0x3fc504d7, 0xc8fb39f0,
+    0x0221b3d8, 0x63f936a2, 0x9a3a4800, 0x6ecc32e3, 0x8e120cfd, 0xb0361623,
+    0xaee1e689, 0x745502eb, 0xe4a6c61c, 0x74f23eb4, 0xd7fa5813, 0xb01916eb,
+    0x12328457, 0xd2bc97d2, 0x646425d8, 0x328380a5, 0x43da8ab1, 0x4b122ac9,
 ]);
 var g_key20 = new Uint32Array([
-    0x33b50800,
-    0xf32f5fcd,
-    0x3c14881f,
-    0x6e8a2a95,
-    0x29feefd5,
-    0x1394eae3,
-    0xbd6bd443,
-    0x0821c083,
-    0xfab379d3,
-    0xe613e165,
-    0xf5a754d3,
-    0x108b2952,
-    0x0a4b1e15,
-    0x61eadeba,
-    0x557565df,
-    0x3b465301,
-    0xae54ecc3,
-    0x61423309,
-    0x70c9ff19,
-    0x5b0ae5ec,
-    0x989df126,
-    0x9d987a5f,
-    0x55bc750e,
-    0xc66eba27,
-    0x2de988e8,
-    0xf76600da,
-    0x0382dccb,
-    0x5569f5f2,
-    0x8e431262,
-    0x288fe3d3,
-    0x656f2187,
-    0x37d12e9c,
-    0x2f539eb4,
-    0xa492998e,
-    0xed3958f7,
-    0x39e96523,
+    0x33b50800, 0xf32f5fcd, 0x3c14881f, 0x6e8a2a95, 0x29feefd5, 0x1394eae3,
+    0xbd6bd443, 0x0821c083, 0xfab379d3, 0xe613e165, 0xf5a754d3, 0x108b2952,
+    0x0a4b1e15, 0x61eadeba, 0x557565df, 0x3b465301, 0xae54ecc3, 0x61423309,
+    0x70c9ff19, 0x5b0ae5ec, 0x989df126, 0x9d987a5f, 0x55bc750e, 0xc66eba27,
+    0x2de988e8, 0xf76600da, 0x0382dccb, 0x5569f5f2, 0x8e431262, 0x288fe3d3,
+    0x656f2187, 0x37d12e9c, 0x2f539eb4, 0xa492998e, 0xed3958f7, 0x39e96523,
 ]);
 var g_key3A = new Uint32Array([
-    0x67877069,
-    0x3abd5617,
-    0xc23ab1dc,
-    0xab57507d,
-    0x066a7f40,
-    0x24def9b9,
-    0x06f759e4,
-    0xdcf524b1,
-    0x13793e5e,
-    0x0359022d,
-    0xaae7e1a2,
-    0x76b9b2fa,
-    0x9a160340,
-    0x87822fba,
-    0x19e28fbb,
-    0x9e338a02,
-    0xd8007e9a,
-    0xea317af1,
-    0x630671de,
-    0x0b67ca7c,
-    0x865192af,
-    0xea3c3526,
-    0x2b448c8e,
-    0x8b599254,
-    0x4602e9cb,
-    0x4de16cda,
-    0xe164d5bb,
-    0x07ecd88e,
-    0x99ffe5f8,
-    0x768800c1,
-    0x53b091ed,
-    0x84047434,
-    0xb426dbbc,
-    0x36f948bb,
-    0x46142158,
-    0x749bb492,
+    0x67877069, 0x3abd5617, 0xc23ab1dc, 0xab57507d, 0x066a7f40, 0x24def9b9,
+    0x06f759e4, 0xdcf524b1, 0x13793e5e, 0x0359022d, 0xaae7e1a2, 0x76b9b2fa,
+    0x9a160340, 0x87822fba, 0x19e28fbb, 0x9e338a02, 0xd8007e9a, 0xea317af1,
+    0x630671de, 0x0b67ca7c, 0x865192af, 0xea3c3526, 0x2b448c8e, 0x8b599254,
+    0x4602e9cb, 0x4de16cda, 0xe164d5bb, 0x07ecd88e, 0x99ffe5f8, 0x768800c1,
+    0x53b091ed, 0x84047434, 0xb426dbbc, 0x36f948bb, 0x46142158, 0x749bb492,
 ]);
 var g_keyEBOOT1xx = new Uint32Array([
-    0x18CB69EF,
-    0x158E8912,
-    0xDEF90EBB,
-    0x4CB0FB23,
-    0x3687EE18,
-    0x868D4A6E,
-    0x19B5C756,
-    0xEE16551D,
-    0xE7CB2D6C,
-    0x9747C660,
-    0xCE95143F,
-    0x2956F477,
-    0x03824ADE,
-    0x210C9DF1,
-    0x5029EB24,
-    0x81DFE69F,
-    0x39C89B00,
-    0xB00C8B91,
-    0xEF2DF9C2,
-    0xE13A93FC,
-    0x8B94A4A8,
-    0x491DD09D,
-    0x686A400D,
-    0xCED4C7E4,
-    0x96C8B7C9,
-    0x1EAADC28,
-    0xA4170B84,
-    0x505D5DDC,
-    0x5DA6C3CF,
-    0x0E5DFA2D,
-    0x6E7919B5,
-    0xCE5E29C7,
-    0xAAACDB94,
-    0x45F70CDD,
-    0x62A73725,
-    0xCCE6563D,
+    0x18CB69EF, 0x158E8912, 0xDEF90EBB, 0x4CB0FB23, 0x3687EE18, 0x868D4A6E,
+    0x19B5C756, 0xEE16551D, 0xE7CB2D6C, 0x9747C660, 0xCE95143F, 0x2956F477,
+    0x03824ADE, 0x210C9DF1, 0x5029EB24, 0x81DFE69F, 0x39C89B00, 0xB00C8B91,
+    0xEF2DF9C2, 0xE13A93FC, 0x8B94A4A8, 0x491DD09D, 0x686A400D, 0xCED4C7E4,
+    0x96C8B7C9, 0x1EAADC28, 0xA4170B84, 0x505D5DDC, 0x5DA6C3CF, 0x0E5DFA2D,
+    0x6E7919B5, 0xCE5E29C7, 0xAAACDB94, 0x45F70CDD, 0x62A73725, 0xCCE6563D,
 ]);
 var g_keyEBOOT2xx = new Uint32Array([
-    0xDA8E36FA,
-    0x5DD97447,
-    0x76C19874,
-    0x97E57EAF,
-    0x1CAB09BD,
-    0x9835BAC6,
-    0x03D39281,
-    0x03B205CF,
-    0x2882E734,
-    0xE714F663,
-    0xB96E2775,
-    0xBD8AAFC7,
-    0x1DD3EC29,
-    0xECA4A16C,
-    0x5F69EC87,
-    0x85981E92,
-    0x7CFCAE21,
-    0xBAE9DD16,
-    0xE6A97804,
-    0x2EEE02FC,
-    0x61DF8A3D,
-    0xDD310564,
-    0x9697E149,
-    0xC2453F3B,
-    0xF91D8456,
-    0x39DA6BC8,
-    0xB3E5FEF5,
-    0x89C593A3,
-    0xFB5C8ABC,
-    0x6C0B7212,
-    0xE10DD3CB,
-    0x98D0B2A8,
-    0x5FD61847,
-    0xF0DC2357,
-    0x7701166A,
-    0x0F5C3B68,
+    0xDA8E36FA, 0x5DD97447, 0x76C19874, 0x97E57EAF, 0x1CAB09BD, 0x9835BAC6,
+    0x03D39281, 0x03B205CF, 0x2882E734, 0xE714F663, 0xB96E2775, 0xBD8AAFC7,
+    0x1DD3EC29, 0xECA4A16C, 0x5F69EC87, 0x85981E92, 0x7CFCAE21, 0xBAE9DD16,
+    0xE6A97804, 0x2EEE02FC, 0x61DF8A3D, 0xDD310564, 0x9697E149, 0xC2453F3B,
+    0xF91D8456, 0x39DA6BC8, 0xB3E5FEF5, 0x89C593A3, 0xFB5C8ABC, 0x6C0B7212,
+    0xE10DD3CB, 0x98D0B2A8, 0x5FD61847, 0xF0DC2357, 0x7701166A, 0x0F5C3B68,
 ]);
 var g_keyUPDATER = new Uint32Array([
-    0xA5603CBF,
-    0xD7482441,
-    0xF65764CC,
-    0x1F90060B,
-    0x4EA73E45,
-    0xE551D192,
-    0xE7B75D8A,
-    0x465A506E,
-    0x40FB1022,
-    0x2C273350,
-    0x8096DA44,
-    0x9947198E,
-    0x278DEE77,
-    0x745D062E,
-    0xC148FA45,
-    0x832582AF,
-    0x5FDB86DA,
-    0xCB15C4CE,
-    0x2524C62F,
-    0x6C2EC3B1,
-    0x369BE39E,
-    0xF7EB1FC4,
-    0x1E51CE1A,
-    0xD70536F4,
-    0xC34D39D8,
-    0x7418FB13,
-    0xE3C84DE1,
-    0xB118F03C,
-    0xA2018D4E,
-    0xE6D8770D,
-    0x5720F390,
-    0x17F96341,
-    0x60A4A68F,
-    0x1327DD28,
-    0x05944C64,
-    0x0C2C4C12,
+    0xA5603CBF, 0xD7482441, 0xF65764CC, 0x1F90060B, 0x4EA73E45, 0xE551D192,
+    0xE7B75D8A, 0x465A506E, 0x40FB1022, 0x2C273350, 0x8096DA44, 0x9947198E,
+    0x278DEE77, 0x745D062E, 0xC148FA45, 0x832582AF, 0x5FDB86DA, 0xCB15C4CE,
+    0x2524C62F, 0x6C2EC3B1, 0x369BE39E, 0xF7EB1FC4, 0x1E51CE1A, 0xD70536F4,
+    0xC34D39D8, 0x7418FB13, 0xE3C84DE1, 0xB118F03C, 0xA2018D4E, 0xE6D8770D,
+    0x5720F390, 0x17F96341, 0x60A4A68F, 0x1327DD28, 0x05944C64, 0x0C2C4C12,
 ]);
 var g_keyMEIMG250 = new Uint32Array([
-    0xA381FEBC,
-    0x99B9D5C9,
-    0x6C560A8D,
-    0x30309F95,
-    0x792646CC,
-    0x82B64E5E,
-    0x1A3951AD,
-    0x0A182EC4,
-    0xC46131B4,
-    0x77C50C8A,
-    0x325F16C6,
-    0x02D1942E,
-    0x0AA38AC4,
-    0x2A940AC6,
-    0x67034726,
-    0xE52DB133,
-    0xD2EF2107,
-    0x85C81E90,
-    0xC8D164BA,
-    0xC38DCE1D,
-    0x948BA275,
-    0x0DB84603,
-    0xE2473637,
-    0xCD74FCDA,
-    0x588E3D66,
-    0x6D28E822,
-    0x891E548B,
-    0xF53CF56D,
-    0x0BBDDB66,
-    0xC4B286AA,
-    0x2BEBBC4B,
-    0xFC261FF4,
-    0x92B8E705,
-    0xDCEE6952,
-    0x5E0442E5,
-    0x8BEB7F21,
+    0xA381FEBC, 0x99B9D5C9, 0x6C560A8D, 0x30309F95, 0x792646CC, 0x82B64E5E,
+    0x1A3951AD, 0x0A182EC4, 0xC46131B4, 0x77C50C8A, 0x325F16C6, 0x02D1942E,
+    0x0AA38AC4, 0x2A940AC6, 0x67034726, 0xE52DB133, 0xD2EF2107, 0x85C81E90,
+    0xC8D164BA, 0xC38DCE1D, 0x948BA275, 0x0DB84603, 0xE2473637, 0xCD74FCDA,
+    0x588E3D66, 0x6D28E822, 0x891E548B, 0xF53CF56D, 0x0BBDDB66, 0xC4B286AA,
+    0x2BEBBC4B, 0xFC261FF4, 0x92B8E705, 0xDCEE6952, 0x5E0442E5, 0x8BEB7F21,
 ]);
 var g_keyMEIMG260 = new Uint32Array([
-    0x11BFD698,
-    0xD7F9B324,
-    0xDD524927,
-    0x16215B86,
-    0x504AC36D,
-    0x5843B217,
-    0xE5A0DA47,
-    0xBB73A1E7,
-    0x2915DB35,
-    0x375CFD3A,
-    0xBB70A905,
-    0x272BEFCA,
-    0x2E960791,
-    0xEA0799BB,
-    0xB85AE6C8,
-    0xC9CAF773,
-    0x250EE641,
-    0x06E74A9E,
-    0x5244895D,
-    0x466755A5,
-    0x9A84AF53,
-    0xE1024174,
-    0xEEBA031E,
-    0xED80B9CE,
-    0xBC315F72,
-    0x5821067F,
-    0xE8313058,
-    0xD2D0E706,
-    0xE6D8933E,
-    0xD7D17FB4,
-    0x505096C4,
-    0xFDA50B3B,
-    0x4635AE3D,
-    0xEB489C8A,
-    0x422D762D,
-    0x5A8B3231,
+    0x11BFD698, 0xD7F9B324, 0xDD524927, 0x16215B86, 0x504AC36D, 0x5843B217,
+    0xE5A0DA47, 0xBB73A1E7, 0x2915DB35, 0x375CFD3A, 0xBB70A905, 0x272BEFCA,
+    0x2E960791, 0xEA0799BB, 0xB85AE6C8, 0xC9CAF773, 0x250EE641, 0x06E74A9E,
+    0x5244895D, 0x466755A5, 0x9A84AF53, 0xE1024174, 0xEEBA031E, 0xED80B9CE,
+    0xBC315F72, 0x5821067F, 0xE8313058, 0xD2D0E706, 0xE6D8933E, 0xD7D17FB4,
+    0x505096C4, 0xFDA50B3B, 0x4635AE3D, 0xEB489C8A, 0x422D762D, 0x5A8B3231,
 ]);
 var g_keyDEMOS27X = new Uint32Array([
-    0x1ABF102F,
-    0xD596D071,
-    0x6FC552B2,
-    0xD4F2531F,
-    0xF025CDD9,
-    0xAF9AAF03,
-    0xE0CF57CF,
-    0x255494C4,
-    0x7003675E,
-    0x907BC884,
-    0x002D4EE4,
-    0x0B687A0D,
-    0x9E3AA44F,
-    0xF58FDA81,
-    0xEC26AC8C,
-    0x3AC9B49D,
-    0x3471C037,
-    0xB0F3834D,
-    0x10DC4411,
-    0xA232EA31,
-    0xE2E5FA6B,
-    0x45594B03,
-    0xE43A1C87,
-    0x31DAD9D1,
-    0x08CD7003,
-    0xFA9C2FDF,
-    0x5A891D25,
-    0x9B5C1934,
-    0x22F366E5,
-    0x5F084A32,
-    0x695516D5,
-    0x2245BE9F,
-    0x4F6DD705,
-    0xC4B8B8A1,
-    0xBC13A600,
-    0x77B7FC3B,
+    0x1ABF102F, 0xD596D071, 0x6FC552B2, 0xD4F2531F, 0xF025CDD9, 0xAF9AAF03,
+    0xE0CF57CF, 0x255494C4, 0x7003675E, 0x907BC884, 0x002D4EE4, 0x0B687A0D,
+    0x9E3AA44F, 0xF58FDA81, 0xEC26AC8C, 0x3AC9B49D, 0x3471C037, 0xB0F3834D,
+    0x10DC4411, 0xA232EA31, 0xE2E5FA6B, 0x45594B03, 0xE43A1C87, 0x31DAD9D1,
+    0x08CD7003, 0xFA9C2FDF, 0x5A891D25, 0x9B5C1934, 0x22F366E5, 0x5F084A32,
+    0x695516D5, 0x2245BE9F, 0x4F6DD705, 0xC4B8B8A1, 0xBC13A600, 0x77B7FC3B,
 ]);
 var g_keyUNK1 = new Uint32Array([
-    0x33B50800,
-    0xF32F5FCD,
-    0x3C14881F,
-    0x6E8A2A95,
-    0x29FEEFD5,
-    0x1394EAE3,
-    0xBD6BD443,
-    0x0821C083,
-    0xFAB379D3,
-    0xE613E165,
-    0xF5A754D3,
-    0x108B2952,
-    0x0A4B1E15,
-    0x61EADEBA,
-    0x557565DF,
-    0x3B465301,
-    0xAE54ECC3,
-    0x61423309,
-    0x70C9FF19,
-    0x5B0AE5EC,
-    0x989DF126,
-    0x9D987A5F,
-    0x55BC750E,
-    0xC66EBA27,
-    0x2DE988E8,
-    0xF76600DA,
-    0x0382DCCB,
-    0x5569F5F2,
-    0x8E431262,
-    0x288FE3D3,
-    0x656F2187,
-    0x37D12E9C,
-    0x2F539EB4,
-    0xA492998E,
-    0xED3958F7,
-    0x39E96523,
+    0x33B50800, 0xF32F5FCD, 0x3C14881F, 0x6E8A2A95, 0x29FEEFD5, 0x1394EAE3,
+    0xBD6BD443, 0x0821C083, 0xFAB379D3, 0xE613E165, 0xF5A754D3, 0x108B2952,
+    0x0A4B1E15, 0x61EADEBA, 0x557565DF, 0x3B465301, 0xAE54ECC3, 0x61423309,
+    0x70C9FF19, 0x5B0AE5EC, 0x989DF126, 0x9D987A5F, 0x55BC750E, 0xC66EBA27,
+    0x2DE988E8, 0xF76600DA, 0x0382DCCB, 0x5569F5F2, 0x8E431262, 0x288FE3D3,
+    0x656F2187, 0x37D12E9C, 0x2F539EB4, 0xA492998E, 0xED3958F7, 0x39E96523,
 ]);
 var g_key_GAMESHARE1xx = new Uint32Array([
-    0x721B53E8,
-    0xFC3E31C6,
-    0xF85BA2A2,
-    0x3CF0AC72,
-    0x54EEA7AB,
-    0x5959BFCB,
-    0x54B8836B,
-    0xBC431313,
-    0x989EF2CF,
-    0xF0CE36B2,
-    0x98BA4CF8,
-    0xE971C931,
-    0xA0375DC8,
-    0x08E52FA0,
-    0xAC0DD426,
-    0x57E4D601,
-    0xC56E61C7,
-    0xEF1AB98A,
-    0xD1D9F8F4,
-    0x5FE9A708,
-    0x3EF09D07,
-    0xFA0C1A8C,
-    0xA91EEA5C,
-    0x58F482C5,
-    0x2C800302,
-    0x7EE6F6C3,
-    0xFF6ABBBB,
-    0x2110D0D0,
-    0xD3297A88,
-    0x980012D3,
-    0xDC59C87B,
-    0x7FDC5792,
-    0xDB3F5DA6,
-    0xFC23B787,
-    0x22698ED3,
-    0xB680E812,
+    0x721B53E8, 0xFC3E31C6, 0xF85BA2A2, 0x3CF0AC72, 0x54EEA7AB, 0x5959BFCB,
+    0x54B8836B, 0xBC431313, 0x989EF2CF, 0xF0CE36B2, 0x98BA4CF8, 0xE971C931,
+    0xA0375DC8, 0x08E52FA0, 0xAC0DD426, 0x57E4D601, 0xC56E61C7, 0xEF1AB98A,
+    0xD1D9F8F4, 0x5FE9A708, 0x3EF09D07, 0xFA0C1A8C, 0xA91EEA5C, 0x58F482C5,
+    0x2C800302, 0x7EE6F6C3, 0xFF6ABBBB, 0x2110D0D0, 0xD3297A88, 0x980012D3,
+    0xDC59C87B, 0x7FDC5792, 0xDB3F5DA6, 0xFC23B787, 0x22698ED3, 0xB680E812,
 ]);
 var g_key_GAMESHARE2xx = new Uint32Array([
-    0x94A757C7,
-    0x9FD39833,
-    0xF8508371,
-    0x328B0B29,
-    0x2CBCB9DA,
-    0x2918B9C6,
-    0x944C50BA,
-    0xF1DCE7D0,
-    0x640C3966,
-    0xC90B3D08,
-    0xF4AD17BA,
-    0x6CA0F84B,
-    0xF7767C67,
-    0xA4D3A55A,
-    0x4A085C6A,
-    0x6BB27071,
-    0xFA8B38FB,
-    0x3FDB31B8,
-    0x8B7196F2,
-    0xDB9BED4A,
-    0x51625B84,
-    0x4C1481B4,
-    0xF684F508,
-    0x30B44770,
-    0x93AA8E74,
-    0x90C579BC,
-    0x246EC88D,
-    0x2E051202,
-    0xC774842E,
-    0xA185D997,
-    0x7A2B3ADD,
-    0xFE835B6D,
-    0x508F184D,
-    0xEB4C4F13,
-    0x0E1993D3,
-    0xBA96DFD2,
+    0x94A757C7, 0x9FD39833, 0xF8508371, 0x328B0B29, 0x2CBCB9DA, 0x2918B9C6,
+    0x944C50BA, 0xF1DCE7D0, 0x640C3966, 0xC90B3D08, 0xF4AD17BA, 0x6CA0F84B,
+    0xF7767C67, 0xA4D3A55A, 0x4A085C6A, 0x6BB27071, 0xFA8B38FB, 0x3FDB31B8,
+    0x8B7196F2, 0xDB9BED4A, 0x51625B84, 0x4C1481B4, 0xF684F508, 0x30B44770,
+    0x93AA8E74, 0x90C579BC, 0x246EC88D, 0x2E051202, 0xC774842E, 0xA185D997,
+    0x7A2B3ADD, 0xFE835B6D, 0x508F184D, 0xEB4C4F13, 0x0E1993D3, 0xBA96DFD2,
 ]);
 var g_key_INDEXDAT1xx = new Uint32Array([
-    0x76CB00AF,
-    0x111CE62F,
-    0xB7B27E36,
-    0x6D8DE8F9,
-    0xD54BF16A,
-    0xD9E90373,
-    0x7599D982,
-    0x51F82B0E,
-    0x636103AD,
-    0x8E40BC35,
-    0x2F332C94,
-    0xF513AAE9,
-    0xD22AFEE9,
-    0x04343987,
-    0xFC5BB80C,
-    0x12349D89,
-    0x14A481BB,
-    0x25ED3AE8,
-    0x7D500E4F,
-    0x43D1B757,
-    0x7B59FDAD,
-    0x4CFBBF34,
-    0xC3D17436,
-    0xC1DA21DB,
-    0xA34D8C80,
-    0x962B235D,
-    0x3E420548,
-    0x09CF9FFE,
-    0xD4883F5C,
-    0xD90E9CB5,
-    0x00AEF4E9,
-    0xF0886DE9,
-    0x62A58A5B,
-    0x52A55546,
-    0x971941B5,
-    0xF5B79FAC,
+    0x76CB00AF, 0x111CE62F, 0xB7B27E36, 0x6D8DE8F9, 0xD54BF16A, 0xD9E90373,
+    0x7599D982, 0x51F82B0E, 0x636103AD, 0x8E40BC35, 0x2F332C94, 0xF513AAE9,
+    0xD22AFEE9, 0x04343987, 0xFC5BB80C, 0x12349D89, 0x14A481BB, 0x25ED3AE8,
+    0x7D500E4F, 0x43D1B757, 0x7B59FDAD, 0x4CFBBF34, 0xC3D17436, 0xC1DA21DB,
+    0xA34D8C80, 0x962B235D, 0x3E420548, 0x09CF9FFE, 0xD4883F5C, 0xD90E9CB5,
+    0x00AEF4E9, 0xF0886DE9, 0x62A58A5B, 0x52A55546, 0x971941B5, 0xF5B79FAC,
 ]);
 function process(_item) {
     var item = _item;
@@ -16843,7 +14708,6 @@ var keys620_5v = new Uint8Array([0xF2, 0x8F, 0x75, 0xA7, 0x31, 0x91, 0xCE, 0x9E,
 
 },
 "src/hle/elf_psp": function(module, exports, require) {
-var _memory = require('../core/memory');
 var _cpu = require('../core/cpu');
 var _format_elf = require('../format/elf');
 var _format_elf_dwarf = require('../format/elf_dwarf');
@@ -16906,8 +14770,8 @@ var ElfPspModuleExport = (function () {
 })();
 exports.ElfPspModuleExport = ElfPspModuleExport;
 (function (ElfPspModuleInfoAtributesEnum) {
-    ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0x0000] = "UserMode";
-    ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 0x100] = "KernelMode";
+    ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0] = "UserMode";
+    ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 256] = "KernelMode";
 })(exports.ElfPspModuleInfoAtributesEnum || (exports.ElfPspModuleInfoAtributesEnum = {}));
 var ElfPspModuleInfoAtributesEnum = exports.ElfPspModuleInfoAtributesEnum;
 var InstructionReader = (function () {
@@ -16960,7 +14824,7 @@ var PspElfLoader = (function () {
         }
         var lowest = 0xFFFFFFFF;
         var highest = 0;
-        this.elfLoader.sectionHeaders.filter(function (section) { return ((section.flags & 2 /* Allocate */) != 0); }).forEach(function (section) {
+        this.elfLoader.sectionHeaders.filter(function (section) { return ((section.flags & ElfSectionHeaderFlags.Allocate) != 0); }).forEach(function (section) {
             lowest = Math.min(lowest, (_this.baseAddress + section.address));
             highest = Math.max(highest, (_this.baseAddress + section.address + section.size));
         });
@@ -16975,17 +14839,19 @@ var PspElfLoader = (function () {
         var RelocProgramIndex = 0;
         this.elfLoader.programHeaders.forEach(function (programHeader) {
             switch (programHeader.type) {
-                case 1879048352 /* Reloc1 */:
+                case ElfProgramHeaderType.Reloc1:
                     console.warn("SKIPPING Elf.ProgramHeader.TypeEnum.Reloc1!");
                     break;
-                case 1879048353 /* Reloc2 */:
+                case ElfProgramHeaderType.Reloc2:
                     throw ("Not implemented");
             }
         });
         var RelocSectionIndex = 0;
         this.elfLoader.sectionHeaders.forEach(function (sectionHeader) {
+            //RelocOutput.WriteLine("Section Header: %d : %s".Sprintf(RelocSectionIndex++, SectionHeader.ToString()));
+            //console.info(sprintf('Section Header: '));
             switch (sectionHeader.type) {
-                case 9 /* Relocation */:
+                case ElfSectionHeaderType.Relocation:
                     console.log(sectionHeader);
                     console.error("Not implemented ElfSectionHeaderType.Relocation");
                     break;
@@ -17005,7 +14871,7 @@ var PspElfLoader = (function () {
         var instructionReader = new InstructionReader(this.memory);
         for (var index = 0; index < relocs.length; index++) {
             var reloc = relocs[index];
-            if (reloc.type == 255 /* StopRelocation */)
+            if (reloc.type == ElfRelocType.StopRelocation)
                 break;
             var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
             var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
@@ -17015,24 +14881,22 @@ var PspElfLoader = (function () {
             var GP_ADDR = (baseAddress + reloc.pointerAddress);
             var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
             switch (reloc.type) {
-                case 0 /* None */:
-                    break;
-                case 1 /* Mips16 */:
+                case ElfRelocType.None: break;
+                case ElfRelocType.Mips16:
                     instruction.u_imm16 += S;
                     break;
-                case 2 /* Mips32 */:
+                case ElfRelocType.Mips32:
                     instruction.data += S;
                     break;
-                case 3 /* MipsRel32 */:
-                    throw ("Not implemented MipsRel32");
-                case 4 /* Mips26 */:
+                case ElfRelocType.MipsRel32: throw ("Not implemented MipsRel32");
+                case ElfRelocType.Mips26:
                     instruction.jump_real = instruction.jump_real + S;
                     break;
-                case 5 /* MipsHi16 */:
+                case ElfRelocType.MipsHi16:
                     hiValue = instruction.u_imm16;
                     deferredHi16.push(RelocatedPointerAddress);
                     break;
-                case 6 /* MipsLo16 */:
+                case ElfRelocType.MipsLo16:
                     var A = instruction.u_imm16;
                     instruction.u_imm16 = ((hiValue << 16) | (A & 0x0000FFFF)) + S;
                     deferredHi16.forEach(function (data_addr2) {
@@ -17049,10 +14913,9 @@ var PspElfLoader = (function () {
                     });
                     deferredHi16 = [];
                     break;
-                case 7 /* MipsGpRel16 */:
+                case ElfRelocType.MipsGpRel16:
                     break;
-                default:
-                    throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
+                default: throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
             }
             instructionReader.write(RelocatedPointerAddress, instruction);
         }
@@ -17071,17 +14934,17 @@ var PspElfLoader = (function () {
             _this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
             console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
         });
-        this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & 2 /* Allocate */) != 0); }).forEach(function (sectionHeader) {
+        this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & ElfSectionHeaderFlags.Allocate) != 0); }).forEach(function (sectionHeader) {
             var low = loadAddress + sectionHeader.address;
             console.info('Section Header: ', sectionHeader, sprintf('LOW:%08X, SIZE:%08X', low, sectionHeader.size));
             switch (sectionHeader.type) {
-                case 8 /* NoBits */:
+                case ElfSectionHeaderType.NoBits:
                     for (var n = 0; n < sectionHeader.size; n++)
                         _this.memory.writeInt8(low + n, 0);
                     break;
                 default:
                     break;
-                case 1 /* ProgramBits */:
+                case ElfSectionHeaderType.ProgramBits:
                     var stream = sectionHeader.stream;
                     var length = stream.length;
                     _this.memory.writeStream(low, stream);
@@ -17188,9 +15051,7 @@ exports.NetManager = _net.NetManager;
 
 },
 "src/hle/manager/callback": function(module, exports, require) {
-var _thread = require('./thread');
-var _interop = require('./interop');
-var _cpu = require('../../core/cpu');
+///<reference path="../../global.d.ts" />
 var CallbackManager = (function () {
     function CallbackManager(interop) {
         this.interop = interop;
@@ -17265,6 +15126,7 @@ exports.Callback = Callback;
 
 },
 "src/hle/manager/file": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var Device = (function () {
     function Device(name, vfs) {
         this.name = name;
@@ -17294,9 +15156,7 @@ var HleFile = (function () {
         this._asyncPromise = null;
     }
     Object.defineProperty(HleFile.prototype, "asyncResult", {
-        get: function () {
-            return this._asyncResult;
-        },
+        get: function () { return this._asyncResult; },
         enumerable: true,
         configurable: true
     });
@@ -17425,6 +15285,7 @@ exports.FileManager = FileManager;
 
 },
 "src/hle/manager/interop": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _cpu = require('../../core/cpu');
 _cpu.CpuState;
 var Interop = (function () {
@@ -17445,6 +15306,7 @@ exports.Interop = Interop;
 
 },
 "src/hle/manager/memory": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var MemoryPartitions;
 (function (MemoryPartitions) {
     MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
@@ -17479,16 +15341,12 @@ var MemoryPartition = (function () {
         this._childPartitions = [];
     }
     Object.defineProperty(MemoryPartition.prototype, "size", {
-        get: function () {
-            return this.high - this.low;
-        },
+        get: function () { return this.high - this.low; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(MemoryPartition.prototype, "root", {
-        get: function () {
-            return (this.parent) ? this.parent.root : this;
-        },
+        get: function () { return (this.parent) ? this.parent.root : this; },
         enumerable: true,
         configurable: true
     });
@@ -17514,15 +15372,11 @@ var MemoryPartition = (function () {
         if (address === void 0) { address = 0; }
         if (name === void 0) { name = ''; }
         switch (anchor) {
-            case 3 /* LowAligned */:
-            case 0 /* Low */:
-                return this.allocateLow(size, name);
-            case 1 /* High */:
-                return this.allocateHigh(size, name);
-            case 2 /* Address */:
-                return this.allocateSet(size, address, name);
-            default:
-                throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
+            case MemoryAnchor.LowAligned:
+            case MemoryAnchor.Low: return this.allocateLow(size, name);
+            case MemoryAnchor.High: return this.allocateHigh(size, name);
+            case MemoryAnchor.Address: return this.allocateSet(size, address, name);
+            default: throw (new Error(sprintf("Not implemented anchor %d:%s", anchor, MemoryAnchor[anchor])));
         }
     };
     MemoryPartition.prototype.allocateSet = function (size, addressLow, name) {
@@ -17654,28 +15508,28 @@ var MemoryManager = (function () {
         this.init();
     }
     MemoryManager.prototype.init = function () {
-        this.memoryPartitionsUid[0 /* Kernel0 */] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
-        this.memoryPartitionsUid[2 /* User */] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
-        this.memoryPartitionsUid[6 /* UserStacks */] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
-        this.memoryPartitionsUid[5 /* VolatilePartition */] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
+        this.memoryPartitionsUid[MemoryPartitions.Kernel0] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
+        this.memoryPartitionsUid[MemoryPartitions.User] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
+        this.memoryPartitionsUid[MemoryPartitions.UserStacks] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
+        this.memoryPartitionsUid[MemoryPartitions.VolatilePartition] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
     };
     Object.defineProperty(MemoryManager.prototype, "kernelPartition", {
         get: function () {
-            return this.memoryPartitionsUid[0 /* Kernel0 */];
+            return this.memoryPartitionsUid[MemoryPartitions.Kernel0];
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(MemoryManager.prototype, "userPartition", {
         get: function () {
-            return this.memoryPartitionsUid[2 /* User */];
+            return this.memoryPartitionsUid[MemoryPartitions.User];
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(MemoryManager.prototype, "stackPartition", {
         get: function () {
-            return this.memoryPartitionsUid[6 /* UserStacks */];
+            return this.memoryPartitionsUid[MemoryPartitions.UserStacks];
         },
         enumerable: true,
         configurable: true
@@ -17686,6 +15540,7 @@ exports.MemoryManager = MemoryManager;
 
 },
 "src/hle/manager/module": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _cpu = require('../../core/cpu');
 var NativeFunction = _cpu.NativeFunction;
 var ModuleWrapper = (function () {
@@ -17755,6 +15610,7 @@ exports.ModuleManager = ModuleManager;
 
 },
 "src/hle/manager/net": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var NetManager = (function () {
     function NetManager() {
         this.connected = false;
@@ -17825,12 +15681,8 @@ exports.NetManager = NetManager;
 
 },
 "src/hle/manager/thread": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _cpu = require('../../core/cpu');
-var _memory = require('../../core/memory');
-var _display = require('../../core/display');
-var _interrupt = require('../../core/interrupt');
-var _manager_memory = require('./memory');
-var _callback = require('./callback');
 var SceKernelErrors = require('../SceKernelErrors');
 var CpuState = _cpu.CpuState;
 var ProgramExecutor = _cpu.ProgramExecutor;
@@ -17843,26 +15695,26 @@ var console = logger.named('hle.thread');
     ThreadStatus[ThreadStatus["SUSPEND"] = 8] = "SUSPEND";
     ThreadStatus[ThreadStatus["DORMANT"] = 16] = "DORMANT";
     ThreadStatus[ThreadStatus["DEAD"] = 32] = "DEAD";
-    ThreadStatus[ThreadStatus["WAITSUSPEND"] = ThreadStatus.WAIT | ThreadStatus.SUSPEND] = "WAITSUSPEND";
+    ThreadStatus[ThreadStatus["WAITSUSPEND"] = 12] = "WAITSUSPEND";
 })(exports.ThreadStatus || (exports.ThreadStatus = {}));
 var ThreadStatus = exports.ThreadStatus;
 (function (PspThreadAttributes) {
     PspThreadAttributes[PspThreadAttributes["None"] = 0] = "None";
-    PspThreadAttributes[PspThreadAttributes["LowFF"] = 0x000000FF] = "LowFF";
-    PspThreadAttributes[PspThreadAttributes["Vfpu"] = 0x00004000] = "Vfpu";
-    PspThreadAttributes[PspThreadAttributes["V0x2000"] = 0x2000] = "V0x2000";
-    PspThreadAttributes[PspThreadAttributes["V0x4000"] = 0x4000] = "V0x4000";
-    PspThreadAttributes[PspThreadAttributes["V0x400000"] = 0x400000] = "V0x400000";
-    PspThreadAttributes[PspThreadAttributes["V0x800000"] = 0x800000] = "V0x800000";
-    PspThreadAttributes[PspThreadAttributes["V0xf00000"] = 0xf00000] = "V0xf00000";
-    PspThreadAttributes[PspThreadAttributes["V0x8000000"] = 0x8000000] = "V0x8000000";
-    PspThreadAttributes[PspThreadAttributes["V0xf000000"] = 0xf000000] = "V0xf000000";
-    PspThreadAttributes[PspThreadAttributes["User"] = 0x80000000] = "User";
-    PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 0xa0000000] = "UsbWlan";
-    PspThreadAttributes[PspThreadAttributes["Vsh"] = 0xc0000000] = "Vsh";
-    PspThreadAttributes[PspThreadAttributes["NoFillStack"] = 0x00100000] = "NoFillStack";
-    PspThreadAttributes[PspThreadAttributes["ClearStack"] = 0x00200000] = "ClearStack";
-    PspThreadAttributes[PspThreadAttributes["ValidMask"] = PspThreadAttributes.LowFF | PspThreadAttributes.Vfpu | PspThreadAttributes.User | PspThreadAttributes.UsbWlan | PspThreadAttributes.Vsh | PspThreadAttributes.NoFillStack | PspThreadAttributes.ClearStack | PspThreadAttributes.V0x2000 | PspThreadAttributes.V0x4000 | PspThreadAttributes.V0x400000 | PspThreadAttributes.V0x800000 | PspThreadAttributes.V0xf00000 | PspThreadAttributes.V0x8000000 | PspThreadAttributes.V0xf000000] = "ValidMask";
+    PspThreadAttributes[PspThreadAttributes["LowFF"] = 255] = "LowFF";
+    PspThreadAttributes[PspThreadAttributes["Vfpu"] = 16384] = "Vfpu";
+    PspThreadAttributes[PspThreadAttributes["V0x2000"] = 8192] = "V0x2000";
+    PspThreadAttributes[PspThreadAttributes["V0x4000"] = 16384] = "V0x4000";
+    PspThreadAttributes[PspThreadAttributes["V0x400000"] = 4194304] = "V0x400000";
+    PspThreadAttributes[PspThreadAttributes["V0x800000"] = 8388608] = "V0x800000";
+    PspThreadAttributes[PspThreadAttributes["V0xf00000"] = 15728640] = "V0xf00000";
+    PspThreadAttributes[PspThreadAttributes["V0x8000000"] = 134217728] = "V0x8000000";
+    PspThreadAttributes[PspThreadAttributes["V0xf000000"] = 251658240] = "V0xf000000";
+    PspThreadAttributes[PspThreadAttributes["User"] = 2147483648] = "User";
+    PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 2684354560] = "UsbWlan";
+    PspThreadAttributes[PspThreadAttributes["Vsh"] = 3221225472] = "Vsh";
+    PspThreadAttributes[PspThreadAttributes["NoFillStack"] = 1048576] = "NoFillStack";
+    PspThreadAttributes[PspThreadAttributes["ClearStack"] = 2097152] = "ClearStack";
+    PspThreadAttributes[PspThreadAttributes["ValidMask"] = -269459201] = "ValidMask";
 })(exports.PspThreadAttributes || (exports.PspThreadAttributes = {}));
 var PspThreadAttributes = exports.PspThreadAttributes;
 var Thread = (function () {
@@ -17873,12 +15725,12 @@ var Thread = (function () {
         this.state = state;
         this.instructionCache = instructionCache;
         this.id = 0;
-        this.status = 16 /* DORMANT */;
+        this.status = ThreadStatus.DORMANT;
         this.initialPriority = 10;
         this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
-        this.exitStatus = 2147615138 /* ERROR_KERNEL_THREAD_ALREADY_DORMANT */;
+        this.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_ALREADY_DORMANT;
         this.running = false;
         this.preemptionCount = 0;
         this.info = null;
@@ -17893,9 +15745,7 @@ var Thread = (function () {
         this.accumulatedMicroseconds = 0;
         this.state.thread = this;
         this.programExecutor = new ProgramExecutor(state, instructionCache);
-        this.runningPromise = new Promise(function (resolve, reject) {
-            _this.runningStop = resolve;
-        });
+        this.runningPromise = new Promise(function (resolve, reject) { _this.runningStop = resolve; });
         this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
     }
     Object.defineProperty(Thread.prototype, "runningOrAcceptingCallbacks", {
@@ -17935,6 +15785,8 @@ var Thread = (function () {
         return Promise.resolve(0);
     };
     Thread.prototype.delayMicrosecondsAsync = function (delayMicroseconds, allowCompensating) {
+        //console.error(delayMicroseconds, this.accumulatedMicroseconds);
+        //return waitAsync(delayMicroseconds / 1000).then(() => 0);
         var _this = this;
         if (allowCompensating === void 0) { allowCompensating = false; }
         this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000);
@@ -17961,17 +15813,17 @@ var Thread = (function () {
         this.info = info;
         this.waitingName = info.name;
         this.waitingObject = info.object;
-        this.acceptingCallbacks = (info.callbacks == 1 /* YES */);
+        this.acceptingCallbacks = (info.callbacks == AcceptCallbacks.YES);
         this._suspendUntilPromiseDone(info.promise, info.compensate);
     };
     Thread.prototype.suspendUntilPromiseDone = function (promise, info) {
         this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
         this.waitingObject = info;
-        this._suspendUntilPromiseDone(promise, 0 /* NO */);
+        this._suspendUntilPromiseDone(promise, Compensate.NO);
     };
     Thread.prototype._suspendUntilPromiseDone = function (promise, compensate) {
         var _this = this;
-        if (compensate == 1 /* YES */) {
+        if (compensate == Compensate.YES) {
             var startTime = performance.now();
         }
         this.waitingPromise = promise;
@@ -17983,7 +15835,7 @@ var Thread = (function () {
             _this.acceptingCallbacks = false;
             if (result !== undefined)
                 _this.state.V0 = result;
-            if (compensate == 1 /* YES */) {
+            if (compensate == Compensate.YES) {
                 var endTime = performance.now();
                 _this.accumulatedMicroseconds += (endTime - startTime) * 1000;
             }
@@ -18050,16 +15902,16 @@ var ThreadManager = (function () {
         var thread = new Thread(name, this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
         thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
-        thread.state.setRA(268435455 /* EXIT_THREAD */);
+        thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
         thread.state.SP = thread.stackPartition.high;
         thread.initialPriority = initialPriority;
         thread.priority = initialPriority;
         thread.attributes = attributes;
         if ((thread.stackPartition.high & 0xFF) != 0)
             throw (new Error("Stack not aligned"));
-        if (!(thread.attributes & 1048576 /* NoFillStack */)) {
+        if (!(thread.attributes & PspThreadAttributes.NoFillStack)) {
         }
-        else if ((thread.attributes & 2097152 /* ClearStack */)) {
+        else if ((thread.attributes & PspThreadAttributes.ClearStack)) {
         }
         return thread;
     };
@@ -18171,6 +16023,7 @@ exports.ThreadManager = ThreadManager;
 
 },
 "src/hle/module/ExceptionManagerForKernel": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var ExceptionManagerForKernel = (function () {
@@ -18186,8 +16039,8 @@ exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
 
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _manager = require('../manager');
 var _interrupt = require('../../core/interrupt');
 var PspInterrupts = _interrupt.PspInterrupts;
 var createNativeFunction = _utils.createNativeFunction;
@@ -18205,7 +16058,7 @@ var InterruptManager = (function () {
         });
         this.sceKernelEnableSubIntr = createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (interrupt, handlerIndex) {
             var interruptManager = _this.context.interruptManager;
-            if (interrupt >= 67 /* PSP_NUMBER_INTERRUPTS */)
+            if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
                 return -1;
             if (!interruptManager.get(interrupt).has(handlerIndex))
                 return -1;
@@ -18214,7 +16067,7 @@ var InterruptManager = (function () {
         });
         this.sceKernelReleaseSubIntrHandler = createNativeFunction(0xD61E6961, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
             var interruptManager = _this.context.interruptManager;
-            if (pspInterrupt >= 67 /* PSP_NUMBER_INTERRUPTS */)
+            if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
                 return -1;
             if (!interruptManager.get(pspInterrupt).has(handlerIndex))
                 return -1;
@@ -18230,6 +16083,7 @@ exports.InterruptManager = InterruptManager;
 
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var KDebugForKernel = (function () {
@@ -18245,6 +16099,7 @@ exports.KDebugForKernel = KDebugForKernel;
 
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
@@ -18284,6 +16139,7 @@ exports.Kernel_Library = Kernel_Library;
 
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var LoadCoreForKernel = (function () {
@@ -18304,9 +16160,9 @@ exports.LoadCoreForKernel = LoadCoreForKernel;
 
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
-var _manager = require('../manager');
 var console = logger.named('module.LoadExecForUser');
 var LoadExecForUser = (function () {
     function LoadExecForUser(context) {
@@ -18337,8 +16193,8 @@ exports.LoadExecForUser = LoadExecForUser;
 
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _manager = require('../manager');
 var createNativeFunction = _utils.createNativeFunction;
 var ModuleMgrForUser = (function () {
     function ModuleMgrForUser(context) {
@@ -18388,6 +16244,7 @@ exports.ModuleMgrForUser = ModuleMgrForUser;
 
 },
 "src/hle/module/StdioForUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var StdioForUser = (function () {
@@ -18403,8 +16260,8 @@ exports.StdioForUser = StdioForUser;
 
 },
 "src/hle/module/SysMemUserForUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _manager = require('../manager');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var console = logger.named('module.SysMemUserForUser');
@@ -18416,7 +16273,7 @@ var SysMemUserForUser = (function () {
         this.blockUids = new UidCollection(1);
         this.sceKernelAllocPartitionMemory = createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
             if (name == null)
-                return 2147614721 /* ERROR_ERROR */;
+                return SceKernelErrors.ERROR_ERROR;
             try {
                 var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
                 var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
@@ -18425,21 +16282,21 @@ var SysMemUserForUser = (function () {
             }
             catch (e) {
                 console.error(e);
-                return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
+                return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
             }
         });
         this.AllocMemoryBlock = createNativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*', this, function (name, type, size, paramsAddrPtr) {
             if (name == null)
-                return 2147614721 /* ERROR_ERROR */;
+                return SceKernelErrors.ERROR_ERROR;
             if (type < 0 || type > 1)
-                return 2147614936 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE;
             if (size == 0)
-                return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
+                return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
             if (paramsAddrPtr) {
                 var size = paramsAddrPtr.readInt32();
                 var unk = paramsAddrPtr.readInt32();
                 if (size != 4)
-                    return 2147614930 /* ERROR_KERNEL_ILLEGAL_ARGUMENT */;
+                    return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT;
             }
             var parentPartition = _this.context.memoryManager.userPartition;
             try {
@@ -18448,7 +16305,7 @@ var SysMemUserForUser = (function () {
             }
             catch (e) {
                 console.error(e);
-                return 2147614937 /* ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK */;
+                return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
             }
         });
         this.GetMemoryBlockAddr = createNativeFunction(0xDB83A952, 150, 'int', 'int', this, function (blockId) {
@@ -18459,13 +16316,13 @@ var SysMemUserForUser = (function () {
         });
         this.FreeMemoryBlock = createNativeFunction(0x50F61D8A, 150, 'int', 'int', this, function (blockId) {
             if (!_this.blockUids.has(blockId))
-                return 2147614923 /* ERROR_KERNEL_UNKNOWN_UID */;
+                return SceKernelErrors.ERROR_KERNEL_UNKNOWN_UID;
             _this.blockUids.remove(blockId);
             return 0;
         });
         this.sceKernelFreePartitionMemory = createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (partitionId) {
             if (!_this.partitionUids.has(partitionId))
-                return 2147615158 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
             var partition = _this.partitionUids.get(partitionId);
             partition.deallocate();
             _this.partitionUids.remove(partitionId);
@@ -18476,7 +16333,7 @@ var SysMemUserForUser = (function () {
         });
         this.sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'uint', 'int', this, function (partitionId) {
             if (!_this.partitionUids.has(partitionId))
-                return 2147615158 /* ERROR_KERNEL_ILLEGAL_MEMBLOCK */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
             var block = _this.partitionUids.get(partitionId);
             return block.low;
         });
@@ -18519,6 +16376,7 @@ exports.SysMemUserForUser = SysMemUserForUser;
 
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var UtilsForKernel = (function () {
@@ -18535,8 +16393,8 @@ exports.UtilsForKernel = UtilsForKernel;
 
 },
 "src/hle/module/UtilsForUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _memory = require('../../core/memory');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var UtilsForUser = (function () {
@@ -18583,17 +16441,17 @@ var UtilsForUser = (function () {
         });
         this.sceKernelDcacheWritebackInvalidateRange = createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint', this, function (pointer, size) {
             if (size > 0x7FFFFFFF)
-                return 2147483908 /* ERROR_INVALID_SIZE */;
+                return SceKernelErrors.ERROR_INVALID_SIZE;
             if (pointer >= 0x80000000)
-                return 2147483907 /* ERROR_INVALID_POINTER */;
+                return SceKernelErrors.ERROR_INVALID_POINTER;
             _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
             return 0;
         });
         this.sceKernelDcacheWritebackRange = createNativeFunction(0x3EE30821, 150, 'uint', 'uint/uint', this, function (pointer, size) {
             if (size > 0x7FFFFFFF)
-                return 2147483908 /* ERROR_INVALID_SIZE */;
+                return SceKernelErrors.ERROR_INVALID_SIZE;
             if (pointer >= 0x80000000)
-                return 2147483907 /* ERROR_INVALID_POINTER */;
+                return SceKernelErrors.ERROR_INVALID_POINTER;
             _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
             return 0;
         });
@@ -18603,13 +16461,13 @@ var UtilsForUser = (function () {
         });
         this.sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/uint', this, function (pointer, size) {
             if (!MathUtils.isAlignedTo(size, 4))
-                return 2147615820 /* ERROR_KERNEL_NOT_CACHE_ALIGNED */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
             if (size > 0x7FFFFFFF)
-                return 2147483908 /* ERROR_INVALID_SIZE */;
+                return SceKernelErrors.ERROR_INVALID_SIZE;
             if (pointer >= 0x80000000)
-                return 2147614931 /* ERROR_KERNEL_ILLEGAL_ADDR */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
             if (!MathUtils.isAlignedTo(pointer, 4))
-                return 2147615820 /* ERROR_KERNEL_NOT_CACHE_ALIGNED */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
             _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
             return 0;
         });
@@ -18627,6 +16485,7 @@ exports.UtilsForUser = UtilsForUser;
 
 },
 "src/hle/module/iofilemgr/IoFileMgrForUser": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var _vfs = require('../../vfs');
@@ -18650,7 +16509,7 @@ var IoFileMgrForUser = (function () {
         this.sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
             return _this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
                 var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
-                if (result == 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */) {
+                if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
                     log.error(str, result);
                 }
                 else {
@@ -18703,7 +16562,7 @@ var IoFileMgrForUser = (function () {
                     return writtenCount;
                 }).catch(function (e) {
                     log.error(e);
-                    return 2147614721 /* ERROR_ERROR */;
+                    return SceKernelErrors.ERROR_ERROR;
                 });
             }
         });
@@ -18751,7 +16610,8 @@ var IoFileMgrForUser = (function () {
                 _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
             }
             try {
-                return _this.context.fileManager.getStatAsync(fileName).then(function (stat) {
+                return _this.context.fileManager.getStatAsync(fileName)
+                    .then(function (stat) {
                     var stat2 = _this._vfsStatToSceIoStat(stat);
                     log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
                     if (sceIoStatPointer) {
@@ -18759,11 +16619,12 @@ var IoFileMgrForUser = (function () {
                         _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
                     }
                     return 0;
-                }).catch(function (error) { return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */; });
+                })
+                    .catch(function (error) { return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND; });
             }
             catch (e) {
                 log.error(e);
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             }
         });
         this.sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
@@ -18774,7 +16635,7 @@ var IoFileMgrForUser = (function () {
             }
             catch (e) {
                 log.error(e);
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             }
         });
         this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
@@ -18802,7 +16663,7 @@ var IoFileMgrForUser = (function () {
                 return _this.directoryUids.allocate(directory);
             }).catch(function (error) {
                 log.error(error);
-                return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             });
         });
         this.sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
@@ -18832,16 +16693,18 @@ var IoFileMgrForUser = (function () {
     }
     IoFileMgrForUser.prototype.getFileById = function (id) {
         if (!this.fileUids.has(id))
-            throw (new SceKernelException(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */));
+            throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND));
         return this.fileUids.get(id);
     };
     IoFileMgrForUser.prototype._sceIoOpenAsync = function (filename, flags, mode) {
         var _this = this;
-        return this.context.fileManager.openAsync(filename, flags, mode).then(function (file) {
+        return this.context.fileManager.openAsync(filename, flags, mode)
+            .then(function (file) {
             return _this.fileUids.allocate(file);
-        }).catch(function (e) {
+        })
+            .catch(function (e) {
             log.error('Not found', filename, e);
-            return 2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */;
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         });
     };
     IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
@@ -18849,7 +16712,7 @@ var IoFileMgrForUser = (function () {
         if (!this.fileUids.has(fileId)) {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
                 log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
-            return Promise.resolve(2147549186 /* ERROR_ERRNO_FILE_NOT_FOUND */);
+            return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
         }
         var file = this.getFileById(fileId);
         if (file.asyncOperation) {
@@ -18881,28 +16744,28 @@ var IoFileMgrForUser = (function () {
         stat2.attributes = 0;
         if (stat.isDirectory) {
             stat2.mode = 0x1000;
-            stat2.attributes |= 16 /* Directory */;
-            stat2.attributes |= 4 /* CanRead */;
+            stat2.attributes |= _structs.IOFileModes.Directory;
+            stat2.attributes |= _structs.IOFileModes.CanRead;
         }
         else {
             stat2.mode = 0x2000;
-            stat2.attributes |= 32 /* File */;
-            stat2.attributes |= 1 /* CanExecute */;
-            stat2.attributes |= 4 /* CanRead */;
-            stat2.attributes |= 2 /* CanWrite */;
+            stat2.attributes |= _structs.IOFileModes.File;
+            stat2.attributes |= _structs.IOFileModes.CanExecute;
+            stat2.attributes |= _structs.IOFileModes.CanRead;
+            stat2.attributes |= _structs.IOFileModes.CanWrite;
         }
         return stat2;
     };
     IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
         var file = this.getFileById(fileId);
         switch (whence) {
-            case 0 /* Set */:
+            case _structs.SeekAnchor.Set:
                 file.cursor = 0 + offset;
                 break;
-            case 1 /* Cursor */:
+            case _structs.SeekAnchor.Cursor:
                 file.cursor = file.cursor + offset;
                 break;
-            case 2 /* End */:
+            case _structs.SeekAnchor.End:
                 file.cursor = file.entry.size + offset;
                 break;
         }
@@ -18914,6 +16777,7 @@ exports.IoFileMgrForUser = IoFileMgrForUser;
 
 },
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
 var _riff = require('../../format/riff');
@@ -18937,7 +16801,7 @@ var sceAtrac3plus = (function () {
             var atrac3 = _this.getById(id);
             puiPosition.writeInt32(0);
             puiDataByte.writeInt32(0);
-            return 2153971746 /* ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED */;
+            return SceKernelErrors.ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED;
         });
         this.sceAtracSetSecondBuffer = createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
             return 0;
@@ -18965,7 +16829,7 @@ var sceAtrac3plus = (function () {
                         reachedEnd = 1;
                         remainingFramesToDecode = 0;
                         outputPointers();
-                        return 2153971748 /* ERROR_ATRAC_ALL_DATA_DECODED */;
+                        return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
                     }
                     if (atrac3.numberOfLoops > 0)
                         atrac3.numberOfLoops--;
@@ -19002,8 +16866,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracGetAtracID = createNativeFunction(0x780F88D1, 150, 'uint', 'int', this, function (codecType) {
-            if (codecType != 4097 /* PSP_MODE_AT_3 */ && codecType != 4096 /* PSP_MODE_AT_3_PLUS */) {
-                return 2153971716 /* ATRAC_ERROR_INVALID_CODECTYPE */;
+            if (codecType != CodecType.PSP_MODE_AT_3 && codecType != CodecType.PSP_MODE_AT_3_PLUS) {
+                return SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE;
             }
             return _this._atrac3Ids.allocate(new Atrac3(-1));
         });
@@ -19021,7 +16885,7 @@ var sceAtrac3plus = (function () {
         this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
             var atrac3 = _this.getById(id);
             if (atrac3.decodingReachedEnd)
-                return 2153971748 /* ERROR_ATRAC_ALL_DATA_DECODED */;
+                return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
             if (samplePositionPtr)
                 samplePositionPtr.writeInt32(atrac3.currentSample);
             return 0;
@@ -19064,7 +16928,7 @@ var sceAtrac3plus = (function () {
     }
     sceAtrac3plus.prototype.getById = function (id) {
         if (!this._atrac3Ids.has(id))
-            throw (new SceKernelException(2153971715 /* ATRAC_ERROR_NO_ATRACID */));
+            throw (new SceKernelException(SceKernelErrors.ATRAC_ERROR_NO_ATRACID));
         return this._atrac3Ids.get(id);
     };
     return sceAtrac3plus;
@@ -19080,25 +16944,19 @@ var Atrac3 = (function () {
         this.dataStream = Stream.fromArray([]);
         this.numberOfLoops = 0;
         this.currentSample = 0;
-        this.codecType = 4096 /* PSP_MODE_AT_3_PLUS */;
+        this.codecType = CodecType.PSP_MODE_AT_3_PLUS;
     }
     Atrac3.prototype.setDataStream = function (data) {
         var _this = this;
         this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
         Riff.fromStreamWithHandlers(data, {
-            'fmt ': function (stream) {
-                _this.format = At3FormatStruct.struct.read(stream);
-            },
-            'fact': function (stream) {
-                _this.fact = FactStruct.struct.read(stream);
-            },
+            'fmt ': function (stream) { _this.format = At3FormatStruct.struct.read(stream); },
+            'fact': function (stream) { _this.fact = FactStruct.struct.read(stream); },
             'smpl': function (stream) {
                 _this.smpl = SmplStruct.struct.read(stream);
                 _this.loopInfoList = StructArray(LoopInfoStruct.struct, _this.smpl.loopCount).read(stream);
             },
-            'data': function (stream) {
-                _this.dataStream = stream;
-            },
+            'data': function (stream) { _this.dataStream = stream; },
         });
         this.firstDataChunk = this.dataStream.readBytes(this.format.blockSize).subarray(0);
         return this;
@@ -19106,7 +16964,7 @@ var Atrac3 = (function () {
     Object.defineProperty(Atrac3.prototype, "bitrate", {
         get: function () {
             var _atracBitrate = Math.floor((this.format.bytesPerFrame * 352800) / 1000);
-            if (this.codecType == 4096 /* PSP_MODE_AT_3_PLUS */) {
+            if (this.codecType == CodecType.PSP_MODE_AT_3_PLUS) {
                 return ((_atracBitrate >> 11) + 8) & 0xFFFFFFF0;
             }
             else {
@@ -19120,12 +16978,9 @@ var Atrac3 = (function () {
         get: function () {
             this.format.compressionCode;
             switch (this.codecType) {
-                case 4096 /* PSP_MODE_AT_3_PLUS */:
-                    return 0x800;
-                case 4097 /* PSP_MODE_AT_3 */:
-                    return 0x400;
-                default:
-                    throw (new Error("Unknown codec type"));
+                case CodecType.PSP_MODE_AT_3_PLUS: return 0x800;
+                case CodecType.PSP_MODE_AT_3: return 0x400;
+                default: throw (new Error("Unknown codec type"));
             }
         },
         enumerable: true,
@@ -19256,9 +17111,7 @@ var At3FormatStruct = (function () {
         this._blockSize = 0;
     }
     Object.defineProperty(At3FormatStruct.prototype, "blockSize", {
-        get: function () {
-            return (this._blockSize & 0x3FF) * 8 + 8;
-        },
+        get: function () { return (this._blockSize & 0x3FF) * 8 + 8; },
         enumerable: true,
         configurable: true
     });
@@ -19278,12 +17131,13 @@ var At3FormatStruct = (function () {
 })();
 var CodecType;
 (function (CodecType) {
-    CodecType[CodecType["PSP_MODE_AT_3_PLUS"] = 0x00001000] = "PSP_MODE_AT_3_PLUS";
-    CodecType[CodecType["PSP_MODE_AT_3"] = 0x00001001] = "PSP_MODE_AT_3";
+    CodecType[CodecType["PSP_MODE_AT_3_PLUS"] = 4096] = "PSP_MODE_AT_3_PLUS";
+    CodecType[CodecType["PSP_MODE_AT_3"] = 4097] = "PSP_MODE_AT_3";
 })(CodecType || (CodecType = {}));
 
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
 var _audio = require('../../core/audio');
@@ -19342,7 +17196,7 @@ var sceAudio = (function () {
             var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             if (!(result instanceof Promise))
                 return result;
-            return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, 0 /* NO */);
+            return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
         });
         this.sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
             if (!buffer)
@@ -19377,7 +17231,7 @@ var sceAudio = (function () {
     };
     sceAudio.prototype.getChannelById = function (id) {
         if (!this.isValidChannel(id))
-            throw (new SceKernelException(2149974019 /* ERROR_AUDIO_INVALID_CHANNEL */));
+            throw (new SceKernelException(SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL));
         return this.channels[id];
     };
     return sceAudio;
@@ -19385,15 +17239,15 @@ var sceAudio = (function () {
 exports.sceAudio = sceAudio;
 var AudioFormat;
 (function (AudioFormat) {
-    AudioFormat[AudioFormat["Stereo"] = 0x00] = "Stereo";
-    AudioFormat[AudioFormat["Mono"] = 0x10] = "Mono";
+    AudioFormat[AudioFormat["Stereo"] = 0] = "Stereo";
+    AudioFormat[AudioFormat["Mono"] = 16] = "Mono";
 })(AudioFormat || (AudioFormat = {}));
 var Channel = (function () {
     function Channel(id) {
         this.id = id;
         this.allocated = false;
         this.sampleCount = 44100;
-        this.format = 0 /* Stereo */;
+        this.format = AudioFormat.Stereo;
     }
     Object.defineProperty(Channel.prototype, "totalSampleCount", {
         get: function () {
@@ -19404,7 +17258,7 @@ var Channel = (function () {
     });
     Object.defineProperty(Channel.prototype, "numberOfChannels", {
         get: function () {
-            return (this.format == 0 /* Stereo */) ? 2 : 1;
+            return (this.format == AudioFormat.Stereo) ? 2 : 1;
         },
         enumerable: true,
         configurable: true
@@ -19414,6 +17268,7 @@ var Channel = (function () {
 
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
@@ -19430,9 +17285,10 @@ var sceCtrl = (function () {
             return count;
         });
         this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, function (thread, sceCtrlDataPtr, count) {
+            //console.log('sceCtrlReadBufferPositive');
             for (var n = 0; n < count; n++)
                 _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread).then(function (v) { return count; }), 0 /* NO */);
+            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread).then(function (v) { return count; }), AcceptCallbacks.NO);
         });
         this.sceCtrlSetSamplingCycle = createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
             return 0;
@@ -19470,11 +17326,11 @@ exports.sceCtrl = sceCtrl;
 
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
 var _display = require('../../core/display');
-var _pixelformat = require('../../core/pixelformat');
 var createNativeFunction = _utils.createNativeFunction;
 var PspDisplay = _display.PspDisplay;
 var sceDisplay = (function () {
@@ -19501,16 +17357,16 @@ var sceDisplay = (function () {
             return 0;
         }, { tryCatch: false });
         this.sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
-            return _this._waitVblankAsync(thread, 0 /* NO */);
+            return _this._waitVblankAsync(thread, AcceptCallbacks.NO);
         }, { tryCatch: false });
         this.sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
-            return _this._waitVblankAsync(thread, 1 /* YES */);
+            return _this._waitVblankAsync(thread, AcceptCallbacks.YES);
         }, { tryCatch: false });
         this.sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, function (thread) {
-            return _this._waitVblankStartAsync(thread, 0 /* NO */);
+            return _this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
         }, { tryCatch: false });
         this.sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, function (thread) {
-            return _this._waitVblankStartAsync(thread, 1 /* YES */);
+            return _this._waitVblankStartAsync(thread, AcceptCallbacks.YES);
         }, { tryCatch: false });
         this.sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'int', '', this, function () {
             _this.context.display.updateTime();
@@ -19559,6 +17415,7 @@ exports.sceDisplay = sceDisplay;
 
 },
 "src/hle/module/sceDmac": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -19575,11 +17432,11 @@ var sceDmac = (function () {
     }
     sceDmac.prototype._sceDmacMemcpy = function (destination, source, size) {
         if (size == 0)
-            return 2147483908 /* ERROR_INVALID_SIZE */;
+            return SceKernelErrors.ERROR_INVALID_SIZE;
         if (destination == 0)
-            return 2147483907 /* ERROR_INVALID_POINTER */;
+            return SceKernelErrors.ERROR_INVALID_POINTER;
         if (source == 0)
-            return 2147483907 /* ERROR_INVALID_POINTER */;
+            return SceKernelErrors.ERROR_INVALID_POINTER;
         this.context.memory.copy(source, destination, size);
         return Promise.resolve(0);
     };
@@ -19589,9 +17446,9 @@ exports.sceDmac = sceDmac;
 
 },
 "src/hle/module/sceGe_user": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
-var _manager = require('../manager');
 var _gpu = require('../../core/gpu');
 _gpu.PspGpuCallback;
 var PspGpuCallback = _gpu.PspGpuCallback;
@@ -19629,7 +17486,7 @@ var sceGe_user = (function () {
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
             var result = _this.context.gpu.drawSync(syncType);
             if (result instanceof Promise) {
-                return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result, 0 /* NO */, 1 /* YES */);
+                return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result, AcceptCallbacks.NO, Compensate.YES);
             }
             else {
                 return result;
@@ -19665,6 +17522,7 @@ var CallbackData = (function () {
 
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceHprm = (function () {
@@ -19681,7 +17539,7 @@ exports.sceHprm = sceHprm;
 
 },
 "src/hle/module/sceHttp": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceHttp = (function () {
     function sceHttp(context) {
         this.context = context;
@@ -19692,6 +17550,7 @@ exports.sceHttp = sceHttp;
 
 },
 "src/hle/module/sceImpose": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceImpose = (function () {
@@ -19699,8 +17558,8 @@ var sceImpose = (function () {
         var _this = this;
         this.context = context;
         this.sceImposeGetBatteryIconStatus = createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, function (isChargingPointer, iconStatusPointer) {
-            isChargingPointer.writeInt32(0 /* NotCharging */);
-            iconStatusPointer.writeInt32(3 /* FullyFilled */);
+            isChargingPointer.writeInt32(ChargingEnum.NotCharging);
+            iconStatusPointer.writeInt32(BatteryStatusEnum.FullyFilled);
             return 0;
         });
         this.sceImposeSetLanguageMode = createNativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint', this, function (language, buttonPreference) {
@@ -19732,6 +17591,7 @@ var BatteryStatusEnum;
 
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceLibFont = (function () {
@@ -19776,7 +17636,7 @@ var Font = (function () {
 
 },
 "src/hle/module/sceMp3": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceMp3 = (function () {
     function sceMp3(context) {
         this.context = context;
@@ -19787,8 +17647,8 @@ exports.sceMp3 = sceMp3;
 
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _memory = require('../../core/memory');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var sceMpeg = (function () {
@@ -19806,12 +17666,12 @@ var sceMpeg = (function () {
         });
         this.sceMpegRingbufferConstruct = createNativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int', this, function (ringbufferAddr, numPackets, data, size, callbackAddr, callbackArg) {
             if (ringbufferAddr == Stream.INVALID)
-                return 2147614931 /* ERROR_KERNEL_ILLEGAL_ADDR */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
             if (size < 0)
-                return 2153840674 /* ERROR_MPEG_NO_MEMORY */;
+                return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
             if (_this.__mpegRingbufferQueryMemSize(numPackets) > size) {
                 if (numPackets < 0x00100000) {
-                    return 2153840674 /* ERROR_MPEG_NO_MEMORY */;
+                    return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
                 }
                 else {
                 }
@@ -19834,7 +17694,7 @@ var sceMpeg = (function () {
             if (!_this.context.memory.isValidAddress(mpegAddr))
                 return -1;
             if (size < sceMpeg.MPEG_MEMSIZE)
-                return 2153840674 /* ERROR_MPEG_NO_MEMORY */;
+                return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
             if (ringbufferAddr == Stream.INVALID) {
                 var ringBuffer = RingBuffer.struct.read(ringbufferAddr.clone());
                 if (ringBuffer.packetSize == 0) {
@@ -19852,6 +17712,7 @@ var sceMpeg = (function () {
             mpegHandle.writeInt32(-1);
         });
         this.sceMpegDelete = createNativeFunction(0x606A4649, 150, 'uint', 'int', this, function (sceMpegPointer) {
+            //this.getMpeg(sceMpegPointer).delete();
             return 0;
         });
         this.sceMpegFinish = createNativeFunction(0x874624D6, 150, 'uint', '', this, function () {
@@ -19891,6 +17752,7 @@ var RingBuffer = (function () {
 
 },
 "src/hle/module/sceNet": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceNet = (function () {
@@ -19936,9 +17798,8 @@ exports.sceNet = sceNet;
 
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _context = require('../../context');
-var _manager = require('../manager');
 var createNativeFunction = _utils.createNativeFunction;
 var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
@@ -20139,8 +18000,8 @@ var PdpStatStruct = (function () {
 
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _context = require('../../context');
 var _manager = require('../manager');
 _manager.Thread;
 var createNativeFunction = _utils.createNativeFunction;
@@ -20221,22 +18082,20 @@ var Matching = (function () {
         this.helloTimer = -1;
         this.dataTimer = -1;
         this.onMessageCancelable = null;
-        this.state = 0 /* START */;
+        this.state = State.START;
         this.messageQueue = [];
     }
     Matching.prototype.sendHello = function () {
-        if (this.state != 0 /* START */)
+        if (this.state != State.START)
             return;
-        this.sendMessage(1 /* Hello */, Matching.MAC_ALL, this.hello);
+        this.sendMessage(Event.Hello, Matching.MAC_ALL, this.hello);
     };
     Matching.prototype.start = function () {
         var _this = this;
         this.onMessageCancelable = this.context.netManager.onmessage(this.port).add(function (packet) {
             _this.notify(Event[packet.type], packet.mac, packet.payload);
         });
-        this.helloTimer = setInterval(function () {
-            _this.sendHello();
-        }, this.helloDelay / 1000);
+        this.helloTimer = setInterval(function () { _this.sendHello(); }, this.helloDelay / 1000);
         this.sendHello();
         this.dataTimer = setInterval(function () {
         }, this.msgDelay / 1000);
@@ -20252,25 +18111,25 @@ var Matching = (function () {
     Matching.prototype.selectTarget = function (mac, data) {
         var macstr = mac2string(mac);
         console.info("net.adhoc: selectTarget", macstr);
-        if ((this.state == 1 /* JOIN_WAIT_RESPONSE */) && (macstr == this.joinMac)) {
-            this.state = 2 /* JOIN_WAIT_COMPLETE */;
-            this.sendMessage(6 /* Accept */, mac, data);
+        if ((this.state == State.JOIN_WAIT_RESPONSE) && (macstr == this.joinMac)) {
+            this.state = State.JOIN_WAIT_COMPLETE;
+            this.sendMessage(Event.Accept, mac, data);
         }
         else {
-            this.state = 1 /* JOIN_WAIT_RESPONSE */;
-            this.sendMessage(2 /* Join */, mac, data);
+            this.state = State.JOIN_WAIT_RESPONSE;
+            this.sendMessage(Event.Join, mac, data);
         }
     };
     Matching.prototype.cancelTarget = function (mac) {
         var macstr = mac2string(mac);
         console.info("net.adhoc: cancelTarget", macstr);
-        this.state = 0 /* START */;
-        this.sendMessage(5 /* Cancel */, mac, null);
+        this.state = State.START;
+        this.sendMessage(Event.Cancel, mac, null);
     };
     Matching.prototype.sendMessage = function (event, tomac, data) {
         if (!data)
             data = new Uint8Array(0);
-        if (event != 1 /* Hello */) {
+        if (event != Event.Hello) {
             console.info("net.adhoc: send ->", Event[event], event, ':', mac2string(tomac), ':', Stream.fromUint8Array(data).readString(data.length));
         }
         this.context.netManager.send(this.port, Event[event], tomac, data);
@@ -20278,12 +18137,12 @@ var Matching = (function () {
     Matching.prototype.notify = function (event, frommac, data) {
         if (!data)
             data = new Uint8Array(0);
-        if (event != 1 /* Hello */) {
+        if (event != Event.Hello) {
             console.info("net.adhoc: received <-", Event[event], event, ':', mac2string(frommac), ':', Stream.fromUint8Array(data).readString(data.length));
         }
         switch (event) {
-            case 2 /* Join */:
-                this.state = 1 /* JOIN_WAIT_RESPONSE */;
+            case Event.Join:
+                this.state = State.JOIN_WAIT_RESPONSE;
                 this.joinMac = mac2string(frommac);
                 break;
         }
@@ -20294,31 +18153,27 @@ var Matching = (function () {
         this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
         this.context.memory.writeUint8Array(dataPartition.low, data);
         this.context.callbackManager.executeLater(this.callback, [
-            this.id,
-            event,
-            macPartition.low,
-            data.length,
-            data.length ? dataPartition.low : 0
+            this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
         ]);
         dataPartition.deallocate();
         macPartition.deallocate();
         switch (event) {
-            case 6 /* Accept */:
-                this.sendMessage(7 /* Complete */, frommac, data);
-                this.state = 2 /* JOIN_WAIT_COMPLETE */;
+            case Event.Accept:
+                this.sendMessage(Event.Complete, frommac, data);
+                this.state = State.JOIN_WAIT_COMPLETE;
                 break;
-            case 7 /* Complete */:
-                if (this.state == 2 /* JOIN_WAIT_COMPLETE */) {
-                    this.sendMessage(7 /* Complete */, frommac, data);
-                    this.state = 3 /* COMPLETED */;
+            case Event.Complete:
+                if (this.state == State.JOIN_WAIT_COMPLETE) {
+                    this.sendMessage(Event.Complete, frommac, data);
+                    this.state = State.COMPLETED;
                 }
                 break;
-            case 11 /* Data */:
-                this.sendMessage(12 /* DataConfirm */, frommac, null);
+            case Event.Data:
+                this.sendMessage(Event.DataConfirm, frommac, null);
                 break;
-            case 10 /* Disconnect */:
-            case 3 /* Left */:
-                this.state = 0 /* START */;
+            case Event.Disconnect:
+            case Event.Left:
+                this.state = State.START;
                 break;
         }
     };
@@ -20351,18 +18206,17 @@ var Mode = exports.Mode;
 
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
-var _context = require('../../context');
-var _manager = require('../manager');
 var createNativeFunction = _utils.createNativeFunction;
 var sceNetAdhocctl = (function () {
     function sceNetAdhocctl(context) {
         var _this = this;
         this.context = context;
-        this.currentState = 0 /* Disconnected */;
+        this.currentState = State.Disconnected;
         this.currentName = "noname";
         this.sceNetAdhocctlInit = createNativeFunction(0xE26F226E, 150, 'int', 'int/int/void*', this, function (stacksize, priority, product) {
-            _this.currentState = 0 /* Disconnected */;
+            _this.currentState = State.Disconnected;
             return 0;
         });
         this.sceNetAdhocctlTerm = createNativeFunction(0x9D689E13, 150, 'int', '', this, function () {
@@ -20372,16 +18226,16 @@ var sceNetAdhocctl = (function () {
         this.sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, function (name) {
             _this.currentName = name;
             _this.connectHandlers.push(_this.context.netManager.onopen.add(function () {
-                _this.currentState = 1 /* Connected */;
-                _this._notifyAdhocctlHandler(1 /* Connected */);
+                _this.currentState = State.Connected;
+                _this._notifyAdhocctlHandler(Event.Connected);
             }));
             _this.connectHandlers.push(_this.context.netManager.onclose.add(function () {
-                _this.currentState = 0 /* Disconnected */;
-                _this._notifyAdhocctlHandler(2 /* Disconnected */);
+                _this.currentState = State.Disconnected;
+                _this._notifyAdhocctlHandler(Event.Disconnected);
             }));
             if (_this.context.netManager.connected) {
-                _this.currentState = 1 /* Connected */;
-                _this._notifyAdhocctlHandler(1 /* Connected */);
+                _this.currentState = State.Connected;
+                _this._notifyAdhocctlHandler(Event.Connected);
             }
             _this.context.netManager.connectOnce();
             return 0;
@@ -20455,7 +18309,7 @@ var MAX_GAME_MODE_MACS = 16;
 
 },
 "src/hle/module/sceNetApctl": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceNetApctl = (function () {
     function sceNetApctl(context) {
         this.context = context;
@@ -20466,7 +18320,7 @@ exports.sceNetApctl = sceNetApctl;
 
 },
 "src/hle/module/sceNetInet": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceNetInet = (function () {
     function sceNetInet(context) {
         this.context = context;
@@ -20477,7 +18331,7 @@ exports.sceNetInet = sceNetInet;
 
 },
 "src/hle/module/sceNetResolver": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceNetResolver = (function () {
     function sceNetResolver(context) {
         this.context = context;
@@ -20488,7 +18342,7 @@ exports.sceNetResolver = sceNetResolver;
 
 },
 "src/hle/module/sceNp": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceNp = (function () {
     function sceNp(context) {
         this.context = context;
@@ -20499,7 +18353,7 @@ exports.sceNp = sceNp;
 
 },
 "src/hle/module/sceNpAuth": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceNpAuth = (function () {
     function sceNpAuth(context) {
         this.context = context;
@@ -20510,7 +18364,7 @@ exports.sceNpAuth = sceNpAuth;
 
 },
 "src/hle/module/sceNpService": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceNpService = (function () {
     function sceNpService(context) {
         this.context = context;
@@ -20521,7 +18375,7 @@ exports.sceNpService = sceNpService;
 
 },
 "src/hle/module/sceOpenPSID": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceOpenPSID = (function () {
     function sceOpenPSID(context) {
         this.context = context;
@@ -20532,7 +18386,7 @@ exports.sceOpenPSID = sceOpenPSID;
 
 },
 "src/hle/module/sceParseHttp": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceParseHttp = (function () {
     function sceParseHttp(context) {
         this.context = context;
@@ -20543,7 +18397,7 @@ exports.sceParseHttp = sceParseHttp;
 
 },
 "src/hle/module/sceParseUri": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceParseUri = (function () {
     function sceParseUri(context) {
         this.context = context;
@@ -20554,6 +18408,7 @@ exports.sceParseUri = sceParseUri;
 
 },
 "src/hle/module/scePower": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -20565,7 +18420,7 @@ var scePower = (function () {
         this.pllFreq = 222;
         this.busFreq = 111;
         this.scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', 'int/int', this, function (slotIndex, callbackId) {
-            _this.context.callbackManager.notify(callbackId, 128 /* BATTERY_EXIST */);
+            _this.context.callbackManager.notify(callbackId, CallbackStatus.BATTERY_EXIST);
             return 0;
         });
         this.scePowerUnregitserCallback = createNativeFunction(0xDB9D28DD, 150, 'int', 'int', this, function (slotIndex) {
@@ -20586,58 +18441,36 @@ var scePower = (function () {
         this.scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, function () { return _this._getCpuFreq(); });
         this.scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () { return _this._getCpuFreq(); });
         this.scePowerGetCpuClockFrequencyFloat = createNativeFunction(0xB1A52C83, 150, 'float', '', this, function () { return _this._getCpuFreq(); });
-        this.scePowerGetBusClockFrequency = createNativeFunction(0x478FE6F5, 150, 'int', '', this, function () {
-            return _this.busFreq;
-        });
-        this.scePowerGetBusClockFrequencyInt = createNativeFunction(0xBD681969, 150, 'int', '', this, function () {
-            return _this.busFreq;
-        });
-        this.scePowerGetBusClockFrequencyFloat = createNativeFunction(0x9BADB3EB, 150, 'float', '', this, function () {
-            return _this.busFreq;
-        });
-        this.scePowerGetPllClockFrequencyInt = createNativeFunction(0x34F9C463, 150, 'int', '', this, function () {
-            return _this.pllFreq;
-        });
-        this.scePowerGetPllClockFrequencyFloat = createNativeFunction(0xEA382A27, 150, 'float', '', this, function () {
-            return _this.pllFreq;
-        });
+        this.scePowerGetBusClockFrequency = createNativeFunction(0x478FE6F5, 150, 'int', '', this, function () { return _this.busFreq; });
+        this.scePowerGetBusClockFrequencyInt = createNativeFunction(0xBD681969, 150, 'int', '', this, function () { return _this.busFreq; });
+        this.scePowerGetBusClockFrequencyFloat = createNativeFunction(0x9BADB3EB, 150, 'float', '', this, function () { return _this.busFreq; });
+        this.scePowerGetPllClockFrequencyInt = createNativeFunction(0x34F9C463, 150, 'int', '', this, function () { return _this.pllFreq; });
+        this.scePowerGetPllClockFrequencyFloat = createNativeFunction(0xEA382A27, 150, 'float', '', this, function () { return _this.pllFreq; });
         this.scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, function (busFreq) {
             if (!_this._isValidBusFreq(busFreq))
-                return 2147484158 /* ERROR_INVALID_VALUE */;
+                return SceKernelErrors.ERROR_INVALID_VALUE;
             _this.busFreq = 111;
             return 0;
         });
         this.scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, function (cpuFreq) {
             if (!_this._isValidCpuFreq(cpuFreq))
-                return 2147484158 /* ERROR_INVALID_VALUE */;
+                return SceKernelErrors.ERROR_INVALID_VALUE;
             _this._setCpuFreq(cpuFreq);
             return 0;
         });
-        this.scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, function () {
-            return 100;
-        });
-        this.scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, function () {
-            return 1;
-        });
-        this.scePowerIsBatteryExist = createNativeFunction(0x0AFD0D8B, 150, 'int', '', this, function () {
-            return 1;
-        });
-        this.scePowerIsLowBattery = createNativeFunction(0xD3075926, 150, 'int', '', this, function () {
-            return 0;
-        });
-        this.scePowerIsBatteryCharging = createNativeFunction(0x1E490401, 150, 'int', '', this, function () {
-            return 1;
-        });
-        this.scePowerGetBatteryLifeTime = createNativeFunction(0x8EFB3FA2, 150, 'int', '', this, function () {
-            return 3 * 60;
-        });
+        this.scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, function () { return 100; });
+        this.scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, function () { return 1; });
+        this.scePowerIsBatteryExist = createNativeFunction(0x0AFD0D8B, 150, 'int', '', this, function () { return 1; });
+        this.scePowerIsLowBattery = createNativeFunction(0xD3075926, 150, 'int', '', this, function () { return 0; });
+        this.scePowerIsBatteryCharging = createNativeFunction(0x1E490401, 150, 'int', '', this, function () { return 1; });
+        this.scePowerGetBatteryLifeTime = createNativeFunction(0x8EFB3FA2, 150, 'int', '', this, function () { return 3 * 60; });
         this.scePowerGetBatteryVolt = createNativeFunction(0x483CE86B, 150, 'int', '', this, function () { return 4135; });
         this.scePowerGetBatteryTemp = createNativeFunction(0x28E12023, 150, 'int', '', this, function () { return 28; });
         this.scePowerLock = createNativeFunction(0xD6D016EF, 150, 'int', 'int', this, function (unknown) { return 0; });
         this.scePowerUnlock = createNativeFunction(0xCA3D34C1, 150, 'int', 'int', this, function (unknown) { return 0; });
         this.scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, function (type) { return 0; });
         this.scePowerGetBatteryChargingStatus = createNativeFunction(0xB4432BC8, 150, 'int', '', this, function () {
-            return 128 /* BatteryExists */ | 4096 /* AcPower */ | 127 /* BatteryPower */;
+            return PowerFlagsSet.BatteryExists | PowerFlagsSet.AcPower | PowerFlagsSet.BatteryPower;
         });
     }
     scePower.prototype._getCpuMult = function () {
@@ -20667,11 +18500,11 @@ var scePower = (function () {
     };
     scePower.prototype._scePowerSetClockFrequency = function (pllFreq, cpuFreq, busFreq) {
         if (!this._isValidCpuFreq(cpuFreq))
-            return 2147484158 /* ERROR_INVALID_VALUE */;
+            return SceKernelErrors.ERROR_INVALID_VALUE;
         if (!this._isValidBusFreq(busFreq))
-            return 2147484158 /* ERROR_INVALID_VALUE */;
+            return SceKernelErrors.ERROR_INVALID_VALUE;
         if (!this._isValidPllFreq(pllFreq))
-            return 2147484158 /* ERROR_INVALID_VALUE */;
+            return SceKernelErrors.ERROR_INVALID_VALUE;
         this.pllFreq = pllFreq;
         this._setCpuFreq(cpuFreq);
         this.busFreq = busFreq;
@@ -20682,27 +18515,27 @@ var scePower = (function () {
 exports.scePower = scePower;
 var CallbackStatus;
 (function (CallbackStatus) {
-    CallbackStatus[CallbackStatus["AC_POWER"] = 0x00001000] = "AC_POWER";
-    CallbackStatus[CallbackStatus["BATTERY_EXIST"] = 0x00000080] = "BATTERY_EXIST";
-    CallbackStatus[CallbackStatus["BATTERY_FULL"] = 0x00000064] = "BATTERY_FULL";
+    CallbackStatus[CallbackStatus["AC_POWER"] = 4096] = "AC_POWER";
+    CallbackStatus[CallbackStatus["BATTERY_EXIST"] = 128] = "BATTERY_EXIST";
+    CallbackStatus[CallbackStatus["BATTERY_FULL"] = 100] = "BATTERY_FULL";
 })(CallbackStatus || (CallbackStatus = {}));
 var PowerFlagsSet;
 (function (PowerFlagsSet) {
-    PowerFlagsSet[PowerFlagsSet["PowerSwitch"] = 0x80000000] = "PowerSwitch";
-    PowerFlagsSet[PowerFlagsSet["HoldSwitch"] = 0x40000000] = "HoldSwitch";
-    PowerFlagsSet[PowerFlagsSet["StandBy"] = 0x00080000] = "StandBy";
-    PowerFlagsSet[PowerFlagsSet["ResumeComplete"] = 0x00040000] = "ResumeComplete";
-    PowerFlagsSet[PowerFlagsSet["Resuming"] = 0x00020000] = "Resuming";
-    PowerFlagsSet[PowerFlagsSet["Suspending"] = 0x00010000] = "Suspending";
-    PowerFlagsSet[PowerFlagsSet["AcPower"] = 0x00001000] = "AcPower";
-    PowerFlagsSet[PowerFlagsSet["BatteryLow"] = 0x00000100] = "BatteryLow";
-    PowerFlagsSet[PowerFlagsSet["BatteryExists"] = 0x00000080] = "BatteryExists";
-    PowerFlagsSet[PowerFlagsSet["BatteryPower"] = 0x0000007F] = "BatteryPower";
+    PowerFlagsSet[PowerFlagsSet["PowerSwitch"] = 2147483648] = "PowerSwitch";
+    PowerFlagsSet[PowerFlagsSet["HoldSwitch"] = 1073741824] = "HoldSwitch";
+    PowerFlagsSet[PowerFlagsSet["StandBy"] = 524288] = "StandBy";
+    PowerFlagsSet[PowerFlagsSet["ResumeComplete"] = 262144] = "ResumeComplete";
+    PowerFlagsSet[PowerFlagsSet["Resuming"] = 131072] = "Resuming";
+    PowerFlagsSet[PowerFlagsSet["Suspending"] = 65536] = "Suspending";
+    PowerFlagsSet[PowerFlagsSet["AcPower"] = 4096] = "AcPower";
+    PowerFlagsSet[PowerFlagsSet["BatteryLow"] = 256] = "BatteryLow";
+    PowerFlagsSet[PowerFlagsSet["BatteryExists"] = 128] = "BatteryExists";
+    PowerFlagsSet[PowerFlagsSet["BatteryPower"] = 127] = "BatteryPower";
 })(PowerFlagsSet || (PowerFlagsSet = {}));
 
 },
 "src/hle/module/scePspNpDrm_user": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var scePspNpDrm_user = (function () {
     function scePspNpDrm_user(context) {
         this.context = context;
@@ -20713,6 +18546,7 @@ exports.scePspNpDrm_user = scePspNpDrm_user;
 
 },
 "src/hle/module/sceReg": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceReg = (function () {
@@ -20771,6 +18605,7 @@ var RegParam = (function () {
 
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -20805,10 +18640,11 @@ var sceRtc = (function () {
                 return 0;
             }
             catch (e) {
-                return 2147484158 /* ERROR_INVALID_VALUE */;
+                return SceKernelErrors.ERROR_INVALID_VALUE;
             }
         });
         this.sceRtcGetCurrentClock = createNativeFunction(0x4CFA57B0, 150, 'int', 'uint/int', this, function (dateAddress, timezone) {
+            //var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
             var date = new Date();
             var pointer = _this.context.memory.getPointerPointer(ScePspDateTime.struct, dateAddress);
             pointer.write(ScePspDateTime.fromDate(new Date()));
@@ -20821,6 +18657,7 @@ exports.sceRtc = sceRtc;
 
 },
 "src/hle/module/sceSasCore": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _audio = require('../../core/audio');
 var _vag = require('../../format/vag');
@@ -20839,13 +18676,13 @@ var sceSasCore = (function () {
         this.core = new SasCore();
         this.__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
             if (sampleRate != 44100) {
-                return 2151809028 /* ERROR_SAS_INVALID_SAMPLE_RATE */;
+                return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
             }
             if (maxVoices < 1 || maxVoices > sceSasCore.PSP_SAS_VOICES_MAX) {
-                return 2151809026 /* ERROR_SAS_INVALID_MAX_VOICES */;
+                return SceKernelErrors.ERROR_SAS_INVALID_MAX_VOICES;
             }
-            if (outputMode != 0 /* STEREO */ && outputMode != 1 /* MULTICHANNEL */) {
-                return 2151809027 /* ERROR_SAS_INVALID_OUTPUT_MODE */;
+            if (outputMode != OutputMode.STEREO && outputMode != OutputMode.MULTICHANNEL) {
+                return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
             }
             _this.core.grainSamples = grainSamples;
             _this.core.maxVoices = maxVoices;
@@ -20869,15 +18706,15 @@ var sceSasCore = (function () {
                 return 0;
             }
             if (data.length == 0)
-                throw (new SceKernelException(2151809044 /* ERROR_SAS_INVALID_ADPCM_SIZE */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
             if (data.length < 0x10)
-                throw (new SceKernelException(2151809044 /* ERROR_SAS_INVALID_ADPCM_SIZE */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
             if (data.length % 0x10)
-                throw (new SceKernelException(2151809044 /* ERROR_SAS_INVALID_ADPCM_SIZE */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
             if (data == Stream.INVALID)
-                throw (new SceKernelException(2151809040 /* ERROR_SAS_INVALID_VOICE */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
             if (loop != 0 && loop != 1)
-                throw (new SceKernelException(2151809045 /* ERROR_SAS_INVALID_LOOP_POS */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_LOOP_POS));
             if (data == null) {
                 voice.unsetSource();
             }
@@ -20938,7 +18775,7 @@ var sceSasCore = (function () {
         this.__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (!voice.paused)
-                return 2151809046 /* ERROR_SAS_VOICE_PAUSED */;
+                return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
             voice.setOn(false);
             return 0;
         });
@@ -20979,7 +18816,7 @@ var sceSasCore = (function () {
         });
         this.__sceSasSetNoise = createNativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, noiseFrequency) {
             if (noiseFrequency < 0 || noiseFrequency >= 64)
-                return 2151809041 /* ERROR_SAS_INVALID_NOISE_CLOCK */;
+                return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             return 0;
         });
@@ -20990,7 +18827,7 @@ var sceSasCore = (function () {
             effectLeftVol = Math.abs(effectLeftVol);
             effectRightVol = Math.abs(effectRightVol);
             if (leftVolume > PSP_SAS_VOL_MAX || rightVolume > PSP_SAS_VOL_MAX || effectLeftVol > PSP_SAS_VOL_MAX || effectRightVol > PSP_SAS_VOL_MAX) {
-                throw (new SceKernelException(2151809048 /* ERROR_SAS_INVALID_VOLUME_VAL */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOLUME_VAL));
             }
             voice.leftVolume = leftVolume;
             voice.rightVolume = rightVolume;
@@ -21018,7 +18855,7 @@ var sceSasCore = (function () {
     sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voiceId) {
         var voice = this.core.voices[voiceId];
         if (!voice)
-            throw (new SceKernelException(2151809040 /* ERROR_SAS_INVALID_VOICE */));
+            throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
         return voice;
     };
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
@@ -21040,12 +18877,12 @@ var SasCore = (function () {
         this.initialized = false;
         this.grainSamples = 0;
         this.maxVoices = 32;
-        this.outputMode = 0 /* STEREO */;
+        this.outputMode = OutputMode.STEREO;
         this.sampleRate = 44100;
         this.delay = 0;
         this.feedback = 0;
         this.endFlags = 0;
-        this.waveformEffectType = -1 /* OFF */;
+        this.waveformEffectType = WaveformEffectType.OFF;
         this.waveformEffectIsDry = false;
         this.waveformEffectIsWet = false;
         this.leftVolume = PSP_SAS_VOL_MAX;
@@ -21058,7 +18895,7 @@ var SasCore = (function () {
     SasCore.prototype.mix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
         while (this.bufferTempArray.length < this.grainSamples)
             this.bufferTempArray.push(new Sample(0, 0));
-        var numberOfChannels = (this.outputMode == 0 /* STEREO */) ? 2 : 1;
+        var numberOfChannels = (this.outputMode == OutputMode.STEREO) ? 2 : 1;
         var numberOfSamples = this.grainSamples;
         var numberOfVoicesPlaying = Math.max(1, this.voices.count(function (Voice) { return Voice.onAndPlaying; }));
         for (var n = 0; n < numberOfSamples; n++)
@@ -21206,15 +19043,15 @@ var AdsrCurveMode;
 })(AdsrCurveMode || (AdsrCurveMode = {}));
 var AdsrFlags;
 (function (AdsrFlags) {
-    AdsrFlags[AdsrFlags["HasAttack"] = (1 << 0)] = "HasAttack";
-    AdsrFlags[AdsrFlags["HasDecay"] = (1 << 1)] = "HasDecay";
-    AdsrFlags[AdsrFlags["HasSustain"] = (1 << 2)] = "HasSustain";
-    AdsrFlags[AdsrFlags["HasRelease"] = (1 << 3)] = "HasRelease";
+    AdsrFlags[AdsrFlags["HasAttack"] = 1] = "HasAttack";
+    AdsrFlags[AdsrFlags["HasDecay"] = 2] = "HasDecay";
+    AdsrFlags[AdsrFlags["HasSustain"] = 4] = "HasSustain";
+    AdsrFlags[AdsrFlags["HasRelease"] = 8] = "HasRelease";
 })(AdsrFlags || (AdsrFlags = {}));
 
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceSsl = (function () {
     function sceSsl(context) {
         this.context = context;
@@ -21225,6 +19062,7 @@ exports.sceSsl = sceSsl;
 
 },
 "src/hle/module/sceSuspendForUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -21233,12 +19071,12 @@ var sceSuspendForUser = (function () {
         this.context = context;
         this.sceKernelPowerLock = createNativeFunction(0xEADB1BD7, 150, 'uint', 'uint', this, function (lockType) {
             if (lockType != 0)
-                return 2147483911 /* ERROR_INVALID_MODE */;
+                return SceKernelErrors.ERROR_INVALID_MODE;
             return 0;
         });
         this.sceKernelPowerUnlock = createNativeFunction(0x3AEE7261, 150, 'uint', 'uint', this, function (lockType) {
             if (lockType != 0)
-                return 2147483911 /* ERROR_INVALID_MODE */;
+                return SceKernelErrors.ERROR_INVALID_MODE;
             return 0;
         });
         this.sceKernelPowerTick = createNativeFunction(0x090CCB3F, 150, 'uint', 'uint', this, function (value) {
@@ -21251,6 +19089,7 @@ exports.sceSuspendForUser = sceSuspendForUser;
 
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
@@ -21266,29 +19105,29 @@ var sceUmdUser = (function () {
         });
         this.sceUmdUnRegisterUMDCallBack = createNativeFunction(0xBD2BDE07, 150, 'uint', 'int', this, function (callbackId) {
             if (!_this.callbackIds.contains(callbackId))
-                return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+                return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
             _this.callbackIds.remove(callbackId);
             return 0;
         });
         this.sceUmdCheckMedium = createNativeFunction(0x46EBB729, 150, 'uint', '', this, function () {
-            return 1 /* Inserted */;
+            return UmdCheckMedium.Inserted;
         });
         this.sceUmdWaitDriveStat = createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, function (pspUmdState) {
-            return _this._sceUmdWaitDriveStat(pspUmdState, 0 /* NO */);
+            return _this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.NO);
         });
         this.sceUmdWaitDriveStatCB = createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint', this, function (pspUmdState, timeout) {
-            return _this._sceUmdWaitDriveStat(pspUmdState, 1 /* YES */);
+            return _this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.YES);
         });
         this.sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, function (mode, drive) {
-            _this._notify(32 /* PSP_UMD_READABLE */ | 16 /* PSP_UMD_READY */ | 2 /* PSP_UMD_PRESENT */);
+            _this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
             return 0;
         });
         this.sceUmdDeactivate = createNativeFunction(0xE83742BA, 150, 'uint', 'int/string', this, function (mode, drive) {
-            _this._notify(32 /* PSP_UMD_READABLE */ | 16 /* PSP_UMD_READY */ | 2 /* PSP_UMD_PRESENT */);
+            _this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
             return 0;
         });
         this.sceUmdGetDriveStat = createNativeFunction(0x6B4A146C, 150, 'uint', '', this, function () {
-            return 2 /* PSP_UMD_PRESENT */ | 16 /* PSP_UMD_READY */ | 32 /* PSP_UMD_READABLE */;
+            return PspUmdState.PSP_UMD_PRESENT | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_READABLE;
         });
         this.sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
             return Promise.resolve(0);
@@ -21319,17 +19158,18 @@ var UmdCheckMedium;
 })(UmdCheckMedium || (UmdCheckMedium = {}));
 var PspUmdState;
 (function (PspUmdState) {
-    PspUmdState[PspUmdState["PSP_UMD_INIT"] = 0x00] = "PSP_UMD_INIT";
-    PspUmdState[PspUmdState["PSP_UMD_NOT_PRESENT"] = 0x01] = "PSP_UMD_NOT_PRESENT";
-    PspUmdState[PspUmdState["PSP_UMD_PRESENT"] = 0x02] = "PSP_UMD_PRESENT";
-    PspUmdState[PspUmdState["PSP_UMD_CHANGED"] = 0x04] = "PSP_UMD_CHANGED";
-    PspUmdState[PspUmdState["PSP_UMD_NOT_READY"] = 0x08] = "PSP_UMD_NOT_READY";
-    PspUmdState[PspUmdState["PSP_UMD_READY"] = 0x10] = "PSP_UMD_READY";
-    PspUmdState[PspUmdState["PSP_UMD_READABLE"] = 0x20] = "PSP_UMD_READABLE";
+    PspUmdState[PspUmdState["PSP_UMD_INIT"] = 0] = "PSP_UMD_INIT";
+    PspUmdState[PspUmdState["PSP_UMD_NOT_PRESENT"] = 1] = "PSP_UMD_NOT_PRESENT";
+    PspUmdState[PspUmdState["PSP_UMD_PRESENT"] = 2] = "PSP_UMD_PRESENT";
+    PspUmdState[PspUmdState["PSP_UMD_CHANGED"] = 4] = "PSP_UMD_CHANGED";
+    PspUmdState[PspUmdState["PSP_UMD_NOT_READY"] = 8] = "PSP_UMD_NOT_READY";
+    PspUmdState[PspUmdState["PSP_UMD_READY"] = 16] = "PSP_UMD_READY";
+    PspUmdState[PspUmdState["PSP_UMD_READABLE"] = 32] = "PSP_UMD_READABLE";
 })(PspUmdState || (PspUmdState = {}));
 
 },
 "src/hle/module/sceUtility": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var _vfs = require('../vfs');
 var _structs = require('../structs');
@@ -21341,7 +19181,7 @@ var sceUtility = (function () {
     function sceUtility(context) {
         var _this = this;
         this.context = context;
-        this.currentStep = 0 /* NONE */;
+        this.currentStep = DialogStepEnum.NONE;
         this.sceUtilityLoadModule = createNativeFunction(0x2A2B3DE0, 150, 'uint', 'int', this, function (pspModule) {
             console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
             return Promise.resolve(0);
@@ -21354,7 +19194,7 @@ var sceUtility = (function () {
             });
         });
         this.sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
-            _this.currentStep = 4 /* SHUTDOWN */;
+            _this.currentStep = DialogStepEnum.SHUTDOWN;
             return 0;
         });
         this.sceUtilitySavedataGetStatus = createNativeFunction(0x8874DBE0, 150, 'uint', '', this, function () {
@@ -21362,13 +19202,13 @@ var sceUtility = (function () {
                 return _this.currentStep;
             }
             finally {
-                if (_this.currentStep == 4 /* SHUTDOWN */)
-                    _this.currentStep = 0 /* NONE */;
+                if (_this.currentStep == DialogStepEnum.SHUTDOWN)
+                    _this.currentStep = DialogStepEnum.NONE;
             }
         });
         this.sceUtilityMsgDialogInitStart = createNativeFunction(0x2AD8E239, 150, 'uint', 'void*', this, function (paramsPtr) {
             console.warn("Not implemented sceUtilityMsgDialogInitStart()");
-            _this.currentStep = 2 /* PROCESSING */;
+            _this.currentStep = DialogStepEnum.PROCESSING;
             return 0;
         });
         this.sceUtilityMsgDialogGetStatus = createNativeFunction(0x9A1C91D7, 150, 'uint', '', this, function () {
@@ -21376,8 +19216,8 @@ var sceUtility = (function () {
                 return _this.currentStep;
             }
             finally {
-                if (_this.currentStep == 4 /* SHUTDOWN */)
-                    _this.currentStep = 0 /* NONE */;
+                if (_this.currentStep == DialogStepEnum.SHUTDOWN)
+                    _this.currentStep = DialogStepEnum.NONE;
             }
         });
         this.sceUtilityMsgDialogUpdate = createNativeFunction(0x9A1C91D7, 150, 'uint', 'int', this, function (value) {
@@ -21412,37 +19252,45 @@ var sceUtility = (function () {
         var saveDataBin = savePathFolder + "/DATA.BIN";
         var saveIcon0 = savePathFolder + "/ICON0.PNG";
         var savePic1 = savePathFolder + "/PIC1.PNG";
-        this.currentStep = 3 /* SUCCESS */;
+        this.currentStep = DialogStepEnum.SUCCESS;
         params.base.result = 0;
         switch (params.mode) {
-            case 0 /* Autoload */:
-            case 2 /* Load */:
-            case 4 /* ListLoad */:
-                return fileManager.openAsync(saveDataBin, 1 /* Read */, parseIntFormat('0777')).then(function (file) { return file.entry.readAllAsync(); }).then(function (data) {
+            case PspUtilitySavedataMode.Autoload:
+            case PspUtilitySavedataMode.Load:
+            case PspUtilitySavedataMode.ListLoad:
+                return fileManager
+                    .openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777'))
+                    .then(function (file) { return file.entry.readAllAsync(); })
+                    .then(function (data) {
                     _this.context.memory.writeBytes(params.dataBufPointer, data);
                     return 0;
-                }).catch(function (error) {
-                    return 2148598535 /* ERROR_SAVEDATA_LOAD_NO_DATA */;
+                })
+                    .catch(function (error) {
+                    return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
                 });
-            case 1 /* Autosave */:
-            case 3 /* Save */:
-            case 5 /* ListSave */:
+            case PspUtilitySavedataMode.Autosave:
+            case PspUtilitySavedataMode.Save:
+            case PspUtilitySavedataMode.ListSave:
                 var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
-                return fileManager.openAsync(saveDataBin, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseIntFormat('0777')).then(function (file) { return file.entry.writeAllAsync(data); }).then(function (written) {
+                return fileManager
+                    .openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
+                    .then(function (file) { return file.entry.writeAllAsync(data); })
+                    .then(function (written) {
                     return 0;
-                }).catch(function (error) {
-                    return 2148598661 /* ERROR_SAVEDATA_SAVE_ACCESS_ERROR */;
+                })
+                    .catch(function (error) {
+                    return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
                 });
-            case 16 /* Read */:
-            case 15 /* ReadSecure */:
+            case PspUtilitySavedataMode.Read:
+            case PspUtilitySavedataMode.ReadSecure:
                 {
                     console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
                     return Promise.resolve(0);
                 }
                 break;
-            case 8 /* Sizes */:
+            case PspUtilitySavedataMode.Sizes:
                 {
-                    var SceKernelError = 0 /* ERROR_OK */;
+                    var SceKernelError = SceKernelErrors.ERROR_OK;
                     var SectorSize = 1024;
                     var FreeSize = 32 * 1024 * 1024;
                     var UsedSize = 0;
@@ -21476,7 +19324,7 @@ var sceUtility = (function () {
                             });
                         }
                     }
-                    if (SceKernelError != 0 /* ERROR_OK */)
+                    if (SceKernelError != SceKernelErrors.ERROR_OK)
                         throw (new SceKernelException(SceKernelError));
                 }
                 break;
@@ -21487,24 +19335,15 @@ var sceUtility = (function () {
     };
     sceUtility.prototype._getKey = function (id) {
         switch (id) {
-            case 2 /* INT_ADHOC_CHANNEL */:
-                return 0 /* AUTOMATIC */;
-            case 3 /* INT_WLAN_POWERSAVE */:
-                return 1 /* ON */;
-            case 4 /* INT_DATE_FORMAT */:
-                return 0 /* YYYYMMDD */;
-            case 5 /* INT_TIME_FORMAT */:
-                return 0 /* _24HR */;
-            case 6 /* INT_TIMEZONE */:
-                return -5 * 60;
-            case 7 /* INT_DAYLIGHTSAVINGS */:
-                return 0 /* STD */;
-            case 8 /* INT_LANGUAGE */:
-                return this.context.config.language;
-            case 9 /* INT_BUTTON_PREFERENCE */:
-                return 1 /* NA */;
-            case 1 /* STRING_NICKNAME */:
-                return "USERNAME";
+            case PSP_SYSTEMPARAM_ID.INT_ADHOC_CHANNEL: return PSP_SYSTEMPARAM_ADHOC_CHANNEL.AUTOMATIC;
+            case PSP_SYSTEMPARAM_ID.INT_WLAN_POWERSAVE: return PSP_SYSTEMPARAM_WLAN_POWERSAVE.ON;
+            case PSP_SYSTEMPARAM_ID.INT_DATE_FORMAT: return PSP_SYSTEMPARAM_DATE_FORMAT.YYYYMMDD;
+            case PSP_SYSTEMPARAM_ID.INT_TIME_FORMAT: return PSP_SYSTEMPARAM_TIME_FORMAT._24HR;
+            case PSP_SYSTEMPARAM_ID.INT_TIMEZONE: return -5 * 60;
+            case PSP_SYSTEMPARAM_ID.INT_DAYLIGHTSAVINGS: return PSP_SYSTEMPARAM_DAYLIGHTSAVINGS.STD;
+            case PSP_SYSTEMPARAM_ID.INT_LANGUAGE: return this.context.config.language;
+            case PSP_SYSTEMPARAM_ID.INT_BUTTON_PREFERENCE: return PSP_SYSTEMPARAM_BUTTON_PREFERENCE.NA;
+            case PSP_SYSTEMPARAM_ID.STRING_NICKNAME: return "USERNAME";
         }
         throw (new Error("Invalid key " + id));
     };
@@ -21581,41 +19420,41 @@ var PSP_SYSTEMPARAM_BUTTON_PREFERENCE;
 })(PSP_SYSTEMPARAM_BUTTON_PREFERENCE || (PSP_SYSTEMPARAM_BUTTON_PREFERENCE = {}));
 var PspModule;
 (function (PspModule) {
-    PspModule[PspModule["PSP_MODULE_NET_COMMON"] = 0x0100] = "PSP_MODULE_NET_COMMON";
-    PspModule[PspModule["PSP_MODULE_NET_ADHOC"] = 0x0101] = "PSP_MODULE_NET_ADHOC";
-    PspModule[PspModule["PSP_MODULE_NET_INET"] = 0x0102] = "PSP_MODULE_NET_INET";
-    PspModule[PspModule["PSP_MODULE_NET_PARSEURI"] = 0x0103] = "PSP_MODULE_NET_PARSEURI";
-    PspModule[PspModule["PSP_MODULE_NET_PARSEHTTP"] = 0x0104] = "PSP_MODULE_NET_PARSEHTTP";
-    PspModule[PspModule["PSP_MODULE_NET_HTTP"] = 0x0105] = "PSP_MODULE_NET_HTTP";
-    PspModule[PspModule["PSP_MODULE_NET_SSL"] = 0x0106] = "PSP_MODULE_NET_SSL";
-    PspModule[PspModule["PSP_MODULE_USB_PSPCM"] = 0x0200] = "PSP_MODULE_USB_PSPCM";
-    PspModule[PspModule["PSP_MODULE_USB_MIC"] = 0x0201] = "PSP_MODULE_USB_MIC";
-    PspModule[PspModule["PSP_MODULE_USB_CAM"] = 0x0202] = "PSP_MODULE_USB_CAM";
-    PspModule[PspModule["PSP_MODULE_USB_GPS"] = 0x0203] = "PSP_MODULE_USB_GPS";
-    PspModule[PspModule["PSP_MODULE_AV_AVCODEC"] = 0x0300] = "PSP_MODULE_AV_AVCODEC";
-    PspModule[PspModule["PSP_MODULE_AV_SASCORE"] = 0x0301] = "PSP_MODULE_AV_SASCORE";
-    PspModule[PspModule["PSP_MODULE_AV_ATRAC3PLUS"] = 0x0302] = "PSP_MODULE_AV_ATRAC3PLUS";
-    PspModule[PspModule["PSP_MODULE_AV_MPEGBASE"] = 0x0303] = "PSP_MODULE_AV_MPEGBASE";
-    PspModule[PspModule["PSP_MODULE_AV_MP3"] = 0x0304] = "PSP_MODULE_AV_MP3";
-    PspModule[PspModule["PSP_MODULE_AV_VAUDIO"] = 0x0305] = "PSP_MODULE_AV_VAUDIO";
-    PspModule[PspModule["PSP_MODULE_AV_AAC"] = 0x0306] = "PSP_MODULE_AV_AAC";
-    PspModule[PspModule["PSP_MODULE_AV_G729"] = 0x0307] = "PSP_MODULE_AV_G729";
-    PspModule[PspModule["PSP_MODULE_NP_COMMON"] = 0x0400] = "PSP_MODULE_NP_COMMON";
-    PspModule[PspModule["PSP_MODULE_NP_SERVICE"] = 0x0401] = "PSP_MODULE_NP_SERVICE";
-    PspModule[PspModule["PSP_MODULE_NP_MATCHING2"] = 0x0402] = "PSP_MODULE_NP_MATCHING2";
-    PspModule[PspModule["PSP_MODULE_NP_DRM"] = 0x0500] = "PSP_MODULE_NP_DRM";
-    PspModule[PspModule["PSP_MODULE_IRDA"] = 0x0600] = "PSP_MODULE_IRDA";
+    PspModule[PspModule["PSP_MODULE_NET_COMMON"] = 256] = "PSP_MODULE_NET_COMMON";
+    PspModule[PspModule["PSP_MODULE_NET_ADHOC"] = 257] = "PSP_MODULE_NET_ADHOC";
+    PspModule[PspModule["PSP_MODULE_NET_INET"] = 258] = "PSP_MODULE_NET_INET";
+    PspModule[PspModule["PSP_MODULE_NET_PARSEURI"] = 259] = "PSP_MODULE_NET_PARSEURI";
+    PspModule[PspModule["PSP_MODULE_NET_PARSEHTTP"] = 260] = "PSP_MODULE_NET_PARSEHTTP";
+    PspModule[PspModule["PSP_MODULE_NET_HTTP"] = 261] = "PSP_MODULE_NET_HTTP";
+    PspModule[PspModule["PSP_MODULE_NET_SSL"] = 262] = "PSP_MODULE_NET_SSL";
+    PspModule[PspModule["PSP_MODULE_USB_PSPCM"] = 512] = "PSP_MODULE_USB_PSPCM";
+    PspModule[PspModule["PSP_MODULE_USB_MIC"] = 513] = "PSP_MODULE_USB_MIC";
+    PspModule[PspModule["PSP_MODULE_USB_CAM"] = 514] = "PSP_MODULE_USB_CAM";
+    PspModule[PspModule["PSP_MODULE_USB_GPS"] = 515] = "PSP_MODULE_USB_GPS";
+    PspModule[PspModule["PSP_MODULE_AV_AVCODEC"] = 768] = "PSP_MODULE_AV_AVCODEC";
+    PspModule[PspModule["PSP_MODULE_AV_SASCORE"] = 769] = "PSP_MODULE_AV_SASCORE";
+    PspModule[PspModule["PSP_MODULE_AV_ATRAC3PLUS"] = 770] = "PSP_MODULE_AV_ATRAC3PLUS";
+    PspModule[PspModule["PSP_MODULE_AV_MPEGBASE"] = 771] = "PSP_MODULE_AV_MPEGBASE";
+    PspModule[PspModule["PSP_MODULE_AV_MP3"] = 772] = "PSP_MODULE_AV_MP3";
+    PspModule[PspModule["PSP_MODULE_AV_VAUDIO"] = 773] = "PSP_MODULE_AV_VAUDIO";
+    PspModule[PspModule["PSP_MODULE_AV_AAC"] = 774] = "PSP_MODULE_AV_AAC";
+    PspModule[PspModule["PSP_MODULE_AV_G729"] = 775] = "PSP_MODULE_AV_G729";
+    PspModule[PspModule["PSP_MODULE_NP_COMMON"] = 1024] = "PSP_MODULE_NP_COMMON";
+    PspModule[PspModule["PSP_MODULE_NP_SERVICE"] = 1025] = "PSP_MODULE_NP_SERVICE";
+    PspModule[PspModule["PSP_MODULE_NP_MATCHING2"] = 1026] = "PSP_MODULE_NP_MATCHING2";
+    PspModule[PspModule["PSP_MODULE_NP_DRM"] = 1280] = "PSP_MODULE_NP_DRM";
+    PspModule[PspModule["PSP_MODULE_IRDA"] = 1536] = "PSP_MODULE_IRDA";
 })(PspModule || (PspModule = {}));
 var PspUtilityDialogCommon = (function () {
     function PspUtilityDialogCommon() {
         this.size = 0;
-        this.language = 3 /* SPANISH */;
+        this.language = PspLanguages.SPANISH;
         this.buttonSwap = 0;
         this.graphicsThread = 0;
         this.accessThread = 0;
         this.fontThread = 0;
         this.soundThread = 0;
-        this.result = 0 /* ERROR_OK */;
+        this.result = SceKernelErrors.ERROR_OK;
         this.reserved = [0, 0, 0, 0];
     }
     PspUtilityDialogCommon.struct = StructClass.create(PspUtilityDialogCommon, [
@@ -21731,7 +19570,7 @@ var SceUtilitySavedataParam = (function () {
         this.pic1FileData = new PspUtilitySavedataFileData();
         this.snd0FileData = new PspUtilitySavedataFileData();
         this.newDataPointer = 0;
-        this.focus = 0 /* PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN */;
+        this.focus = PspUtilitySavedataFocus.PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN;
         this.abortStatus = 0;
         this.msFreeAddr = 0;
         this.msDataAddr = 0;
@@ -21817,7 +19656,7 @@ var SizeRequiredSpaceInfo = (function () {
 
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
-var _utils = require('../utils');
+///<reference path="../../global.d.ts" />
 var sceVaudio = (function () {
     function sceVaudio(context) {
         this.context = context;
@@ -21828,6 +19667,7 @@ exports.sceVaudio = sceVaudio;
 
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var _utils = require('../utils');
 var createNativeFunction = _utils.createNativeFunction;
 var sceWlanDrv = (function () {
@@ -21843,6 +19683,7 @@ exports.sceWlanDrv = sceWlanDrv;
 
 },
 "src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
@@ -21861,56 +19702,56 @@ var ThreadManForUser = (function () {
         this.threadUids = new UidCollection(1);
         this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread', this, function (name, entryPoint, initPriority, stackSize, attributes, optionPtr, currentThread) {
             if (name == null)
-                return 2147614721 /* ERROR_ERROR */;
+                return SceKernelErrors.ERROR_ERROR;
             if (stackSize < 0x200)
-                return 2147615124 /* ERROR_KERNEL_ILLEGAL_STACK_SIZE */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_STACK_SIZE;
             if (initPriority < 0x08 || initPriority > 0x77)
-                return 2147615123 /* ERROR_KERNEL_ILLEGAL_PRIORITY */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_PRIORITY;
             if (!_this.context.memory.isValidAddress(entryPoint) || entryPoint == 0)
-                return 2147615122 /* ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR;
             if (name.length > 31)
                 name = name.substr(0, 31);
             if (stackSize > 2 * 1024 * 1024)
                 return -3;
             if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
-                return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
             }
-            attributes |= 2147483648 /* User */;
-            attributes |= 255 /* LowFF */;
+            attributes |= PspThreadAttributes.User;
+            attributes |= PspThreadAttributes.LowFF;
             try {
                 stackSize = Math.max(stackSize, 0x200);
                 stackSize = MathUtils.nextAligned(stackSize, 0x100);
                 var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
                 newThread.id = _this.threadUids.allocate(newThread);
-                newThread.status = 16 /* DORMANT */;
+                newThread.status = ThreadStatus.DORMANT;
                 newThread.state.GP = currentThread.state.GP;
                 console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
                 return newThread.id;
             }
             catch (e) {
                 if (e instanceof OutOfMemoryError)
-                    return 2147615120 /* ERROR_KERNEL_NO_MEMORY */;
+                    return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
                 throw (e);
             }
         });
         this.sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
-            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, 0 /* NO */);
+            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.NO);
         });
         this.sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
-            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, 1 /* YES */);
+            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.YES);
         });
         this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), 1 /* YES */);
+            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), AcceptCallbacks.YES);
         });
         this.sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), 0 /* NO */);
+            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), AcceptCallbacks.NO);
         });
         this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, function (currentThread) { return currentThread.priority; });
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
             var newThread = _this.getThreadById(threadId);
-            newThread.exitStatus = 2147615140 /* ERROR_KERNEL_THREAD_IS_NOT_DORMANT */;
+            newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
             var newState = newThread.state;
-            newState.setRA(268435455 /* EXIT_THREAD */);
+            newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
             var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
             if (userDataPointer != null) {
                 newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
@@ -21929,7 +19770,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, function (currentThread, exitStatus) {
             console.info(sprintf('sceKernelExitThread: %d', exitStatus));
-            currentThread.exitStatus = (exitStatus < 0) ? 2147614930 /* ERROR_KERNEL_ILLEGAL_ARGUMENT */ : exitStatus;
+            currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
             currentThread.stop('sceKernelExitThread');
             throw (new CpuBreakException());
         });
@@ -21955,10 +19796,10 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, function (currentThread) {
-            return currentThread.wakeupSleepAsync(1 /* YES */);
+            return currentThread.wakeupSleepAsync(AcceptCallbacks.YES);
         });
         this.sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'Thread', this, function (currentThread) {
-            return currentThread.wakeupSleepAsync(0 /* NO */);
+            return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
         });
         this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
             var thread = _this.getThreadById(threadId);
@@ -21974,7 +19815,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, function (timePtr) {
             if (timePtr == null)
-                throw (new SceKernelException(2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */));
+                throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT));
             timePtr.writeInt64(Integer64.fromNumber(_this._getCurrentMicroseconds()));
             return 0;
         });
@@ -22031,7 +19872,7 @@ var ThreadManForUser = (function () {
         if (id == 0)
             return this.context.threadManager.current;
         if (!this.threadUids.has(id))
-            throw (new SceKernelException(2147615128 /* ERROR_KERNEL_NOT_FOUND_THREAD */));
+            throw (new SceKernelException(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD));
         return this.threadUids.get(id);
     };
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (thread, delayInMicroseconds, acceptCallbacks) {
@@ -22087,8 +19928,8 @@ var SceKernelThreadInfo = (function () {
 
 },
 "src/hle/module/threadman/ThreadManForUser_callbacks": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
-var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
 var _manager = require('../../manager');
 _manager.Thread;
@@ -22116,11 +19957,10 @@ exports.ThreadManForUser = ThreadManForUser;
 
 },
 "src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
-var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
-var _manager = require('../../manager');
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         var _this = this;
@@ -22128,9 +19968,9 @@ var ThreadManForUser = (function () {
         this.eventFlagUids = new UidCollection(1);
         this.sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
             if (name === null)
-                return 2147614721 /* ERROR_ERROR */;
+                return SceKernelErrors.ERROR_ERROR;
             if ((attributes & 0x100) != 0 || attributes >= 0x300)
-                return 2147615121 /* ERROR_KERNEL_ILLEGAL_ATTR */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
             var eventFlag = new EventFlag();
             eventFlag.name = name;
             eventFlag.attributes = attributes;
@@ -22140,46 +19980,46 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
             if (!_this.eventFlagUids.has(id))
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             _this.eventFlagUids.get(id).setBits(bitPattern);
             return 0;
         });
         this.sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
-            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, 0 /* NO */);
+            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
         });
         this.sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
-            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, 1 /* YES */);
+            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
         });
         this.sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, function (id, bits, waitType, outBits) {
             if (!_this.eventFlagUids.has(id))
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0)
-                return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
-            if ((waitType & (32 /* Clear */ | 16 /* ClearAll */)) == (32 /* Clear */ | 16 /* ClearAll */)) {
-                return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+            if ((waitType & (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) == (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) {
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
             }
             if (bits == 0)
-                return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
+                return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
             if (EventFlag == null)
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             var matched = _this.eventFlagUids.get(id).poll(bits, waitType, outBits);
-            return matched ? 0 : 2147615151 /* ERROR_KERNEL_EVENT_FLAG_POLL_FAILED */;
+            return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
         });
         this.sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, function (id) {
             if (!_this.eventFlagUids.has(id))
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             _this.eventFlagUids.remove(id);
             return 0;
         });
         this.sceKernelClearEventFlag = createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, function (id, bitsToClear) {
             if (!_this.eventFlagUids.has(id))
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             _this.eventFlagUids.get(id).clearBits(bitsToClear);
             return 0;
         });
         this.sceKernelCancelEventFlag = createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, function (id, newPattern, numWaitThreadPtr) {
             if (!_this.eventFlagUids.has(id))
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             _this.eventFlagUids.get(id).cancel(newPattern);
             return 0;
         });
@@ -22189,7 +20029,7 @@ var ThreadManForUser = (function () {
                 return 0;
             infoPtr.position = 0;
             if (!_this.eventFlagUids.has(id))
-                return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
             var eventFlag = _this.eventFlagUids.get(id);
             var info = new EventFlagInfo();
             info.size = EventFlagInfo.struct.length;
@@ -22205,12 +20045,12 @@ var ThreadManForUser = (function () {
     }
     ThreadManForUser.prototype._sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout, acceptCallbacks) {
         if (!this.eventFlagUids.has(id))
-            return 2147615130 /* ERROR_KERNEL_NOT_FOUND_EVENT_FLAG */;
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
         var eventFlag = this.eventFlagUids.get(id);
         if ((waitType & ~(EventFlagWaitTypeSet.MaskValidBits)) != 0)
-            return 2147615125 /* ERROR_KERNEL_ILLEGAL_MODE */;
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
         if (bits == 0)
-            return 2147615153 /* ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN */;
+            return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
         var timedOut = false;
         var previousPattern = eventFlag.currentPattern;
         return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).then(function () {
@@ -22250,16 +20090,18 @@ var EventFlag = (function () {
     EventFlag.prototype.poll = function (bitsToMatch, waitType, outBits) {
         if (outBits != null)
             outBits.writeInt32(this.currentPattern);
-        if ((waitType & 1 /* Or */) ? ((this.currentPattern & bitsToMatch) != 0) : ((this.currentPattern & bitsToMatch) == bitsToMatch)) {
+        if ((waitType & EventFlagWaitTypeSet.Or)
+            ? ((this.currentPattern & bitsToMatch) != 0)
+            : ((this.currentPattern & bitsToMatch) == bitsToMatch)) {
             this._doClear(bitsToMatch, waitType);
             return true;
         }
         return false;
     };
     EventFlag.prototype._doClear = function (bitsToMatch, waitType) {
-        if (waitType & (16 /* ClearAll */))
+        if (waitType & (EventFlagWaitTypeSet.ClearAll))
             this.clearBits(~0xFFFFFFFF, false);
-        if (waitType & (32 /* Clear */))
+        if (waitType & (EventFlagWaitTypeSet.Clear))
             this.clearBits(~bitsToMatch, false);
     };
     EventFlag.prototype.cancel = function (newPattern) {
@@ -22304,19 +20146,18 @@ var EventFlagInfo = (function () {
 })();
 var EventFlagWaitTypeSet;
 (function (EventFlagWaitTypeSet) {
-    EventFlagWaitTypeSet[EventFlagWaitTypeSet["And"] = 0x00] = "And";
-    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Or"] = 0x01] = "Or";
-    EventFlagWaitTypeSet[EventFlagWaitTypeSet["ClearAll"] = 0x10] = "ClearAll";
-    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Clear"] = 0x20] = "Clear";
-    EventFlagWaitTypeSet[EventFlagWaitTypeSet["MaskValidBits"] = EventFlagWaitTypeSet.Or | EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll] = "MaskValidBits";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["And"] = 0] = "And";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Or"] = 1] = "Or";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["ClearAll"] = 16] = "ClearAll";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["Clear"] = 32] = "Clear";
+    EventFlagWaitTypeSet[EventFlagWaitTypeSet["MaskValidBits"] = 49] = "MaskValidBits";
 })(EventFlagWaitTypeSet || (EventFlagWaitTypeSet = {}));
 
 },
 "src/hle/module/threadman/ThreadManForUser_mutex": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
-var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
-var _manager = require('../../manager');
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         this.context = context;
@@ -22333,11 +20174,10 @@ exports.ThreadManForUser = ThreadManForUser;
 
 },
 "src/hle/module/threadman/ThreadManForUser_sema": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
-var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
-var _manager = require('../../manager');
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         var _this = this;
@@ -22352,7 +20192,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
             if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
             var semaphore = _this.semaporesUid.get(id);
             semaphore.delete();
             _this.semaporesUid.remove(id);
@@ -22360,7 +20200,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
             if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
             var semaphore = _this.semaporesUid.get(id);
             if (numWaitingThreadsPtr)
                 numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
@@ -22368,14 +20208,14 @@ var ThreadManForUser = (function () {
             return 0;
         });
         this.sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*', this, function (currentThread, id, signal, timeout) {
-            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, 1 /* YES */);
+            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.YES);
         });
         this.sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*', this, function (currentThread, id, signal, timeout) {
-            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, 0 /* NO */);
+            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.NO);
         });
         this.sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
             if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
             var semaphore = _this.semaporesUid.get(id);
             var semaphoreInfo = new SceKernelSemaInfo();
             semaphoreInfo.size = SceKernelSemaInfo.struct.length;
@@ -22390,11 +20230,11 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int', this, function (currentThread, id, signal) {
             if (!_this.semaporesUid.has(id))
-                return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
             var semaphore = _this.semaporesUid.get(id);
             var previousCount = semaphore.currentCount;
             if (semaphore.currentCount + signal > semaphore.maximumCount)
-                return 2147615150 /* ERROR_KERNEL_SEMA_OVERFLOW */;
+                return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
             var awakeCount = semaphore.incrementCount(signal);
             if (awakeCount > 0) {
                 return Promise.resolve(0);
@@ -22406,16 +20246,16 @@ var ThreadManForUser = (function () {
         this.sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int', this, function (currentThread, id, signal) {
             var semaphore = _this.semaporesUid.get(id);
             if (signal <= 0)
-                return 2147615165 /* ERROR_KERNEL_ILLEGAL_COUNT */;
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
             if (signal > semaphore.currentCount)
-                return 2147615149 /* ERROR_KERNEL_SEMA_ZERO */;
+                return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;
             semaphore.incrementCount(-signal);
             return 0;
         });
     }
     ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout, acceptCallbacks) {
         if (!this.semaporesUid.has(id))
-            return 2147615129 /* ERROR_KERNEL_NOT_FOUND_SEMAPHORE */;
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
         var semaphore = this.semaporesUid.get(id);
         var promise = semaphore.waitAsync(currentThread, signal);
         if (promise) {
@@ -22459,9 +20299,7 @@ var Semaphore = (function () {
         this.currentCount = initialCount;
     }
     Object.defineProperty(Semaphore.prototype, "numberOfWaitingThreads", {
-        get: function () {
-            return this.waitingSemaphoreThreadList.length;
-        },
+        get: function () { return this.waitingSemaphoreThreadList.length; },
         enumerable: true,
         configurable: true
     });
@@ -22510,14 +20348,14 @@ var Semaphore = (function () {
 })();
 var SemaphoreAttribute;
 (function (SemaphoreAttribute) {
-    SemaphoreAttribute[SemaphoreAttribute["FirstInFirstOut"] = 0x000] = "FirstInFirstOut";
-    SemaphoreAttribute[SemaphoreAttribute["Priority"] = 0x100] = "Priority";
+    SemaphoreAttribute[SemaphoreAttribute["FirstInFirstOut"] = 0] = "FirstInFirstOut";
+    SemaphoreAttribute[SemaphoreAttribute["Priority"] = 256] = "Priority";
 })(SemaphoreAttribute || (SemaphoreAttribute = {}));
 
 },
 "src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
+///<reference path="../../../global.d.ts" />
 var _utils = require('../../utils');
-var _cpu = require('../../../core/cpu');
 var createNativeFunction = _utils.createNativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
@@ -22529,7 +20367,7 @@ var ThreadManForUser = (function () {
         this.vplUid = new UidCollection(1);
         this.sceKernelCreateVpl = createNativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*', this, function (name, partitionId, attribute, size, optionsPtr) {
             var partition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
-            var allocatedPartition = partition.allocate(size, (attribute & 16384 /* PSP_VPL_ATTR_ADDR_HIGH */) ? 1 /* High */ : 0 /* Low */);
+            var allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
             var vpl = new Vpl(name, allocatedPartition);
             return _this.vplUid.allocate(vpl);
         });
@@ -22544,7 +20382,7 @@ var ThreadManForUser = (function () {
             }
             catch (e) {
                 console.error(e);
-                return 2147615120 /* ERROR_KERNEL_NO_MEMORY */;
+                return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
             }
         });
     }
@@ -22560,13 +20398,14 @@ var Vpl = (function () {
 })();
 var VplAttributeFlags;
 (function (VplAttributeFlags) {
-    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_MASK"] = 0x41FF] = "PSP_VPL_ATTR_MASK";
-    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_ADDR_HIGH"] = 0x4000] = "PSP_VPL_ATTR_ADDR_HIGH";
-    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_EXT"] = 0x8000] = "PSP_VPL_ATTR_EXT";
+    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_MASK"] = 16895] = "PSP_VPL_ATTR_MASK";
+    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_ADDR_HIGH"] = 16384] = "PSP_VPL_ATTR_ADDR_HIGH";
+    VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_EXT"] = 32768] = "PSP_VPL_ATTR_EXT";
 })(VplAttributeFlags || (VplAttributeFlags = {}));
 
 },
 "src/hle/pspmodules": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel');
 var InterruptManager = require('./module/InterruptManager');
 var KDebugForKernel = require('./module/KDebugForKernel');
@@ -22712,13 +20551,13 @@ var SeekAnchor = exports.SeekAnchor;
 })(exports.SceMode || (exports.SceMode = {}));
 var SceMode = exports.SceMode;
 (function (IOFileModes) {
-    IOFileModes[IOFileModes["FormatMask"] = 0x0038] = "FormatMask";
-    IOFileModes[IOFileModes["SymbolicLink"] = 0x0008] = "SymbolicLink";
-    IOFileModes[IOFileModes["Directory"] = 0x0010] = "Directory";
-    IOFileModes[IOFileModes["File"] = 0x0020] = "File";
-    IOFileModes[IOFileModes["CanRead"] = 0x0004] = "CanRead";
-    IOFileModes[IOFileModes["CanWrite"] = 0x0002] = "CanWrite";
-    IOFileModes[IOFileModes["CanExecute"] = 0x0001] = "CanExecute";
+    IOFileModes[IOFileModes["FormatMask"] = 56] = "FormatMask";
+    IOFileModes[IOFileModes["SymbolicLink"] = 8] = "SymbolicLink";
+    IOFileModes[IOFileModes["Directory"] = 16] = "Directory";
+    IOFileModes[IOFileModes["File"] = 32] = "File";
+    IOFileModes[IOFileModes["CanRead"] = 4] = "CanRead";
+    IOFileModes[IOFileModes["CanWrite"] = 2] = "CanWrite";
+    IOFileModes[IOFileModes["CanExecute"] = 1] = "CanExecute";
 })(exports.IOFileModes || (exports.IOFileModes = {}));
 var IOFileModes = exports.IOFileModes;
 var ScePspDateTime = (function () {
@@ -22765,7 +20604,7 @@ exports.ScePspDateTime = ScePspDateTime;
 var SceIoStat = (function () {
     function SceIoStat() {
         this.mode = 0;
-        this.attributes = 32 /* File */;
+        this.attributes = IOFileModes.File;
         this.size = 0;
         this.timeCreation = new ScePspDateTime();
         this.timeLastAccess = new ScePspDateTime();
@@ -22824,7 +20663,6 @@ var ButtonPreference = exports.ButtonPreference;
 },
 "src/hle/utils": function(module, exports, require) {
 var _cpu = require('../core/cpu');
-var _memory = require('../core/memory');
 exports.NativeFunction = _cpu.NativeFunction;
 var console = logger.named('createNativeFunction');
 function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
@@ -22935,8 +20773,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
     code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
     switch (retval) {
-        case 'void':
-            break;
+        case 'void': break;
         case 'uint':
         case 'int':
             code += 'state.V0 = result | 0;\n';
@@ -22955,8 +20792,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
             code += 'state.V0 = result; state.V1 = 0;\n';
             code += '}\n';
             break;
-        default:
-            throw ('Invalid return value "' + retval + '"');
+        default: throw ('Invalid return value "' + retval + '"');
     }
     var nativeFunction = new exports.NativeFunction();
     nativeFunction.name = 'unknown';
@@ -23070,6 +20906,9 @@ var MyStorageIndexedDb = (function () {
     MyStorageIndexedDb.prototype.getAsync = function (key) {
         var store = this.getItemsStore();
         return new Promise(function (resolve, reject) {
+            //console.log('rr');
+            //var keyRange = IDBKeyRange.only(key);
+            //var keyRange = IDBKeyRange.lowerBound(0);
             var request = store.get(key);
             request.onsuccess = function (e) {
                 var result = e.target['result'];
@@ -23149,16 +20988,16 @@ var Vfs = (function () {
         return null;
     };
     Vfs.prototype.readAllAsync = function (path) {
-        return this.openAsync(path, 1 /* Read */, parseInt('0777', 8)).then(function (entry) { return entry.readAllAsync(); });
+        return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(function (entry) { return entry.readAllAsync(); });
     };
     Vfs.prototype.writeAllAsync = function (path, data) {
-        return this.openAsync(path, 512 /* Create */ | 1024 /* Truncate */ | 2 /* Write */, parseInt('0777', 8)).then(function (entry) { return entry.writeAllAsync(data); });
+        return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).then(function (entry) { return entry.writeAllAsync(data); });
     };
     Vfs.prototype.openDirectoryAsync = function (path) {
-        return this.openAsync(path, 1 /* Read */, parseInt('0777', 8));
+        return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
     };
     Vfs.prototype.getStatAsync = function (path) {
-        return this.openAsync(path, 1 /* Read */, parseInt('0777', 8)).then(function (entry) { return entry.stat(); });
+        return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(function (entry) { return entry.stat(); });
     };
     Vfs.prototype.existsAsync = function (path) {
         return this.getStatAsync(path).then(function () { return true; }).catch(function () { return false; });
@@ -23215,32 +21054,17 @@ var VfsEntry = (function () {
         configurable: true
     });
     Object.defineProperty(VfsEntry.prototype, "size", {
-        get: function () {
-            return this.stat().size;
-        },
+        get: function () { return this.stat().size; },
         enumerable: true,
         configurable: true
     });
-    VfsEntry.prototype.readAllAsync = function () {
-        return this.readChunkAsync(0, this.size);
-    };
-    VfsEntry.prototype.writeAllAsync = function (data) {
-        return this.writeChunkAsync(0, data);
-    };
-    VfsEntry.prototype.enumerateAsync = function () {
-        throw (new Error("Must override enumerateAsync : " + this));
-    };
-    VfsEntry.prototype.readChunkAsync = function (offset, length) {
-        throw (new Error("Must override readChunkAsync : " + this));
-    };
-    VfsEntry.prototype.writeChunkAsync = function (offset, data) {
-        throw (new Error("Must override writeChunkAsync : " + this));
-    };
-    VfsEntry.prototype.stat = function () {
-        throw (new Error("Must override stat"));
-    };
-    VfsEntry.prototype.close = function () {
-    };
+    VfsEntry.prototype.readAllAsync = function () { return this.readChunkAsync(0, this.size); };
+    VfsEntry.prototype.writeAllAsync = function (data) { return this.writeChunkAsync(0, data); };
+    VfsEntry.prototype.enumerateAsync = function () { throw (new Error("Must override enumerateAsync : " + this)); };
+    VfsEntry.prototype.readChunkAsync = function (offset, length) { throw (new Error("Must override readChunkAsync : " + this)); };
+    VfsEntry.prototype.writeChunkAsync = function (offset, data) { throw (new Error("Must override writeChunkAsync : " + this)); };
+    VfsEntry.prototype.stat = function () { throw (new Error("Must override stat")); };
+    VfsEntry.prototype.close = function () { };
     return VfsEntry;
 })();
 exports.VfsEntry = VfsEntry;
@@ -23251,17 +21075,14 @@ var VfsEntryStream = (function (_super) {
         this.asyncStream = asyncStream;
     }
     Object.defineProperty(VfsEntryStream.prototype, "size", {
-        get: function () {
-            return this.asyncStream.size;
-        },
+        get: function () { return this.asyncStream.size; },
         enumerable: true,
         configurable: true
     });
     VfsEntryStream.prototype.readChunkAsync = function (offset, length) {
         return this.asyncStream.readChunkAsync(offset, length);
     };
-    VfsEntryStream.prototype.close = function () {
-    };
+    VfsEntryStream.prototype.close = function () { };
     VfsEntryStream.prototype.stat = function () {
         return {
             name: this.asyncStream.name,
@@ -23276,19 +21097,19 @@ var VfsEntryStream = (function (_super) {
 })(VfsEntry);
 exports.VfsEntryStream = VfsEntryStream;
 (function (FileOpenFlags) {
-    FileOpenFlags[FileOpenFlags["Read"] = 0x0001] = "Read";
-    FileOpenFlags[FileOpenFlags["Write"] = 0x0002] = "Write";
-    FileOpenFlags[FileOpenFlags["ReadWrite"] = FileOpenFlags.Read | FileOpenFlags.Write] = "ReadWrite";
-    FileOpenFlags[FileOpenFlags["NoBlock"] = 0x0004] = "NoBlock";
-    FileOpenFlags[FileOpenFlags["_InternalDirOpen"] = 0x0008] = "_InternalDirOpen";
-    FileOpenFlags[FileOpenFlags["Append"] = 0x0100] = "Append";
-    FileOpenFlags[FileOpenFlags["Create"] = 0x0200] = "Create";
-    FileOpenFlags[FileOpenFlags["Truncate"] = 0x0400] = "Truncate";
-    FileOpenFlags[FileOpenFlags["Excl"] = 0x0800] = "Excl";
-    FileOpenFlags[FileOpenFlags["Unknown1"] = 0x4000] = "Unknown1";
-    FileOpenFlags[FileOpenFlags["NoWait"] = 0x8000] = "NoWait";
-    FileOpenFlags[FileOpenFlags["Unknown2"] = 0xf0000] = "Unknown2";
-    FileOpenFlags[FileOpenFlags["Unknown3"] = 0x2000000] = "Unknown3";
+    FileOpenFlags[FileOpenFlags["Read"] = 1] = "Read";
+    FileOpenFlags[FileOpenFlags["Write"] = 2] = "Write";
+    FileOpenFlags[FileOpenFlags["ReadWrite"] = 3] = "ReadWrite";
+    FileOpenFlags[FileOpenFlags["NoBlock"] = 4] = "NoBlock";
+    FileOpenFlags[FileOpenFlags["_InternalDirOpen"] = 8] = "_InternalDirOpen";
+    FileOpenFlags[FileOpenFlags["Append"] = 256] = "Append";
+    FileOpenFlags[FileOpenFlags["Create"] = 512] = "Create";
+    FileOpenFlags[FileOpenFlags["Truncate"] = 1024] = "Truncate";
+    FileOpenFlags[FileOpenFlags["Excl"] = 2048] = "Excl";
+    FileOpenFlags[FileOpenFlags["Unknown1"] = 16384] = "Unknown1";
+    FileOpenFlags[FileOpenFlags["NoWait"] = 32768] = "NoWait";
+    FileOpenFlags[FileOpenFlags["Unknown2"] = 983040] = "Unknown2";
+    FileOpenFlags[FileOpenFlags["Unknown3"] = 33554432] = "Unknown3";
 })(exports.FileOpenFlags || (exports.FileOpenFlags = {}));
 var FileOpenFlags = exports.FileOpenFlags;
 (function (FileMode) {
@@ -23304,7 +21125,6 @@ var __extends = this.__extends || function (d, b) {
     d.prototype = new __();
 };
 var _vfs = require('./vfs');
-var _vfs_memory = require('./vfs_memory');
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var FileOpenFlags = _vfs.FileOpenFlags;
@@ -23455,13 +21275,11 @@ function normalizePath(fullpath) {
     var parts = fullpath.replace(/\\/g, '/').split('/');
     parts.forEach(function (part) {
         switch (part) {
-            case '.':
-                break;
+            case '.': break;
             case '..':
                 out.pop();
                 break;
-            default:
-                out.push(part);
+            default: out.push(part);
         }
     });
     return out.join('/');
@@ -23498,7 +21316,7 @@ var DropboxVfsEntry = (function (_super) {
     }
     DropboxVfsEntry.fromPathAsync = function (path, flags, mode) {
         function readedErrorAsync(e) {
-            if (flags & 512 /* Create */) {
+            if (flags & FileOpenFlags.Create) {
                 var entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
                 return client.writeFileAsync(path, new ArrayBuffer(0)).then(function () {
                     return entry;
@@ -23511,14 +21329,16 @@ var DropboxVfsEntry = (function (_super) {
                 throw (e);
             }
         }
-        return client.statAsync(path).then(function (info) {
+        return client.statAsync(path)
+            .then(function (info) {
             if (info.isRemoved) {
                 return readedErrorAsync(new Error("file not exists"));
             }
             else {
                 return new DropboxVfsEntry(path, info.name, info.size, info.isFile, info.modifiedAt);
             }
-        }).catch(function (e) {
+        })
+            .catch(function (e) {
             return readedErrorAsync(e);
         });
     };
@@ -23526,6 +21346,7 @@ var DropboxVfsEntry = (function (_super) {
         throw (new Error("Must implement DropboxVfsEntry.enumerateAsync"));
     };
     DropboxVfsEntry.prototype.readChunkAsync = function (offset, length) {
+        //console.log('dropbox: read chunk!', this.path, offset, length);
         var _this = this;
         if (this._size < 128 * 1024 * 1024) {
             if (this.cachedContent)
@@ -23593,20 +21414,20 @@ var EmulatorVfs = (function (_super) {
     }
     EmulatorVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
-            case 1 /* GetHasDisplay */:
+            case EmulatorDevclEnum.GetHasDisplay:
                 if (output)
                     output.writeInt32(0);
                 break;
-            case 2 /* SendOutput */:
+            case EmulatorDevclEnum.SendOutput:
                 var str = input.readString(input.length);
                 this.output += str;
                 this.context.onStdout.dispatch(str);
                 if (typeof $ != 'undefined')
                     $('#output').append(str);
                 break;
-            case 3 /* IsEmulator */:
+            case EmulatorDevclEnum.IsEmulator:
                 return 0;
-            case 32 /* EmitScreenshot */:
+            case EmulatorDevclEnum.EmitScreenshot:
                 this.screenshot = 1;
                 console.warn('emit screenshot!');
                 return 0;
@@ -23619,11 +21440,11 @@ var EmulatorVfs = (function (_super) {
 })(_vfs.Vfs);
 exports.EmulatorVfs = EmulatorVfs;
 (function (EmulatorDevclEnum) {
-    EmulatorDevclEnum[EmulatorDevclEnum["GetHasDisplay"] = 0x00000001] = "GetHasDisplay";
-    EmulatorDevclEnum[EmulatorDevclEnum["SendOutput"] = 0x00000002] = "SendOutput";
-    EmulatorDevclEnum[EmulatorDevclEnum["IsEmulator"] = 0x00000003] = "IsEmulator";
-    EmulatorDevclEnum[EmulatorDevclEnum["SendCtrlData"] = 0x00000010] = "SendCtrlData";
-    EmulatorDevclEnum[EmulatorDevclEnum["EmitScreenshot"] = 0x00000020] = "EmitScreenshot";
+    EmulatorDevclEnum[EmulatorDevclEnum["GetHasDisplay"] = 1] = "GetHasDisplay";
+    EmulatorDevclEnum[EmulatorDevclEnum["SendOutput"] = 2] = "SendOutput";
+    EmulatorDevclEnum[EmulatorDevclEnum["IsEmulator"] = 3] = "IsEmulator";
+    EmulatorDevclEnum[EmulatorDevclEnum["SendCtrlData"] = 16] = "SendCtrlData";
+    EmulatorDevclEnum[EmulatorDevclEnum["EmitScreenshot"] = 32] = "EmitScreenshot";
 })(exports.EmulatorDevclEnum || (exports.EmulatorDevclEnum = {}));
 var EmulatorDevclEnum = exports.EmulatorDevclEnum;
 
@@ -23662,24 +21483,17 @@ var IsoVfsFile = (function (_super) {
         this.node = node;
     }
     Object.defineProperty(IsoVfsFile.prototype, "isDirectory", {
-        get: function () {
-            return this.node.isDirectory;
-        },
+        get: function () { return this.node.isDirectory; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(IsoVfsFile.prototype, "size", {
-        get: function () {
-            return this.node.size;
-        },
+        get: function () { return this.node.size; },
         enumerable: true,
         configurable: true
     });
-    IsoVfsFile.prototype.readChunkAsync = function (offset, length) {
-        return this.node.readChunkAsync(offset, length);
-    };
-    IsoVfsFile.prototype.close = function () {
-    };
+    IsoVfsFile.prototype.readChunkAsync = function (offset, length) { return this.node.readChunkAsync(offset, length); };
+    IsoVfsFile.prototype.close = function () { };
     IsoVfsFile.statNode = function (node) {
         return {
             name: node.name,
@@ -23722,12 +21536,12 @@ var MemoryVfs = (function (_super) {
         this.files[name] = new MemoryVfsEntry(name, data);
     };
     MemoryVfs.prototype.openAsync = function (path, flags, mode) {
-        if (flags & 2 /* Write */) {
+        if (flags & FileOpenFlags.Write) {
             if (!this.files[path]) {
                 this.addFile(path, new ArrayBuffer(0));
             }
         }
-        if (flags & 1024 /* Truncate */) {
+        if (flags & FileOpenFlags.Truncate) {
             this.addFile(path, new ArrayBuffer(0));
         }
         var file = this.files[path];
@@ -23752,9 +21566,7 @@ var MemoryVfsEntry = (function (_super) {
         this.data = data;
     }
     Object.defineProperty(MemoryVfsEntry.prototype, "isDirectory", {
-        get: function () {
-            return false;
-        },
+        get: function () { return false; },
         enumerable: true,
         configurable: true
     });
@@ -23779,8 +21591,7 @@ var MemoryVfsEntry = (function (_super) {
             timeLastModification: new Date(),
         };
     };
-    MemoryVfsEntry.prototype.close = function () {
-    };
+    MemoryVfsEntry.prototype.close = function () { };
     MemoryVfsEntry.prototype.enumerateAsync = function () {
         return Promise.resolve([]);
     };
@@ -23877,7 +21688,6 @@ var __extends = this.__extends || function (d, b) {
 var _vfs = require('./vfs');
 var _manager = require('../manager');
 _manager.CallbackManager;
-var _memory = require('../../core/memory');
 var SceKernelErrors = require('../SceKernelErrors');
 var ProxyVfs = _vfs.ProxyVfs;
 var MemoryStickVfs = (function (_super) {
@@ -23889,22 +21699,22 @@ var MemoryStickVfs = (function (_super) {
     }
     MemoryStickVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
-            case 37902371 /* CheckInserted */:
+            case CommandType.CheckInserted:
                 if (output == null || output.length < 4)
-                    return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+                    return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 output.writeInt32(1);
                 return 0;
-            case 37836833 /* MScmRegisterMSInsertEjectCallback */:
+            case CommandType.MScmRegisterMSInsertEjectCallback:
                 if (input == null || input.length < 4)
-                    return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+                    return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 var callbackId = input.readInt32();
                 this.callbackManager.notify(callbackId, 1);
                 return 0;
-            case 37836834 /* MScmUnregisterMSInsertEjectCallback */:
+            case CommandType.MScmUnregisterMSInsertEjectCallback:
                 return 0;
-            case 37902360 /* GetMemoryStickCapacity */:
+            case CommandType.GetMemoryStickCapacity:
                 if (input == null || input.length < 4)
-                    return 2147549206 /* ERROR_ERRNO_INVALID_ARGUMENT */;
+                    return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 var structAddress = input.readInt32();
                 var structStream = this.memory.getPointerStream(structAddress, SizeInfoStruct.struct.length);
                 var sizeInfo = new SizeInfoStruct();
@@ -23917,10 +21727,10 @@ var MemoryStickVfs = (function (_super) {
                 sizeInfo.maxSectors = sizeInfo.maxClusters;
                 SizeInfoStruct.struct.write(structStream, sizeInfo);
                 return 0;
-            case 33708038 /* CheckMemoryStickIsInserted */:
+            case CommandType.CheckMemoryStickIsInserted:
                 output.writeInt32(1);
                 return 0;
-            case 33708033 /* CheckMemoryStickStatus */:
+            case CommandType.CheckMemoryStickStatus:
                 output.writeInt32(4);
                 return 0;
             default:
@@ -23933,12 +21743,12 @@ var MemoryStickVfs = (function (_super) {
 })(ProxyVfs);
 exports.MemoryStickVfs = MemoryStickVfs;
 (function (CommandType) {
-    CommandType[CommandType["CheckInserted"] = 0x02425823] = "CheckInserted";
-    CommandType[CommandType["MScmRegisterMSInsertEjectCallback"] = 0x02415821] = "MScmRegisterMSInsertEjectCallback";
-    CommandType[CommandType["MScmUnregisterMSInsertEjectCallback"] = 0x02415822] = "MScmUnregisterMSInsertEjectCallback";
-    CommandType[CommandType["GetMemoryStickCapacity"] = 0x02425818] = "GetMemoryStickCapacity";
-    CommandType[CommandType["CheckMemoryStickIsInserted"] = 0x02025806] = "CheckMemoryStickIsInserted";
-    CommandType[CommandType["CheckMemoryStickStatus"] = 0x02025801] = "CheckMemoryStickStatus";
+    CommandType[CommandType["CheckInserted"] = 37902371] = "CheckInserted";
+    CommandType[CommandType["MScmRegisterMSInsertEjectCallback"] = 37836833] = "MScmRegisterMSInsertEjectCallback";
+    CommandType[CommandType["MScmUnregisterMSInsertEjectCallback"] = 37836834] = "MScmUnregisterMSInsertEjectCallback";
+    CommandType[CommandType["GetMemoryStickCapacity"] = 37902360] = "GetMemoryStickCapacity";
+    CommandType[CommandType["CheckMemoryStickIsInserted"] = 33708038] = "CheckMemoryStickIsInserted";
+    CommandType[CommandType["CheckMemoryStickStatus"] = 33708033] = "CheckMemoryStickStatus";
 })(exports.CommandType || (exports.CommandType = {}));
 var CommandType = exports.CommandType;
 var SizeInfoStruct = (function () {
@@ -23963,7 +21773,6 @@ var __extends = this.__extends || function (d, b) {
     d.prototype = new __();
 };
 var _vfs = require('./vfs');
-var _vfs_memory = require('./vfs_memory');
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var FileOpenFlags = _vfs.FileOpenFlags;
@@ -24006,11 +21815,11 @@ var StorageVfsEntry = (function (_super) {
         return this._getFileAsync().then(function (file) {
             console.info('initAsync', file);
             if (!file.exists) {
-                if (!(flags & 512 /* Create */)) {
+                if (!(flags & FileOpenFlags.Create)) {
                     throw (new Error("File '" + file.name + "' doesn't exist"));
                 }
             }
-            if (flags & 1024 /* Truncate */) {
+            if (flags & FileOpenFlags.Truncate) {
                 file.content = new Uint8Array([]);
             }
             _this.file = file;
@@ -24094,7 +21903,7 @@ var UriVfs = (function (_super) {
         return this.baseUri + '/' + path;
     };
     UriVfs.prototype.openAsync = function (path, flags, mode) {
-        if (flags & 2 /* Write */) {
+        if (flags & FileOpenFlags.Write) {
             return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
         }
         var url = this.getAbsoluteUrl(path);
@@ -24160,24 +21969,17 @@ var ZipVfsFile = (function (_super) {
         this.node = node;
     }
     Object.defineProperty(ZipVfsFile.prototype, "isDirectory", {
-        get: function () {
-            return this.node.isDirectory;
-        },
+        get: function () { return this.node.isDirectory; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ZipVfsFile.prototype, "size", {
-        get: function () {
-            return this.node.size;
-        },
+        get: function () { return this.node.size; },
         enumerable: true,
         configurable: true
     });
-    ZipVfsFile.prototype.readChunkAsync = function (offset, length) {
-        return this.node.readChunkAsync(offset, length);
-    };
-    ZipVfsFile.prototype.close = function () {
-    };
+    ZipVfsFile.prototype.readChunkAsync = function (offset, length) { return this.node.readChunkAsync(offset, length); };
+    ZipVfsFile.prototype.close = function () { };
     ZipVfsFile.statNode = function (node) {
         return {
             name: node.name,
@@ -24199,6 +22001,7 @@ var ZipVfsFile = (function (_super) {
 
 },
 "src/util/IndentStringGenerator": function(module, exports, require) {
+///<reference path="../global.d.ts" />
 var IndentStringGenerator = (function () {
     function IndentStringGenerator() {
         this.indentation = 0;
@@ -24247,9 +22050,7 @@ var difflib = {
     defaultJunkFunction: function (c) {
         return __whitespace.hasOwnProperty(c);
     },
-    stripLinebreaks: function (str) {
-        return str.replace(/^[\n\r]*|[\n\r]*$/g, "");
-    },
+    stripLinebreaks: function (str) { return str.replace(/^[\n\r]*|[\n\r]*$/g, ""); },
     stringAsLines: function (str) {
         var lfpos = str.indexOf("\n");
         var crpos = str.indexOf("\r");
@@ -24291,9 +22092,7 @@ var difflib = {
         return length ? 2.0 * matches / length : 1.0;
     },
     __isindict: function (dict) {
-        return function (key) {
-            return dict.hasOwnProperty(key);
-        };
+        return function (key) { return dict.hasOwnProperty(key); };
     },
     __dictget: function (dict, key, defaultValue) {
         return dict.hasOwnProperty(key) ? dict[key] : defaultValue;
@@ -24399,7 +22198,9 @@ var difflib = {
                 bestj--;
                 bestsize++;
             }
-            while (besti + bestsize < ahi && bestj + bestsize < bhi && !isbjunk(b[bestj + bestsize]) && a[besti + bestsize] == b[bestj + bestsize]) {
+            while (besti + bestsize < ahi && bestj + bestsize < bhi &&
+                !isbjunk(b[bestj + bestsize]) &&
+                a[besti + bestsize] == b[bestj + bestsize]) {
                 bestsize++;
             }
             while (besti > alo && bestj > blo && isbjunk(b[bestj - 1]) && a[besti - 1] == b[bestj - 1]) {
@@ -24407,7 +22208,8 @@ var difflib = {
                 bestj--;
                 bestsize++;
             }
-            while (besti + bestsize < ahi && bestj + bestsize < bhi && isbjunk(b[bestj + bestsize]) && a[besti + bestsize] == b[bestj + bestsize]) {
+            while (besti + bestsize < ahi && bestj + bestsize < bhi && isbjunk(b[bestj + bestsize]) &&
+                a[besti + bestsize] == b[bestj + bestsize]) {
                 bestsize++;
             }
             return [besti, bestj, bestsize];
@@ -24552,9 +22354,7 @@ var difflib = {
             return groups;
         };
         this.ratio = function () {
-            var matches = difflib.__reduce(function (sum, triple) {
-                return sum + triple[triple.length - 1];
-            }, this.get_matching_blocks(), 0);
+            var matches = difflib.__reduce(function (sum, triple) { return sum + triple[triple.length - 1]; }, this.get_matching_blocks(), 0);
             return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
         };
         this.quick_ratio = function () {
@@ -24594,6 +22394,7 @@ module.exports = difflib;
 
 },
 "test/_tests": function(module, exports, require) {
+///<reference path="./global.d.ts" />
 var pspTest = require('./format/pspTest');
 pspTest.ref();
 var csoTest = require('./format/csoTest');
@@ -24627,8 +22428,8 @@ pspautotests.ref();
 
 },
 "test/format/csoTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _cso = require('../../src/format/cso');
 var _iso = require('../../src/format/iso');
@@ -24660,8 +22461,8 @@ describe('cso', function () {
 
 },
 "test/format/isoTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _iso = require('../../src/format/iso');
 describe('iso', function () {
@@ -24681,8 +22482,8 @@ describe('iso', function () {
 
 },
 "test/format/pbpTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _pbp = require('../../src/format/pbp');
 var Pbp = _pbp.Pbp;
@@ -24703,8 +22504,8 @@ describe('pbp', function () {
 
 },
 "test/format/psfTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _psf = require('../../src/format/psf');
 var Psf = _psf.Psf;
@@ -24731,8 +22532,8 @@ describe('psf', function () {
 
 },
 "test/format/pspTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
 describe('psp', function () {
@@ -24760,8 +22561,8 @@ describe('psp', function () {
 
 },
 "test/format/vagTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _vag = require('../../src/format/vag');
 describe('vag', function () {
@@ -24795,8 +22596,8 @@ describe('vag', function () {
 
 },
 "test/format/zipTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _zip = require('../../src/format/zip');
 var _vfs = require('../../src/hle/vfs');
@@ -24830,8 +22631,8 @@ describe('zip', function () {
 
 },
 "test/gpuTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="./global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _state = require('../src/core/gpu/state');
 var _gpu = require('../src/core/gpu');
@@ -24841,12 +22642,12 @@ describe('gpu', function () {
         it('should work', function () {
             var vertexState = new _state.VertexState();
             vertexState.size = 10;
-            vertexState.texture = 0 /* Void */;
-            vertexState.color = 0 /* Void */;
-            vertexState.normal = 0 /* Void */;
-            vertexState.position = 2 /* Short */;
-            vertexState.weight = 0 /* Void */;
-            vertexState.index = 0 /* Void */;
+            vertexState.texture = _state.NumericEnum.Void;
+            vertexState.color = _state.ColorEnum.Void;
+            vertexState.normal = _state.NumericEnum.Void;
+            vertexState.position = _state.NumericEnum.Short;
+            vertexState.weight = _state.NumericEnum.Void;
+            vertexState.index = _state.IndexEnum.Void;
             vertexState.weightCount = 1;
             vertexState.morphingVertexCount = 1;
             vertexState.transform2D = true;
@@ -24874,8 +22675,8 @@ describe('gpu', function () {
 
 },
 "test/hle/elfTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _memory = require('../../src/core/memory');
 var _cpu = require('../../src/core/cpu');
@@ -24912,8 +22713,8 @@ describe('elf', function () {
 
 },
 "test/hle/memorymanagerTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _manager = require('../../src/hle/manager');
 var MemoryAnchor = _manager.MemoryAnchor;
@@ -24923,9 +22724,9 @@ describe("memorymanager", function () {
         var partition = new MemoryPartition("test", 0, 100, false);
         assert.equal(partition.getMaxContiguousFreeMemory(), 100);
         assert.equal(partition.getTotalFreeMemory(), 100);
-        var p1 = partition.allocate(25, 0 /* Low */);
-        var p2 = partition.allocate(25, 0 /* Low */);
-        var p3 = partition.allocate(25, 0 /* Low */);
+        var p1 = partition.allocate(25, MemoryAnchor.Low);
+        var p2 = partition.allocate(25, MemoryAnchor.Low);
+        var p3 = partition.allocate(25, MemoryAnchor.Low);
         assert.equal(partition.getMaxContiguousFreeMemory(), 25);
         assert.equal(partition.getTotalFreeMemory(), 25);
         p2.unallocate();
@@ -24972,8 +22773,8 @@ describe("memorymanager", function () {
 
 },
 "test/hle/vfsTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _iso = require('../../src/format/iso');
 var _psf = require('../../src/format/psf');
@@ -24994,7 +22795,7 @@ describe('vfs', function () {
         var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
         return _iso.Iso.fromStreamAsync(asyncStream).then(function (iso) {
             var vfs = new _vfs.IsoVfs(iso);
-            return vfs.openAsync("PSP_GAME/PARAM.SFO", 1 /* Read */, parseInt('777', 8)).then(function (file) {
+            return vfs.openAsync("PSP_GAME/PARAM.SFO", _vfs.FileOpenFlags.Read, parseInt('777', 8)).then(function (file) {
                 return file.readAllAsync().then(function (content) {
                     var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(content));
                     assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
@@ -25004,30 +22805,38 @@ describe('vfs', function () {
     });
     it('storage', function () {
         var storageVfs = new StorageVfs('test');
-        return Promise.resolve(0).then(function () {
+        return Promise.resolve(0)
+            .then(function () {
             return storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
-        }).then(function () {
+        })
+            .then(function () {
             return storageVfs.getStatAsync('simple').then(function (stat) {
                 assert.equal('simple', stat.name);
                 assert.equal(5, stat.size);
             });
-        }).then(function () {
+        })
+            .then(function () {
             return storageVfs.readAllAsync('simple').then(function (data) {
                 assert.equal(5, data.byteLength);
             });
-        }).then(function () {
+        })
+            .then(function () {
             return storageVfs.readAllAsync('nonExistant').then(function (data) {
                 assert.fail();
             }).catch(function (e) {
                 assert.equal("File 'nonExistant' doesn't exist", e.message);
             });
-        }).then(function () {
-            return storageVfs.openAsync('simple2', 512 /* Create */ | 2 /* Write */ | 1024 /* Truncate */, parseIntFormat('0777')).then(function (file) {
-                return Promise.resolve(0).then(function () {
+        })
+            .then(function () {
+            return storageVfs.openAsync('simple2', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, parseIntFormat('0777')).then(function (file) {
+                return Promise.resolve(0)
+                    .then(function () {
                     return file.writeChunkAsync(0, new Int8Array([1, 2, 3, 4, 5]).buffer);
-                }).then(function () {
+                })
+                    .then(function () {
                     return file.writeChunkAsync(2, new Int8Array([-3, -4, -5, -6, -7]).buffer);
-                }).then(function () {
+                })
+                    .then(function () {
                     return file.readAllAsync().then(function (data) {
                         var v = new Int8Array(data);
                         assert.equal(7, v.length);
@@ -25047,18 +22856,22 @@ describe('vfs', function () {
     it('memorystick', function () {
         var storageVfs = new StorageVfs('test');
         var msVfs = new MemoryStickVfs([storageVfs], null, null);
-        return Promise.resolve(0).then(function () {
+        return Promise.resolve(0)
+            .then(function () {
             return msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
-        }).then(function () {
+        })
+            .then(function () {
             return msVfs.getStatAsync('simple').then(function (stat) {
                 assert.equal('simple', stat.name);
                 assert.equal(5, stat.size);
             });
-        }).then(function () {
+        })
+            .then(function () {
             return msVfs.readAllAsync('simple').then(function (data) {
                 assert.equal(5, data.byteLength);
             });
-        }).then(function () {
+        })
+            .then(function () {
             return msVfs.readAllAsync('nonExistant').then(function (data) {
                 assert['fail']();
             }).catch(function (e) {
@@ -25070,15 +22883,18 @@ describe('vfs', function () {
         var vfs1 = new MemoryVfs();
         var vfs2 = new MemoryVfs();
         var msVfs = new MemoryStickVfs([vfs1, vfs2], null, null);
-        return Promise.resolve(0).then(function () {
+        return Promise.resolve(0)
+            .then(function () {
             vfs1.writeAllAsync('simple1', new Uint8Array([1, 2, 3, 4, 5]).buffer);
             vfs2.writeAllAsync('simple2', new Uint8Array([1, 2, 3, 4, 5]).buffer);
-        }).then(function () {
+        })
+            .then(function () {
             return msVfs.getStatAsync('simple1').then(function (stat) {
                 assert.equal('simple1', stat.name);
                 assert.equal(5, stat.size);
             });
-        }).then(function () {
+        })
+            .then(function () {
             return msVfs.getStatAsync('simple2').then(function (stat) {
                 assert.equal('simple2', stat.name);
                 assert.equal(5, stat.size);
@@ -25089,8 +22905,8 @@ describe('vfs', function () {
 
 },
 "test/instructionTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="./global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _cpu = require('../src/core/cpu');
 var Instructions = _cpu.Instructions;
@@ -25114,8 +22930,8 @@ describe('instruction lookup', function () {
 
 },
 "test/pspautotests": function(module, exports, require) {
-function ref() {
-}
+///<reference path="./global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _emulator = require('../src/emulator');
 var _vfs = require('../src/hle/vfs');
@@ -25253,8 +23069,8 @@ describe('pspautotests', function () {
 
 },
 "test/testasm": function(module, exports, require) {
-function ref() {
-}
+///<reference path="./global.d.ts" />
+function ref() { }
 exports.ref = ref;
 var _cpu = require('../src/core/cpu');
 var _memory = require('../src/core/memory');
@@ -25415,8 +23231,8 @@ describe('cpu running', function () {
 
 },
 "test/util/utilsTest": function(module, exports, require) {
-function ref() {
-}
+///<reference path="../global.d.ts" />
+function ref() { }
 exports.ref = ref;
 describe('utils', function () {
     describe('string repeat', function () {

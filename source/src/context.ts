@@ -1,4 +1,5 @@
-﻿///<reference path="global.d.ts" />
+﻿///<reference path="global.ts" />
+///<reference path="global.d.ts" />
 
 import _manager = require('./hle/manager');
 import _display = require('./core/display');

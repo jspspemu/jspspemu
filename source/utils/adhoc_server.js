@@ -1,4 +1,4 @@
-var WebSocketServer = require('websocket').server;
+var WebSocketServer = require('./websocket/websocket').server;
 
 var debug = false;
 

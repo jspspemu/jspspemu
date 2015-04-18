@@ -1,4 +1,5 @@
-﻿///<reference path="./stream.ts" />
+﻿///<reference path="./utils.ts" />
+///<reference path="./stream.ts" />
 
 interface IType {
 	read(stream: Stream, context?: any): any;

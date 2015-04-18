@@ -3,10 +3,11 @@ var http = require("http");
 var url = require("url");
 var path = require("path");
 var fs = require("fs");
-var mime = require("mime");
-var _ = require('underscore');
+var mime = require("./mime");
+var _ = require('./underscore');
 var combine_common = require('./combine_common');
-var adhoc_server = require('./adhoc_server');
+//var adhoc_server = require('./adhoc_server');
+var adhoc_server = undefined;
 
 function startServer() {
     combine_common.analyzeAndWatchFolder(combine_common.JS_BASE_PATH);
@@ -110,7 +111,7 @@ function startServer() {
 
     server.listen(parseInt(port, 10), '0.0.0.0');
 
-    adhoc_server.connectToServer(server);
+    if (adhoc_server) adhoc_server.connectToServer(server);
 
     console.log("Static file server running at\n  => http://0.0.0.0:" + port + "/\nCTRL + C to shutdown");
 }

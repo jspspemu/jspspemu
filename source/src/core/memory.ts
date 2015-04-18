@@ -93,7 +93,6 @@ class LowMemorySegment {
 	}
 
 	contains(address: number) {
-		address &= FastMemory.MASK;
 		return address >= this.low && address < this.high;
 	}
 
@@ -137,12 +136,17 @@ class LowMemoryBase implements MemoryBase {
 	}
 
 	getMemRange(address:number):LowMemorySegment {
-		if (this.scratchpad.contains(address)) return this.scratchpad;
-		if (this.videomem.contains(address)) return this.videomem;
-		if (this.mainmem.contains(address)) return this.mainmem;
-		// 02203738
-		printf("Unmapped: %08X", address);
-		return null;
+		address &= FastMemory.MASK;
+		if (address >= 0x08000000) {
+			return this.mainmem;
+		} else {
+			if (this.scratchpad.contains(address)) return this.scratchpad;
+			if (this.videomem.contains(address)) return this.videomem;
+			if (this.mainmem.contains(address)) return this.mainmem;
+			// 02203738
+			printf("Unmapped: %08X", address);
+			return null;
+		}
 	}
 
 	writeInt8(address: number, value: number) { this.getMemRange(address).writeInt8(address, value); }
@@ -170,6 +174,19 @@ class LowMemoryBase implements MemoryBase {
 declare var process:any;
 function isNodeJs() {
 	return typeof process != 'undefined';
+}
+
+function allowBigAlloc() {
+	try {
+		var ab = new ArrayBuffer(0x0a000000 + 4);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+function supportFastMemory() {
+	return !isNodeJs() && allowBigAlloc();
 }
 
 class FastMemory {
@@ -201,10 +218,10 @@ class FastMemory {
 	invalidateDataAll = new Signal();
 
 	constructor() {
-		if (isNodeJs()) {
-			this.base = new LowMemoryBase();
-		} else {
+		if (supportFastMemory()) {
 			this.base = new FastMemoryBase();
+		} else {
+			this.base = new LowMemoryBase();
 		}
 		this._updateWriteFunctions();
 	}
