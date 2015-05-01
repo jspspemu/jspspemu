@@ -4,7 +4,7 @@ import state = require('./state');
 import CpuState = state.CpuState;
 
 export interface ISyscallManager {
-	call(state: CpuState, id: number);
+	call(state: CpuState, id: number):void;
 }
 
 export interface IEmulatorContext {

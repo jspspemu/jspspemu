@@ -70,7 +70,7 @@ export class sceNetAdhocMatching {
 	});
 
 	/** Stop a matching object */
-	sceNetAdhocMatchingStop = createNativeFunction(0x32B156B3, 150, 'int', 'int', this, (matchingId) => {
+	sceNetAdhocMatchingStop = createNativeFunction(0x32B156B3, 150, 'int', 'int', this, (matchingId:number) => {
 		var matching = this.matchings.get(matchingId);
 		matching.stop();
 		return 0;
@@ -108,7 +108,7 @@ export class Matching {
 
 	start() {
 		this.onMessageCancelable = this.context.netManager.onmessage(this.port).add(packet => {
-			this.notify(Event[packet.type], packet.mac, packet.payload);
+			this.notify((<any>Event)[packet.type], packet.mac, packet.payload);
 		})
 
 		this.helloTimer = setInterval(() => { this.sendHello(); }, this.helloDelay / 1000);
@@ -151,7 +151,7 @@ export class Matching {
 		this.sendMessage(Event.Cancel, mac, null);
 	}
 
-	private messageQueue = [];
+	//private messageQueue = [];
 
 	sendMessage(event: Event, tomac: Uint8Array, data: Uint8Array) {
 		//this.messageQueue.push({ event: event, tomac: ArrayBufferUtils.cloneBytes(tomac), data: ArrayBufferUtils.cloneBytes(data) });

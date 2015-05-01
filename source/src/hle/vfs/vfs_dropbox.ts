@@ -52,7 +52,7 @@ export class AsyncClient {
 			}));
 
 			this.initPromise = new Promise((resolve, reject) => {
-				this.client.authenticate({ interactive: true }, (e) => {
+				this.client.authenticate({ interactive: true }, (e:Error) => {
 					if (e) {
 						this.initPromise = null;
 						reject(e);
@@ -80,7 +80,7 @@ export class AsyncClient {
 
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
-				this.client.writeFile(fullpath, content, (e, data) => {
+				this.client.writeFile(fullpath, content, (e:Error, data:any) => {
 					if (e) {
 						reject(e);
 					} else {
@@ -94,7 +94,7 @@ export class AsyncClient {
 	mkdirAsync(path: string) {
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
-				this.client.mkdir(path, (e, data) => {
+				this.client.mkdir(path, (e:Error, data:any) => {
 					if (e) {
 						reject(e);
 					} else {
@@ -108,7 +108,7 @@ export class AsyncClient {
 	readFileAsync(name: string, offset: number = 0, length: number = undefined):Promise<ArrayBuffer> {
 		return this.initOnceAsync().then(() => {
 			return new Promise((resolve, reject) => {
-				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, (e, data) => {
+				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, (e:Error, data:any) => {
 					if (e) {
 						reject(e);
 					} else {
@@ -128,7 +128,7 @@ export class AsyncClient {
 					var basename = getBaseName(fullpath);
 					if (!files.contains(basename)) throw(new Error("folder not contains file"));
 					return new Promise((resolve, reject) => {
-						this.client.stat(fullpath, {}, (e, data) => {
+						this.client.stat(fullpath, {}, (e:Error, data:any) => {
 							if (e) {
 								reject(e);
 							} else {
@@ -149,7 +149,7 @@ export class AsyncClient {
 		return this.initOnceAsync().then(() => {
 			if (!this.readdirCachePromise[name]) {
 				this.readdirCachePromise[name] = new Promise((resolve, reject) => {
-					this.client.readdir(name, {}, (e, data) => {
+					this.client.readdir(name, {}, (e:Error, data:any) => {
 						if (e) {
 							reject(e);
 						} else {
@@ -173,8 +173,8 @@ function getBaseName(fullpath: string) {
 }
 
 function normalizePath(fullpath: string) {
-	var out = [];
-	var parts = fullpath.replace(/\\/g, '/').split('/');
+	var out:string[] = [];
+	var parts:string[] = fullpath.replace(/\\/g, '/').split('/');
 	parts.forEach(part => {
 		switch (part) {
 			case '.': break;

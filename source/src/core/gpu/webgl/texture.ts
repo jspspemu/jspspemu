@@ -13,7 +13,7 @@ import Memory = _memory.Memory;
 
 export class Texture {
 	private texture: WebGLTexture;
-	recheckTimestamp = undefined;
+	recheckTimestamp:number = 0;
 	valid = true;
 	validHint = true;
 	swizzled = false;
@@ -65,7 +65,8 @@ export class Texture {
 		this.width = width;
 		this.height = height;
 		this._create(() => {
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, <any>data);
+			// @TODO: not detected signature
+			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, <any>data);
 			//gl.generateMipmap(gl.TEXTURE_2D);
 		});
 	}
@@ -279,11 +280,11 @@ export class TextureHandler {
 				//if (false) {
 					texture.fromBytes(data2, w2, h);
 				} else {
-					var canvas = document.createElement('canvas');
+					var canvas:HTMLCanvasElement = document.createElement('canvas');
 					canvas.style.border = '1px solid white';
 					canvas.width = w2;
 					canvas.height = h;
-					var ctx = canvas.getContext('2d');
+					var ctx = <CanvasRenderingContext2D>canvas.getContext('2d');
 					var imageData = ctx.createImageData(w2, h);
 					var u8 = imageData.data;
 

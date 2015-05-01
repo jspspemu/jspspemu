@@ -109,14 +109,14 @@ class StructClass<T> implements IType {
 		var out: T = new _class();
 		for (var n = 0; n < this.processedItems.length; n++) {
 			var item = this.processedItems[n];
-			out[item.name] = item.type.read(stream, out);
+			(<any>out)[item.name] = item.type.read(stream, out);
 		}
 		return out;
 	}
 	write(stream: Stream, value: T): void {
 		for (var n = 0; n < this.processedItems.length; n++) {
 			var item = this.processedItems[n];
-			item.type.write(stream, value[item.name], value);
+			item.type.write(stream, (<any>value)[item.name], value);
 		}
 	}
 	offsetOfField(name: string) {
@@ -148,7 +148,7 @@ class StructArrayClass<T> implements IType {
 	}
 
 	read(stream: Stream): T[] {
-		var out = [];
+		var out:any[] = [];
 		for (var n = 0; n < this.count; n++) {
 			out.push(this.elementType.read(stream, out));
 		}

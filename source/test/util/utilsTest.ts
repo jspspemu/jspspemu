@@ -39,7 +39,7 @@ describe('utils', () => {
 
 	describe('Binary search', () => {
 		it('none', () => {
-			var test = [];
+			var test:number[] = [];
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(11, b)));
 		});

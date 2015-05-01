@@ -21,7 +21,7 @@ function _downloadFileAsync(method: string, url: string, headers?: any) {
 			}
 		}
 		request.responseType = "arraybuffer";
-		request.onerror = function (e) { reject(e['error']); };
+		request.onerror = function (e:any) { reject(e['error']); };
 		request.onload = function (e) {
 			if (request.status < 400) {
 				resolve(request);

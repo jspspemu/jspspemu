@@ -49,7 +49,7 @@ class MyStorageIndexedDb implements MyStorage {
 			request.onsuccess = function (e) {
 				resolve();
 			};
-			request.onerror = function (e) {
+			request.onerror = function (e:any) {
 				reject(e['value']);
 			};
 		});
@@ -65,7 +65,7 @@ class MyStorageIndexedDb implements MyStorage {
 				resolve();
 			};
 
-			request.onerror = function (e) {
+			request.onerror = function (e:any) {
 				reject(e['value']);
 			};
 		});
@@ -85,7 +85,7 @@ class MyStorageIndexedDb implements MyStorage {
 
 			var request = store.get(key);
 
-			request.onsuccess = (e) => {
+			request.onsuccess = (e:any) => {
 				var result = e.target['result'];
 				if (!result) {
 					console.log('getAsync', key, undefined);
@@ -96,7 +96,7 @@ class MyStorageIndexedDb implements MyStorage {
 				}
 			};
 
-			request.onerror = (e) => {
+			request.onerror = (e:any) => {
 				console.log('getAsync', key, e);
 				reject(e['value']);
 			};

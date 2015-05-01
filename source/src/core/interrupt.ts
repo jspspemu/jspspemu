@@ -2,11 +2,14 @@
 
 import _cpu = require('./cpu');
 
+type CpuState = _cpu.CpuState;
+//import CpuState from './cpu';
+
 export class InterruptHandler {
 	enabled = false;
 	address = 0;
 	argument = 0;
-	cpuState = null;
+	cpuState:CpuState = null;
 
 	constructor(public no:number) {
 	}
@@ -69,7 +72,7 @@ export class InterruptManager {
 		}
 	}
 
-	execute(_state: _cpu.CpuState) {
+	execute(_state: CpuState) {
 		while (this.queue.length > 0) {
 			var item = this.queue.shift();
 			var state = item.cpuState;

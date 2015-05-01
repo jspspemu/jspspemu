@@ -19,7 +19,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 
     var code = '';
 
-	var args = [];
+	var args:string[] = [];
 	var maxGprIndex = 12;
 	var gprindex = 4;
 	var fprindex = 0;
@@ -73,7 +73,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
 			case 'byte[]': args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
 			default:
-				var matches = [];
+				var matches:string[] = [];
 				if (matches = item.match(/^byte\[(\d+)\]$/)) {
 					args.push('state.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
 				} else {

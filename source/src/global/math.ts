@@ -103,9 +103,9 @@ class mat4 {
 	}
 	static translate(out:Float32Array, a:Float32Array, v:Float32Array) {
 		var x = v[0], y = v[1], z = v[2],
-			a00, a01, a02, a03,
-			a10, a11, a12, a13,
-			a20, a21, a22, a23;
+			a00:number, a01:number, a02:number, a03:number,
+			a10:number, a11:number, a12:number, a13:number,
+			a20:number, a21:number, a22:number, a23:number;
 
 		if (a === out) {
 			out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
@@ -138,19 +138,21 @@ declare var global:any;
 if (typeof self == 'undefined') window = self = global;
 if (typeof navigator == 'undefined') navigator = <any>{};
 
-self['polyfills'] = self['polyfills'] || {};
+var _self:any = self;
 
-self['polyfills']['log2'] = !Math['log2'];
+_self['polyfills'] = _self['polyfills'] || {};
+
+_self['polyfills']['log2'] = !Math['log2'];
 if (!Math.log2) {
 	Math.log2 = (x: number) => { return Math.log(x) / Math.LN2; };
 }
 
-self['polyfills']['log10'] = !Math['log10'];
+_self['polyfills']['log10'] = !Math['log10'];
 if (!Math.log10) {
 	Math.log10 = (x: number) => { return Math.log(x) / Math.LN10; };
 }
 
-self['polyfills']['sign'] = !Math['sign'];
+_self['polyfills']['sign'] = !Math['sign'];
 if (!Math['sign']) {
 	Math['sign'] = (x: number) => {
 		if (x < 0) return -1;
@@ -159,7 +161,7 @@ if (!Math['sign']) {
 	};
 }
 
-self['polyfills']['rint'] = !Math['rint'];
+_self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
 	Math['rint'] = (value: number) => {
 		var twoToThe52 = Math.pow(2, 52); // 2^52
@@ -170,7 +172,7 @@ if (!Math['rint']) {
 	};
 }
 
-self['polyfills']['clz32'] = !Math['clz32'];
+_self['polyfills']['clz32'] = !Math['clz32'];
 if (!Math['clz32']) {
 	Math['clz32'] = (x: number) => {
 		x >>>= 0;
@@ -186,7 +188,7 @@ if (!Math['clz32']) {
 	};
 }
 
-self['polyfills']['trunc'] = !Math['trunc'];
+_self['polyfills']['trunc'] = !Math['trunc'];
 if (!Math['trunc']) {
 	Math['trunc'] = function (x: number) {
 		if (x < 0) {
@@ -197,7 +199,7 @@ if (!Math['trunc']) {
 	}
 }
 
-self['polyfills']['imul'] = !Math['imul'];
+_self['polyfills']['imul'] = !Math['imul'];
 if (!Math['imul']) {
 	Math['imul'] = function (a: number, b: number) {
 		var ah = (a >>> 16) & 0xffff;
@@ -243,7 +245,7 @@ if (!Math['imul']) {
 //	});
 //}
 
-self['polyfills']['umul32_64'] = !Math['umul32_64'];
+_self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
 	Math.umul32_64 = function (a: number, b: number, result?: number[]) {
 		if (result === undefined) result = [0, 0];
@@ -276,7 +278,7 @@ if (!Math.umul32_64) {
 	};
 }
 
-self['polyfills']['imul32_64'] = !Math['imul32_64'];
+_self['polyfills']['imul32_64'] = !Math['imul32_64'];
 if (!Math.imul32_64) {
 	Math.imul32_64 = function (a: number, b: number, result?: number[]) {
 		if (result === undefined) result = [0, 0];
@@ -314,7 +316,7 @@ if (!Math.imul32_64) {
 	}
 }
 
-self['polyfills']['fround'] = !Math['fround'];
+_self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
 	Math['fround'] = function (x: number) {
 		var f32 = new Float32Array(1);
@@ -391,7 +393,7 @@ class BitUtils {
 		return value;
 	}
 
-	static extractScale1f(data: number, offset: number, length) {
+	static extractScale1f(data: number, offset: number, length: number) {
 		var mask = (1 << length) - 1;
 		return (((data >>> offset) & mask) / mask)
 	}
@@ -421,12 +423,11 @@ class BitUtils {
 	}
 }
 
-
 class MathVfpu {
-	static vqmul0(s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); }
-	static vqmul1(s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); }
-	static vqmul2(s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); }
-	static vqmul3(s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3); }
+	static vqmul0(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); }
+	static vqmul1(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); }
+	static vqmul2(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); }
+	static vqmul3(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3); }
 
 	static vc2i(index: number, value: number) {
 		return (value << ((3 - index) * 8)) & 0xFF000000;
@@ -644,20 +645,15 @@ class StringUtils {
 	}
 }
 
-function ToUint32(x) {
-	return x >>> 0;
-}
-
-function ToInt32(x) {
-	return x | 0;
-}
+function ToUint32(x:number) { return x >>> 0; }
+function ToInt32(x:number) { return x | 0; }
 
 class ArrayUtils {
-	static create2D<T>(w: number, h: number, generator?: (x, y) => T) {
+	static create2D<T>(w: number, h: number, generator?: (x:number, y:number) => T) {
 		if (!generator) generator = (x, y) => null;
 		var matrix = <T[][]>[];
 		for (var y = 0; y < h; y++) {
-			var row = [];
+			var row:T[] = [];
 			for (var x = 0; x < w; x++) {
 				row.push(generator(x, y));
 			}
@@ -667,7 +663,7 @@ class ArrayUtils {
 	}
 
 	static range(start: number, end: number) {
-		var array = [];
+		var array:number[] = [];
 		for (var n = start; n < end; n++) array.push(n);
 		return array;
 	}

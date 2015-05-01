@@ -23,7 +23,7 @@ var INSTR_TYPE_JUMP = (1 << 5);
 var INSTR_TYPE_BREAK = (1 << 6);
 
 function VM(format: string): ValueMask {
-	var counts = {
+	var counts:{[k:string]:number} = {
 		"cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
 		"absw": 1, "absz": 1, "absy": 1, "absx": 1,
 		"mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,

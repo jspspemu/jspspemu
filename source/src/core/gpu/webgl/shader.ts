@@ -20,7 +20,7 @@ export class ShaderCache {
 	}
 
 	createProgram(vertex: _state.VertexState, state: _state.GpuState) {
-		var defines = [];
+		var defines:string[] = [];
 		if (vertex.hasColor) defines.push('VERTEX_COLOR 1');
 		if (vertex.hasTexture) defines.push('VERTEX_TEXTURE 1');
 		if (vertex.hasNormal) defines.push('VERTEX_NORMAL 1');
@@ -42,7 +42,7 @@ export class ShaderCache {
 
 	static shaderProgram(gl: WebGLRenderingContext, vs: string, fs: string) {
 		var prog = gl.createProgram();
-		var addshader = function (type, source) {
+		var addshader = (type:string, source:string) => {
 			var s = gl.createShader((type == 'vertex') ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER);
 			gl.shaderSource(s, source);
 			gl.compileShader(s);

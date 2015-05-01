@@ -24,7 +24,7 @@ export enum PixelFormat {
 	COMPRESSED_DXT5 = 10,
 }
 
-var sizes = {};
+var sizes:{[k:number]:number} = {};
 sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
 sizes[PixelFormat.COMPRESSED_DXT3] = 1;
 sizes[PixelFormat.COMPRESSED_DXT5] = 1;

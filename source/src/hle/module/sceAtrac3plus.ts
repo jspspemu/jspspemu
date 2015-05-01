@@ -299,18 +299,19 @@ class Atrac3 {
 		if (Atrac3.useWorker) {
 			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
 				self['window'] = self;
-				if (!self['MediaEngine']) {
+				var _self:any = self;
+				if (!_self['MediaEngine']) {
 					importScripts('source/polyfills/promise.js');
 					importScripts('data/MediaEngine.js');
-					self['MediaEngine'] = MediaEngine;
+					_self['MediaEngine'] = MediaEngine;
 				}
 
 				var atrac3Decoder = 'atrac3Decoder_' + id;
-				if (!self[atrac3Decoder]) {
-					self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
-					self[atrac3Decoder].initWithHeader(firstDataChunk);
+				if (!_self[atrac3Decoder]) {
+					_self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
+					_self[atrac3Decoder].initWithHeader(firstDataChunk);
 				}
-				return self[atrac3Decoder].decode(blockData);
+				return _self[atrac3Decoder].decode(blockData);
 			}, [this.id, blockData, this.firstDataChunk]);
 		} else {
 			if (this.firstDataChunk) {

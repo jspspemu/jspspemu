@@ -69,8 +69,8 @@ function sprintf() {
             '8': '0',
             '16': '0x'
         }[base] || '';
-        value = prefix + pad(number.toString(base), precision || 0, '0', false);
-        return justify(value, prefix, leftJustify, minWidth, zeroPad);
+        var valueStr = prefix + pad(number.toString(base), precision || 0, '0', false);
+        return justify(valueStr, prefix, leftJustify, minWidth, zeroPad);
     };
     var formatString = function (value, leftJustify, minWidth, precision, zeroPad, customPadChar) {
         if (customPadChar === void 0) { customPadChar = undefined; }
@@ -393,10 +393,11 @@ var Microtask = (function () {
     Microtask.__location = null;
     return Microtask;
 })();
-self['polyfills'] = self['polyfills'] || {};
-self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
-self['polyfills']['setImmediate'] = !self.setImmediate;
-self['polyfills']['performance'] = !self.performance;
+var _self = self;
+_self['polyfills'] = _self['polyfills'] || {};
+_self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
+_self['polyfills']['setImmediate'] = !self.setImmediate;
+_self['polyfills']['performance'] = !self.performance;
 if (!self['performance']) {
     self['performance'] = {};
     self['performance']['now'] = function () {
@@ -441,8 +442,9 @@ if (!ArrayBuffer.prototype.slice) {
         return result;
     };
 }
-window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
-window.navigator['getGamepads'] = window.navigator['getGamepads'] || window.navigator['webkitGetGamepads'];
+var _window = window;
+_window['AudioContext'] = _window['AudioContext'] || _window['webkitAudioContext'];
+window.navigator['getGamepads'] = window.navigator['getGamepads'] || _window.navigator['webkitGetGamepads'];
 if (!window.requestAnimationFrame) {
     window.requestAnimationFrame = function (callback) {
         var start = Date.now();
@@ -520,7 +522,7 @@ var PromiseUtils = (function () {
     };
     return PromiseUtils;
 })();
-window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
+_window['requestFileSystem'] = _window['requestFileSystem'] || _window['webkitRequestFileSystem'];
 function setToString(Enum, value) {
     var items = [];
     for (var key in Enum) {
@@ -1327,16 +1329,17 @@ if (typeof self == 'undefined')
     window = self = global;
 if (typeof navigator == 'undefined')
     navigator = {};
-self['polyfills'] = self['polyfills'] || {};
-self['polyfills']['log2'] = !Math['log2'];
+var _self = self;
+_self['polyfills'] = _self['polyfills'] || {};
+_self['polyfills']['log2'] = !Math['log2'];
 if (!Math.log2) {
     Math.log2 = function (x) { return Math.log(x) / Math.LN2; };
 }
-self['polyfills']['log10'] = !Math['log10'];
+_self['polyfills']['log10'] = !Math['log10'];
 if (!Math.log10) {
     Math.log10 = function (x) { return Math.log(x) / Math.LN10; };
 }
-self['polyfills']['sign'] = !Math['sign'];
+_self['polyfills']['sign'] = !Math['sign'];
 if (!Math['sign']) {
     Math['sign'] = function (x) {
         if (x < 0)
@@ -1346,7 +1349,7 @@ if (!Math['sign']) {
         return 0;
     };
 }
-self['polyfills']['rint'] = !Math['rint'];
+_self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
     Math['rint'] = function (value) {
         var twoToThe52 = Math.pow(2, 52);
@@ -1357,7 +1360,7 @@ if (!Math['rint']) {
         return sign * value;
     };
 }
-self['polyfills']['clz32'] = !Math['clz32'];
+_self['polyfills']['clz32'] = !Math['clz32'];
 if (!Math['clz32']) {
     Math['clz32'] = function (x) {
         x >>>= 0;
@@ -1387,7 +1390,7 @@ if (!Math['clz32']) {
         return result;
     };
 }
-self['polyfills']['trunc'] = !Math['trunc'];
+_self['polyfills']['trunc'] = !Math['trunc'];
 if (!Math['trunc']) {
     Math['trunc'] = function (x) {
         if (x < 0) {
@@ -1398,7 +1401,7 @@ if (!Math['trunc']) {
         }
     };
 }
-self['polyfills']['imul'] = !Math['imul'];
+_self['polyfills']['imul'] = !Math['imul'];
 if (!Math['imul']) {
     Math['imul'] = function (a, b) {
         var ah = (a >>> 16) & 0xffff;
@@ -1408,7 +1411,7 @@ if (!Math['imul']) {
         return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
     };
 }
-self['polyfills']['umul32_64'] = !Math['umul32_64'];
+_self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
     Math.umul32_64 = function (a, b, result) {
         if (result === undefined)
@@ -1435,7 +1438,7 @@ if (!Math.umul32_64) {
         return result;
     };
 }
-self['polyfills']['imul32_64'] = !Math['imul32_64'];
+_self['polyfills']['imul32_64'] = !Math['imul32_64'];
 if (!Math.imul32_64) {
     Math.imul32_64 = function (a, b, result) {
         if (result === undefined)
@@ -1467,7 +1470,7 @@ if (!Math.imul32_64) {
         return result;
     };
 }
-self['polyfills']['fround'] = !Math['fround'];
+_self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
     Math['fround'] = function (x) {
         var f32 = new Float32Array(1);
@@ -1775,12 +1778,8 @@ var StringUtils = (function () {
     };
     return StringUtils;
 })();
-function ToUint32(x) {
-    return x >>> 0;
-}
-function ToInt32(x) {
-    return x | 0;
-}
+function ToUint32(x) { return x >>> 0; }
+function ToInt32(x) { return x | 0; }
 var ArrayUtils = (function () {
     function ArrayUtils() {
     }
@@ -2746,8 +2745,8 @@ function controllerRegister() {
         var overlay_width = overlay_query.width(), overlay_height = overlay_query.height();
         var x = (screenX - overlay_pos.left) / overlay_width;
         var y = (screenY - overlay_pos.top) / overlay_height;
-        for (var n = 0; n < rects.length; n++) {
-            var rect = rects[n];
+        for (var _i = 0; _i < rects.length; _i++) {
+            var rect = rects[_i];
             if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
                 return rect;
             }
@@ -2756,23 +2755,23 @@ function controllerRegister() {
     });
     var touchesState = {};
     function simulateButtonDown(button) {
-        if (window['emulator'].controller)
-            window['emulator'].controller.simulateButtonDown(button);
+        if (emulator.controller)
+            emulator.controller.simulateButtonDown(button);
     }
     function simulateButtonUp(button) {
-        if (window['emulator'].controller)
-            window['emulator'].controller.simulateButtonUp(button);
+        if (emulator.controller)
+            emulator.controller.simulateButtonUp(button);
     }
     function touchStart(touches) {
-        for (var n = 0; n < touches.length; n++) {
-            var touch = touches[n];
+        for (var _i = 0; _i < touches.length; _i++) {
+            var touch = touches[_i];
             touchesState[touch.identifier] = { rect: null };
         }
         touchMove(touches);
     }
     function touchMove(touches) {
-        for (var n = 0; n < touches.length; n++) {
-            var touch = touches[n];
+        for (var _i = 0; _i < touches.length; _i++) {
+            var touch = touches[_i];
             var rect = locateRect(touch.clientX, touch.clientY);
             var touchState = touchesState[touch.identifier];
             if (touchState.rect) {
@@ -2787,8 +2786,8 @@ function controllerRegister() {
         }
     }
     function touchEnd(touches) {
-        for (var n = 0; n < touches.length; n++) {
-            var touch = touches[n];
+        for (var _i = 0; _i < touches.length; _i++) {
+            var touch = touches[_i];
             var touchState = touchesState[touch.identifier];
             if (touchState && touchState.rect) {
                 $(touchState.rect.name).removeClass('pressed');
@@ -2826,7 +2825,8 @@ function controllerRegister() {
     });
 }
 var emulator = new Emulator();
-window['emulator'] = emulator;
+var _window = window;
+_window['emulator'] = emulator;
 var sampleDemo = undefined;
 if (document.location.hash) {
     sampleDemo = document.location.hash.substr(1);
@@ -3091,7 +3091,6 @@ var PspController = (function () {
         this.analogAddY = 0;
         this.latchSamplingCount = 0;
         this.animationTimeId = 0;
-        this.gamepadsButtons = [];
         this.buttonMapping = {};
         this.buttonMapping[HtmlKeyCodes.up] = PspCtrlButtons.up;
         this.buttonMapping[HtmlKeyCodes.left] = PspCtrlButtons.left;
@@ -3499,7 +3498,7 @@ var MipsDisassembler = (function () {
     MipsDisassembler.prototype.disassemble = function (instruction) {
         var _this = this;
         var instructionType = this.instructions.findByData(instruction.data);
-        var arguments = instructionType.format.replace(/(\%\w+)/g, function (type) {
+        var args = instructionType.format.replace(/(\%\w+)/g, function (type) {
             switch (type) {
                 case '%s':
                     return _this.encodeRegister(instruction.rs);
@@ -3513,7 +3512,7 @@ var MipsDisassembler = (function () {
                 default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
-        return instructionType.name + ' ' + arguments;
+        return instructionType.name + ' ' + args;
     };
     return MipsDisassembler;
 })();
@@ -9613,9 +9612,9 @@ var WebGlPspDrawDriver = (function () {
             stencil: true,
             preserveDrawingBuffer: true,
         };
-        this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
+        this.gl = this.canvas.getContext('webgl', webglOptions);
         if (!this.gl)
-            this.canvas.getContext('webgl', webglOptions);
+            this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
         if (!this.gl) {
             alert("Can't initialize WebGL!");
             throw (new Error("Can't initialize WebGL!"));
@@ -10085,7 +10084,7 @@ var PixelConverter = _pixelformat.PixelConverter;
 var Texture = (function () {
     function Texture(gl) {
         this.gl = gl;
-        this.recheckTimestamp = undefined;
+        this.recheckTimestamp = 0;
         this.valid = true;
         this.validHint = true;
         this.swizzled = false;
@@ -11856,9 +11855,9 @@ var Emulator = (function () {
                         var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
                         _this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
                         console.info('pathToFile:', pathToFile);
-                        var arguments = [pathToFile];
+                        var args = [pathToFile];
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
-                        var argument = arguments.map(function (argument) { return argument + String.fromCharCode(0); }).join('');
+                        var argument = args.map(function (argument) { return argument + String.fromCharCode(0); }).join('');
                         _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
                         var pspElf = new PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
                         pspElf.load(elfStream);
@@ -11920,7 +11919,7 @@ var Emulator = (function () {
             });
         }).catch(function (e) {
             console.error(e);
-            console.error(e['stack']);
+            console.error(e.stack);
             throw (e);
         });
     };
@@ -11942,7 +11941,7 @@ var Emulator = (function () {
             return _this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
         }).catch(function (e) {
             console.error(e);
-            console.error(e['stack']);
+            console.error(e.stack);
             throw (e);
         });
     };
@@ -15730,6 +15729,7 @@ var Thread = (function () {
         this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
+        this.sceKernelCpuResumeIntrCount = 0;
         this.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_ALREADY_DORMANT;
         this.running = false;
         this.preemptionCount = 0;
@@ -16113,11 +16113,9 @@ var Kernel_Library = (function () {
         });
         this.sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint', this, function (thread, flags) {
             _this.context.interruptManager.resume(flags);
-            if (thread['sceKernelCpuResumeIntrCount'] === undefined)
-                thread['sceKernelCpuResumeIntrCount'] = 0;
-            thread['sceKernelCpuResumeIntrCount']++;
-            if (thread['sceKernelCpuResumeIntrCount'] >= 3) {
-                thread['sceKernelCpuResumeIntrCount'] = 0;
+            thread.sceKernelCpuResumeIntrCount++;
+            if (thread.sceKernelCpuResumeIntrCount >= 3) {
+                thread.sceKernelCpuResumeIntrCount = 0;
                 return Promise.resolve(0);
             }
             else {
@@ -16358,10 +16356,8 @@ var SysMemUserForUser = (function () {
             var gpr = thread.state.gpr;
             var readParam = function (type) {
                 switch (type) {
-                    case '%s':
-                        return memory.readStringz(gpr[gprIndex++]);
-                    case '%d':
-                        return String(gpr[gprIndex++]);
+                    case '%s': return memory.readStringz(gpr[gprIndex++]);
+                    case '%d': return String(gpr[gprIndex++]);
                 }
                 return '??[' + type + ']??';
             };
@@ -17021,17 +17017,18 @@ var Atrac3 = (function () {
         if (Atrac3.useWorker) {
             outPromise = WorkerTask.executeAsync(function (id, blockData, firstDataChunk) {
                 self['window'] = self;
-                if (!self['MediaEngine']) {
+                var _self = self;
+                if (!_self['MediaEngine']) {
                     importScripts('source/polyfills/promise.js');
                     importScripts('data/MediaEngine.js');
-                    self['MediaEngine'] = MediaEngine;
+                    _self['MediaEngine'] = MediaEngine;
                 }
                 var atrac3Decoder = 'atrac3Decoder_' + id;
-                if (!self[atrac3Decoder]) {
-                    self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
-                    self[atrac3Decoder].initWithHeader(firstDataChunk);
+                if (!_self[atrac3Decoder]) {
+                    _self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
+                    _self[atrac3Decoder].initWithHeader(firstDataChunk);
                 }
-                return self[atrac3Decoder].decode(blockData);
+                return _self[atrac3Decoder].decode(blockData);
             }, [this.id, blockData, this.firstDataChunk]);
         }
         else {
@@ -18083,7 +18080,6 @@ var Matching = (function () {
         this.dataTimer = -1;
         this.onMessageCancelable = null;
         this.state = State.START;
-        this.messageQueue = [];
     }
     Matching.prototype.sendHello = function () {
         if (this.state != State.START)
@@ -21428,7 +21424,7 @@ var EmulatorVfs = (function (_super) {
             case EmulatorDevclEnum.IsEmulator:
                 return 0;
             case EmulatorDevclEnum.EmitScreenshot:
-                this.screenshot = 1;
+                this.screenshot = input.toUInt8Array();
                 console.warn('emit screenshot!');
                 return 0;
             default:
@@ -22241,7 +22237,8 @@ var difflib = {
                 }
             }
             matching_blocks.sort(difflib.__ntuplecomp);
-            var i1 = 0, j1 = 0, k1 = 0, block = 0;
+            var i1 = 0, j1 = 0, k1 = 0;
+            var block = [];
             var i2, j2, k2;
             var non_adjacent = [];
             for (var idx in matching_blocks) {

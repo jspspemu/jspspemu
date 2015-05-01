@@ -41,6 +41,7 @@ void testEmptyLoop()
 	{
 		for (i = 1000000; i > 0; i--)
 		{
+			//asm("dbreak\n");
 		}
 	}
 }

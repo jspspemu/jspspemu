@@ -224,7 +224,7 @@ export class VertexState {
 
 	read(memory: Memory, count: number) {
 		//console.log('read vertices ' + count);
-		var vertices = [];
+		var vertices:any[] = [];
 		for (var n = 0; n < count; n++) vertices.push(this.readOne(memory));
 		return vertices;
 	}
@@ -531,7 +531,7 @@ export class Color {
 		return dest;
 	}
 
-	equals(r, g, b, a) {
+	equals(r:number, g:number, b:number, a:number) {
 		return (this.r == r) && (this.g == g) && (this.b == b) && (this.a == a);
 	}
 }
@@ -561,7 +561,7 @@ export class AlphaTest {
 }
 
 export class Rectangle {
-	constructor(public top, public left, public right, public bottom) {
+	constructor(public top:number, public left:number, public right:number, public bottom:number) {
 	}
 
 	get width() { return this.right - this.left; }

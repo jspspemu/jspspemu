@@ -2,7 +2,7 @@
 
 import jsaes2 = require('./jsaes2');
 
-function cryptoToArray(info) {
+function cryptoToArray(info: { words:Uint32Array }) {
 	var words = info.words;
 	var wordsLen = words.length;
 	var data = new Uint8Array(wordsLen * 4);
@@ -27,7 +27,7 @@ function ab2str(buf: Uint8Array) {
 }
 
 function ab2hex(buf: Uint8Array) {
-	var parts = [];
+	var parts:string[] = [];
 	for (var n = 0; n < buf.length; n++) {
 		var chunk = buf[n].toString(16);
 		while (chunk.length < 2) chunk = '0' + chunk;
@@ -36,7 +36,7 @@ function ab2hex(buf: Uint8Array) {
 	return parts.join('')
 }
 
-function str2ab(str) {
+function str2ab(str:string) {
 	var bufView = new Uint8Array(str.length);
 	for (var i = 0, strLen = str.length; i < strLen; i++) {
 		bufView[i] = str.charCodeAt(i);

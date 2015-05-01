@@ -38,7 +38,7 @@ export class ModuleManager {
 	private names: StringDictionary<any[]> = {};
     private moduleWrappers: StringDictionary<any> = {};
 
-	constructor(public context) {
+	constructor(public context:any) {
 	}
 
 	

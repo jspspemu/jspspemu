@@ -3,8 +3,8 @@
 if (typeof navigator == 'undefined') navigator = <any>{};
 
 export interface IPspController {
-	startAsync();
-	stopAsync();
+	startAsync():Promise<void>;
+	stopAsync():Promise<void>;
 	data: SceCtrlData;
 	latchSamplingCount: number;
 }
@@ -79,7 +79,7 @@ export class PspController {
 		if (button !== undefined) this.data.buttons |= button;
 
 		var field = this.fieldMapping[e.keyCode];
-		if (field !== undefined) this[field] =true;
+		if (field !== undefined) (<any>this)[field] =true;
 	}
 
 	private keyUp(e: KeyboardEvent) {
@@ -87,7 +87,7 @@ export class PspController {
 		if (button !== undefined) this.data.buttons &= ~button;
 
 		var field = this.fieldMapping[e.keyCode];
-		if (field !== undefined) this[field] = false;
+		if (field !== undefined) (<any>this)[field] = false;
 	}
 
 	simulateButtonDown(button: number) {
@@ -105,18 +105,18 @@ export class PspController {
 
 	animationTimeId: number = 0;
 
-	_keyDown;
-	_keyUp;
+	_keyDown:any;
+	_keyUp:any;
 	startAsync() {
 		if (typeof document != 'undefined') {
-			document.addEventListener('keydown', this._keyDown = (e) => this.keyDown(e));
-			document.addEventListener('keyup', this._keyUp = (e) => this.keyUp(e));
+			document.addEventListener('keydown', this._keyDown = (e:any) => this.keyDown(e));
+			document.addEventListener('keyup', this._keyUp = (e:any) => this.keyUp(e));
 		}
 		this.frame(0);
 		return Promise.resolve();
 	}
 
-	private gamepadsButtons = [];
+	//private gamepadsButtons = [];
 
 	private frame(timestamp: number) {
 		if (this.analogUp) { this.analogAddY -= 0.25; }
@@ -164,7 +164,7 @@ export class PspController {
 				this.data.x += axes[0];
 				this.data.y += axes[1];
 
-				function checkButton(button) {
+				function checkButton(button:any) {
 					if (typeof button == 'number') {
 						return button != 0;
 					} else {

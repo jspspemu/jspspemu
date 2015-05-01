@@ -98,8 +98,8 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	static VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK; // 59.998800024
 	static VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ; // 0.016667
 
-	private currentMs;
-	private elapsedSeconds;
+	private currentMs:number;
+	private elapsedSeconds:number;
 	hcountTotal = 0;
 	hcountCurrent = 0;
 	vblankCount = 0;
@@ -138,7 +138,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	constructor(public memory: Memory, private interruptManager: InterruptManager, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 		super();
 		if (this.canvas) {
-			this.context = this.canvas.getContext('2d');
+			this.context = <CanvasRenderingContext2D>this.canvas.getContext('2d');
 			this.imageData = this.context.createImageData(512, 272);
 			this.setEnabledDisplay(true);
 		} else {

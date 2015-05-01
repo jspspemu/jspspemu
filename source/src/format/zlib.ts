@@ -1,21 +1,21 @@
 /** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 'use strict';
 
-var exported:any = {};
+var exported: any = {};
 var l = exported;
 
-function p(b, e) {
+function p(b: string, e: any) {
     var a = b.split(".");
     var c = l;
     !(a[0] in c) && c.execScript && c.execScript("var " + a[0]);
-    for (var d; a.length && (d = a.shift());) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
+    for (var d: string; a.length && (d = a.shift());) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
 }
 
-function t(b) {
+function t(b: Uint32Array) {
     var e = b.length,
         a = 0,
         c = Number.POSITIVE_INFINITY,
-        d, f, g, h, k, m, r, n, s, J;
+        d: number, f: Uint32Array, g: number, h: number, k: number, m: number, r: number, n: number, s: number, J: number;
     for (n = 0; n < e; ++n) b[n] > a && (a = b[n]), b[n] < c && (c = b[n]);
     d = 1 << a;
     f = new Uint32Array(d);
@@ -30,14 +30,14 @@ function t(b) {
                 J = g << 16 | n;
                 for (s = m; s < d; s += k) f[s] = J;
                 ++h
-            }++g;
+            } ++g;
         h <<= 1;
         k <<= 1
     }
     return [f, a, c]
 };
 
-function u(b, e) {
+function u(b: number, e: { index?: number, bufferSize?: number, bufferType?: number, resize?: number }) {
     this.g = [];
     this.h = 32768;
     this.c = this.f = this.d = this.k = 0;
@@ -76,10 +76,10 @@ u.prototype.u = function() {
                     c = this.b,
                     d = this.a,
                     f = e.length,
-                    g = void 0,
-                    h = void 0,
+                    g: number = void 0,
+                    h: number = void 0,
                     k = c.length,
-                    m = void 0;
+                    m: number = void 0;
                 this.c = this.f = 0;
                 if (a + 1 >= f) throw Error("invalid uncompressed block header: LEN");
                 g = e[a++] | e[a++] << 8;
@@ -90,7 +90,7 @@ u.prototype.u = function() {
                 switch (this.i) {
                     case w:
                         for (; d +
-                               g > c.length;) {
+                            g > c.length;) {
                             m = k - d;
                             g -= m;
                             c.set(e.subarray(a, a + m), d), d += m, a += m;
@@ -137,18 +137,20 @@ var B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15],
     ],
     L = new Uint8Array(K),
     M = new Uint8Array(288),
-    N, O;
+    N: number, O: number;
 N = 0;
 for (O = M.length; N < O; ++N) M[N] = 143 >= N ? 8 : 255 >= N ? 9 : 279 >= N ? 7 : 8;
 var y = t(M),
     P = new Uint8Array(30),
-    Q, R;
+    Q: number, R: number;
 Q = 0;
 for (R = P.length; Q < R; ++Q) P[Q] = 5;
 var z = t(P);
 
-function x(b, e) {
-    for (var a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h; c < e;) {
+interface CC { f: number, c: number, d: number, input: Int8Array }
+
+function x(b: CC, e: number) {
+    for (var a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h: number; c < e;) {
         if (f >= g) throw Error("input buffer is broken");
         a |= d[f++] << c;
         c += 8
@@ -160,8 +162,8 @@ function x(b, e) {
     return h
 }
 
-function S(b, e) {
-    for (var a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h = e[0], k = e[1], m, r; c < k && !(f >= g);) a |= d[f++] << c, c += 8;
+function S(b: CC, e: { 0: Int8Array, 1: number }) {
+    for (var a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h = e[0], k = e[1], m: number, r: number; c < k && !(f >= g);) a |= d[f++] << c, c += 8;
     m = h[a & (1 << k) - 1];
     r = m >>> 16;
     b.f = a >> r;
@@ -170,10 +172,10 @@ function S(b, e) {
     return m & 65535
 }
 
-function A(b) {
-    function e(a, b, c) {
-        var e, d = this.p,
-            f, g;
+function A(b:any) {
+    function e(a:any, b:any, c:any) {
+        var e:any, d = this.p,
+            f:any, g:any;
         for (g = 0; g < a;) switch (e = S(this, b), e) {
             case 16:
                 for (f = 3 + x(this, 2); f--;) c[g++] = d;
@@ -196,7 +198,7 @@ function A(b) {
         c = x(b, 5) + 1,
         d = x(b, 4) + 4,
         f = new Uint8Array(C.length),
-        g, h, k, m;
+        g:any, h:any, k:any, m:any;
     for (m = 0; m < d; ++m) f[C[m]] = x(b, 3);
     g = t(f);
     h = new Uint8Array(a);
@@ -204,11 +206,11 @@ function A(b) {
     b.p = 0;
     b.j(t(e.call(b, a, g, h)), t(e.call(b, c, g, k)))
 }
-u.prototype.j = function(b, e) {
+u.prototype.j = function(b:any, e:any) {
     var a = this.b,
         c = this.a;
     this.n = b;
-    for (var d = a.length - 258, f, g, h, k; 256 !== (f = S(this, b));)
+    for (var d = a.length - 258, f:any, g:any, h:any, k:any; 256 !== (f = S(this, b));)
         if (256 > f) c >= d && (this.a = c, a = this.e(), c = this.a), a[c++] = f;
         else {
             g = f - 257;
@@ -223,11 +225,11 @@ u.prototype.j = function(b, e) {
     for (; 8 <= this.c;) this.c -= 8, this.d--;
     this.a = c
 };
-u.prototype.t = function(b, e) {
+u.prototype.t = function(b:any, e:any) {
     var a = this.b,
         c = this.a;
     this.n = b;
-    for (var d = a.length, f, g, h, k; 256 !== (f = S(this, b));)
+    for (var d = a.length, f:any, g:any, h:any, k:any; 256 !== (f = S(this, b));)
         if (256 > f) c >= d && (a = this.e(), d = a.length), a[c++] = f;
         else {
             g = f - 257;
@@ -245,7 +247,7 @@ u.prototype.t = function(b, e) {
 u.prototype.e = function() {
     var b = new Uint8Array(this.a - 32768),
         e = this.a - 32768,
-        a, c, d = this.b;
+        a:any, c:any, d = this.b;
     b.set(d.subarray(32768, b.length));
     this.g.push(b);
     this.k += b.length;
@@ -253,9 +255,9 @@ u.prototype.e = function() {
     this.a = 32768;
     return d
 };
-u.prototype.v = function(b) {
-    var e, a = this.input.length / this.d + 1 | 0,
-        c, d, f, g = this.input,
+u.prototype.v = function(b:any) {
+    var e:any, a = this.input.length / this.d + 1 | 0,
+        c:any, d:any, f:any, g = this.input,
         h = this.b;
     b && ("number" === typeof b.o && (a = b.o), "number" === typeof b.r && (a += b.r));
     2 > a ? (c = (g.length - this.d) / this.n[2], f = 258 * (c / 2) | 0, d = f < h.length ? h.length + f : h.length << 1) : d = h.length * a;
@@ -266,8 +268,8 @@ u.prototype.m = function() {
     var b = 0,
         e = this.b,
         a = this.g,
-        c, d = new Uint8Array(this.k + (this.a - 32768)),
-        f, g, h, k;
+        c:any, d = new Uint8Array(this.k + (this.a - 32768)),
+        f:any, g:any, h:any, k:any;
     if (0 === a.length) return this.b.subarray(32768, this.a);
     f = 0;
     for (g = a.length; f < g; ++f) {
@@ -281,29 +283,29 @@ u.prototype.m = function() {
     return this.buffer = d
 };
 u.prototype.s = function() {
-    var b, e = this.a;
+    var b: any, e = this.a;
     true ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
     return this.buffer = b
 };
 p("Zlib.RawInflate", u);
 p("Zlib.RawInflate.prototype.decompress", u.prototype.u);
-var T = {
-        ADAPTIVE: v,
-        BLOCK: w
-    },
-    U, V, W, X;
+var T: any = {
+    ADAPTIVE: v,
+    BLOCK: w
+},
+    U: any, V: any, W: any, X: any;
 if (Object.keys) U = Object.keys(T);
 else
     for (V in U = [], W = 0, T) U[W++] = V;
 W = 0;
 for (X = U.length; W < X; ++W) V = U[W], p("Zlib.RawInflate.BufferType." + V, T[V]);
 
-export function inflate_raw(data:Uint8Array):Uint8Array {
+export function inflate_raw(data: Uint8Array): Uint8Array {
     var clazz = exported.Zlib.RawInflate;
     var inflate = new clazz(data);
     return inflate.decompress();
 }
 
-export function inflate_raw_arraybuffer(data:ArrayBuffer):ArrayBuffer {
+export function inflate_raw_arraybuffer(data: ArrayBuffer): ArrayBuffer {
     return inflate_raw(new Uint8Array(data)).buffer;
 }

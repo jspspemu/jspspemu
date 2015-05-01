@@ -16,8 +16,19 @@ interface TouchEvent extends Event {
 	touches: Touch[];
 }
 
+interface Rect {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+	name: string;
+	button: number;
+}
+
+declare var emulator:Emulator;
+
 function controllerRegister() {
-	var rects = [];
+	var rects:Rect[] = [];
 
 	var generateRects = (() => {
 		var overlay_query = $('#touch_overlay');
@@ -68,8 +79,7 @@ function controllerRegister() {
 		var x = (screenX - overlay_pos.left) / overlay_width;
 		var y = (screenY - overlay_pos.top) / overlay_height;
 
-		for (var n = 0; n < rects.length; n++) {
-			var rect = rects[n];
+		for (let rect of rects) {
 			if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
 				return rect;
 			}
@@ -77,28 +87,25 @@ function controllerRegister() {
 		return null;
 	});
 
-	var touchesState = {
-	};
+	var touchesState:{
+		[key: number]: { rect: Rect }
+	} = {};
 
 	function simulateButtonDown(button: number) {
-		if (window['emulator'].controller) window['emulator'].controller.simulateButtonDown(button);
+		if (emulator.controller) emulator.controller.simulateButtonDown(button);
 	}
 
 	function simulateButtonUp(button: number) {
-		if (window['emulator'].controller) window['emulator'].controller.simulateButtonUp(button);
+		if (emulator.controller) emulator.controller.simulateButtonUp(button);
 	}
 
 	function touchStart(touches: Touch[]) {
-		for (var n = 0; n < touches.length; n++) {
-			var touch = touches[n];
-			touchesState[touch.identifier] = { rect: null };
-		}
+		for (var touch of touches) touchesState[touch.identifier] = { rect: null };
 		touchMove(touches);
 	}
 
 	function touchMove(touches: Touch[]) {
-		for (var n = 0; n < touches.length; n++) {
-			var touch = touches[n];
+		for (var touch of touches) {
 			var rect = locateRect(touch.clientX, touch.clientY);
 			var touchState = touchesState[touch.identifier];
 
@@ -117,9 +124,7 @@ function controllerRegister() {
 	}
 
 	function touchEnd(touches: Touch[]) {
-		for (var n = 0; n < touches.length; n++) {
-			var touch = touches[n];
-
+		for (var touch of touches) {
 			var touchState = touchesState[touch.identifier];
 
 			if (touchState && touchState.rect) {
@@ -131,17 +136,17 @@ function controllerRegister() {
 		}
 	}
 
-	$('#touch_overlay').on('touchstart', (e) => {
+	$('#touch_overlay').on('touchstart', (e:any) => {
 		touchStart(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
 
-	$('#touch_overlay').on('touchmove', (e) => {
+	$('#touch_overlay').on('touchmove', (e:any) => {
 		touchMove(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
 
-	$('#touch_overlay').on('touchend', (e) => {
+	$('#touch_overlay').on('touchend', (e:any) => {
 		touchEnd(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
@@ -167,7 +172,8 @@ function controllerRegister() {
 }
 
 var emulator = new Emulator();
-window['emulator'] = emulator;
+var _window:any = window;
+_window['emulator'] = emulator;
 var sampleDemo:string = undefined;
 
 if (document.location.hash) {

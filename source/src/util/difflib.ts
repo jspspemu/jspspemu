@@ -31,13 +31,13 @@
 var __whitespace = {" ":true, "\t":true, "\n":true, "\f":true, "\r":true};
 
 var difflib = {
-    defaultJunkFunction: function (c) {
+    defaultJunkFunction: function (c:string) {
         return __whitespace.hasOwnProperty(c);
     },
 
-    stripLinebreaks: function (str) { return str.replace(/^[\n\r]*|[\n\r]*$/g, ""); },
+    stripLinebreaks: function (str:string) { return str.replace(/^[\n\r]*|[\n\r]*$/g, ""); },
 
-    stringAsLines: function (str) {
+    stringAsLines: function (str:string) {
         var lfpos = str.indexOf("\n");
         var crpos = str.indexOf("\r");
         var linebreak = ((lfpos > -1 && crpos > -1) || crpos < 0) ? "\n" : "\r";
@@ -51,7 +51,7 @@ var difflib = {
     },
 
     // iteration-based reduce implementation
-    __reduce: function (func, list, initial) {
+    __reduce: function (func:any, list:any[], initial:any) {
         if (initial != null) {
             var value = initial;
             var idx = 0;
@@ -70,7 +70,7 @@ var difflib = {
     },
 
     // comparison function for sorting lists of numeric tuples
-    __ntuplecomp: function (a, b) {
+    __ntuplecomp: function (a:any, b:any) {
         var mlen = Math.max(a.length, b.length);
         for (var i = 0; i < mlen; i++) {
             if (a[i] < b[i]) return -1;
@@ -80,35 +80,35 @@ var difflib = {
         return a.length == b.length ? 0 : (a.length < b.length ? -1 : 1);
     },
 
-    __calculate_ratio: function (matches, length) {
+    __calculate_ratio: function (matches:number, length:number) {
         return length ? 2.0 * matches / length : 1.0;
     },
 
     // returns a function that returns true if a key passed to the returned function
     // is in the dict (js object) provided to this function; replaces being able to
     // carry around dict.has_key in python...
-    __isindict: function (dict) {
-        return function (key) { return dict.hasOwnProperty(key); };
+    __isindict: function (dict:any) {
+        return function (key:string) { return dict.hasOwnProperty(key); };
     },
 
     // replacement for python's dict.get function -- need easy default values
-    __dictget: function (dict, key, defaultValue) {
+    __dictget: function (dict:any, key:any, defaultValue:any) {
         return dict.hasOwnProperty(key) ? dict[key] : defaultValue;
     },
 
-    SequenceMatcher: function (a, b, isjunk = undefined) {
-        this.set_seqs = function (a, b) {
+    SequenceMatcher: function (a:any, b:any, isjunk:any = undefined) {
+        this.set_seqs = function (a:any, b:any) {
             this.set_seq1(a);
             this.set_seq2(b);
         }
 
-        this.set_seq1 = function (a) {
+        this.set_seq1 = function (a:any) {
             if (a == this.a) return;
             this.a = a;
             this.matching_blocks = this.opcodes = null;
         }
 
-        this.set_seq2 = function (b) {
+        this.set_seq2 = function (b:any) {
             if (b == this.b) return;
             this.b = b;
             this.matching_blocks = this.opcodes = this.fullbcount = null;
@@ -118,8 +118,8 @@ var difflib = {
         this.__chain_b = function () {
             var b = this.b;
             var n = b.length;
-            var b2j = this.b2j = {};
-            var populardict = {};
+            var b2j:any = this.b2j = {};
+            var populardict:any = {};
             for (var i = 0; i < b.length; i++) {
                 var elt = b[i];
                 if (b2j.hasOwnProperty(elt)) {
@@ -142,7 +142,7 @@ var difflib = {
             }
 
             var isjunk = this.isjunk;
-            var junkdict = {};
+            var junkdict:any = {};
             if (isjunk) {
                 for (var elt in populardict) {
                     if (populardict.hasOwnProperty(elt) && isjunk(elt)) {
@@ -162,7 +162,7 @@ var difflib = {
             this.isbpopular = difflib.__isindict(populardict);
         }
 
-        this.find_longest_match = function (alo, ahi, blo, bhi) {
+        this.find_longest_match = function (alo:any, ahi:any, blo:any, bhi:any) {
             var a = this.a;
             var b = this.b;
             var b2j = this.b2j;
@@ -170,13 +170,13 @@ var difflib = {
             var besti = alo;
             var bestj = blo;
             var bestsize = 0;
-            var j = null;
-            var k;
+            var j:any = null;
+            var k:any;
 
             var j2len = {};
-            var nothing = [];
+            var nothing:any[] = [];
             for (var i = alo; i < ahi; i++) {
-                var newj2len = {};
+                var newj2len:any = {};
                 var jdict = difflib.__dictget(b2j, a[i], nothing);
                 for (var jkey in jdict) {
                     if (jdict.hasOwnProperty(jkey)) {
@@ -226,8 +226,8 @@ var difflib = {
             var lb = this.b.length;
 
             var queue = [[0, la, 0, lb]];
-            var matching_blocks = [];
-            var alo, ahi, blo, bhi, qi, i, j, k, x;
+            var matching_blocks:any[] = [];
+            var alo:any, ahi:any, blo:any, bhi:any, qi:any, i:any, j:any, k:any, x:any;
             while (queue.length) {
                 qi = queue.pop();
                 alo = qi[0];
@@ -250,9 +250,10 @@ var difflib = {
 
             matching_blocks.sort(difflib.__ntuplecomp);
 
-            var i1 = 0, j1 = 0, k1 = 0, block = 0;
-            var i2, j2, k2;
-            var non_adjacent = [];
+            var i1 = 0, j1 = 0, k1 = 0;
+            var block:any[] = [];
+            var i2:any, j2:any, k2:any;
+            var non_adjacent:any = [];
             for (var idx in matching_blocks) {
                 if (matching_blocks.hasOwnProperty(idx)) {
                     block = matching_blocks[idx];
@@ -281,9 +282,9 @@ var difflib = {
             if (this.opcodes != null) return this.opcodes;
             var i = 0;
             var j = 0;
-            var answer = [];
+            var answer:any[] = [];
             this.opcodes = answer;
-            var block, ai, bj, size, tag;
+            var block:any, ai:any, bj:any, size:any, tag:any;
             var blocks = this.get_matching_blocks();
             for (var idx in blocks) {
                 if (blocks.hasOwnProperty(idx)) {
@@ -312,11 +313,11 @@ var difflib = {
 
         // this is a generator function in the python lib, which of course is not supported in javascript
         // the reimplementation builds up the grouped opcodes into a list in their entirety and returns that.
-        this.get_grouped_opcodes = function (n) {
+        this.get_grouped_opcodes = function (n:any) {
             if (!n) n = 3;
             var codes = this.get_opcodes();
             if (!codes) codes = [["equal", 0, 1, 0, 1]];
-            var code, tag, i1, i2, j1, j2;
+            var code:any, tag:any, i1:any, i2:any, j1:any, j2:any;
             if (codes[0][0] == 'equal') {
                 code = codes[0];
                 tag = code[0];
@@ -337,8 +338,8 @@ var difflib = {
             }
 
             var nn = n + n;
-            var group = [];
-            var groups = [];
+            var group:any[] = [];
+            var groups:any[] = [];
             for (var idx in codes) {
                 if (codes.hasOwnProperty(idx)) {
                     code = codes[idx];
@@ -366,13 +367,13 @@ var difflib = {
 
         this.ratio = function () {
             var matches = difflib.__reduce(
-                function (sum, triple) { return sum + triple[triple.length - 1]; },
+                function (sum:any, triple:any) { return sum + triple[triple.length - 1]; },
                 this.get_matching_blocks(), 0);
             return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
         };
 
         this.quick_ratio = function () {
-            var fullbcount, elt;
+            var fullbcount:any, elt:any;
             if (this.fullbcount == null) {
                 this.fullbcount = fullbcount = {};
                 for (var i = 0; i < this.b.length; i++) {
@@ -382,10 +383,10 @@ var difflib = {
             }
             fullbcount = this.fullbcount;
 
-            var avail = {};
+            var avail:any = {};
             var availhas = difflib.__isindict(avail);
             var matches = 0;
-            var numb = 0;
+            var numb:any = 0;
             for (var i = 0; i < this.a.length; i++) {
                 elt = this.a[i];
                 if (availhas(elt)) {

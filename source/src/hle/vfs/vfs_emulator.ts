@@ -4,7 +4,7 @@ import _context = require('../../context');
 
 export class EmulatorVfs extends _vfs.Vfs {
 	output = '';
-	screenshot = null;
+	screenshot:Uint8Array = null;
 
 	constructor(public context:_context.EmulatorContext) {
 		super();
@@ -26,7 +26,7 @@ export class EmulatorVfs extends _vfs.Vfs {
 			case EmulatorDevclEnum.IsEmulator:
 				return 0; // Running on emulator
 			case EmulatorDevclEnum.EmitScreenshot:
-				this.screenshot = 1;
+				this.screenshot = input.toUInt8Array();
 				console.warn('emit screenshot!');
 				return 0;
 			default:

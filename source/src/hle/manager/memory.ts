@@ -24,7 +24,7 @@ export class MemoryPartition {
 
     get size() { return this.high - this.low; }
 
-    get root() { return (this.parent) ? this.parent.root : this; }
+    get root():MemoryPartition { return (this.parent) ? this.parent.root : this; }
 
     get childPartitions() {
         if (this._childPartitions.length == 0) this._childPartitions.push(new MemoryPartition("", this.low, this.high, false));

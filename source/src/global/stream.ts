@@ -43,7 +43,7 @@ class BufferedAsyncStream extends ProxyAsyncStream {
 		this.cache.data = data;
 	}
 
-	readChunkAsync(offset: number, count: number) {
+	readChunkAsync(offset: number, count: number):Promise<ArrayBuffer> {
 		var availableFromOffset = this.size - offset;
 		var start = offset;
 		var end = offset + count;
@@ -134,7 +134,7 @@ class FileAsyncStream implements AsyncStream {
 		return new Promise<ArrayBuffer>((resolve, reject) => {
 			var fileReader = new FileReader();
 			fileReader.onload = (e) => { resolve(fileReader.result); };
-			fileReader.onerror = (e) => { reject(e['error']); };
+			fileReader.onerror = (e:any) => { reject(e['error']); };
 			fileReader.readAsArrayBuffer(this.file.slice(offset, offset + count));
 		});
 	}
@@ -179,7 +179,7 @@ class Stream {
 
 	toImageUrl() {
 		try {
-			var urlCreator = window['URL'] || window['webkitURL'];
+			var urlCreator = (<any>window)['URL'] || (<any>window)['webkitURL'];
 			var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
 			return urlCreator.createObjectURL(blob);
 		} catch (e) {

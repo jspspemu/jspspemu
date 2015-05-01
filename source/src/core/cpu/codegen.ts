@@ -83,7 +83,7 @@ class VVecRegClass {
 	private _setVector(generator: (index: number) => _ast.ANodeExpr) {
 		// @TODO
 		var array = <_ast.ANodeExpr[]>[];
-		var statements = [];
+		var statements:_ast.ANodeExpr[] = [];
 		var regs = getVectorRegs(this.reg, VectorSize.Quad);
 	
 		statements.push(stm(ast.call('state.vfpuStore', [
@@ -369,20 +369,20 @@ export class InstructionAst {
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
 	private _vset1(i: Instruction, generate: (index: number) => _ast.ANodeExpr, destSize: number = 0, destType = 'float') {
-		var st = [];
+		var st:_ast.ANodeExpr[] = [];
 		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index));
 		return stms(st);
 	}
 
 	private _vset2(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize: number = 0, srcSize: number = 0, destType = 'float', srcType = 'float') {
-		var st = [];
+		var st:_ast.ANodeExpr[] = [];
 		var src = this._vset_readVS(st, i, srcType, srcSize);
 		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src));
 		return stms(st);
 	}
 
 	private _vset3(i: Instruction, generate: (index: number, src: _ast.ANodeExprLValue[], target: _ast.ANodeExprLValue[]) => _ast.ANodeExpr, destSize = 0, srcSize = 0, targetSize = 0, destType = 'float', srcType = 'float', targetType = 'float') {
-		var st = [];
+		var st:_ast.ANodeExpr[] = [];
 		var src = this._vset_readVS(st, i, srcType, srcSize);
 		var target = this._vset_readVT(st, i, targetType, targetSize);
 		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src, target));
@@ -402,7 +402,7 @@ export class InstructionAst {
 		var regs = readVector_type((name == 'vs') ? i.VS : i.VT, size, type);
 		var prefix = (name == 'vs') ? this._vpfxs : this._vpfxt;
 		if (this.enableStaticPrefixVfpuOptimization && prefix.known) {
-			var out = [];
+			var out:_ast.ANodeExprLValue[] = [];
 			for (var n = 0; n < size; n++) {
 				var vname = ((name == 'vs') ? 's' : 't') + n;
 				out.push(ast.raw(vname));
@@ -491,7 +491,7 @@ export class InstructionAst {
 	_vtfm_x(i: Instruction, vectorSize: number) {
 		var srcMat = readMatrix(i.VS, vectorSize);
 
-		var st = [];
+		var st:_ast.ANodeStm[] = [];
 		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
@@ -507,7 +507,7 @@ export class InstructionAst {
 	_vhtfm_x(i: Instruction, vectorSize: number) {
 		var srcMat = readMatrix(i.VS, vectorSize);
 
-		var st = [];
+		var st:_ast.ANodeStm[] = [];
 		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
@@ -843,7 +843,7 @@ export class InstructionAst {
 		var src = readMatrix(i.VS, VectorSize);
 		var target = readMatrix(i.VT, VectorSize);
 
-		var st = [];
+		var st:_ast.ANodeStm[] = [];
 		//st.push(ast.debugger());
 		st.push(setMatrix(dest, (Column, Row, Index) =>
 		{
@@ -1052,7 +1052,7 @@ export class InstructionAst {
 		
 	j(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); }
 	jr(i: Instruction) {
-		var statements = [];
+		var statements:_ast.ANodeStm[] = [];
 		statements.push(stm(assign(branchflag(), imm32(1))));
 		statements.push(stm(assign(branchpc(), gpr(i.rs))));
 		if (i.rs == 31) {

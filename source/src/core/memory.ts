@@ -3,18 +3,18 @@
 declare function saveAs(data: Blob, name: string):void;
 
 interface MemoryBase {
-	writeInt8(address: number, value: number);
-	writeInt16(address: number, value: number);
-	writeInt32(address: number, value: number);
-	writeFloat32(address: number, value: number);
-	readInt8(address: number);
-	readUInt8(address: number);
-	readInt16(address: number);
-	readUInt16(address: number);
-	readInt32(address: number);
-	readUInt32(address: number);
-	readFloat32(address: number);
-	readUInt32_2(address: number);
+	writeInt8(address: number, value: number):void;
+	writeInt16(address: number, value: number):void;
+	writeInt32(address: number, value: number):void;
+	writeFloat32(address: number, value: number):void;
+	readInt8(address: number):number;
+	readUInt8(address: number):number;
+	readInt16(address: number):number;
+	readUInt16(address: number):number;
+	readInt32(address: number):number;
+	readUInt32(address: number):number;
+	readFloat32(address: number):number;
+	readUInt32_2(address: number):number;
 
 	slice(low:number, high:number):Uint8Array;
 	availableAfterAddress(address:number):number;

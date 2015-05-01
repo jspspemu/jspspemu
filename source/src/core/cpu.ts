@@ -18,3 +18,9 @@ export import ISyscallManager = _syscall.ISyscallManager;
 export import Instruction = _instructions.Instruction;
 export import Instructions = _instructions.Instructions;
 export import NativeFunction = _syscall.NativeFunction;
+
+declare module CPU {
+	export type CpuState = _state.CpuState;
+}
+
+export default CPU;

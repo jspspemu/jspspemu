@@ -63,6 +63,7 @@ export class Thread {
 	entryPoint: number = 0;
 	priority: number = 10;
 	attributes: number = 0;
+	sceKernelCpuResumeIntrCount: number = 0;
 	//exitStatus: number = 0x800201a2;
 	exitStatus: number = SceKernelErrors.ERROR_KERNEL_THREAD_ALREADY_DORMANT;
     running: boolean = false;

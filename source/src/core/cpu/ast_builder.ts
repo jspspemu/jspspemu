@@ -36,7 +36,7 @@ export class ANodeStmList extends ANodeStm {
 
 	toJs() {
 		var jumpCount = 0;
-		var usedLabels = {};
+		var usedLabels:{[key:string]: boolean} = {};
 		for (var n = 0; n < this.childs.length; n++) {
 			var item = this.childs[n];
 			if (item instanceof ANodeStmJump) {
@@ -46,7 +46,7 @@ export class ANodeStmList extends ANodeStm {
 		}
 		if (jumpCount > 1) throw (new Error("Not supported more than one jump at this point!"));
 
-		var lines = [];
+		var lines:string[] = [];
 		for (var n = 0; n < this.childs.length; n++) {
 			var child = this.childs[n];
 

@@ -22,17 +22,17 @@ import WebGlPspDrawDriver = require('./webgl/driver');
 import DummyDrawDriver = require('./webgl/driver_dummy');
 
 export interface CpuExecutor {
-	execute(state: CpuState, address: number, gprArray: number[]);
+	execute(state: CpuState, address: number, gprArray: number[]):void;
 }
 
 export interface IPspGpu {
-    startAsync();
-    stopAsync();
+    startAsync():Promise<void>;
+    stopAsync():Promise<void>;
 
-    listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream);
-	listSync(displayListId: number, syncType: _state.SyncType);
-    updateStallAddr(displayListId: number, stall: number);
-	drawSync(syncType: _state.SyncType);
+    listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream):void;
+	listSync(displayListId: number, syncType: _state.SyncType):void;
+    updateStallAddr(displayListId: number, stall: number):void;
+	drawSync(syncType: _state.SyncType):void;
 }
  
 var vertexBuffer = new _vertex.VertexBuffer();
@@ -63,7 +63,7 @@ class PspGpuExecutor {
 		this.table = new Array(0x100);
 		for (var n = 0; n < 0x100; n++) {
 			this.table[n] = null;
-			var func = this[GpuOpCodes[n]];
+			var func = (<any>this)[GpuOpCodes[n]];
 			this.table[n] = func ? func.bind(this) : this.UNKNOWN.bind(this);
 		}
 	}
@@ -861,7 +861,7 @@ class PspGpuExecutor {
 		};
 
 		var controlPoints = getBezierControlPoints(ucount, vcount);
-		var vertices2 = [];
+		var vertices2:_state.Vertex[] = [];
 		vertices2.push(controlPoints[0][0]);
 		vertices2.push(controlPoints[ucount - 1][0]);
 		vertices2.push(controlPoints[0][vcount - 1]);
@@ -1095,7 +1095,7 @@ class PspGpuList {
 	primCount = 0;
 	//private showOpcodes = true;
 	private showOpcodes = false;
-	private opcodes = [];
+	private opcodes:string[] = [];
 	finish() {
 		if (this.showOpcodes) {
 			$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));

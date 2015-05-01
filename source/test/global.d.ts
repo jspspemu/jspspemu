@@ -7,8 +7,8 @@
 
 interface Assert {
 	(result: boolean, message?: string): void;
-	equal<T>(a: T, b: T, message?: string);
-	fail(a?:any);
+	equal<T>(a: T, b: T, message?: string): void;
+	fail(a?:any): void;
 }
 
 declare var assert: Assert;

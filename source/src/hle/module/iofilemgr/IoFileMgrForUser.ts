@@ -30,7 +30,7 @@ export class IoFileMgrForUser {
 	fileUids = new UidCollection<_manager.HleFile>(3);
 	directoryUids = new UidCollection<_manager.HleDirectory>(1);
 
-	getFileById(id) {
+	getFileById(id:number) {
 		if (!this.fileUids.has(id)) throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND));
 		return this.fileUids.get(id);
 	}

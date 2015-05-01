@@ -62,7 +62,7 @@ export class FunctionGenerator {
 	private generateInstructionAstNode(di: DecodedInstruction, PC: number): ast_builder.ANodeStm {
 		var instruction = di.instruction;
 		var instructionType = di.type;
-		var func: Function = this.instructionAst[instructionType.name];
+		var func: Function = (<any>this.instructionAst)[instructionType.name];
 		if (func === undefined) throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
 		return func.call(this.instructionAst, instruction, PC);
 	}

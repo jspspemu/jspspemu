@@ -21,10 +21,9 @@ export class Kernel_Library {
 		//throw(new CpuBreakException());
 		//thread.state.V0 = 0;
 		//throw (new CpuBreakException());
-		if (thread['sceKernelCpuResumeIntrCount'] === undefined) thread['sceKernelCpuResumeIntrCount'] = 0;
-		thread['sceKernelCpuResumeIntrCount']++;
-		if (thread['sceKernelCpuResumeIntrCount'] >= 3) {
-			thread['sceKernelCpuResumeIntrCount'] = 0;
+		thread.sceKernelCpuResumeIntrCount++;
+		if (thread.sceKernelCpuResumeIntrCount >= 3) {
+			thread.sceKernelCpuResumeIntrCount = 0;
 			return Promise.resolve(0);
 			//return thread.delayMicrosecondsAsync(1000);
 		} else {

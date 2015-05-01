@@ -40,7 +40,7 @@ export class MipsAssembler {
 
 		var instructionType = this.instructions.findByName(instructionName);
 		var instruction = new Instruction(PC, instructionType.vm.value);
-		var types = [];
+		var types:string[] = [];
 
 		var formatPattern = instructionType.format
 			.replace('(', '\\(')
@@ -126,7 +126,7 @@ export class MipsDisassembler {
 
 	disassemble(instruction: Instruction) {
 		var instructionType = this.instructions.findByData(instruction.data);
-		var arguments = instructionType.format.replace(/(\%\w+)/g, (type) => {
+		var args = instructionType.format.replace(/(\%\w+)/g, (type) => {
 			switch (type) {
 				case '%s': return this.encodeRegister(instruction.rs); break;
 				case '%d': return this.encodeRegister(instruction.rd); break;
@@ -134,7 +134,7 @@ export class MipsDisassembler {
 				default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
 			}
 		});
-		return instructionType.name + ' ' + arguments;
+		return instructionType.name + ' ' + args;
 	}
 }
 

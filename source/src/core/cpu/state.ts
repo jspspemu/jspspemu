@@ -66,7 +66,7 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 				var sourceConstant = (info >> (12 + n * 1)) & 1;
 				var sourceNegate = (info >> (16 + n * 1)) & 1;
 
-				var value;
+				var value:number;
 				if (sourceConstant) {
 					switch (sourceIndex) {
 						case 0: value = sourceAbsolute ? (3) : (0); break;
@@ -275,7 +275,7 @@ export class CpuState {
 	}
 
 	getVfpumatrix(index: number) {
-		var values = [];
+		var values:number[] = [];
 		for (var r = 0; r < 4; r++) {
 			for (var c = 0; c < 4; c++) {
 				values.push(this.vfpr[r * 32 + index * 4 + c]);

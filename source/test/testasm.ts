@@ -33,7 +33,7 @@ function executeProgram(gprInitial: any, program: string[]) {
 		if (key.substr(0, 1) == '$') {
 			state.gpr[parseInt(key.substr(1))] = gprInitial[key];
 		} else {
-			state[key] = gprInitial[key];
+			(<any>state)[key] = gprInitial[key];
 		}
     }
 
@@ -45,16 +45,16 @@ function executeProgram(gprInitial: any, program: string[]) {
 
 function generateGpr3Matrix(op: string, vector: number[]) {
     var gprInitial: any = {};
-    var outputMatrix: number[][] = [];
+    var outputMatrix: string[][] = [];
     for (var n = 0; n < vector.length; n++) gprInitial['$' + (15 + n)] = vector[n];
 
     for (var n = 0; n < vector.length; n++) {
-        var program = [];
+        var program:string[] = [];
         for (var m = 0; m < vector.length; m++) {
             program.push(sprintf('%s $%d, $%d, $%d', op, 1 + m, 15 + n, 15 + m));
         }
         var state = executeProgram(gprInitial, program);
-        var outputVector = [];
+        var outputVector:string[] = [];
         for (var m = 0; m < vector.length; m++) outputVector.push(sprintf('%08X', state.gpr[1 + m]));
         outputMatrix.push(outputVector);
         //console.log(state);
@@ -70,7 +70,7 @@ function assertProgram(description:string, gprInitial: any, program: string[], g
 		if (key.substr(0, 1) == '$') {
 			value = state.gpr[parseInt(key.substr(1))];
 		} else {
-			value = state[key];
+			value = (<any>state)[key];
 		}
         assert.equal(sprintf('%08X', value), sprintf('%08X', gprAssertions[key]), description + ': ' + key + ' == ' + sprintf('%08X', gprAssertions[key]));
     }

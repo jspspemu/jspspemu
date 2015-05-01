@@ -22,7 +22,7 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
 // Compute lookup tables
 (function () {
 	// Compute double table
-	var d = [];
+	var d:number[] = [];
 	for (var i = 0; i < 256; i++) {
 		d[i] = (i << 1);
 		if (i >= 128) d[i] ^= 0x11b;
@@ -76,8 +76,8 @@ var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 export class AES {
 	private _key = new Uint32Array([0, 0, 0, 0]);
 	private _nRounds = -1;
-	private _keySchedule = [];
-	private _invKeySchedule = [];
+	private _keySchedule:number[] = [];
+	private _invKeySchedule:number[] = [];
 
 	constructor(key: Uint8Array) {
 		//this.keySize = key.length / 8;
@@ -93,7 +93,7 @@ export class AES {
 
 		var nRounds = this._nRounds = keySize + 6; // Compute number of rounds
 		var ksRows = (nRounds + 1) * 4; // Compute number of key schedule rows
-		var keySchedule = this._keySchedule = []; // Compute key schedule
+		var keySchedule:number[] = this._keySchedule = []; // Compute key schedule
 
 		for (var ksRow = 0; ksRow < ksRows; ksRow++) {
 			if (ksRow < keySize) {
@@ -114,7 +114,7 @@ export class AES {
 		}
 
 		// Compute inv key schedule
-		var invKeySchedule = this._invKeySchedule = [];
+		var invKeySchedule:number[] = this._invKeySchedule = [];
 		for (var invKsRow = 0; invKsRow < ksRows; invKsRow++) {
 			var ksRow = ksRows - invKsRow;
 
@@ -137,7 +137,7 @@ export class AES {
 		this._doCryptBlock(M, offset, this._keySchedule, SUB_MIX_0, SUB_MIX_1, SUB_MIX_2, SUB_MIX_3, SBOX);
 	}
 
-	decryptBlock(M, offset: number) {
+	decryptBlock(M:Uint32Array, offset: number) {
 		// Swap 2nd and 4th rows
 		var t = M[offset + 1];
 		M[offset + 1] = M[offset + 3];
@@ -151,7 +151,7 @@ export class AES {
 		M[offset + 3] = t;
 	}
 
-	private _doCryptBlock(M, offset, keySchedule, SUB_MIX_0, SUB_MIX_1, SUB_MIX_2, SUB_MIX_3, SBOX) {
+	private _doCryptBlock(M:Uint32Array, offset:number, keySchedule:number[], SUB_MIX_0:Uint32Array, SUB_MIX_1:Uint32Array, SUB_MIX_2:Uint32Array, SUB_MIX_3:Uint32Array, SBOX:Uint32Array) {
 		var nRounds = this._nRounds;
 
 		var s0 = M[offset + 0] ^ keySchedule[0];
@@ -191,11 +191,11 @@ export class AES {
 	}
 }
 
-function swap32(v) {
+function swap32(v:number) {
 	return ((v & 0xFF) << 24) | ((v & 0xFF00) << 8) | ((v >> 8) & 0xFF00) | ((v >> 24) & 0xFF);
 }
 
-function uint8array_to_words(key: Uint8Array) {
+function uint8array_to_words(key: Uint8Array):Uint32Array {
 	var temp = new Uint32Array(key.buffer, key.byteOffset, key.length / 4);
 	var words = new Uint32Array(key.length / 4);
 	for (var n = 0; n < words.length; n++) words[n] = swap32(temp[n]);

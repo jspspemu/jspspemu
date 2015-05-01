@@ -37,8 +37,8 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			//failIfMajorPerformanceCaveat: false,
 		};
 
-		this.gl = this.canvas.getContext('experimental-webgl', webglOptions);
-		if (!this.gl) this.canvas.getContext('webgl', webglOptions);
+		this.gl = <WebGLRenderingContext>this.canvas.getContext('webgl', webglOptions);
+		if (!this.gl) this.gl = <WebGLRenderingContext>this.canvas.getContext('experimental-webgl', webglOptions);
 
 		if (!this.gl) {
 			alert("Can't initialize WebGL!");

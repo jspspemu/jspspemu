@@ -35,7 +35,7 @@ function sprintf(...args:any[]) {
 	var format = a[i++];
 
 	// pad()
-	var pad = function (str, len, chr, leftJustify) {
+	var pad = function (str:string, len:number, chr:string, leftJustify:boolean) {
 		if (!chr) {
 			chr = ' ';
 		}
@@ -45,7 +45,7 @@ function sprintf(...args:any[]) {
 	};
 
 	// justify()
-	var justify = function (value, prefix, leftJustify, minWidth, zeroPad, customPadChar = undefined) {
+	var justify = function (value:string, prefix:string, leftJustify:boolean, minWidth:number, zeroPad:boolean, customPadChar:string = undefined) {
 		var diff = minWidth - value.length;
 		if (diff > 0) {
 			if (leftJustify || !zeroPad) {
@@ -58,20 +58,20 @@ function sprintf(...args:any[]) {
 	};
 
 	// formatBaseX()
-	var formatBaseX = function (value, base, prefix, leftJustify, minWidth, precision, zeroPad) {
+	var formatBaseX = function (value:number, base:number, prefix:any, leftJustify:boolean, minWidth:number, precision:number, zeroPad:boolean) {
 		// Note: casts negative numbers to positive ones
 		var number = value >>> 0;
-		prefix = prefix && number && {
+		prefix = prefix && number && (<any>{
 			'2': '0b',
 			'8': '0',
 			'16': '0x'
-		}[base] || '';
-		value = prefix + pad(number.toString(base), precision || 0, '0', false);
-		return justify(value, prefix, leftJustify, minWidth, zeroPad);
+		})[base] || '';
+		var valueStr = prefix + pad(number.toString(base), precision || 0, '0', false);
+		return justify(valueStr, prefix, leftJustify, minWidth, zeroPad);
 	};
 
 	// formatString()
-	var formatString = function (value, leftJustify, minWidth, precision, zeroPad, customPadChar = undefined) {
+	var formatString = function (value:any, leftJustify:any, minWidth:any, precision:any, zeroPad:any, customPadChar:any = undefined) {
 		if (precision != null) {
 			value = value.slice(0, precision);
 		}
@@ -79,8 +79,8 @@ function sprintf(...args:any[]) {
 	};
 
 	// doFormat()
-	var doFormat = function (substring, valueIndex, flags, minWidth, _, precision, type) {
-		var number, prefix, method, textTransform, value;
+	var doFormat = function (substring:any, valueIndex:any, flags:any, minWidth:any, _:any, precision:any, type:any) {
+		var number:any, prefix:any, method:any, textTransform:any, value:any;
 
 		if (substring === '%%') {
 			return '%';
@@ -185,8 +185,8 @@ function sprintf(...args:any[]) {
 				prefix = number < 0 ? '-' : positivePrefix;
 				method = ['toExponential', 'toFixed', 'toPrecision']['efg'.indexOf(type.toLowerCase())];
 				textTransform = ['toString', 'toUpperCase']['eEfFgG'.indexOf(type) % 2];
-				value = prefix + Math.abs(number)[method](precision);
-				return justify(value, prefix, leftJustify, minWidth, zeroPad)[textTransform]();
+				value = prefix + (<any>Math.abs(number))[method](precision);
+				return (<any>justify(value, prefix, leftJustify, minWidth, zeroPad))[textTransform]();
 			default:
 				return substring;
 		}
@@ -390,7 +390,7 @@ class Microtask {
 		Microtask.initialized = true;
 	}
 
-	private static window_message(e) {
+	private static window_message(e:any) {
 		if (e.data == Microtask.__messageType) Microtask.execute();
 	}
 
@@ -414,10 +414,11 @@ class Microtask {
 	}
 }
 
-self['polyfills'] = self['polyfills'] || {};
-self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
-self['polyfills']['setImmediate'] = !self.setImmediate;
-self['polyfills']['performance'] = !self.performance;
+var _self:any = self;
+_self['polyfills'] =  _self['polyfills'] || {};
+_self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
+_self['polyfills']['setImmediate'] = !self.setImmediate;
+_self['polyfills']['performance'] = !self.performance;
 
 if (!self['performance']) {
 	self['performance'] = <any>{};
@@ -472,56 +473,17 @@ if (!ArrayBuffer.prototype.slice) {
     };
 }
 
-interface AudioNode {
-	context: AudioContext;
-	numberOfInputs: number;
-	numberOfOutputs: number;
-	channelCount: number;
-	channelCountMode: string;
-	channelInterpretation: any;
-
-	connect(to: AudioNode);
-	disconnect();
-}
-
 interface AudioBuffer {
-	sampleRate: number;
-	length: number;
-	duration: number;
-	numberOfChannels: number;
 	getChannelData(channel:number): Float32Array;
 }
-
-interface AudioProcessingEvent extends Event {
-	playbackTime: number;
-	inputBuffer: AudioBuffer;
-	outputBuffer: AudioBuffer;
-}
-
-interface ScriptProcessorNode extends AudioNode {
-	bufferSize: number;
-	onaudioprocess: Function;
-}
-
-interface AudioDestinationNode extends AudioNode {
-	maxChannelCount: number;
-}
-
 interface AudioContext {
 	createScriptProcessor(bufferSize: number, numInputChannels: number, numOutputChannels: number): ScriptProcessorNode;
-	destination: AudioDestinationNode;
-	sampleRate: number;
-	currentTime: number;
-	//listener: AudioListener;
 }
 
-declare var AudioContext: {
-	new(): AudioContext;
-};
+var _window:any = window;
+_window['AudioContext'] = _window['AudioContext'] || _window['webkitAudioContext'];
 
-window['AudioContext'] = window['AudioContext'] || window['webkitAudioContext'];
-
-window.navigator['getGamepads'] = window.navigator['getGamepads'] || window.navigator['webkitGetGamepads'];
+window.navigator['getGamepads'] = window.navigator['getGamepads'] || _window.navigator['webkitGetGamepads'];
 
 if (!window.requestAnimationFrame) {
 	window.requestAnimationFrame = function (callback: FrameRequestCallback) {
@@ -603,10 +565,10 @@ class PromiseUtils {
 	}
 }
 
-window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
+_window['requestFileSystem'] = _window['requestFileSystem'] || _window['webkitRequestFileSystem'];
 
 function setToString(Enum: any, value: number) {
-	var items = [];
+	var items:string[] = [];
 	for (var key in Enum) {
 		if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
 			items.push(key);
@@ -637,7 +599,7 @@ class SceKernelException implements Error {
 (<any>window).CpuBreakException = CpuBreakException;
 (<any>window).SceKernelException = SceKernelException;
 
-var DebugOnceArray = {};
+var DebugOnceArray:{ [key:string]:number; } = {};
 function DebugOnce(name: string, times: number = 1) {
 	if (DebugOnceArray[name] >= times) return false;
 	if (DebugOnceArray[name]) {
@@ -724,8 +686,8 @@ class HalfFloat {
 }
 
 
-function htmlspecialchars(str) {
-	return str.replace(/[&<>]/g, (tag) => {
+function htmlspecialchars(str:string) {
+	return str.replace(/[&<>]/g, (tag:string) => {
 		switch (tag) {
 			case '&': return '&amp;';
 			case '<': return '&lt;';
@@ -746,7 +708,7 @@ function string2mac(string: string) {
 }
 
 interface Cancelable {
-	cancel();
+	cancel():void;
 }
 
 class SignalCancelable<T> implements Cancelable {
@@ -759,7 +721,7 @@ class SignalCancelable<T> implements Cancelable {
 }
 
 class Signal<T> {
-	callbacks = [];
+	callbacks: ((value?: T) => void)[] = [];
 
 	get length() {
 		return this.callbacks.length;
@@ -808,14 +770,14 @@ class Logger {
 		}
 	}
 
-	debug(...args) { this._log('debug', 0, args); }
-	log(...args) { this._log('log', 1, args); }
-	info(...args) { this._log('info', 2, args); }
-	warn(...args) { this._log('warn', 3, args); }
-	error(...args) { this._log('error', 4, args); }
+	debug(...args:any[]) { this._log('debug', 0, args); }
+	log(...args:any[]) { this._log('log', 1, args); }
+	info(...args:any[]) { this._log('info', 2, args); }
+	warn(...args:any[]) { this._log('warn', 3, args); }
+	error(...args:any[]) { this._log('error', 4, args); }
 
-	groupCollapsed(...args) { this._log('groupCollapsed', 5, args); }
-	groupEnd(...args) { this._log('groupEnd', 5, args); }
+	groupCollapsed(...args:any[]) { this._log('groupCollapsed', 5, args); }
+	groupEnd(...args:any[]) { this._log('groupEnd', 5, args); }
 }
 
 class LoggerPolicies {

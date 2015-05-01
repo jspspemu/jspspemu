@@ -77,7 +77,7 @@ export class Emulator {
 	private webgl_canvas: HTMLCanvasElement;
 	private display: PspDisplay;
 	private gpu: PspGpu;
-	private controller: PspController;
+	public controller: PspController;
 	private instructionCache: InstructionCache;
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
@@ -176,7 +176,7 @@ export class Emulator {
 		console.log(psf.entriesByName);
 	}
 
-	private changeFavicon(src) {
+	private changeFavicon(src:string) {
 		if (typeof document == 'undefined') return;
 		var link = document.createElement('link'),
 			oldLink = document.getElementById('dynamic-favicon');
@@ -299,9 +299,9 @@ export class Emulator {
 
 						this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
 						console.info('pathToFile:', pathToFile);
-						var arguments = [pathToFile];
+						var args = [pathToFile];
 						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
-						var argument = arguments.map(argument => argument + String.fromCharCode(0)).join('');
+						var argument = args.map(argument => argument + String.fromCharCode(0)).join('');
 						this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
 
 						//console.log(new Uint8Array(executableArrayBuffer));
@@ -375,9 +375,9 @@ export class Emulator {
 					return this.emulatorVfs.output;
 				});
 			});
-		}).catch(e => {
+		}).catch((e:any) => {
 			console.error(e);
-			console.error(e['stack']);
+			console.error(e.stack);
 			throw(e);
 		});
 	}
@@ -398,9 +398,9 @@ export class Emulator {
 			console.info('parentUrl: ' + parentUrl);
 			this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new UriVfs(parentUrl));
 			return this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
-		}).catch(e => {
+		}).catch((e:any) => {
 			console.error(e);
-			console.error(e['stack']);
+			console.error(e.stack);
 			throw (e);
 		});
 	}

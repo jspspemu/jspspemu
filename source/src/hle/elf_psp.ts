@@ -343,7 +343,7 @@ export class PspElfLoader {
         var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
 		var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
 		var registeredNativeFunctions = <NativeFunction[]>[];
-		var unknownFunctions = []
+		var unknownFunctions:string[] = []
 
         var registerN = (nid: number, n: number) => {
             var nfunc: NativeFunction;

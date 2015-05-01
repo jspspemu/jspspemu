@@ -4,7 +4,7 @@ function identity<T>(a: T) { return a; }
 function funcTrue<T>(a: T) { return true; }
 
 interface Array<T> {
-	remove(item: T);
+	remove(item: T): void;
 	sortBy(item: (item: T) => any): T[];
 	any(filter?: (item: T) => boolean): T;
 	count(filter?: (item: T) => boolean): number;
@@ -19,7 +19,7 @@ interface Array<T> {
 	toLookupMap(): {};
 }
 
-function compareNumbers(a, b) {
+function compareNumbers(a:number, b:number) {
 	if (a < b) return -1;
 	if (a > b) return +1;
 	return 0;
@@ -85,14 +85,14 @@ Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) 
 
 Array.prototype.min = <any>(function (selector: Function) {
 	var array = <any[]>this;
-	if (!selector) selector = a => a;
+	if (!selector) selector = (a:any) => a;
 	if (array.length == 0) return null;
 	return array.reduce((previous, current) => { return (selector(previous) < selector(current) ? previous : current); }, array[0]);
 });
 
 Array.prototype.max = <any>(function (selector: Function) {
 	var array = <any[]>this;
-	if (!selector) selector = a => a;
+	if (!selector) selector = (a:any) => a;
 	if (array.length == 0) return null;
 	return array.reduce((previous, current) => { return (selector(previous) > selector(current) ? previous : current); }, array[0]);
 });
@@ -129,7 +129,7 @@ Array.prototype.first = <any>(function (selector: Function) {
 
 Array.prototype.sum = <any>(function (selector: Function) {
 	var array = <any[]>this;
-	if (!selector) selector = a => a;
+	if (!selector) selector = (a:any) => a;
 	return array.reduce((previous, current) => { return previous + selector(current); }, 0);
 });
 
@@ -141,7 +141,7 @@ Array.prototype.remove = function (item) {
 
 Array.prototype.toLookupMap = <any>function () {
 	var array = <any[]>this;
-	var lookup = {};
+	var lookup:{[k:string]:any} = {};
 	for (var n = 0; n < array.length; n++) {
 		lookup[array[n]] = n;
 	}

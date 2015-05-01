@@ -7,21 +7,19 @@ A PSP emulator made using javascript (actually typescript). It works with modern
 
 ![Valhalla Knights screenshot](/data/docs/screenshot_vallhalla_knights.jpg?raw=true "Valhalla Knights screenshot")
 
+### Editing:
+
+You must have Visual Studio Code, that is available for Windows, Linux and Mac.
+https://code.visualstudio.com/
+Then you have to open "source" folder, it will detect tsconfig.json and you will be able to edit.
+In order to compile as you edit, please read next section "Building from source".
+
 ### Building from source:
 
-First install node.js >= 0.10: http://nodejs.org/
-Then execute this in the project folder:
-```
-npm run setup
-```
-
-In the case it fails you can execute commands manually:
+First install node.js >= 0.12: http://nodejs.org/
+Then you must have tsc command in path, install typescript:
 ```
 npm -g install typescript
-npm install
-cd source/utils
-npm install
-cd ../..
 ```
 
 Then you can start a debug web server that also will compile typescript whenever it changes with this command in the project's folder:
@@ -29,10 +27,15 @@ Then you can start a debug web server that also will compile typescript whenever
 npm start
 ```
 
-This will compile, watch for changes and start a server at port 8080.
 Then you can just change .ts files and refresh the page.
-In the project/ folder you can find projects for visual studio and intellij.
-Also you can use any other editor as long as you use "npm start".
+
+This will compile, watch for changes and start a server at port 8080. So you can check the emulator in:
+* http://127.0.0.1:8080/
+
+You can run tests accessing this url:
+* http://127.0.0.1:8080/test.html
+
+Or by calling "npm test".
 
 ### Compatibility:
 

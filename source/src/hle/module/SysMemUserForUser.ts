@@ -110,12 +110,10 @@ export class SysMemUserForUser {
 		var memory = this.context.memory;
 		var gpr = thread.state.gpr;
 
-		var readParam = (type) => {
+		var readParam = (type:string) => {
 			switch (type) {
-				case '%s':
-					return memory.readStringz(gpr[gprIndex++]);
-				case '%d':
-					return String(gpr[gprIndex++]);
+				case '%s': return memory.readStringz(gpr[gprIndex++]);
+				case '%d': return String(gpr[gprIndex++]);
 			}
 			return '??[' + type + ']??';
 		};

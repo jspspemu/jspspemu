@@ -21,8 +21,8 @@ describe('vag', () => {
 		var expected = Stream.fromUint8Array(vagDataExpected)
 		vag.reset();
 		expected.position = 0;
-		var resultArray = [];
-		var expectedArray = [];
+		var resultArray:number[] = [];
+		var expectedArray:number[] = [];
 		while (vag.hasMore) {
 			var sample = vag.getNextSample();
 			var expectedLeft = expected.readInt16();

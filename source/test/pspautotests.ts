@@ -115,12 +115,12 @@ describe('pspautotests', function () {
 		return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
 	}
 
-	function compareLines2(lines1, lines2) {
-		return new difflib.SequenceMatcher(lines1, lines2).get_opcodes();
+	function compareLines2(lines1:string[], lines2:string[]) {
+		return new (<any>difflib.SequenceMatcher)(lines1, lines2).get_opcodes();
 	}
 
-	function compareText2(text1, text2) {
-		return new difflib.SequenceMatcher(difflib.stringAsLines(text1), difflib.stringAsLines(text2)).get_opcodes();
+	function compareText2(text1:string, text2:string) {
+		return new (<any>difflib.SequenceMatcher)(difflib.stringAsLines(text1), difflib.stringAsLines(text2)).get_opcodes();
 	}
 
 	function compareOutput(name: string, output: string, expected: string) {
@@ -179,7 +179,7 @@ describe('pspautotests', function () {
 		}
 		var distinctLines = totalLines - equalLines;
 
-		var table = [];
+		var table:any[] = [];
 		for (var n = 0; n < Math.max(outputLines.length, expectedLines.length); n++) {
 			table[n + 1] = { output: outputLines[n], expected: expectedLines[n] };
 		}
@@ -187,7 +187,7 @@ describe('pspautotests', function () {
 		console.groupEnd();
 
 		console.groupCollapsed(name + ' (TEST RESULT TABLE)');
-		if (console['table']) console['table'](table);
+		if ((<any>console)['table']) (<any>console)['table'](table);
 		console.groupEnd();
 
 
@@ -199,9 +199,9 @@ describe('pspautotests', function () {
 	tests.forEach((testGroup) => {
 		_.keys(testGroup).forEach(testGroupName => {
 			describe(testGroupName, function () {
-				var testNameList: string[] = testGroup[testGroupName];
+				var testNameList:any[] = (<any>testGroup)[testGroupName];
 
-				testNameList.forEach(testName => {
+				testNameList.forEach((testName:any) => {
 					it(testName, function() {
 						this.timeout(15000);
 

@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es5",
+        "noImplicitAny": true,
+        "removeComments": true,
+        "outDir": "../js"
+    },
+ 
+    "files": [
+        "bootstrap.ts"
+    ]
+}

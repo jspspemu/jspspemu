@@ -76,10 +76,10 @@ export class sceGe_user {
 }
 
 class CallbackData {
-	signalFunction; // GE callback for the signal interrupt alias void function(int id, void *arg) PspGeCallback;
-	signalArgument; // GE callback argument for signal interrupt
-	finishFunction; // GE callback for the finish interrupt alias void function(int id, void *arg) PspGeCallback;
-	finishArgument; // GE callback argument for finish interrupt
+	signalFunction:number; // GE callback for the signal interrupt alias void function(int id, void *arg) PspGeCallback;
+	signalArgument:number; // GE callback argument for signal interrupt
+	finishFunction:number; // GE callback for the finish interrupt alias void function(int id, void *arg) PspGeCallback;
+	finishArgument:number; // GE callback argument for finish interrupt
 
 	static struct = StructClass.create<CallbackData>(CallbackData, [
 		{ signalFunction: UInt32 },
