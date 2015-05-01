@@ -5186,7 +5186,6 @@ var CpuState = (function () {
         this.gpr_Buffer = new ArrayBuffer(32 * 4);
         this.gpr = new Int32Array(this.gpr_Buffer);
         this.gpr_f = new Float32Array(this.gpr_Buffer);
-        this.executeAtPCBinded = null;
         this.jumpCall = null;
         this.temp = new Array(16);
         this.fpr_Buffer = new ArrayBuffer(32 * 4);
@@ -5219,7 +5218,6 @@ var CpuState = (function () {
         this.icache = new InstructionCache(memory, syscallManager);
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
-        this.executeAtPCBinded = this.executeAtPC.bind(this);
     }
     CpuState.prototype.clone = function () {
         var that = new CpuState(this.memory, this.syscallManager);
@@ -5808,6 +5806,13 @@ var PspInstructionStm = (function (_super) {
     PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.di, this.code.optimize()); };
     return PspInstructionStm;
 })(_ast.ANodeStm);
+var CpuFunctionWithArgs = (function () {
+    function CpuFunctionWithArgs(func, args) {
+        this.func = func;
+        this.args = args;
+    }
+    return CpuFunctionWithArgs;
+})();
 var InvalidatableCpuFunction = (function () {
     function InvalidatableCpuFunction(PC, generator) {
         this.PC = PC;
@@ -5818,7 +5823,7 @@ var InvalidatableCpuFunction = (function () {
     InvalidatableCpuFunction.prototype.execute = function (state) {
         if (this.func == null)
             this.func = this.generator(this.PC);
-        this.func(state);
+        this.func.func(state, this.func.args);
     };
     return InvalidatableCpuFunction;
 })();
@@ -5829,7 +5834,7 @@ var InstructionCache = (function () {
         this.syscallManager = syscallManager;
         this.cache = {};
         this.functions = {};
-        this.functionGenerator = new FunctionGenerator(memory, syscallManager);
+        this.functionGenerator = new FunctionGenerator(memory, syscallManager, this);
         this.createBind = this.create.bind(this);
     }
     InstructionCache.prototype.invalidateAll = function () {
@@ -5851,7 +5856,7 @@ var InstructionCache = (function () {
         if (!func) {
             this.functions[info.min] = func = this.functionGenerator.getFunction(info);
         }
-        return func.func;
+        return func.fargs;
     };
     InstructionCache.prototype.getFunction = function (address) {
         address &= Memory.MASK;
@@ -5864,17 +5869,26 @@ var InstructionCache = (function () {
 })();
 exports.InstructionCache = InstructionCache;
 var FunctionGeneratorResult = (function () {
-    function FunctionGeneratorResult(func, code, info) {
+    function FunctionGeneratorResult(func, code, info, fargs) {
         this.func = func;
         this.code = code;
         this.info = info;
+        this.fargs = fargs;
     }
     return FunctionGeneratorResult;
 })();
+var FunctionCode = (function () {
+    function FunctionCode(code, args) {
+        this.code = code;
+        this.args = args;
+    }
+    return FunctionCode;
+})();
 var FunctionGenerator = (function () {
-    function FunctionGenerator(memory, syscallManager) {
+    function FunctionGenerator(memory, syscallManager, instructionCache) {
         this.memory = memory;
         this.syscallManager = syscallManager;
+        this.instructionCache = instructionCache;
         this.instructions = _instructions.Instructions.instance;
         this.instructionAst = new _codegen.InstructionAst();
         this.instructionUsageCount = {};
@@ -5913,10 +5927,12 @@ var FunctionGenerator = (function () {
     FunctionGenerator.prototype.getFunction = function (info) {
         var code = this.getFunctionCode(info);
         try {
-            return new FunctionGeneratorResult((new Function('state', '"use strict";' + code)), code, info);
+            var func = (new Function('state', 'args', '"use strict";' + code.code));
+            return new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
         }
         catch (e) {
-            console.info('code:\n', code);
+            console.info('code:\n', code.code);
+            console.info('args:\n', code.args);
             throw (e);
         }
     };
@@ -5968,9 +5984,9 @@ var FunctionGenerator = (function () {
         return info;
     };
     FunctionGenerator.prototype.getFunctionCode = function (info) {
-        var _this = this;
+        var args = {};
         if (info.start == CpuSpecialAddresses.EXIT_THREAD)
-            return "state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();";
+            return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
         var func = ast.func([ast.functionPrefix()]);
         var labels = {};
         for (var labelPC in info.labels)
@@ -5980,31 +5996,9 @@ var FunctionGenerator = (function () {
             var di = this.decodeInstruction(info.min);
             var di2 = this.decodeInstruction(info.min + 4);
             if (di.type.name == 'jr' && di2.type.name == 'syscall') {
-                return 'state.PC = state.RA; state.syscall(' + di2.instruction.syscall + ');';
+                return new FunctionCode('state.PC = state.RA; state.syscall(' + di2.instruction.syscall + ');', args);
             }
         }
-        var postBranch = function (PC) {
-            if (type.isJal) {
-                func.add(ast.raw('if (state.BRANCHFLAG) {'));
-                func.add(ast.raw('state.jumpCall = null;'));
-                func.add(ast.raw("state.PC = state.BRANCHPC & " + Memory.MASK + ";"));
-                func.add(ast.raw("var cachefunc_" + PC + " = null, cachepc_" + PC + " = -1;"));
-                func.add(ast.raw("if (cachepc_" + PC + " != state.BRANCHPC) { cachepc_" + PC + " = state.PC; cachefunc_" + PC + " = state.getFunction(state.BRANCHPC); }"));
-                func.add(ast.raw("cachefunc_" + PC + ".execute(state);"));
-                func.add(ast.raw("while (((state.PC & " + Memory.MASK + ") != " + (PC + 8) + ") && (state.jumpCall != null)) state.jumpCall.execute(state);"));
-                func.add(ast.raw("if ((state.PC & " + Memory.MASK + ") != " + (PC + 8) + ") throw new Error(\"Invalid call\");"));
-                func.add(ast.raw('}'));
-            }
-            else if (type.isJump) {
-                func.add(ast.raw('if (state.BRANCHFLAG) {'));
-                func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
-                func.add(ast.raw('return;'));
-                func.add(ast.raw('}'));
-            }
-            else {
-                func.add(_this.instructionAst._postBranch2(PC + 8));
-            }
-        };
         for (var PC = info.min; PC <= info.max; PC += 4) {
             var di = this.decodeInstruction(PC);
             var type = di.type;
@@ -6015,23 +6009,71 @@ var FunctionGenerator = (function () {
             if (type.name == 'syscall') {
                 func.add(ast.raw("state.PC = " + (PC + 4) + ";"));
             }
-            func.add(ins);
             if (type.hasDelayedBranch) {
-                var di2 = this.decodeInstruction(PC + 4);
-                var delayedSlotInstruction = this.generatePspInstruction(di2);
-                if (di2.type.isSyscall) {
-                    postBranch(PC);
-                    func.add(ast.raw('/* SYSCALL(' + di2.instruction.syscall + '): ' + this.syscallManager.getName(di2.instruction.syscall) + ' */'));
-                    func.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+                var delayedSlotInstruction = this.generatePspInstruction(this.decodeInstruction(PC + 4));
+                var delayedCode = this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction);
+                if (type.name == 'jal' || type.name == 'j') {
+                    var targetAddress = di.targetAddress & Memory.MASK;
+                    var linkAddress = (PC + 8) & Memory.MASK;
+                    func.add(delayedCode);
+                    var cachefuncName = "cache_" + targetAddress;
+                    args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
+                    func.add(ast.raw("state.PC = " + targetAddress + ";"));
+                    if (type.name == 'j') {
+                        if (labels[targetAddress]) {
+                            func.add(ast.raw("state.jumpCall = args." + cachefuncName + ";"));
+                            func.add(ast.djump(ast.raw("" + targetAddress)));
+                        }
+                        else {
+                            func.add(ast.raw("state.jumpCall = args." + cachefuncName + ";"));
+                            func.add(ast.raw("return;"));
+                        }
+                    }
+                    else {
+                        func.add(ast.raw("var expectedRA = state.RA = " + linkAddress + " & " + Memory.MASK + ";"));
+                        func.add(ast.raw('state.jumpCall = null;'));
+                        func.add(ast.raw("args." + cachefuncName + ".execute(state);"));
+                        func.add(ast.raw("while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);"));
+                        func.add(ast.raw("if (state.PC != expectedRA) throw new Error(\"Invalid call\");"));
+                    }
+                }
+                else if (type.isJal) {
+                    func.add(ins);
+                    func.add(delayedCode);
+                    func.add(ast.raw('if (state.BRANCHFLAG) {'));
+                    func.add(ast.raw('state.jumpCall = null;'));
+                    func.add(ast.raw("state.PC = state.BRANCHPC & " + Memory.MASK + ";"));
+                    func.add(ast.raw("var expectedRA = state.RA;"));
+                    var cachefuncName = "cachefunc_" + PC;
+                    var cacheaddrName = "cacheaddr_" + PC;
+                    args[cachefuncName] = null;
+                    args[cacheaddrName] = -1;
+                    func.add(ast.raw("if (args." + cacheaddrName + " != state.PC) args." + cachefuncName + " = state.getFunction(args." + cacheaddrName + " = state.PC);"));
+                    func.add(ast.raw("args." + cachefuncName + ".execute(state);"));
+                    func.add(ast.raw("while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);"));
+                    func.add(ast.raw("if (state.PC != expectedRA) throw new Error(\"Invalid call\");"));
+                    func.add(ast.raw('}'));
+                }
+                else if (type.isJump) {
+                    func.add(ins);
+                    func.add(delayedCode);
+                    func.add(ast.raw('if (state.BRANCHFLAG) {'));
+                    func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
+                    func.add(ast.raw('return;'));
+                    func.add(ast.raw('}'));
                 }
                 else {
-                    func.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                    postBranch(PC);
+                    func.add(ins);
+                    func.add(delayedCode);
+                    func.add(this.instructionAst._postBranch2(PC + 8));
                 }
                 PC += 4;
             }
+            else {
+                func.add(ins);
+            }
         }
-        return func.toJs();
+        return new FunctionCode(func.toJs(), args);
     };
     return FunctionGenerator;
 })();
@@ -23304,6 +23346,17 @@ describe('testasm cpu running', function () {
             "add r1, r1, r1",
             ":end",
         ], { "$1": 2 });
+    });
+    it('j_inside', function () {
+        assertProgram("j_inside", { "$1": 0, "$2": 20 }, [
+            ":start",
+            "addi r1, r1, 1",
+            "beq r1, r2, end",
+            "nop",
+            "j start",
+            "nop",
+            ":end",
+        ], { "$1": 20 });
     });
     it('shift', function () {
     });

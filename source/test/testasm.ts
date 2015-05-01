@@ -158,6 +158,23 @@ describe('testasm cpu running', function () {
         );
     });
 
+    it('j_inside', function () {
+        assertProgram(
+            "j_inside",
+            { "$1": 0, "$2": 20 },
+            [
+                ":start",
+                "addi r1, r1, 1",
+                "beq r1, r2, end",
+                "nop",
+                "j start",
+                "nop",
+                ":end",
+            ],
+            { "$1": 20 }
+        );
+    });
+
     it('shift', function () {
     });
 
