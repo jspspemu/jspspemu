@@ -56,7 +56,7 @@ export class NativeFunction {
 }
 	
 export class SyscallManager {
-    private calls: any = {};
+    private calls: NumberDictionary<NativeFunction> = {};
     private lastId: number = 1;
 
 	constructor(public context: IEmulatorContext) {
@@ -70,6 +70,12 @@ export class SyscallManager {
         this.calls[id] = nativeFunction;
         return id;
     }
+	
+	getName(id:number) {
+		var c = this.calls[id];
+		if (c) return c.name;
+		return 'syscall_' + id;
+	}
 
 	call(state: CpuState, id: number) {
         var nativeFunction: NativeFunction = this.calls[id];
@@ -176,7 +182,7 @@ export enum VCondition {
 
 export class CpuState {
 	constructor(public memory: Memory, public syscallManager: SyscallManager) {
-		this.icache = new InstructionCache(memory);
+		this.icache = new InstructionCache(memory, syscallManager);
 		this.fcr0 = 0x00003351;
 		this.fcr31 = 0x00000e00;
 		this.executeAtPCBinded = this.executeAtPC.bind(this);
@@ -795,8 +801,8 @@ export class InstructionCache {
 	private functions: NumberDictionary<FunctionGeneratorResult> = {};
 	private createBind:IFunctionGenerator;
 
-	constructor(public memory: Memory) {
-		this.functionGenerator = new FunctionGenerator(memory);
+	constructor(public memory: Memory, public syscallManager: SyscallManager) {
+		this.functionGenerator = new FunctionGenerator(memory, syscallManager);
 		this.createBind = this.create.bind(this);
 	}
 
@@ -820,17 +826,20 @@ export class InstructionCache {
 		var func = this.functions[info.min];
 		if (!func) {
 			this.functions[info.min] = func = this.functionGenerator.getFunction(info);
+			/*
 			console.log('****************************************');
 			console.log('****************************************');
 			console.log(func.info);
 			console.log(func.code);
 			console.log('****************************************');
 			console.log('****************************************');
+			*/
 		} 
 		return func.func; 
 	}
 
 	getFunction(address: number):InvalidatableCpuFunction {
+		address &= Memory.MASK;
 		if (!this.cache[address]) {
 			this.cache[address] = new InvalidatableCpuFunction(address, this.createBind);
 		}
@@ -848,7 +857,7 @@ export class FunctionGenerator {
 	//private instructionGenerartorsByName = <StringDictionary<Function>>{ };
 	private instructionUsageCount: StringDictionary<number> = {};
 
-	constructor(public memory: Memory) {
+	constructor(public memory: Memory, public syscallManager:SyscallManager) {
 	}
 
 	getInstructionUsageCount(): InstructionUsage[] {
@@ -956,39 +965,61 @@ export class FunctionGenerator {
 		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
 		for (let labelPC in info.labels) labels[labelPC] = ast.label(labelPC);
 		
-		func.add(ast.djump(ast.raw('state.PC')));
+		func.add(ast.djump(ast.raw('state.PC & ' + Memory.MASK)));
+		
+		if ((info.max - info.min) == 4) {
+			var di = this.decodeInstruction(info.min);
+			var di2 = this.decodeInstruction(info.min + 4);
+			if (di.type.name == 'jr' && di2.type.name == 'syscall') {
+				return 'state.PC = state.RA; state.syscall(' + di2.instruction.syscall + ');';
+			}
+		}
+		
+		var postBranch = (PC:number) => {
+			if (type.isJal) {
+				func.add(ast.raw('if (state.BRANCHFLAG) {'));
+				func.add(ast.raw('state.jumpCall = null;'));
+				func.add(ast.raw(`state.PC = state.BRANCHPC & ${Memory.MASK};`));
+				func.add(ast.raw(`var cachefunc_${PC} = null, cachepc_${PC} = -1;`));
+				func.add(ast.raw(`if (cachepc_${PC} != state.BRANCHPC) { cachepc_${PC} = state.PC; cachefunc_${PC} = state.getFunction(state.BRANCHPC); }`));
+				func.add(ast.raw(`cachefunc_${PC}.execute(state);`));
+				func.add(ast.raw(`while (((state.PC & ${Memory.MASK}) != ${PC + 8}) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
+				// @TODO: should return to the main loop
+				func.add(ast.raw(`if ((state.PC & ${Memory.MASK}) != ${PC + 8}) throw new Error("Invalid call");`));
+				func.add(ast.raw('}'));
+			} else if (type.isJump) {
+				func.add(ast.raw('if (state.BRANCHFLAG) {'));
+				func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
+				func.add(ast.raw('return;'));
+				func.add(ast.raw('}'));
+			} else {
+				func.add(this.instructionAst._postBranch2(PC + 8));
+			}
+		};
 
 		for (let PC = info.min; PC <= info.max; PC += 4) {
 			var di = this.decodeInstruction(PC);
 			var type = di.type;
 			var ins = this.generatePspInstruction(di);
 			var delayedSlotInstruction: PspInstructionStm;
-			if (type.hasDelayedBranch) delayedSlotInstruction = this.generatePspInstruction(this.decodeInstruction(PC + 4));
 			if (labels[PC]) func.add(labels[PC]);
-			if (di.type.name == 'syscall') {
+			if (type.name == 'syscall') {
 				func.add(ast.raw(`state.PC = ${PC + 4};`));
 			}
 			func.add(ins);
 			if (type.hasDelayedBranch) {
-				func.add(this.instructionAst._likely(type.isLikely, delayedSlotInstruction));
-				if (type.isJal) {
-					func.add(ast.raw('if (state.BRANCHFLAG) {'));
-					func.add(ast.raw('state.jumpCall = null;'));
-					func.add(ast.raw('state.PC = state.BRANCHPC;'));
-					func.add(ast.raw(`var cachefunc_${PC} = null, cachepc_${PC} = -1;`));
-					func.add(ast.raw(`if (cachepc_${PC} != state.BRANCHPC) { cachepc_${PC} = state.BRANCHPC; cachefunc_${PC} = state.getFunction(state.BRANCHPC); }`));
-					func.add(ast.raw(`cachefunc_${PC}.execute(state);`));
-					func.add(ast.raw(`while ((state.PC != ${PC + 8}) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
-					// @TODO: should return to the main loop
-					func.add(ast.raw(`if (state.PC != ${PC + 8}) throw new Error("Invalid call");`));
-					func.add(ast.raw('}'));
-				} else if (type.isJump) {
-					func.add(ast.raw('if (state.BRANCHFLAG) {'));
-					func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
-					func.add(ast.raw('return;'));
-					func.add(ast.raw('}'));
+				var di2 = this.decodeInstruction(PC + 4);
+				var delayedSlotInstruction = this.generatePspInstruction(di2);
+								
+				if (di2.type.isSyscall) {
+					postBranch(PC);
+					func.add(ast.raw('/* SYSCALL(' + di2.instruction.syscall + '): ' + this.syscallManager.getName(di2.instruction.syscall) + ' */'));
+					//func.add(ast.raw_stm('if (!state.BRANCHFLAG) return;'));
+					func.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
 				} else {
-					func.add(this.instructionAst._postBranch2(PC + 8));
+					func.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
+					postBranch(PC);
+					//func.add(ast.raw_stm('if (!state.BRANCHFLAG) return;'));
 				}
 
 				PC += 4;
