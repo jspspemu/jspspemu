@@ -80,6 +80,7 @@ export class InstructionType {
 	get isBranch() { return this.isInstructionType(INSTR_TYPE_B); }
 	get isCall() { return this.isInstructionType(INSTR_TYPE_JAL); }
 	get isJump() { return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP); }
+	get isJumpNoLink() { return this.isInstructionType(INSTR_TYPE_JUMP); }
 	get isJal() { return this.isInstructionType(INSTR_TYPE_JAL); }
 	get isJumpOrBranch() { return this.isBranch || this.isJump; }
 	get isLikely() { return this.isInstructionType(INSTR_TYPE_LIKELY); }
@@ -674,9 +675,8 @@ export class Instruction {
 	get jump_bits() { return this.extract(0, 26); } set jump_bits(value: number) { this.insert(0, 26, value); }
 	get jump_real() { return (this.jump_bits * 4) >>> 0; } set jump_real(value: number) { this.jump_bits = (value / 4) >>> 0; }
 	
-	set branch_address(value:number) {
-		this.imm16 = (value - this.PC - 4) / 4;
-	}
+	set branch_address(value:number) { this.imm16 = (value - this.PC - 4) / 4; }
+	set jump_address(value:number) { this.u_imm26 = value / 4; }
 	
 	get branch_address() { return this.PC + this.imm16 * 4 + 4; }
 	get jump_address() { return this.u_imm26 * 4; }

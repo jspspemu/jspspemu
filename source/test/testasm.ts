@@ -143,13 +143,11 @@ describe('testasm cpu running', function () {
             "jal",
             { "$1": 0 },
             [
-                ":label1",
                 "jal func1",
                 "addi r1, r0, 1",
 
                 "j end",
-                "nop",
-                
+                "nop",                
                 ":func1",
                 "jr r31",
                 "add r1, r1, r1",

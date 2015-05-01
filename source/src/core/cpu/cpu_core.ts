@@ -792,6 +792,7 @@ export class InvalidatableCpuFunction {
 export class InstructionCache {
 	functionGenerator: FunctionGenerator;
 	private cache: NumberDictionary<InvalidatableCpuFunction> = {};
+	private functions: NumberDictionary<FunctionGeneratorResult> = {};
 	private createBind:IFunctionGenerator;
 
 	constructor(public memory: Memory) {
@@ -800,16 +801,33 @@ export class InstructionCache {
 	}
 
 	invalidateAll() {
-		for (var key in this.cache) this.cache[key].invalidate();
+		for (var pc in this.cache) {
+			this.cache[pc].invalidate();
+			delete this.functions[pc];
+		}
 	}
 
 	invalidateRange(from: number, to: number) {
-		for (var n = from; n < to; n += 4) this.cache[n].invalidate();
+		for (var pc = from; pc < to; pc += 4) {
+			if (this.cache[pc]) this.cache[pc].invalidate();
+			delete this.functions[pc];
+		}
 	}
 	
 	private create(address:number): ICpuFunction {
 		// @TODO: check if we have a function in this range already range already!
-		return this.functionGenerator.create(address).func;
+		var info = this.functionGenerator.getFunctionInfo(address);
+		var func = this.functions[info.min];
+		if (!func) {
+			this.functions[info.min] = func = this.functionGenerator.getFunction(info);
+			console.log('****************************************');
+			console.log('****************************************');
+			console.log(func.info);
+			console.log(func.code);
+			console.log('****************************************');
+			console.log('****************************************');
+		} 
+		return func.func; 
 	}
 
 	getFunction(address: number):InvalidatableCpuFunction {
@@ -821,7 +839,7 @@ export class InstructionCache {
 }
 
 class FunctionGeneratorResult {
-	constructor(public func: ICpuFunction, public info: FunctionInfo) { }
+	constructor(public func: ICpuFunction, public code:string, public info: FunctionInfo) { }
 }
 
 export class FunctionGenerator {
@@ -866,30 +884,21 @@ export class FunctionGenerator {
 	}
 
 	create(address: number): FunctionGeneratorResult {
-		switch (address) {
-			case CpuSpecialAddresses.EXIT_THREAD:
-				return new FunctionGeneratorResult(
-					(state: CpuState) => { state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException(); },
-					{ start: address, min :address, max: address + 4, labels: {} }
-				);
-			default:
-				var info = this._getFunctionInfo(address);
-				var code = this._getFunctionCode(info);
-				console.log('-----------------------------------------------------------------------------');
-				console.log('-----------------------------------------------------------------------------');
-				console.log(code);
-				console.log('-----------------------------------------------------------------------------');
-				console.log('-----------------------------------------------------------------------------');
-				try {
-					return new FunctionGeneratorResult(<any>(new Function('state', '"use strict";' + code)), info);
-				} catch (e) {
-					//console.info('code:\n', code);
-					throw (e);
-				}
+		return this.getFunction(this.getFunctionInfo(address));
+	}
+	
+	getFunction(info: FunctionInfo): FunctionGeneratorResult {
+		var code = this.getFunctionCode(info);
+		try {
+			return new FunctionGeneratorResult(<ICpuFunction>(new Function('state', '"use strict";' + code)), code, info);
+		} catch (e) {
+			console.info('code:\n', code);
+			throw (e);
 		}
 	}
 
-	private _getFunctionInfo(address: number): FunctionInfo {
+	getFunctionInfo(address: number): FunctionInfo {
+		if (address == CpuSpecialAddresses.EXIT_THREAD) return { start: address, min :address, max: address + 4, labels: {} };
 		if (address == 0x00000000) throw (new Error("Trying to execute 0x00000000"));
 
 		const explored: NumberDictionary<Boolean> = {};
@@ -907,24 +916,31 @@ export class FunctionGenerator {
 		while (explore.length > 0) {
 			var PC = explore.shift();
 			var di = this.decodeInstruction(PC);
+			var type = di.type;
 			info.min = Math.min(info.min, PC);
 			info.max = Math.max(info.max, PC + 4); // delayed branch
 			
 			//printf("PC: %08X: %s", PC, di.type.name);
 			if (++exploredCount >= MAX_EXPLORE) throw new Error(`Function too big ${exploredCount}`);
 
-			if (di.type.isBranch) {
-				if (!di.type.isRegister) {
-					info.labels[di.targetAddress] = true;
-					addToExplore(di.targetAddress);
-				}
-				if (!di.isUnconditional) addToExplore(PC + 4);
+			var exploreNext = true;			
+			var exploreTarget = type.isBranch && !type.isRegister;
+			
+			if (type.isFixedAddressJump && explored[di.targetAddress]) exploreTarget = true;
+			if (type.isBreak) exploreNext = false;
+			if (type.isJumpNoLink) exploreNext = false;
+			if (di.isUnconditional) exploreNext = false;
+			
+			// It is a local jump, a long loop for example
+			
+			if (exploreTarget) {
+				info.labels[di.targetAddress] = true;
+				addToExplore(di.targetAddress);
 				info.labels[PC + 8] = true;
-			} else if (di.type.isJump || di.type.isBreak) {
-				// Do nothing
-			} else {
-				addToExplore(PC + 4);
 			}
+			if (exploreNext) {
+				addToExplore(PC + 4);
+			} 
 		}
 		
 		info.labels[info.start] = true;
@@ -933,7 +949,9 @@ export class FunctionGenerator {
 		return info;
 	}
 
-	private _getFunctionCode(info: FunctionInfo) {
+	getFunctionCode(info: FunctionInfo) {
+		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return "state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();";
+		
 		var func = ast.func([ast.functionPrefix()]);
 		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
 		for (let labelPC in info.labels) labels[labelPC] = ast.label(labelPC);
@@ -947,6 +965,9 @@ export class FunctionGenerator {
 			var delayedSlotInstruction: PspInstructionStm;
 			if (type.hasDelayedBranch) delayedSlotInstruction = this.generatePspInstruction(this.decodeInstruction(PC + 4));
 			if (labels[PC]) func.add(labels[PC]);
+			if (di.type.name == 'syscall') {
+				func.add(ast.raw(`state.PC = ${PC + 4};`));
+			}
 			func.add(ins);
 			if (type.hasDelayedBranch) {
 				func.add(this.instructionAst._likely(type.isLikely, delayedSlotInstruction));

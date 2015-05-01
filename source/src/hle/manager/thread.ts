@@ -234,6 +234,7 @@ export class Thread {
 		try {
 			this.state.executeAtPC();
 		} catch (e) {
+			if (e instanceof CpuBreakException) return;
 			console.error(e);
 			console.error(e['stack']);
 			this.stop('error:' + e);

@@ -3536,8 +3536,10 @@ var MipsAssembler = (function () {
                 instruction.syscall = this.decodeInteger(value);
                 break;
             case '%O':
-            case '%j':
                 instruction.branch_address = labels.labels[value];
+                break;
+            case '%j':
+                instruction.jump_address = labels.labels[value];
                 break;
             default: throw ("MipsAssembler.Update: Unknown type '" + type + "' with value '" + value + "'");
         }
@@ -5817,19 +5819,36 @@ var InstructionCache = (function () {
     function InstructionCache(memory) {
         this.memory = memory;
         this.cache = {};
+        this.functions = {};
         this.functionGenerator = new FunctionGenerator(memory);
         this.createBind = this.create.bind(this);
     }
     InstructionCache.prototype.invalidateAll = function () {
-        for (var key in this.cache)
-            this.cache[key].invalidate();
+        for (var pc in this.cache) {
+            this.cache[pc].invalidate();
+            delete this.functions[pc];
+        }
     };
     InstructionCache.prototype.invalidateRange = function (from, to) {
-        for (var n = from; n < to; n += 4)
-            this.cache[n].invalidate();
+        for (var pc = from; pc < to; pc += 4) {
+            if (this.cache[pc])
+                this.cache[pc].invalidate();
+            delete this.functions[pc];
+        }
     };
     InstructionCache.prototype.create = function (address) {
-        return this.functionGenerator.create(address).func;
+        var info = this.functionGenerator.getFunctionInfo(address);
+        var func = this.functions[info.min];
+        if (!func) {
+            this.functions[info.min] = func = this.functionGenerator.getFunction(info);
+            console.log('****************************************');
+            console.log('****************************************');
+            console.log(func.info);
+            console.log(func.code);
+            console.log('****************************************');
+            console.log('****************************************');
+        }
+        return func.func;
     };
     InstructionCache.prototype.getFunction = function (address) {
         if (!this.cache[address]) {
@@ -5841,8 +5860,9 @@ var InstructionCache = (function () {
 })();
 exports.InstructionCache = InstructionCache;
 var FunctionGeneratorResult = (function () {
-    function FunctionGeneratorResult(func, info) {
+    function FunctionGeneratorResult(func, code, info) {
         this.func = func;
+        this.code = code;
         this.info = info;
     }
     return FunctionGeneratorResult;
@@ -5883,26 +5903,21 @@ var FunctionGenerator = (function () {
         return func.call(this.instructionAst, instruction, di);
     };
     FunctionGenerator.prototype.create = function (address) {
-        switch (address) {
-            case CpuSpecialAddresses.EXIT_THREAD:
-                return new FunctionGeneratorResult(function (state) { state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException(); }, { start: address, min: address, max: address + 4, labels: {} });
-            default:
-                var info = this._getFunctionInfo(address);
-                var code = this._getFunctionCode(info);
-                console.log('-----------------------------------------------------------------------------');
-                console.log('-----------------------------------------------------------------------------');
-                console.log(code);
-                console.log('-----------------------------------------------------------------------------');
-                console.log('-----------------------------------------------------------------------------');
-                try {
-                    return new FunctionGeneratorResult((new Function('state', '"use strict";' + code)), info);
-                }
-                catch (e) {
-                    throw (e);
-                }
+        return this.getFunction(this.getFunctionInfo(address));
+    };
+    FunctionGenerator.prototype.getFunction = function (info) {
+        var code = this.getFunctionCode(info);
+        try {
+            return new FunctionGeneratorResult((new Function('state', '"use strict";' + code)), code, info);
+        }
+        catch (e) {
+            console.info('code:\n', code);
+            throw (e);
         }
     };
-    FunctionGenerator.prototype._getFunctionInfo = function (address) {
+    FunctionGenerator.prototype.getFunctionInfo = function (address) {
+        if (address == CpuSpecialAddresses.EXIT_THREAD)
+            return { start: address, min: address, max: address + 4, labels: {} };
         if (address == 0x00000000)
             throw (new Error("Trying to execute 0x00000000"));
         var explored = {};
@@ -5919,22 +5934,27 @@ var FunctionGenerator = (function () {
         while (explore.length > 0) {
             var PC = explore.shift();
             var di = this.decodeInstruction(PC);
+            var type = di.type;
             info.min = Math.min(info.min, PC);
             info.max = Math.max(info.max, PC + 4);
             if (++exploredCount >= MAX_EXPLORE)
                 throw new Error("Function too big " + exploredCount);
-            if (di.type.isBranch) {
-                if (!di.type.isRegister) {
-                    info.labels[di.targetAddress] = true;
-                    addToExplore(di.targetAddress);
-                }
-                if (!di.isUnconditional)
-                    addToExplore(PC + 4);
+            var exploreNext = true;
+            var exploreTarget = type.isBranch && !type.isRegister;
+            if (type.isFixedAddressJump && explored[di.targetAddress])
+                exploreTarget = true;
+            if (type.isBreak)
+                exploreNext = false;
+            if (type.isJumpNoLink)
+                exploreNext = false;
+            if (di.isUnconditional)
+                exploreNext = false;
+            if (exploreTarget) {
+                info.labels[di.targetAddress] = true;
+                addToExplore(di.targetAddress);
                 info.labels[PC + 8] = true;
             }
-            else if (di.type.isJump || di.type.isBreak) {
-            }
-            else {
+            if (exploreNext) {
                 addToExplore(PC + 4);
             }
         }
@@ -5942,7 +5962,9 @@ var FunctionGenerator = (function () {
         info.labels[info.min] = true;
         return info;
     };
-    FunctionGenerator.prototype._getFunctionCode = function (info) {
+    FunctionGenerator.prototype.getFunctionCode = function (info) {
+        if (info.start == CpuSpecialAddresses.EXIT_THREAD)
+            return "state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();";
         var func = ast.func([ast.functionPrefix()]);
         var labels = {};
         for (var labelPC in info.labels)
@@ -5957,6 +5979,9 @@ var FunctionGenerator = (function () {
                 delayedSlotInstruction = this.generatePspInstruction(this.decodeInstruction(PC + 4));
             if (labels[PC])
                 func.add(labels[PC]);
+            if (di.type.name == 'syscall') {
+                func.add(ast.raw("state.PC = " + (PC + 4) + ";"));
+            }
             func.add(ins);
             if (type.hasDelayedBranch) {
                 func.add(this.instructionAst._likely(type.isLikely, delayedSlotInstruction));
@@ -6089,6 +6114,11 @@ var InstructionType = (function () {
     });
     Object.defineProperty(InstructionType.prototype, "isJump", {
         get: function () { return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isJumpNoLink", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_JUMP); },
         enumerable: true,
         configurable: true
     });
@@ -6716,14 +6746,13 @@ var Instruction = (function () {
     });
     Object.defineProperty(Instruction.prototype, "branch_address", {
         get: function () { return this.PC + this.imm16 * 4 + 4; },
-        set: function (value) {
-            this.imm16 = (value - this.PC - 4) / 4;
-        },
+        set: function (value) { this.imm16 = (value - this.PC - 4) / 4; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_address", {
         get: function () { return this.u_imm26 * 4; },
+        set: function (value) { this.u_imm26 = value / 4; },
         enumerable: true,
         configurable: true
     });
@@ -15922,6 +15951,8 @@ var Thread = (function () {
             this.state.executeAtPC();
         }
         catch (e) {
+            if (e instanceof CpuBreakException)
+                return;
             console.error(e);
             console.error(e['stack']);
             this.stop('error:' + e);
@@ -23241,7 +23272,6 @@ describe('testasm cpu running', function () {
     });
     it('jal', function () {
         assertProgram("jal", { "$1": 0 }, [
-            ":label1",
             "jal func1",
             "addi r1, r0, 1",
             "j end",
