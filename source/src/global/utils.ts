@@ -791,6 +791,7 @@ class LoggerPolicies {
 	}
 }
 
+if (typeof global == 'undefined') global = window;
 var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;

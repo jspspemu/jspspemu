@@ -1,9 +1,5 @@
 ﻿///<reference path="../../global.d.ts" />
 
-import state = require('./state');
-
-import CpuState = state.CpuState;
-
 export class ANode {
 	toJs() { return ''; }
 	optimize() { return this; }
@@ -12,8 +8,34 @@ export class ANode {
 export class ANodeStm extends ANode {
 }
 
+export class ANodeStmLabel extends ANodeStm {
+	static lastId:number = 0;
+	id:number = 0;
+	constructor(id?:number) {
+		super();
+		if (id === undefined) id = ANodeStmLabel.lastId++; 
+		this.id = id;
+	}
+	
+	toJs() {
+		return `case ${this.id}:`;
+	}
+}
+
+export class ANodeStmDynamicJump extends ANodeStm {
+	constructor(public node: ANodeExpr) { super(); }
+
+	toJs() {
+		return `loop_state = ${this.node.toJs()}; continue loop;`;
+	}
+}
+
 export class ANodeStmJump extends ANodeStm {
-	constructor(public label: number) { super(); }
+	constructor(public label: ANodeStmLabel) { super(); }
+
+	toJs() {
+		return `loop_state = ${this.label.id}; continue loop;`;
+	}
 }
 
 export class ANodeStmReturn extends ANodeStm {
@@ -21,47 +43,31 @@ export class ANodeStmReturn extends ANodeStm {
 }
 
 export class ANodeStmList extends ANodeStm {
-	labels: NumberDictionary<number> = {};
-
 	constructor(public childs: ANodeStm[]) { super(); }
-
-	createLabel(label: number) {
-		this.labels[label] = this.childs.length;
-		return this.childs.length;
-	}
 
 	add(node: ANodeStm) {
 		this.childs.push(node);
 	}
 
 	toJs() {
-		var jumpCount = 0;
-		var usedLabels:{[key:string]: boolean} = {};
-		for (var n = 0; n < this.childs.length; n++) {
-			var item = this.childs[n];
-			if (item instanceof ANodeStmJump) {
-				jumpCount++;
-				usedLabels[(<ANodeStmJump>item).label] = true;
-			}
-		}
-		if (jumpCount > 1) throw (new Error("Not supported more than one jump at this point!"));
+		return this.childs.map(c => c.toJs()).join("\n");
+	}
+}
 
-		var lines:string[] = [];
-		for (var n = 0; n < this.childs.length; n++) {
-			var child = this.childs[n];
-
-			if (usedLabels[n] !== undefined) {
-				lines.push('while(true) {');
-			}
-			//console.log(usedLabels);
-
+export class ANodeFunction extends ANodeStmList {
+	constructor(childs: ANodeStm[]) { super(childs); }
+	
+	toJs() {
+		let lines:string[] = [];
+		lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
+		lines.push('case 0:');
+		for (let child of this.childs) {
 			lines.push(child.toJs());
-
-			if (child instanceof ANodeStmJump) {
-				lines.push('}');
-			}
 		}
-		return lines.join("\n");
+		lines.push('break loop;');
+		lines.push('default: throw new Error("Invalid loop_state=" + loop_state);');
+		lines.push('}');
+		return lines.join('\n');
 	}
 }
 
@@ -206,10 +212,13 @@ export class AstBuilder {
 	u_imm32(value: number) { return new ANodeExprU32(value); }
 	stm(expr?: ANodeExpr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
+	func(stms: ANodeStm[]) { return new ANodeFunction(stms); }
 	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
 	arrayNumbers(values: number[]) { return this.array(values.map(value => this.imm_f(value))); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
-	jump(label: number) { return new ANodeStmJump(label); }
+	label(id?:number) { return new ANodeStmLabel(id); }
+	jump(label: ANodeStmLabel) { return new ANodeStmJump(label); }
+	djump(node: ANodeExpr) { return new ANodeStmDynamicJump(node); }
 	_return() { return new ANodeStmReturn(); }
 	raw_stm(content: string) { return new ANodeStmRaw(content); }
 	raw(content: string) { return new ANodeExprLValueVar(content); }

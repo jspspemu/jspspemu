@@ -795,6 +795,8 @@ var LoggerPolicies = (function () {
     };
     return LoggerPolicies;
 })();
+if (typeof global == 'undefined')
+    global = window;
 var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
@@ -2881,7 +2883,22 @@ var EmulatorContext = (function () {
         this.gameTitle = 'unknown';
         this.gameId = 'unknown';
     }
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, instructionCache, fileManager, rtc, callbackManager, moduleManager, config, interop, netManager) {
+    Object.defineProperty(EmulatorContext.prototype, "currentThread", {
+        get: function () { return this.threadManager.current; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(EmulatorContext.prototype, "currentState", {
+        get: function () { return this.currentThread.state; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(EmulatorContext.prototype, "currentInstructionCache", {
+        get: function () { return this.currentState.icache; },
+        enumerable: true,
+        configurable: true
+    });
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, fileManager, rtc, callbackManager, moduleManager, config, interop, netManager) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -2890,7 +2907,6 @@ var EmulatorContext = (function () {
         this.threadManager = threadManager;
         this.audio = audio;
         this.memory = memory;
-        this.instructionCache = instructionCache;
         this.fileManager = fileManager;
         this.rtc = rtc;
         this.callbackManager = callbackManager;
@@ -3385,56 +3401,61 @@ var HtmlKeyCodes = exports.HtmlKeyCodes;
 },
 "src/core/cpu": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _assembler = require('./cpu/assembler');
-_assembler.MipsAssembler;
-var _state = require('./cpu/state');
-_state.CpuState;
-var _executor = require('./cpu/executor');
-_executor.ProgramExecutor;
-var _icache = require('./cpu/icache');
-_icache.InstructionCache;
-var _syscall = require('./cpu/syscall');
-_syscall.SyscallManager;
-var _instructions = require('./cpu/instructions');
-_instructions.Instructions;
+var _assembler = require('./cpu/cpu_assembler');
+var _core = require('./cpu/cpu_core');
+var _instructions = require('./cpu/cpu_instructions');
 exports.MipsAssembler = _assembler.MipsAssembler;
 exports.MipsDisassembler = _assembler.MipsDisassembler;
-exports.CpuState = _state.CpuState;
-_state.CpuState;
-exports.CpuSpecialAddresses = _state.CpuSpecialAddresses;
-exports.ProgramExecutor = _executor.ProgramExecutor;
-exports.InstructionCache = _icache.InstructionCache;
-exports.SyscallManager = _syscall.SyscallManager;
+exports.CpuState = _core.CpuState;
+exports.CpuSpecialAddresses = _core.CpuSpecialAddresses;
+exports.SyscallManager = _core.SyscallManager;
 exports.Instruction = _instructions.Instruction;
 exports.Instructions = _instructions.Instructions;
-exports.NativeFunction = _syscall.NativeFunction;
+exports.NativeFunction = _core.NativeFunction;
 
 },
-"src/core/cpu/assembler": function(module, exports, require) {
+"src/core/cpu/cpu_assembler": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var instructions = require('./instructions');
+var instructions = require('./cpu_instructions');
 var Instructions = instructions.Instructions;
 var Instruction = instructions.Instruction;
+var Labels = (function () {
+    function Labels() {
+        this.labels = {};
+    }
+    return Labels;
+})();
 var MipsAssembler = (function () {
     function MipsAssembler() {
         this.instructions = Instructions.instance;
     }
-    MipsAssembler.prototype.assembleToMemory = function (memory, PC, lines) {
-        for (var n = 0; n < lines.length; n++) {
-            var instructions = this.assemble(PC, lines[n]);
-            for (var m = 0; m < instructions.length; m++) {
-                var instruction = instructions[m];
-                memory.writeInt32(PC, instruction.data);
-                PC += 4;
+    MipsAssembler.prototype.assembleToMemory = function (memory, startPC, lines) {
+        var labels = new Labels();
+        for (var n = 0; n < 2; n++) {
+            var PC = startPC;
+            for (var _i = 0; _i < lines.length; _i++) {
+                var line = lines[_i];
+                var instructions = this.assemble(PC, line, labels);
+                for (var _a = 0; _a < instructions.length; _a++) {
+                    var instruction = instructions[_a];
+                    memory.writeInt32(PC, instruction.data);
+                    PC += 4;
+                }
             }
         }
     };
-    MipsAssembler.prototype.assemble = function (PC, line) {
-        //console.log(line);
+    MipsAssembler.prototype.assemble = function (PC, line, labels) {
+        if (labels == null)
+            labels = new Labels();
+        if (line.substr(0, 1) == ':') {
+            labels.labels[line.substr(1)] = PC;
+            return [];
+        }
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
         switch (instructionName) {
+            case 'nop': return this.assemble(PC, 'sll r0, r0, 0');
             case 'li':
                 var parts = instructionArguments.split(',');
                 return this.assemble(PC, 'addiu ' + parts[0] + ', r0, ' + parts[1]);
@@ -3451,10 +3472,16 @@ var MipsAssembler = (function () {
                 case '%J':
                 case '%s':
                 case '%d':
-                case '%t': return '([$r]\\d+)';
-                case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-                case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%t':
+                    return '([$r]\\d+)';
+                case '%i':
+                case '%C':
+                case '%c':
+                case '%a':
+                    return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                case '%j':
+                case '%O':
+                    return '(\\w+)';
                 default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
         })
@@ -3467,7 +3494,7 @@ var MipsAssembler = (function () {
         for (var n = 0; n < types.length; n++) {
             var type = types[n];
             var match = matches[n + 1];
-            this.update(instruction, type, match);
+            this.update(instruction, type, match, labels);
         }
         return [instruction];
     };
@@ -3486,7 +3513,7 @@ var MipsAssembler = (function () {
             return parseInt(str.substr(2), 16);
         return parseInt(str, 10);
     };
-    MipsAssembler.prototype.update = function (instruction, type, value) {
+    MipsAssembler.prototype.update = function (instruction, type, value, labels) {
         switch (type) {
             case '%J':
             case '%s':
@@ -3498,6 +3525,7 @@ var MipsAssembler = (function () {
             case '%t':
                 instruction.rt = this.decodeRegister(value);
                 break;
+            case '%a':
             case '%i':
                 instruction.imm16 = this.decodeInteger(value);
                 break;
@@ -3507,7 +3535,11 @@ var MipsAssembler = (function () {
             case '%c':
                 instruction.syscall = this.decodeInteger(value);
                 break;
-            default: throw ("MipsAssembler.Update: Unknown type '" + type + "'");
+            case '%O':
+            case '%j':
+                instruction.branch_address = labels.labels[value];
+                break;
+            default: throw ("MipsAssembler.Update: Unknown type '" + type + "' with value '" + value + "'");
         }
     };
     return MipsAssembler;
@@ -3544,7 +3576,7 @@ var MipsDisassembler = (function () {
 exports.MipsDisassembler = MipsDisassembler;
 
 },
-"src/core/cpu/ast_builder": function(module, exports, require) {
+"src/core/cpu/cpu_ast": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -3568,12 +3600,43 @@ var ANodeStm = (function (_super) {
     return ANodeStm;
 })(ANode);
 exports.ANodeStm = ANodeStm;
+var ANodeStmLabel = (function (_super) {
+    __extends(ANodeStmLabel, _super);
+    function ANodeStmLabel(id) {
+        _super.call(this);
+        this.id = 0;
+        if (id === undefined)
+            id = ANodeStmLabel.lastId++;
+        this.id = id;
+    }
+    ANodeStmLabel.prototype.toJs = function () {
+        return "case " + this.id + ":";
+    };
+    ANodeStmLabel.lastId = 0;
+    return ANodeStmLabel;
+})(ANodeStm);
+exports.ANodeStmLabel = ANodeStmLabel;
+var ANodeStmDynamicJump = (function (_super) {
+    __extends(ANodeStmDynamicJump, _super);
+    function ANodeStmDynamicJump(node) {
+        _super.call(this);
+        this.node = node;
+    }
+    ANodeStmDynamicJump.prototype.toJs = function () {
+        return "loop_state = " + this.node.toJs() + "; continue loop;";
+    };
+    return ANodeStmDynamicJump;
+})(ANodeStm);
+exports.ANodeStmDynamicJump = ANodeStmDynamicJump;
 var ANodeStmJump = (function (_super) {
     __extends(ANodeStmJump, _super);
     function ANodeStmJump(label) {
         _super.call(this);
         this.label = label;
     }
+    ANodeStmJump.prototype.toJs = function () {
+        return "loop_state = " + this.label.id + "; continue loop;";
+    };
     return ANodeStmJump;
 })(ANodeStm);
 exports.ANodeStmJump = ANodeStmJump;
@@ -3591,43 +3654,37 @@ var ANodeStmList = (function (_super) {
     function ANodeStmList(childs) {
         _super.call(this);
         this.childs = childs;
-        this.labels = {};
     }
-    ANodeStmList.prototype.createLabel = function (label) {
-        this.labels[label] = this.childs.length;
-        return this.childs.length;
-    };
     ANodeStmList.prototype.add = function (node) {
         this.childs.push(node);
     };
     ANodeStmList.prototype.toJs = function () {
-        var jumpCount = 0;
-        var usedLabels = {};
-        for (var n = 0; n < this.childs.length; n++) {
-            var item = this.childs[n];
-            if (item instanceof ANodeStmJump) {
-                jumpCount++;
-                usedLabels[item.label] = true;
-            }
-        }
-        if (jumpCount > 1)
-            throw (new Error("Not supported more than one jump at this point!"));
-        var lines = [];
-        for (var n = 0; n < this.childs.length; n++) {
-            var child = this.childs[n];
-            if (usedLabels[n] !== undefined) {
-                lines.push('while(true) {');
-            }
-            lines.push(child.toJs());
-            if (child instanceof ANodeStmJump) {
-                lines.push('}');
-            }
-        }
-        return lines.join("\n");
+        return this.childs.map(function (c) { return c.toJs(); }).join("\n");
     };
     return ANodeStmList;
 })(ANodeStm);
 exports.ANodeStmList = ANodeStmList;
+var ANodeFunction = (function (_super) {
+    __extends(ANodeFunction, _super);
+    function ANodeFunction(childs) {
+        _super.call(this, childs);
+    }
+    ANodeFunction.prototype.toJs = function () {
+        var lines = [];
+        lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
+        lines.push('case 0:');
+        for (var _i = 0, _a = this.childs; _i < _a.length; _i++) {
+            var child = _a[_i];
+            lines.push(child.toJs());
+        }
+        lines.push('break loop;');
+        lines.push('default: throw new Error("Invalid loop_state=" + loop_state);');
+        lines.push('}');
+        return lines.join('\n');
+    };
+    return ANodeFunction;
+})(ANodeStmList);
+exports.ANodeFunction = ANodeFunction;
 var ANodeStmRaw = (function (_super) {
     __extends(ANodeStmRaw, _super);
     function ANodeStmRaw(content) {
@@ -3856,13 +3913,16 @@ var AstBuilder = (function () {
     AstBuilder.prototype.u_imm32 = function (value) { return new ANodeExprU32(value); };
     AstBuilder.prototype.stm = function (expr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); };
     AstBuilder.prototype.stms = function (stms) { return new ANodeStmList(stms); };
+    AstBuilder.prototype.func = function (stms) { return new ANodeFunction(stms); };
     AstBuilder.prototype.array = function (exprList) { return new ANodeExprArray(exprList); };
     AstBuilder.prototype.arrayNumbers = function (values) {
         var _this = this;
         return this.array(values.map(function (value) { return _this.imm_f(value); }));
     };
     AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
+    AstBuilder.prototype.label = function (id) { return new ANodeStmLabel(id); };
     AstBuilder.prototype.jump = function (label) { return new ANodeStmJump(label); };
+    AstBuilder.prototype.djump = function (node) { return new ANodeStmDynamicJump(node); };
     AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
     AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
     AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
@@ -3922,9 +3982,9 @@ var MipsAstBuilder = (function (_super) {
 exports.MipsAstBuilder = MipsAstBuilder;
 
 },
-"src/core/cpu/codegen": function(module, exports, require) {
+"src/core/cpu/cpu_codegen": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _ast = require('./ast_builder');
+var _ast = require('./cpu_ast');
 var ast;
 function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
 function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
@@ -4812,6 +4872,9 @@ var InstructionAst = (function () {
     InstructionAst.prototype._likely = function (isLikely, code) {
         return isLikely ? _if(branchflag(), code) : code;
     };
+    InstructionAst.prototype._postBranch2 = function (nextPc) {
+        return _if(branchflag(), stms([assign(pc(), branchpc()), ast.djump(pc())]), stms([stm(assign(pc(), u_imm32(nextPc)))]));
+    };
     InstructionAst.prototype._postBranch = function (nextPc) {
         return _if(branchflag(), stm(assign(pc(), branchpc())), stms([stm(assign(pc(), u_imm32(nextPc)))]));
     };
@@ -4914,63 +4977,7 @@ var InstructionAst = (function () {
 exports.InstructionAst = InstructionAst;
 
 },
-"src/core/cpu/executor": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
-var ProgramExecutor = (function () {
-    function ProgramExecutor(state, instructionCache) {
-        this.state = state;
-        this.instructionCache = instructionCache;
-        this.lastPC = 0;
-        this.lastTime = 0;
-        this.times = 0;
-        this.state.executor = this;
-    }
-    ProgramExecutor.prototype._executeStep = function () {
-        if (this.state.PC == 0)
-            console.error(sprintf("Calling 0x%08X from 0x%08X", this.state.PC, this.lastPC));
-        this.lastPC = this.state.PC;
-        var func = this.instructionCache.getFunction(this.state.PC);
-        func(this.state);
-    };
-    ProgramExecutor.prototype.executeUntilPCReachesWithoutCall = function (expectedPC) {
-        while (this.state.PC != expectedPC) {
-            this._executeStep();
-            this.times++;
-            if (this.times >= 100000) {
-                this.times = 0;
-                if ((performance.now() - this.lastTime) >= 50)
-                    throw (new CpuBreakException());
-                this.lastTime = performance.now();
-            }
-        }
-    };
-    ProgramExecutor.prototype.executeWithoutCatch = function (maxIterations) {
-        if (maxIterations === void 0) { maxIterations = -1; }
-        while (maxIterations != 0) {
-            this._executeStep();
-            if (maxIterations > 0)
-                maxIterations--;
-        }
-    };
-    ProgramExecutor.prototype.execute = function (maxIterations) {
-        if (maxIterations === void 0) { maxIterations = -1; }
-        try {
-            this.executeWithoutCatch(maxIterations);
-        }
-        catch (e) {
-            if (!(e instanceof CpuBreakException)) {
-                console.log(this.state);
-                this.state.printCallstack();
-                throw (e);
-            }
-        }
-    };
-    return ProgramExecutor;
-})();
-exports.ProgramExecutor = ProgramExecutor;
-
-},
-"src/core/cpu/generator": function(module, exports, require) {
+"src/core/cpu/cpu_core": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -4978,966 +4985,9 @@ var __extends = this.__extends || function (d, b) {
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var codegen = require('./codegen');
-var ast_builder = require('./ast_builder');
-var instructions = require('./instructions');
-var InstructionAst = codegen.InstructionAst;
-var Instructions = instructions.Instructions;
-var Instruction = instructions.Instruction;
-var DecodedInstruction = instructions.DecodedInstruction;
-var MipsAstBuilder = ast_builder.MipsAstBuilder;
-var PspInstructionStm = (function (_super) {
-    __extends(PspInstructionStm, _super);
-    function PspInstructionStm(PC, code, di) {
-        _super.call(this);
-        this.PC = PC;
-        this.code = code;
-        this.di = di;
-    }
-    PspInstructionStm.prototype.toJs = function () {
-        return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
-    };
-    PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.PC, this.code.optimize(), this.di); };
-    return PspInstructionStm;
-})(ast_builder.ANodeStm);
-var FunctionGenerator = (function () {
-    function FunctionGenerator(memory) {
-        this.memory = memory;
-        this.instructions = Instructions.instance;
-        this.instructionAst = new InstructionAst();
-        this.instructionUsageCount = {};
-    }
-    FunctionGenerator.prototype.getInstructionUsageCount = function () {
-        var items = [];
-        for (var key in this.instructionUsageCount) {
-            var value = this.instructionUsageCount[key];
-            items.push({ name: key, count: value });
-        }
-        items.sort(function (a, b) { return compareNumbers(a.count, b.count); }).reverse();
-        return items;
-    };
-    FunctionGenerator.prototype.decodeInstruction = function (address) {
-        var instruction = Instruction.fromMemoryAndPC(this.memory, address);
-        var instructionType = this.getInstructionType(instruction);
-        return new DecodedInstruction(instruction, instructionType);
-    };
-    FunctionGenerator.prototype.getInstructionType = function (i) {
-        return this.instructions.findByData(i.data, i.PC);
-    };
-    FunctionGenerator.prototype.generateInstructionAstNode = function (di, PC) {
-        var instruction = di.instruction;
-        var instructionType = di.type;
-        var func = this.instructionAst[instructionType.name];
-        if (func === undefined)
-            throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
-        return func.call(this.instructionAst, instruction, PC);
-    };
-    FunctionGenerator.prototype.create = function (address) {
-        var code = this._create(address);
-        try {
-            return new Function('state', '"use strict";' + code);
-        }
-        catch (e) {
-            console.info('code:\n', code);
-            throw (e);
-        }
-    };
-    FunctionGenerator.prototype._create = function (address) {
-        var _this = this;
-        var enableOptimizations = true;
-        if (address == 0x00000000) {
-            throw (new Error("Trying to execute 0x00000000"));
-        }
-        this.instructionAst.reset();
-        var ast = new MipsAstBuilder();
-        var startPC = address;
-        var PC = address;
-        var stms = new ast_builder.ANodeStmList([ast.functionPrefix()]);
-        var mustDumpFunction = false;
-        var pcToLabel = {};
-        var emitInstruction = function () {
-            var di = _this.decodeInstruction(PC);
-            var result = new PspInstructionStm(PC, _this.generateInstructionAstNode(di, PC), di);
-            PC += 4;
-            return result;
-        };
-        stms.add(ast.raw_stm('var expectedRA = state.getRA();'));
-        function returnWithCheck() {
-            stms.add(ast.raw_stm('return;'));
-        }
-        for (var n = 0; n < 100000; n++) {
-            var di = this.decodeInstruction(PC + 0);
-            pcToLabel[PC] = stms.createLabel(PC);
-            if (this.instructionUsageCount[di.type.name] === undefined) {
-                this.instructionUsageCount[di.type.name] = 0;
-            }
-            this.instructionUsageCount[di.type.name]++;
-            if (di.type.isJumpOrBranch) {
-                var di2 = this.decodeInstruction(PC + 4);
-                if (di2.type.isJumpOrBranch) {
-                    stms.add(ast.debugger());
-                    console.error("branch in delayed slot!");
-                }
-                var isBranch = di.type.isBranch;
-                var isCall = di.type.isCall;
-                var isUnconditionalNonLinkJump = (di.type.name == 'j');
-                var jumpAddress = 0;
-                var jumpBack = false;
-                var jumpAhead = false;
-                if (isBranch) {
-                    jumpAddress = PC + di.instruction.imm16 * 4 + 4;
-                }
-                else {
-                    jumpAddress = di.instruction.u_imm26 * 4;
-                }
-                jumpAhead = jumpAddress > PC;
-                jumpBack = !jumpAhead;
-                var isSimpleLoop = (isBranch || isUnconditionalNonLinkJump) && jumpBack && (jumpAddress >= startPC);
-                var isFunctionCall = isCall;
-                stms.add(emitInstruction());
-                var delayedSlotInstruction = emitInstruction();
-                if (di2.type.isSyscall) {
-                    stms.add(this.instructionAst._postBranch(PC));
-                    stms.add(ast.raw_stm('if (!state.BRANCHFLAG) {'));
-                    returnWithCheck();
-                    stms.add(ast.raw_stm('}'));
-                    stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                }
-                else {
-                    stms.add(this.instructionAst._likely(di.type.isLikely, delayedSlotInstruction));
-                    stms.add(this.instructionAst._postBranch(PC));
-                    stms.add(ast.raw_stm('if (!state.BRANCHFLAG) {'));
-                    returnWithCheck();
-                    stms.add(ast.raw_stm('}'));
-                }
-                if (enableOptimizations) {
-                    if (isSimpleLoop) {
-                        stms.add(ast.jump(pcToLabel[jumpAddress]));
-                        break;
-                    }
-                    else if (isFunctionCall) {
-                        stms.add(ast.call('state.callPC', [ast.pc()]));
-                    }
-                    else {
-                        break;
-                    }
-                }
-                else {
-                    break;
-                }
-            }
-            else {
-                if (di.type.isSyscall) {
-                    stms.add(this.instructionAst._storePC(PC + 4));
-                }
-                stms.add(emitInstruction());
-                if (di.type.isBreak) {
-                    stms.add(this.instructionAst._storePC(PC));
-                    break;
-                }
-            }
-        }
-        returnWithCheck();
-        if (mustDumpFunction) {
-            console.debug("// function_" + IntUtils.toHexString(address, 8) + ":\n" + stms.toJs());
-        }
-        if (n >= 100000)
-            throw (new Error(sprintf("Too large function PC=%08X", address)));
-        return stms.toJs();
-    };
-    return FunctionGenerator;
-})();
-exports.FunctionGenerator = FunctionGenerator;
-
-},
-"src/core/cpu/icache": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
-var generator = require('./generator');
-var state = require('./state');
-var FunctionGenerator = generator.FunctionGenerator;
-var CpuSpecialAddresses = state.CpuSpecialAddresses;
-var InstructionCache = (function () {
-    function InstructionCache(memory) {
-        this.memory = memory;
-        this.cache = {};
-        this.functionGenerator = new FunctionGenerator(memory);
-    }
-    InstructionCache.prototype.invalidateAll = function () {
-        this.cache = {};
-    };
-    InstructionCache.prototype.invalidateRange = function (from, to) {
-        for (var n = from; n < to; n += 4)
-            delete this.cache[n];
-    };
-    InstructionCache.prototype.getFunction = function (address) {
-        var item = this.cache[address];
-        if (item)
-            return item;
-        if (address == CpuSpecialAddresses.EXIT_THREAD) {
-            return this.cache[address] = function (state) {
-                //console.log(state);
-                //console.log(state.thread);
-                //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
-                state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
-                throw new CpuBreakException();
-            };
-        }
-        else {
-            return this.cache[address] = this.functionGenerator.create(address);
-        }
-    };
-    return InstructionCache;
-})();
-exports.InstructionCache = InstructionCache;
-
-},
-"src/core/cpu/instructions": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
-var IndentStringGenerator = require('../../util/IndentStringGenerator');
-var ADDR_TYPE_NONE = 0;
-var ADDR_TYPE_REG = 1;
-var ADDR_TYPE_16 = 2;
-var ADDR_TYPE_26 = 3;
-var INSTR_TYPE_PSP = (1 << 0);
-var INSTR_TYPE_SYSCALL = (1 << 1);
-var INSTR_TYPE_B = (1 << 2);
-var INSTR_TYPE_LIKELY = (1 << 3);
-var INSTR_TYPE_JAL = (1 << 4);
-var INSTR_TYPE_JUMP = (1 << 5);
-var INSTR_TYPE_BREAK = (1 << 6);
-function VM(format) {
-    var counts = {
-        "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
-        "absw": 1, "absz": 1, "absy": 1, "absx": 1,
-        "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
-        "negw": 1, "negz": 1, "negy": 1, "negx": 1,
-        "one": 1, "two": 1, "vt1": 1,
-        "vt2": 2,
-        "satw": 2, "satz": 2, "saty": 2, "satx": 2,
-        "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
-        "imm3": 3,
-        "imm4": 4,
-        "fcond": 4,
-        "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
-        "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
-        "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
-        "imm8": 8,
-        "imm14": 14,
-        "imm16": 16,
-        "imm20": 20,
-        "imm26": 26
-    };
-    var value = 0;
-    var mask = 0;
-    format.split(':').forEach(function (item) {
-        if (/^[01\-]+$/.test(item)) {
-            for (var n = 0; n < item.length; n++) {
-                value <<= 1;
-                mask <<= 1;
-                if (item[n] == '0') {
-                    value |= 0;
-                    mask |= 1;
-                }
-                if (item[n] == '1') {
-                    value |= 1;
-                    mask |= 1;
-                }
-                if (item[n] == '-') {
-                    value |= 0;
-                    mask |= 0;
-                }
-            }
-        }
-        else {
-            var displacement = counts[item];
-            if (displacement === undefined)
-                throw ("Invalid item '" + item + "'");
-            value <<= displacement;
-            mask <<= displacement;
-        }
-    });
-    return { value: value, mask: mask };
-}
-var InstructionType = (function () {
-    function InstructionType(name, vm, format, addressType, instructionType) {
-        this.name = name;
-        this.vm = vm;
-        this.format = format;
-        this.addressType = addressType;
-        this.instructionType = instructionType;
-    }
-    InstructionType.prototype.match = function (i32) {
-        return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask);
-    };
-    InstructionType.prototype.isInstructionType = function (mask) {
-        return (this.instructionType & mask) != 0;
-    };
-    Object.defineProperty(InstructionType.prototype, "isSyscall", {
-        get: function () {
-            return this.isInstructionType(INSTR_TYPE_SYSCALL);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(InstructionType.prototype, "isBreak", {
-        get: function () {
-            return this.isInstructionType(INSTR_TYPE_BREAK);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(InstructionType.prototype, "isBranch", {
-        get: function () {
-            return this.isInstructionType(INSTR_TYPE_B);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(InstructionType.prototype, "isCall", {
-        get: function () {
-            return this.isInstructionType(INSTR_TYPE_JAL);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(InstructionType.prototype, "isJump", {
-        get: function () {
-            return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(InstructionType.prototype, "isJumpOrBranch", {
-        get: function () {
-            return this.isBranch || this.isJump;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(InstructionType.prototype, "isLikely", {
-        get: function () {
-            return this.isInstructionType(INSTR_TYPE_LIKELY);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    InstructionType.prototype.toString = function () {
-        return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask);
-    };
-    return InstructionType;
-})();
-exports.InstructionType = InstructionType;
-var Instructions = (function () {
-    function Instructions() {
-        var _this = this;
-        this.instructionTypeListByName = {};
-        this.instructionTypeList = [];
-        var ID = function (name, vm, format, addressType, instructionType) { _this.add(name, vm, format, addressType, instructionType); };
-        ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-        ID("addiu", VM("001001:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-        ID("sub", VM("000000:rs:rt:rd:00000:100010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("subu", VM("000000:rs:rt:rd:00000:100011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("and", VM("000000:rs:rt:rd:00000:100100"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("andi", VM("001100:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-        ID("nor", VM("000000:rs:rt:rd:00000:100111"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("or", VM("000000:rs:rt:rd:00000:100101"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("ori", VM("001101:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-        ID("xor", VM("000000:rs:rt:rd:00000:100110"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("xori", VM("001110:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
-        ID("sll", VM("000000:00000:rt:rd:sa:000000"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-        ID("sllv", VM("000000:rs:rt:rd:00000:000100"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-        ID("sra", VM("000000:00000:rt:rd:sa:000011"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-        ID("srav", VM("000000:rs:rt:rd:00000:000111"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-        ID("srl", VM("000000:00000:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-        ID("srlv", VM("000000:rs:rt:rd:00000:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-        ID("rotr", VM("000000:00001:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
-        ID("rotrv", VM("000000:rs:rt:rd:00001:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
-        ID("slt", VM("000000:rs:rt:rd:00000:101010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("slti", VM("001010:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-        ID("sltu", VM("000000:rs:rt:rd:00000:101011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
-        ID("sltiu", VM("001011:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
-        ID("lui", VM("001111:00000:rt:imm16"), "%t, %I", ADDR_TYPE_NONE, 0);
-        ID("seb", VM("011111:00000:rt:rd:10000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
-        ID("seh", VM("011111:00000:rt:rd:11000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
-        ID("bitrev", VM("011111:00000:rt:rd:10100:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("max", VM("000000:rs:rt:rd:00000:101100"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("min", VM("000000:rs:rt:rd:00000:101101"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("div", VM("000000:rs:rt:00000:00000:011010"), "%s, %t", ADDR_TYPE_NONE, 0);
-        ID("divu", VM("000000:rs:rt:00000:00000:011011"), "%s, %t", ADDR_TYPE_NONE, 0);
-        ID("mult", VM("000000:rs:rt:00000:00000:011000"), "%s, %t", ADDR_TYPE_NONE, 0);
-        ID("multu", VM("000000:rs:rt:00000:00000:011001"), "%s, %t", ADDR_TYPE_NONE, 0);
-        ID("madd", VM("000000:rs:rt:00000:00000:011100"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("maddu", VM("000000:rs:rt:00000:00000:011101"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("msub", VM("000000:rs:rt:00000:00000:101110"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("msubu", VM("000000:rs:rt:00000:00000:101111"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mfhi", VM("000000:00000:00000:rd:00000:010000"), "%d", ADDR_TYPE_NONE, 0);
-        ID("mflo", VM("000000:00000:00000:rd:00000:010010"), "%d", ADDR_TYPE_NONE, 0);
-        ID("mthi", VM("000000:rs:00000:00000:00000:010001"), "%s", ADDR_TYPE_NONE, 0);
-        ID("mtlo", VM("000000:rs:00000:00000:00000:010011"), "%s", ADDR_TYPE_NONE, 0);
-        ID("movz", VM("000000:rs:rt:rd:00000:001010"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("movn", VM("000000:rs:rt:rd:00000:001011"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("ext", VM("011111:rs:rt:msb:lsb:000000"), "%t, %s, %a, %ne", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("ins", VM("011111:rs:rt:msb:lsb:000100"), "%t, %s, %a, %ni", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("clz", VM("000000:rs:00000:rd:00000:010110"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("clo", VM("000000:rs:00000:rd:00000:010111"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bgez", VM("000001:rs:00001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("bgezl", VM("000001:rs:00011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bgezal", VM("000001:rs:10001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
-        ID("bgezall", VM("000001:rs:10011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
-        ID("bltz", VM("000001:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("bltzl", VM("000001:rs:00010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bltzal", VM("000001:rs:10000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
-        ID("bltzall", VM("000001:rs:10010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
-        ID("blez", VM("000110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("blezl", VM("010110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bgtz", VM("000111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("bgtzl", VM("010111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bne", VM("000101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("bnel", VM("010101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("j", VM("000010:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JUMP);
-        ID("jr", VM("000000:rs:00000:00000:00000:001000"), "%J", ADDR_TYPE_REG, INSTR_TYPE_JUMP);
-        ID("jalr", VM("000000:rs:00000:rd:00000:001001"), "%J, %d", ADDR_TYPE_REG, INSTR_TYPE_JAL);
-        ID("jal", VM("000011:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JAL);
-        ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
-        ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bc1tl", VM("010001:01000:00011:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("lb", VM("100000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("lh", VM("100001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("lw", VM("100011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("lwl", VM("100010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("lwr", VM("100110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("lbu", VM("100100:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("lhu", VM("100101:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("sb", VM("101000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("sh", VM("101001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("sw", VM("101011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("swl", VM("101010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("swr", VM("101110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("ll", VM("110000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
-        ID("sc", VM("111000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
-        ID("lwc1", VM("110001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("swc1", VM("111001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
-        ID("add.s", VM("010001:10000:ft:fs:fd:000000"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-        ID("sub.s", VM("010001:10000:ft:fs:fd:000001"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-        ID("mul.s", VM("010001:10000:ft:fs:fd:000010"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-        ID("div.s", VM("010001:10000:ft:fs:fd:000011"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
-        ID("sqrt.s", VM("010001:10000:00000:fs:fd:000100"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("abs.s", VM("010001:10000:00000:fs:fd:000101"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("mov.s", VM("010001:10000:00000:fs:fd:000110"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("neg.s", VM("010001:10000:00000:fs:fd:000111"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("round.w.s", VM("010001:10000:00000:fs:fd:001100"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("trunc.w.s", VM("010001:10000:00000:fs:fd:001101"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("ceil.w.s", VM("010001:10000:00000:fs:fd:001110"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("floor.w.s", VM("010001:10000:00000:fs:fd:001111"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("cvt.s.w", VM("010001:10100:00000:fs:fd:100000"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("cvt.w.s", VM("010001:10000:00000:fs:fd:100100"), "%D, %S", ADDR_TYPE_NONE, 0);
-        ID("mfc1", VM("010001:00000:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
-        ID("mtc1", VM("010001:00100:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
-        ID("cfc1", VM("010001:00010:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
-        ID("ctc1", VM("010001:00110:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
-        ID("c.f.s", VM("010001:10000:ft:fs:00000:11:0000"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.un.s", VM("010001:10000:ft:fs:00000:11:0001"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.eq.s", VM("010001:10000:ft:fs:00000:11:0010"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ueq.s", VM("010001:10000:ft:fs:00000:11:0011"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.olt.s", VM("010001:10000:ft:fs:00000:11:0100"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ult.s", VM("010001:10000:ft:fs:00000:11:0101"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ole.s", VM("010001:10000:ft:fs:00000:11:0110"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ule.s", VM("010001:10000:ft:fs:00000:11:0111"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.sf.s", VM("010001:10000:ft:fs:00000:11:1000"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ngle.s", VM("010001:10000:ft:fs:00000:11:1001"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.seq.s", VM("010001:10000:ft:fs:00000:11:1010"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ngl.s", VM("010001:10000:ft:fs:00000:11:1011"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.lt.s", VM("010001:10000:ft:fs:00000:11:1100"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.nge.s", VM("010001:10000:ft:fs:00000:11:1101"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.le.s", VM("010001:10000:ft:fs:00000:11:1110"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("c.ngt.s", VM("010001:10000:ft:fs:00000:11:1111"), "%S, %T", ADDR_TYPE_NONE, 0);
-        ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
-        ID("cache", VM("101111:rs:-----:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
-        ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
-        ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);
-        ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
-        ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("dret", VM("011100:00000:00000:00000:00000:111110"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("eret", VM("010000:10000:00000:00000:00000:011000"), "", ADDR_TYPE_NONE, 0);
-        ID("mfic", VM("011100:rt:00000:00000:00000:100100"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mtic", VM("011100:rt:00000:00000:00000:100110"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mfdr", VM("011100:00000:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mtdr", VM("011100:00100:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
-        ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
-        ID("mfv", VM("010010:00:011:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mfvc", VM("010010:00:011:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mtv", VM("010010:00:111:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mtvc", VM("010010:00:111:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("lv.s", VM("110010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("lv.q", VM("110110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("lvl.q", VM("110101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("lvr.q", VM("110101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("sv.q", VM("111110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vdot", VM("011001:001:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vscl", VM("011001:010:vt:two:vs:one:vd"), "%zp, %yp, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsge", VM("011011:110:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrot", VM("111100:111:01:imm5:two:vs:one:vd"), "%zp, %ys, %vr", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vzero", VM("110100:00:000:0:0110:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vone", VM("110100:00:000:0:0111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmov", VM("110100:00:000:0:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vabs", VM("110100:00:000:0:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vneg", VM("110100:00:000:0:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vocp", VM("110100:00:010:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsgn", VM("110100:00:010:0:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrcp", VM("110100:00:000:1:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrsq", VM("110100:00:000:1:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsin", VM("110100:00:000:1:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcos", VM("110100:00:000:1:0011:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vexp2", VM("110100:00:000:1:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vlog2", VM("110100:00:000:1:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsqrt", VM("110100:00:000:1:0110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vasin", VM("110100:00:000:1:0111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vnrcp", VM("110100:00:000:1:1000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vnsin", VM("110100:00:000:1:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrexp2", VM("110100:00:000:1:1100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsat0", VM("110100:00:000:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsat1", VM("110100:00:000:0:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcst", VM("110100:00:011:imm5:two:0000000:one:vd"), "%zp, %vk", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmmul", VM("111100:000:vt:two:vs:one:vd"), "%zm, %tym, %xm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vhdp", VM("011001:100:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcrs.t", VM("011001:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcrsp.t", VM("111100:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vi2c", VM("110100:00:001:11:101:two:vs:one:vd"), "%zs, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vi2uc", VM("110100:00:001:11:100:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vtfm2", VM("111100:001:vt:0:vs:1:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vtfm3", VM("111100:010:vt:1:vs:0:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vtfm4", VM("111100:011:vt:1:vs:1:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vhtfm2", VM("111100:001:vt:0:vs:0:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vhtfm3", VM("111100:010:vt:0:vs:1:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vhtfm4", VM("111100:011:vt:1:vs:0:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsrt3", VM("110100:00:010:01000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vfad", VM("110100:00:010:00110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmin", VM("011011:010:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmax", VM("011011:011:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vadd", VM("011000:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsub", VM("011000:001:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vdiv", VM("011000:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmul", VM("011001:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vidt", VM("110100:00:000:0:0011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmidt", VM("111100:111:00:00011:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("viim", VM("110111:11:0:vd:imm16"), "%xs, %vi", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmmov", VM("111100:111:00:00000:two:vs:one:vd"), "%zm, %ym", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmzero", VM("111100:111:00:00110:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmone", VM("111100:111:00:00111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vnop", VM("111111:1111111111:00000:00000000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsync", VM("111111:1111111111:00000:01100100000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vflush", VM("111111:1111111111:00000:10000001101"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vpfxd", VM("110111:10:------------:mskw:mskz:msky:mskx:satw:satz:saty:satx"), "[%vp4, %vp5, %vp6, %vp7]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vpfxs", VM("110111:00:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vpfxt", VM("110111:01:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vdet", VM("011001:110:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrnds", VM("110100:00:001:00:000:two:vs:one:0000000"), "%ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrndi", VM("110100:00:001:00:001:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrndf1", VM("110100:00:001:00:010:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vrndf2", VM("110100:00:001:00:011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcmp", VM("011011:000:vt:two:vs:one:000:imm4"), "%Zn, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcmovf", VM("110100:10:101:01:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vcmovt", VM("110100:10:101:00:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vavg", VM("110100:00:010:00111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vf2id", VM("110100:10:011:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vf2in", VM("110100:10:000:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vf2iu", VM("110100:10:010:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vf2iz", VM("110100:10:001:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vi2f", VM("110100:10:100:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vscmp", VM("011011:101:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmscl", VM("111100:100:vt:two:vs:one:vd"), "%zm, %ym, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vt4444.q", VM("110100:00:010:11001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vt5551.q", VM("110100:00:010:11010:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vt5650.q", VM("110100:00:010:11011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmfvc", VM("110100:00:010:10000:1:imm7:0:vd"), "%zs, %2s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vmtvc", VM("110100:00:010:10001:0:vs:1:imm7"), "%2d, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mfvme", VM("011010--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
-        ID("mtvme", VM("101100--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
-        ID("sv.s", VM("111010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vfim", VM("110111:11:1:vt:imm16"), "%xs, %vh", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("svl.q", VM("111101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("svr.q", VM("111101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vbfy1", VM("110100:00:010:00010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vbfy2", VM("110100:00:010:00011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vf2h", VM("110100:00:001:10:010:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vh2f", VM("110100:00:001:10:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vi2s", VM("110100:00:001:11:111:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vi2us", VM("110100:00:001:11:110:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vlgb", VM("110100:00:001:10:111:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vqmul", VM("111100:101:vt:1:vs:1:vd"), "%zq, %yq, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vs2i", VM("110100:00:001:11:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vc2i", VM("110100:00:001:11:001:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vuc2i", VM("110100:00:001:11:000:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsbn", VM("011000:010:vt:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsbz", VM("110100:00:001:10110:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsocp", VM("110100:00:010:00101:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsrt1", VM("110100:00:010:00000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsrt2", VM("110100:00:010:00001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vsrt4", VM("110100:00:010:01001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vus2i", VM("110100:00:001:11010:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
-        ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
-        ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-        ID("bvtl", VM("010010:01:000:imm3:11:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
-    }
-    Object.defineProperty(Instructions, "instance", {
-        get: function () {
-            if (!Instructions._instance)
-                Instructions._instance = new Instructions();
-            return Instructions._instance;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instructions.prototype, "instructions", {
-        get: function () {
-            return this.instructionTypeList.slice(0);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Instructions.prototype.add = function (name, vm, format, addressType, instructionType) {
-        var it = new InstructionType(name, vm, format, addressType, instructionType);
-        this.instructionTypeListByName[name] = it;
-        this.instructionTypeList.push(it);
-    };
-    Instructions.prototype.findByName = function (name) {
-        var instructionType = this.instructionTypeListByName[name];
-        if (!instructionType)
-            throw ("Cannot find instruction " + sprintf("%s", name));
-        return instructionType;
-    };
-    Instructions.prototype.findByData = function (i32, pc) {
-        if (pc === void 0) { pc = 0; }
-        return this.fastFindByData(i32, pc);
-    };
-    Instructions.prototype.fastFindByData = function (i32, pc) {
-        if (pc === void 0) { pc = 0; }
-        if (!this.decoder) {
-            var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
-            this.decoder = (new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
-        }
-        return this.decoder(this.instructionTypeListByName, i32, pc);
-    };
-    Instructions.prototype.slowFindByData = function (i32, pc) {
-        if (pc === void 0) { pc = 0; }
-        for (var n = 0; n < this.instructionTypeList.length; n++) {
-            var instructionType = this.instructionTypeList[n];
-            if (instructionType.match(i32))
-                return instructionType;
-        }
-        throw (sprintf("Cannot find instruction 0x%08X at 0x%08X", i32, pc));
-    };
-    return Instructions;
-})();
-exports.Instructions = Instructions;
-var DecodingTable = (function () {
-    function DecodingTable() {
-        this.lastId = 0;
-    }
-    DecodingTable.prototype.getCommonMask = function (instructions, baseMask) {
-        if (baseMask === void 0) { baseMask = 0xFFFFFFFF; }
-        return instructions.reduce(function (left, item) { return left & item.vm.mask; }, baseMask);
-    };
-    DecodingTable.createSwitch = function (instructions) {
-        var writer = new IndentStringGenerator();
-        var decodingTable = new DecodingTable();
-        decodingTable._createSwitch(writer, instructions);
-        return writer.output;
-    };
-    DecodingTable.prototype._createSwitch = function (writer, instructions, baseMask, level) {
-        var _this = this;
-        if (baseMask === void 0) { baseMask = 0xFFFFFFFF; }
-        if (level === void 0) { level = 0; }
-        if (level >= 10)
-            throw ('ERROR: Recursive detection');
-        var commonMask = this.getCommonMask(instructions, baseMask);
-        var groups = {};
-        instructions.forEach(function (item) {
-            var commonValue = item.vm.value & commonMask;
-            if (!groups[commonValue])
-                groups[commonValue] = [];
-            groups[commonValue].push(item);
-        });
-        writer.write('switch ((value & ' + sprintf('0x%08X', commonMask) + ') >>> 0) {\n');
-        writer.indent(function () {
-            for (var groupKey in groups) {
-                var group = groups[groupKey];
-                writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
-                writer.indent(function () {
-                    if (group.length == 1) {
-                        writer.write(' return instructionsByName[' + JSON.stringify(group[0].name) + '];');
-                    }
-                    else {
-                        writer.write('\n');
-                        _this._createSwitch(writer, group, ~commonMask, level + 1);
-                        writer.write('break;\n');
-                    }
-                });
-            }
-            writer.write('default: throw(sprintf("Invalid instruction 0x%08X at 0x%08X (' + _this.lastId++ + ') failed mask 0x%08X", value, pc, ' + commonMask + '));\n');
-        });
-        writer.write('}\n');
-    };
-    return DecodingTable;
-})();
-var Instruction = (function () {
-    function Instruction(PC, data) {
-        this.PC = PC;
-        this.data = data;
-    }
-    Instruction.fromMemoryAndPC = function (memory, PC) { return new Instruction(PC, memory.readInt32(PC)); };
-    Instruction.prototype.extract = function (offset, length) { return BitUtils.extract(this.data, offset, length); };
-    Instruction.prototype.extract_s = function (offset, length) { return BitUtils.extractSigned(this.data, offset, length); };
-    Instruction.prototype.insert = function (offset, length, value) { this.data = BitUtils.insert(this.data, offset, length, value); };
-    Object.defineProperty(Instruction.prototype, "rd", {
-        get: function () { return this.extract(11 + 5 * 0, 5); },
-        set: function (value) { this.insert(11 + 5 * 0, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "rt", {
-        get: function () { return this.extract(11 + 5 * 1, 5); },
-        set: function (value) { this.insert(11 + 5 * 1, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "rs", {
-        get: function () { return this.extract(11 + 5 * 2, 5); },
-        set: function (value) { this.insert(11 + 5 * 2, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "fd", {
-        get: function () { return this.extract(6 + 5 * 0, 5); },
-        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "fs", {
-        get: function () { return this.extract(6 + 5 * 1, 5); },
-        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "ft", {
-        get: function () { return this.extract(6 + 5 * 2, 5); },
-        set: function (value) { this.insert(6 + 5 * 2, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VD", {
-        get: function () { return this.extract(0, 7); },
-        set: function (value) { this.insert(0, 7, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VS", {
-        get: function () { return this.extract(8, 7); },
-        set: function (value) { this.insert(8, 7, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VT", {
-        get: function () { return this.extract(16, 7); },
-        set: function (value) { this.insert(16, 7, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VT5_1", {
-        get: function () { return this.VT5 | (this.VT1 << 5); },
-        set: function (value) { this.VT5 = value; this.VT1 = (value >>> 5); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM14", {
-        get: function () { return this.extract_s(2, 14); },
-        set: function (value) { this.insert(2, 14, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "ONE", {
-        get: function () { return this.extract(7, 1); },
-        set: function (value) { this.insert(7, 1, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "TWO", {
-        get: function () { return this.extract(15, 1); },
-        set: function (value) { this.insert(15, 1, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "ONE_TWO", {
-        get: function () { return (1 + 1 * this.ONE + 2 * this.TWO); },
-        set: function (value) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM8", {
-        get: function () { return this.extract(16, 8); },
-        set: function (value) { this.insert(16, 8, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM5", {
-        get: function () { return this.extract(16, 5); },
-        set: function (value) { this.insert(16, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM3", {
-        get: function () { return this.extract(18, 3); },
-        set: function (value) { this.insert(18, 3, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM7", {
-        get: function () { return this.extract(0, 7); },
-        set: function (value) { this.insert(0, 7, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM4", {
-        get: function () { return this.extract(0, 4); },
-        set: function (value) { this.insert(0, 4, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VT1", {
-        get: function () { return this.extract(0, 1); },
-        set: function (value) { this.insert(0, 1, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VT2", {
-        get: function () { return this.extract(0, 2); },
-        set: function (value) { this.insert(0, 2, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VT5", {
-        get: function () { return this.extract(16, 5); },
-        set: function (value) { this.insert(16, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "VT5_2", {
-        get: function () { return this.VT5 | (this.VT2 << 5); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "IMM_HF", {
-        get: function () { return HalfFloat.toFloat(this.imm16); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "pos", {
-        get: function () { return this.lsb; },
-        set: function (value) { this.lsb = value; },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "size_e", {
-        get: function () { return this.msb + 1; },
-        set: function (value) { this.msb = value - 1; },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "size_i", {
-        get: function () { return this.msb - this.lsb + 1; },
-        set: function (value) { this.msb = this.lsb + value - 1; },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "lsb", {
-        get: function () { return this.extract(6 + 5 * 0, 5); },
-        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "msb", {
-        get: function () { return this.extract(6 + 5 * 1, 5); },
-        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "c1cr", {
-        get: function () { return this.extract(6 + 5 * 1, 5); },
-        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "syscall", {
-        get: function () { return this.extract(6, 20); },
-        set: function (value) { this.insert(6, 20, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "imm16", {
-        get: function () { var res = this.u_imm16; if (res & 0x8000)
-            res |= 0xFFFF0000; return res; },
-        set: function (value) { this.insert(0, 16, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "u_imm16", {
-        get: function () { return this.extract(0, 16); },
-        set: function (value) { this.insert(0, 16, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "u_imm26", {
-        get: function () { return this.extract(0, 26); },
-        set: function (value) { this.insert(0, 26, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "jump_bits", {
-        get: function () { return this.extract(0, 26); },
-        set: function (value) { this.insert(0, 26, value); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Instruction.prototype, "jump_real", {
-        get: function () { return (this.jump_bits * 4) >>> 0; },
-        set: function (value) { this.jump_bits = (value / 4) >>> 0; },
-        enumerable: true,
-        configurable: true
-    });
-    return Instruction;
-})();
-exports.Instruction = Instruction;
-var DecodedInstruction = (function () {
-    function DecodedInstruction(instruction, type) {
-        this.instruction = instruction;
-        this.type = type;
-    }
-    return DecodedInstruction;
-})();
-exports.DecodedInstruction = DecodedInstruction;
-
-},
-"src/core/cpu/state": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
-var __extends = this.__extends || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
-};
+var _ast = require('./cpu_ast');
+var _instructions = require('./cpu_instructions');
+var _codegen = require('./cpu_codegen');
 (function (CpuSpecialAddresses) {
     CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 268435455] = "EXIT_THREAD";
 })(exports.CpuSpecialAddresses || (exports.CpuSpecialAddresses = {}));
@@ -5963,6 +5013,34 @@ var VfpuPrefixBase = (function () {
     };
     return VfpuPrefixBase;
 })();
+var NativeFunction = (function () {
+    function NativeFunction() {
+    }
+    return NativeFunction;
+})();
+exports.NativeFunction = NativeFunction;
+var SyscallManager = (function () {
+    function SyscallManager(context) {
+        this.context = context;
+        this.calls = {};
+        this.lastId = 1;
+    }
+    SyscallManager.prototype.register = function (nativeFunction) {
+        return this.registerWithId(this.lastId++, nativeFunction);
+    };
+    SyscallManager.prototype.registerWithId = function (id, nativeFunction) {
+        this.calls[id] = nativeFunction;
+        return id;
+    };
+    SyscallManager.prototype.call = function (state, id) {
+        var nativeFunction = this.calls[id];
+        if (!nativeFunction)
+            throw (sprintf("Can't call syscall %s: 0x%06X", id));
+        nativeFunction.call(this.context, state);
+    };
+    return SyscallManager;
+})();
+exports.SyscallManager = SyscallManager;
 var VfpuPrefixRead = (function (_super) {
     __extends(VfpuPrefixRead, _super);
     function VfpuPrefixRead() {
@@ -6098,6 +5176,8 @@ var CpuState = (function () {
         this.gpr_Buffer = new ArrayBuffer(32 * 4);
         this.gpr = new Int32Array(this.gpr_Buffer);
         this.gpr_f = new Float32Array(this.gpr_Buffer);
+        this.executeAtPCBinded = null;
+        this.jumpCall = null;
         this.temp = new Array(16);
         this.fpr_Buffer = new ArrayBuffer(32 * 4);
         this.fpr = new Float32Array(this.fpr_Buffer);
@@ -6126,9 +5206,17 @@ var CpuState = (function () {
         this.fcr31_cc = false;
         this.fcr31_fs = false;
         this.fcr0 = 0x00003351;
+        this.icache = new InstructionCache(memory);
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
+        this.executeAtPCBinded = this.executeAtPC.bind(this);
     }
+    CpuState.prototype.clone = function () {
+        var that = new CpuState(this.memory, this.syscallManager);
+        that.icache = this.icache;
+        that.copyRegistersFrom(this);
+        return that;
+    };
     CpuState.prototype.setVfrCc = function (index, value) {
         if (value) {
             this.vfprc[VFPU_CTRL.CC] |= (1 << index);
@@ -6672,26 +5760,15 @@ var CpuState = (function () {
         this.HI = result.high;
         this.LO = result.low;
     };
-    CpuState.prototype.callPC = function (pc) {
-        this.PC = pc;
-        var ra = this.getRA();
-        this.executor.executeUntilPCReachesWithoutCall(ra);
+    CpuState.prototype.getFunction = function (pc) {
+        return this.icache.getFunction(pc);
     };
-    CpuState.prototype.callPCSafe = function (pc) {
+    CpuState.prototype.execute = function (pc) {
         this.PC = pc;
-        var ra = this.getRA();
-        while (this.PC != ra) {
-            try {
-                this.executor.executeUntilPCReachesWithoutCall(ra);
-            }
-            catch (e) {
-                if (!(e instanceof CpuBreakException)) {
-                    console.error(e);
-                    console.error(e['stack']);
-                    throw (e);
-                }
-            }
-        }
+        this.executeAtPC();
+    };
+    CpuState.prototype.executeAtPC = function () {
+        this.getFunction(this.PC).execute(this);
     };
     CpuState.prototype.break = function () { throw (new CpuBreakException()); };
     CpuState.LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
@@ -6706,38 +5783,997 @@ var CpuState = (function () {
     return CpuState;
 })();
 exports.CpuState = CpuState;
+var ast = new _ast.MipsAstBuilder();
+var PspInstructionStm = (function (_super) {
+    __extends(PspInstructionStm, _super);
+    function PspInstructionStm(di, code) {
+        _super.call(this);
+        this.di = di;
+        this.code = code;
+        this.PC = di.PC;
+    }
+    PspInstructionStm.prototype.toJs = function () {
+        return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
+    };
+    PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.di, this.code.optimize()); };
+    return PspInstructionStm;
+})(_ast.ANodeStm);
+var InvalidatableCpuFunction = (function () {
+    function InvalidatableCpuFunction(PC, generator) {
+        this.PC = PC;
+        this.generator = generator;
+        this.func = null;
+    }
+    InvalidatableCpuFunction.prototype.invalidate = function () { this.func = null; };
+    InvalidatableCpuFunction.prototype.execute = function (state) {
+        if (this.func == null)
+            this.func = this.generator(this.PC);
+        this.func(state);
+    };
+    return InvalidatableCpuFunction;
+})();
+exports.InvalidatableCpuFunction = InvalidatableCpuFunction;
+var InstructionCache = (function () {
+    function InstructionCache(memory) {
+        this.memory = memory;
+        this.cache = {};
+        this.functionGenerator = new FunctionGenerator(memory);
+        this.createBind = this.create.bind(this);
+    }
+    InstructionCache.prototype.invalidateAll = function () {
+        for (var key in this.cache)
+            this.cache[key].invalidate();
+    };
+    InstructionCache.prototype.invalidateRange = function (from, to) {
+        for (var n = from; n < to; n += 4)
+            this.cache[n].invalidate();
+    };
+    InstructionCache.prototype.create = function (address) {
+        return this.functionGenerator.create(address).func;
+    };
+    InstructionCache.prototype.getFunction = function (address) {
+        if (!this.cache[address]) {
+            this.cache[address] = new InvalidatableCpuFunction(address, this.createBind);
+        }
+        return this.cache[address];
+    };
+    return InstructionCache;
+})();
+exports.InstructionCache = InstructionCache;
+var FunctionGeneratorResult = (function () {
+    function FunctionGeneratorResult(func, info) {
+        this.func = func;
+        this.info = info;
+    }
+    return FunctionGeneratorResult;
+})();
+var FunctionGenerator = (function () {
+    function FunctionGenerator(memory) {
+        this.memory = memory;
+        this.instructions = _instructions.Instructions.instance;
+        this.instructionAst = new _codegen.InstructionAst();
+        this.instructionUsageCount = {};
+    }
+    FunctionGenerator.prototype.getInstructionUsageCount = function () {
+        var items = [];
+        for (var key in this.instructionUsageCount) {
+            var value = this.instructionUsageCount[key];
+            items.push({ name: key, count: value });
+        }
+        items.sort(function (a, b) { return compareNumbers(a.count, b.count); }).reverse();
+        return items;
+    };
+    FunctionGenerator.prototype.decodeInstruction = function (address) {
+        var instruction = _instructions.Instruction.fromMemoryAndPC(this.memory, address);
+        var instructionType = this.getInstructionType(instruction);
+        return new _instructions.DecodedInstruction(instruction, instructionType);
+    };
+    FunctionGenerator.prototype.getInstructionType = function (i) {
+        return this.instructions.findByData(i.data, i.PC);
+    };
+    FunctionGenerator.prototype.generatePspInstruction = function (di) {
+        return new PspInstructionStm(di, this.generateInstructionAstNode(di));
+    };
+    FunctionGenerator.prototype.generateInstructionAstNode = function (di) {
+        var instruction = di.instruction;
+        var instructionType = di.type;
+        var func = this.instructionAst[instructionType.name];
+        if (func === undefined)
+            throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
+        return func.call(this.instructionAst, instruction, di);
+    };
+    FunctionGenerator.prototype.create = function (address) {
+        switch (address) {
+            case CpuSpecialAddresses.EXIT_THREAD:
+                return new FunctionGeneratorResult(function (state) { state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException(); }, { start: address, min: address, max: address + 4, labels: {} });
+            default:
+                var info = this._getFunctionInfo(address);
+                var code = this._getFunctionCode(info);
+                console.log('-----------------------------------------------------------------------------');
+                console.log('-----------------------------------------------------------------------------');
+                console.log(code);
+                console.log('-----------------------------------------------------------------------------');
+                console.log('-----------------------------------------------------------------------------');
+                try {
+                    return new FunctionGeneratorResult((new Function('state', '"use strict";' + code)), info);
+                }
+                catch (e) {
+                    throw (e);
+                }
+        }
+    };
+    FunctionGenerator.prototype._getFunctionInfo = function (address) {
+        if (address == 0x00000000)
+            throw (new Error("Trying to execute 0x00000000"));
+        var explored = {};
+        var explore = [address];
+        var info = { start: address, min: address, max: address, labels: {} };
+        var MAX_EXPLORE = 5000;
+        var exploredCount = 0;
+        function addToExplore(pc) {
+            if (explored[pc])
+                return;
+            explored[pc] = true;
+            explore.push(pc);
+        }
+        while (explore.length > 0) {
+            var PC = explore.shift();
+            var di = this.decodeInstruction(PC);
+            info.min = Math.min(info.min, PC);
+            info.max = Math.max(info.max, PC + 4);
+            if (++exploredCount >= MAX_EXPLORE)
+                throw new Error("Function too big " + exploredCount);
+            if (di.type.isBranch) {
+                if (!di.type.isRegister) {
+                    info.labels[di.targetAddress] = true;
+                    addToExplore(di.targetAddress);
+                }
+                if (!di.isUnconditional)
+                    addToExplore(PC + 4);
+                info.labels[PC + 8] = true;
+            }
+            else if (di.type.isJump || di.type.isBreak) {
+            }
+            else {
+                addToExplore(PC + 4);
+            }
+        }
+        info.labels[info.start] = true;
+        info.labels[info.min] = true;
+        return info;
+    };
+    FunctionGenerator.prototype._getFunctionCode = function (info) {
+        var func = ast.func([ast.functionPrefix()]);
+        var labels = {};
+        for (var labelPC in info.labels)
+            labels[labelPC] = ast.label(labelPC);
+        func.add(ast.djump(ast.raw('state.PC')));
+        for (var PC = info.min; PC <= info.max; PC += 4) {
+            var di = this.decodeInstruction(PC);
+            var type = di.type;
+            var ins = this.generatePspInstruction(di);
+            var delayedSlotInstruction;
+            if (type.hasDelayedBranch)
+                delayedSlotInstruction = this.generatePspInstruction(this.decodeInstruction(PC + 4));
+            if (labels[PC])
+                func.add(labels[PC]);
+            func.add(ins);
+            if (type.hasDelayedBranch) {
+                func.add(this.instructionAst._likely(type.isLikely, delayedSlotInstruction));
+                if (type.isJal) {
+                    func.add(ast.raw('if (state.BRANCHFLAG) {'));
+                    func.add(ast.raw('state.jumpCall = null;'));
+                    func.add(ast.raw('state.PC = state.BRANCHPC;'));
+                    func.add(ast.raw("var cachefunc_" + PC + " = null, cachepc_" + PC + " = -1;"));
+                    func.add(ast.raw("if (cachepc_" + PC + " != state.BRANCHPC) { cachepc_" + PC + " = state.BRANCHPC; cachefunc_" + PC + " = state.getFunction(state.BRANCHPC); }"));
+                    func.add(ast.raw("cachefunc_" + PC + ".execute(state);"));
+                    func.add(ast.raw("while ((state.PC != " + (PC + 8) + ") && (state.jumpCall != null)) state.jumpCall.execute(state);"));
+                    func.add(ast.raw("if (state.PC != " + (PC + 8) + ") throw new Error(\"Invalid call\");"));
+                    func.add(ast.raw('}'));
+                }
+                else if (type.isJump) {
+                    func.add(ast.raw('if (state.BRANCHFLAG) {'));
+                    func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
+                    func.add(ast.raw('return;'));
+                    func.add(ast.raw('}'));
+                }
+                else {
+                    func.add(this.instructionAst._postBranch2(PC + 8));
+                }
+                PC += 4;
+            }
+        }
+        return func.toJs();
+    };
+    return FunctionGenerator;
+})();
+exports.FunctionGenerator = FunctionGenerator;
 
 },
-"src/core/cpu/syscall": function(module, exports, require) {
+"src/core/cpu/cpu_instructions": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var NativeFunction = (function () {
-    function NativeFunction() {
+var IndentStringGenerator = require('../../util/IndentStringGenerator');
+var ADDR_TYPE_NONE = 0;
+var ADDR_TYPE_REG = 1;
+var ADDR_TYPE_16 = 2;
+var ADDR_TYPE_26 = 3;
+var INSTR_TYPE_PSP = (1 << 0);
+var INSTR_TYPE_SYSCALL = (1 << 1);
+var INSTR_TYPE_B = (1 << 2);
+var INSTR_TYPE_LIKELY = (1 << 3);
+var INSTR_TYPE_JAL = (1 << 4);
+var INSTR_TYPE_JUMP = (1 << 5);
+var INSTR_TYPE_BREAK = (1 << 6);
+function VM(format) {
+    var counts = {
+        "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
+        "absw": 1, "absz": 1, "absy": 1, "absx": 1,
+        "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
+        "negw": 1, "negz": 1, "negy": 1, "negx": 1,
+        "one": 1, "two": 1, "vt1": 1,
+        "vt2": 2,
+        "satw": 2, "satz": 2, "saty": 2, "satx": 2,
+        "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
+        "imm3": 3,
+        "imm4": 4,
+        "fcond": 4,
+        "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
+        "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
+        "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
+        "imm8": 8,
+        "imm14": 14,
+        "imm16": 16,
+        "imm20": 20,
+        "imm26": 26
+    };
+    var value = 0;
+    var mask = 0;
+    format.split(':').forEach(function (item) {
+        if (/^[01\-]+$/.test(item)) {
+            for (var n = 0; n < item.length; n++) {
+                value <<= 1;
+                mask <<= 1;
+                if (item[n] == '0') {
+                    value |= 0;
+                    mask |= 1;
+                }
+                if (item[n] == '1') {
+                    value |= 1;
+                    mask |= 1;
+                }
+                if (item[n] == '-') {
+                    value |= 0;
+                    mask |= 0;
+                }
+            }
+        }
+        else {
+            var displacement = counts[item];
+            if (displacement === undefined)
+                throw ("Invalid item '" + item + "'");
+            value <<= displacement;
+            mask <<= displacement;
+        }
+    });
+    return { value: value, mask: mask };
+}
+var InstructionType = (function () {
+    function InstructionType(name, vm, format, addressType, instructionType) {
+        this.name = name;
+        this.vm = vm;
+        this.format = format;
+        this.addressType = addressType;
+        this.instructionType = instructionType;
     }
-    return NativeFunction;
+    InstructionType.prototype.match = function (i32) { return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask); };
+    InstructionType.prototype.isInstructionType = function (mask) { return (this.instructionType & mask) != 0; };
+    Object.defineProperty(InstructionType.prototype, "isSyscall", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_SYSCALL); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isBreak", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_BREAK); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isBranch", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_B); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isCall", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_JAL); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isJump", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isJal", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_JAL); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isJumpOrBranch", {
+        get: function () { return this.isBranch || this.isJump; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isLikely", {
+        get: function () { return this.isInstructionType(INSTR_TYPE_LIKELY); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isRegister", {
+        get: function () { return this.addressType == ADDR_TYPE_REG; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "isFixedAddressJump", {
+        get: function () { return this.isJumpOrBranch && !this.isRegister; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(InstructionType.prototype, "hasDelayedBranch", {
+        get: function () { return this.isJumpOrBranch; },
+        enumerable: true,
+        configurable: true
+    });
+    InstructionType.prototype.toString = function () { return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask); };
+    return InstructionType;
 })();
-exports.NativeFunction = NativeFunction;
-var SyscallManager = (function () {
-    function SyscallManager(context) {
-        this.context = context;
-        this.calls = {};
-        this.lastId = 1;
+exports.InstructionType = InstructionType;
+var Instructions = (function () {
+    function Instructions() {
+        var _this = this;
+        this.instructionTypeListByName = {};
+        this.instructionTypeList = [];
+        var ID = function (name, vm, format, addressType, instructionType) { _this.add(name, vm, format, addressType, instructionType); };
+        ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+        ID("addiu", VM("001001:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+        ID("sub", VM("000000:rs:rt:rd:00000:100010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("subu", VM("000000:rs:rt:rd:00000:100011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("and", VM("000000:rs:rt:rd:00000:100100"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("andi", VM("001100:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+        ID("nor", VM("000000:rs:rt:rd:00000:100111"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("or", VM("000000:rs:rt:rd:00000:100101"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("ori", VM("001101:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+        ID("xor", VM("000000:rs:rt:rd:00000:100110"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("xori", VM("001110:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+        ID("sll", VM("000000:00000:rt:rd:sa:000000"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+        ID("sllv", VM("000000:rs:rt:rd:00000:000100"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+        ID("sra", VM("000000:00000:rt:rd:sa:000011"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+        ID("srav", VM("000000:rs:rt:rd:00000:000111"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+        ID("srl", VM("000000:00000:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+        ID("srlv", VM("000000:rs:rt:rd:00000:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+        ID("rotr", VM("000000:00001:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
+        ID("rotrv", VM("000000:rs:rt:rd:00001:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+        ID("slt", VM("000000:rs:rt:rd:00000:101010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("slti", VM("001010:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+        ID("sltu", VM("000000:rs:rt:rd:00000:101011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        ID("sltiu", VM("001011:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+        ID("lui", VM("001111:00000:rt:imm16"), "%t, %I", ADDR_TYPE_NONE, 0);
+        ID("seb", VM("011111:00000:rt:rd:10000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
+        ID("seh", VM("011111:00000:rt:rd:11000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
+        ID("bitrev", VM("011111:00000:rt:rd:10100:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("max", VM("000000:rs:rt:rd:00000:101100"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("min", VM("000000:rs:rt:rd:00000:101101"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("div", VM("000000:rs:rt:00000:00000:011010"), "%s, %t", ADDR_TYPE_NONE, 0);
+        ID("divu", VM("000000:rs:rt:00000:00000:011011"), "%s, %t", ADDR_TYPE_NONE, 0);
+        ID("mult", VM("000000:rs:rt:00000:00000:011000"), "%s, %t", ADDR_TYPE_NONE, 0);
+        ID("multu", VM("000000:rs:rt:00000:00000:011001"), "%s, %t", ADDR_TYPE_NONE, 0);
+        ID("madd", VM("000000:rs:rt:00000:00000:011100"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("maddu", VM("000000:rs:rt:00000:00000:011101"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("msub", VM("000000:rs:rt:00000:00000:101110"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("msubu", VM("000000:rs:rt:00000:00000:101111"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mfhi", VM("000000:00000:00000:rd:00000:010000"), "%d", ADDR_TYPE_NONE, 0);
+        ID("mflo", VM("000000:00000:00000:rd:00000:010010"), "%d", ADDR_TYPE_NONE, 0);
+        ID("mthi", VM("000000:rs:00000:00000:00000:010001"), "%s", ADDR_TYPE_NONE, 0);
+        ID("mtlo", VM("000000:rs:00000:00000:00000:010011"), "%s", ADDR_TYPE_NONE, 0);
+        ID("movz", VM("000000:rs:rt:rd:00000:001010"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("movn", VM("000000:rs:rt:rd:00000:001011"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("ext", VM("011111:rs:rt:msb:lsb:000000"), "%t, %s, %a, %ne", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("ins", VM("011111:rs:rt:msb:lsb:000100"), "%t, %s, %a, %ni", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("clz", VM("000000:rs:00000:rd:00000:010110"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("clo", VM("000000:rs:00000:rd:00000:010111"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bgez", VM("000001:rs:00001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("bgezl", VM("000001:rs:00011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bgezal", VM("000001:rs:10001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
+        ID("bgezall", VM("000001:rs:10011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
+        ID("bltz", VM("000001:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("bltzl", VM("000001:rs:00010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bltzal", VM("000001:rs:10000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
+        ID("bltzall", VM("000001:rs:10010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
+        ID("blez", VM("000110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("blezl", VM("010110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bgtz", VM("000111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("bgtzl", VM("010111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bne", VM("000101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("bnel", VM("010101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("j", VM("000010:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JUMP);
+        ID("jr", VM("000000:rs:00000:00000:00000:001000"), "%J", ADDR_TYPE_REG, INSTR_TYPE_JUMP);
+        ID("jalr", VM("000000:rs:00000:rd:00000:001001"), "%J, %d", ADDR_TYPE_REG, INSTR_TYPE_JAL);
+        ID("jal", VM("000011:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JAL);
+        ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
+        ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bc1tl", VM("010001:01000:00011:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("lb", VM("100000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("lh", VM("100001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("lw", VM("100011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("lwl", VM("100010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("lwr", VM("100110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("lbu", VM("100100:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("lhu", VM("100101:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("sb", VM("101000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("sh", VM("101001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("sw", VM("101011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("swl", VM("101010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("swr", VM("101110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("ll", VM("110000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
+        ID("sc", VM("111000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
+        ID("lwc1", VM("110001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("swc1", VM("111001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
+        ID("add.s", VM("010001:10000:ft:fs:fd:000000"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+        ID("sub.s", VM("010001:10000:ft:fs:fd:000001"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+        ID("mul.s", VM("010001:10000:ft:fs:fd:000010"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+        ID("div.s", VM("010001:10000:ft:fs:fd:000011"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+        ID("sqrt.s", VM("010001:10000:00000:fs:fd:000100"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("abs.s", VM("010001:10000:00000:fs:fd:000101"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("mov.s", VM("010001:10000:00000:fs:fd:000110"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("neg.s", VM("010001:10000:00000:fs:fd:000111"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("round.w.s", VM("010001:10000:00000:fs:fd:001100"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("trunc.w.s", VM("010001:10000:00000:fs:fd:001101"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("ceil.w.s", VM("010001:10000:00000:fs:fd:001110"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("floor.w.s", VM("010001:10000:00000:fs:fd:001111"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("cvt.s.w", VM("010001:10100:00000:fs:fd:100000"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("cvt.w.s", VM("010001:10000:00000:fs:fd:100100"), "%D, %S", ADDR_TYPE_NONE, 0);
+        ID("mfc1", VM("010001:00000:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
+        ID("mtc1", VM("010001:00100:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
+        ID("cfc1", VM("010001:00010:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
+        ID("ctc1", VM("010001:00110:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
+        ID("c.f.s", VM("010001:10000:ft:fs:00000:11:0000"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.un.s", VM("010001:10000:ft:fs:00000:11:0001"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.eq.s", VM("010001:10000:ft:fs:00000:11:0010"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ueq.s", VM("010001:10000:ft:fs:00000:11:0011"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.olt.s", VM("010001:10000:ft:fs:00000:11:0100"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ult.s", VM("010001:10000:ft:fs:00000:11:0101"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ole.s", VM("010001:10000:ft:fs:00000:11:0110"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ule.s", VM("010001:10000:ft:fs:00000:11:0111"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.sf.s", VM("010001:10000:ft:fs:00000:11:1000"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ngle.s", VM("010001:10000:ft:fs:00000:11:1001"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.seq.s", VM("010001:10000:ft:fs:00000:11:1010"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ngl.s", VM("010001:10000:ft:fs:00000:11:1011"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.lt.s", VM("010001:10000:ft:fs:00000:11:1100"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.nge.s", VM("010001:10000:ft:fs:00000:11:1101"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.le.s", VM("010001:10000:ft:fs:00000:11:1110"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("c.ngt.s", VM("010001:10000:ft:fs:00000:11:1111"), "%S, %T", ADDR_TYPE_NONE, 0);
+        ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
+        ID("cache", VM("101111:rs:-----:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
+        ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);
+        ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
+        ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("dret", VM("011100:00000:00000:00000:00000:111110"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("eret", VM("010000:10000:00000:00000:00000:011000"), "", ADDR_TYPE_NONE, 0);
+        ID("mfic", VM("011100:rt:00000:00000:00000:100100"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mtic", VM("011100:rt:00000:00000:00000:100110"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mfdr", VM("011100:00000:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mtdr", VM("011100:00100:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
+        ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
+        ID("mfv", VM("010010:00:011:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mfvc", VM("010010:00:011:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mtv", VM("010010:00:111:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mtvc", VM("010010:00:111:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("lv.s", VM("110010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("lv.q", VM("110110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("lvl.q", VM("110101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("lvr.q", VM("110101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("sv.q", VM("111110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vdot", VM("011001:001:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vscl", VM("011001:010:vt:two:vs:one:vd"), "%zp, %yp, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsge", VM("011011:110:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrot", VM("111100:111:01:imm5:two:vs:one:vd"), "%zp, %ys, %vr", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vzero", VM("110100:00:000:0:0110:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vone", VM("110100:00:000:0:0111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmov", VM("110100:00:000:0:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vabs", VM("110100:00:000:0:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vneg", VM("110100:00:000:0:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vocp", VM("110100:00:010:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsgn", VM("110100:00:010:0:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrcp", VM("110100:00:000:1:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrsq", VM("110100:00:000:1:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsin", VM("110100:00:000:1:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcos", VM("110100:00:000:1:0011:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vexp2", VM("110100:00:000:1:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vlog2", VM("110100:00:000:1:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsqrt", VM("110100:00:000:1:0110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vasin", VM("110100:00:000:1:0111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vnrcp", VM("110100:00:000:1:1000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vnsin", VM("110100:00:000:1:1010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrexp2", VM("110100:00:000:1:1100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsat0", VM("110100:00:000:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsat1", VM("110100:00:000:0:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcst", VM("110100:00:011:imm5:two:0000000:one:vd"), "%zp, %vk", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmmul", VM("111100:000:vt:two:vs:one:vd"), "%zm, %tym, %xm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vhdp", VM("011001:100:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcrs.t", VM("011001:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcrsp.t", VM("111100:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vi2c", VM("110100:00:001:11:101:two:vs:one:vd"), "%zs, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vi2uc", VM("110100:00:001:11:100:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vtfm2", VM("111100:001:vt:0:vs:1:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vtfm3", VM("111100:010:vt:1:vs:0:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vtfm4", VM("111100:011:vt:1:vs:1:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vhtfm2", VM("111100:001:vt:0:vs:0:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vhtfm3", VM("111100:010:vt:0:vs:1:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vhtfm4", VM("111100:011:vt:1:vs:0:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsrt3", VM("110100:00:010:01000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vfad", VM("110100:00:010:00110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmin", VM("011011:010:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmax", VM("011011:011:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vadd", VM("011000:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsub", VM("011000:001:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vdiv", VM("011000:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmul", VM("011001:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vidt", VM("110100:00:000:0:0011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmidt", VM("111100:111:00:00011:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("viim", VM("110111:11:0:vd:imm16"), "%xs, %vi", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmmov", VM("111100:111:00:00000:two:vs:one:vd"), "%zm, %ym", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmzero", VM("111100:111:00:00110:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmone", VM("111100:111:00:00111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vnop", VM("111111:1111111111:00000:00000000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsync", VM("111111:1111111111:00000:01100100000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vflush", VM("111111:1111111111:00000:10000001101"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vpfxd", VM("110111:10:------------:mskw:mskz:msky:mskx:satw:satz:saty:satx"), "[%vp4, %vp5, %vp6, %vp7]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vpfxs", VM("110111:00:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vpfxt", VM("110111:01:----:negw:negz:negy:negx:cstw:cstz:csty:cstx:absw:absz:absy:absx:swzw:swzz:swzy:swzx"), "[%vp0, %vp1, %vp2, %vp3]", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vdet", VM("011001:110:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrnds", VM("110100:00:001:00:000:two:vs:one:0000000"), "%ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrndi", VM("110100:00:001:00:001:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrndf1", VM("110100:00:001:00:010:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vrndf2", VM("110100:00:001:00:011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcmp", VM("011011:000:vt:two:vs:one:000:imm4"), "%Zn, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcmovf", VM("110100:10:101:01:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vcmovt", VM("110100:10:101:00:imm3:two:vs:one:vd"), "%zp, %yp, %v3", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vavg", VM("110100:00:010:00111:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vf2id", VM("110100:10:011:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vf2in", VM("110100:10:000:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vf2iu", VM("110100:10:010:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vf2iz", VM("110100:10:001:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vi2f", VM("110100:10:100:imm5:two:vs:one:vd"), "%zp, %yp, %v5", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vscmp", VM("011011:101:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmscl", VM("111100:100:vt:two:vs:one:vd"), "%zm, %ym, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vt4444.q", VM("110100:00:010:11001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vt5551.q", VM("110100:00:010:11010:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vt5650.q", VM("110100:00:010:11011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmfvc", VM("110100:00:010:10000:1:imm7:0:vd"), "%zs, %2s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vmtvc", VM("110100:00:010:10001:0:vs:1:imm7"), "%2d, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("mfvme", VM("011010--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
+        ID("mtvme", VM("101100--------------------------"), "%t, %i", ADDR_TYPE_NONE, 0);
+        ID("sv.s", VM("111010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vfim", VM("110111:11:1:vt:imm16"), "%xs, %vh", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("svl.q", VM("111101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("svr.q", VM("111101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vbfy1", VM("110100:00:010:00010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vbfy2", VM("110100:00:010:00011:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vf2h", VM("110100:00:001:10:010:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vh2f", VM("110100:00:001:10:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vi2s", VM("110100:00:001:11:111:two:vs:one:vd"), "%zs, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vi2us", VM("110100:00:001:11:110:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vlgb", VM("110100:00:001:10:111:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vqmul", VM("111100:101:vt:1:vs:1:vd"), "%zq, %yq, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vs2i", VM("110100:00:001:11:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vc2i", VM("110100:00:001:11:001:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vuc2i", VM("110100:00:001:11:000:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsbn", VM("011000:010:vt:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsbz", VM("110100:00:001:10110:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsocp", VM("110100:00:010:00101:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsrt1", VM("110100:00:010:00000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsrt2", VM("110100:00:010:00001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vsrt4", VM("110100:00:010:01001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vus2i", VM("110100:00:001:11010:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
+        ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
+        ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        ID("bvtl", VM("010010:01:000:imm3:11:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
     }
-    SyscallManager.prototype.register = function (nativeFunction) {
-        return this.registerWithId(this.lastId++, nativeFunction);
+    Object.defineProperty(Instructions, "instance", {
+        get: function () {
+            if (!Instructions._instance)
+                Instructions._instance = new Instructions();
+            return Instructions._instance;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instructions.prototype, "instructions", {
+        get: function () { return this.instructionTypeList.slice(0); },
+        enumerable: true,
+        configurable: true
+    });
+    Instructions.prototype.add = function (name, vm, format, addressType, instructionType) {
+        var it = new InstructionType(name, vm, format, addressType, instructionType);
+        this.instructionTypeListByName[name] = it;
+        this.instructionTypeList.push(it);
     };
-    SyscallManager.prototype.registerWithId = function (id, nativeFunction) {
-        this.calls[id] = nativeFunction;
-        return id;
+    Instructions.prototype.findByName = function (name) {
+        var instructionType = this.instructionTypeListByName[name];
+        if (!instructionType)
+            throw ("Cannot find instruction " + sprintf("%s", name));
+        return instructionType;
     };
-    SyscallManager.prototype.call = function (state, id) {
-        var nativeFunction = this.calls[id];
-        if (!nativeFunction)
-            throw (sprintf("Can't call syscall %s: 0x%06X", id));
-        nativeFunction.call(this.context, state);
+    Instructions.prototype.findByData = function (i32, pc) {
+        if (pc === void 0) { pc = 0; }
+        return this.fastFindByData(i32, pc);
     };
-    return SyscallManager;
+    Instructions.prototype.fastFindByData = function (i32, pc) {
+        if (pc === void 0) { pc = 0; }
+        if (!this.decoder) {
+            var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
+            this.decoder = (new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
+        }
+        return this.decoder(this.instructionTypeListByName, i32, pc);
+    };
+    Instructions.prototype.slowFindByData = function (i32, pc) {
+        if (pc === void 0) { pc = 0; }
+        for (var n = 0; n < this.instructionTypeList.length; n++) {
+            var instructionType = this.instructionTypeList[n];
+            if (instructionType.match(i32))
+                return instructionType;
+        }
+        throw (sprintf("Cannot find instruction 0x%08X at 0x%08X", i32, pc));
+    };
+    return Instructions;
 })();
-exports.SyscallManager = SyscallManager;
+exports.Instructions = Instructions;
+var DecodingTable = (function () {
+    function DecodingTable() {
+        this.lastId = 0;
+    }
+    DecodingTable.prototype.getCommonMask = function (instructions, baseMask) {
+        if (baseMask === void 0) { baseMask = 0xFFFFFFFF; }
+        return instructions.reduce(function (left, item) { return left & item.vm.mask; }, baseMask);
+    };
+    DecodingTable.createSwitch = function (instructions) {
+        var writer = new IndentStringGenerator();
+        var decodingTable = new DecodingTable();
+        decodingTable._createSwitch(writer, instructions);
+        return writer.output;
+    };
+    DecodingTable.prototype._createSwitch = function (writer, instructions, baseMask, level) {
+        var _this = this;
+        if (baseMask === void 0) { baseMask = 0xFFFFFFFF; }
+        if (level === void 0) { level = 0; }
+        if (level >= 10)
+            throw ('ERROR: Recursive detection');
+        var commonMask = this.getCommonMask(instructions, baseMask);
+        var groups = {};
+        instructions.forEach(function (item) {
+            var commonValue = item.vm.value & commonMask;
+            if (!groups[commonValue])
+                groups[commonValue] = [];
+            groups[commonValue].push(item);
+        });
+        writer.write('switch ((value & ' + sprintf('0x%08X', commonMask) + ') >>> 0) {\n');
+        writer.indent(function () {
+            for (var groupKey in groups) {
+                var group = groups[groupKey];
+                writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
+                writer.indent(function () {
+                    if (group.length == 1) {
+                        writer.write(' return instructionsByName[' + JSON.stringify(group[0].name) + '];');
+                    }
+                    else {
+                        writer.write('\n');
+                        _this._createSwitch(writer, group, ~commonMask, level + 1);
+                        writer.write('break;\n');
+                    }
+                });
+            }
+            writer.write('default: throw(sprintf("Invalid instruction 0x%08X at 0x%08X (' + _this.lastId++ + ') failed mask 0x%08X", value, pc, ' + commonMask + '));\n');
+        });
+        writer.write('}\n');
+    };
+    return DecodingTable;
+})();
+var Instruction = (function () {
+    function Instruction(PC, data) {
+        this.PC = PC;
+        this.data = data;
+    }
+    Instruction.fromMemoryAndPC = function (memory, PC) { return new Instruction(PC, memory.readInt32(PC)); };
+    Instruction.prototype.extract = function (offset, length) { return BitUtils.extract(this.data, offset, length); };
+    Instruction.prototype.extract_s = function (offset, length) { return BitUtils.extractSigned(this.data, offset, length); };
+    Instruction.prototype.insert = function (offset, length, value) { this.data = BitUtils.insert(this.data, offset, length, value); };
+    Object.defineProperty(Instruction.prototype, "rd", {
+        get: function () { return this.extract(11 + 5 * 0, 5); },
+        set: function (value) { this.insert(11 + 5 * 0, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "rt", {
+        get: function () { return this.extract(11 + 5 * 1, 5); },
+        set: function (value) { this.insert(11 + 5 * 1, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "rs", {
+        get: function () { return this.extract(11 + 5 * 2, 5); },
+        set: function (value) { this.insert(11 + 5 * 2, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "fd", {
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "fs", {
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "ft", {
+        get: function () { return this.extract(6 + 5 * 2, 5); },
+        set: function (value) { this.insert(6 + 5 * 2, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VD", {
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VS", {
+        get: function () { return this.extract(8, 7); },
+        set: function (value) { this.insert(8, 7, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT", {
+        get: function () { return this.extract(16, 7); },
+        set: function (value) { this.insert(16, 7, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT5_1", {
+        get: function () { return this.VT5 | (this.VT1 << 5); },
+        set: function (value) { this.VT5 = value; this.VT1 = (value >>> 5); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM14", {
+        get: function () { return this.extract_s(2, 14); },
+        set: function (value) { this.insert(2, 14, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "ONE", {
+        get: function () { return this.extract(7, 1); },
+        set: function (value) { this.insert(7, 1, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "TWO", {
+        get: function () { return this.extract(15, 1); },
+        set: function (value) { this.insert(15, 1, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "ONE_TWO", {
+        get: function () { return (1 + 1 * this.ONE + 2 * this.TWO); },
+        set: function (value) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM8", {
+        get: function () { return this.extract(16, 8); },
+        set: function (value) { this.insert(16, 8, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM5", {
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM3", {
+        get: function () { return this.extract(18, 3); },
+        set: function (value) { this.insert(18, 3, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM7", {
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM4", {
+        get: function () { return this.extract(0, 4); },
+        set: function (value) { this.insert(0, 4, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT1", {
+        get: function () { return this.extract(0, 1); },
+        set: function (value) { this.insert(0, 1, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT2", {
+        get: function () { return this.extract(0, 2); },
+        set: function (value) { this.insert(0, 2, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT5", {
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "VT5_2", {
+        get: function () { return this.VT5 | (this.VT2 << 5); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "IMM_HF", {
+        get: function () { return HalfFloat.toFloat(this.imm16); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "pos", {
+        get: function () { return this.lsb; },
+        set: function (value) { this.lsb = value; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "size_e", {
+        get: function () { return this.msb + 1; },
+        set: function (value) { this.msb = value - 1; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "size_i", {
+        get: function () { return this.msb - this.lsb + 1; },
+        set: function (value) { this.msb = this.lsb + value - 1; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "lsb", {
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "msb", {
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "c1cr", {
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "syscall", {
+        get: function () { return this.extract(6, 20); },
+        set: function (value) { this.insert(6, 20, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "imm16", {
+        get: function () { var res = this.u_imm16; if (res & 0x8000)
+            res |= 0xFFFF0000; return res; },
+        set: function (value) { this.insert(0, 16, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "u_imm16", {
+        get: function () { return this.extract(0, 16); },
+        set: function (value) { this.insert(0, 16, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "u_imm26", {
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "jump_bits", {
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "jump_real", {
+        get: function () { return (this.jump_bits * 4) >>> 0; },
+        set: function (value) { this.jump_bits = (value / 4) >>> 0; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "branch_address", {
+        get: function () { return this.PC + this.imm16 * 4 + 4; },
+        set: function (value) {
+            this.imm16 = (value - this.PC - 4) / 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Instruction.prototype, "jump_address", {
+        get: function () { return this.u_imm26 * 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return Instruction;
+})();
+exports.Instruction = Instruction;
+var DecodedInstruction = (function () {
+    function DecodedInstruction(instruction, type) {
+        this.instruction = instruction;
+        this.type = type;
+    }
+    Object.defineProperty(DecodedInstruction.prototype, "PC", {
+        get: function () { return this.instruction.PC; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DecodedInstruction.prototype, "isUnconditional", {
+        get: function () {
+            switch (this.type.name) {
+                case 'j':
+                case 'b': return true;
+            }
+            return false;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DecodedInstruction.prototype, "isUnconditionalFixedJump", {
+        get: function () {
+            return this.type.name == 'j';
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DecodedInstruction.prototype, "targetAddress", {
+        get: function () {
+            if (this.type.isRegister)
+                return this.PC;
+            if (this.type.isBranch)
+                return this.instruction.branch_address;
+            if (this.type.isJump)
+                return this.instruction.jump_address;
+            return this.PC + 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return DecodedInstruction;
+})();
+exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/display": function(module, exports, require) {
@@ -10532,7 +10568,7 @@ var InterruptManager = (function () {
             state.preserveRegisters(function () {
                 state.gpr[4] = item.no;
                 state.gpr[5] = item.argument;
-                state.callPCSafe(item.address);
+                state.execute(item.address);
             });
         }
     };
@@ -11686,7 +11722,6 @@ var PspAudio = _audio.PspAudio;
 var PspDisplay = _display.PspDisplay;
 var PspGpu = _gpu.PspGpu;
 var PspController = _controller.PspController;
-var InstructionCache = _cpu.InstructionCache;
 var SyscallManager = _cpu.SyscallManager;
 var ThreadManager = _manager.ThreadManager;
 var ModuleManager = _manager.ModuleManager;
@@ -11732,7 +11767,6 @@ var Emulator = (function () {
                 _this.webgl_canvas = null;
             }
             _this.controller = new PspController();
-            _this.instructionCache = new InstructionCache(_this.memory);
             _this.syscallManager = new SyscallManager(_this.context);
             _this.fileManager = new FileManager();
             _this.interop = new Interop();
@@ -11741,7 +11775,7 @@ var Emulator = (function () {
             _this.rtc = new PspRtc();
             _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
             _this.gpu = new PspGpu(_this.memory, _this.display, _this.webgl_canvas, _this.interop);
-            _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager, _this.instructionCache);
+            _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager);
             _this.moduleManager = new ModuleManager(_this.context);
             _this.netManager = new NetManager();
             _this.emulatorVfs = new EmulatorVfs(_this.context);
@@ -11759,7 +11793,7 @@ var Emulator = (function () {
             _this.fileManager.mount('kemulator', _this.emulatorVfs);
             _this.ms0Vfs.mountVfs('/', new MemoryVfs());
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
-            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.instructionCache, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop, _this.netManager);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop, _this.netManager);
             return Promise.all([
                 _this.display.startAsync(),
                 _this.controller.startAsync(),
@@ -15321,7 +15355,7 @@ var Interop = (function () {
             for (var n = 0; n < gprArray.length; n++) {
                 state.gpr[4 + n] = gprArray[n];
             }
-            state.callPCSafe(address);
+            state.getFunction(address).execute(state);
         });
     };
     return Interop;
@@ -15709,7 +15743,6 @@ exports.NetManager = NetManager;
 var _cpu = require('../../core/cpu');
 var SceKernelErrors = require('../SceKernelErrors');
 var CpuState = _cpu.CpuState;
-var ProgramExecutor = _cpu.ProgramExecutor;
 var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 var console = logger.named('hle.thread');
 (function (ThreadStatus) {
@@ -15742,12 +15775,11 @@ var ThreadStatus = exports.ThreadStatus;
 })(exports.PspThreadAttributes || (exports.PspThreadAttributes = {}));
 var PspThreadAttributes = exports.PspThreadAttributes;
 var Thread = (function () {
-    function Thread(name, manager, memoryManager, state, instructionCache, stackSize) {
+    function Thread(name, manager, memoryManager, state, stackSize) {
         var _this = this;
         this.name = name;
         this.manager = manager;
         this.state = state;
-        this.instructionCache = instructionCache;
         this.id = 0;
         this.status = ThreadStatus.DORMANT;
         this.initialPriority = 10;
@@ -15769,7 +15801,6 @@ var Thread = (function () {
         this.wakeupFunc = null;
         this.accumulatedMicroseconds = 0;
         this.state.thread = this;
-        this.programExecutor = new ProgramExecutor(state, instructionCache);
         this.runningPromise = new Promise(function (resolve, reject) { _this.runningStop = resolve; });
         this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
     }
@@ -15888,7 +15919,7 @@ var Thread = (function () {
         this.manager.current = this;
         this.preemptionCount++;
         try {
-            this.programExecutor.execute(10000);
+            this.state.executeAtPC();
         }
         catch (e) {
             console.error(e);
@@ -15901,7 +15932,7 @@ var Thread = (function () {
 })();
 exports.Thread = Thread;
 var ThreadManager = (function () {
-    function ThreadManager(memory, interruptManager, callbackManager, memoryManager, display, syscallManager, instructionCache) {
+    function ThreadManager(memory, interruptManager, callbackManager, memoryManager, display, syscallManager) {
         var _this = this;
         this.memory = memory;
         this.interruptManager = interruptManager;
@@ -15909,13 +15940,13 @@ var ThreadManager = (function () {
         this.memoryManager = memoryManager;
         this.display = display;
         this.syscallManager = syscallManager;
-        this.instructionCache = instructionCache;
         this.threads = new DSet();
         this.interval = -1;
         this.enqueued = false;
         this.enqueuedTime = 0;
         this.running = false;
         this.callbackAdded = null;
+        this.rootCpuState = new CpuState(this.memory, this.syscallManager);
         this.exitPromise = new Promise(function (resolve, reject) {
             _this.exitResolve = resolve;
         });
@@ -15924,7 +15955,7 @@ var ThreadManager = (function () {
     ThreadManager.prototype.create = function (name, entryPoint, initialPriority, stackSize, attributes) {
         if (stackSize === void 0) { stackSize = 0x1000; }
         if (attributes === void 0) { attributes = 0; }
-        var thread = new Thread(name, this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
+        var thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
         thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
         thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
@@ -16170,7 +16201,7 @@ var LoadCoreForKernel = (function () {
         var _this = this;
         this.context = context;
         this.sceKernelIcacheClearAll = createNativeFunction(0xD8779AC6, 150, 'void', '', this, function () {
-            _this.context.instructionCache.invalidateAll();
+            _this.context.currentInstructionCache.invalidateAll();
         });
         this.sceKernelFindModuleByUID = createNativeFunction(0xCCE4A157, 150, 'int', 'int', this, function (moduleID) {
             console.warn('Not implemented sceKernelFindModuleByUID(' + moduleID + ')');
@@ -16405,7 +16436,7 @@ var UtilsForKernel = (function () {
         var _this = this;
         this.context = context;
         this.sceKernelIcacheInvalidateRange = createNativeFunction(0xC2DF770E, 150, 'void', 'uint/uint', this, function (address, size) {
-            _this.context.instructionCache.invalidateRange(address, address + size);
+            _this.context.currentInstructionCache.invalidateRange(address, address + size);
         });
     }
     return UtilsForKernel;
@@ -22727,7 +22758,7 @@ describe('elf', function () {
         var context = new EmulatorContext();
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null);
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
     });
@@ -23091,6 +23122,12 @@ describe('pspautotests', function () {
 
 },
 "test/testasm": function(module, exports, require) {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
 ///<reference path="./global.d.ts" />
 function ref() { }
 exports.ref = ref;
@@ -23098,25 +23135,23 @@ var _cpu = require('../src/core/cpu');
 var _memory = require('../src/core/memory');
 var Memory = _memory.Memory;
 var CpuState = _cpu.CpuState;
-var InstructionCache = _cpu.InstructionCache;
-var ProgramExecutor = _cpu.ProgramExecutor;
 var assembler = new _cpu.MipsAssembler();
 var disassembler = new _cpu.MipsDisassembler();
 var memory = Memory.instance;
-var TestSyscallManager = (function () {
+var TestSyscallManager = (function (_super) {
+    __extends(TestSyscallManager, _super);
     function TestSyscallManager() {
+        _super.call(this, null);
     }
     TestSyscallManager.prototype.call = function (state, id) {
     };
     return TestSyscallManager;
-})();
+})(_cpu.SyscallManager);
 function executeProgram(gprInitial, program) {
     program = program.slice(0);
     program.push('break 0');
     assembler.assembleToMemory(memory, 4, program);
     var state = new CpuState(memory, new TestSyscallManager());
-    var instructionCache = new InstructionCache(memory);
-    var programExecuter = new ProgramExecutor(state, instructionCache);
     for (var key in gprInitial) {
         if (key.substr(0, 1) == '$') {
             state.gpr[parseInt(key.substr(1))] = gprInitial[key];
@@ -23127,7 +23162,13 @@ function executeProgram(gprInitial, program) {
     }
     state.PC = 4;
     state.SP = 0x10000;
-    programExecuter.execute(1000);
+    try {
+        state.executeAtPC();
+    }
+    catch (e) {
+        if (!(e instanceof CpuBreakException))
+            throw e;
+    }
     return state;
 }
 function generateGpr3Matrix(op, vector) {
@@ -23161,7 +23202,7 @@ function assertProgram(description, gprInitial, program, gprAssertions) {
         assert.equal(sprintf('%08X', value), sprintf('%08X', gprAssertions[key]), description + ': ' + key + ' == ' + sprintf('%08X', gprAssertions[key]));
     }
 }
-describe('cpu running', function () {
+describe('testasm cpu running', function () {
     it('simple', function () {
         assertProgram("subtract 1", {}, ["li r1, 100", "addiu r1, r1, -1"], { $1: 99 });
         assertProgram("xor", { "$1": 0xFF00FF00, "$2": 0x00FFFF00 }, ["xor r3, r1, r2"], { $3: 0xFFFF0000 });
@@ -23183,7 +23224,33 @@ describe('cpu running', function () {
     it('divide', function () {
         assertProgram("divide", {}, ["li r10, 100", "li r11, 12", "div r10, r11"], { HI: 4, LO: 8 });
     });
-    it('branch', function () {
+    it('branch1', function () {
+        assertProgram("branch beq", { "$1": 0, "$2": 0 }, [
+            ":label1",
+            "addi r2, r2, 1",
+            "beq r1, r0, label1",
+            "addi r1, r1, 1",
+        ], { "$1": 2, "$2": 2 });
+    });
+    it('branch2', function () {
+        assertProgram("branch bne", { "$1": 0, "$2": 10 }, [
+            ":label1",
+            "bne r1, r2, label1",
+            "addi r1, r1, 1",
+        ], { "$1": 11 });
+    });
+    it('jal', function () {
+        assertProgram("jal", { "$1": 0 }, [
+            ":label1",
+            "jal func1",
+            "addi r1, r0, 1",
+            "j end",
+            "nop",
+            ":func1",
+            "jr r31",
+            "add r1, r1, r1",
+            ":end",
+        ], { "$1": 2 });
     });
     it('shift', function () {
     });

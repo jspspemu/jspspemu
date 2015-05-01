@@ -23,7 +23,7 @@ var INSTR_TYPE_JUMP = (1 << 5);
 var INSTR_TYPE_BREAK = (1 << 6);
 
 function VM(format: string): ValueMask {
-	var counts:{[k:string]:number} = {
+	var counts: { [k: string]: number } = {
 		"cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
 		"absw": 1, "absz": 1, "absy": 1, "absx": 1,
 		"mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
@@ -72,49 +72,21 @@ function VM(format: string): ValueMask {
 }
 
 export class InstructionType {
-	constructor(public name: string, public vm: ValueMask, public format: string, public addressType: number, public instructionType: number) {
-	}
-
-	match(i32: number) {
-		//printf("%08X | %08X | %08X", i32, this.vm.value, this.vm.mask);
-		return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask);
-	}
-
-	private isInstructionType(mask: number) {
-		return (this.instructionType & mask) != 0;
-	}
-
-	get isSyscall() {
-		return this.isInstructionType(INSTR_TYPE_SYSCALL);
-	}
-
-	get isBreak() {
-		return this.isInstructionType(INSTR_TYPE_BREAK);
-	}
-
-	get isBranch() {
-		return this.isInstructionType(INSTR_TYPE_B);
-	}
-
-	get isCall() {
-		return this.isInstructionType(INSTR_TYPE_JAL);
-	}
-
-	get isJump() {
-		return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP);
-	}
-
-	get isJumpOrBranch() {
-		return this.isBranch || this.isJump;
-	}
-
-	get isLikely() {
-		return this.isInstructionType(INSTR_TYPE_LIKELY);
-	}
-
-	toString() {
-		return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask);
-	}
+	constructor(public name: string, public vm: ValueMask, public format: string, public addressType: number, public instructionType: number) { }
+	match(i32: number) { return (i32 & this.vm.mask) == (this.vm.value & this.vm.mask); }
+	private isInstructionType(mask: number) { return (this.instructionType & mask) != 0; }
+	get isSyscall() { return this.isInstructionType(INSTR_TYPE_SYSCALL); }
+	get isBreak() { return this.isInstructionType(INSTR_TYPE_BREAK); }
+	get isBranch() { return this.isInstructionType(INSTR_TYPE_B); }
+	get isCall() { return this.isInstructionType(INSTR_TYPE_JAL); }
+	get isJump() { return this.isInstructionType(INSTR_TYPE_JAL) || this.isInstructionType(INSTR_TYPE_JUMP); }
+	get isJal() { return this.isInstructionType(INSTR_TYPE_JAL); }
+	get isJumpOrBranch() { return this.isBranch || this.isJump; }
+	get isLikely() { return this.isInstructionType(INSTR_TYPE_LIKELY); }
+	get isRegister() { return this.addressType == ADDR_TYPE_REG; }
+	get isFixedAddressJump() { return this.isJumpOrBranch && !this.isRegister; }
+	get hasDelayedBranch() { return this.isJumpOrBranch; }
+	toString() { return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask); }
 }
 
 export class Instructions {
@@ -128,9 +100,7 @@ export class Instructions {
 	instructionTypeListByName: { [name: string]: InstructionType; } = {};
 	instructionTypeList: InstructionType[] = [];
 
-	get instructions() {
-		return this.instructionTypeList.slice(0);
-	}
+	get instructions() { return this.instructionTypeList.slice(0); }
 
 	constructor() {
 		var ID = (name: string, vm: ValueMask, format: string, addressType: number, instructionType: number) => { this.add(name, vm, format, addressType, instructionType); };
@@ -665,7 +635,7 @@ export class Instruction {
 	get fs() { return this.extract(6 + 5 * 1, 5); } set fs(value: number) { this.insert(6 + 5 * 1, 5, value); }
 	get ft() { return this.extract(6 + 5 * 2, 5); } set ft(value: number) { this.insert(6 + 5 * 2, 5, value); }
 
-	get VD() { return this.extract(0, 7); } set VD(value:number) { this.insert(0, 7, value); }
+	get VD() { return this.extract(0, 7); } set VD(value: number) { this.insert(0, 7, value); }
 	get VS() { return this.extract(8, 7); } set VS(value: number) { this.insert(8, 7, value); }
 	get VT() { return this.extract(16, 7); } set VT(value: number) { this.insert(16, 7, value); }
 	get VT5_1() { return this.VT5 | (this.VT1 << 5); } set VT5_1(value: number) { this.VT5 = value; this.VT1 = (value >>> 5); }
@@ -675,16 +645,16 @@ export class Instruction {
 	get TWO() { return this.extract(15, 1); } set TWO(value: number) { this.insert(15, 1, value); }
 	get ONE_TWO() { return (1 + 1 * this.ONE + 2 * this.TWO); } set ONE_TWO(value: number) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); }
 
-	
-	get IMM8() { return this.extract(16, 8); } set IMM8(value:number) { this.insert(16, 8, value); }
-	get IMM5() { return this.extract(16, 5); } set IMM5(value:number) { this.insert(16, 5, value); }
+
+	get IMM8() { return this.extract(16, 8); } set IMM8(value: number) { this.insert(16, 8, value); }
+	get IMM5() { return this.extract(16, 5); } set IMM5(value: number) { this.insert(16, 5, value); }
 	get IMM3() { return this.extract(18, 3); } set IMM3(value: number) { this.insert(18, 3, value); }
-	get IMM7() { return this.extract(0, 7); } set IMM7(value:number) { this.insert(0, 7, value); }
-	get IMM4() { return this.extract(0, 4); } set IMM4(value:number) { this.insert(0, 4, value); }
-	get VT1() { return this.extract(0, 1); } set VT1(value:number) { this.insert(0, 1, value); }
-	get VT2() { return this.extract(0, 2); } set VT2(value:number) { this.insert(0, 2, value); }
-	get VT5() { return this.extract(16, 5); } set VT5(value:number) { this.insert(16, 5, value); }
-	get VT5_2 () { return this.VT5 | (this.VT2 << 5); }
+	get IMM7() { return this.extract(0, 7); } set IMM7(value: number) { this.insert(0, 7, value); }
+	get IMM4() { return this.extract(0, 4); } set IMM4(value: number) { this.insert(0, 4, value); }
+	get VT1() { return this.extract(0, 1); } set VT1(value: number) { this.insert(0, 1, value); }
+	get VT2() { return this.extract(0, 2); } set VT2(value: number) { this.insert(0, 2, value); }
+	get VT5() { return this.extract(16, 5); } set VT5(value: number) { this.insert(16, 5, value); }
+	get VT5_2() { return this.VT5 | (this.VT2 << 5); }
 	get IMM_HF() { return HalfFloat.toFloat(this.imm16); }
 
 	get pos() { return this.lsb; } set pos(value: number) { this.lsb = value; }
@@ -703,9 +673,37 @@ export class Instruction {
 
 	get jump_bits() { return this.extract(0, 26); } set jump_bits(value: number) { this.insert(0, 26, value); }
 	get jump_real() { return (this.jump_bits * 4) >>> 0; } set jump_real(value: number) { this.jump_bits = (value / 4) >>> 0; }
+	
+	set branch_address(value:number) {
+		this.imm16 = (value - this.PC - 4) / 4;
+	}
+	
+	get branch_address() { return this.PC + this.imm16 * 4 + 4; }
+	get jump_address() { return this.u_imm26 * 4; }
 }
 
 export class DecodedInstruction {
 	constructor(public instruction: Instruction, public type: InstructionType) {
+	}
+	
+	get PC() { return this.instruction.PC; }
+	
+	get isUnconditional() {
+		switch (this.type.name) {
+			case 'j': case 'b': return true;
+			// @TODO: Check beq rX, rX
+		}
+		return false;
+	}
+	
+	get isUnconditionalFixedJump() {
+		return this.type.name == 'j';
+	}
+	
+	get targetAddress() {
+		if (this.type.isRegister) return this.PC;
+		if (this.type.isBranch) return this.instruction.branch_address;
+		if (this.type.isJump) return this.instruction.jump_address;
+		return this.PC + 4;
 	}
 }

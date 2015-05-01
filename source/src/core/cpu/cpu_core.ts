@@ -1,19 +1,22 @@
 ﻿///<reference path="../../global.d.ts" />
 
-import memory = require('../memory');
-import syscall = require('./syscall');
+import _memory = require('../memory');
+import _ast = require('./cpu_ast');
+import _instructions = require('./cpu_instructions');
+import _codegen = require('./cpu_codegen');
 
-import Memory = memory.Memory;
-import ISyscallManager = syscall.ISyscallManager;
+import Memory = _memory.Memory;
 
 export enum CpuSpecialAddresses {
 	EXIT_THREAD = 0x0FFFFFFF,
 }
 
-export interface IExecutor {
-	execute(maxIterations: number): void;
-	executeWithoutCatch(maxIterations: number): void;
-	executeUntilPCReachesWithoutCall(pc: number): void;
+export interface ICpuExecutable {
+	execute(state:CpuState):void;
+}
+
+export interface IInstructionCache {
+	getFunction(pc:number):ICpuExecutable;
 }
 
 class VfpuPrefixBase {
@@ -40,6 +43,43 @@ class VfpuPrefixBase {
 		this.enabled = true;
 	}
 }
+
+export interface IEmulatorContext {
+}
+
+export class NativeFunction {
+	name: string;
+	nid: number;
+	firmwareVersion: number;
+	call: (context: IEmulatorContext, state: CpuState) => void;
+	nativeCall: Function;
+}
+	
+export class SyscallManager {
+    private calls: any = {};
+    private lastId: number = 1;
+
+	constructor(public context: IEmulatorContext) {
+    }
+
+    register(nativeFunction: NativeFunction) {
+        return this.registerWithId(this.lastId++, nativeFunction);
+    }
+
+    registerWithId(id: number, nativeFunction: NativeFunction) {
+        this.calls[id] = nativeFunction;
+        return id;
+    }
+
+	call(state: CpuState, id: number) {
+        var nativeFunction: NativeFunction = this.calls[id];
+        if (!nativeFunction) throw (sprintf("Can't call syscall %s: 0x%06X", id));
+		//printf('calling syscall 0x%04X : %s', id, nativeFunction.name);
+
+        nativeFunction.call(this.context, state);
+    }
+}
+
 
 
 class VfpuPrefixRead extends VfpuPrefixBase {
@@ -135,11 +175,28 @@ export enum VCondition {
 
 
 export class CpuState {
+	constructor(public memory: Memory, public syscallManager: SyscallManager) {
+		this.icache = new InstructionCache(memory);
+		this.fcr0 = 0x00003351;
+		this.fcr31 = 0x00000e00;
+		this.executeAtPCBinded = this.executeAtPC.bind(this);
+	}
+	
+	clone() {
+		var that = new CpuState(this.memory, this.syscallManager);
+		that.icache = this.icache;
+		that.copyRegistersFrom(this);
+		return that;
+	}
+	
+	icache:InstructionCache;
+
 	gpr_Buffer = new ArrayBuffer(32 * 4);
 	gpr = new Int32Array(this.gpr_Buffer);
 	gpr_f = new Float32Array(this.gpr_Buffer);
-
-	executor: IExecutor;
+	
+	executeAtPCBinded:ICpuFunction = null
+	jumpCall:ICpuFunction = null
 
 	temp = new Array(16);
 
@@ -476,11 +533,6 @@ export class CpuState {
 		return sprintf('r1: %08X, r2: %08X, r3: %08X, r3: %08X', this.gpr[1], this.gpr[2], this.gpr[3], this.gpr[4]);
 	}
 
-	constructor(public memory: Memory, public syscallManager: ISyscallManager) {
-		this.fcr0 = 0x00003351;
-		this.fcr31 = 0x00000e00;
-	}
-
 	fcr31_rm: number = 0;
 	fcr31_2_21: number = 0;
 	fcr31_25_7: number = 0;
@@ -679,35 +731,248 @@ export class CpuState {
 		this.HI = result.high;
 		this.LO = result.low;
 	}
-
-	callPC(pc: number) {
+	
+	getFunction(pc: number): ICpuExecutable {
+		return this.icache.getFunction(pc);
+	}
+	
+	execute(pc: number) {
 		this.PC = pc;
-		var ra = this.getRA();
-		this.executor.executeUntilPCReachesWithoutCall(ra);
+		this.executeAtPC();
 	}
 
-	callPCSafe(pc: number) {
-		this.PC = pc;
-		var ra = this.getRA();
-		while (this.PC != ra) {
-			/*
-			if (DebugOnce('test', 10)) {
-				console.log(this.PC, this.RA, ra);
-			} else {
-				throw(new Error("TOO BAD!"));
-			}
-			*/
-			try {
-				this.executor.executeUntilPCReachesWithoutCall(ra);
-			} catch (e) {
-				if (!(e instanceof CpuBreakException)) {
-					console.error(e);
-					console.error(e['stack']);
-					throw (e);
-				}
-			}
-		}
+	executeAtPC() {
+		this.getFunction(this.PC).execute(this);
 	}
 
 	break() { throw (new CpuBreakException()); }
+}
+
+var ast = new _ast.MipsAstBuilder();
+
+export interface InstructionUsage {
+	name: string;
+	count: number;
+}
+
+class PspInstructionStm extends _ast.ANodeStm {
+	public PC: number;
+	constructor(private di: _instructions.DecodedInstruction, private code: _ast.ANodeStm) {
+		super();
+		this.PC = di.PC;
+	}
+
+	toJs() {
+		return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
+	}
+	optimize() { return new PspInstructionStm(this.di, this.code.optimize()); }
+}
+
+interface FunctionInfo {
+	start: number;
+	min: number;
+	max: number;
+	labels: NumberDictionary<boolean>;
+}
+
+type IFunctionGenerator = (address:number) => ICpuFunction;
+type ICpuFunction = (state:CpuState) => void; 
+
+export class InvalidatableCpuFunction {
+	private func: ICpuFunction = null;
+	
+	public constructor(public PC:number, private generator: IFunctionGenerator) { }
+	public invalidate() { this.func = null; }
+	public execute(state:CpuState):void {
+		if (this.func == null) this.func = this.generator(this.PC);
+		this.func(state);
+	}
+}
+
+export class InstructionCache {
+	functionGenerator: FunctionGenerator;
+	private cache: NumberDictionary<InvalidatableCpuFunction> = {};
+	private createBind:IFunctionGenerator;
+
+	constructor(public memory: Memory) {
+		this.functionGenerator = new FunctionGenerator(memory);
+		this.createBind = this.create.bind(this);
+	}
+
+	invalidateAll() {
+		for (var key in this.cache) this.cache[key].invalidate();
+	}
+
+	invalidateRange(from: number, to: number) {
+		for (var n = from; n < to; n += 4) this.cache[n].invalidate();
+	}
+	
+	private create(address:number): ICpuFunction {
+		// @TODO: check if we have a function in this range already range already!
+		return this.functionGenerator.create(address).func;
+	}
+
+	getFunction(address: number):InvalidatableCpuFunction {
+		if (!this.cache[address]) {
+			this.cache[address] = new InvalidatableCpuFunction(address, this.createBind);
+		}
+		return this.cache[address];
+	}
+}
+
+class FunctionGeneratorResult {
+	constructor(public func: ICpuFunction, public info: FunctionInfo) { }
+}
+
+export class FunctionGenerator {
+	private instructions: _instructions.Instructions = _instructions.Instructions.instance;
+	private instructionAst = new _codegen.InstructionAst();
+	//private instructionGenerartorsByName = <StringDictionary<Function>>{ };
+	private instructionUsageCount: StringDictionary<number> = {};
+
+	constructor(public memory: Memory) {
+	}
+
+	getInstructionUsageCount(): InstructionUsage[] {
+		var items: InstructionUsage[] = [];
+		for (var key in this.instructionUsageCount) {
+			var value = this.instructionUsageCount[key];
+			items.push({ name: key, count: value });
+		}
+		items.sort((a, b) => compareNumbers(a.count, b.count)).reverse();
+		return items;
+	}
+
+	private decodeInstruction(address: number) {
+		var instruction = _instructions.Instruction.fromMemoryAndPC(this.memory, address);
+		var instructionType = this.getInstructionType(instruction);
+		return new _instructions.DecodedInstruction(instruction, instructionType);
+	}
+
+	private getInstructionType(i: _instructions.Instruction) {
+		return this.instructions.findByData(i.data, i.PC);
+	}
+
+	private generatePspInstruction(di: _instructions.DecodedInstruction): PspInstructionStm {
+		return new PspInstructionStm(di, this.generateInstructionAstNode(di));
+	}
+
+	private generateInstructionAstNode(di: _instructions.DecodedInstruction): _ast.ANodeStm {
+		var instruction = di.instruction;
+		var instructionType = di.type;
+		var func: Function = (<any>this.instructionAst)[instructionType.name];
+		if (func === undefined) throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
+		return func.call(this.instructionAst, instruction, di);
+	}
+
+	create(address: number): FunctionGeneratorResult {
+		switch (address) {
+			case CpuSpecialAddresses.EXIT_THREAD:
+				return new FunctionGeneratorResult(
+					(state: CpuState) => { state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException(); },
+					{ start: address, min :address, max: address + 4, labels: {} }
+				);
+			default:
+				var info = this._getFunctionInfo(address);
+				var code = this._getFunctionCode(info);
+				console.log('-----------------------------------------------------------------------------');
+				console.log('-----------------------------------------------------------------------------');
+				console.log(code);
+				console.log('-----------------------------------------------------------------------------');
+				console.log('-----------------------------------------------------------------------------');
+				try {
+					return new FunctionGeneratorResult(<any>(new Function('state', '"use strict";' + code)), info);
+				} catch (e) {
+					//console.info('code:\n', code);
+					throw (e);
+				}
+		}
+	}
+
+	private _getFunctionInfo(address: number): FunctionInfo {
+		if (address == 0x00000000) throw (new Error("Trying to execute 0x00000000"));
+
+		const explored: NumberDictionary<Boolean> = {};
+		const explore = [address];
+		const info: FunctionInfo = { start: address, min: address, max: address, labels: {} };
+		const MAX_EXPLORE = 5000;
+		var exploredCount = 0;
+
+		function addToExplore(pc: number) {
+			if (explored[pc]) return;
+			explored[pc] = true;
+			explore.push(pc);
+		}
+		
+		while (explore.length > 0) {
+			var PC = explore.shift();
+			var di = this.decodeInstruction(PC);
+			info.min = Math.min(info.min, PC);
+			info.max = Math.max(info.max, PC + 4); // delayed branch
+			
+			//printf("PC: %08X: %s", PC, di.type.name);
+			if (++exploredCount >= MAX_EXPLORE) throw new Error(`Function too big ${exploredCount}`);
+
+			if (di.type.isBranch) {
+				if (!di.type.isRegister) {
+					info.labels[di.targetAddress] = true;
+					addToExplore(di.targetAddress);
+				}
+				if (!di.isUnconditional) addToExplore(PC + 4);
+				info.labels[PC + 8] = true;
+			} else if (di.type.isJump || di.type.isBreak) {
+				// Do nothing
+			} else {
+				addToExplore(PC + 4);
+			}
+		}
+		
+		info.labels[info.start] = true;
+		info.labels[info.min] = true;
+
+		return info;
+	}
+
+	private _getFunctionCode(info: FunctionInfo) {
+		var func = ast.func([ast.functionPrefix()]);
+		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
+		for (let labelPC in info.labels) labels[labelPC] = ast.label(labelPC);
+		
+		func.add(ast.djump(ast.raw('state.PC')));
+
+		for (let PC = info.min; PC <= info.max; PC += 4) {
+			var di = this.decodeInstruction(PC);
+			var type = di.type;
+			var ins = this.generatePspInstruction(di);
+			var delayedSlotInstruction: PspInstructionStm;
+			if (type.hasDelayedBranch) delayedSlotInstruction = this.generatePspInstruction(this.decodeInstruction(PC + 4));
+			if (labels[PC]) func.add(labels[PC]);
+			func.add(ins);
+			if (type.hasDelayedBranch) {
+				func.add(this.instructionAst._likely(type.isLikely, delayedSlotInstruction));
+				if (type.isJal) {
+					func.add(ast.raw('if (state.BRANCHFLAG) {'));
+					func.add(ast.raw('state.jumpCall = null;'));
+					func.add(ast.raw('state.PC = state.BRANCHPC;'));
+					func.add(ast.raw(`var cachefunc_${PC} = null, cachepc_${PC} = -1;`));
+					func.add(ast.raw(`if (cachepc_${PC} != state.BRANCHPC) { cachepc_${PC} = state.BRANCHPC; cachefunc_${PC} = state.getFunction(state.BRANCHPC); }`));
+					func.add(ast.raw(`cachefunc_${PC}.execute(state);`));
+					func.add(ast.raw(`while ((state.PC != ${PC + 8}) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
+					// @TODO: should return to the main loop
+					func.add(ast.raw(`if (state.PC != ${PC + 8}) throw new Error("Invalid call");`));
+					func.add(ast.raw('}'));
+				} else if (type.isJump) {
+					func.add(ast.raw('if (state.BRANCHFLAG) {'));
+					func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
+					func.add(ast.raw('return;'));
+					func.add(ast.raw('}'));
+				} else {
+					func.add(this.instructionAst._postBranch2(PC + 8));
+				}
+
+				PC += 4;
+			}
+		}
+		return func.toJs();
+	}
 }

@@ -59,5 +59,6 @@ block.add(label1 = new NLabelNode('l1'));
 block.add(new NSimpleNode('a++'));
 block.add(new NJumpNode(label1, 'a < 100000000'));
 block.add(new NSimpleNode('return a'));
+console.log(block.gen(0));
 var func = new Function(block.gen(0));
 console.log(func());

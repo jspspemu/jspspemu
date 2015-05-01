@@ -79,7 +79,7 @@ export class InterruptManager {
 			state.preserveRegisters(() => {
 				state.gpr[4] = item.no;
 				state.gpr[5] = item.argument;
-				state.callPCSafe(item.address);
+				state.execute(item.address);
 			});
 		}
 		//state.callPCSafe();

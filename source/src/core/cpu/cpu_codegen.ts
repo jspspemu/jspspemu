@@ -1,7 +1,7 @@
 ﻿///<reference path="../../global.d.ts" />
 
-import instructions = require('./instructions');
-import _ast = require('./ast_builder');
+import instructions = require('./cpu_instructions');
+import _ast = require('./cpu_ast');
 import Instruction = instructions.Instruction;
 
 var ast: _ast.MipsAstBuilder;
@@ -962,6 +962,14 @@ export class InstructionAst {
 
 	_likely(isLikely: boolean, code: _ast.ANodeStm) {
 		return isLikely ? _if(branchflag(), code) : code;
+	}
+
+	_postBranch2(nextPc: number) {
+		return _if(
+			branchflag(),
+			stms([assign(pc(), branchpc()), ast.djump(pc())]),
+			stms([stm(assign(pc(), u_imm32(nextPc)))])
+		);		
 	}
 
 	_postBranch(nextPc: number) {

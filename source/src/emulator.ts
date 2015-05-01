@@ -52,7 +52,6 @@ import PspAudio = _audio.PspAudio;
 import PspDisplay = _display.PspDisplay;
 import PspGpu = _gpu.PspGpu;
 import PspController = _controller.PspController;
-import InstructionCache = _cpu.InstructionCache;
 import SyscallManager = _cpu.SyscallManager;
 
 import ThreadManager = _manager.ThreadManager;
@@ -78,7 +77,6 @@ export class Emulator {
 	private display: PspDisplay;
 	private gpu: PspGpu;
 	public controller: PspController;
-	private instructionCache: InstructionCache;
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
 	private netManager: NetManager;
@@ -124,7 +122,6 @@ export class Emulator {
 				this.webgl_canvas = null;
 			}
 			this.controller = new PspController();
-			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
 			this.interop = new Interop();
@@ -133,7 +130,7 @@ export class Emulator {
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
 			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas, this.interop);
-			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
+			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager);
 			this.moduleManager = new ModuleManager(this.context);
 			this.netManager = new NetManager();
 
@@ -157,7 +154,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
 
 			return Promise.all([
 				this.display.startAsync(),
