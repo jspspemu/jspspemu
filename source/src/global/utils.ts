@@ -6,7 +6,7 @@ declare var global:any;
 if (typeof self == 'undefined') window = self = global;
 if (typeof navigator == 'undefined') navigator = <any>{};
 
-function sprintf(...args:any[]) {
+function sprintf(...args:any[]):string {
 	//  discuss at: http://phpjs.org/functions/sprintf/
 	// original by: Ash Searle (http://hexmen.com/blog/)
 	// improved by: Michael White (http://getsprink.com)

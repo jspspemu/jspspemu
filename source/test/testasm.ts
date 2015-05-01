@@ -175,6 +175,26 @@ describe('testasm cpu running', function () {
         );
     });
 
+    /*
+    it('jal_several', function () {
+        assertProgram(
+            "j_inside",
+            { "$1": 0, "$2": 20 },
+            [
+                ":start",
+                "addi r1, r1, 1",
+                "bne r1, r2, start",
+                "nop",
+                
+                "j start",
+                "nop",
+                ":end",
+            ],
+            { "$1": 20 }
+        );
+    });
+    */
+
     it('shift', function () {
     });
 

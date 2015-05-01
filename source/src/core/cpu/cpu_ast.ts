@@ -18,7 +18,7 @@ export class ANodeStmLabel extends ANodeStm {
 	}
 	
 	toJs() {
-		return `case ${this.id}:`;
+		return sprintf(`case 0x%08X:`, this.id);
 	}
 }
 
