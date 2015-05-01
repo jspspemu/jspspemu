@@ -33,12 +33,34 @@ function _downloadFileAsync(method: string, url: string, headers?: any) {
 	});
 }
 
+declare var fs:any;
 
-function downloadFileAsync(url: string, headers?: any) {
-	return _downloadFileAsync('GET', url, headers).then(request => {
-		var arraybuffer: ArrayBuffer = request.response; // not responseText
-		return arraybuffer;
-	});
+function toArrayBuffer(buffer:any) {
+    var ab = new ArrayBuffer(buffer.length);
+    var view = new Uint8Array(ab);
+    for (var i = 0; i < buffer.length; ++i) {
+        view[i] = buffer[i];
+    }
+    return ab;
+}
+
+function downloadFileAsync(url: string, headers?: any):Promise<ArrayBuffer> {
+	if (typeof XMLHttpRequest == 'undefined') {
+		return new Promise<ArrayBuffer>((resolve, reject) => {
+			fs.readFile(url, (err:any, data:any) => {
+			  if (err) {
+				  reject(err);
+			  } else {
+				  resolve(toArrayBuffer(data));
+			  }
+			});
+		});
+	} else {
+		return _downloadFileAsync('GET', url, headers).then(request => {
+			var arraybuffer: ArrayBuffer = request.response; // not responseText
+			return arraybuffer;
+		});
+	}
 }
 
 function downloadFileChunkAsync(url: string, from: number, count: number) {

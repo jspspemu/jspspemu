@@ -766,7 +766,7 @@ class Logger {
 	_log(type: string, level: number, args: any[]) {
 		if (this.policy.canLog(this.name, level)) {
 			args.unshift(this.name + ':');
-			this.console[type].apply(this.console, args);
+			if (this.console[type]) this.console[type].apply(this.console, args);
 		}
 	}
 
@@ -789,9 +789,10 @@ class LoggerPolicies {
 		if (level < this.minLogLevel) return false;
 		return true;
 	}
-
-
 }
 
 var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
+global.loggerPolicies = loggerPolicies;
+global.logger = logger;
+

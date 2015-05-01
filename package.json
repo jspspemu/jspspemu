@@ -6,6 +6,8 @@
   "contributors": [ 
   ],
   "dependencies": {
+    "mocha": "*",
+    "chai": "*"
   },
   "devDependencies": {
   },
@@ -17,10 +19,10 @@
   },
   "scripts": {
 	"start": "node --harmony source/utils/http_server.js",
-    "setup": "npm -g install typescript; npm install; cd source/utils; npm install; cd ../..",
+    "setup": "npm -g install typescript; npm -g install mocha-phantomjs",
     "build": "node --harmony source/utils/build_singleton.js",
     "benchmark": "node jspspemu_headless.js data/benchmark/benchmark.prx",
-    "test": "node --harmony source/utils/build_singleton.js && mocha-phantomjs -R spec test.html"
+    "test": "mocha jspspemu_tests.js"
   },
   "license": "MIT",
   "engines": {

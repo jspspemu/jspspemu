@@ -726,7 +726,8 @@ var Logger = (function () {
     Logger.prototype._log = function (type, level, args) {
         if (this.policy.canLog(this.name, level)) {
             args.unshift(this.name + ':');
-            this.console[type].apply(this.console, args);
+            if (this.console[type])
+                this.console[type].apply(this.console, args);
         }
     };
     Logger.prototype.debug = function () {
@@ -796,6 +797,8 @@ var LoggerPolicies = (function () {
 })();
 var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
+global.loggerPolicies = loggerPolicies;
+global.logger = logger;
 
 ///<reference path="./math.ts" />
 function identity(a) { return a; }
@@ -965,11 +968,33 @@ function _downloadFileAsync(method, url, headers) {
         request.send();
     });
 }
+function toArrayBuffer(buffer) {
+    var ab = new ArrayBuffer(buffer.length);
+    var view = new Uint8Array(ab);
+    for (var i = 0; i < buffer.length; ++i) {
+        view[i] = buffer[i];
+    }
+    return ab;
+}
 function downloadFileAsync(url, headers) {
-    return _downloadFileAsync('GET', url, headers).then(function (request) {
-        var arraybuffer = request.response;
-        return arraybuffer;
-    });
+    if (typeof XMLHttpRequest == 'undefined') {
+        return new Promise(function (resolve, reject) {
+            fs.readFile(url, function (err, data) {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(toArrayBuffer(data));
+                }
+            });
+        });
+    }
+    else {
+        return _downloadFileAsync('GET', url, headers).then(function (request) {
+            var arraybuffer = request.response;
+            return arraybuffer;
+        });
+    }
 }
 function downloadFileChunkAsync(url, from, count) {
     var to = (from + count) - 1;
@@ -11070,7 +11095,7 @@ var LowMemorySegment = (function () {
 })();
 var LowMemoryBase = (function () {
     function LowMemoryBase() {
-        this.scratchpad = new LowMemorySegment('scatchpad', 0x00010000, new ArrayBuffer(16 * 1024));
+        this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(16 * 1024 + 0x00010000));
         this.videomem = new LowMemorySegment('videomem', 0x04000000, new ArrayBuffer(2 * 1024 * 1024));
         this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
     }
@@ -11924,7 +11949,7 @@ var Emulator = (function () {
         });
     };
     Emulator.disableLog = function () {
-        loggerPolicies.disableAll = true;
+        global.loggerPolicies.disableAll = true;
     };
     Emulator.prototype.loadAndExecuteAsync = function (asyncStream, url) {
         var _this = this;

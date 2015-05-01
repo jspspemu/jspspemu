@@ -383,7 +383,7 @@ export class Emulator {
 	}
 
 	static disableLog() {
-		loggerPolicies.disableAll = true;
+		global.loggerPolicies.disableAll = true;
 	}
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
