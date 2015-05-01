@@ -22964,7 +22964,7 @@ describe('pspautotests', function () {
     this.timeout(5000);
     var tests = [
         { "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
-        { "cpu/fpu": ["fcr", "fpu"] },
+        { "cpu/fpu": ["fpu"] },
         { "cpu/icache": ["icache"] },
         { "cpu/lsu": ["lsu"] },
         { "string": ["string"] },
