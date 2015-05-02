@@ -21,6 +21,7 @@ export class EmulatorVfs extends _vfs.Vfs {
 				this.output += str;
 				this.context.onStdout.dispatch(str);
 				if (typeof $ != 'undefined') $('#output').append(str);
+				//console.log(str);
 				//console.info();
 				break;
 			case EmulatorDevclEnum.IsEmulator:

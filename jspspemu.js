@@ -5845,9 +5845,9 @@ var InstructionCache = (function () {
     };
     InstructionCache.prototype.create = function (address) {
         var info = this.functionGenerator.getFunctionInfo(address);
-        var func = this.functions[info.min];
+        var func = this.functions[info.start];
         if (!func) {
-            this.functions[info.min] = func = this.functionGenerator.getFunction(info);
+            this.functions[info.start] = func = this.functionGenerator.getFunction(info);
         }
         return func.fargs;
     };
@@ -5966,9 +5966,12 @@ var FunctionGenerator = (function () {
             if (di.isUnconditional)
                 exploreNext = false;
             if (exploreTarget) {
-                info.labels[di.targetAddress] = true;
-                addToExplore(di.targetAddress);
-                info.labels[PC + 8] = true;
+                {
+                    info.labels[di.targetAddress] = true;
+                    if (exploreNext)
+                        info.labels[PC + 8] = true;
+                    addToExplore(di.targetAddress);
+                }
             }
             if (exploreNext) {
                 addToExplore(PC + 4);
@@ -5993,7 +5996,7 @@ var FunctionGenerator = (function () {
             var di = this.decodeInstruction(info.min);
             var di2 = this.decodeInstruction(info.min + 4);
             if (di.type.name == 'jr' && di2.type.name == 'syscall') {
-                return new FunctionCode('state.PC = state.RA; state.jumpCall = null; state.syscall(' + di2.instruction.syscall + ');', args);
+                return new FunctionCode("/* " + this.syscallManager.getName(di2.instruction.syscall) + " */ state.PC = state.RA; state.jumpCall = null; state.syscall(" + di2.instruction.syscall + "); return;", args);
             }
         }
         for (var PC = info.min; PC <= info.max; PC += 4) {
@@ -6018,11 +6021,11 @@ var FunctionGenerator = (function () {
                 var targetAddressHex = sprintf('0x%08X', targetAddress);
                 var nextAddressHex = sprintf('0x%08X', nextAddress);
                 if (type.name == 'jal' || type.name == 'j') {
-                    func.add(delayedCode);
                     var cachefuncName = sprintf("cache_0x%08X", targetAddress);
                     args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
                     func.add(ast.raw("state.PC = " + targetAddressHex + ";"));
                     if (type.name == 'j') {
+                        func.add(delayedCode);
                         if (labels[targetAddress]) {
                             func.add(ast.djump(ast.raw("" + targetAddressHex)));
                         }
@@ -6033,6 +6036,7 @@ var FunctionGenerator = (function () {
                     }
                     else {
                         func.add(ast.raw("var expectedRA = state.RA = " + nextAddressHex + ";"));
+                        func.add(delayedCode);
                         func.add(ast.raw("args." + cachefuncName + ".execute(state);"));
                         func.add(ast.raw("while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);"));
                         func.add(ast.raw("if (state.PC != expectedRA) { state.jumpCall = null; return; }"));
@@ -6056,8 +6060,8 @@ var FunctionGenerator = (function () {
                 }
                 else if (type.isJumpNoLink) {
                     if (type.name == 'jr') {
-                        func.add(ast.raw("state.PC = state.gpr[" + di.instruction.rs + "];"));
                         func.add(delayedCode);
+                        func.add(ast.raw("state.PC = state.gpr[" + di.instruction.rs + "];"));
                         func.add(ast.raw('state.jumpCall = null;'));
                         func.add(ast.raw('return;'));
                     }
@@ -6073,11 +6077,11 @@ var FunctionGenerator = (function () {
                     func.add(delayedCode);
                     func.add(ast.raw("if (state.BRANCHFLAG) {"));
                     func.add(ast.raw("state.PC = " + targetAddressHex + ";"));
-                    if (type.isFixedAddressJump) {
+                    if (type.isFixedAddressJump && labels[targetAddress]) {
                         func.add(ast.djump(ast.raw("" + targetAddressHex)));
                     }
                     else {
-                        func.add(ast.raw('state.jumpCall = null;'));
+                        func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
                         func.add(ast.raw("return;"));
                     }
                     func.add(ast.raw("} else {"));
@@ -23106,6 +23110,7 @@ var _emulator = require('../src/emulator');
 var _vfs = require('../src/hle/vfs');
 var difflib = require('../src/util/difflib');
 var Emulator = _emulator.Emulator;
+var _console = global.console;
 var console = logger.named('');
 describe('pspautotests', function () {
     this.timeout(5000);
@@ -23187,8 +23192,16 @@ describe('pspautotests', function () {
         }
         console.groupEnd();
         console.groupCollapsed(name + ' (TEST RESULT TABLE)');
-        if (console['table'])
+        if (console['table']) {
             console['table'](table);
+        }
+        else {
+            for (var n = 1; n < table.length; n++) {
+                if (table[n].output != table[n].expected) {
+                    _console.log('NOT EQUAL:', table[n].output, table[n].expected);
+                }
+            }
+        }
         console.groupEnd();
         assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check console for details.");
     }

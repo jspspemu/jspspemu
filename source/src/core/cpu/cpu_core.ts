@@ -819,9 +819,11 @@ export class InstructionCache {
 	private create(address: number): CpuFunctionWithArgs {
 		// @TODO: check if we have a function in this range already range already!
 		var info = this.functionGenerator.getFunctionInfo(address);
-		var func = this.functions[info.min];
+		//var func = this.functions[info.min];
+		var func = this.functions[info.start];
 		if (!func) {
-			this.functions[info.min] = func = this.functionGenerator.getFunction(info);
+			//this.functions[info.min] = func = this.functionGenerator.getFunction(info);
+			this.functions[info.start] = func = this.functionGenerator.getFunction(info);
 
 			/*
 			console.log('****************************************');
@@ -955,9 +957,12 @@ export class FunctionGenerator {
 			// It is a local jump, a long loop for example
 			
 			if (exploreTarget) {
-				info.labels[di.targetAddress] = true;
-				addToExplore(di.targetAddress);
-				info.labels[PC + 8] = true;
+				//if (di.targetAddress >= info.min)
+				{
+					info.labels[di.targetAddress] = true;
+					if (exploreNext) info.labels[PC + 8] = true;
+					addToExplore(di.targetAddress);
+				}
 			}
 			if (exploreNext) {
 				addToExplore(PC + 4);
@@ -998,7 +1003,7 @@ export class FunctionGenerator {
 			var di = this.decodeInstruction(info.min);
 			var di2 = this.decodeInstruction(info.min + 4);
 			if (di.type.name == 'jr' && di2.type.name == 'syscall') {
-				return new FunctionCode('state.PC = state.RA; state.jumpCall = null; state.syscall(' + di2.instruction.syscall + ');', args);
+				return new FunctionCode(`/* ${this.syscallManager.getName(di2.instruction.syscall)} */ state.PC = state.RA; state.jumpCall = null; state.syscall(${di2.instruction.syscall}); return;`, args);
 			}
 		}
 
@@ -1025,11 +1030,12 @@ export class FunctionGenerator {
 				var nextAddressHex = sprintf('0x%08X', nextAddress);
 
 				if (type.name == 'jal' || type.name == 'j') {
-					func.add(delayedCode);
+
 					var cachefuncName = sprintf(`cache_0x%08X`, targetAddress);
 					args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
 					func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 					if (type.name == 'j') {
+						func.add(delayedCode);
 						if (labels[targetAddress]) {
 							func.add(ast.djump(ast.raw(`${targetAddressHex}`)));
 						} else {
@@ -1038,6 +1044,7 @@ export class FunctionGenerator {
 						}
 					} else {
 						func.add(ast.raw(`var expectedRA = state.RA = ${nextAddressHex};`));
+						func.add(delayedCode);
 						func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
 						func.add(ast.raw(`while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
 						func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
@@ -1058,8 +1065,8 @@ export class FunctionGenerator {
 				} else if (type.isJumpNoLink) {
 					//func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
 					if (type.name == 'jr') {
-						func.add(ast.raw(`state.PC = state.gpr[${di.instruction.rs}];`));
 						func.add(delayedCode);
+						func.add(ast.raw(`state.PC = state.gpr[${di.instruction.rs}];`));
 						func.add(ast.raw('state.jumpCall = null;'));
 						func.add(ast.raw('return;'));
 					} else {
@@ -1073,10 +1080,10 @@ export class FunctionGenerator {
 					func.add(delayedCode);
 					func.add(ast.raw(`if (state.BRANCHFLAG) {`));
 					func.add(ast.raw(`state.PC = ${targetAddressHex};`));
-					if (type.isFixedAddressJump) {
+					if (type.isFixedAddressJump && labels[targetAddress]) {
 						func.add(ast.djump(ast.raw(`${targetAddressHex}`)));
 					} else {
-						func.add(ast.raw('state.jumpCall = null;'));
+						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
 						func.add(ast.raw(`return;`));
 					}
 					func.add(ast.raw(`} else {`));

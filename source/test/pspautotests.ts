@@ -7,6 +7,7 @@ import difflib = require('../src/util/difflib');
 
 import Emulator = _emulator.Emulator;
 
+var _console = global.console;
 var console = logger.named('');
 
 describe('pspautotests', function () {
@@ -188,7 +189,15 @@ describe('pspautotests', function () {
 		console.groupEnd();
 
 		console.groupCollapsed(name + ' (TEST RESULT TABLE)');
-		if ((<any>console)['table']) (<any>console)['table'](table);
+		if ((<any>console)['table']) {
+			(<any>console)['table'](table);
+		} else {
+			for (var n:number = 1; n < table.length; n++) {
+				if (table[n].output != table[n].expected) {
+					_console.log('NOT EQUAL:', table[n].output, table[n].expected);
+				}
+			}
+		}
 		console.groupEnd();
 
 
