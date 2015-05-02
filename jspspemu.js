@@ -7,6 +7,10 @@ var __extends = this.__extends || function (d, b) {
     __.prototype = b.prototype;
     d.prototype = new __();
 };
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
 if (typeof self == 'undefined')
     window = self = global;
 if (typeof navigator == 'undefined')
@@ -404,12 +408,12 @@ if (!self['performance']) {
         return Date.now();
     };
 }
-if (!window['setImmediate']) {
-    window['setImmediate'] = function (callback) {
+if (!self['setImmediate']) {
+    self['setImmediate'] = function (callback) {
         Microtask.queue(callback);
         return -1;
     };
-    window['clearImmediate'] = function (timer) {
+    self['clearImmediate'] = function (timer) {
         throw (new Error("Not implemented!"));
     };
 }
@@ -442,17 +446,17 @@ if (!ArrayBuffer.prototype.slice) {
         return result;
     };
 }
-var _window = window;
-_window['AudioContext'] = _window['AudioContext'] || _window['webkitAudioContext'];
-window.navigator['getGamepads'] = window.navigator['getGamepads'] || _window.navigator['webkitGetGamepads'];
-if (!window.requestAnimationFrame) {
-    window.requestAnimationFrame = function (callback) {
+var _self = (typeof window != 'undefined') ? window : self;
+_self['AudioContext'] = _self['AudioContext'] || _self['webkitAudioContext'];
+_self.navigator['getGamepads'] = _self.navigator['getGamepads'] || _self.navigator['webkitGetGamepads'];
+if (!_self.requestAnimationFrame) {
+    _self.requestAnimationFrame = function (callback) {
         var start = Date.now();
         return setTimeout(function () {
             callback(Date.now());
         }, 20);
     };
-    window.cancelAnimationFrame = function (id) {
+    _self.cancelAnimationFrame = function (id) {
         clearTimeout(id);
     };
 }
@@ -522,7 +526,7 @@ var PromiseUtils = (function () {
     };
     return PromiseUtils;
 })();
-_window['requestFileSystem'] = _window['requestFileSystem'] || _window['webkitRequestFileSystem'];
+_self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
 function setToString(Enum, value) {
     var items = [];
     for (var key in Enum) {
@@ -801,8 +805,68 @@ var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
+if (typeof window.document != 'undefined') {
+    var workers = [];
+    var workersJobs = [];
+    var lastRequestId = 0;
+    var resolvers = {};
+    [0, 1].forEach(function (index) {
+        var ww = workers[index] = new Worker('jspspemu.js');
+        workersJobs[index] = 0;
+        console.log('created worker!');
+        ww.onmessage = function (event) {
+            var requestId = event.data.requestId;
+            workersJobs[index]--;
+            resolvers[requestId](event.data.args);
+            delete resolvers[requestId];
+        };
+    });
+    function executeCommandAsync(code, args) {
+        return new Promise(function (resolve, reject) {
+            var requestId = lastRequestId++;
+            resolvers[requestId] = resolve;
+            if (workersJobs[0] <= workersJobs[1]) {
+                workersJobs[0]++;
+                workers[0].postMessage({ code: code, args: args, requestId: requestId }, args);
+            }
+            else {
+                workersJobs[1]++;
+                workers[1].postMessage({ code: code, args: args, requestId: requestId }, args);
+            }
+        });
+    }
+}
+else {
+    console.log('inside worker!');
+    this.onmessage = function (event) {
+        var requestId = event.data.requestId;
+        var args = event.data.args;
+        try {
+            eval(event.data.code);
+        }
+        catch (e) {
+            console.error(e);
+            args = [];
+        }
+        this.postMessage({ requestId: requestId, args: args }, args);
+    };
+}
+function inflateRawArrayBufferAsync(data) {
+    return inflateRawAsync(new Uint8Array(data)).then(function (data) { return data.buffer; });
+}
+function inflateRawAsync(data) {
+    return executeCommandAsync("\n\t\tvar zlib = require(\"src/format/zlib\");\n\t\targs[0] = zlib.inflate_raw(new Uint8Array(args[0])).buffer;\n\t", [ArrayBufferUtils.fromUInt8Array(data)]).then(function (args) {
+        if (args.length == 0)
+            throw new Error("Can't decode");
+        return new Uint8Array(args[0]);
+    });
+}
 
 ///<reference path="./math.ts" />
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
 function identity(a) { return a; }
 function funcTrue(a) { return true; }
 function compareNumbers(a, b) {
@@ -942,6 +1006,10 @@ Object.defineProperty(Array.prototype, "remove", { enumerable: false });
 Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
 Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
 
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
 function waitAsync(timems) {
     return new Promise(function (resolve, reject) {
         setTimeout(resolve, timems);
@@ -1208,6 +1276,10 @@ var Integer64 = (function () {
     return Integer64;
 })();
 
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
 var mat4 = (function () {
     function mat4() {
     }
@@ -11863,7 +11935,6 @@ var MemoryStickVfs = _vfs.MemoryStickVfs;
 var EmulatorVfs = _vfs.EmulatorVfs;
 _vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
-var DropboxVfs = _vfs.DropboxVfs;
 var ProxyVfs = _vfs.ProxyVfs;
 var Config = _config.Config;
 var PspElfLoader = _elf_psp.PspElfLoader;
@@ -11885,7 +11956,6 @@ var Interop = _manager.Interop;
 var console = logger.named('emulator');
 var Emulator = (function () {
     function Emulator(memory) {
-        this.usingDropbox = false;
         this.gameTitle = '';
         if (!memory)
             memory = Memory.instance;
@@ -11933,9 +12003,7 @@ var Emulator = (function () {
             _this.emulatorVfs = new EmulatorVfs(_this.context);
             _this.ms0Vfs = new MountableVfs();
             _this.storageVfs = new StorageVfs('psp_storage');
-            _this.dropboxVfs = new DropboxVfs();
-            _this.dropboxVfs.enabled = _this.usingDropbox;
-            var msvfs = new MemoryStickVfs([_this.dropboxVfs, _this.storageVfs, _this.ms0Vfs], _this.callbackManager, _this.memory);
+            var msvfs = new MemoryStickVfs([_this.storageVfs, _this.ms0Vfs], _this.callbackManager, _this.memory);
             _this.fileManager.mount('fatms0', msvfs);
             _this.fileManager.mount('ms0', msvfs);
             _this.fileManager.mount('mscmhc0', msvfs);
@@ -12087,35 +12155,7 @@ var Emulator = (function () {
             }
         });
     };
-    Emulator.prototype.toggleDropbox = function () {
-        this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
-    };
-    Emulator.prototype.connectToDropbox = function (newValue) {
-        if (typeof $ == 'undefined')
-            return;
-        newValue = !!newValue;
-        $('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
-        var oldValue = (localStorage["dropbox"] == 'true');
-        console.log('dropbox: ', oldValue, '->', newValue);
-        if (newValue) {
-            localStorage["dropbox"] = 'true';
-            DropboxVfs.tryLoginAsync().then(function () {
-                $('#dropbox').html('<span style="color:#6A6;">connected</span>');
-            }).catch(function (e) {
-                console.error(e);
-                $('#dropbox').html('<span style="color:#F77;">error</span>');
-            });
-        }
-        else {
-            delete localStorage["dropbox"];
-        }
-        this.usingDropbox = newValue;
-        if (this.dropboxVfs) {
-            this.dropboxVfs.enabled = newValue;
-        }
-    };
     Emulator.prototype.checkPlugins = function () {
-        this.connectToDropbox(localStorage["dropbox"] == 'true');
     };
     Emulator.prototype.loadExecuteAndWaitAsync = function (asyncStream, url, afterStartCallback) {
         var _this = this;
@@ -12177,7 +12217,6 @@ exports.Emulator = Emulator;
 },
 "src/format/cso": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var zlib = require('./zlib');
 var CSO_MAGIC = 'CISO';
 var Header = (function () {
     function Header() {
@@ -12223,7 +12262,7 @@ var Cso = (function () {
             var low = _this.offsets[index + 0] & 0x7FFFFFFF;
             var high = _this.offsets[index + 1] & 0x7FFFFFFF;
             return _this.stream.readChunkAsync(low, high - low).then(function (data) {
-                return (compressed ? zlib.inflate_raw_arraybuffer(data) : data);
+                return (compressed ? inflateRawArrayBufferAsync(data) : data);
             }).catch(function (e) {
                 console.error(e);
                 throw (e);
@@ -13536,7 +13575,6 @@ var VagState = (function () {
 },
 "src/format/zip": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var zlib = require('./zlib');
 var ZipEntry = (function () {
     function ZipEntry(zip, name, parent) {
         this.zip = zip;
@@ -13619,7 +13657,7 @@ var ZipEntry = (function () {
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
                 case ZipCompressionType.DEFLATE:
-                    return zlib.inflate_raw(data);
+                    return inflateRawAsync(data);
                 case ZipCompressionType.STORED:
                     return data;
                 default:

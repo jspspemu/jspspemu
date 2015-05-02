@@ -2,6 +2,9 @@
 ///<reference path="./array.ts" />
 ///<reference path="./math.ts" />
 
+if (typeof global != 'undefined') window = global;
+if (typeof self != 'undefined') window = self;
+
 declare var global:any;
 if (typeof self == 'undefined') window = self = global;
 if (typeof navigator == 'undefined') navigator = <any>{};
@@ -427,13 +430,13 @@ if (!self['performance']) {
 	};
 }
 
-if (!window['setImmediate']) {
-	window['setImmediate'] = function (callback: () => void) {
+if (!self['setImmediate']) {
+	self['setImmediate'] = function (callback: () => void) {
 		Microtask.queue(callback);
 		//return setTimeout(callback, 0);
 		return -1;
 	};
-	window['clearImmediate'] = function (timer: number) {
+	self['clearImmediate'] = function (timer: number) {
 		throw(new Error("Not implemented!"));
 		//clearTimeout(timer);
 	};
@@ -480,19 +483,19 @@ interface AudioContext {
 	createScriptProcessor(bufferSize: number, numInputChannels: number, numOutputChannels: number): ScriptProcessorNode;
 }
 
-var _window:any = window;
-_window['AudioContext'] = _window['AudioContext'] || _window['webkitAudioContext'];
+var _self:any = (typeof window != 'undefined') ? window : self;
+_self['AudioContext'] = _self['AudioContext'] || _self['webkitAudioContext'];
 
-window.navigator['getGamepads'] = window.navigator['getGamepads'] || _window.navigator['webkitGetGamepads'];
+_self.navigator['getGamepads'] = _self.navigator['getGamepads'] || _self.navigator['webkitGetGamepads'];
 
-if (!window.requestAnimationFrame) {
-	window.requestAnimationFrame = function (callback: FrameRequestCallback) {
+if (!_self.requestAnimationFrame) {
+	_self.requestAnimationFrame = function (callback: FrameRequestCallback) {
 		var start = Date.now();
 		return setTimeout(function () {
 			callback(Date.now());
 		}, 20);
 	};
-	window.cancelAnimationFrame = function (id: number) {
+	_self.cancelAnimationFrame = function (id: number) {
 		clearTimeout(id);
 	};
 }
@@ -565,7 +568,7 @@ class PromiseUtils {
 	}
 }
 
-_window['requestFileSystem'] = _window['requestFileSystem'] || _window['webkitRequestFileSystem'];
+_self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
 
 function setToString(Enum: any, value: number) {
 	var items:string[] = [];
@@ -796,4 +799,74 @@ var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
+
+if (typeof window.document != 'undefined') {
+	var workers:Worker[] = [];
+	var workersJobs:number[] = [];
+	var lastRequestId:number = 0;
+	var resolvers:any = {};
+	[0, 1].forEach((index:number) => {
+		var ww = workers[index] = new Worker('jspspemu.js');
+		workersJobs[index] = 0;
+		console.log('created worker!');
+		ww.onmessage = function(event:any) {
+			var requestId = event.data.requestId;
+			workersJobs[index]--;
+			resolvers[requestId](event.data.args);
+			delete resolvers[requestId];
+		}
+	});
+	
+	function executeCommandAsync(code:string, args: ArrayBuffer[]) {
+		return new Promise((resolve, reject) => {
+			var requestId = lastRequestId++;
+			resolvers[requestId] = resolve;
+			if (workersJobs[0] <= workersJobs[1]) {
+				//console.log('sent to worker0');
+				workersJobs[0]++;
+				workers[0].postMessage({code:code, args:args, requestId:requestId}, args);
+			} else {
+				//console.log('sent to worker1');
+				workersJobs[1]++;
+				workers[1].postMessage({code:code, args:args, requestId:requestId}, args);
+			}
+		});
+	}
+	
+	/*
+	executeCommandAsync(`
+		var zlib = require("src/format/zlib");
+		args[0] = zlib.inflate_raw_arraybuffer(args[0]);
+	`, [new Uint8Array([10, 11, 12]).buffer]).then(function(args:any[]) {
+		console.info(args);
+	});
+	*/
+} else {
+	console.log('inside worker!');
+	this.onmessage = function(event:any) {
+		var requestId = event.data.requestId; 
+		var args = event.data.args;
+		try {
+			eval(event.data.code);
+		} catch (e) {
+			console.error(e);
+			args = [];
+		}
+		this.postMessage({ requestId:requestId, args:args }, args);
+	}
+}
+
+function inflateRawArrayBufferAsync(data:ArrayBuffer):Promise<ArrayBuffer> {
+	return inflateRawAsync(new Uint8Array(data)).then(data => data.buffer);
+}
+
+function inflateRawAsync(data:Uint8Array):Promise<Uint8Array> {
+	return executeCommandAsync(`
+		var zlib = require("src/format/zlib");
+		args[0] = zlib.inflate_raw(new Uint8Array(args[0])).buffer;
+	`, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args:ArrayBuffer[]) {
+		if (args.length == 0) throw new Error("Can't decode"); 
+		return new Uint8Array(args[0]);
+	});	
+}
 

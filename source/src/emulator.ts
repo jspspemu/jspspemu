@@ -38,7 +38,7 @@ import StorageVfs = _vfs.StorageVfs;
 import MemoryStickVfs = _vfs.MemoryStickVfs;
 import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
-import DropboxVfs = _vfs.DropboxVfs;
+//import DropboxVfs = _vfs.DropboxVfs;
 import ProxyVfs = _vfs.ProxyVfs;
 
 import Config = _config.Config;
@@ -85,9 +85,9 @@ export class Emulator {
 	private callbackManager: CallbackManager;
 	private interop: Interop;
 	private storageVfs: StorageVfs;
-	private dropboxVfs: DropboxVfs;
+	//private dropboxVfs: DropboxVfs;
 	private config: Config;
-	private usingDropbox: boolean = false;
+	//private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
@@ -137,10 +137,11 @@ export class Emulator {
 			this.emulatorVfs = new EmulatorVfs(this.context);
 			this.ms0Vfs = new MountableVfs();
 			this.storageVfs = new StorageVfs('psp_storage');
-			this.dropboxVfs = new DropboxVfs();
-			this.dropboxVfs.enabled = this.usingDropbox;
+			//this.dropboxVfs = new DropboxVfs();
+			//this.dropboxVfs.enabled = this.usingDropbox;
 
-			var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
+			//var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
+			var msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
 			this.fileManager.mount('fatms0', msvfs);
 			this.fileManager.mount('ms0', msvfs);
 			this.fileManager.mount('mscmhc0', msvfs);
@@ -325,6 +326,7 @@ export class Emulator {
 		});
 	}
 
+	/*
 	toggleDropbox() {
 		this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
 	}
@@ -355,9 +357,10 @@ export class Emulator {
 			this.dropboxVfs.enabled = newValue;
 		}
 	}
+	*/
 
 	checkPlugins() {
-		this.connectToDropbox(localStorage["dropbox"] == 'true');
+		//this.connectToDropbox(localStorage["dropbox"] == 'true');
 	}
 
 	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string, afterStartCallback: () => void) {
