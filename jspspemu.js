@@ -5506,12 +5506,8 @@ var CpuState = (function () {
     CpuState.prototype.preserveRegisters = function (callback) {
         var temp = new CpuState(this.memory, this.syscallManager);
         temp.copyRegistersFrom(this);
-        try {
-            callback();
-        }
-        finally {
-            this.copyRegistersFrom(temp);
-        }
+        callback();
+        this.copyRegistersFrom(temp);
     };
     CpuState.prototype.copyRegistersFrom = function (other) {
         this.PC = other.PC;
@@ -5770,12 +5766,10 @@ var CpuState = (function () {
     CpuState.prototype.getFunction = function (pc) {
         return this.icache.getFunction(pc);
     };
-    CpuState.prototype.execute = function (pc) {
-        this.PC = pc;
-        this.executeAtPC();
-    };
     CpuState.prototype.executeAtPC = function () {
-        this.getFunction(this.PC).execute(this);
+        while (true) {
+            this.getFunction(this.PC).execute(this);
+        }
     };
     CpuState.prototype.break = function () { throw (new CpuBreakException()); };
     CpuState.LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
@@ -10684,7 +10678,8 @@ var InterruptManager = (function () {
             state.preserveRegisters(function () {
                 state.gpr[4] = item.no;
                 state.gpr[5] = item.argument;
-                state.execute(item.address);
+                state.PC = item.address;
+                state.executeAtPC();
             });
         }
     };
@@ -16148,23 +16143,21 @@ var ThreadManager = (function () {
         }
     };
     ThreadManager.prototype.runThreadStep = function (thread) {
-        threadLoop: while (true) {
-            try {
-                do {
-                    thread.runStep();
-                    if (!this.interruptManager.enabled) {
-                        console.log(thread.name, ':interrupts disabled, no thread scheduling!');
-                    }
-                } while (!this.interruptManager.enabled);
-            }
-            catch (e) {
-                if (e instanceof CpuBreakException)
-                    break threadLoop;
-                console.error(e);
-                console.error(e['stack']);
-                thread.stop('error:' + e);
-                throw (e);
-            }
+        try {
+            do {
+                thread.runStep();
+                if (!this.interruptManager.enabled) {
+                    console.log(thread.name, ':interrupts disabled, no thread scheduling!');
+                }
+            } while (!this.interruptManager.enabled);
+        }
+        catch (e) {
+            if (e instanceof CpuBreakException)
+                return;
+            console.error(e);
+            console.error(e['stack']);
+            thread.stop('error:' + e);
+            throw (e);
         }
     };
     ThreadManager.prototype.debugThreads = function () {

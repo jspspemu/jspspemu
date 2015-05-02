@@ -354,21 +354,19 @@ export class ThreadManager {
     }
 
 	private runThreadStep(thread: Thread) {
-		threadLoop: while (true) {
-			try {
-				do {
-					thread.runStep();
-					if (!this.interruptManager.enabled) {
-						console.log(thread.name, ':interrupts disabled, no thread scheduling!');
-					}
-				} while (!this.interruptManager.enabled);
-			} catch (e) {
-				if (e instanceof CpuBreakException) break threadLoop;
-				console.error(e);
-				console.error(e['stack']);
-				thread.stop('error:' + e);
-				throw (e);
-			}
+		try {
+			do {
+				thread.runStep();
+				if (!this.interruptManager.enabled) {
+					console.log(thread.name, ':interrupts disabled, no thread scheduling!');
+				}
+			} while (!this.interruptManager.enabled);
+		} catch (e) {
+			if (e instanceof CpuBreakException) return;
+			console.error(e);
+			console.error(e['stack']);
+			thread.stop('error:' + e);
+			throw (e);
 		}
 	}
 

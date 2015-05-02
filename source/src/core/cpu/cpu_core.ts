@@ -474,11 +474,8 @@ export class CpuState {
 	preserveRegisters(callback: () => void) {
 		var temp = new CpuState(this.memory, this.syscallManager);
 		temp.copyRegistersFrom(this);
-		try {
-			callback();
-		} finally {
-			this.copyRegistersFrom(temp);
-		}
+		callback();
+		this.copyRegistersFrom(temp);
 	}
 
 	copyRegistersFrom(other: CpuState) {
@@ -740,13 +737,10 @@ export class CpuState {
 		return this.icache.getFunction(pc);
 	}
 
-	execute(pc: number) {
-		this.PC = pc;
-		this.executeAtPC();
-	}
-
 	executeAtPC() {
-		this.getFunction(this.PC).execute(this);
+		while (true) {
+			this.getFunction(this.PC).execute(this);
+		}
 	}
 
 	break() { throw (new CpuBreakException()); }
