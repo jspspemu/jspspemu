@@ -38,7 +38,7 @@ import StorageVfs = _vfs.StorageVfs;
 import MemoryStickVfs = _vfs.MemoryStickVfs;
 import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
 import MemoryVfs = _vfs.MemoryVfs;
-import DropboxVfs = _vfs.DropboxVfs;
+//import DropboxVfs = _vfs.DropboxVfs;
 import ProxyVfs = _vfs.ProxyVfs;
 
 import Config = _config.Config;
@@ -52,7 +52,6 @@ import PspAudio = _audio.PspAudio;
 import PspDisplay = _display.PspDisplay;
 import PspGpu = _gpu.PspGpu;
 import PspController = _controller.PspController;
-import InstructionCache = _cpu.InstructionCache;
 import SyscallManager = _cpu.SyscallManager;
 
 import ThreadManager = _manager.ThreadManager;
@@ -78,7 +77,6 @@ export class Emulator {
 	private display: PspDisplay;
 	private gpu: PspGpu;
 	public controller: PspController;
-	private instructionCache: InstructionCache;
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
 	private netManager: NetManager;
@@ -87,9 +85,9 @@ export class Emulator {
 	private callbackManager: CallbackManager;
 	private interop: Interop;
 	private storageVfs: StorageVfs;
-	private dropboxVfs: DropboxVfs;
+	//private dropboxVfs: DropboxVfs;
 	private config: Config;
-	private usingDropbox: boolean = false;
+	//private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
@@ -124,7 +122,6 @@ export class Emulator {
 				this.webgl_canvas = null;
 			}
 			this.controller = new PspController();
-			this.instructionCache = new InstructionCache(this.memory);
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
 			this.interop = new Interop();
@@ -133,17 +130,18 @@ export class Emulator {
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
 			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas, this.interop);
-			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.instructionCache);
+			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager);
 			this.moduleManager = new ModuleManager(this.context);
 			this.netManager = new NetManager();
 
 			this.emulatorVfs = new EmulatorVfs(this.context);
 			this.ms0Vfs = new MountableVfs();
 			this.storageVfs = new StorageVfs('psp_storage');
-			this.dropboxVfs = new DropboxVfs();
-			this.dropboxVfs.enabled = this.usingDropbox;
+			//this.dropboxVfs = new DropboxVfs();
+			//this.dropboxVfs.enabled = this.usingDropbox;
 
-			var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
+			//var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
+			var msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
 			this.fileManager.mount('fatms0', msvfs);
 			this.fileManager.mount('ms0', msvfs);
 			this.fileManager.mount('mscmhc0', msvfs);
@@ -157,7 +155,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.instructionCache, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
 
 			return Promise.all([
 				this.display.startAsync(),
@@ -328,6 +326,7 @@ export class Emulator {
 		});
 	}
 
+	/*
 	toggleDropbox() {
 		this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
 	}
@@ -358,9 +357,10 @@ export class Emulator {
 			this.dropboxVfs.enabled = newValue;
 		}
 	}
+	*/
 
 	checkPlugins() {
-		this.connectToDropbox(localStorage["dropbox"] == 'true');
+		//this.connectToDropbox(localStorage["dropbox"] == 'true');
 	}
 
 	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string, afterStartCallback: () => void) {

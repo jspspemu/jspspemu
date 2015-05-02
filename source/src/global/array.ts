@@ -1,5 +1,8 @@
 ﻿///<reference path="./math.ts" />
 
+if (typeof global != 'undefined') window = global;
+if (typeof self != 'undefined') window = self;
+
 function identity<T>(a: T) { return a; }
 function funcTrue<T>(a: T) { return true; }
 

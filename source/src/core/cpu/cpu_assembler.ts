@@ -1,11 +1,15 @@
 ///<reference path="../../global.d.ts" />
 
 import memory = require('../memory');
-import instructions = require('./instructions');
+import instructions = require('./cpu_instructions');
 
 import Memory = memory.Memory;
 import Instructions = instructions.Instructions;
 import Instruction = instructions.Instruction;
+
+class Labels {
+	public labels: StringDictionary<number> = {};
+}
 
 export class MipsAssembler {
 	private instructions: Instructions = Instructions.instance;
@@ -13,25 +17,35 @@ export class MipsAssembler {
 	constructor() {
 	}
 
-	assembleToMemory(memory: Memory, PC: number, lines: string[]) {
-		for (var n = 0; n < lines.length; n++) {
-			var instructions = this.assemble(PC, lines[n]);
-			for (var m = 0; m < instructions.length; m++) {
-				var instruction = instructions[m];
-				memory.writeInt32(PC, instruction.data);
-				PC += 4;
+	assembleToMemory(memory: Memory, startPC: number, lines: string[]) {
+		var labels = new Labels();
+		for (var n = 0; n < 2; n++) { // hack to get labels working without patching or extra code
+			var PC = startPC;
+			for (let line of lines) {
+				var instructions = this.assemble(PC, line, labels);
+				for (let instruction of instructions) {
+					memory.writeInt32(PC, instruction.data);
+					PC += 4;
+				}
 			}
 		}
 	}
 
-	assemble(PC: number, line: string): Instruction[] {
+	assemble(PC: number, line: string, labels?:Labels): Instruction[] {
+		if (labels == null) labels = new Labels();
 		//console.log(line);
+		
+		if (line.substr(0, 1) == ':') {
+			labels.labels[line.substr(1)] = PC;
+			return [];
+		}
 
 		var matches = line.match(/^\s*(\w+)(.*)$/);
 		var instructionName = matches[1];
 		var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
 
 		switch (instructionName) {
+			case 'nop': return this.assemble(PC, 'sll r0, r0, 0');
 			case 'li':
 				var parts = instructionArguments.split(',');
 				//console.log(parts);
@@ -49,11 +63,15 @@ export class MipsAssembler {
 				types.push(type);
 
 				switch (type) {
-					case '%J':
-					case '%s': case '%d': case '%t': return '([$r]\\d+)';
-					case '%i': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-					case '%C': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
-					case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+					// Register
+					case '%J': case '%s': case '%d': case '%t':
+						return '([$r]\\d+)';
+					// Immediate
+					case '%i': case '%C': case '%c': case '%a': 
+						return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+					// Label
+					case '%j': case '%O':
+						return '(\\w+)';
 					default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
 				}
 			})
@@ -77,7 +95,7 @@ export class MipsAssembler {
 			var type = types[n];
 			var match = matches[n + 1];
 			//console.log(type + ' = ' + match);
-			this.update(instruction, type, match);
+			this.update(instruction, type, match, labels);
 		}
 
 		//console.log(instructionType);
@@ -100,16 +118,19 @@ export class MipsAssembler {
 		return parseInt(str, 10);
 	}
 
-	private update(instruction: Instruction, type: string, value: string) {
+	private update(instruction: Instruction, type: string, value: string, labels: Labels) {
 		switch (type) {
 			case '%J':
 			case '%s': instruction.rs = this.decodeRegister(value); break;
 			case '%d': instruction.rd = this.decodeRegister(value); break;
 			case '%t': instruction.rt = this.decodeRegister(value); break;
+			case '%a':
 			case '%i': instruction.imm16 = this.decodeInteger(value); break;
 			case '%C': instruction.syscall = this.decodeInteger(value); break;
 			case '%c': instruction.syscall = this.decodeInteger(value); break;
-			default: throw ("MipsAssembler.Update: Unknown type '" + type + "'");
+			case '%O': instruction.branch_address = labels.labels[value]; break;
+			case '%j': instruction.jump_address = labels.labels[value]; break;
+			default: throw (`MipsAssembler.Update: Unknown type '${type}' with value '${value}'`);
 		}
 	}
 }

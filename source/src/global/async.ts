@@ -1,4 +1,7 @@
-﻿interface StatInfo {
+﻿if (typeof global != 'undefined') window = global;
+if (typeof self != 'undefined') window = self;
+
+interface StatInfo {
 	size: number;
 	date: Date;
 }

@@ -8,15 +8,15 @@ import Memory = _memory.Memory;
 import MipsAssembler = _cpu.MipsAssembler;
 import MipsDisassembler = _cpu.MipsDisassembler;
 import CpuState = _cpu.CpuState;
-import ISyscallManager = _cpu.ISyscallManager;
-import InstructionCache = _cpu.InstructionCache;
-import ProgramExecutor = _cpu.ProgramExecutor;
+
 
 var assembler = new _cpu.MipsAssembler();
 var disassembler = new _cpu.MipsDisassembler();
 var memory = Memory.instance;
 
-class TestSyscallManager implements ISyscallManager {
+class TestSyscallManager extends _cpu.SyscallManager {
+    constructor() { super(null); }
+    
 	call(state: CpuState, id: number) {
     }
 }
@@ -26,8 +26,6 @@ function executeProgram(gprInitial: any, program: string[]) {
     program.push('break 0');
     assembler.assembleToMemory(memory, 4, program);
 	var state = new CpuState(memory, new TestSyscallManager());
-    var instructionCache = new InstructionCache(memory);
-    var programExecuter = new ProgramExecutor(state, instructionCache);
 
 	for (var key in gprInitial) {
 		if (key.substr(0, 1) == '$') {
@@ -39,7 +37,12 @@ function executeProgram(gprInitial: any, program: string[]) {
 
     state.PC = 4;
     state.SP = 0x10000;
-    programExecuter.execute(1000);
+   
+    try {
+        state.executeAtPC();
+    } catch (e) {
+        if (!(e instanceof CpuBreakException)) throw e;
+    }
     return state;
 }
 
@@ -76,7 +79,7 @@ function assertProgram(description:string, gprInitial: any, program: string[], g
     }
 }
 
-describe('cpu running', function () {
+describe('testasm cpu running', function () {
     it('simple', function () {
         assertProgram("subtract 1", {}, ["li r1, 100", "addiu r1, r1, -1"], { $1: 99 });
         assertProgram("xor", {"$1" : 0xFF00FF00, "$2" : 0x00FFFF00 }, ["xor r3, r1, r2"], { $3: 0xFFFF0000 });
@@ -109,8 +112,88 @@ describe('cpu running', function () {
     it('divide', function () {
         assertProgram("divide", {}, ["li r10, 100", "li r11, 12", "div r10, r11"], { HI: 4, LO: 8 });
     });
-    it('branch', function () {
+    it('branch1', function () {
+        assertProgram(
+            "branch beq",
+            { "$1": 0, "$2": 0 },
+            [
+                ":label1",
+                "addi r2, r2, 1",
+                "beq r1, r0, label1",
+                "addi r1, r1, 1",
+            ],
+            { "$1": 2, "$2": 2 }
+        );
     });
+    it('branch2', function () {
+        assertProgram(
+            "branch bne",
+            { "$1": 0, "$2": 10 },
+            [
+                ":label1",
+                "bne r1, r2, label1",
+                "addi r1, r1, 1",
+            ],
+            { "$1": 11 }
+        );
+    });
+
+    it('jal', function () {
+        assertProgram(
+            "jal",
+            { "$1": 0 },
+            [
+                "jal func1",
+                "addi r1, r0, 1",
+
+                "j end",
+                "nop",                
+                ":func1",
+                "jr r31",
+                "add r1, r1, r1",
+                
+                ":end",
+            ],
+            { "$1": 2 }
+        );
+    });
+
+    it('j_inside', function () {
+        assertProgram(
+            "j_inside",
+            { "$1": 0, "$2": 20 },
+            [
+                ":start",
+                "addi r1, r1, 1",
+                "beq r1, r2, end",
+                "nop",
+                "j start",
+                "nop",
+                ":end",
+            ],
+            { "$1": 20 }
+        );
+    });
+
+    /*
+    it('jal_several', function () {
+        assertProgram(
+            "j_inside",
+            { "$1": 0, "$2": 20 },
+            [
+                ":start",
+                "addi r1, r1, 1",
+                "bne r1, r2, start",
+                "nop",
+                
+                "j start",
+                "nop",
+                ":end",
+            ],
+            { "$1": 20 }
+        );
+    });
+    */
 
     it('shift', function () {
     });

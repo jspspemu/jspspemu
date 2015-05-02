@@ -25,10 +25,10 @@ interface Rect {
 	button: number;
 }
 
-declare var emulator:Emulator;
+declare var emulator: Emulator;
 
 function controllerRegister() {
-	var rects:Rect[] = [];
+	var rects: Rect[] = [];
 
 	var generateRects = (() => {
 		var overlay_query = $('#touch_overlay');
@@ -68,7 +68,7 @@ function controllerRegister() {
 			});
 		});
 	});
-	
+
 	generateRects();
 
 	var locateRect = ((screenX: number, screenY: number) => {
@@ -87,7 +87,7 @@ function controllerRegister() {
 		return null;
 	});
 
-	var touchesState:{
+	var touchesState: {
 		[key: number]: { rect: Rect }
 	} = {};
 
@@ -136,17 +136,17 @@ function controllerRegister() {
 		}
 	}
 
-	$('#touch_overlay').on('touchstart', (e:any) => {
+	$('#touch_overlay').on('touchstart', (e: any) => {
 		touchStart(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
 
-	$('#touch_overlay').on('touchmove', (e:any) => {
+	$('#touch_overlay').on('touchmove', (e: any) => {
 		touchMove(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
 
-	$('#touch_overlay').on('touchend', (e:any) => {
+	$('#touch_overlay').on('touchend', (e: any) => {
 		touchEnd(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
@@ -172,9 +172,9 @@ function controllerRegister() {
 }
 
 var emulator = new Emulator();
-var _window:any = window;
+var _window: any = window;
 _window['emulator'] = emulator;
-var sampleDemo:string = undefined;
+var sampleDemo: string = undefined;
 
 if (document.location.hash) {
 	sampleDemo = document.location.hash.substr(1);
@@ -192,4 +192,3 @@ if (sampleDemo) {
 $(window).load(() => {
 	controllerRegister();
 });
-

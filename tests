@@ -1,0 +1,8 @@
+#!/bin/bash
+echo $1
+if [ "$1" != "" ]
+then
+	mocha jspspemu_tests.js --grep $1
+else
+	mocha jspspemu_tests.js
+fi

@@ -16,9 +16,7 @@ import MemoryPartition = _manager_memory.MemoryPartition;
 import SyscallManager = _cpu.SyscallManager;
 import PspDisplay = _display.PspDisplay;
 import Memory = _memory.Memory;
-import InstructionCache = _cpu.InstructionCache;
 import CpuState = _cpu.CpuState;
-import ProgramExecutor = _cpu.ProgramExecutor;
 import NativeFunction = _cpu.NativeFunction;
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
@@ -26,11 +24,11 @@ var console = logger.named('hle.thread');
 
 export enum ThreadStatus {
 	RUNNING = 1,
-	READY   = 2,
-	WAIT    = 4,
+	READY = 2,
+	WAIT = 4,
 	SUSPEND = 8,
 	DORMANT = 16,
-	DEAD    = 32,
+	DEAD = 32,
 
 	WAITSUSPEND = WAIT | SUSPEND,
 }
@@ -58,7 +56,6 @@ export enum PspThreadAttributes {
 export class Thread {
     id: number = 0;
 	status: ThreadStatus = ThreadStatus.DORMANT;
-	programExecutor: ProgramExecutor;
 	initialPriority: number = 10;
 	entryPoint: number = 0;
 	priority: number = 10;
@@ -81,9 +78,8 @@ export class Thread {
 		return this.running || this.acceptingCallbacks;
 	}
 
-	constructor(public name:string, public manager: ThreadManager, memoryManager:MemoryManager, public state: CpuState, private instructionCache: InstructionCache, stackSize: number) {
+	constructor(public name: string, public manager: ThreadManager, memoryManager: MemoryManager, public state: CpuState, stackSize: number) {
         this.state.thread = this;
-		this.programExecutor = new ProgramExecutor(state, instructionCache);
 		this.runningPromise = new Promise((resolve, reject) => { this.runningStop = resolve; });
 		this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
 	}
@@ -173,7 +169,7 @@ export class Thread {
 		this._suspendUntilPromiseDone(info.promise, info.compensate);
 	}
 
-	suspendUntilPromiseDone(promise: Promise<any>, info:NativeFunction) {
+	suspendUntilPromiseDone(promise: Promise<any>, info: NativeFunction) {
 		//this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
 		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
 		this.waitingObject = info;
@@ -234,17 +230,8 @@ export class Thread {
 		this.manager.current = this;
 
 		this.preemptionCount++;
-		//console.error("Running: " + this.name);
-		try {
-			this.programExecutor.execute(10000);
-			//this.programExecutor.execute(200000);
-			//this.programExecutor.execute(2000000);
-		} catch (e) {
-			console.error(e);
-			console.error(e['stack']);
-			this.stop('error:' + e);
-			throw (e);
-		}
+
+		this.state.executeAtPC();
     }
 }
 
@@ -257,8 +244,10 @@ export class ThreadManager {
 	exitPromise: Promise<any>;
 	exitResolve: () => void;
 	current: Thread;
+	private rootCpuState: CpuState;
 
-	constructor(private memory: Memory, private interruptManager:InterruptManager, private callbackManager:CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager, private instructionCache: InstructionCache) {
+	constructor(private memory: Memory, private interruptManager: InterruptManager, private callbackManager: CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager) {
+		this.rootCpuState = new CpuState(this.memory, this.syscallManager);
 		this.exitPromise = new Promise((resolve, reject) => {
 			this.exitResolve = resolve;
 		});
@@ -266,7 +255,7 @@ export class ThreadManager {
     }
 
 	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
-		var thread = new Thread(name, this, this.memoryManager, new CpuState(this.memory, this.syscallManager), this.instructionCache, stackSize);
+		var thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
 		thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
         thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
@@ -275,7 +264,7 @@ export class ThreadManager {
 		thread.priority = initialPriority;
 		thread.attributes = attributes;
 
-		if ((thread.stackPartition.high & 0xFF) != 0) throw(new Error("Stack not aligned"));
+		if ((thread.stackPartition.high & 0xFF) != 0) throw (new Error("Stack not aligned"));
 
 		if (!(thread.attributes & PspThreadAttributes.NoFillStack)) {
 			//this.memory.memset(thread.stackPartition.low, 0xFF, thread.stackPartition.size);
@@ -351,13 +340,7 @@ export class ThreadManager {
 					if (thread.running && (thread.priority == runningPriority)) {
 						// No callbacks?
 						this.callbackManager.executeLaterPendingWithinThread(thread);
-
-						do {
-							thread.runStep();
-							if (!this.interruptManager.enabled) {
-								console.log(thread.name, ':interrupts disabled, no thread scheduling!');
-							}
-						} while (!this.interruptManager.enabled);
+						this.runThreadStep(thread);
 					}
 				});
 			}
@@ -369,6 +352,23 @@ export class ThreadManager {
 			}
         }
     }
+
+	private runThreadStep(thread: Thread) {
+		try {
+			do {
+				thread.runStep();
+				if (!this.interruptManager.enabled) {
+					console.log(thread.name, ':interrupts disabled, no thread scheduling!');
+				}
+			} while (!this.interruptManager.enabled);
+		} catch (e) {
+			if (e instanceof CpuBreakException) return;
+			console.error(e);
+			console.error(e['stack']);
+			thread.stop('error:' + e);
+			throw (e);
+		}
+	}
 
     private debugThreads() {
         var html = '';

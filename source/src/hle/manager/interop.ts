@@ -12,7 +12,7 @@ export class Interop {
 			for (var n = 0; n < gprArray.length; n++) {
 				state.gpr[4 + n] = gprArray[n];
 			}
-			state.callPCSafe(address);
+			state.getFunction(address).execute(state);
 		});
 	}
 } 

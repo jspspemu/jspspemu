@@ -68,21 +68,20 @@ export class ZipEntry {
 			return ArrayBufferUtils.fromUInt8Array(data.subarray(offset, offset + length));
 		});
 	}
-
+	
 	readAsync() {
 		if (this.uncompressedData) return Promise.resolve(this.uncompressedData);
-		return this.readRawCompressedAsync().then((data) => {
+		return this.readRawCompressedAsync().then((data:Uint8Array) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:
-					return zlib.inflate_raw(data);
-					//return zlib.Inflater.inflateRaw(data);
+					return inflateRawAsync(data);
 				case ZipCompressionType.STORED:
 					return data;
 				default:
 					throw (new Error("Unsupported compression type '" + this.compressionType + "'"));
 			}
 		}).then((data) => {
-			return this.uncompressedData = data;
+			return this.uncompressedData = <Uint8Array>data;
 		});
 	}
 

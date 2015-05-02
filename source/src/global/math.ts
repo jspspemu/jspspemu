@@ -1,4 +1,7 @@
-﻿interface Math {
+﻿if (typeof global != 'undefined') window = global;
+if (typeof self != 'undefined') window = self;
+
+interface Math {
 	clz32(value: number): number;
 	trunc(value: number): number;
 	imul(a: number, b: number): number;

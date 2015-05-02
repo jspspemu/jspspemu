@@ -1,7 +1,7 @@
 ﻿///<reference path="../../global.d.ts" />
 
-import instructions = require('./instructions');
-import _ast = require('./ast_builder');
+import instructions = require('./cpu_instructions');
+import _ast = require('./cpu_ast');
 import Instruction = instructions.Instruction;
 
 var ast: _ast.MipsAstBuilder;
@@ -960,18 +960,6 @@ export class InstructionAst {
 	"break"(i: Instruction) { return stm(call('state.break', [])); }
 	dbreak(i: Instruction) { return ast.debugger("dbreak"); }
 
-	_likely(isLikely: boolean, code: _ast.ANodeStm) {
-		return isLikely ? _if(branchflag(), code) : code;
-	}
-
-	_postBranch(nextPc: number) {
-		return _if(
-			branchflag(),
-			stm(assign(pc(), branchpc())),
-			stms([stm(assign(pc(), u_imm32(nextPc)))])
-		);
-	}
-
 	_storePC(_pc: number) {
 		return assign(pc(), u_imm32(_pc));
 	}
@@ -1050,7 +1038,12 @@ export class InstructionAst {
 		return ast.stm();
 	}
 		
-	j(i: Instruction) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); }
+	j(i: Instruction) {
+		return stms([
+			stm(assign(branchflag(), imm32(1))),
+			stm(assign(branchpc(), u_imm32(i.jump_address)))
+		]);
+	}
 	jr(i: Instruction) {
 		var statements:_ast.ANodeStm[] = [];
 		statements.push(stm(assign(branchflag(), imm32(1))));
@@ -1060,6 +1053,11 @@ export class InstructionAst {
 		}
 		return stms(statements);
 	}
+	
+	_jrOpt(i: Instruction) {
+		return stms([stm(assign(branchpc(), gpr(i.rs)))]);
+	}
+	
 	jal(i: Instruction) { return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]); }
 	jalr(i: Instruction) { return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); }
 
