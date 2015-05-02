@@ -54,11 +54,11 @@ function generateGpr3Matrix(op: string, vector: number[]) {
     for (var n = 0; n < vector.length; n++) {
         var program:string[] = [];
         for (var m = 0; m < vector.length; m++) {
-            program.push(sprintf('%s $%d, $%d, $%d', op, 1 + m, 15 + n, 15 + m));
+            program.push(`${op} $${1 + m}, $${15 + n}, $${15 + m}`);
         }
         var state = executeProgram(gprInitial, program);
         var outputVector:string[] = [];
-        for (var m = 0; m < vector.length; m++) outputVector.push(sprintf('%08X', state.gpr[1 + m]));
+        for (var m = 0; m < vector.length; m++) outputVector.push(addressToHex2(state.gpr[1 + m]).toUpperCase());
         outputMatrix.push(outputVector);
         //console.log(state);
     }
@@ -75,7 +75,7 @@ function assertProgram(description:string, gprInitial: any, program: string[], g
 		} else {
 			value = (<any>state)[key];
 		}
-        assert.equal(sprintf('%08X', value), sprintf('%08X', gprAssertions[key]), description + ': ' + key + ' == ' + sprintf('%08X', gprAssertions[key]));
+        assert.equal(addressToHex(value), addressToHex(gprAssertions[key]), description + ': ' + key + ' == ' + addressToHex(gprAssertions[key]));
     }
 }
 

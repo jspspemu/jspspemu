@@ -212,7 +212,7 @@ export class Emulator {
 
 	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string) {
 		return _format.detectFormatAsync(asyncStream).then((fileFormat):any => {
-			console.info(sprintf('File:: size: %d, format: "%s", name: "%s"', asyncStream.size, fileFormat, asyncStream.name));
+			console.info(`File:: size: ${asyncStream.size}, format: "${fileFormat}", name: "${asyncStream.name}"`);
 			switch (fileFormat) {
 				case 'ciso':
 					return _format_cso.Cso.fromStreamAsync(asyncStream).then(asyncStream2 => this._loadAndExecuteAsync(asyncStream2, pathToFile));
@@ -321,7 +321,7 @@ export class Emulator {
 						});
 
 				default:
-					throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));
+					throw new Error(`"Unhandled format '${fileFormat}'`);
 			}
 		});
 	}

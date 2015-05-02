@@ -883,3 +883,11 @@ function inflateRawAsync(data:Uint8Array):Promise<Uint8Array> {
 		return new Uint8Array(args[0]);
 	});	
 }
+
+function addressToHex(address:number) {
+	return '0x' + addressToHex2(address);
+}
+
+function addressToHex2(address:number) {
+	return ('00000000' + (address >>> 0).toString(16)).substr(-8);
+}

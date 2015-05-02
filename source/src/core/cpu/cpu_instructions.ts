@@ -87,7 +87,7 @@ export class InstructionType {
 	get isRegister() { return this.addressType == ADDR_TYPE_REG; }
 	get isFixedAddressJump() { return this.isJumpOrBranch && !this.isRegister; }
 	get hasDelayedBranch() { return this.isJumpOrBranch; }
-	toString() { return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask); }
+	toString() { return `InstructionType('${this.name}', ${addressToHex(this.vm.value)}, ${addressToHex(this.vm.mask)})`; }
 }
 
 export class Instructions {

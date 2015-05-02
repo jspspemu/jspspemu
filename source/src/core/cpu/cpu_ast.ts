@@ -21,9 +21,9 @@ export class ANodeStmLabel extends ANodeStm {
 	
 	toJs() {
 		switch (this.type) {
-			case 'none': return '';
-			case 'normal': return sprintf(`case 0x%08X:`, this.address);
-			case 'while': return sprintf(`loop_0x%08X: while (true) {`, this.address);
+			case 'none': return ``;
+			case 'normal': return `case ${addressToHex(this.address)}:`;
+			case 'while': return `loop_${addressToHex(this.address)}: while (true) {`;
 		}
 		
 	}
@@ -36,7 +36,7 @@ export class ANodeStmStaticJump extends ANodeStm {
 	toJs() {
 		switch (this.type) {
 			case 'normal': return `if (${this.cond.toJs()}) { loop_state = ${this.address}; continue loop; }`;
-			case 'while': return sprintf(`if (${this.cond.toJs()}) { continue loop_0x%08X; } else { break loop_0x%08X; } }`, this.address, this.address);
+			case 'while': return `if (${this.cond.toJs()}) { continue loop_${addressToHex(this.address)}; } else { break loop_${addressToHex(this.address)}; } }`;
 		}
 		
 	}
@@ -206,8 +206,7 @@ export class ANodeExprFloat extends ANodeExpr {
 export class ANodeExprU32 extends ANodeExpr {
 	constructor(public value: number) { super(); }
 	toJs() {
-		return '0x' + IntUtils.toHexString(this.value, 8);
-		//return sprintf('0x%08X', this.value);
+		return addressToHex(this.value);
 	}
 }
 

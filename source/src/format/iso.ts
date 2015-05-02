@@ -225,7 +225,7 @@ class IsoNode implements IIsoNode {
     }
 
     toString() {
-        return sprintf('IsoNode(%s, %d)', this.path, this.size);
+        return `IsoNode(${this.path}, ${this.size})`;
     }
 }
 
@@ -264,7 +264,7 @@ export class Iso implements AsyncStream {
 		var node = this._childrenByPath[path];
 		if (!node) {
 			//console.info(this);
-			throw (new Error(sprintf("Can't find node '%s'", path)));
+			throw (new Error(`Can't find node '${path}'`));
 		}
 		return node;
 	}
@@ -279,13 +279,13 @@ export class Iso implements AsyncStream {
 		this.asyncStream = asyncStream;
 		this.date = asyncStream.date;
 
-        if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE) throw (sprintf("Invalid PrimaryVolumeDescriptor.struct size %d != %d", PrimaryVolumeDescriptor.struct.length, SECTOR_SIZE));
+        if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE) throw `Invalid PrimaryVolumeDescriptor.struct size ${PrimaryVolumeDescriptor.struct.length} != ${SECTOR_SIZE}`;
 
 		return asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800).then(arrayBuffer => {
 			var stream = Stream.fromArrayBuffer(arrayBuffer);
 			var pvd = PrimaryVolumeDescriptor.struct.read(stream);
-			if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor) throw ("Not an ISO file");
-			if (pvd.header.id != 'CD001') throw ("Not an ISO file");
+			if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor) throw `Not an ISO file`;
+			if (pvd.header.id != 'CD001') throw `Not an ISO file`;
 
 			this._children = [];
 			this._childrenByPath = {};

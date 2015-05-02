@@ -80,7 +80,7 @@ export class Psf {
 				case DataType.Binary: entry.value = valueStream.sliceWithLength(0); break;
 				case DataType.Int: entry.value = valueStream.readInt32(); break;
 				case DataType.Text: entry.value = valueStream.readUtf8Stringz(); break;
-				default: throw (sprintf("Unknown dataType: %s", entry.dataType));
+				default: throw `Unknown dataType: ${entry.dataType}`;
 			}
 
 			entriesByName[entry.key] = entry.value;

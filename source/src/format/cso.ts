@@ -69,18 +69,11 @@ export class Cso implements AsyncStream {
 
 
 		if (count <= maxReadCount) {
-			//console.log(sprintf("readChunkAsyncOne: %08X, %d, (%d) : %d, %d", offset, count, blockIndex, toReadInChunk, offset - blockLow));
-
 			return chunkPromise;
 		} else {
-			//console.log(sprintf("readChunkAsyncSeveral: %08X, %d, (%d)", offset, count, blockIndex), (new Error())['stack']);
-			//var time1 = performance.now();
 			return chunkPromise.then(chunk1 => {
 				return this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(chunk2 => {
-					//var time2 = performance.now();
 					var result = ArrayBufferUtils.concat([chunk1, chunk2]);
-					//var time3 = performance.now();
-					//console.log('Cso.readChunkAsync', time1, time2, time3);
 					return result;
 				});
 			});

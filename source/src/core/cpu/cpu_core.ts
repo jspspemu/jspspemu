@@ -21,23 +21,11 @@ export interface IInstructionCache {
 
 class VfpuPrefixBase {
 	enabled = false;
-
-	constructor(private vfrc: number[], private index: number) {
-	}
-
+	constructor(private vfrc: number[], private index: number) { }
 	_info: number;
-	_readInfo() {
-		this._info = this.getInfo();
-	}
-
-	eat() {
-		this.enabled = false;
-	}
-
-	getInfo() {
-		return this.vfrc[this.index];
-	}
-
+	_readInfo() { this._info = this.getInfo(); }
+	eat() { this.enabled = false; }
+	getInfo() { return this.vfrc[this.index]; }
 	setInfo(info: number) {
 		this.vfrc[this.index] = info;
 		this.enabled = true;
@@ -79,7 +67,7 @@ export class SyscallManager {
 
 	call(state: CpuState, id: number) {
         var nativeFunction: NativeFunction = this.calls[id];
-        if (!nativeFunction) throw (sprintf("Can't call syscall %s: 0x%06X", id));
+        if (!nativeFunction) throw `Can't call syscall ${this.getName(id)}: ${addressToHex(id)}"`;
 		//printf('calling syscall 0x%04X : %s', id, nativeFunction.name);
 
         nativeFunction.call(this.context, state);
@@ -510,9 +498,9 @@ export class CpuState {
 
 	printCallstack(symbolLookup: any = null) {
 		this.getCallstack().forEach((PC) => {
-			var line = sprintf("%08X", PC);
+			var line = addressToHex(PC);
 			if (symbolLookup) {
-				line += sprintf(' : %s', symbolLookup.getSymbolAt(PC));
+				line += ` : ${symbolLookup.getSymbolAt(PC)}`;
 			}
 			console.log(line);
 		});
@@ -528,10 +516,6 @@ export class CpuState {
 
 	getPointerU8Array(address: number, size?: number) {
 		return this.memory.getPointerU8Array(address, size)
-	}
-
-	get REGS() {
-		return sprintf('r1: %08X, r2: %08X, r3: %08X, r3: %08X', this.gpr[1], this.gpr[2], this.gpr[3], this.gpr[4]);
 	}
 
 	fcr31_rm: number = 0;
@@ -910,7 +894,7 @@ export class FunctionGenerator {
 		var code = this.getFunctionCode(info);
 		try {
 			//var func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
-			var startHex = sprintf('0x%08X', info.start);
+			var startHex = addressToHex(info.start);
 			var func = <ICpuFunction>(new Function(`return function func_${startHex}(state, args) { "use strict"; ${code.code} }`)());
 			return new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
 		} catch (e) {
@@ -927,7 +911,7 @@ export class FunctionGenerator {
 		const explored: NumberDictionary<Boolean> = {};
 		const explore = [address];
 		const info: FunctionInfo = { start: address, min: address, max: address, labels: {} };
-		const MAX_EXPLORE = 5000;
+		const MAX_EXPLORE = 20000;
 		var exploredCount = 0;
 
 		function addToExplore(pc: number) {
@@ -1026,11 +1010,11 @@ export class FunctionGenerator {
 
 				var targetAddress = di.targetAddress & Memory.MASK;
 				var nextAddress = (PC + 8) & Memory.MASK;
-				var targetAddressHex = sprintf('0x%08X', targetAddress);
-				var nextAddressHex = sprintf('0x%08X', nextAddress);
+				var targetAddressHex = addressToHex(targetAddress);
+				var nextAddressHex = addressToHex(nextAddress);
 
 				if (type.name == 'jal' || type.name == 'j') {
-					var cachefuncName = sprintf(`cache_0x%08X`, targetAddress);
+					var cachefuncName = `cache_${addressToHex(targetAddress)}`;
 					args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
 					func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 					if (type.name == 'j') {
@@ -1049,8 +1033,8 @@ export class FunctionGenerator {
 						func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
 					}
 				} else if (type.isJal) {
-					var cachefuncName = sprintf(`cachefunc_0x%08X`, PC); args[cachefuncName] = null;
-					var cacheaddrName = sprintf(`cacheaddr_0x%08X`, PC); args[cacheaddrName] = -1;
+					var cachefuncName = `cachefunc_${addressToHex(PC)}`; args[cachefuncName] = null;
+					var cacheaddrName = `cacheaddr_${addressToHex(PC)}`; args[cacheaddrName] = -1;
 					func.add(ins);
 					func.add(delayedCode);
 					func.add(ast.raw('if (state.BRANCHFLAG) {'));

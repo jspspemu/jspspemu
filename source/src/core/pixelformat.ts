@@ -98,68 +98,59 @@ export class PixelConverter {
 			case PixelFormat.PALETTE_T4:
 				PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
 				break;
-			default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
+			default: throw new Error(`Unsupported pixel format ${format}`);
 		}
 	}
 
 	private static updateT4Translate = new Uint32Array(16);
+	private static updateT8Translate = new Uint32Array(256);
 	private static updateT4(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-		var orValue = useAlpha ? 0 : 0xFF000000;
+		const to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		const orValue = useAlpha ? 0 : 0xFF000000;
 		count |= 0;
 		clutStart |= 0;
 		clutShift |= 0;
 		clutMask &= 0xF;
 
-		var updateT4Translate = PixelConverter.updateT4Translate;
-		//var updateT4Translate2 = [];
-		for (var m = 0; m < 16; m++) {
-			updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
-		}
+		const updateT4Translate = PixelConverter.updateT4Translate;
+		for (let m = 0; m < 16; m++) updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
 
-		//console.log('updateT4', clutStart, clutShift, clutMask, updateT4Translate, updateT4Translate2.map(item => sprintf('%08X', item)));
-
-		for (var n = 0, m = 0; n < count; n++) {
-			var char = from[fromIndex + n];
+		for (let n = 0, m = 0; n < count; n++) {
+			const char = from[fromIndex + n];
 			to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
 			to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
 		}
-		//var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-		//var orValue = useAlpha ? 0 : 0xFF000000;
-		//count |= 0;
-		//clutStart |= 0;
-		//clutShift |= 0;
-		//clutMask &= 0xF;
-		//
-		//for (var n = 0, m = 0; n < count; n++) {
-		//	var char = from[fromIndex + n];
-		//	to32[m++] = palette[((clutStart + (char >>> 0) & 0xF) >>> clutShift) & clutMask]
-		//	to32[m++] = palette[((clutStart + (char >>> 4) & 0xF) >>> clutShift) & clutMask]
-		//}
 	}
 
 	private static updateT8(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-		var orValue = useAlpha ? 0 : 0xFF000000;
+		const to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		const orValue = useAlpha ? 0 : 0xFF000000;
 		clutMask &= 0xFF;
-		for (var m = 0; m < count; m++) to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
+		// Big enough to be worth the translate construction
+		if (count > 1024) {
+			const updateT8Translate = PixelConverter.updateT8Translate;
+			for (let m = 0; m < 256; m++) updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
+			for (let m = 0; m < count; m++) to32[m] = updateT8Translate[from[fromIndex + m]] | orValue;
+		} else {
+			for (let m = 0; m < count; m++) to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
+		}
 	}
 
 	private static decode8888(from: Uint8Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-		var from32 = ArrayBufferUtils.uint8ToUint32(from, fromIndex);
-		var orValue = useAlpha ? 0 : 0xFF000000;
-		for (var n = 0; n < count; n++) to32[n] = from32[n] | orValue;
+		const to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		const from32 = ArrayBufferUtils.uint8ToUint32(from, fromIndex);
+		const orValue = useAlpha ? 0 : 0xFF000000;
+		for (let n = 0; n < count; n++) to32[n] = from32[n] | orValue;
 	}
 
 	private static update5551(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		const to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 
-		var orValue = useAlpha ? 0 : 0xFF000000;
+		const orValue = useAlpha ? 0 : 0xFF000000;
 
-		for (var n = 0; n < count; n++) {
-			var it = from[fromIndex++];
-			var value = 0;
+		for (let n = 0; n < count; n++) {
+			const it = from[fromIndex++];
+			let value = 0;
 			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
 			value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
 			value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
@@ -170,11 +161,11 @@ export class PixelConverter {
 	}
 
 	private static update5650(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		const to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 
-		for (var n = 0; n < count; n++) {
-			var it = from[fromIndex++];
-			var value = 0;
+		for (let n = 0; n < count; n++) {
+			const it = from[fromIndex++];
+			let value = 0;
 			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
 			value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
 			value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
@@ -184,11 +175,11 @@ export class PixelConverter {
 	}
 
 	private static update4444(from: Uint16Array, fromIndex: number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true) {
-		var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+		let to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
 
-		for (var n = 0; n < count; n++) {
-			var it = from[fromIndex++];
-			var value = 0;
+		for (let n = 0; n < count; n++) {
+			const it = from[fromIndex++];
+			let value = 0;
 			value |= BitUtils.extractScalei(it, 0, 4, 0xFF) << 0;
 			value |= BitUtils.extractScalei(it, 4, 4, 0xFF) << 8;
 			value |= BitUtils.extractScalei(it, 8, 4, 0xFF) << 16;

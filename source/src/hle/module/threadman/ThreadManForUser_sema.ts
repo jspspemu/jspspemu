@@ -40,7 +40,7 @@ export class ThreadManForUser {
 	});
 
 	private _sceKernelWaitSemaCB(currentThread: Thread, id: number, signal: number, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
-		//console.warn(sprintf('Not implemented ThreadManForUser._sceKernelWaitSemaCB(%d, %d) :: Thread("%s")', id, signal, currentThread.name));
+
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		var promise = semaphore.waitAsync(currentThread, signal);
@@ -75,13 +75,11 @@ export class ThreadManForUser {
 	});
 
 	sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
-		//console.warn(sprintf('Not implemented ThreadManForUser.sceKernelSignalSema(%d, %d) : Thread("%s")', id, signal, currentThread.name));
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		var previousCount = semaphore.currentCount;
 		if (semaphore.currentCount + signal > semaphore.maximumCount) return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
 		var awakeCount = semaphore.incrementCount(signal);
-		//console.info(sprintf(': awakeCount %d, previousCount: %d, currentCountAfterSignal: %d', awakeCount, previousCount, semaphore.currentCount));
 		if (awakeCount > 0) {
 			return Promise.resolve(0);
 		} else {
@@ -149,7 +147,6 @@ class Semaphore {
 		var awakeCount = 0;
 		this.waitingSemaphoreThreadList.forEach(item => {
 			if (this.currentCount >= item.expectedCount) {
-				//console.info(sprintf('Semaphore.updatedCount: %d, %d -> %d', this.currentCount, item.expectedCount, this.currentCount - item.expectedCount));
 				this.currentCount -= item.expectedCount;
 				item.wakeUp();
 				awakeCount++;
@@ -165,7 +162,6 @@ class Semaphore {
 		} else {
 			var promise = new Promise((resolve, reject) => {
 				var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, () => {
-					//console.info(sprintf('Semaphore.waitAsync() -> wakeup thread : "%s"', thread.name));
 					this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
 					resolve();
 				});

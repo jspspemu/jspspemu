@@ -25,12 +25,12 @@ export function detectFormatAsync(asyncStream: AsyncStream): Promise<string> {
 						case '\u0001CD001':
 							return 'iso';
 						default:
-							throw (sprintf("Unknown format. Magic: '%s'", magic));
+							throw `Unknown format. Magic: '${magic}'`;
 					}
 				});
 			default:
 				break;
 		}
-		throw (sprintf("Unknown format. Magic: '%s'", magic));
+		throw `Unknown format. Magic: '${magic}'`;
 	});
 }

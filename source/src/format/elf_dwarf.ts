@@ -134,7 +134,7 @@ export class ElfSymbol {
 	get high() { return this.value + this.size; }
 
 	toString() {
-		return sprintf('ElfSymbol("%s", %08X-%08X)', this.name, this.low, this.high);
+		return `ElfSymbol("${this.name}", ${addressToHex(this.low)}-${addressToHex(this.high)}`;
 	}
 
 	contains(address: number) {

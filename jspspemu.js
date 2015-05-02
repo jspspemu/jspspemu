@@ -873,6 +873,12 @@ function inflateRawAsync(data) {
         return new Uint8Array(args[0]);
     });
 }
+function addressToHex(address) {
+    return '0x' + addressToHex2(address);
+}
+function addressToHex2(address) {
+    return ('00000000' + (address >>> 0).toString(16)).substr(-8);
+}
 
 ///<reference path="./math.ts" />
 if (typeof global != 'undefined')
@@ -5201,9 +5207,9 @@ var ANodeStmLabel = (function (_super) {
     }
     ANodeStmLabel.prototype.toJs = function () {
         switch (this.type) {
-            case 'none': return '';
-            case 'normal': return sprintf("case 0x%08X:", this.address);
-            case 'while': return sprintf("loop_0x%08X: while (true) {", this.address);
+            case 'none': return "";
+            case 'normal': return "case " + addressToHex(this.address) + ":";
+            case 'while': return "loop_" + addressToHex(this.address) + ": while (true) {";
         }
     };
     return ANodeStmLabel;
@@ -5220,7 +5226,7 @@ var ANodeStmStaticJump = (function (_super) {
     ANodeStmStaticJump.prototype.toJs = function () {
         switch (this.type) {
             case 'normal': return "if (" + this.cond.toJs() + ") { loop_state = " + this.address + "; continue loop; }";
-            case 'while': return sprintf("if (" + this.cond.toJs() + ") { continue loop_0x%08X; } else { break loop_0x%08X; } }", this.address, this.address);
+            case 'while': return "if (" + this.cond.toJs() + ") { continue loop_" + addressToHex(this.address) + "; } else { break loop_" + addressToHex(this.address) + "; } }";
         }
     };
     return ANodeStmStaticJump;
@@ -5437,7 +5443,7 @@ var ANodeExprU32 = (function (_super) {
         this.value = value;
     }
     ANodeExprU32.prototype.toJs = function () {
-        return '0x' + IntUtils.toHexString(this.value, 8);
+        return addressToHex(this.value);
     };
     return ANodeExprU32;
 })(ANodeExpr);
@@ -6628,15 +6634,9 @@ var VfpuPrefixBase = (function () {
         this.index = index;
         this.enabled = false;
     }
-    VfpuPrefixBase.prototype._readInfo = function () {
-        this._info = this.getInfo();
-    };
-    VfpuPrefixBase.prototype.eat = function () {
-        this.enabled = false;
-    };
-    VfpuPrefixBase.prototype.getInfo = function () {
-        return this.vfrc[this.index];
-    };
+    VfpuPrefixBase.prototype._readInfo = function () { this._info = this.getInfo(); };
+    VfpuPrefixBase.prototype.eat = function () { this.enabled = false; };
+    VfpuPrefixBase.prototype.getInfo = function () { return this.vfrc[this.index]; };
     VfpuPrefixBase.prototype.setInfo = function (info) {
         this.vfrc[this.index] = info;
         this.enabled = true;
@@ -6671,7 +6671,7 @@ var SyscallManager = (function () {
     SyscallManager.prototype.call = function (state, id) {
         var nativeFunction = this.calls[id];
         if (!nativeFunction)
-            throw (sprintf("Can't call syscall %s: 0x%06X", id));
+            throw "Can't call syscall " + this.getName(id) + ": " + addressToHex(id) + "\"";
         nativeFunction.call(this.context, state);
     };
     return SyscallManager;
@@ -7201,9 +7201,9 @@ var CpuState = (function () {
     CpuState.prototype.printCallstack = function (symbolLookup) {
         if (symbolLookup === void 0) { symbolLookup = null; }
         this.getCallstack().forEach(function (PC) {
-            var line = sprintf("%08X", PC);
+            var line = addressToHex(PC);
             if (symbolLookup) {
-                line += sprintf(' : %s', symbolLookup.getSymbolAt(PC));
+                line += " : " + symbolLookup.getSymbolAt(PC);
             }
             console.log(line);
         });
@@ -7217,13 +7217,6 @@ var CpuState = (function () {
     CpuState.prototype.getPointerU8Array = function (address, size) {
         return this.memory.getPointerU8Array(address, size);
     };
-    Object.defineProperty(CpuState.prototype, "REGS", {
-        get: function () {
-            return sprintf('r1: %08X, r2: %08X, r3: %08X, r3: %08X', this.gpr[1], this.gpr[2], this.gpr[3], this.gpr[4]);
-        },
-        enumerable: true,
-        configurable: true
-    });
     CpuState.prototype._trace_state = function () {
         console.info(this);
         throw ('_trace_state');
@@ -7548,7 +7541,7 @@ var FunctionGenerator = (function () {
     FunctionGenerator.prototype.getFunction = function (info) {
         var code = this.getFunctionCode(info);
         try {
-            var startHex = sprintf('0x%08X', info.start);
+            var startHex = addressToHex(info.start);
             var func = (new Function("return function func_" + startHex + "(state, args) { \"use strict\"; " + code.code + " }")());
             return new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
         }
@@ -7566,7 +7559,7 @@ var FunctionGenerator = (function () {
         var explored = {};
         var explore = [address];
         var info = { start: address, min: address, max: address, labels: {} };
-        var MAX_EXPLORE = 5000;
+        var MAX_EXPLORE = 20000;
         var exploredCount = 0;
         function addToExplore(pc) {
             if (explored[pc])
@@ -7645,10 +7638,10 @@ var FunctionGenerator = (function () {
                 var delayedCode = ast.stm(di.type.isLikely ? ast._if(ast.branchflag(), delayedSlotInstruction) : delayedSlotInstruction);
                 var targetAddress = di.targetAddress & Memory.MASK;
                 var nextAddress = (PC + 8) & Memory.MASK;
-                var targetAddressHex = sprintf('0x%08X', targetAddress);
-                var nextAddressHex = sprintf('0x%08X', nextAddress);
+                var targetAddressHex = addressToHex(targetAddress);
+                var nextAddressHex = addressToHex(nextAddress);
                 if (type.name == 'jal' || type.name == 'j') {
-                    var cachefuncName = sprintf("cache_0x%08X", targetAddress);
+                    var cachefuncName = "cache_" + addressToHex(targetAddress);
                     args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
                     func.add(ast.raw("state.PC = " + targetAddressHex + ";"));
                     if (type.name == 'j') {
@@ -7670,9 +7663,9 @@ var FunctionGenerator = (function () {
                     }
                 }
                 else if (type.isJal) {
-                    var cachefuncName = sprintf("cachefunc_0x%08X", PC);
+                    var cachefuncName = "cachefunc_" + addressToHex(PC);
                     args[cachefuncName] = null;
-                    var cacheaddrName = sprintf("cacheaddr_0x%08X", PC);
+                    var cacheaddrName = "cacheaddr_" + addressToHex(PC);
                     args[cacheaddrName] = -1;
                     func.add(ins);
                     func.add(delayedCode);
@@ -7862,7 +7855,7 @@ var InstructionType = (function () {
         enumerable: true,
         configurable: true
     });
-    InstructionType.prototype.toString = function () { return sprintf("InstructionType('%s', %08X, %08X)", this.name, this.vm.value, this.vm.mask); };
+    InstructionType.prototype.toString = function () { return "InstructionType('" + this.name + "', " + addressToHex(this.vm.value) + ", " + addressToHex(this.vm.mask) + ")"; };
     return InstructionType;
 })();
 exports.InstructionType = InstructionType;
@@ -15120,7 +15113,7 @@ var PixelConverter = (function () {
             case PixelFormat.PALETTE_T4:
                 PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
                 break;
-            default: throw (new Error(sprintf("Unsupported pixel format %d", format)));
+            default: throw new Error("Unsupported pixel format " + format);
         }
     };
     PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
@@ -15136,9 +15129,8 @@ var PixelConverter = (function () {
         clutShift |= 0;
         clutMask &= 0xF;
         var updateT4Translate = PixelConverter.updateT4Translate;
-        for (var m = 0; m < 16; m++) {
+        for (var m = 0; m < 16; m++)
             updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
-        }
         for (var n = 0, m = 0; n < count; n++) {
             var char = from[fromIndex + n];
             to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
@@ -15154,8 +15146,17 @@ var PixelConverter = (function () {
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
         clutMask &= 0xFF;
-        for (var m = 0; m < count; m++)
-            to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
+        if (count > 1024) {
+            var updateT8Translate = PixelConverter.updateT8Translate;
+            for (var m = 0; m < 256; m++)
+                updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
+            for (var m = 0; m < count; m++)
+                to32[m] = updateT8Translate[from[fromIndex + m]] | orValue;
+        }
+        else {
+            for (var m = 0; m < count; m++)
+                to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
+        }
     };
     PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
         if (useAlpha === void 0) { useAlpha = true; }
@@ -15170,12 +15171,12 @@ var PixelConverter = (function () {
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
         for (var n = 0; n < count; n++) {
-            var it = from[fromIndex++];
+            var it_1 = from[fromIndex++];
             var value = 0;
-            value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
-            value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
-            value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
-            value |= BitUtils.extractScalei(it, 15, 1, 0xFF) << 24;
+            value |= BitUtils.extractScalei(it_1, 0, 5, 0xFF) << 0;
+            value |= BitUtils.extractScalei(it_1, 5, 5, 0xFF) << 8;
+            value |= BitUtils.extractScalei(it_1, 10, 5, 0xFF) << 16;
+            value |= BitUtils.extractScalei(it_1, 15, 1, 0xFF) << 24;
             value |= orValue;
             to32[n] = value;
         }
@@ -15184,11 +15185,11 @@ var PixelConverter = (function () {
         if (useAlpha === void 0) { useAlpha = true; }
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         for (var n = 0; n < count; n++) {
-            var it = from[fromIndex++];
+            var it_2 = from[fromIndex++];
             var value = 0;
-            value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
-            value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
-            value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
+            value |= BitUtils.extractScalei(it_2, 0, 5, 0xFF) << 0;
+            value |= BitUtils.extractScalei(it_2, 5, 6, 0xFF) << 8;
+            value |= BitUtils.extractScalei(it_2, 11, 5, 0xFF) << 16;
             value |= 0xFF000000;
             to32[n] = value;
         }
@@ -15197,16 +15198,17 @@ var PixelConverter = (function () {
         if (useAlpha === void 0) { useAlpha = true; }
         var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         for (var n = 0; n < count; n++) {
-            var it = from[fromIndex++];
+            var it_3 = from[fromIndex++];
             var value = 0;
-            value |= BitUtils.extractScalei(it, 0, 4, 0xFF) << 0;
-            value |= BitUtils.extractScalei(it, 4, 4, 0xFF) << 8;
-            value |= BitUtils.extractScalei(it, 8, 4, 0xFF) << 16;
-            value |= (useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF) << 24;
+            value |= BitUtils.extractScalei(it_3, 0, 4, 0xFF) << 0;
+            value |= BitUtils.extractScalei(it_3, 4, 4, 0xFF) << 8;
+            value |= BitUtils.extractScalei(it_3, 8, 4, 0xFF) << 16;
+            value |= (useAlpha ? BitUtils.extractScalei(it_3, 12, 4, 0xFF) : 0xFF) << 24;
             to32[n] = value;
         }
     };
     PixelConverter.updateT4Translate = new Uint32Array(16);
+    PixelConverter.updateT8Translate = new Uint32Array(256);
     return PixelConverter;
 })();
 exports.PixelConverter = PixelConverter;
@@ -15400,7 +15402,7 @@ var Emulator = (function () {
     Emulator.prototype._loadAndExecuteAsync = function (asyncStream, pathToFile) {
         var _this = this;
         return _format.detectFormatAsync(asyncStream).then(function (fileFormat) {
-            console.info(sprintf('File:: size: %d, format: "%s", name: "%s"', asyncStream.size, fileFormat, asyncStream.name));
+            console.info("File:: size: " + asyncStream.size + ", format: \"" + fileFormat + "\", name: \"" + asyncStream.name + "\"");
             switch (fileFormat) {
                 case 'ciso':
                     return _format_cso.Cso.fromStreamAsync(asyncStream).then(function (asyncStream2) { return _this._loadAndExecuteAsync(asyncStream2, pathToFile); });
@@ -15493,7 +15495,7 @@ var Emulator = (function () {
                         thread.start();
                     });
                 default:
-                    throw (new Error(sprintf("Unhandled format '%s'", fileFormat)));
+                    throw new Error("\"Unhandled format '" + fileFormat + "'");
             }
         });
     };
@@ -16059,7 +16061,7 @@ var ElfSymbol = (function () {
         configurable: true
     });
     ElfSymbol.prototype.toString = function () {
-        return sprintf('ElfSymbol("%s", %08X-%08X)', this.name, this.low, this.high);
+        return "ElfSymbol(\"" + this.name + "\", " + addressToHex(this.low) + "-" + addressToHex(this.high);
     };
     ElfSymbol.prototype.contains = function (address) {
         return (address >= this.low) && (address < (this.high));
@@ -16194,13 +16196,13 @@ function detectFormatAsync(asyncStream) {
                         case '\u0001CD001':
                             return 'iso';
                         default:
-                            throw (sprintf("Unknown format. Magic: '%s'", magic));
+                            throw "Unknown format. Magic: '" + magic + "'";
                     }
                 });
             default:
                 break;
         }
-        throw (sprintf("Unknown format. Magic: '%s'", magic));
+        throw "Unknown format. Magic: '" + magic + "'";
     });
 }
 exports.detectFormatAsync = detectFormatAsync;
@@ -16444,7 +16446,7 @@ var IsoNode = (function () {
         this.childsByName[child.name] = child;
     };
     IsoNode.prototype.toString = function () {
-        return sprintf('IsoNode(%s, %d)', this.path, this.size);
+        return "IsoNode(" + this.path + ", " + this.size + ")";
     };
     return IsoNode;
 })();
@@ -16491,7 +16493,7 @@ var Iso = (function () {
             return this.root;
         var node = this._childrenByPath[path];
         if (!node) {
-            throw (new Error(sprintf("Can't find node '%s'", path)));
+            throw (new Error("Can't find node '" + path + "'"));
         }
         return node;
     };
@@ -16508,14 +16510,14 @@ var Iso = (function () {
         this.asyncStream = asyncStream;
         this.date = asyncStream.date;
         if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE)
-            throw (sprintf("Invalid PrimaryVolumeDescriptor.struct size %d != %d", PrimaryVolumeDescriptor.struct.length, SECTOR_SIZE));
+            throw "Invalid PrimaryVolumeDescriptor.struct size " + PrimaryVolumeDescriptor.struct.length + " != " + SECTOR_SIZE;
         return asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800).then(function (arrayBuffer) {
             var stream = Stream.fromArrayBuffer(arrayBuffer);
             var pvd = PrimaryVolumeDescriptor.struct.read(stream);
             if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor)
-                throw ("Not an ISO file");
+                throw "Not an ISO file";
             if (pvd.header.id != 'CD001')
-                throw ("Not an ISO file");
+                throw "Not an ISO file";
             _this._children = [];
             _this._childrenByPath = {};
             _this._root = new IsoNode(_this, pvd.directoryRecord);
@@ -16683,7 +16685,7 @@ var Psf = (function () {
                 case DataType.Text:
                     entry.value = valueStream.readUtf8Stringz();
                     break;
-                default: throw (sprintf("Unknown dataType: %s", entry.dataType));
+                default: throw "Unknown dataType: " + entry.dataType;
             }
             entriesByName[entry.key] = entry.value;
         });
@@ -25135,7 +25137,7 @@ var MemoryVfs = (function (_super) {
         }
         var file = this.files[path];
         if (!file) {
-            var error = new Error(sprintf("MemoryVfs: Can't find '%s'", path));
+            var error = new Error("MemoryVfs: Can't find '" + path + "'");
             console.error(error);
             console.error(error['stack']);
             return Promise.reject(error);
@@ -26724,12 +26726,12 @@ function generateGpr3Matrix(op, vector) {
     for (var n = 0; n < vector.length; n++) {
         var program = [];
         for (var m = 0; m < vector.length; m++) {
-            program.push(sprintf('%s $%d, $%d, $%d', op, 1 + m, 15 + n, 15 + m));
+            program.push(op + " $" + (1 + m) + ", $" + (15 + n) + ", $" + (15 + m));
         }
         var state = executeProgram(gprInitial, program);
         var outputVector = [];
         for (var m = 0; m < vector.length; m++)
-            outputVector.push(sprintf('%08X', state.gpr[1 + m]));
+            outputVector.push(addressToHex2(state.gpr[1 + m]).toUpperCase());
         outputMatrix.push(outputVector);
     }
     return outputMatrix;
@@ -26744,7 +26746,7 @@ function assertProgram(description, gprInitial, program, gprAssertions) {
         else {
             value = state[key];
         }
-        assert.equal(sprintf('%08X', value), sprintf('%08X', gprAssertions[key]), description + ': ' + key + ' == ' + sprintf('%08X', gprAssertions[key]));
+        assert.equal(addressToHex(value), addressToHex(gprAssertions[key]), description + ': ' + key + ' == ' + addressToHex(gprAssertions[key]));
     }
 }
 describe('testasm cpu running', function () {
