@@ -996,7 +996,7 @@ export class FunctionGenerator {
 		//func.add(ast.raw(sprintf(`console.log('MIN:%08X, PC:%08X');`, info.min, info.start)));
 		//func.add(ast.djump(ast.raw(`${info.start}`)));
 		if (info.min != info.start) {
-			func.add(ast.djump(ast.raw(sprintf('0x%08X', info.start))));
+			func.add(ast.sjump(ast.raw('true'), info.start));
 		}
 
 		if ((info.max - info.min) == 4) {
@@ -1030,14 +1030,13 @@ export class FunctionGenerator {
 				var nextAddressHex = sprintf('0x%08X', nextAddress);
 
 				if (type.name == 'jal' || type.name == 'j') {
-
 					var cachefuncName = sprintf(`cache_0x%08X`, targetAddress);
 					args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
 					func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 					if (type.name == 'j') {
 						func.add(delayedCode);
 						if (labels[targetAddress]) {
-							func.add(ast.djump(ast.raw(`${targetAddressHex}`)));
+							func.add(ast.sjump(ast.raw('true'), targetAddress));
 						} else {
 							func.add(ast.raw(`state.jumpCall = args.${cachefuncName};`));
 							func.add(ast.raw(`return;`));
@@ -1078,17 +1077,17 @@ export class FunctionGenerator {
 				} else {
 					func.add(ins);
 					func.add(delayedCode);
-					func.add(ast.raw(`if (state.BRANCHFLAG) {`));
-					func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 					if (type.isFixedAddressJump && labels[targetAddress]) {
-						func.add(ast.djump(ast.raw(`${targetAddressHex}`)));
+						func.add(ast.sjump(ast.raw('state.BRANCHFLAG'), targetAddress));
 					} else {
+						func.add(ast.raw(`if (state.BRANCHFLAG) {`));
+						func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
 						func.add(ast.raw(`return;`));
+						func.add(ast.raw(`}`));
 					}
-					func.add(ast.raw(`} else {`));
-					func.add(ast.raw(`state.PC = ${nextAddressHex};`));
-					func.add(ast.raw(`}`));
+					//func.add(ast.raw(`} else {`));
+					//func.add(ast.raw(`state.PC = ${nextAddressHex};`));
 				}
 
 				PC += 4;

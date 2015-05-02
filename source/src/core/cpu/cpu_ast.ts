@@ -1,6 +1,7 @@
 ﻿///<reference path="../../global.d.ts" />
 
 export class ANode {
+	index:number;
 	toJs() { return ''; }
 	optimize() { return this; }
 }
@@ -9,16 +10,44 @@ export class ANodeStm extends ANode {
 }
 
 export class ANodeStmLabel extends ANodeStm {
-	static lastId:number = 0;
-	id:number = 0;
-	constructor(id?:number) {
+	address:number = 0;
+	references:ANodeStmStaticJump[] = [];
+	type = 'normal';
+	
+	constructor(address:number) {
 		super();
-		if (id === undefined) id = ANodeStmLabel.lastId++; 
-		this.id = id;
+		this.address = address
 	}
 	
 	toJs() {
-		return sprintf(`case 0x%08X:`, this.id);
+		switch (this.type) {
+			case 'none': return '';
+			case 'normal': return sprintf(`case 0x%08X:`, this.address);
+			case 'while': return sprintf(`loop_0x%08X: while (true) {`, this.address);
+		}
+		
+	}
+}
+
+export class ANodeStmStaticJump extends ANodeStm {
+	type = 'normal';
+	constructor(public cond: ANodeExpr, public address: number) { super(); }
+
+	toJs() {
+		switch (this.type) {
+			case 'normal': return `if (${this.cond.toJs()}) { loop_state = ${this.address}; continue loop; }`;
+			case 'while': return sprintf(`if (${this.cond.toJs()}) { continue loop_0x%08X; } else { break loop_0x%08X; } }`, this.address, this.address);
+		}
+		
+	}
+}
+
+/*
+export class ANodeStmJump extends ANodeStm {
+	constructor(public label: ANodeStmLabel) { super(); }
+
+	toJs() {
+		return `loop_state = ${this.label.id}; continue loop;`;
 	}
 }
 
@@ -29,14 +58,7 @@ export class ANodeStmDynamicJump extends ANodeStm {
 		return `loop_state = ${this.node.toJs()}; continue loop;`;
 	}
 }
-
-export class ANodeStmJump extends ANodeStm {
-	constructor(public label: ANodeStmLabel) { super(); }
-
-	toJs() {
-		return `loop_state = ${this.label.id}; continue loop;`;
-	}
-}
+*/
 
 export class ANodeStmReturn extends ANodeStm {
 	toJs() { return 'return;'; }
@@ -61,6 +83,44 @@ export class ANodeFunction extends ANodeStmList {
 		let lines:string[] = [];
 		lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
 		lines.push('case 0:');
+		
+		var labelsByAddress:NumberDictionary<ANodeStmLabel> = {};
+		for (var n = 0; n < this.childs.length; n++) this.childs[n].index = n;
+		for (let child of this.childs) if (child instanceof ANodeStmLabel) labelsByAddress[child.address] = child;
+		for (let child of this.childs) {
+			if (child instanceof ANodeStmStaticJump) {
+				if (labelsByAddress[child.address]) labelsByAddress[child.address].references.push(child);
+			}
+		}
+		
+		var checkRangeHasJustInternalReferences = (min:number, max:number) => {
+			for (var n = min; n <= max; n++) {
+				var child = this.childs[n];
+				if (child instanceof ANodeStmLabel) {
+					if (child.references.length == 0) {
+						child.type = 'none';
+					}
+					for (var ref of child.references) {
+						if (ref.address < min || ref.address > max) return false;
+					}
+				}
+			}
+			return true;
+		};
+		
+		for (let child of this.childs) {
+			if (child instanceof ANodeStmStaticJump) {
+				var label = labelsByAddress[child.address];
+				if (label && label.index < child.index) {
+					if (checkRangeHasJustInternalReferences(label.index, child.index) && label.references.length == 1) {
+						label.type = 'while';
+						child.type = 'while';
+						//console.log('optimizable range!');
+					}
+				}
+			}
+		}
+
 		for (let child of this.childs) {
 			lines.push(child.toJs());
 		}
@@ -216,9 +276,10 @@ export class AstBuilder {
 	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
 	arrayNumbers(values: number[]) { return this.array(values.map(value => this.imm_f(value))); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
-	label(id?:number) { return new ANodeStmLabel(id); }
-	jump(label: ANodeStmLabel) { return new ANodeStmJump(label); }
-	djump(node: ANodeExpr) { return new ANodeStmDynamicJump(node); }
+	label(address:number) { return new ANodeStmLabel(address); }
+	//jump(label: ANodeStmLabel) { return new ANodeStmJump(label); }
+	//djump(node: ANodeExpr) { return new ANodeStmDynamicJump(node); }
+	sjump(cond:ANodeExpr, value: number) { return new ANodeStmStaticJump(cond, value); }
 	_return() { return new ANodeStmReturn(); }
 	raw_stm(content: string) { return new ANodeStmRaw(content); }
 	raw(content: string) { return new ANodeExprLValueVar(content); }

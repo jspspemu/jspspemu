@@ -3604,44 +3604,40 @@ var ANodeStm = (function (_super) {
 exports.ANodeStm = ANodeStm;
 var ANodeStmLabel = (function (_super) {
     __extends(ANodeStmLabel, _super);
-    function ANodeStmLabel(id) {
+    function ANodeStmLabel(address) {
         _super.call(this);
-        this.id = 0;
-        if (id === undefined)
-            id = ANodeStmLabel.lastId++;
-        this.id = id;
+        this.address = 0;
+        this.references = [];
+        this.type = 'normal';
+        this.address = address;
     }
     ANodeStmLabel.prototype.toJs = function () {
-        return sprintf("case 0x%08X:", this.id);
+        switch (this.type) {
+            case 'none': return '';
+            case 'normal': return sprintf("case 0x%08X:", this.address);
+            case 'while': return sprintf("loop_0x%08X: while (true) {", this.address);
+        }
     };
-    ANodeStmLabel.lastId = 0;
     return ANodeStmLabel;
 })(ANodeStm);
 exports.ANodeStmLabel = ANodeStmLabel;
-var ANodeStmDynamicJump = (function (_super) {
-    __extends(ANodeStmDynamicJump, _super);
-    function ANodeStmDynamicJump(node) {
+var ANodeStmStaticJump = (function (_super) {
+    __extends(ANodeStmStaticJump, _super);
+    function ANodeStmStaticJump(cond, address) {
         _super.call(this);
-        this.node = node;
+        this.cond = cond;
+        this.address = address;
+        this.type = 'normal';
     }
-    ANodeStmDynamicJump.prototype.toJs = function () {
-        return "loop_state = " + this.node.toJs() + "; continue loop;";
+    ANodeStmStaticJump.prototype.toJs = function () {
+        switch (this.type) {
+            case 'normal': return "if (" + this.cond.toJs() + ") { loop_state = " + this.address + "; continue loop; }";
+            case 'while': return sprintf("if (" + this.cond.toJs() + ") { continue loop_0x%08X; } else { break loop_0x%08X; } }", this.address, this.address);
+        }
     };
-    return ANodeStmDynamicJump;
+    return ANodeStmStaticJump;
 })(ANodeStm);
-exports.ANodeStmDynamicJump = ANodeStmDynamicJump;
-var ANodeStmJump = (function (_super) {
-    __extends(ANodeStmJump, _super);
-    function ANodeStmJump(label) {
-        _super.call(this);
-        this.label = label;
-    }
-    ANodeStmJump.prototype.toJs = function () {
-        return "loop_state = " + this.label.id + "; continue loop;";
-    };
-    return ANodeStmJump;
-})(ANodeStm);
-exports.ANodeStmJump = ANodeStmJump;
+exports.ANodeStmStaticJump = ANodeStmStaticJump;
 var ANodeStmReturn = (function (_super) {
     __extends(ANodeStmReturn, _super);
     function ANodeStmReturn() {
@@ -3672,11 +3668,55 @@ var ANodeFunction = (function (_super) {
         _super.call(this, childs);
     }
     ANodeFunction.prototype.toJs = function () {
+        var _this = this;
         var lines = [];
         lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
         lines.push('case 0:');
+        var labelsByAddress = {};
+        for (var n = 0; n < this.childs.length; n++)
+            this.childs[n].index = n;
         for (var _i = 0, _a = this.childs; _i < _a.length; _i++) {
             var child = _a[_i];
+            if (child instanceof ANodeStmLabel)
+                labelsByAddress[child.address] = child;
+        }
+        for (var _b = 0, _c = this.childs; _b < _c.length; _b++) {
+            var child = _c[_b];
+            if (child instanceof ANodeStmStaticJump) {
+                if (labelsByAddress[child.address])
+                    labelsByAddress[child.address].references.push(child);
+            }
+        }
+        var checkRangeHasJustInternalReferences = function (min, max) {
+            for (var n = min; n <= max; n++) {
+                var child = _this.childs[n];
+                if (child instanceof ANodeStmLabel) {
+                    if (child.references.length == 0) {
+                        child.type = 'none';
+                    }
+                    for (var _i = 0, _a = child.references; _i < _a.length; _i++) {
+                        var ref = _a[_i];
+                        if (ref.address < min || ref.address > max)
+                            return false;
+                    }
+                }
+            }
+            return true;
+        };
+        for (var _d = 0, _e = this.childs; _d < _e.length; _d++) {
+            var child = _e[_d];
+            if (child instanceof ANodeStmStaticJump) {
+                var label = labelsByAddress[child.address];
+                if (label && label.index < child.index) {
+                    if (checkRangeHasJustInternalReferences(label.index, child.index) && label.references.length == 1) {
+                        label.type = 'while';
+                        child.type = 'while';
+                    }
+                }
+            }
+        }
+        for (var _f = 0, _g = this.childs; _f < _g.length; _f++) {
+            var child = _g[_f];
             lines.push(child.toJs());
         }
         lines.push('break loop;');
@@ -3922,9 +3962,8 @@ var AstBuilder = (function () {
         return this.array(values.map(function (value) { return _this.imm_f(value); }));
     };
     AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
-    AstBuilder.prototype.label = function (id) { return new ANodeStmLabel(id); };
-    AstBuilder.prototype.jump = function (label) { return new ANodeStmJump(label); };
-    AstBuilder.prototype.djump = function (node) { return new ANodeStmDynamicJump(node); };
+    AstBuilder.prototype.label = function (address) { return new ANodeStmLabel(address); };
+    AstBuilder.prototype.sjump = function (cond, value) { return new ANodeStmStaticJump(cond, value); };
     AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
     AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
     AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
@@ -5990,7 +6029,7 @@ var FunctionGenerator = (function () {
         for (var labelPC in info.labels)
             labels[labelPC] = ast.label(labelPC);
         if (info.min != info.start) {
-            func.add(ast.djump(ast.raw(sprintf('0x%08X', info.start))));
+            func.add(ast.sjump(ast.raw('true'), info.start));
         }
         if ((info.max - info.min) == 4) {
             var di = this.decodeInstruction(info.min);
@@ -6027,7 +6066,7 @@ var FunctionGenerator = (function () {
                     if (type.name == 'j') {
                         func.add(delayedCode);
                         if (labels[targetAddress]) {
-                            func.add(ast.djump(ast.raw("" + targetAddressHex)));
+                            func.add(ast.sjump(ast.raw('true'), targetAddress));
                         }
                         else {
                             func.add(ast.raw("state.jumpCall = args." + cachefuncName + ";"));
@@ -6075,18 +6114,16 @@ var FunctionGenerator = (function () {
                 else {
                     func.add(ins);
                     func.add(delayedCode);
-                    func.add(ast.raw("if (state.BRANCHFLAG) {"));
-                    func.add(ast.raw("state.PC = " + targetAddressHex + ";"));
                     if (type.isFixedAddressJump && labels[targetAddress]) {
-                        func.add(ast.djump(ast.raw("" + targetAddressHex)));
+                        func.add(ast.sjump(ast.raw('state.BRANCHFLAG'), targetAddress));
                     }
                     else {
+                        func.add(ast.raw("if (state.BRANCHFLAG) {"));
+                        func.add(ast.raw("state.PC = " + targetAddressHex + ";"));
                         func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
                         func.add(ast.raw("return;"));
+                        func.add(ast.raw("}"));
                     }
-                    func.add(ast.raw("} else {"));
-                    func.add(ast.raw("state.PC = " + nextAddressHex + ";"));
-                    func.add(ast.raw("}"));
                 }
                 PC += 4;
             }
