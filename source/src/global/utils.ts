@@ -800,6 +800,8 @@ var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
 
+declare var executeCommandAsync: (code:string, args:ArrayBuffer[]) => Promise<ArrayBuffer[]>; 
+
 if (typeof window.document != 'undefined') {
 	var workers:Worker[] = [];
 	var workersJobs:number[] = [];
@@ -817,7 +819,7 @@ if (typeof window.document != 'undefined') {
 		}
 	});
 	
-	function executeCommandAsync(code:string, args: ArrayBuffer[]) {
+	executeCommandAsync = (code:string, args: ArrayBuffer[]) => {
 		return new Promise((resolve, reject) => {
 			var requestId = lastRequestId++;
 			resolvers[requestId] = resolve;
@@ -831,7 +833,7 @@ if (typeof window.document != 'undefined') {
 				workers[1].postMessage({code:code, args:args, requestId:requestId}, args);
 			}
 		});
-	}
+	};
 	
 	/*
 	executeCommandAsync(`
@@ -854,6 +856,18 @@ if (typeof window.document != 'undefined') {
 		}
 		this.postMessage({ requestId:requestId, args:args }, args);
 	}
+	
+	executeCommandAsync = (code:string, args: ArrayBuffer[]) => {
+		return new Promise((resolve, reject) => {
+			try {
+				eval(code);
+			} catch (e) {
+				console.error(e);
+				args = [];
+			}
+			resolve(args);
+		});
+	};
 }
 
 function inflateRawArrayBufferAsync(data:ArrayBuffer):Promise<ArrayBuffer> {
@@ -863,10 +877,9 @@ function inflateRawArrayBufferAsync(data:ArrayBuffer):Promise<ArrayBuffer> {
 function inflateRawAsync(data:Uint8Array):Promise<Uint8Array> {
 	return executeCommandAsync(`
 		var zlib = require("src/format/zlib");
-		args[0] = zlib.inflate_raw(new Uint8Array(args[0])).buffer;
+		args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
 	`, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args:ArrayBuffer[]) {
 		if (args.length == 0) throw new Error("Can't decode"); 
 		return new Uint8Array(args[0]);
 	});	
 }
-

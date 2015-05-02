@@ -49,7 +49,7 @@ describe("memorymanager", () => {
 
 		p1.unallocate();
 
-		console.info(partition);
+		//console.info(partition);
 
 		assert.equal(partition.getTotalFreeMemory(), 75);
 		assert.equal(partition.getMaxContiguousFreeMemory(), 50);
