@@ -5295,6 +5295,39 @@ var RelooperBranch = (function () {
     }
     return RelooperBranch;
 })();
+var IndentWriter = (function () {
+    function IndentWriter() {
+        this.i = '';
+        this.startline = true;
+        this.chunks = [];
+    }
+    IndentWriter.prototype.write = function (chunk) {
+        if (chunk == '')
+            return;
+        if (this.startline) {
+            this.chunks.push(this.i);
+            this.startline = false;
+        }
+        var jumpIndex = chunk.indexOf('\n');
+        if (jumpIndex >= 0) {
+            this.chunks.push(chunk.substr(0, jumpIndex));
+            this.chunks.push('\n');
+            this.startline = true;
+            this.write(chunk.substr(jumpIndex + 1));
+        }
+        else {
+            this.chunks.push(chunk);
+        }
+    };
+    IndentWriter.prototype.indent = function () { this.i += '\t'; };
+    IndentWriter.prototype.unindent = function () { this.i = this.i.substr(0, -1); };
+    Object.defineProperty(IndentWriter.prototype, "output", {
+        get: function () { return this.chunks.join(''); },
+        enumerable: true,
+        configurable: true
+    });
+    return IndentWriter;
+})();
 var SimpleRelooper = (function () {
     function SimpleRelooper() {
         this.blocks = [];
@@ -5321,48 +5354,57 @@ var SimpleRelooper = (function () {
         }
     };
     SimpleRelooper.prototype.render = function (first) {
-        var out = '';
-        out += 'label = 0; loop_label: while (true) switch (label) { case 0:\n';
+        var writer = new IndentWriter();
+        writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
+        writer.indent();
         for (var _i = 0, _a = this.blocks; _i < _a.length; _i++) {
             var block = _a[_i];
             var nblock = this.blocks[block.index + 1];
+            if (block.index != 0) {
+                writer.write('case ' + block.index + ':\n');
+                writer.indent();
+            }
             if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
                 var condBranch = nblock.conditionalBranches[0];
-                out += "while (true) {";
-                out += block.code;
-                out += "if (!(" + condBranch.cond + ")) break;";
-                out += "}";
-                out += nblock.code;
+                writer.write("while (true) {\n");
+                writer.indent();
+                writer.write(block.code);
+                writer.write("if (!(" + condBranch.cond + ")) break;\n");
+                writer.unindent();
+                writer.write("}\n");
+                writer.write(nblock.code);
             }
             else {
-                if (block.index != 0)
-                    out += 'case ' + block.index + ':';
                 for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
                     var branch = _c[_b];
-                    out += "if (" + branch.cond + ") { label = " + branch.to.index + "; continue loop_label; }";
+                    writer.write("if (" + branch.cond + ") { label = " + branch.to.index + "; continue loop_label; }\n");
                 }
-                out += block.code;
+                writer.write(block.code);
             }
             if (block.nextBlock) {
                 if (block.nextBlock != nblock) {
-                    out += "label = " + block.nextBlock.index + "; continue loop_label;";
+                    writer.write("label = " + block.nextBlock.index + "; continue loop_label;\n");
                 }
             }
             else {
-                out += 'break loop_label;';
+                writer.write('break loop_label;\n');
             }
+            if (block.index != 0)
+                writer.unindent();
         }
-        out += '}';
-        return out;
+        writer.unindent();
+        writer.write('}');
+        return writer.output;
     };
     return SimpleRelooper;
 })();
 var ANodeFunction = (function (_super) {
     __extends(ANodeFunction, _super);
-    function ANodeFunction(address, prefix, childs) {
+    function ANodeFunction(address, prefix, sufix, childs) {
         _super.call(this, childs);
         this.address = address;
         this.prefix = prefix;
+        this.sufix = sufix;
     }
     ANodeFunction.prototype.toJs = function () {
         var block = new ABlock(0, null);
@@ -5400,7 +5442,7 @@ var ANodeFunction = (function (_super) {
             text = relooper.render(blocks[0].rblock);
             relooper.cleanup();
         }
-        return this.prefix.toJs() + '\n' + text;
+        return this.prefix.toJs() + '\n' + text + this.sufix.toJs() + '\n';
     };
     return ANodeFunction;
 })(ANodeStmList);
@@ -5633,7 +5675,7 @@ var AstBuilder = (function () {
     AstBuilder.prototype.u_imm32 = function (value) { return new ANodeExprU32(value); };
     AstBuilder.prototype.stm = function (expr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); };
     AstBuilder.prototype.stms = function (stms) { return new ANodeStmList(stms); };
-    AstBuilder.prototype.func = function (address, prefix, stms) { return new ANodeFunction(address, prefix, stms); };
+    AstBuilder.prototype.func = function (address, prefix, sufix, stms) { return new ANodeFunction(address, prefix, sufix, stms); };
     AstBuilder.prototype.array = function (exprList) { return new ANodeExprArray(exprList); };
     AstBuilder.prototype.arrayNumbers = function (values) {
         var _this = this;
@@ -7636,7 +7678,7 @@ var FunctionGenerator = (function () {
         var args = {};
         if (info.start == CpuSpecialAddresses.EXIT_THREAD)
             return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
-        var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), []);
+        var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), ast.raw_stm('state.jumpCall = null; return;'), []);
         var labels = {};
         for (var labelPC in info.labels)
             labels[labelPC] = ast.label(labelPC);

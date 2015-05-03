@@ -116,6 +116,32 @@ class RelooperBranch {
 	}
 }
 
+class IndentWriter {
+	public i:string = '';
+	public startline:boolean = true;
+	public chunks:string[] = [];
+	
+	write(chunk:string) {
+		if (chunk == '') return;
+		if (this.startline) {
+			this.chunks.push(this.i);
+			this.startline = false;
+		}
+		var jumpIndex = chunk.indexOf('\n');
+		if (jumpIndex >= 0) {
+			this.chunks.push(chunk.substr(0, jumpIndex));
+			this.chunks.push('\n');
+			this.startline = true;
+			this.write(chunk.substr(jumpIndex + 1));
+		} else {
+			this.chunks.push(chunk);
+		}
+	}
+	indent() { this.i += '\t'; }
+	unindent() { this.i = this.i.substr(0, -1); }
+	get output() { return this.chunks.join(''); }
+}
+
 class SimpleRelooper {
 	private blocks:RelooperBlock[] = [];
 	private lastId:number = 0;
@@ -140,43 +166,51 @@ class SimpleRelooper {
 	}
 	
 	render(first:RelooperBlock) {
-		var out = '';
-		out += 'label = 0; loop_label: while (true) switch (label) { case 0:\n';
+		var writer = new IndentWriter();
+		writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
+		writer.indent();
 		for (let block of this.blocks) {
 			let nblock = this.blocks[block.index + 1];
 			
+			if (block.index != 0) {
+				writer.write('case ' + block.index + ':\n');
+				writer.indent();
+			}
+			
 			if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
 				let condBranch = nblock.conditionalBranches[0];
-				out += `while (true) {`;
-				out += block.code;
-				out += `if (!(${condBranch.cond})) break;`;
-				out += `}`;
-				out += nblock.code;
-			} else {
-				if (block.index != 0) out += 'case ' + block.index + ':';
-				
+				writer.write(`while (true) {\n`);
+				writer.indent();
+				writer.write(block.code);
+				writer.write(`if (!(${condBranch.cond})) break;\n`);
+				writer.unindent();
+				writer.write(`}\n`);
+				writer.write(nblock.code);
+			} else {		
 				for (let branch of block.conditionalBranches) {
-					out += `if (${branch.cond}) { label = ${branch.to.index}; continue loop_label; }`;
+					writer.write(`if (${branch.cond}) { label = ${branch.to.index}; continue loop_label; }\n`);
 				}
 	
-				out += block.code;
+				writer.write(block.code);
 			}
 			
 			if (block.nextBlock) {
 				if (block.nextBlock != nblock) {
-					out += `label = ${block.nextBlock.index}; continue loop_label;`;
+					writer.write(`label = ${block.nextBlock.index}; continue loop_label;\n`);
 				}
 			} else {
-				out += 'break loop_label;';
+				writer.write('break loop_label;\n');
 			}
+			if (block.index != 0) writer.unindent();
 		}
-		out+= '}';
-		return out;
+		writer.unindent();
+		writer.write('}');
+		return writer.output;
 	}
 }
 
 export class ANodeFunction extends ANodeStmList {
-	constructor(public address:number, private prefix:ANodeStm, childs: ANodeStm[]) { super(childs); }
+	constructor(public address:number, private prefix:ANodeStm, private sufix:ANodeStm, childs: ANodeStm[]) { super(childs); }
 	
 	toJs() {
 		var block:ABlock = new ABlock(0, null);
@@ -238,7 +272,7 @@ export class ANodeFunction extends ANodeStmList {
 
 		//console.log(text);		
 
-		return this.prefix.toJs() + '\n' + text;
+		return this.prefix.toJs() + '\n' + text + this.sufix.toJs() + '\n';
 	}
 }
 
@@ -382,7 +416,7 @@ export class AstBuilder {
 	u_imm32(value: number) { return new ANodeExprU32(value); }
 	stm(expr?: ANodeExpr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
-	func(address:number, prefix:ANodeStm, stms: ANodeStm[]) { return new ANodeFunction(address, prefix, stms); }
+	func(address:number, prefix:ANodeStm, sufix:ANodeStm, stms: ANodeStm[]) { return new ANodeFunction(address, prefix, sufix, stms); }
 	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
 	arrayNumbers(values: number[]) { return this.array(values.map(value => this.imm_f(value))); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }

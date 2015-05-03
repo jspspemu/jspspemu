@@ -900,7 +900,12 @@ export class FunctionGenerator {
 		var args: any = {};
 		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
 
-		var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), []);
+		var func = ast.func(
+			info.start,
+			ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'),
+			ast.raw_stm('state.jumpCall = null; return;'),
+			[]
+		);
 		
 		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
 		for (let labelPC in info.labels) labels[labelPC] = ast.label(labelPC);
