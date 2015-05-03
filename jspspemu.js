@@ -5263,6 +5263,100 @@ var ANodeStmList = (function (_super) {
     return ANodeStmList;
 })(ANodeStm);
 exports.ANodeStmList = ANodeStmList;
+var ABlock = (function () {
+    function ABlock(index, label, jump) {
+        if (label === void 0) { label = null; }
+        if (jump === void 0) { jump = null; }
+        this.index = index;
+        this.label = label;
+        this.jump = jump;
+        this.code = '';
+        this.rblock = null;
+    }
+    ABlock.prototype.add = function (node) {
+        this.code += node.toJs() + '\n';
+    };
+    return ABlock;
+})();
+var RelooperBlock = (function () {
+    function RelooperBlock(index, code) {
+        this.index = index;
+        this.code = code;
+        this.conditionalBranches = [];
+        this.nextBlock = null;
+        this.conditionalReferences = [];
+    }
+    return RelooperBlock;
+})();
+var RelooperBranch = (function () {
+    function RelooperBranch(to, cond) {
+        this.to = to;
+        this.cond = cond;
+    }
+    return RelooperBranch;
+})();
+var SimpleRelooper = (function () {
+    function SimpleRelooper() {
+        this.blocks = [];
+        this.lastId = 0;
+    }
+    SimpleRelooper.prototype.init = function () {
+        this.lastId = 0;
+    };
+    SimpleRelooper.prototype.cleanup = function () {
+    };
+    SimpleRelooper.prototype.addBlock = function (code) {
+        var block = new RelooperBlock(this.lastId++, code);
+        this.blocks.push(block);
+        return block;
+    };
+    SimpleRelooper.prototype.addBranch = function (from, to, cond) {
+        var branch = new RelooperBranch(to, cond);
+        if (cond) {
+            from.conditionalBranches.push(branch);
+            to.conditionalReferences.push(from);
+        }
+        else {
+            from.nextBlock = to;
+        }
+    };
+    SimpleRelooper.prototype.render = function (first) {
+        var out = '';
+        out += 'label = 0; loop_label: while (true) switch (label) { case 0:\n';
+        for (var _i = 0, _a = this.blocks; _i < _a.length; _i++) {
+            var block = _a[_i];
+            var nblock = this.blocks[block.index + 1];
+            if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
+                var condBranch = nblock.conditionalBranches[0];
+                out += "while (true) {";
+                out += block.code;
+                out += "if (!(" + condBranch.cond + ")) break;";
+                out += "}";
+                out += nblock.code;
+            }
+            else {
+                if (block.index != 0)
+                    out += 'case ' + block.index + ':';
+                for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
+                    var branch = _c[_b];
+                    out += "if (" + branch.cond + ") { label = " + branch.to.index + "; continue loop_label; }";
+                }
+                out += block.code;
+            }
+            if (block.nextBlock) {
+                if (block.nextBlock != nblock) {
+                    out += "label = " + block.nextBlock.index + "; continue loop_label;";
+                }
+            }
+            else {
+                out += 'break loop_label;';
+            }
+        }
+        out += '}';
+        return out;
+    };
+    return SimpleRelooper;
+})();
 var ANodeFunction = (function (_super) {
     __extends(ANodeFunction, _super);
     function ANodeFunction(address, prefix, childs) {
@@ -5271,85 +5365,42 @@ var ANodeFunction = (function (_super) {
         this.prefix = prefix;
     }
     ANodeFunction.prototype.toJs = function () {
-        var _this = this;
-        var lines = [];
-        lines.push(this.prefix.toJs());
-        lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
-        lines.push('case 0:');
-        var labelsByAddress = {};
-        for (var n = 0; n < this.childs.length; n++)
-            this.childs[n].index = n;
+        var block = new ABlock(0, null);
+        var blocksByLabel = {};
+        var blocks = [block];
         for (var _i = 0, _a = this.childs; _i < _a.length; _i++) {
             var child = _a[_i];
-            if (child instanceof ANodeStmLabel)
-                labelsByAddress[child.address] = child;
-        }
-        for (var _b = 0, _c = this.childs; _b < _c.length; _b++) {
-            var child = _c[_b];
-            if (child instanceof ANodeStmStaticJump) {
-                if (labelsByAddress[child.address])
-                    labelsByAddress[child.address].references.push(child);
+            if (child instanceof ANodeStmLabel) {
+                blocks.push(block = new ABlock(blocks.length, child, null));
+                blocksByLabel[child.address] = block;
+            }
+            else if (child instanceof ANodeStmStaticJump) {
+                blocks.push(block = new ABlock(blocks.length, null, child));
+            }
+            else {
+                block.add(child);
             }
         }
-        var debug = false;
-        var checkRangeHasJustInternalReferences = function (min, max) {
-            for (var n = min; n <= max; n++) {
-                var child = _this.childs[n];
-                if (child instanceof ANodeStmLabel) {
-                    if (child.references.length == 0) {
-                        child.type = 'none';
-                    }
-                    for (var _i = 0, _a = child.references; _i < _a.length; _i++) {
-                        var ref = _a[_i];
-                        if (ref.index < min || ref.index > max)
-                            return false;
-                    }
-                }
+        var text = null;
+        if (text === null) {
+            var relooper = new SimpleRelooper();
+            for (var _b = 0; _b < blocks.length; _b++) {
+                var block_1 = blocks[_b];
+                block_1.rblock = relooper.addBlock(block_1.code);
             }
-            return true;
-        };
-        var getInternalLabelCount = function (min, max) {
-            var count = 0;
-            for (var n = min; n <= max; n++) {
-                var child = _this.childs[n];
-                if (child instanceof ANodeStmLabel)
-                    count++;
+            for (var n = 0; n < blocks.length; n++) {
+                var block_2 = blocks[n];
+                var nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
+                var jblock = block_2.jump ? blocksByLabel[block_2.jump.address] : null;
+                if (nblock)
+                    relooper.addBranch(block_2.rblock, nblock.rblock);
+                if (jblock)
+                    relooper.addBranch(block_2.rblock, jblock.rblock, block_2.jump.cond.toJs());
             }
-            return count;
-        };
-        for (var _d = 0, _e = this.childs; _d < _e.length; _d++) {
-            var child = _e[_d];
-            if (child instanceof ANodeStmStaticJump) {
-                var label = labelsByAddress[child.address];
-                if (debug) {
-                    printf("Jump index:%d to label %08X", child.index, child.address);
-                    if (label) {
-                        printf("Lable index:%d, references %d", child.index, label.references.length);
-                    }
-                    else {
-                        printf("No label");
-                    }
-                }
-                if (label && label.index < child.index) {
-                    var rangeInternalReferences = checkRangeHasJustInternalReferences(label.index, child.index);
-                    var labelCount = getInternalLabelCount(label.index, child.index);
-                    if (debug)
-                        printf("Internal references: %d", rangeInternalReferences);
-                    if (rangeInternalReferences && label.references.length == 1 && labelCount == 1) {
-                        label.type = 'while';
-                        child.type = 'while';
-                    }
-                }
-            }
+            text = relooper.render(blocks[0].rblock);
+            relooper.cleanup();
         }
-        for (var _f = 0, _g = this.childs; _f < _g.length; _f++) {
-            var child = _g[_f];
-            lines.push(child.toJs());
-        }
-        lines.push('break loop;');
-        lines.push('default: throw new Error("Invalid loop_state=" + loop_state);');
-        lines.push('}');
-        return lines.join('\n');
+        return this.prefix.toJs() + '\n' + text;
     };
     return ANodeFunction;
 })(ANodeStmList);
@@ -7585,7 +7636,7 @@ var FunctionGenerator = (function () {
         var args = {};
         if (info.start == CpuSpecialAddresses.EXIT_THREAD)
             return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
-        var func = ast.func(info.start, ast.raw_stm('var BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), []);
+        var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), []);
         var labels = {};
         for (var labelPC in info.labels)
             labels[labelPC] = ast.label(labelPC);

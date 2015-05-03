@@ -60,82 +60,185 @@ export class ANodeStmList extends ANodeStm {
 	}
 }
 
+
+declare class Relooper {
+	static init():void;
+	static cleanup():void;
+	static addBlock(text:string, branchVar?:string):number;
+	static setBlockCode(block:number, text:string):void;
+	static addBranch(from:number, to:number, condition?:string, code?:string):void;
+	static render(entry:number):string;
+	static setDebug(debug:boolean):void;
+	static setAsmJSMode(on:boolean):void;
+}
+
+class ABlock {
+	public code:string = '';
+	public rblock:any = null;
+	
+	constructor(public index:number, public label:ANodeStmLabel = null, public jump:ANodeStmStaticJump = null) {
+	}
+	
+	public add(node:ANodeStm) {
+		this.code += node.toJs() + '\n';
+	}
+}
+
+/*
+class FullRelooper {
+	init() {
+		Relooper.init();
+	}
+	cleanup() {
+		Relooper.cleanup();
+	}
+	addBlock(code:string) {
+		return new RelooperBlock(Relooper.addBlock(code), code);
+	}
+	addBranch(from:RelooperBlock, to:RelooperBlock, cond:string = undefined) {
+		Relooper.addBranch(from.index, to.index, cond);
+	}
+	render(first:RelooperBlock) {
+		return Relooper.render(first.index);
+	}
+}
+*/
+
+class RelooperBlock {
+	public conditionalBranches:RelooperBranch[] = [];
+	public nextBlock:RelooperBlock = null;
+	public conditionalReferences:RelooperBlock[] = [];
+	constructor(public index:number, public code:string) { }
+}
+
+class RelooperBranch {
+	constructor(public to:RelooperBlock, public cond:string) {
+	}
+}
+
+class SimpleRelooper {
+	private blocks:RelooperBlock[] = [];
+	private lastId:number = 0;
+	init() {
+		this.lastId = 0;
+	}
+	cleanup() {
+	}
+	addBlock(code:string) {
+		var block = new RelooperBlock(this.lastId++, code);
+		this.blocks.push(block);
+		return block;
+	}
+	addBranch(from:RelooperBlock, to:RelooperBlock, cond?:string) {
+		var branch = new RelooperBranch(to, cond);
+		if (cond) {
+			from.conditionalBranches.push(branch);
+			to.conditionalReferences.push(from);
+		} else {
+			from.nextBlock = to;
+		}
+	}
+	
+	render(first:RelooperBlock) {
+		var out = '';
+		out += 'label = 0; loop_label: while (true) switch (label) { case 0:\n';
+		for (let block of this.blocks) {
+			let nblock = this.blocks[block.index + 1];
+			
+			if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
+				let condBranch = nblock.conditionalBranches[0];
+				out += `while (true) {`;
+				out += block.code;
+				out += `if (!(${condBranch.cond})) break;`;
+				out += `}`;
+				out += nblock.code;
+			} else {
+				if (block.index != 0) out += 'case ' + block.index + ':';
+				
+				for (let branch of block.conditionalBranches) {
+					out += `if (${branch.cond}) { label = ${branch.to.index}; continue loop_label; }`;
+				}
+	
+				out += block.code;
+			}
+			
+			if (block.nextBlock) {
+				if (block.nextBlock != nblock) {
+					out += `label = ${block.nextBlock.index}; continue loop_label;`;
+				}
+			} else {
+				out += 'break loop_label;';
+			}
+		}
+		out+= '}';
+		return out;
+	}
+}
+
 export class ANodeFunction extends ANodeStmList {
 	constructor(public address:number, private prefix:ANodeStm, childs: ANodeStm[]) { super(childs); }
 	
 	toJs() {
-		let lines:string[] = [];
-		lines.push(this.prefix.toJs());
-		lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
-		lines.push('case 0:');
-		
-		var labelsByAddress:NumberDictionary<ANodeStmLabel> = {};
-		for (var n = 0; n < this.childs.length; n++) this.childs[n].index = n;
-		for (let child of this.childs) if (child instanceof ANodeStmLabel) labelsByAddress[child.address] = child;
+		var block:ABlock = new ABlock(0, null);
+		var blocksByLabel:NumberDictionary<ABlock> = {};
+		var blocks = [block];
 		for (let child of this.childs) {
-			if (child instanceof ANodeStmStaticJump) {
-				if (labelsByAddress[child.address]) labelsByAddress[child.address].references.push(child);
+			if (child instanceof ANodeStmLabel) {
+				blocks.push(block = new ABlock(blocks.length, child, null));
+				blocksByLabel[child.address] = block;
+			} else if (child instanceof ANodeStmStaticJump) {
+				blocks.push(block = new ABlock(blocks.length, null, child));
+			} else {
+				block.add(child);
 			}
+		}
+		
+		var text:string = null;
+		
+		//var relooper = new BaseRelooper();
+		//Relooper.setDebug(true);
+
+		/*
+		Relooper.init();		
+		try {
+			for (let block of blocks) block.rblock = Relooper.addBlock(block.code);
+
+			for (let n = 0; n < blocks.length; n++) {
+				let block = blocks[n];
+				let nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
+				let jblock = block.jump ? blocksByLabel[block.jump.address] : null;
+				if (nblock) Relooper.addBranch(block.rblock, nblock.rblock);
+				if (jblock) Relooper.addBranch(block.rblock, jblock.rblock, block.jump.cond.toJs());
+			}
+
+			text = Relooper.render(blocks[0].rblock);
+		} catch (e) {
+			text = null;
+		} finally {
+			Relooper.cleanup();
+		}
+		*/
+		
+		if (text === null) {
+			var relooper = new SimpleRelooper();
+
+			//Relooper.setDebug(true);
+			for (let block of blocks) block.rblock = relooper.addBlock(block.code);
+			
+			for (let n = 0; n < blocks.length; n++) {
+				let block = blocks[n];
+				let nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
+				let jblock = block.jump ? blocksByLabel[block.jump.address] : null;
+				if (nblock) relooper.addBranch(block.rblock, nblock.rblock);
+				if (jblock) relooper.addBranch(block.rblock, jblock.rblock, block.jump.cond.toJs());
+			}
+			text = relooper.render(blocks[0].rblock);
+			relooper.cleanup();
 		}
 
-		//var debug = (this.address == 0x088042e4);
-		var debug = false;
-		
-		var checkRangeHasJustInternalReferences = (min:number, max:number) => {
-			for (var n = min; n <= max; n++) {
-				var child = this.childs[n];
-				if (child instanceof ANodeStmLabel) {
-					if (child.references.length == 0) {
-						child.type = 'none';
-					}
-					for (var ref of child.references) {
-						if (ref.index < min || ref.index > max) return false;
-					}
-				}
-			}
-			return true;
-		};
-		
-		var getInternalLabelCount = (min:number, max:number) => {
-			var count = 0;
-			for (var n = min; n <= max; n++) {
-				var child = this.childs[n];
-				if (child instanceof ANodeStmLabel) count++;
-			}
-			return count;
-		};
-		
-		for (let child of this.childs) {
-			if (child instanceof ANodeStmStaticJump) {
-				var label = labelsByAddress[child.address];
-				if (debug) {
-					printf("Jump index:%d to label %08X", child.index, child.address);
-					if (label) {
-						printf("Lable index:%d, references %d", child.index, label.references.length);
-					} else {
-						printf("No label");
-					}
-				}
-				if (label && label.index < child.index) {
-					var rangeInternalReferences = checkRangeHasJustInternalReferences(label.index, child.index);
-					var labelCount = getInternalLabelCount(label.index, child.index);
-					if (debug) printf("Internal references: %d", rangeInternalReferences);
-					if (rangeInternalReferences && label.references.length == 1 && labelCount == 1) {
-						label.type = 'while';
-						child.type = 'while';
-						//console.log('optimizable range!');
-					}
-				}
-			}
-		}
+		//console.log(text);		
 
-		for (let child of this.childs) {
-			lines.push(child.toJs());
-		}
-		lines.push('break loop;');
-		lines.push('default: throw new Error("Invalid loop_state=" + loop_state);');
-		lines.push('}');
-		return lines.join('\n');
+		return this.prefix.toJs() + '\n' + text;
 	}
 }
 
