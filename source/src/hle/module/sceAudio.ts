@@ -44,13 +44,13 @@ export class sceAudio {
 		channel.channel.start();
         return channelId;
 	});
-
+	
 	private getChannelById(id: number) {
-		if (!this.isValidChannel(id)) throw (new SceKernelException(SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL));
 		return this.channels[id];
 	}
 
 	sceAudioChRelease = createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, (channelId: number) => {
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.allocated = false;
 		channel.channel.stop();
@@ -59,12 +59,14 @@ export class sceAudio {
 	});
 
 	sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, (channelId: number, format: AudioFormat) => {
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.format = format;
 		return 0;
 	});
 
 	sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, (channelId: number, sampleCount: number) => {
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.sampleCount = sampleCount;
 		return 0;
@@ -72,6 +74,7 @@ export class sceAudio {
 
 	sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any => {
 		if (!buffer) return -1;
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		if (!(result instanceof Promise)) return result;
@@ -80,6 +83,7 @@ export class sceAudio {
 
 	sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, (channelId: number, volume: number, buffer: Stream): any => {
 		if (!buffer) return -1;
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		return result;
@@ -88,12 +92,14 @@ export class sceAudio {
 	});
 
 	sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, (channelId: number, volume: number, buffer: Stream): any => {
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		return 0;
 	});
 
 	sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any => {
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		return 0;

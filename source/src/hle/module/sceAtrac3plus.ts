@@ -17,12 +17,14 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracSetData = createNativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]', this, (id:number, data: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		atrac3.setDataStream(data);
 		return 0;
 	});
 
 	sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, (id: number, puiPosition: Stream, puiDataByte: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		puiPosition.writeInt32(0);
 		puiDataByte.writeInt32(0);
@@ -40,6 +42,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, (id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) => {
+		if (!this.hasById(id)) return Promise.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
 		var atrac3 = this.getById(id);
 
 		return atrac3.decodeAsync(samplesOutPtr).then((decodedSamples) => {
@@ -81,30 +84,35 @@ export class sceAtrac3plus {
 	 * @return Less than 0 on error, otherwise 0
 	 */
 	sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, (id: number, remainFramePtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		if (remainFramePtr) remainFramePtr.writeInt32(atrac3.remainingFrames);
 		return 0;
 	});
 
 	sceAtracGetBitrate = createNativeFunction(0xA554A158, 150, 'uint', 'int/void*', this, (id: number, bitratePtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		bitratePtr.writeInt32(atrac3.bitrate);
 		return 0;
 	});
 
 	sceAtracGetChannel = createNativeFunction(0x31668baa, 150, 'uint', 'int/void*', this, (id: number, channelsPtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		channelsPtr.writeInt32(atrac3.format.atracChannels);
 		return 0;
 	});
 
 	sceAtracGetMaxSample = createNativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*', this, (id: number, maxNumberOfSamplesPtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
 		return 0;
 	});
 
 	sceAtracGetNextSample = createNativeFunction(0x36FAABFB, 150, 'uint', 'int/void*', this, (id: number, numberOfSamplesInNextFramePtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 
 		numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
@@ -118,26 +126,15 @@ export class sceAtrac3plus {
 
 		return this._atrac3Ids.allocate(new Atrac3(-1));
 	});
-
-	/*
-	[HlePspFunction(NID = 0x780F88D1, FirmwareVersion = 150)]
-	[HlePspNotImplemented]
-	public Atrac sceAtracGetAtracID(CodecType CodecType)
-	{
-		if (CodecType != CodecType.PSP_MODE_AT_3 && CodecType != CodecType.PSP_MODE_AT_3_PLUS) {
-			throw (new SceKernelException(SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE));
-		}
-
-		return TryToAlloc(new Atrac(InjectContext, CodecType));
-	}
-	*/
+	
+	private hasById(id: number) { return this._atrac3Ids.has(id); }
 
 	private getById(id: number) {
-		if (!this._atrac3Ids.has(id)) throw(new SceKernelException(SceKernelErrors.ATRAC_ERROR_NO_ATRACID));
 		return this._atrac3Ids.get(id);
 	}
 
 	sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, (id: number, bytesToAdd: number) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		//console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
 		//throw (new Error("Not implemented sceAtracAddStreamData"));
@@ -146,6 +143,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, (id: number, writePointerPointer: Stream, availableBytesPtr: Stream, readOffsetPtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		writePointerPointer.writeInt32(0);
 		availableBytesPtr.writeInt32(0);
@@ -161,6 +159,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, (id: number, samplePositionPtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		if (atrac3.decodingReachedEnd) return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
 		if (samplePositionPtr) samplePositionPtr.writeInt32(atrac3.currentSample);
@@ -168,6 +167,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracGetSoundSample = createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, (id: number, endSamplePtr: Stream, loopStartSamplePtr: Stream, loopEndSamplePtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
 		if (endSamplePtr) endSamplePtr.writeInt32(atrac3.fact.endSample)
@@ -179,6 +179,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracSetLoopNum = createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, (id: number, numberOfLoops: number) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		atrac3.numberOfLoops = numberOfLoops;
 		return 0;
@@ -200,6 +201,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, (id: number, outputChannelPtr: Stream) => {
+		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		var sceAudioChReserve = this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
 		var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);

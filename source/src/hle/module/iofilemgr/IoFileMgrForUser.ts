@@ -30,10 +30,8 @@ export class IoFileMgrForUser {
 	fileUids = new UidCollection<_manager.HleFile>(3);
 	directoryUids = new UidCollection<_manager.HleDirectory>(1);
 
-	getFileById(id:number) {
-		if (!this.fileUids.has(id)) throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND));
-		return this.fileUids.get(id);
-	}
+	hasFileById(id:number):boolean { return this.fileUids.has(id); }
+	getFileById(id:number):_manager.HleFile { return this.fileUids.get(id); }
 
 	sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: FileOpenFlags, mode: FileMode) => {
 		return this._sceIoOpenAsync(filename, flags, mode).then(result => {
@@ -64,6 +62,7 @@ export class IoFileMgrForUser {
 		//if (filename == '') return Promise.resolve(0);
 
 		return this._sceIoOpenAsync(filename, flags, mode).then(fileId => {
+			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 			var file = this.getFileById(fileId);
 			file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
 			log.info('-->', fileId);
@@ -75,6 +74,7 @@ export class IoFileMgrForUser {
 		log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
 		//if (filename == '') return Promise.resolve(0);
 
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		if (file) file.close();
 
@@ -92,6 +92,7 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		if (file) file.close();
 
@@ -111,23 +112,25 @@ export class IoFileMgrForUser {
 			//return immediateAsync().then(() => 0);
 			return 0;
 		} else {
+			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 			var file = this.getFileById(fileId);
 
 			return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((writtenCount: number) => {
 				log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
 				file.cursor += writtenCount;
 				return writtenCount;
-			}).catch((e) => {
+			}).catch(e => {
 				log.error(e);
 				return SceKernelErrors.ERROR_ERROR;
 			});
 		}
 	});
 
-	sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number) => {
+	sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number):number | Promise<number> => {
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
-		return file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
+		return file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
 			file.cursor += readedData.byteLength;
 			//log.log(new Uint8Array(readedData));
 			this.context.memory.writeBytes(outputPointer, readedData);
@@ -137,11 +140,12 @@ export class IoFileMgrForUser {
 	});
 
 	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, (thread:Thread, fileId: number, outputPointer: number, outputLength: number) => {
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
 		// SCE_KERNEL_ERROR_ASYNC_BUSY
 
-		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then((readedData) => {
+		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
 			//log.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
 			file.cursor += readedData.byteLength;
 			//log.info(thread, 'readed', new Uint8Array(readedData));
@@ -152,7 +156,7 @@ export class IoFileMgrForUser {
 		return 0;
 	});
 
-	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream) {
+	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream): number | Promise<number> {
 		thread.state.LO = fileId;
 
 		if (!this.fileUids.has(fileId)) {
@@ -160,11 +164,12 @@ export class IoFileMgrForUser {
 			return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
 		}
 
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
 		if (file.asyncOperation) {
 			if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
-			return file.asyncOperation.then((result) => {
+			return file.asyncOperation.then(result => {
 				//debugger;
 				if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
 				resultPointer.writeInt64(result);
@@ -188,6 +193,7 @@ export class IoFileMgrForUser {
 
 	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
 		//log.info('sceIoPollAsync', fileId);
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
 		if (file.asyncResult) {
@@ -292,6 +298,7 @@ export class IoFileMgrForUser {
 
 	sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
 		//var file = this.getFileById(fileId);
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		var result = this._seek(fileId, offset.getNumber(), whence);
 		file.setAsyncOperationNow(Integer64.fromNumber(result));
@@ -352,6 +359,7 @@ export class IoFileMgrForUser {
 	});
 
 	_seek(fileId: number, offset: number, whence: number) {
+		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		switch (whence) {
 			case _structs.SeekAnchor.Set:

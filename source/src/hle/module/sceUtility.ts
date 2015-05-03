@@ -31,7 +31,7 @@ export class sceUtility {
 		});
 	});
 
-	_sceUtilitySavedataInitStart(paramsPtr: Stream) {
+	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise<number> {
 		console.log('sceUtilitySavedataInitStart');
 		var params = SceUtilitySavedataParam.struct.read(paramsPtr);
 
@@ -80,7 +80,6 @@ export class sceUtility {
 			case PspUtilitySavedataMode.Read:
 			case PspUtilitySavedataMode.ReadSecure:
 				{
-					//throw (new SceKernelException(SceKernelErrors.ERROR_SAVEDATA_RW_NO_DATA));
 					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
 					//return Promise.resolve(-1);
 					return Promise.resolve(0);
@@ -142,7 +141,7 @@ export class sceUtility {
 						}
 					}
 
-					if (SceKernelError != SceKernelErrors.ERROR_OK) throw (new SceKernelException(SceKernelError));
+					if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise.resolve(SceKernelError);
 				}
 				break;
 			default:

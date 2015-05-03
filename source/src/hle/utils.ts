@@ -12,12 +12,8 @@ export interface CreateOptions {
 var console = logger.named('createNativeFunction');
 
 export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function, options?: CreateOptions) {
-	var tryCatch = true;
-	if (options) {
-		if (options.tryCatch !== undefined) tryCatch = options.tryCatch;
-	}
-
     var code = '';
+	//var code = 'debugger;';
 
 	var args:string[] = [];
 	var maxGprIndex = 12;
@@ -75,17 +71,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     });
 
 	code += 'var error = false;\n';
-	if (tryCatch) {
-		code += 'try {\n';
-	}
-	code += 'var args = [' + args.join(', ') + '];\n';
-	code += 'var result = internalFunc.apply(_this, args);\n';
-	if (tryCatch) {
-		code += '} catch (e) {\n';
-		code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }\n';
-		code += '}\n';
-	}
+	//code += 'var args = [' + args.join(', ') + '];\n';
+	//code += 'var result = internalFunc.apply(_this, args);\n';
 
+	code += 'var result = internalFunc(' + args.join(', ') + ');\n';
+
+	/*
 	var debugSyscalls = false;
 	//var debugSyscalls = true;
 
@@ -96,9 +87,10 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
 		code += "}\n";
 	}
+	*/
 
-	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
-	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
+	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new CpuBreakException(); }\n';
+	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw new CpuBreakException(); } else { result = result.promise; } }\n';
 
     switch (retval) {
         case 'void': break;
@@ -121,10 +113,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	//console.log(code);
-	var func = <any>new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', `"use strict"; /* ${addressToHex(nativeFunction.nid)} */\n${code}`);
-	nativeFunction.call = (context, state) => {
-		func(_this, console, internalFunc, context, state, nativeFunction);
-	};
+	nativeFunction.call = <any>new Function(
+		'_this', 'console', 'internalFunc', 'nativeFunction',
+		`return function(context, state) { "use strict"; /* ${addressToHex(nativeFunction.nid)} */\n${code} };`
+	)(
+		_this, console, internalFunc, nativeFunction
+	);
 	nativeFunction.nativeCall = internalFunc;
     //console.log(out);
     return nativeFunction;

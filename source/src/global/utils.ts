@@ -593,14 +593,8 @@ class CpuBreakException implements Error {
 	}
 }
 
-class SceKernelException implements Error {
-	constructor(public id: number, public name: string = 'SceKernelException', public message: string = 'SceKernelException') {
-	}
-}
-
 (<any>window).WaitingThreadInfo = WaitingThreadInfo;
 (<any>window).CpuBreakException = CpuBreakException;
-(<any>window).SceKernelException = SceKernelException;
 
 var DebugOnceArray:{ [key:string]:number; } = {};
 function DebugOnce(name: string, times: number = 1) {

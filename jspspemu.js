@@ -566,19 +566,8 @@ var CpuBreakException = (function () {
     }
     return CpuBreakException;
 })();
-var SceKernelException = (function () {
-    function SceKernelException(id, name, message) {
-        if (name === void 0) { name = 'SceKernelException'; }
-        if (message === void 0) { message = 'SceKernelException'; }
-        this.id = id;
-        this.name = name;
-        this.message = message;
-    }
-    return SceKernelException;
-})();
 window.WaitingThreadInfo = WaitingThreadInfo;
 window.CpuBreakException = CpuBreakException;
-window.SceKernelException = SceKernelException;
 var DebugOnceArray = {};
 function DebugOnce(name, times) {
     if (times === void 0) { times = 1; }
@@ -15324,21 +15313,11 @@ exports.PixelConverter = PixelConverter;
 var PspRtc = (function () {
     function PspRtc() {
     }
-    PspRtc.prototype.getCurrentUnixSeconds = function () {
-        return new Date().getTime() / 1000;
-    };
-    PspRtc.prototype.getCurrentUnixMicroseconds = function () {
-        return new Date().getTime() * 1000;
-    };
-    PspRtc.prototype.getClockMicroseconds = function () {
-        return (performance.now() * 1000) >>> 0;
-    };
-    PspRtc.prototype.getDayOfWeek = function (year, month, day) {
-        return new Date(year, month - 1, day).getDay();
-    };
-    PspRtc.prototype.getDaysInMonth = function (year, month) {
-        return new Date(year, month, 0).getDate();
-    };
+    PspRtc.prototype.getCurrentUnixSeconds = function () { return Date.now() / 1000; };
+    PspRtc.prototype.getCurrentUnixMicroseconds = function () { return Date.now() * 1000; };
+    PspRtc.prototype.getClockMicroseconds = function () { return (performance.now() * 1000) >>> 0; };
+    PspRtc.prototype.getDayOfWeek = function (year, month, day) { return new Date(year, month - 1, day).getDay(); };
+    PspRtc.prototype.getDaysInMonth = function (year, month) { return new Date(year, month, 0).getDate(); };
     return PspRtc;
 })();
 exports.PspRtc = PspRtc;
@@ -20216,6 +20195,8 @@ var IoFileMgrForUser = (function () {
         this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
             log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
             return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
+                if (!_this.hasFileById(fileId))
+                    return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
                 var file = _this.getFileById(fileId);
                 file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
                 log.info('-->', fileId);
@@ -20224,6 +20205,8 @@ var IoFileMgrForUser = (function () {
         });
         this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
             log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
@@ -20235,6 +20218,8 @@ var IoFileMgrForUser = (function () {
             return 0;
         });
         this.sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
@@ -20250,6 +20235,8 @@ var IoFileMgrForUser = (function () {
                 return 0;
             }
             else {
+                if (!_this.hasFileById(fileId))
+                    return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
                 var file = _this.getFileById(fileId);
                 return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
                     log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
@@ -20262,6 +20249,8 @@ var IoFileMgrForUser = (function () {
             }
         });
         this.sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             var file = _this.getFileById(fileId);
             return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
                 file.cursor += readedData.byteLength;
@@ -20270,6 +20259,8 @@ var IoFileMgrForUser = (function () {
             });
         });
         this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, function (thread, fileId, outputPointer, outputLength) {
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             var file = _this.getFileById(fileId);
             file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
                 file.cursor += readedData.byteLength;
@@ -20285,6 +20276,8 @@ var IoFileMgrForUser = (function () {
             return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
         });
         this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             var file = _this.getFileById(fileId);
             if (file.asyncResult) {
                 if (DebugOnce('sceIoPollAsync', 100))
@@ -20334,6 +20327,8 @@ var IoFileMgrForUser = (function () {
             }
         });
         this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             var file = _this.getFileById(fileId);
             var result = _this._seek(fileId, offset.getNumber(), whence);
             file.setAsyncOperationNow(Integer64.fromNumber(result));
@@ -20386,11 +20381,8 @@ var IoFileMgrForUser = (function () {
             return 0;
         });
     }
-    IoFileMgrForUser.prototype.getFileById = function (id) {
-        if (!this.fileUids.has(id))
-            throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND));
-        return this.fileUids.get(id);
-    };
+    IoFileMgrForUser.prototype.hasFileById = function (id) { return this.fileUids.has(id); };
+    IoFileMgrForUser.prototype.getFileById = function (id) { return this.fileUids.get(id); };
     IoFileMgrForUser.prototype._sceIoOpenAsync = function (filename, flags, mode) {
         var _this = this;
         return this.context.fileManager.openAsync(filename, flags, mode)
@@ -20409,6 +20401,8 @@ var IoFileMgrForUser = (function () {
                 log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
             return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
         }
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         if (file.asyncOperation) {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
@@ -20452,6 +20446,8 @@ var IoFileMgrForUser = (function () {
         return stat2;
     };
     IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         switch (whence) {
             case _structs.SeekAnchor.Set:
@@ -20488,11 +20484,15 @@ var sceAtrac3plus = (function () {
             return _this._atrac3Ids.allocate(Atrac3.fromStream(data));
         });
         this.sceAtracSetData = createNativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]', this, function (id, data) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             atrac3.setDataStream(data);
             return 0;
         });
         this.sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             puiPosition.writeInt32(0);
             puiDataByte.writeInt32(0);
@@ -20506,6 +20506,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
+            if (!_this.hasById(id))
+                return Promise.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
             var atrac3 = _this.getById(id);
             return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
                 var reachedEnd = 0;
@@ -20535,27 +20537,37 @@ var sceAtrac3plus = (function () {
             });
         });
         this.sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             if (remainFramePtr)
                 remainFramePtr.writeInt32(atrac3.remainingFrames);
             return 0;
         });
         this.sceAtracGetBitrate = createNativeFunction(0xA554A158, 150, 'uint', 'int/void*', this, function (id, bitratePtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             bitratePtr.writeInt32(atrac3.bitrate);
             return 0;
         });
         this.sceAtracGetChannel = createNativeFunction(0x31668baa, 150, 'uint', 'int/void*', this, function (id, channelsPtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             channelsPtr.writeInt32(atrac3.format.atracChannels);
             return 0;
         });
         this.sceAtracGetMaxSample = createNativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*', this, function (id, maxNumberOfSamplesPtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
             return 0;
         });
         this.sceAtracGetNextSample = createNativeFunction(0x36FAABFB, 150, 'uint', 'int/void*', this, function (id, numberOfSamplesInNextFramePtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
             return 0;
@@ -20567,10 +20579,14 @@ var sceAtrac3plus = (function () {
             return _this._atrac3Ids.allocate(new Atrac3(-1));
         });
         this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             return 0;
         });
         this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             writePointerPointer.writeInt32(0);
             availableBytesPtr.writeInt32(0);
@@ -20578,6 +20594,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             if (atrac3.decodingReachedEnd)
                 return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
@@ -20586,6 +20604,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracGetSoundSample = createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
             if (endSamplePtr)
@@ -20597,6 +20617,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracSetLoopNum = createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             atrac3.numberOfLoops = numberOfLoops;
             return 0;
@@ -20614,6 +20636,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
         this.sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, function (id, outputChannelPtr) {
+            if (!_this.hasById(id))
+                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
             var atrac3 = _this.getById(id);
             var sceAudioChReserve = _this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
             var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
@@ -20621,9 +20645,8 @@ var sceAtrac3plus = (function () {
             return 0;
         });
     }
+    sceAtrac3plus.prototype.hasById = function (id) { return this._atrac3Ids.has(id); };
     sceAtrac3plus.prototype.getById = function (id) {
-        if (!this._atrac3Ids.has(id))
-            throw (new SceKernelException(SceKernelErrors.ATRAC_ERROR_NO_ATRACID));
         return this._atrac3Ids.get(id);
     };
     return sceAtrac3plus;
@@ -20869,6 +20892,8 @@ var sceAudio = (function () {
             return channelId;
         });
         this.sceAudioChRelease = createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, function (channelId) {
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             channel.allocated = false;
             channel.channel.stop();
@@ -20876,11 +20901,15 @@ var sceAudio = (function () {
             return 0;
         });
         this.sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             channel.format = format;
             return 0;
         });
         this.sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             channel.sampleCount = sampleCount;
             return 0;
@@ -20888,6 +20917,8 @@ var sceAudio = (function () {
         this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
             if (!buffer)
                 return -1;
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             if (!(result instanceof Promise))
@@ -20897,16 +20928,22 @@ var sceAudio = (function () {
         this.sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
             if (!buffer)
                 return -1;
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             return result;
         });
         this.sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             return 0;
         });
         this.sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
+            if (!_this.isValidChannel(channelId))
+                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
             return 0;
@@ -20926,8 +20963,6 @@ var sceAudio = (function () {
         return (channelId >= 0 && channelId < this.channels.length);
     };
     sceAudio.prototype.getChannelById = function (id) {
-        if (!this.isValidChannel(id))
-            throw (new SceKernelException(SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL));
         return this.channels[id];
     };
     return sceAudio;
@@ -22395,21 +22430,23 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loop) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (data == null) {
                 voice.unsetSource();
                 return 0;
             }
             if (data.length == 0)
-                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
+                return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
             if (data.length < 0x10)
-                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
+                return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
             if (data.length % 0x10)
-                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE));
+                return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
             if (data == Stream.INVALID)
-                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             if (loop != 0 && loop != 1)
-                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_LOOP_POS));
+                return SceKernelErrors.ERROR_SAS_INVALID_LOOP_POS;
             if (data == null) {
                 voice.unsetSource();
             }
@@ -22419,6 +22456,8 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loop) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (data == null) {
                 voice.unsetSource();
@@ -22452,6 +22491,8 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (flags & AdsrFlags.HasAttack)
                 voice.envelope.attackRate = attackRate;
@@ -22468,6 +22509,8 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (!voice.paused)
                 return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
@@ -22475,15 +22518,21 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             voice.setOn(true);
             return 0;
         });
         this.__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             return voice.envelope.height;
         });
         this.__sceSasSetSL = createNativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, sustainLevel) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             voice.sustainLevel = sustainLevel;
             return 0;
@@ -22512,17 +22561,21 @@ var sceSasCore = (function () {
         this.__sceSasSetNoise = createNativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, noiseFrequency) {
             if (noiseFrequency < 0 || noiseFrequency >= 64)
                 return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             return 0;
         });
         this.__sceSasSetVolume = createNativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int', this, function (sasCorePointer, voiceId, leftVolume, rightVolume, effectLeftVol, effectRightVol) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             leftVolume = Math.abs(leftVolume);
             rightVolume = Math.abs(rightVolume);
             effectLeftVol = Math.abs(effectLeftVol);
             effectRightVol = Math.abs(effectRightVol);
             if (leftVolume > PSP_SAS_VOL_MAX || rightVolume > PSP_SAS_VOL_MAX || effectLeftVol > PSP_SAS_VOL_MAX || effectRightVol > PSP_SAS_VOL_MAX) {
-                throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOLUME_VAL));
+                return SceKernelErrors.ERROR_SAS_INVALID_VOLUME_VAL;
             }
             voice.leftVolume = leftVolume;
             voice.rightVolume = rightVolume;
@@ -22531,6 +22584,8 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, pitch) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX)
                 return -1;
@@ -22543,15 +22598,17 @@ var sceSasCore = (function () {
             return 0;
         });
         this.__sceSasSetSimpleADSR = createNativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', this, function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
+            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
+                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
             var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
             return 0;
         });
     }
+    sceSasCore.prototype.hasSasCoreVoice = function (sasCorePointer, voiceId) {
+        return this.core.voices[voiceId] != null;
+    };
     sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voiceId) {
-        var voice = this.core.voices[voiceId];
-        if (!voice)
-            throw (new SceKernelException(SceKernelErrors.ERROR_SAS_INVALID_VOICE));
-        return voice;
+        return this.core.voices[voiceId];
     };
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
     sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
@@ -23020,7 +23077,7 @@ var sceUtility = (function () {
                         }
                     }
                     if (SceKernelError != SceKernelErrors.ERROR_OK)
-                        throw (new SceKernelException(SceKernelError));
+                        return Promise.resolve(SceKernelError);
                 }
                 break;
             default:
@@ -23436,13 +23493,19 @@ var ThreadManForUser = (function () {
             return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.YES);
         });
         this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), AcceptCallbacks.YES);
         });
         this.sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), AcceptCallbacks.NO);
         });
         this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, function (currentThread) { return currentThread.priority; });
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             var newThread = _this.getThreadById(threadId);
             newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
             var newState = newThread.state;
@@ -23459,6 +23522,8 @@ var ThreadManForUser = (function () {
             return Promise.resolve(0);
         });
         this.sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, function (currentThread, threadId, priority) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             var thread = _this.getThreadById(threadId);
             thread.priority = priority;
             return Promise.resolve(0);
@@ -23470,6 +23535,8 @@ var ThreadManForUser = (function () {
             throw (new CpuBreakException());
         });
         this.sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, function (threadId) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             var thread = _this.getThreadById(threadId);
             return thread.exitStatus;
         });
@@ -23497,6 +23564,8 @@ var ThreadManForUser = (function () {
             return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
         });
         this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
+            if (!_this.hasThreadById(threadId))
+                return Promise.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
             var thread = _this.getThreadById(threadId);
             return thread.wakeupWakeupAsync();
         });
@@ -23510,7 +23579,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, function (timePtr) {
             if (timePtr == null)
-                throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT));
+                return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
             timePtr.writeInt64(Integer64.fromNumber(_this._getCurrentMicroseconds()));
             return 0;
         });
@@ -23521,14 +23590,20 @@ var ThreadManForUser = (function () {
             return currentThread.id;
         });
         this.sceKernelSuspendThread = createNativeFunction(0x9944F31F, 150, 'int', 'int', this, function (threadId) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             _this.getThreadById(threadId).suspend();
             return 0;
         });
         this.sceKernelResumeThread = createNativeFunction(0x75156E8F, 150, 'int', 'int', this, function (threadId) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             _this.getThreadById(threadId).resume();
             return 0;
         });
         this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
+            if (!_this.hasThreadById(threadId))
+                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             var thread = _this.getThreadById(threadId);
             var info = new SceKernelThreadInfo();
             info.size = SceKernelThreadInfo.struct.length;
@@ -23563,11 +23638,10 @@ var ThreadManForUser = (function () {
             return microseconds;
         });
     }
+    ThreadManForUser.prototype.hasThreadById = function (id) { return this.threadUids.has(id); };
     ThreadManForUser.prototype.getThreadById = function (id) {
         if (id == 0)
             return this.context.threadManager.current;
-        if (!this.threadUids.has(id))
-            throw (new SceKernelException(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD));
         return this.threadUids.get(id);
     };
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (thread, delayInMicroseconds, acceptCallbacks) {
@@ -23577,12 +23651,16 @@ var ThreadManForUser = (function () {
         return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(function () { return thread.exitStatus; }), acceptCallbacks);
     };
     ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         var newThread = this.getThreadById(threadId);
         newThread.stop('_sceKernelTerminateThread');
         newThread.exitStatus = 0x800201ac;
         return 0;
     };
     ThreadManForUser.prototype._sceKernelDeleteThread = function (threadId) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         var newThread = this.getThreadById(threadId);
         newThread.delete();
         this.threadUids.remove(threadId);
@@ -24361,11 +24439,6 @@ var _cpu = require('../core/cpu');
 exports.NativeFunction = _cpu.NativeFunction;
 var console = logger.named('createNativeFunction');
 function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
-    var tryCatch = true;
-    if (options) {
-        if (options.tryCatch !== undefined)
-            tryCatch = options.tryCatch;
-    }
     var code = '';
     var args = [];
     var maxGprIndex = 12;
@@ -24441,26 +24514,9 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         }
     });
     code += 'var error = false;\n';
-    if (tryCatch) {
-        code += 'try {\n';
-    }
-    code += 'var args = [' + args.join(', ') + '];\n';
-    code += 'var result = internalFunc.apply(_this, args);\n';
-    if (tryCatch) {
-        code += '} catch (e) {\n';
-        code += 'if (e instanceof SceKernelException) { error = true; result = e.id; } else { console.info(nativeFunction.name, nativeFunction); throw(e); }\n';
-        code += '}\n';
-    }
-    var debugSyscalls = false;
-    if (debugSyscalls) {
-        code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
-        code += "if (DebugOnce(info, 10)) {\n";
-        code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
-        code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
-        code += "}\n";
-    }
-    code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw (new CpuBreakException()); }\n';
-    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw (new CpuBreakException()); } else { result = result.promise; } }\n';
+    code += 'var result = internalFunc(' + args.join(', ') + ');\n';
+    code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new CpuBreakException(); }\n';
+    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw new CpuBreakException(); } else { result = result.promise; } }\n';
     switch (retval) {
         case 'void': break;
         case 'uint':
@@ -24487,10 +24543,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     nativeFunction.name = 'unknown';
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
-    var func = new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', "\"use strict\"; /* " + addressToHex(nativeFunction.nid) + " */\n" + code);
-    nativeFunction.call = function (context, state) {
-        func(_this, console, internalFunc, context, state, nativeFunction);
-    };
+    nativeFunction.call = new Function('_this', 'console', 'internalFunc', 'nativeFunction', "return function(context, state) { \"use strict\"; /* " + addressToHex(nativeFunction.nid) + " */\n" + code + " };")(_this, console, internalFunc, nativeFunction);
     nativeFunction.nativeCall = internalFunc;
     return nativeFunction;
 }
