@@ -6578,7 +6578,7 @@ var InstructionAst = (function () {
     InstructionAst.prototype.sb = function (i) { return stm(call('memory.sb', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.sh = function (i) { return stm(call('memory.sh', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.sw = function (i) { return stm(call('memory.sw', [rs_imm16(i), gpr(i.rt)])); };
-    InstructionAst.prototype.swc1 = function (i) { return stm(call('memory.swc1', [rs_imm16(i), fpr(i.ft)])); };
+    InstructionAst.prototype.swc1 = function (i) { return stm(call('memory.sw', [rs_imm16(i), fpr_i(i.ft)])); };
     InstructionAst.prototype.swl = function (i) { return stm(call('memory.swl', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.swr = function (i) { return stm(call('memory.swr', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.lb = function (i) { return assignGpr(i.rt, call('memory.lb', [rs_imm16(i)])); };
@@ -6587,8 +6587,8 @@ var InstructionAst = (function () {
     InstructionAst.prototype.lhu = function (i) { return assignGpr(i.rt, call('memory.lhu', [rs_imm16(i)])); };
     InstructionAst.prototype.lw = function (i) { return assignGpr(i.rt, call('memory.lw', [rs_imm16(i)])); };
     InstructionAst.prototype.lwc1 = function (i) { return assignFpr_I(i.ft, call('memory.lw', [rs_imm16(i)])); };
-    InstructionAst.prototype.lwl = function (i) { return assignGpr(i.rt, call('memory.lwl', [rs_imm16(i)])); };
-    InstructionAst.prototype.lwr = function (i) { return assignGpr(i.rt, call('memory.lwr', [rs_imm16(i)])); };
+    InstructionAst.prototype.lwl = function (i) { return assignGpr(i.rt, call('memory.lwl', [rs_imm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.lwr = function (i) { return assignGpr(i.rt, call('memory.lwr', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype._callstackPush = function (i) {
         return ast.stm();
     };
@@ -7240,12 +7240,6 @@ var CpuState = (function () {
     };
     CpuState.prototype.getCallstack = function () {
         return this.callstack.slice(0);
-    };
-    CpuState.prototype.getPointerStream = function (address, size) {
-        return this.memory.getPointerStream(address, size);
-    };
-    CpuState.prototype.getPointerU8Array = function (address, size) {
-        return this.memory.getPointerU8Array(address, size);
     };
     CpuState.prototype._trace_state = function () {
         console.info(this);
@@ -14613,13 +14607,13 @@ var Memory = (function () {
     }
     Memory.prototype.lwl = function (address, value) {
         var align = address & 3;
-        var vold = this.lw(address & ~3);
-        return ((vold << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
+        var oldvalue = this.lw(address & ~3);
+        return ((oldvalue << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
     };
     Memory.prototype.lwr = function (address, value) {
         var align = address & 3;
-        var vold = this.lw(address & ~3);
-        return ((vold >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
+        var oldvalue = this.lw(address & ~3);
+        return ((oldvalue >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
     };
     Memory.prototype.swl = function (address, value) {
         var align = address & 3;
@@ -24338,15 +24332,15 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
                 args.push(readGpr64());
                 break;
             case 'void*':
-                args.push('state.getPointerStream(' + readGpr32_S() + ')');
+                args.push('state.memory.getPointerStream(' + readGpr32_S() + ')');
                 break;
             case 'byte[]':
-                args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
+                args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
                 break;
             default:
                 var matches = [];
                 if (matches = item.match(/^byte\[(\d+)\]$/)) {
-                    args.push('state.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+                    args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
                 }
                 else {
                     throw ('Invalid argument "' + item + '"');

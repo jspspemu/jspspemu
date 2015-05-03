@@ -19,14 +19,14 @@ const SWR_SHIFT = new Uint32Array([0, 8, 16, 24]);
 export class Memory {
 	lwl(address: number, value: number) {
 		var align = address & 3;
-		var vold = this.lw(address & ~3);
-		return ((vold << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
+		var oldvalue = this.lw(address & ~3);
+		return ((oldvalue << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
 	}
 
 	lwr(address: number, value: number) {
 		var align = address & 3;
-		var vold = this.lw(address & ~3);
-		return ((vold >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
+		var oldvalue = this.lw(address & ~3);
+		return ((oldvalue >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
 	}
 
 	swl(address: number, value: number) {

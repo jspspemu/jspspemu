@@ -43,7 +43,6 @@ function assign_stm(ref: _ast.ANodeExprLValue, value: _ast.ANodeExpr) { return s
 function i_simm16(i: Instruction) { return imm32(i.imm16); }
 function i_uimm16(i: Instruction) { return u_imm32(i.u_imm16); }
 function rs_imm16(i: Instruction) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
-//function rs_simm16(i: Instruction) { return binop(gpr(i.rs), '+', i_simm16(i)); }
 function cast_uint(expr: _ast.ANodeExpr) { return binop(expr, '>>>', ast.imm32(0)); }
 
 class VMatRegClass {
@@ -199,6 +198,7 @@ function memoryRef(type: string, address: _ast.ANodeExpr) {
 	switch (type) {
 		case 'float': return new _ast.ANodeExprLValueSetGet(
 			'memory.swc1($0, #)',
+			//'memory.swc1(#, $0)',
 			'memory.lwc1($0)',
 			[address]
 		);
@@ -1023,7 +1023,7 @@ export class InstructionAst {
 	sb  (i: Instruction) { return stm(call('memory.sb'  , [rs_imm16(i), gpr(i.rt)])); }
 	sh  (i: Instruction) { return stm(call('memory.sh'  , [rs_imm16(i), gpr(i.rt)])); }
 	sw  (i: Instruction) { return stm(call('memory.sw'  , [rs_imm16(i), gpr(i.rt)])); }
-	swc1(i: Instruction) { return stm(call('memory.swc1', [rs_imm16(i), fpr(i.ft)])); }
+	swc1(i: Instruction) { return stm(call('memory.sw'  , [rs_imm16(i), fpr_i(i.ft)])); }
 	swl (i: Instruction) { return stm(call('memory.swl' , [rs_imm16(i), gpr(i.rt)])); }
 	swr (i: Instruction) { return stm(call('memory.swr' , [rs_imm16(i), gpr(i.rt)])); }
 
@@ -1033,8 +1033,8 @@ export class InstructionAst {
 	lhu (i: Instruction) { return assignGpr  (i.rt, call('memory.lhu',  [rs_imm16(i)])); }
 	lw  (i: Instruction) { return assignGpr  (i.rt, call('memory.lw',   [rs_imm16(i)])); }
 	lwc1(i: Instruction) { return assignFpr_I(i.ft, call('memory.lw',   [rs_imm16(i)])); }
-	lwl (i: Instruction) { return assignGpr  (i.rt, call('memory.lwl',  [rs_imm16(i)])); }
-	lwr (i: Instruction) { return assignGpr  (i.rt, call('memory.lwr',  [rs_imm16(i)])); }
+	lwl (i: Instruction) { return assignGpr  (i.rt, call('memory.lwl',  [rs_imm16(i), gpr(i.rt)])); }
+	lwr (i: Instruction) { return assignGpr  (i.rt, call('memory.lwr',  [rs_imm16(i), gpr(i.rt)])); }
 
 	_callstackPush(i: Instruction) {
 		//return stm(call('state.callstackPush', [imm32(i.PC)]));

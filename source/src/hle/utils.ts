@@ -62,12 +62,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			case 'bool': args.push(readGpr32_S() + ' != 0'); break;
 			case 'float': args.push(readFpr32()); break;
 			case 'ulong': case 'long': args.push(readGpr64()); break;
-			case 'void*': args.push('state.getPointerStream(' + readGpr32_S() + ')'); break;
-			case 'byte[]': args.push('state.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
+			case 'void*': args.push('state.memory.getPointerStream(' + readGpr32_S() + ')'); break;
+			case 'byte[]': args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
 			default:
 				var matches:string[] = [];
 				if (matches = item.match(/^byte\[(\d+)\]$/)) {
-					args.push('state.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+					args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
 				} else {
 					throw ('Invalid argument "' + item + '"');
 				}

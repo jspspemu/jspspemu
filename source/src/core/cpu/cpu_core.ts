@@ -507,14 +507,6 @@ export class CpuState {
 		return this.callstack.slice(0);
 	}
 
-	getPointerStream(address: number, size?: number) {
-		return this.memory.getPointerStream(address, size);
-	}
-
-	getPointerU8Array(address: number, size?: number) {
-		return this.memory.getPointerU8Array(address, size)
-	}
-
 	fcr31_rm: number = 0;
 	fcr31_2_21: number = 0;
 	fcr31_25_7: number = 0;
