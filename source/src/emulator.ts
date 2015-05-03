@@ -91,7 +91,7 @@ export class Emulator {
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
-		if (!memory) memory = Memory.instance;
+		if (!memory) memory = _memory.getInstance();
 		this.memory = memory;
 	}
 

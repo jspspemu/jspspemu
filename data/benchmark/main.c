@@ -24,7 +24,13 @@ int startSystemTime;
 char __attribute__((aligned(16))) buffer[BUFFER_SIZE];
 int dummy;
 
-#define eprintf(...) { char s[1000] = {0}; sprintf(s, __VA_ARGS__); sceIoWrite(sceKernelStdout(), s, strlen(s)); }
+#define eprintf(...) \
+	{ \
+		char s[1000] = {0}; \
+		sprintf(s, __VA_ARGS__); \
+		sceIoWrite(sceKernelStdout(), s, strlen(s)); \
+		pspDebugScreenPrintf("%s", s); \
+	}
 
 void printResult(char *name, int durationMillis, float pspDurationMillis) {
 	eprintf( "%-25s: %5d ms (%5.0f%%) @ %d MHz\n", name, durationMillis, pspDurationMillis / durationMillis * 100, scePowerGetCpuClockFrequencyInt());
@@ -41,7 +47,6 @@ void testEmptyLoop()
 	{
 		for (i = 1000000; i > 0; i--)
 		{
-			//asm("dbreak\n");
 		}
 	}
 }
@@ -59,6 +64,7 @@ void testSimpleLoop()
 		}
 	}
 	outResult = sum;
+	//asm("dbreak\n");
 }
 
 
@@ -79,7 +85,7 @@ void testRead32()
 }
 
 
-int testRead16()
+void testRead16()
 {
 	int i;
 	int j;
@@ -335,7 +341,7 @@ void runTest17()
 }
 
 
-float runTest18()
+void runTest18()
 {
 	memset(buffer, 0, BUFFER_SIZE);
 	int i;
@@ -584,7 +590,7 @@ typedef void (*TestHandler)();
 int sumDurationMillis = 0;
 int testCount = 0;
 
-void _runTest(TestHandler handler, char* name, int time) {
+void _runTest(TestHandler handler, char* name) {
 	int start, end, elapsed;
 	start = sceKernelGetSystemTimeLow();
 	handler();
@@ -597,43 +603,45 @@ void _runTest(TestHandler handler, char* name, int time) {
 
 void runTest()
 {
+	pspDebugScreenInit();
+	
 	sumDurationMillis = 0;
 	testCount = 0;
-	_runTest(testEmptyLoop, "Empty loop", 910);
-	_runTest(testSimpleLoop, "Simple loop", 1137);
-	_runTest(testRead32, "read32", 1214);
-	_runTest(testRead16, "read16", 1023);
-	_runTest(runTest5, "read8", 1125);
-	_runTest(runTest6, "write32", 1227);
-	_runTest(runTest7, "write16", 962);
-	_runTest(runTest8, "write8", 1007);
-	_runTest(runTest9, "Function call no params", 1066);
-	_runTest(runTest10, "Function call with params", 1364);
-	_runTest(runTest11, "FPU add.s", 682);
-	_runTest(runTest12, "FPU mul.s", 682);
+	_runTest(testEmptyLoop, "Empty loop");
+	_runTest(testSimpleLoop, "Simple loop");
+	_runTest(testRead32, "read32");
+	_runTest(testRead16, "read16");
+	_runTest(runTest5, "read8");
+	_runTest(runTest6, "write32");
+	_runTest(runTest7, "write16");
+	_runTest(runTest8, "write8");
+	_runTest(runTest9, "Function call no params");
+	_runTest(runTest10, "Function call with params");
+	_runTest(runTest11, "FPU add.s");
+	_runTest(runTest12, "FPU mul.s");
 
-	_runTest(runTest13, "VFPU vadd.s", 819);
-	_runTest(runTest14, "VFPU vadd.p", 819);
-	_runTest(runTest15, "VFPU vadd.t", 819);
-	_runTest(runTest16, "VFPU vadd.q", 819);
+	_runTest(runTest13, "VFPU vadd.s");
+	_runTest(runTest14, "VFPU vadd.p");
+	_runTest(runTest15, "VFPU vadd.t");
+	_runTest(runTest16, "VFPU vadd.q");
 
-	_runTest(runTest17, "VFPU vadd.q sequence", 682);
+	_runTest(runTest17, "VFPU vadd.q sequence");
 
-	_runTest(runTest18, "LWC1", 1214);
-	_runTest(runTest19, "SWC1", 1227);
+	_runTest(runTest18, "LWC1");
+	_runTest(runTest19, "SWC1");
 
-	_runTest(runTest20, "memcpy (native)", 866);
-	_runTest(runTest21, "memset (native)", 1072);
-	_runTest(runTest22, "strcpy (native)", 1360);
+	_runTest(runTest20, "memcpy (native)");
+	_runTest(runTest21, "memset (native)");
+	_runTest(runTest22, "strcpy (native)");
 	
 
-	_runTest(runTest23, "memcpy (non-native)", 792);
-	_runTest(runTest24, "memset (non-native)", 770);
-	_runTest(runTest25, "strcpy (non-native)", 920);
+	_runTest(runTest23, "memcpy (non-native)");
+	_runTest(runTest24, "memset (non-native)");
+	_runTest(runTest25, "strcpy (non-native)");
 	
-	_runTest(runTest26, "syscall, fast, no params", 163);
-	_runTest(runTest27, "syscall, fast, one param", 243);
-	_runTest(runTest28, "jalr", 227);
+	_runTest(runTest26, "syscall, fast, no params");
+	_runTest(runTest27, "syscall, fast, one param");
+	_runTest(runTest28, "jalr");
 
 	//_runTest(runTest29, "zlib", 9999);
 	

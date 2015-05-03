@@ -844,7 +844,7 @@ if (typeof window.document != 'undefined') {
 	});
 	*/
 } else {
-	console.log('inside worker!');
+	//console.log('inside worker!');
 	this.onmessage = function(event:any) {
 		var requestId = event.data.requestId; 
 		var args = event.data.args;

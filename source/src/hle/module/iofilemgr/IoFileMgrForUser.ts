@@ -108,6 +108,7 @@ export class IoFileMgrForUser {
 			var str = input.readString(input.length);
 			log.log('STD[' + fileId + ']', str);
 			this.context.onStdout.dispatch(str);
+			//return immediateAsync().then(() => 0);
 			return 0;
 		} else {
 			var file = this.getFileById(fileId);

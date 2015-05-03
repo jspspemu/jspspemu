@@ -12,7 +12,7 @@ import CpuState = _cpu.CpuState;
 
 var assembler = new _cpu.MipsAssembler();
 var disassembler = new _cpu.MipsDisassembler();
-var memory = Memory.instance;
+var memory = _memory.getInstance();
 
 class TestSyscallManager extends _cpu.SyscallManager {
     constructor() { super(null); }

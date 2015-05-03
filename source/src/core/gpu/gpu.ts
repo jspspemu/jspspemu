@@ -751,7 +751,7 @@ class PspGpuExecutor {
 				console.error(sprintf('Stop showing gpu errors'));
 			}
 		} else {
-			console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
+			//console.error(sprintf('Not implemented gpu opcode 0x%02X : %s', op, GpuOpCodes[op]));
 		}
 
 	}

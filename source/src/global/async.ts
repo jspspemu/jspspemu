@@ -12,6 +12,12 @@ function waitAsync(timems: number) {
 	});
 }
 
+function immediateAsync() {
+	return new Promise((resolve, reject) => {
+		setImmediate(resolve);
+	});
+}
+
 function _downloadFileAsync(method: string, url: string, headers?: any) {
 	return new Promise<XMLHttpRequest>((resolve, reject) => {
 		var request = new XMLHttpRequest();

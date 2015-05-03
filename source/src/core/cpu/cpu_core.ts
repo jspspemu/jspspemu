@@ -415,23 +415,23 @@ export class CpuState {
 	svl_q(address: number, r: number[]) {
 		var k = (3 - ((address >>> 2) & 3));
 		address &= ~0xF;
-		for (var n = k; n < 4; n++ , address += 4) this.memory.writeInt32(address, this.vfpr_i[r[n]]);
+		for (var n = k; n < 4; n++ , address += 4) this.memory.sw(address, this.vfpr_i[r[n]]);
 	}
 
 	svr_q(address: number, r: number[]) {
 		var k = (4 - ((address >>> 2) & 3));
-		for (var n = 0; n < k; n++ , address += 4) this.memory.writeInt32(address, this.vfpr_i[r[n]]);
+		for (var n = 0; n < k; n++ , address += 4) this.memory.sw(address, this.vfpr_i[r[n]]);
 	}
 
 	lvl_q(address: number, r: number[]) {
 		var k = (3 - ((address >>> 2) & 3));
 		address &= ~0xF;
-		for (var n = k; n < 4; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.readInt32(address);
+		for (var n = k; n < 4; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
 	}
 
 	lvr_q(address: number, r: number[]) {
 		var k = (4 - ((address >>> 2) & 3));
-		for (var n = 0; n < k; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.readInt32(address);
+		for (var n = 0; n < k; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
 	}
 
 	storeFloats(address: number, values: number[]) {
@@ -448,9 +448,6 @@ export class CpuState {
 		this.vfpr[0] = 0;
 		throw new Error("Not implemented vfpuSetMatrix!");
 	}
-
-	BRANCHFLAG: boolean = false;
-	BRANCHPC: number = 0;
 
 	PC: number = 0;
 	IC: number = 0;
@@ -598,64 +595,12 @@ export class CpuState {
 		//if (DebugOnce('state.cache', 100)) console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
 	}
 	syscall(id: number) { this.syscallManager.call(this, id); }
-	sb(value: number, address: number) { this.memory.writeInt8(address, value); }
-	sh(value: number, address: number) { this.memory.writeInt16(address, value); }
-	sw(value: number, address: number) { this.memory.writeInt32(address, value); }
-	swc1(value: number, address: number) { this.memory.writeFloat32(address, value); }
-	lb(address: number) { return this.memory.readInt8(address); }
-	lbu(address: number) { return this.memory.readUInt8(address); }
-	lh(address: number) { return this.memory.readInt16(address); }
-	lhu(address: number) { return this.memory.readUInt16(address); }
-	lw(address: number) { return this.memory.readInt32(address); }
-	lwc1(address: number) { return this.memory.readFloat32(address); }
 
 	min(a: number, b: number) { return ((a | 0) < (b | 0)) ? a : b; }
 	max(a: number, b: number) { return ((a | 0) > (b | 0)) ? a : b; }
 
 	slt(a: number, b: number) { return ((a | 0) < (b | 0)) ? 1 : 0; }
 	sltu(a: number, b: number) { return ((a >>> 0) < (b >>> 0)) ? 1 : 0; }
-
-	private static LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
-	private static LwrShift = [0, 8, 16, 24];
-
-	private static LwlMask = [0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000];
-	private static LwlShift = [24, 16, 8, 0];
-
-	lwl(RS: number, Offset: number, ValueToWrite: number) {
-		var Address = (RS + Offset);
-		var AddressAlign = Address & 3;
-		var Value = this.memory.readInt32(Address & ~3);
-		return ((Value << CpuState.LwlShift[AddressAlign]) | (ValueToWrite & CpuState.LwlMask[AddressAlign]));
-	}
-
-	lwr(RS: number, Offset: number, ValueToWrite: number) {
-		var Address = (RS + Offset);
-		var AddressAlign = Address & 3;
-		var Value = this.memory.readInt32(Address & ~3);
-		return ((Value >>> CpuState.LwrShift[AddressAlign]) | (ValueToWrite & CpuState.LwrMask[AddressAlign]));
-	}
-
-	private static SwlMask = [0xFFFFFF00, 0xFFFF0000, 0xFF000000, 0x00000000];
-	private static SwlShift = [24, 16, 8, 0];
-
-	private static SwrMask = [0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF];
-	private static SwrShift = [0, 8, 16, 24];
-
-	swl(RS: number, Offset: number, ValueToWrite: number) {
-		var Address = (RS + Offset);
-		var AddressAlign = Address & 3;
-		var AddressPointer = Address & ~3;
-		var WordToWrite = (ValueToWrite >>> CpuState.SwlShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwlMask[AddressAlign]);
-		this.memory.writeInt32(AddressPointer, WordToWrite);
-	}
-
-	swr(RS: number, Offset: number, ValueToWrite: number) {
-		var Address = (RS + Offset);
-		var AddressAlign = Address & 3;
-		var AddressPointer = Address & ~3;
-		var WordToWrite = (ValueToWrite << CpuState.SwrShift[AddressAlign]) | (this.memory.readInt32(AddressPointer) & CpuState.SwrMask[AddressAlign]);
-		this.memory.writeInt32(AddressPointer, WordToWrite);
-	}
 
 	div(rs: number, rt: number) {
 		rs |= 0; // signed
@@ -745,7 +690,8 @@ class PspInstructionStm extends _ast.ANodeStm {
 	}
 
 	toJs() {
-		return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
+		return `${this.code.toJs()} /* ${this.di.type.name} */`;
+		//return "/*" + addressToHex(this.PC) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
 	}
 	optimize() { return new PspInstructionStm(this.di, this.code.optimize()); }
 }
@@ -760,7 +706,7 @@ interface FunctionInfo {
 type ICpuFunction = (state: CpuState) => void;
 type ICpuFunctionWithArgs = (state: CpuState, args: any) => void;
 class CpuFunctionWithArgs {
-	public constructor(public func: ICpuFunctionWithArgs, public args: any) { }
+	public constructor(public func: ICpuFunction, public args: any) { }
 }
 type IFunctionGenerator = (address: number) => CpuFunctionWithArgs;
 
@@ -771,7 +717,7 @@ export class InvalidatableCpuFunction {
 	public invalidate() { this.func = null; }
 	public execute(state: CpuState): void {
 		if (this.func == null) this.func = this.generator(this.PC);
-		this.func.func(state, this.func.args);
+		this.func.func(state);
 	}
 }
 
@@ -814,11 +760,10 @@ export class InstructionCache {
 			console.log('****************************************');
 			console.log(func.info);
 			console.log(func.code.code);
-			console.log(func.code.args);
+			//console.log(func.code.args);
 			console.log('****************************************');
 			console.log('****************************************');
 			*/
-
 		}
 		return func.fargs;
 	}
@@ -895,7 +840,7 @@ export class FunctionGenerator {
 		try {
 			//var func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
 			var startHex = addressToHex(info.start);
-			var func = <ICpuFunction>(new Function(`return function func_${startHex}(state, args) { "use strict"; ${code.code} }`)());
+			var func = <ICpuFunction>(new Function('args', `return function func_${startHex}(state) { "use strict"; ${code.code} }`)(code.args));
 			return new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
 		} catch (e) {
 			console.info('code:\n', code.code);
@@ -963,7 +908,8 @@ export class FunctionGenerator {
 		var args: any = {};
 		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
 
-		var func = ast.func([ast.functionPrefix()]);
+		var func = ast.func(info.start, ast.raw_stm('var BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), []);
+		
 		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
 		for (let labelPC in info.labels) labels[labelPC] = ast.label(labelPC);
 
@@ -1037,8 +983,8 @@ export class FunctionGenerator {
 					var cacheaddrName = `cacheaddr_${addressToHex(PC)}`; args[cacheaddrName] = -1;
 					func.add(ins);
 					func.add(delayedCode);
-					func.add(ast.raw('if (state.BRANCHFLAG) {'));
-					func.add(ast.raw(`state.PC = state.BRANCHPC & ${Memory.MASK};`));
+					func.add(ast.raw('if (BRANCHFLAG) {'));
+					func.add(ast.raw(`state.PC = BRANCHPC & ${Memory.MASK};`));
 					func.add(ast.raw(`var expectedRA = state.RA;`));
 					func.add(ast.raw(`if (args.${cacheaddrName} != state.PC) args.${cachefuncName} = state.getFunction(args.${cacheaddrName} = state.PC);`));
 					func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
@@ -1046,7 +992,7 @@ export class FunctionGenerator {
 					func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
 					func.add(ast.raw('}'));
 				} else if (type.isJumpNoLink) {
-					//func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
+					//func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
 					if (type.name == 'jr') {
 						func.add(delayedCode);
 						func.add(ast.raw(`state.PC = state.gpr[${di.instruction.rs}];`));
@@ -1055,16 +1001,16 @@ export class FunctionGenerator {
 					} else {
 						func.add(ins);
 						func.add(delayedCode);
-						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = state.BRANCHPC);'));
+						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
 						func.add(ast.raw('return;'));
 					}
 				} else {
 					func.add(ins);
 					func.add(delayedCode);
 					if (type.isFixedAddressJump && labels[targetAddress]) {
-						func.add(ast.sjump(ast.raw('state.BRANCHFLAG'), targetAddress));
+						func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
 					} else {
-						func.add(ast.raw(`if (state.BRANCHFLAG) {`));
+						func.add(ast.raw(`if (BRANCHFLAG) {`));
 						func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
 						func.add(ast.raw(`return;`));

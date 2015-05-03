@@ -28,7 +28,7 @@ describe('elf', () => {
 
     it('load', () => {
         //var stream = Stream.fromBase64(minifireElfBase64);
-		var memory = _memory.Memory.instance;
+		var memory = _memory.getInstance();
 		var memoryManager = new _manager.MemoryManager();
         var display = new DummyPspDisplay();
         var syscallManager = new SyscallManager(context);

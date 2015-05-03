@@ -273,6 +273,7 @@
 	<script>
 		var demos = [
             "-CPU",
+			"data/benchmark/benchmark.prx",
             "compilerPerf.elf",
             "counter.elf",
             "fputest.elf",
@@ -402,7 +403,7 @@
 				$('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
 				$('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
 			} else {
-				var path = 'samples/' + fileName;
+				var path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
 
 				//<li class="active"><a href="#">Home</a></li>
 				//<li><a href="#">Profile</a></li>

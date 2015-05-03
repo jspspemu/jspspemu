@@ -29,29 +29,21 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		if (gprindex >= maxGprIndex) {
 			//return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
 
-			return 'state.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
+			return 'memory.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
 		} else {
 			return 'state.gpr[' + (gprindex++) + ']';
 		}
 	}
 
-	function readFpr32() {
-		return 'state.fpr[' + (fprindex++) + ']';
-	}
-
-	function readGpr32_S() {
-		return '(' + _readGpr32() + ' | 0)';
-	}
-
-	function readGpr32_U() {
-		return '(' + _readGpr32() + ' >>> 0)';
-	}
+	function readFpr32() { return 'state.fpr[' + (fprindex++) + ']'; }
+	function readGpr32_S() { return '(' + _readGpr32() + ' | 0)'; }
+	function readGpr32_U() { return '(' + _readGpr32() + ' >>> 0)'; }
 
 	function readGpr64() {
 		gprindex = MathUtils.nextAligned(gprindex, 2);
 		var gprLow = readGpr32_S();
 		var gprHigh = readGpr32_S();
-		return sprintf('Integer64.fromBits(%s, %s)', gprLow, gprHigh);
+		return `Integer64.fromBits(${gprLow}, ${gprHigh})`;
 	}
 
 	var argTypes = argTypesString.split('/').filter(item => item.length > 0);
@@ -129,7 +121,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	//console.log(code);
-	var func = <any>new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', '"use strict";' + sprintf("/* 0x%08X */", nativeFunction.nid) + "\n" + code);
+	var func = <any>new Function('_this', 'console', 'internalFunc', 'context', 'state', 'nativeFunction', `"use strict"; /* ${addressToHex(nativeFunction.nid)} */\n${code}`);
 	nativeFunction.call = (context, state) => {
 		func(_this, console, internalFunc, context, state, nativeFunction);
 	};

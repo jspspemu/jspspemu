@@ -22,7 +22,9 @@ export class ANodeStmLabel extends ANodeStm {
 	toJs() {
 		switch (this.type) {
 			case 'none': return ``;
-			case 'normal': return `case ${addressToHex(this.address)}:`;
+			case 'normal':
+				if (this.references.length == 0) return ``;
+				return `case ${addressToHex(this.address)}:`;
 			case 'while': return `loop_${addressToHex(this.address)}: while (true) {`;
 		}
 		
@@ -35,30 +37,12 @@ export class ANodeStmStaticJump extends ANodeStm {
 
 	toJs() {
 		switch (this.type) {
-			case 'normal': return `if (${this.cond.toJs()}) { loop_state = ${this.address}; continue loop; }`;
+			case 'normal': return `if (${this.cond.toJs()}) { loop_state = ${addressToHex(this.address)}; continue loop; }`;
 			case 'while': return `if (${this.cond.toJs()}) { continue loop_${addressToHex(this.address)}; } else { break loop_${addressToHex(this.address)}; } }`;
 		}
 		
 	}
 }
-
-/*
-export class ANodeStmJump extends ANodeStm {
-	constructor(public label: ANodeStmLabel) { super(); }
-
-	toJs() {
-		return `loop_state = ${this.label.id}; continue loop;`;
-	}
-}
-
-export class ANodeStmDynamicJump extends ANodeStm {
-	constructor(public node: ANodeExpr) { super(); }
-
-	toJs() {
-		return `loop_state = ${this.node.toJs()}; continue loop;`;
-	}
-}
-*/
 
 export class ANodeStmReturn extends ANodeStm {
 	toJs() { return 'return;'; }
@@ -77,10 +61,11 @@ export class ANodeStmList extends ANodeStm {
 }
 
 export class ANodeFunction extends ANodeStmList {
-	constructor(childs: ANodeStm[]) { super(childs); }
+	constructor(public address:number, private prefix:ANodeStm, childs: ANodeStm[]) { super(childs); }
 	
 	toJs() {
 		let lines:string[] = [];
+		lines.push(this.prefix.toJs());
 		lines.push('var loop_state = 0; loop: while (true) switch (loop_state) {');
 		lines.push('case 0:');
 		
@@ -92,6 +77,9 @@ export class ANodeFunction extends ANodeStmList {
 				if (labelsByAddress[child.address]) labelsByAddress[child.address].references.push(child);
 			}
 		}
+
+		//var debug = (this.address == 0x088042e4);
+		var debug = false;
 		
 		var checkRangeHasJustInternalReferences = (min:number, max:number) => {
 			for (var n = min; n <= max; n++) {
@@ -101,18 +89,38 @@ export class ANodeFunction extends ANodeStmList {
 						child.type = 'none';
 					}
 					for (var ref of child.references) {
-						if (ref.address < min || ref.address > max) return false;
+						if (ref.index < min || ref.index > max) return false;
 					}
 				}
 			}
 			return true;
 		};
 		
+		var getInternalLabelCount = (min:number, max:number) => {
+			var count = 0;
+			for (var n = min; n <= max; n++) {
+				var child = this.childs[n];
+				if (child instanceof ANodeStmLabel) count++;
+			}
+			return count;
+		};
+		
 		for (let child of this.childs) {
 			if (child instanceof ANodeStmStaticJump) {
 				var label = labelsByAddress[child.address];
+				if (debug) {
+					printf("Jump index:%d to label %08X", child.index, child.address);
+					if (label) {
+						printf("Lable index:%d, references %d", child.index, label.references.length);
+					} else {
+						printf("No label");
+					}
+				}
 				if (label && label.index < child.index) {
-					if (checkRangeHasJustInternalReferences(label.index, child.index) && label.references.length == 1) {
+					var rangeInternalReferences = checkRangeHasJustInternalReferences(label.index, child.index);
+					var labelCount = getInternalLabelCount(label.index, child.index);
+					if (debug) printf("Internal references: %d", rangeInternalReferences);
+					if (rangeInternalReferences && label.references.length == 1 && labelCount == 1) {
 						label.type = 'while';
 						child.type = 'while';
 						//console.log('optimizable range!');
@@ -271,7 +279,7 @@ export class AstBuilder {
 	u_imm32(value: number) { return new ANodeExprU32(value); }
 	stm(expr?: ANodeExpr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); }
 	stms(stms: ANodeStm[]) { return new ANodeStmList(stms); }
-	func(stms: ANodeStm[]) { return new ANodeFunction(stms); }
+	func(address:number, prefix:ANodeStm, stms: ANodeStm[]) { return new ANodeFunction(address, prefix, stms); }
 	array(exprList: ANodeExpr[]) { return new ANodeExprArray(exprList); }
 	arrayNumbers(values: number[]) { return this.array(values.map(value => this.imm_f(value))); }
 	call(name: string, exprList: ANodeExpr[]) { return new ANodeExprCall(name, exprList); }
@@ -290,16 +298,14 @@ export class MipsAstBuilder extends AstBuilder {
 		return new ANodeStmRaw("debugger; // " + comment + "\n");
 	}
 
-	functionPrefix() { return this.stm(); }
-
 	gpr(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
-		return new ANodeExprLValueVar('state.gpr[' + index + ']');
+		return new ANodeExprLValueVar('gpr[' + index + ']');
 	}
 
 	gpr_f(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
-		return new ANodeExprLValueVar('state.gpr_f[' + index + ']');
+		return new ANodeExprLValueVar('gpr_f[' + index + ']');
 	}
 
 	tempr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.temp[' + index + ']'); }
@@ -320,8 +326,8 @@ export class MipsAstBuilder extends AstBuilder {
 		return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
 	}
 	ra() { return new ANodeExprLValueVar('state.gpr[31]'); }
-	branchflag() { return new ANodeExprLValueVar('state.BRANCHFLAG'); }
-	branchpc() { return new ANodeExprLValueVar('state.BRANCHPC'); }
+	branchflag() { return new ANodeExprLValueVar('BRANCHFLAG'); }
+	branchpc() { return new ANodeExprLValueVar('BRANCHPC'); }
 
 	assignGpr(index: number, expr: ANodeStm) {
 		if (index == 0) return this.stm();

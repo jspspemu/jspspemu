@@ -200,7 +200,6 @@ export class ThreadManForUser {
 
 	sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, (timePtr: Stream) => {
 		if (timePtr == null) throw (new SceKernelException(SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT));
-
 		timePtr.writeInt64(Integer64.fromNumber(this._getCurrentMicroseconds()));
 		return 0;
 	});

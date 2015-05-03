@@ -1,196 +1,78 @@
 ﻿///<reference path="../global.d.ts" />
 
-declare function saveAs(data: Blob, name: string):void;
+declare function saveAs(data: Blob, name: string): void;
 
-interface MemoryBase {
-	writeInt8(address: number, value: number):void;
-	writeInt16(address: number, value: number):void;
-	writeInt32(address: number, value: number):void;
-	writeFloat32(address: number, value: number):void;
-	readInt8(address: number):number;
-	readUInt8(address: number):number;
-	readInt16(address: number):number;
-	readUInt16(address: number):number;
-	readInt32(address: number):number;
-	readUInt32(address: number):number;
-	readFloat32(address: number):number;
-	readUInt32_2(address: number):number;
+const MASK = 0x0FFFFFFF;
 
-	slice(low:number, high:number):Uint8Array;
-	availableAfterAddress(address:number):number;
-}
+const LWR_MASK = new Uint32Array([0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00]);
+const LWR_SHIFT = new Uint32Array([0, 8, 16, 24]);
 
-class FastMemoryBase implements MemoryBase {
-	private buffer: ArrayBuffer;
-	private s8: Uint8Array;
-	private u8: Uint8Array;
-	private s16: Int16Array;
-	private u16: Uint16Array;
-	private s32: Uint32Array;
-	private u32: Uint32Array;
-	private f32: Float32Array;
+const LWL_MASK = new Uint32Array([0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000]);
+const LWL_SHIFT = new Uint32Array([24, 16, 8, 0]);
 
-	constructor() {
-		this.buffer = new ArrayBuffer(0x0a000000 + 4);
-		this.s8 = new Int8Array(this.buffer);
-		this.u8 = new Uint8Array(this.buffer);
-		this.u16 = new Uint16Array(this.buffer);
-		this.s16 = new Int16Array(this.buffer);
-		this.s32 = new Int32Array(this.buffer);
-		this.u32 = new Uint32Array(this.buffer);
-		this.f32 = new Float32Array(this.buffer);
+const SWL_MASK = new Uint32Array([0xFFFFFF00, 0xFFFF0000, 0xFF000000, 0x00000000]);
+const SWL_SHIFT = new Uint32Array([24, 16, 8, 0]);
+
+const SWR_MASK = new Uint32Array([0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF]);
+const SWR_SHIFT = new Uint32Array([0, 8, 16, 24]);
+
+export class Memory {
+	lwl(address: number, value: number) {
+		var align = address & 3;
+		var vold = this.lw(address & ~3);
+		return ((vold << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
 	}
 
-	writeInt8(address: number, value: number) { this.u8[(address & FastMemory.MASK) >> 0] = value; }
-	writeInt16(address: number, value: number) { this.u16[(address & FastMemory.MASK) >> 1] = value; }
-	writeInt32(address: number, value: number) { this.u32[(address & FastMemory.MASK) >> 2] = value; }
-	writeFloat32(address: number, value: number) { this.f32[(address & FastMemory.MASK) >> 2] = value; }
-	readInt8(address: number) { return this.s8[(address & FastMemory.MASK) >> 0]; }
-	readUInt8(address: number) { return this.u8[(address & FastMemory.MASK) >> 0]; }
-	readInt16(address: number) { return this.s16[(address & FastMemory.MASK) >> 1]; }
-	readUInt16(address: number) { return this.u16[(address & FastMemory.MASK) >> 1]; }
-	readInt32(address: number) { return this.s32[(address & FastMemory.MASK) >> 2]; }
-	readUInt32(address: number) { return this.u32[(address & FastMemory.MASK) >> 2]; }
-	readFloat32(address: number) { return this.f32[(address & FastMemory.MASK) >> 2]; }
-	readUInt32_2(address: number) { return this.u32[address]; }
-
-	slice(low:number, high:number):Uint8Array {
-		low &= FastMemory.MASK;
-		high &= FastMemory.MASK;
-		return new Uint8Array(this.buffer, low, high - low);
+	lwr(address: number, value: number) {
+		var align = address & 3;
+		var vold = this.lw(address & ~3);
+		return ((vold >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
 	}
 
-	availableAfterAddress(address:number):number {
-		return this.buffer.byteLength - (address & FastMemory.MASK);
-	}
-}
-
-class LowMemorySegment {
-	size: number;
-	low: number;
-	high: number;
-	offset4: number;
-	s8: Uint8Array;
-	u8: Uint8Array;
-	s16: Int16Array;
-	u16: Uint16Array;
-	s32: Uint32Array;
-	u32: Uint32Array;
-	f32: Float32Array;
-
-	constructor(public name:string, public offset:number, public buffer:ArrayBuffer) {
-		this.size = buffer.byteLength;
-		this.low = offset;
-		this.offset4 = (offset / 4) | 0;
-		this.high = this.low + this.size;
-		this.s8 = new Int8Array(this.buffer);
-		this.u8 = new Uint8Array(this.buffer);
-		this.u16 = new Uint16Array(this.buffer);
-		this.s16 = new Int16Array(this.buffer);
-		this.s32 = new Int32Array(this.buffer);
-		this.u32 = new Uint32Array(this.buffer);
-		this.f32 = new Float32Array(this.buffer);
+	swl(address: number, value: number) {
+		var align = address & 3;
+		var aadress = address & ~3;
+		var vwrite = (value >>> SWL_SHIFT[align]) | (this.lw(aadress) & SWL_MASK[align]);
+		this.sw(aadress, vwrite);
 	}
 
-	contains(address: number) {
-		return address >= this.low && address < this.high;
+	swr(address: number, value: number) {
+		var align = address & 3;
+		var aadress = address & ~3;
+		var vwrite = (value << SWR_SHIFT[align]) | (this.lw(aadress) & SWR_MASK[align]);
+		this.sw(aadress, vwrite);
 	}
 
-	writeInt8(address: number, value: number) { this.u8[(address & FastMemory.MASK - this.offset) >> 0] = value; }
-	writeInt16(address: number, value: number) { this.u16[(address & FastMemory.MASK - this.offset) >> 1] = value; }
-	writeInt32(address: number, value: number) { this.u32[(address & FastMemory.MASK - this.offset) >> 2] = value; }
-	writeFloat32(address: number, value: number) { this.f32[(address & FastMemory.MASK - this.offset) >> 2] = value; }
-	readInt8(address: number) { return this.s8[(address & FastMemory.MASK - this.offset) >> 0]; }
-	readUInt8(address: number) { return this.u8[(address & FastMemory.MASK - this.offset) >> 0]; }
-	readInt16(address: number) { return this.s16[(address & FastMemory.MASK - this.offset) >> 1]; }
-	readUInt16(address: number) { return this.u16[(address & FastMemory.MASK - this.offset) >> 1]; }
-	readInt32(address: number) { return this.s32[(address & FastMemory.MASK - this.offset) >> 2]; }
-	readUInt32(address: number) { return this.u32[(address & FastMemory.MASK - this.offset) >> 2]; }
-	readFloat32(address: number) { return this.f32[(address & FastMemory.MASK - this.offset) >> 2]; }
-	readUInt32_2(address: number) { return this.u32[address - this.offset4]; }
+	// ALIASES!
+	writeInt8(address: number, value: number) { this.sb(address, value); }
+	writeInt16(address: number, value: number) { this.sh(address, value); }
+	writeInt32(address: number, value: number) { this.sw(address, value); }
+	writeFloat32(address: number, value: number) { this.swc1(address, value); }
+	readInt8(address: number) { return this.lb(address); }
+	readUInt8(address: number) { return this.lbu(address); }
+	readInt16(address: number) { return this.lh(address); }
+	readUInt16(address: number) { return this.lhu(address); }
+	readInt32(address: number) { return this.lw(address); }
+	readUInt32(address: number) { return this.lwu(address); }
+	readFloat32(address: number) { return this.lwc1(address); }
+	readUInt32_2(address: number) { return this.lw_2(address); }
+	
+	sb(address: number, value: number): void { throw `Must override`; }
+	sh(address: number, value: number): void { throw `Must override`; }
+	sw(address: number, value: number): void { throw `Must override`; }
+	swc1(address: number, value: number): void { throw `Must override`; }
+	lb(address: number): number { throw `Must override`; }
+	lbu(address: number): number { throw `Must override`; }
+	lh(address: number): number { throw `Must override`; }
+	lhu(address: number): number { throw `Must override`; }
+	lw(address: number): number { throw `Must override`; }
+	lwu(address: number): number { throw `Must override`; }
+	lwc1(address: number): number { throw `Must override`; }
+	lw_2(address: number): number { throw `Must override`; }
 
-	slice(low:number, high:number):Uint8Array {
-		low &= FastMemory.MASK;
-		high &= FastMemory.MASK;
-		low -= this.offset;
-		high -= this.offset;
-		return new Uint8Array(this.buffer, low, high - low);
-	}
+	slice(low: number, high: number): Uint8Array { throw `Must override`; }
+	availableAfterAddress(address: number): number { throw `Must override`; }
 
-	availableAfterAddress(address:number):number {
-		return this.buffer.byteLength - (address & FastMemory.MASK - this.offset);
-	}
-}
-
-class LowMemoryBase implements MemoryBase {
-	private scratchpad: LowMemorySegment;
-	private videomem: LowMemorySegment;
-	private mainmem: LowMemorySegment;
-
-	constructor() {
-		//this.scratchpad = new LowMemorySegment('scatchpad', 0x00010000, new ArrayBuffer(16 * 1024));
-		this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(16 * 1024 + 0x00010000));
-		//this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(0x00010000 + 16 * 1024));
-		this.videomem = new LowMemorySegment('videomem', 0x04000000, new ArrayBuffer(2 * 1024 * 1024));
-		this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
-		//this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(64 * 1024 * 1024));
-	}
-
-	getMemRange(address:number):LowMemorySegment {
-		address &= FastMemory.MASK;
-		if (address >= 0x08000000) {
-			return this.mainmem;
-		} else {
-			if (this.scratchpad.contains(address)) return this.scratchpad;
-			if (this.videomem.contains(address)) return this.videomem;
-			if (this.mainmem.contains(address)) return this.mainmem;
-			// 02203738
-			printf("Unmapped: %08X", address);
-			return null;
-		}
-	}
-
-	writeInt8(address: number, value: number) { this.getMemRange(address).writeInt8(address, value); }
-	writeInt16(address: number, value: number) { this.getMemRange(address).writeInt16(address, value); }
-	writeInt32(address: number, value: number) { this.getMemRange(address).writeInt32(address, value); }
-	writeFloat32(address: number, value: number) { this.getMemRange(address).writeFloat32(address, value); }
-	readInt8(address: number) { return this.getMemRange(address).readInt8(address); }
-	readUInt8(address: number) { return this.getMemRange(address).readUInt8(address); }
-	readInt16(address: number) { return this.getMemRange(address).readInt16(address); }
-	readUInt16(address: number) { return this.getMemRange(address).readUInt16(address); }
-	readInt32(address: number) { return this.getMemRange(address).readInt32(address); }
-	readUInt32(address: number) { return this.getMemRange(address).readUInt32(address); }
-	readFloat32(address: number) { return this.getMemRange(address).readFloat32(address); }
-	readUInt32_2(address: number) { return this.getMemRange(address).readUInt32_2(address); }
-
-	slice(low:number, high:number):Uint8Array {
-		return this.getMemRange(low).slice(low, high);
-	}
-
-	availableAfterAddress(address:number):number {
-		return this.getMemRange(address).availableAfterAddress(address);
-	}
-}
-
-declare var process:any;
-function isNodeJs() {
-	return typeof process != 'undefined';
-}
-
-function allowBigAlloc() {
-	try {
-		var ab = new ArrayBuffer(0x0a000000 + 4);
-		return true;
-	} catch (e) {
-		return false;
-	}
-}
-
-function supportFastMemory() {
-	return !isNodeJs() && allowBigAlloc();
-}
-
-class FastMemory {
 	static DEFAULT_FRAME_ADDRESS: number = 0x04000000;
 	static MASK = 0x0FFFFFFF;
 	static MAIN_OFFSET = 0x08000000;
@@ -213,22 +95,11 @@ class FastMemory {
 		return false;
 	}
 
-	private base: MemoryBase;
-
 	invalidateDataRange = new Signal<NumericRange>();
 	invalidateDataAll = new Signal();
 
 	constructor() {
-		if (supportFastMemory()) {
-			this.base = new FastMemoryBase();
-		} else {
-			this.base = new LowMemoryBase();
-		}
-		this._updateWriteFunctions();
-	}
-
-	private availableAfterAddress(address:number) {
-		return this.base.availableAfterAddress(address);
+		//this._updateWriteFunctions();
 	}
 
 	getPointerPointer<T>(type: IType, address: number) {
@@ -243,7 +114,7 @@ class FastMemory {
 
 	getPointerU8Array(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
-		return this.base.slice(address, address + size);
+		return this.slice(address, address + size);
 	}
 
 	getPointerU16Array(address: number, size?: number) {
@@ -277,6 +148,7 @@ class FastMemory {
 
 	private writeBreakpoints = <{ address: number; action: (address: number) => void; }[]>[]
 
+	/*
 	_updateWriteFunctions() {
 		if (this.writeBreakpoints.length > 0) {
 			this.writeInt8 = this._writeInt8_break;
@@ -291,9 +163,20 @@ class FastMemory {
 		}
 	}
 
+	protected _writeInt8(address: number, value: number) { this.writeInt8(address, value); }
+	protected _writeInt16(address: number, value: number) { this.writeInt16(address, value); }
+	protected _writeInt32(address: number, value: number) { this.writeInt32(address, value); }
+	protected _writeFloat32(address: number, value: number) { this.writeFloat32(address, value); }
+
+	protected _writeInt8_break(address: number, value: number) { this._writeInt8(address, value); this._checkWriteBreakpoints(address, address + 1); }
+	protected _writeInt16_break(address: number, value: number) { this._writeInt16(address, value); this._checkWriteBreakpoints(address, address + 2); }
+	protected _writeInt32_break(address: number, value: number) { this._writeInt32(address, value); this._checkWriteBreakpoints(address, address + 4); }
+	protected _writeFloat32_break(address: number, value: number) { this._writeFloat32(address, value); this._checkWriteBreakpoints(address, address + 4); }
+	*/
+
 	addWatch4(address: number) {
 		this.addWriteAction(address, (address: number) => {
-			console.log(sprintf('Watch:0x%08X <- 0x%08X', address, this.readUInt32(address)));
+			console.log(sprintf('Watch:0x%08X <- 0x%08X', address, this.lwu(address)));
 		});
 	}
 
@@ -301,7 +184,7 @@ class FastMemory {
 		//Watch: 0x0951044C < - 0x2A000000 
 
 		this.addWriteAction(address, (actualAddress: number) => {
-			var actualValue: number = this.readUInt32(address);
+			var actualValue: number = this.lwu(address);
 
 			console.log(sprintf('TryBreakpoint:0x%08X <- 0x%08X | 0x%08X (%d)', address, actualValue, value, (actualValue == value)));
 
@@ -313,11 +196,10 @@ class FastMemory {
 
 	addWriteAction(address: number, action: (address: number) => void) {
 		this.writeBreakpoints.push({ address: address, action: action });
-
-		this._updateWriteFunctions();
+		//this._updateWriteFunctions();
 	}
 
-	_checkWriteBreakpoints(start: number, end:number) {
+	_checkWriteBreakpoints(start: number, end: number) {
 		start &= FastMemory.MASK;
 		end &= FastMemory.MASK;
 		for (var n = 0; n < this.writeBreakpoints.length; n++) {
@@ -328,30 +210,6 @@ class FastMemory {
 			}
 		}
 	}
-
-	protected _writeInt8(address: number, value: number) { this.base.writeInt8(address, value); }
-	protected _writeInt16(address: number, value: number) { this.base.writeInt16(address, value); }
-	protected _writeInt32(address: number, value: number) { this.base.writeInt32(address, value); }
-	protected _writeFloat32(address: number, value: number) { this.base.writeFloat32(address, value); }
-
-	protected _writeInt8_break(address: number, value: number) { this._writeInt8(address, value); this._checkWriteBreakpoints(address, address + 1); }
-	protected _writeInt16_break(address: number, value: number) { this._writeInt16(address, value); this._checkWriteBreakpoints(address, address + 2); }
-	protected _writeInt32_break(address: number, value: number) { this._writeInt32(address, value); this._checkWriteBreakpoints(address, address + 4); }
-	protected _writeFloat32_break(address: number, value: number) { this._writeFloat32(address, value); this._checkWriteBreakpoints(address, address + 4); }
-
-	writeInt8(address: number, value: number) { this._writeInt8(address, value); }
-	writeInt16(address: number, value: number) { this._writeInt16(address, value); }
-	writeInt32(address: number, value: number) { this._writeInt32(address, value); }
-	writeFloat32(address: number, value: number) { this._writeFloat32(address, value); }
-
-	readInt8(address: number) { return this.base.readInt8(address); }
-	readUInt8(address: number) { return this.base.readUInt8(address); }
-	readInt16(address: number) { return this.base.readInt16(address); }
-	readUInt16(address: number) { return this.base.readUInt16(address); }
-	readInt32(address: number) { return this.base.readInt32(address); }
-	readUInt32(address: number) { return this.base.readUInt32(address); }
-	readFloat32(address: number) { return this.base.readFloat32(address); }
-	readUInt32_2(address: number) { return this.base.readUInt32_2(address); }
 
 	readArrayBuffer(address: number, length: number) {
 		var out = new Uint8Array(length);
@@ -365,14 +223,6 @@ class FastMemory {
 
 	sliceWithSize(address: number, size: number) {
 		return new Stream(this.getPointerDataView(address, size));
-	}
-}
-
-export class Memory extends FastMemory {
-	private static _instance: Memory;
-	static get instance() {
-		if (!Memory._instance) Memory._instance = new Memory();
-		return Memory._instance;
 	}
 
 	reset() {
@@ -400,7 +250,7 @@ export class Memory extends FastMemory {
 	writeStream(address: number, stream: Stream) {
 		stream = stream.sliceWithLength(0, stream.length);
 		while (stream.available > 0) {
-			this.writeInt8(address++, stream.readUInt8());
+			this.sb(address++, stream.readUInt8());
 		}
 		this._checkWriteBreakpoints(address, address + stream.length);
 	}
@@ -409,7 +259,7 @@ export class Memory extends FastMemory {
 		if (address == 0) return null;
 		var out = '';
 		while (true) {
-			var _char = this.readUInt8(address++);
+			var _char = this.lbu(address++);
 			if (_char == 0) break;
 			out += String.fromCharCode(_char);
 		}
@@ -422,7 +272,7 @@ export class Memory extends FastMemory {
 
 		var result = 0;
 		for (var n = 0; n < count; n++) {
-			var v = this.readUInt32_2(addressAligned + n);
+			var v = this.lw_2(addressAligned + n);
 			result = (result + v ^ n) | 0;
 		}
 		return result;
@@ -431,7 +281,7 @@ export class Memory extends FastMemory {
 	hash(address: number, count: number) {
 		var result = 0;
 
-		while ((address & 3) != 0) { result += this.readUInt8(address++); count--; }
+		while ((address & 3) != 0) { result += this.lbu(address++); count--; }
 
 		var count2 = MathUtils.prevAligned(count, 4);
 
@@ -440,14 +290,14 @@ export class Memory extends FastMemory {
 		address += count2;
 		count -= count2;
 
-		while ((address & 3) != 0) { result += this.readUInt8(address++) * 7; count--; }
+		while ((address & 3) != 0) { result += this.lbu(address++) * 7; count--; }
 
 		return result;
 	}
 
 	writeUint8Array(address: number, data: Uint8Array) {
-		for (var n = 0; n < data.length; n++) this._writeInt8(address + n, data[n]);
-		this._checkWriteBreakpoints(address, address + data.length);
+		for (var n = 0; n < data.length; n++) this.sb(address + n, data[n]);
+		//this._checkWriteBreakpoints(address, address + data.length);
 	}
 
 	static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {
@@ -459,4 +309,203 @@ export class Memory extends FastMemory {
 	dump(name = 'memory.bin') {
 		saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), name);
 	}
+}
+
+class FastMemory extends Memory {
+	private buffer: ArrayBuffer;
+	private s8: Uint8Array;
+	private u8: Uint8Array;
+	private s16: Int16Array;
+	private u16: Uint16Array;
+	private s32: Uint32Array;
+	private u32: Uint32Array;
+	private f32: Float32Array;
+
+	constructor() {
+		this.buffer = new ArrayBuffer(0x0a000000 + 4);
+		this.s8 = new Int8Array(this.buffer);
+		this.u8 = new Uint8Array(this.buffer);
+		this.u16 = new Uint16Array(this.buffer);
+		this.s16 = new Int16Array(this.buffer);
+		this.s32 = new Int32Array(this.buffer);
+		this.u32 = new Uint32Array(this.buffer);
+		this.f32 = new Float32Array(this.buffer);
+		super();
+	}
+
+	sb(address: number, value: number) { this.u8[(address & MASK) >> 0] = value; }
+	sh(address: number, value: number) { this.u16[(address & MASK) >> 1] = value; }
+	sw(address: number, value: number) { this.u32[(address & MASK) >> 2] = value; }
+	swc1(address: number, value: number) { this.f32[(address & MASK) >> 2] = value; }
+	lb(address: number) { return this.s8[(address & MASK) >> 0]; }
+	lbu(address: number) { return this.u8[(address & MASK) >> 0]; }
+	lh(address: number) { return this.s16[(address & MASK) >> 1]; }
+	lhu(address: number) { return this.u16[(address & MASK) >> 1]; }
+	lw(address: number) { return this.s32[(address & MASK) >> 2]; }
+	lwu(address: number) { return this.u32[(address & MASK) >> 2]; }
+	lwc1(address: number) { return this.f32[(address & MASK) >> 2]; }
+	lw_2(address: number) { return this.u32[address]; }
+
+	slice(low: number, high: number): Uint8Array {
+		low &= MASK;
+		high &= MASK;
+		return new Uint8Array(this.buffer, low, high - low);
+	}
+
+	availableAfterAddress(address: number): number {
+		return this.buffer.byteLength - (address & MASK);
+	}
+	
+	getU16Array(address: number, size?: number) {
+		if (address == 0) return null;
+		if (!this.isValidAddress(address)) return null;
+		if (!size) size = this.availableAfterAddress(address & FastMemory.MASK);
+		return new Uint16Array(this.buffer, address, size / 2);
+	}
+}
+
+class LowMemorySegment {
+	size: number;
+	low: number;
+	high: number;
+	offset4: number;
+	s8: Uint8Array;
+	u8: Uint8Array;
+	s16: Int16Array;
+	u16: Uint16Array;
+	s32: Uint32Array;
+	u32: Uint32Array;
+	f32: Float32Array;
+
+	constructor(public name: string, public offset: number, public buffer: ArrayBuffer) {
+		this.size = buffer.byteLength;
+		this.low = offset;
+		this.offset4 = (offset / 4) | 0;
+		this.high = this.low + this.size;
+		this.s8 = new Int8Array(this.buffer);
+		this.u8 = new Uint8Array(this.buffer);
+		this.u16 = new Uint16Array(this.buffer);
+		this.s16 = new Int16Array(this.buffer);
+		this.s32 = new Int32Array(this.buffer);
+		this.u32 = new Uint32Array(this.buffer);
+		this.f32 = new Float32Array(this.buffer);
+	}
+
+	contains(address: number) {
+		return address >= this.low && address < this.high;
+	}
+
+	sb(address: number, value: number) { this.u8[(address & MASK - this.offset) >> 0] = value; }
+	sh(address: number, value: number) { this.u16[(address & MASK - this.offset) >> 1] = value; }
+	sw(address: number, value: number) { this.u32[(address & MASK - this.offset) >> 2] = value; }
+	swc1(address: number, value: number) { this.f32[(address & MASK - this.offset) >> 2] = value; }
+	lb(address: number) { return this.s8[(address & MASK - this.offset) >> 0]; }
+	lbu(address: number) { return this.u8[(address & MASK - this.offset) >> 0]; }
+	lh(address: number) { return this.s16[(address & MASK - this.offset) >> 1]; }
+	lhu(address: number) { return this.u16[(address & MASK - this.offset) >> 1]; }
+	lw(address: number) { return this.s32[(address & MASK - this.offset) >> 2]; }
+	lwu(address: number) { return this.u32[(address & MASK - this.offset) >> 2]; }
+	lwc1(address: number) { return this.f32[(address & MASK - this.offset) >> 2]; }
+	lw_2(address: number) { return this.u32[address - this.offset4]; }
+
+	slice(low: number, high: number): Uint8Array {
+		low &= MASK;
+		high &= MASK;
+		low -= this.offset;
+		high -= this.offset;
+		return new Uint8Array(this.buffer, low, high - low);
+	}
+
+	availableAfterAddress(address: number): number {
+		return this.buffer.byteLength - (address & MASK - this.offset);
+	}
+}
+
+class LowMemory extends Memory {
+	private scratchpad: LowMemorySegment;
+	private videomem: LowMemorySegment;
+	private mainmem: LowMemorySegment;
+
+	constructor() {
+		//this.scratchpad = new LowMemorySegment('scatchpad', 0x00010000, new ArrayBuffer(16 * 1024));
+		this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(16 * 1024 + 0x00010000));
+		//this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(0x00010000 + 16 * 1024));
+		this.videomem = new LowMemorySegment('videomem', 0x04000000, new ArrayBuffer(2 * 1024 * 1024));
+		this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
+		//this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(64 * 1024 * 1024));
+		super();
+	}
+
+	getMemRange(address: number): LowMemorySegment {
+		address &= FastMemory.MASK;
+		if (address >= 0x08000000) {
+			return this.mainmem;
+		} else {
+			if (this.scratchpad.contains(address)) return this.scratchpad;
+			if (this.videomem.contains(address)) return this.videomem;
+			if (this.mainmem.contains(address)) return this.mainmem;
+			// 02203738
+			printf("Unmapped: %08X", address);
+			return null;
+		}
+	}
+
+	sb(address: number, value: number) { this.getMemRange(address).sb(address, value); }
+	sh(address: number, value: number) { this.getMemRange(address).sh(address, value); }
+	sw(address: number, value: number) { this.getMemRange(address).sw(address, value); }
+	swc1(address: number, value: number) { this.getMemRange(address).swc1(address, value); }	getU16Array(address: number, size?: number) {
+		if (address == 0) return null;
+		if (!this.isValidAddress(address)) return null;
+		if (!size) size = this.availableAfterAddress(address & FastMemory.MASK);
+		return this.getPointerU16Array(address & FastMemory.MASK, size);
+	}
+	lb(address: number) { return this.getMemRange(address).lb(address); }
+	lbu(address: number) { return this.getMemRange(address).lbu(address); }
+	lh(address: number) { return this.getMemRange(address).lh(address); }
+	lhu(address: number) { return this.getMemRange(address).lhu(address); }
+	lw(address: number) { return this.getMemRange(address).lw(address); }
+	lwu(address: number) { return this.getMemRange(address).lwu(address); }
+	lwc1(address: number) { return this.getMemRange(address).lwc1(address); }
+	lw_2(address: number) { return this.getMemRange(address).lw_2(address); }
+
+	slice(low: number, high: number): Uint8Array {
+		return this.getMemRange(low).slice(low, high);
+	}
+
+	availableAfterAddress(address: number): number {
+		return this.getMemRange(address).availableAfterAddress(address);
+	}
+}
+
+declare var process: any;
+function isNodeJs() {
+	return typeof process != 'undefined';
+}
+
+function allowBigAlloc() {
+	try {
+		var ab = new ArrayBuffer(0x0a000000 + 4);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+function supportFastMemory() {
+	//return !isNodeJs() && allowBigAlloc();
+	return !isNodeJs();
+}
+
+export function create(): Memory {
+	if (supportFastMemory()) {
+		return new FastMemory();
+	} else {
+		return new LowMemory();
+	}
+}
+
+var _instance: Memory = null;
+export function getInstance() {
+	if (_instance == null) _instance = create();
+	return _instance;
 }

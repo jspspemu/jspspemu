@@ -43,6 +43,7 @@ function assign_stm(ref: _ast.ANodeExprLValue, value: _ast.ANodeExpr) { return s
 function i_simm16(i: Instruction) { return imm32(i.imm16); }
 function i_uimm16(i: Instruction) { return u_imm32(i.u_imm16); }
 function rs_imm16(i: Instruction) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
+//function rs_simm16(i: Instruction) { return binop(gpr(i.rs), '+', i_simm16(i)); }
 function cast_uint(expr: _ast.ANodeExpr) { return binop(expr, '>>>', ast.imm32(0)); }
 
 class VMatRegClass {
@@ -196,7 +197,11 @@ function setMemoryVector(offset: _ast.ANodeExpr, items: _ast.ANodeExpr[]) {
 
 function memoryRef(type: string, address: _ast.ANodeExpr) {
 	switch (type) {
-		case 'float': return new _ast.ANodeExprLValueSetGet('state.swc1($0, #)', 'state.lwc1($0)', [address]);
+		case 'float': return new _ast.ANodeExprLValueSetGet(
+			'memory.swc1($0, #)',
+			'memory.lwc1($0)',
+			[address]
+		);
 		default: throw(new Error("Not implemented memoryRef type '" + type + "'"));
 	}
 	
@@ -460,8 +465,8 @@ export class InstructionAst {
 
 	// Memory read/write
 
-	"lv.s"(i: Instruction) { return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)])); }
-	"sv.s"(i: Instruction) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); }
+	"lv.s"(i: Instruction) { return assign_stm(vfpr(i.VT5_2), call('memory.lwc1', [address_RS_IMM14(i, 0)])); }
+	"sv.s"(i: Instruction) { return call_stm('memory.swc1', [address_RS_IMM14(i, 0), vfpr(i.VT5_2)]); }
 
 	"lv.q"(i: Instruction) { return setItems(readVector_f(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); }
 	"lvl.q"(i: Instruction) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(item => imm32(item)))]); }
@@ -997,12 +1002,6 @@ export class InstructionAst {
 	bc1tl(i: Instruction) { return this.bc1t(i); }
 	bc1fl(i: Instruction) { return this.bc1f(i); }
 
-	sb(i: Instruction) { return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)])); }
-	sh(i: Instruction) { return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)])); }
-	sw(i: Instruction) { return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)])); }
-
-	swc1(i: Instruction) { return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)])); }
-	lwc1(i: Instruction) { return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)])); }
 
 	mfc1(i: Instruction) { return assignGpr(i.rt, ast.fpr_i(i.fs)); }
 	mtc1(i: Instruction) { return assignFpr_I(i.fs, ast.gpr(i.rt)); }
@@ -1017,16 +1016,25 @@ export class InstructionAst {
 	"cvt.s.w"(i: Instruction) { return assignFpr(i.fd, fpr_i(i.fs)); }
 	"cvt.w.s"(i: Instruction) { return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)])); }
 
-	lb(i: Instruction) { return assignGpr(i.rt, call('state.lb', [rs_imm16(i)])); }
-	lbu(i: Instruction) { return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)])); }
-	lh(i: Instruction) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); }
-	lhu(i: Instruction) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); }
-	lw(i: Instruction) { return assignGpr(i.rt, call('state.lw', [rs_imm16(i)])); }
+	///////////////////////////////////////////////////////////////////////////////
+	// MEMORY
+	///////////////////////////////////////////////////////////////////////////////
+	
+	sb  (i: Instruction) { return stm(call('memory.sb'  , [rs_imm16(i), gpr(i.rt)])); }
+	sh  (i: Instruction) { return stm(call('memory.sh'  , [rs_imm16(i), gpr(i.rt)])); }
+	sw  (i: Instruction) { return stm(call('memory.sw'  , [rs_imm16(i), gpr(i.rt)])); }
+	swc1(i: Instruction) { return stm(call('memory.swc1', [rs_imm16(i), fpr(i.ft)])); }
+	swl (i: Instruction) { return stm(call('memory.swl' , [rs_imm16(i), gpr(i.rt)])); }
+	swr (i: Instruction) { return stm(call('memory.swr' , [rs_imm16(i), gpr(i.rt)])); }
 
-	lwl(i: Instruction) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
-	lwr(i: Instruction) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
-	swl(i: Instruction) { return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
-	swr(i: Instruction) { return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); }
+	lb  (i: Instruction) { return assignGpr  (i.rt, call('memory.lb',   [rs_imm16(i)])); }
+	lbu (i: Instruction) { return assignGpr  (i.rt, call('memory.lbu',  [rs_imm16(i)])); }
+	lh  (i: Instruction) { return assignGpr  (i.rt, call('memory.lh',   [rs_imm16(i)])); }
+	lhu (i: Instruction) { return assignGpr  (i.rt, call('memory.lhu',  [rs_imm16(i)])); }
+	lw  (i: Instruction) { return assignGpr  (i.rt, call('memory.lw',   [rs_imm16(i)])); }
+	lwc1(i: Instruction) { return assignFpr_I(i.ft, call('memory.lw',   [rs_imm16(i)])); }
+	lwl (i: Instruction) { return assignGpr  (i.rt, call('memory.lwl',  [rs_imm16(i)])); }
+	lwr (i: Instruction) { return assignGpr  (i.rt, call('memory.lwr',  [rs_imm16(i)])); }
 
 	_callstackPush(i: Instruction) {
 		//return stm(call('state.callstackPush', [imm32(i.PC)]));
