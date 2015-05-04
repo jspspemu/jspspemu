@@ -1,0 +1,33 @@
+@font-face { font-family: 'Buttons'; src: url('buttons.ttf'); }
+html, body {
+	background: black;
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	width: 100%;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+}
+
+#touch_buttons {
+	font-family: 'Buttons';
+	color: white;
+}
+
+#touch_buttons {
+	z-index: 10000;
+}
+
+#directional_pad {
+	position: absolute;
+	right: 0;
+	top: 0;
+}
+
+#canvas, #webgl_canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+}

@@ -153,6 +153,7 @@ export class TextureHandler {
 	private invalidatedAll = false;
 
 	flush() {
+		//console.log('flush!');
 		for (var n = 0; n < this.textures.length; n++) {
 			var texture = this.textures[n];
 			if (!texture.validHint) {
@@ -213,8 +214,8 @@ export class TextureHandler {
 		var texture = this.texturesByHash1[hash1];
 		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
 		if (this.mustRecheckSlowHash(texture)) {
-			//var hash2 = Texture.hashSlow(this.memory, state);
-			var hash2 = hash1;
+			var hash2 = Texture.hashSlow(this.memory, state);
+			//var hash2 = hash1;
 
 			//console.log(hash);
 

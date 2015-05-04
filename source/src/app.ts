@@ -27,172 +27,153 @@ interface Rect {
 
 declare var emulator: Emulator;
 
+/*
 var touch_overlay = document.getElementById('touch_overlay');
 
-function controllerRegister() {
-	var rects: Rect[] = [];
+class ControllerPlugin {
+	static use() {
+		var rects: Rect[] = [];
 
-	var generateRects = (() => {
-		var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
-		var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
-		[
-			{ query: 'button_menu', button: 0 },
-			{ query: 'button_select', button: PspCtrlButtons.select },
-			{ query: 'button_start', button: PspCtrlButtons.start },
-			{ query: 'button_up', button: PspCtrlButtons.up },
-			{ query: 'button_left', button: PspCtrlButtons.left },
-			{ query: 'button_down', button: PspCtrlButtons.down },
-			{ query: 'button_right', button: PspCtrlButtons.right },
-			{ query: 'button_l', button: PspCtrlButtons.leftTrigger },
-			{ query: 'button_r', button: PspCtrlButtons.rightTrigger },
-			{ query: 'button_cross', button: PspCtrlButtons.cross },
-			{ query: 'button_circle', button: PspCtrlButtons.circle },
-			{ query: 'button_square', button: PspCtrlButtons.square },
-			{ query: 'button_triangle', button: PspCtrlButtons.triangle },
-		].forEach(button => {
-			var query = document.getElementById(button.query);
-			var item_pos = { top: query.offsetTop, left: query.offsetLeft };
-			var query_width = query.offsetWidth, query_height = query.offsetHeight;
+		var generateRects = (() => {
+			var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+			var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
+			[
+				{ query: 'button_menu', button: 0 },
+				{ query: 'button_select', button: PspCtrlButtons.select },
+				{ query: 'button_start', button: PspCtrlButtons.start },
+				{ query: 'button_up', button: PspCtrlButtons.up },
+				{ query: 'button_left', button: PspCtrlButtons.left },
+				{ query: 'button_down', button: PspCtrlButtons.down },
+				{ query: 'button_right', button: PspCtrlButtons.right },
+				{ query: 'button_l', button: PspCtrlButtons.leftTrigger },
+				{ query: 'button_r', button: PspCtrlButtons.rightTrigger },
+				{ query: 'button_cross', button: PspCtrlButtons.cross },
+				{ query: 'button_circle', button: PspCtrlButtons.circle },
+				{ query: 'button_square', button: PspCtrlButtons.square },
+				{ query: 'button_triangle', button: PspCtrlButtons.triangle },
+			].forEach(button => {
+				var query = document.getElementById(button.query);
+				var item_pos = { top: query.offsetTop, left: query.offsetLeft };
+				var query_width = query.offsetWidth, query_height = query.offsetHeight;
 
-			var item_left = (item_pos.left - overlay_pos.left) / overlay_width;
-			var item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
-			var item_top = (item_pos.top - overlay_pos.top) / overlay_height;
-			var item_bottom = (item_pos.top - overlay_pos.top + query_height) / overlay_height;
+				var item_left = (item_pos.left - overlay_pos.left) / overlay_width;
+				var item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
+				var item_top = (item_pos.top - overlay_pos.top) / overlay_height;
+				var item_bottom = (item_pos.top - overlay_pos.top + query_height) / overlay_height;
 
-			rects.push({
-				left: item_left,
-				right: item_right,
-				top: item_top,
-				bottom: item_bottom,
-				name: button.query,
-				button: button.button
+				rects.push({
+					left: item_left,
+					right: item_right,
+					top: item_top,
+					bottom: item_bottom,
+					name: button.query,
+					button: button.button
+				});
 			});
 		});
-	});
 
-	generateRects();
+		generateRects();
 
-	var locateRect = ((screenX: number, screenY: number) => {
-		var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
-		var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
+		var locateRect = ((screenX: number, screenY: number) => {
+			var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+			var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
 
-		var x = (screenX - overlay_pos.left) / overlay_width;
-		var y = (screenY - overlay_pos.top) / overlay_height;
+			var x = (screenX - overlay_pos.left) / overlay_width;
+			var y = (screenY - overlay_pos.top) / overlay_height;
 
-		for (let rect of rects) {
-			if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
-				return rect;
+			for (let rect of rects) {
+				if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
+					return rect;
+				}
+			}
+			return null;
+		});
+
+		var touchesState: {
+			[key: number]: { rect: Rect }
+		} = {};
+
+		function simulateButtonDown(button: number) {
+			if (emulator.controller) emulator.controller.simulateButtonDown(button);
+		}
+
+		function simulateButtonUp(button: number) {
+			if (emulator.controller) emulator.controller.simulateButtonUp(button);
+		}
+
+		function touchStart(touches: Touch[]) {
+			for (var touch of touches) touchesState[touch.identifier] = { rect: null };
+			touchMove(touches);
+		}
+
+		function touchMove(touches: Touch[]) {
+			for (var touch of touches) {
+				var rect = locateRect(touch.clientX, touch.clientY);
+				var touchState = touchesState[touch.identifier];
+
+				if (touchState.rect) {
+					DomHelp.fromId(touchState.rect.name).removeClass('pressed');
+					simulateButtonUp(touchState.rect.button);
+				}
+
+				touchState.rect = rect;
+
+				if (rect) {
+					DomHelp.fromId(rect.name).addClass('pressed');
+					simulateButtonDown(rect.button);
+				}
 			}
 		}
-		return null;
-	});
 
-	var touchesState: {
-		[key: number]: { rect: Rect }
-	} = {};
+		function touchEnd(touches: Touch[]) {
+			for (var touch of touches) {
+				var touchState = touchesState[touch.identifier];
 
-	function simulateButtonDown(button: number) {
-		if (emulator.controller) emulator.controller.simulateButtonDown(button);
-	}
+				if (touchState && touchState.rect) {
+					DomHelp.fromId(touchState.rect.name).removeClass('pressed');
+					simulateButtonUp(touchState.rect.button);
+				}
 
-	function simulateButtonUp(button: number) {
-		if (emulator.controller) emulator.controller.simulateButtonUp(button);
-	}
-
-	function touchStart(touches: Touch[]) {
-		for (var touch of touches) touchesState[touch.identifier] = { rect: null };
-		touchMove(touches);
-	}
-
-	function touchMove(touches: Touch[]) {
-		for (var touch of touches) {
-			var rect = locateRect(touch.clientX, touch.clientY);
-			var touchState = touchesState[touch.identifier];
-
-			if (touchState.rect) {
-				DomHelp.fromId(touchState.rect.name).removeClass('pressed');
-				simulateButtonUp(touchState.rect.button);
-			}
-
-			touchState.rect = rect;
-
-			if (rect) {
-				DomHelp.fromId(rect.name).addClass('pressed');
-				simulateButtonDown(rect.button);
+				delete touchesState[touch.identifier];
 			}
 		}
-	}
 
-	function touchEnd(touches: Touch[]) {
-		for (var touch of touches) {
-			var touchState = touchesState[touch.identifier];
+		DomHelp.fromId('touch_overlay').on('touchstart', (e: any) => {
+			touchStart(e.originalEvent['changedTouches']);
+			e.preventDefault();
+		});
 
-			if (touchState && touchState.rect) {
-				DomHelp.fromId(touchState.rect.name).removeClass('pressed');
-				simulateButtonUp(touchState.rect.button);
+		DomHelp.fromId('touch_overlay').on('touchmove', (e: any) => {
+			touchMove(e.originalEvent['changedTouches']);
+			e.preventDefault();
+		});
+
+		DomHelp.fromId('touch_overlay').on('touchend', (e: any) => {
+			touchEnd(e.originalEvent['changedTouches']);
+			e.preventDefault();
+		});
+
+		//$('#touch_overlay').mouseover((e) => { updatePos(e.clientX, e.clientY); });
+		var pressing = false;
+
+		function generateTouchEvent(x: number, y: number) { return { clientX: x, clientY: y, identifier: 0 }; }
+
+		DomHelp.fromId('touch_overlay').mousedown((e) => {
+			pressing = true;
+			touchStart([generateTouchEvent(e.clientX, e.clientY)]);
+		});
+		DomHelp.fromId('touch_overlay').mouseup((e) => {
+			pressing = false;
+			touchEnd([generateTouchEvent(e.clientX, e.clientY)]);
+		});
+		DomHelp.fromId('touch_overlay').mousemove((e) => {
+			if (pressing) {
+				touchMove([generateTouchEvent(e.clientX, e.clientY)]);
 			}
-
-			delete touchesState[touch.identifier];
-		}
+		});
 	}
-
-	DomHelp.fromId('touch_overlay').on('touchstart', (e: any) => {
-		touchStart(e.originalEvent['changedTouches']);
-		e.preventDefault();
-	});
-
-	DomHelp.fromId('touch_overlay').on('touchmove', (e: any) => {
-		touchMove(e.originalEvent['changedTouches']);
-		e.preventDefault();
-	});
-
-	DomHelp.fromId('touch_overlay').on('touchend', (e: any) => {
-		touchEnd(e.originalEvent['changedTouches']);
-		e.preventDefault();
-	});
-
-	//$('#touch_overlay').mouseover((e) => { updatePos(e.clientX, e.clientY); });
-	var pressing = false;
-
-	function generateTouchEvent(x: number, y: number) { return { clientX: x, clientY: y, identifier: 0 }; }
-
-	DomHelp.fromId('touch_overlay').mousedown((e) => {
-		pressing = true;
-		touchStart([generateTouchEvent(e.clientX, e.clientY)]);
-	});
-	DomHelp.fromId('touch_overlay').mouseup((e) => {
-		pressing = false;
-		touchEnd([generateTouchEvent(e.clientX, e.clientY)]);
-	});
-	DomHelp.fromId('touch_overlay').mousemove((e) => {
-		if (pressing) {
-			touchMove([generateTouchEvent(e.clientX, e.clientY)]);
-		}
-	});
 }
-
-var emulator = new Emulator();
-var _window: any = window;
-_window['emulator'] = emulator;
-var sampleDemo: string = undefined;
-var game_menudiv = document.getElementById('game_menu')
-
-if (document.location.hash) {
-	sampleDemo = document.location.hash.substr(1);
-	if (sampleDemo.startsWith('samples/')) {
-		sampleDemo = 'data/' + sampleDemo;
-	}
-} else {
-	game_menudiv.style.visibility = 'visible';
-}
-
-if (sampleDemo) {
-	emulator.downloadAndExecuteAsync(sampleDemo);
-}
-
-window.addEventListener('load', () => {
-	controllerRegister();	
-});
+*/
 
 var demos = [
     "-CPU",
@@ -269,59 +250,19 @@ var demos = [
     //"Doom/EBOOT.PBP",
 ];
 
-function updateScaleWith(scale:number) {
-	var width = 480 * scale, height = 272 * scale;
-	//console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
-	DomHelp.fromId('body').width = width; 
-	$('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
-	$('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-	$('#touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-
-	DomHelp.fromId('game_menu')
-		.css('width', '960px')
-		.css('height', '544px')
-		.css('-webkit-transform-origin', '0 0')
-		.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-		.css('-moz-transform-origin', '0 0')
-		.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-		.css('-ms-transform-origin', '0 0')
-		.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-		.css('transform-origin', '0 0')
-		.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-	;
-	DomHelp.fromId('game_menu_toggler')
-		.css('-webkit-transform-origin', '100% 0')
-		.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-		.css('-moz-transform-origin', '100% 0')
-		.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-		.css('-ms-transform-origin', '100% 0')
-		.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-		.css('transform-origin', '100% 0')
-		.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-	;
-
-	//$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
-}
-
-function updateScale() {
-	updateScaleWith(parseFloat(DomHelp.fromId('scale').val()));
-}
-
-DomHelp.fromId('scale').on('change', () => { updateScale(); });
-updateScale();
-
-DomHelp.fromId('demo_list').html('');
-DomHelp.fromId('files').html('');
+DomHelp.fromId('demo_list').html = '';
+DomHelp.fromId('files').html = '';
 var selectedItem = document.location.hash.substr(1);
 
-function selectFile(file:any) {
+function selectFile(file: any) {
 	console.clear();
 	document.location.hash = file;
 	document.location.reload();
 }
 
 //$('#files').append('<option value="">-- DEMOS --</option>');
-demos.forEach(function (fileName) {
+demos.forEach(function(fileName) {
+	/*
 	if (fileName.substr(0, 1) == '-') {
 		$('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
 		$('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
@@ -338,17 +279,14 @@ demos.forEach(function (fileName) {
 		if (selectedItem == path) item.attr('selected', 'selected')
 		$('#files').append(item);
 	}
+	*/
 });
-$('#files').change(function () {
-	selectFile($('#files').val());
+DomHelp.fromId('files').on('change', () => {
+	selectFile(DomHelp.fromId('files').val());
 });
-$('#load_file').change(function (e) {
-	if (e.target.files && e.target.files.length > 0) {
-		console.clear();
-		emulator.executeFileAsync(e.target.files[0]);
-	}
-});
-$(window).on('hashchange', function () {
+
+
+new DomHelp(window).on('hashchange', function() {
 	console.clear();
 	emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
 });
@@ -359,80 +297,99 @@ $(window).on('hashchange', function () {
 //$(window).on('select', function (e) { e.preventDefault() });
 //<a href="index.html?' + fileName + '" style="color:white;">
 
-$('#touch_buttons_font').css('display', isTouchDevice() ? 'block' : 'none');
 //$('#touch_buttons_font').css('display', 'block');
 
-require('src/app');
+class FillScreenPlugin {
+	static use() {
+		function updateScaleWith(scale: number) {
+			var width = 480 * scale, height = 272 * scale;
+			//console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
+			DomHelp.fromId('body').width = width;
+			DomHelp.fromId('canvas').css('width', width + 'px').css('height', height + 'px');
+			DomHelp.fromId('webgl_canvas').css('width', width + 'px').css('height', height + 'px');
+			DomHelp.fromId('touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+			//DomHelp.fromId('touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
 
-function onResize() {
-	var position = $('#canvas_container').position();
-	//var availableHeight = $(window).height() - position.top * 2;
-	var availableHeight = $(window).height() - position.top;
-	var availableWidth = $(window).width();
+			//$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
+		}
 
-	var scale1 = availableHeight / 272;
-	var scale2 = availableWidth / 480;
-	var steps = 0.5;
-	var scale = Math.min(scale1, scale2);
-	//scale = Math.floor(scale * (1 / steps)) / (1 / steps);
+		function onResize() {
+			var position = DomHelp.fromId('canvas_container').position;
+			var windowSize = new DomHelp(window).size;
+			//var availableHeight = $(window).height() - position.top * 2;
+			var availableHeight = windowSize.height - position.top;
+			var availableWidth = windowSize.width;
 
-	if (scale < steps) scale = steps;
+			var scale1 = availableHeight / 272;
+			var scale2 = availableWidth / 480;
+			var steps = 0.5;
+			var scale = Math.min(scale1, scale2);
+			//scale = Math.floor(scale * (1 / steps)) / (1 / steps);
 
-	updateScaleWith(scale);
+			if (scale < steps) scale = steps;
 
-	var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
+			updateScaleWith(scale);
 
-	if (window.innerHeight > window.innerWidth) isFullScreen = false;
+			var _document: any = document;
+			var isFullScreen = (_document.webkitIsFullScreen || _document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
 
-	$(document.body).toggleClass('fullscreen', isFullScreen);
+			if (window.innerHeight > window.innerWidth) isFullScreen = false;
+
+			new DomHelp(document.body).toggleClass('fullscreen', isFullScreen);
+
+			DomHelp.fromId('touch_buttons').css('display', isTouchDevice() ? 'block' : 'none');
+			if (windowSize.height >= DomHelp.fromId('canvas').height * 2) {
+				DomHelp.fromId('touch_buttons').e.className = 'standalone';
+			} else {
+				DomHelp.fromId('touch_buttons').e.className = '';
+			}
+		}
+
+		new DomHelp(window).on('resize', (e) => { onResize(); });
+		onResize();
+	}
 }
-
-$(window).on('resize', function (e) {
-	onResize();
-});
-
-onResize();
 
 function requestFullScreen() {
-	if (document.body['requestFullScreen']) {
-		document.body['requestFullScreen']();
-	} else if (document.body['webkitRequestFullScreen']) {
-		document.body['webkitRequestFullScreen']();
-	} else if (document.body['mozRequestFullScreen']) {
-		document.body['mozRequestFullScreen']();
+	var _document: any = document;
+	if (_document.body['requestFullScreen']) {
+		_document.body['requestFullScreen']();
+	} else if (_document.body['webkitRequestFullScreen']) {
+		_document.body['webkitRequestFullScreen']();
+	} else if (_document.body['mozRequestFullScreen']) {
+		_document.body['mozRequestFullScreen']();
 	}
 }
 
-emulator.checkPlugins();
+window.addEventListener('load', () => {
+	var emulator = new Emulator();
+	var _window: any = window;
+	_window['emulator'] = emulator;
+	var sampleDemo: string = undefined;
 
-window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
-	console.error(errorObj);
-	console.error(errorObj['stack']);
-	alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
-}
-
-var inCrossWalk = window.screen.show;
-
-if (screen.lockOrientation) {
-	screen.lockOrientation('landscape');
-}
-
-// crosswalk
-if (inCrossWalk) {
-	requestFullScreen();
-}
-
-function openShareModal() {
-	var hashShare = document.location.hash.replace(/^#+/, '');
-	if (!hashShare || !hashShare.length) {
-		alert("Open a game from an url to share");
-	} else {
-		$('#shareUrl').val(document.location.href);
-		$('#shareIframe').val('<iframe src="' + document.location.href + '" width="640" height="362" style="border:0;"></iframe>');
-		$('#shareModal').modal({ show: 'true' });
+	if (document.location.hash) {
+		sampleDemo = document.location.hash.substr(1);
+		if (sampleDemo.startsWith('samples/')) {
+			sampleDemo = 'data/' + sampleDemo;
+		}
 	}
-}
 
-function openHelpModal() {
-	$('#helpModal').modal({ show: 'true' });
-}
+	if (sampleDemo) {
+		emulator.downloadAndExecuteAsync(sampleDemo);
+	}
+
+	emulator.checkPlugins();
+
+	//ControllerPlugin.use();
+	FillScreenPlugin.use();
+	
+	DomHelp.fromId('load_file').on('change', (e) => {
+		var target: any = e.target;
+		if (target.files && target.files.length > 0) {
+			console.clear();
+			emulator.executeFileAsync(target.files[0]);
+		}
+	});
+	
+	DomHelp.fromId('body').removeClass('unready'); 
+});

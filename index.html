@@ -1,7 +1,5 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html><html lang="en">
 <head>
-    <!-- https://developers.google.com/chrome/mobile/docs/installtohomescreen -->
     <meta charset="utf-8" />
     <title>jspspemu</title>
     <meta name="viewport" content="width=480, initial-scale=0.75, maximum-scale=0.75, minimum-scale=0.75, user-scalable=no">
@@ -18,299 +16,47 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <script type="text/javascript">window.onerror = function (errorMsg, url, lineNumber) { alert('Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber); }; </script>
-		
-	<!--
-    <script src="source/lib/dropbox-datastores-1.0-latest.js" type="text/javascript"></script>
-    <script src="source/lib/FileSaver.js"></script>
-	<script src="source/relooper/relooper.js"></script>
-	<script src="source/relooper/glue.js"></script>
-	-->
 
-    <script src="workertask.js"></script>
-    <script src="data/MediaEngine.js"></script>
-
-    <script src="jspspemu.js"></script>
-
-	<link rel="stylesheet" href="source/lib/bootstrap/bootstrap.min.css" />
-	<link rel="stylesheet" href="source/lib/bootstrap/bootstrap-theme.min.css" />
-	<link rel="stylesheet" href="source/lib/fontawesome/font-awesome.min.css" />
-	
-	<link rel="stylesheet" href="data/pspemu.css" />
+	<link rel="stylesheet" href="data/jspspemu.css" />
 </head>
 <body>
-	<input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
-	<div id="game_menu_toggler" style="position:absolute;top:0;right:0;z-index:1049;opacity:0.5;">
-		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="$('#game_menu').fadeToggle(200);" title="Menu"><span class="glyphicon glyphicon-cog" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
-		<!--
-		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="" title="Chat"><span class="glyphicon glyphicon-user" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
-		-->
-		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="openShareModal();" title="Share"><span class="fa fa-share-alt" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);width:35px;height:35px;"></span></button></div>
-		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="requestFullScreen();" title="Fullscreen"><span class="glyphicon glyphicon-fullscreen" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);"></span></button></div>
-		<div class="game_menu_toggler_item" style="margin-bottom:1px;"><button class="btn" onclick="openHelpModal();" title="Help"><span class="fa fa-question-circle" style="font-size:2.5em;text-shadow: 0 0 4px rgba(1,1,1,0.4);width:35px;height:35px;"></span></button></div>
-	</div>
-	<div id="body">
-		<div id="canvas_container">
-			<div id="game_menu" style="z-index:1001;position:absolute;width:480px;height:272px;background:rgba(255,255,255,0.9);display:none;">
-				<nav class="navbar navbar-default" role="navigation">
-					<div class="container-fluid">
-						<div class="navbar-header">
-							<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-								<span class="sr-only">Toggle navigation</span>
-								<span class="icon-bar"></span>
-								<span class="icon-bar"></span>
-								<span class="icon-bar"></span>
-							</button>
-							<a class="navbar-brand" href="#" style="background:url('data/logo_wide_50.png') no-repeat;width:260px;"></a>
-						</div>
+	<div id="canvas_container">
+		<div id="touch_buttons">
+			<span id="directional_pad">
+				<span class="psp_button" id="button_left">2</span>
+				<span class="psp_button" id="button_up">3</span>
+				<span class="psp_button" id="button_right">1</span>
+				<span class="psp_button" id="button_down">4</span>
+			</span>
 
-						<!-- Collect the nav links, forms, and other content for toggling -->
-						<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-							<ul class="nav navbar-nav">
-								<li class="active"><a href="http://github.com/jspspemu/jspspemu"><span class="glyphicon glyphicon-play"></span> Emulator</a></li>
-								<li><a href="http://blog.jspspemu.com" target="_blank"><span class="fa fa-wordpress"></span> Blog</a></li>
-								<li><a href="http://github.com/jspspemu/jspspemu" target="_blank"><span class="fa fa-github"></span> Github</a></li>
-							</ul>
-							<ul class="nav navbar-nav navbar-right">
-								<li><a href="https://www.facebook.com/pspemu" target="_blank"><span class="fa fa-facebook"></span> Facebook</a></li>
-								<li><a href="https://twitter.com/dpspemu" target="_blank"><span class="fa fa-twitter"></span> Twitter</a></li>
-							</ul>
-						</div>
-					</div>
-				</nav>
-				<div class="container-fluid">
-					<div class="row">
-						<div class="col-xs-4">
-							<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-							<!-- jspspemu 300x250 -->
-							<ins class="adsbygoogle"
-								 style="display:inline-block;width:300px;height:250px"
-								 data-ad-client="ca-pub-3395905965441916"
-								 data-ad-slot="3061814725"></ins>
-							<script>
-								/* global adsbygoogle */ 
-								(adsbygoogle = window.adsbygoogle || []).push({});
-							</script>
-						</div>
-						<div class="col-xs-5">
-							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-play"></span> Play</h3></div>
-								<div class="panel-body">
-									<div class="btn-group">
-										<div class="btn-group">
-											<button type="button" class="btn btn-default" onclick="selectFile('');">
-												<span class="glyphicon glyphicon-stop"></span> Stop
-											</button>
-											<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
-												<span class="glyphicon glyphicon-eye-open"></span> Demos <span class="caret"></span>
-											</button>
-											<ul id="demo_list" class="dropdown-menu" style="max-height:300px;overflow-y:scroll;">
-												<li><a href="#">Dropdown link</a></li>
-												<li><a href="#">Dropdown link</a></li>
-											</ul>
-										</div>
-										<button type="button" class="btn btn-success" onclick="$('#load_file').click();"><span class="glyphicon glyphicon-folder-open"></span> Select game...</button>
-									</div>
+			<span id="button_pad">
+				<span class="psp_button" id="button_cross">X</span>
+				<span class="psp_button" id="button_circle">C</span>
+				<span class="psp_button" id="button_triangle">T</span>
+				<span class="psp_button" id="button_square">S</span>
+			</span>
 
-									<form action="javascript:void(0)" method="get">
-										<div class="input-group input-group" style="margin-top:10px;">
-											<span class="input-group-addon">URL</span>
-											<input type="text" class="form-control" placeholder="http://.../game.iso" id="gameUrl">
-											<span class="input-group-btn">
-												<button class="btn btn-default" type="submit" onclick="selectFile($('#gameUrl').val());">Open</button>
-											</span>
-										</div>
-									</form>
+			<span id="lr_pad">
+				<span class="psp_button" id="button_l">l</span>
+				<span class="psp_button" id="button_r">r</span>
+			</span>
 
-								</div>
-								<div class="panel-footer" style="color:#777;"><small><small>Currently the emulator can play ELF, PBP, ISO, CSO and ZIP files.</small></small></div>
-							</div>
-							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-git"></span> Lastest changes</h3></div>
-								<div class="panel-body">
-									<div id="github_info" style="font-size:0.7em;height:160px;overflow-y:auto;"></div>
-									<script type="text/javascript">
-										//function githubapicallback(data) {
-										//	alert(data);
-										//}
-
-										/*
-										function loadGithubFromCache() {
-											var cache = JSON.parse(localStorage['github_cache']);
-											var response = cache.response;
-
-											if (response.meta.status >= 400) {
-												$('#github_info').html("Couldn't retrieve info from github");
-											} else {
-												$('#github_info').html('');
-												response.data.forEach(function (item) {
-													var i = $('<div />').text(moment(item.commit.committer.date).format('YYYY-MM-DD (HH:mm)') + ' - ' + item.sha.substr(0, 10));
-													i.append(' <a href="' + htmlspecialchars(item.html_url) + '" target="_blank" style="color:#777;"><span class="fa fa-plus-circle"></a>');
-													$('#github_info').append(i);
-													var i = $('<div style="white-space: pre-wrap;color:#777;padding-bottom:8px;font-size:0.9em;" />').text(item.commit.message);
-													$('#github_info').append(i);
-												});
-											}
-										}
-
-										if (localStorage['github_cache'] && ((Date.now() - JSON.parse(localStorage['github_cache']).time) < 3600)) {
-											loadGithubFromCache();
-										} else {
-											$.ajax({
-												url: 'https://api.github.com/repos/jspspemu/jspspemu/commits?page=1&per_page=15&callback=githubapicallback',
-												dataType: 'jsonp'
-											}).done(function (response) {
-												localStorage['github_cache'] = JSON.stringify({ response: response, time: Date.now() });
-												loadGithubFromCache();
-											});
-										}
-										*/
-									</script>
-								</div>
-							</div>
-
-						</div>
-						<div class="col-xs-3">
-							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="fa fa-info-circle"></span> Version</h3></div>
-								<div class="panel-body" id="git_version" style="min-height:48px;">
-									<span id="version-gitdescribe"></span>
-								</div>
-							</div>
-							<script type="text/javascript">
-								/*
-								$.ajax({
-									url: ".gitdescribe"
-								}).done(function (data) {
-									$("#version-gitdescribe").html(data + ' (<span style="font-size:0.8em;">' + moment(document.lastModified).format("YYYY-MM-DD HH:mm") + '</span>)');
-								});
-								*/
-							</script>
-							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-wrench"></span> Tools</h3></div>
-								<div class="panel-body">
-									<ul class="nav nav-pills nav-stacked">
-										<li><a href="javascript:requestFullScreen();"><span class="glyphicon glyphicon-fullscreen"></span> Fullscreen</a></li>
-										<li><a href="javascript:emulator.toggleDropbox();"><span class="glyphicon glyphicon-cloud"></span> Dropbox <small>(<span id="dropbox" style="color:white;"></span>)</small></a></li>
-										<li><a href="javascript:emulator.memory.dump();"><span class="glyphicon glyphicon-floppy-disk"></span> Memory dump</a></li>
-									</ul>
-								</div>
-							</div>
-							<div class="panel panel-default">
-								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-heart"></span> Care</h3></div>
-								<div class="panel-body">
-									<center>
-									<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
-										<input type="hidden" name="cmd" value="_s-xclick">
-										<input type="hidden" name="hosted_button_id" value="PEJGCR7VC56U8">
-										<input type="image" src="data/docs/paypal-donate-button.png" border="0" name="submit" alt="Donate via PayPal">
-									</form>
-									</center>
-								</div>
-							</div>
-							<!--
-							<div class="panel panel-default">
-								<div class="panel-heading">
-									<h3 class="panel-title"><span class="glyphicon glyphicon-user"></span> Chat</h3>
-								</div>
-
-								<div class="panel-body">
-								</div>
-							</div>
-							-->
-						</div>
-					</div>
-				</div>
-			</div>
-			<div id="touch_overlay" style="z-index:1000;position:absolute;width:480px;height:272px;"></div>
-			<div id="touch_buttons_font" style="position:absolute;">
-				<div id="touch_buttons">
-					<span id="directional_pad">
-						<span class="psp_button" id="button_left">2</span>
-						<span class="psp_button" id="button_up">3</span>
-						<span class="psp_button" id="button_right">1</span>
-						<span class="psp_button" id="button_down">4</span>
-						<!--
-						<span class="psp_button" id="button_up_right">5</span>
-						<span class="psp_button" id="button_down_right">6</span>
-						<span class="psp_button" id="button_up_left">7</span>
-						<span class="psp_button" id="button_down_left">8</span>
-							-->
-					</span>
-
-					<span id="button_pad">
-						<span class="psp_button" id="button_cross">X</span>
-						<span class="psp_button" id="button_circle">C</span>
-						<span class="psp_button" id="button_triangle">T</span>
-						<span class="psp_button" id="button_square">S</span>
-					</span>
-
-					<span id="lr_pad">
-						<span class="psp_button" id="button_l">l</span>
-						<span class="psp_button" id="button_r">r</span>
-					</span>
-
-					<span id="select_start_pad">
-						<span class="psp_button" id="button_menu" style="font:0.4em Arial;">MENU</span>
-						<span class="psp_button" id="button_start">A</span>
-						<span class="psp_button" id="button_select">B</span>
-					</span>
-				</div>
-			</div>
-			<canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
-			<!--
-			<canvas id="webgl_canvas" width="480" height="272" style="background: black; width: 480px; height: 272px; border: 0; display: none; "></canvas>
-			<canvas id="webgl_canvas" width="1920" height="1044" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-			<canvas id="webgl_canvas" width="1440" height="816" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-			-->
-			<canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-
+			<span id="select_start_pad">
+				<span class="psp_button" id="button_menu">MENU</span>
+				<span class="psp_button" id="button_start">A</span>
+				<span class="psp_button" id="button_select">B</span>
+			</span>
 		</div>
-		<div id="thread_list" style="color:white;"></div>
-		<div id="output"></div>
+
+		<canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
+		<canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
+			
+		<input type="file" id="load_file" />
 	</div>
 
-	<div class="modal fade" id="shareModal" tabindex="-1" role="dialog" aria-labelledby="shareModalLabel" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-					<h4 class="modal-title" id="shareModalLabel">Share</h4>
-				</div>
-				<div class="modal-body">
-					<div>URL:</div>
-					<div><input type="text" id="shareUrl" value="" style="width:100%;" /></div>
-					<div>HTML:</div>
-					<div><textarea id="shareIframe" style="width:100%;"></textarea></div>
-					<div>Embedding:</div>
-					<div><a href="http://blog.jspspemu.com/2014/05/streaming-psp-games-embedding-and-cors.html" target="_blank">Guide for embedding and hosting games and demos: CORS</a></div>
-					<button type="button" class="btn btn-default" data-dismiss="modal" style="float:right;margin-top:-30px;">Close</button>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<div class="modal fade" id="helpModal" tabindex="-1" role="dialog" aria-labelledby="helpModalLabel" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-					<h4 class="modal-title" id="helpModalLabel">Help</h4>
-				</div>
-				<div class="modal-body">
-					<p>Author: <a href="http://cballesterosvelasco.es/" target="_blank">Carlos Ballesteros Velasco (soywiz)</a></p>
-					<p>Controls: Gamepad: You can connect a <a href="http://www.motioninjoy.com/download" target="_blank">ps3 controller</a> <a href="http://betterds3.ciebiera.net/" target="_blank">[2]</a></p>
-					<p>Controls: Keyboard:</p>
-					<ul>
-						<li><strong>W/A/S/D</strong>: Triangle/Square/Cross/Circle</li>
-						<li><strong>I/J/K/L</strong>: Simulated analogic pad</li>
-						<li><strong>Q/E</strong>: Left and Right triggers</li>
-						<li><strong>Return/Space</strong>: Start/Select</li>
-						<li><strong>Cursor Keys</strong>: Digital pad</li>
-					</ul>
-					<button type="button" class="btn btn-default" data-dismiss="modal" style="float:right;margin-top:-30px;">Close</button>
-				</div>
-			</div>
-		</div>
-	</div>
+    <script type="text/javascript" src="workertask.js"></script>
+    <script type="text/javascript" src="data/MediaEngine.js"></script>
+    <script type="text/javascript" src="jspspemu.js"></script>
+	<script type="text/javascript">require('src/app');</script>
 </body>
 </html>

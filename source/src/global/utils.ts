@@ -997,8 +997,12 @@ class Promise2<T> implements Thenable<T> {
 }
 
 class DomHelp {
+	constructor(e:HTMLElement);
+	constructor(e:any);
 	constructor(public e:HTMLElement) {
 	}
+	
+	private get e2() { return <Window><any>this.e; }
 	
 	static fromId(e:string) {
 		return new DomHelp(document.getElementById(e));
@@ -1007,6 +1011,17 @@ class DomHelp {
 	mousedown(callback: (e:MouseEvent) => void) { return this.on('mousedown', callback); }
 	mouseup(callback: (e:MouseEvent) => void) { return this.on('mouseup', callback); }
 	mousemove(callback: (e:MouseEvent) => void) { return this.on('mousemove', callback); }
+	click(callback?: (e:MouseEvent) => void) {
+		if (callback == null) this.e.click();
+		return this.on('click', callback);
+	}
+	showToggle() {
+		if (this.e.style.visibility == 'visible') {
+			this.hide();
+		} else {
+			this.show();
+		}
+	}
 	
 	hide() { if (this.e) this.e.style.visibility = 'hidden'; }
 	show() { if (this.e) this.e.style.visibility = 'visible'; }
@@ -1015,14 +1030,16 @@ class DomHelp {
 	set height(value:number) { if (this.e) this.e.style.height =  value + 'px'; }
 	set top(value:number) { if (this.e) this.e.style.top =  value + 'px'; }
 	set left(value:number) { if (this.e) this.e.style.left =  value + 'px'; }
+	get position() { return { top: this.top, left: this.left }; }
+	get size() { return { width: this.width, height: this.height }; }
 	
-	get width() { return this.e.offsetWidth; }
-	get height() { return this.e.offsetHeight; }
+	get width() { return this.e.offsetWidth || this.e2.innerWidth; }
+	get height() { return this.e.offsetHeight || this.e2.innerHeight; }
 	get top() { return this.e.offsetTop; }
 	get left() { return this.e.offsetLeft; }
 	
-	get html() { return this.e.innerHTML; }
-	set html(value:string) { this.e.innerHTML = value; }
+	get html() { return this.e ? this.e.innerHTML : ''; }
+	set html(value:string) { if (this.e) this.e.innerHTML = value; }
 	
 	val() {
 		return this.e.innerText;
@@ -1038,13 +1055,9 @@ class DomHelp {
 		if (this.e) this.e.addEventListener(event, callback);
 	}
 	
-	removeClass(clazz:string) {
-		if (this.e) this.e.className = this.e.className.replace(clazz, ''); 
-	}
-
-	addClass(clazz:string) {
-		if (this.e) this.e.className = `${this.e.className} ${clazz}`; 
-	}
+	removeClass(clazz:string) { if (this.e) this.e.className = this.e.className.replace(clazz, '');  }
+	addClass(clazz:string) { if (this.e) this.e.className = `${this.e.className} ${clazz}`;  }
+	toggleClass(clazz:string, value:boolean) { if (value) this.addClass(clazz); else this.removeClass(clazz); }
 }
 
 (<any>window).Promise2 = Promise2;

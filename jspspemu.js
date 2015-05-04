@@ -981,25 +981,43 @@ var DomHelp = (function () {
     function DomHelp(e) {
         this.e = e;
     }
+    Object.defineProperty(DomHelp.prototype, "e2", {
+        get: function () { return this.e; },
+        enumerable: true,
+        configurable: true
+    });
     DomHelp.fromId = function (e) {
         return new DomHelp(document.getElementById(e));
     };
     DomHelp.prototype.mousedown = function (callback) { return this.on('mousedown', callback); };
     DomHelp.prototype.mouseup = function (callback) { return this.on('mouseup', callback); };
     DomHelp.prototype.mousemove = function (callback) { return this.on('mousemove', callback); };
+    DomHelp.prototype.click = function (callback) {
+        if (callback == null)
+            this.e.click();
+        return this.on('click', callback);
+    };
+    DomHelp.prototype.showToggle = function () {
+        if (this.e.style.visibility == 'visible') {
+            this.hide();
+        }
+        else {
+            this.show();
+        }
+    };
     DomHelp.prototype.hide = function () { if (this.e)
         this.e.style.visibility = 'hidden'; };
     DomHelp.prototype.show = function () { if (this.e)
         this.e.style.visibility = 'visible'; };
     Object.defineProperty(DomHelp.prototype, "width", {
-        get: function () { return this.e.offsetWidth; },
+        get: function () { return this.e.offsetWidth || this.e2.innerWidth; },
         set: function (value) { if (this.e)
             this.e.style.width = value + 'px'; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(DomHelp.prototype, "height", {
-        get: function () { return this.e.offsetHeight; },
+        get: function () { return this.e.offsetHeight || this.e2.innerHeight; },
         set: function (value) { if (this.e)
             this.e.style.height = value + 'px'; },
         enumerable: true,
@@ -1019,9 +1037,20 @@ var DomHelp = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(DomHelp.prototype, "position", {
+        get: function () { return { top: this.top, left: this.left }; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "size", {
+        get: function () { return { width: this.width, height: this.height }; },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(DomHelp.prototype, "html", {
-        get: function () { return this.e.innerHTML; },
-        set: function (value) { this.e.innerHTML = value; },
+        get: function () { return this.e ? this.e.innerHTML : ''; },
+        set: function (value) { if (this.e)
+            this.e.innerHTML = value; },
         enumerable: true,
         configurable: true
     });
@@ -1036,14 +1065,14 @@ var DomHelp = (function () {
         if (this.e)
             this.e.addEventListener(event, callback);
     };
-    DomHelp.prototype.removeClass = function (clazz) {
-        if (this.e)
-            this.e.className = this.e.className.replace(clazz, '');
-    };
-    DomHelp.prototype.addClass = function (clazz) {
-        if (this.e)
-            this.e.className = this.e.className + " " + clazz;
-    };
+    DomHelp.prototype.removeClass = function (clazz) { if (this.e)
+        this.e.className = this.e.className.replace(clazz, ''); };
+    DomHelp.prototype.addClass = function (clazz) { if (this.e)
+        this.e.className = this.e.className + " " + clazz; };
+    DomHelp.prototype.toggleClass = function (clazz, value) { if (value)
+        this.addClass(clazz);
+    else
+        this.removeClass(clazz); };
     return DomHelp;
 })();
 window.Promise2 = Promise2;
@@ -2993,153 +3022,8 @@ function requireModules(moduleFiles) {
 },
 "src/app": function(module, exports, require) {
 ///<reference path="global.d.ts" />
-var _controller = require('./core/controller');
 var _emulator = require('./emulator');
-var PspCtrlButtons = _controller.PspCtrlButtons;
 var Emulator = _emulator.Emulator;
-var touch_overlay = document.getElementById('touch_overlay');
-function controllerRegister() {
-    var rects = [];
-    var generateRects = (function () {
-        var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
-        var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
-        [
-            { query: 'button_menu', button: 0 },
-            { query: 'button_select', button: PspCtrlButtons.select },
-            { query: 'button_start', button: PspCtrlButtons.start },
-            { query: 'button_up', button: PspCtrlButtons.up },
-            { query: 'button_left', button: PspCtrlButtons.left },
-            { query: 'button_down', button: PspCtrlButtons.down },
-            { query: 'button_right', button: PspCtrlButtons.right },
-            { query: 'button_l', button: PspCtrlButtons.leftTrigger },
-            { query: 'button_r', button: PspCtrlButtons.rightTrigger },
-            { query: 'button_cross', button: PspCtrlButtons.cross },
-            { query: 'button_circle', button: PspCtrlButtons.circle },
-            { query: 'button_square', button: PspCtrlButtons.square },
-            { query: 'button_triangle', button: PspCtrlButtons.triangle },
-        ].forEach(function (button) {
-            var query = document.getElementById(button.query);
-            var item_pos = { top: query.offsetTop, left: query.offsetLeft };
-            var query_width = query.offsetWidth, query_height = query.offsetHeight;
-            var item_left = (item_pos.left - overlay_pos.left) / overlay_width;
-            var item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
-            var item_top = (item_pos.top - overlay_pos.top) / overlay_height;
-            var item_bottom = (item_pos.top - overlay_pos.top + query_height) / overlay_height;
-            rects.push({
-                left: item_left,
-                right: item_right,
-                top: item_top,
-                bottom: item_bottom,
-                name: button.query,
-                button: button.button
-            });
-        });
-    });
-    generateRects();
-    var locateRect = (function (screenX, screenY) {
-        var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
-        var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
-        var x = (screenX - overlay_pos.left) / overlay_width;
-        var y = (screenY - overlay_pos.top) / overlay_height;
-        for (var _i = 0; _i < rects.length; _i++) {
-            var rect = rects[_i];
-            if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
-                return rect;
-            }
-        }
-        return null;
-    });
-    var touchesState = {};
-    function simulateButtonDown(button) {
-        if (emulator.controller)
-            emulator.controller.simulateButtonDown(button);
-    }
-    function simulateButtonUp(button) {
-        if (emulator.controller)
-            emulator.controller.simulateButtonUp(button);
-    }
-    function touchStart(touches) {
-        for (var _i = 0; _i < touches.length; _i++) {
-            var touch = touches[_i];
-            touchesState[touch.identifier] = { rect: null };
-        }
-        touchMove(touches);
-    }
-    function touchMove(touches) {
-        for (var _i = 0; _i < touches.length; _i++) {
-            var touch = touches[_i];
-            var rect = locateRect(touch.clientX, touch.clientY);
-            var touchState = touchesState[touch.identifier];
-            if (touchState.rect) {
-                DomHelp.fromId(touchState.rect.name).removeClass('pressed');
-                simulateButtonUp(touchState.rect.button);
-            }
-            touchState.rect = rect;
-            if (rect) {
-                DomHelp.fromId(rect.name).addClass('pressed');
-                simulateButtonDown(rect.button);
-            }
-        }
-    }
-    function touchEnd(touches) {
-        for (var _i = 0; _i < touches.length; _i++) {
-            var touch = touches[_i];
-            var touchState = touchesState[touch.identifier];
-            if (touchState && touchState.rect) {
-                DomHelp.fromId(touchState.rect.name).removeClass('pressed');
-                simulateButtonUp(touchState.rect.button);
-            }
-            delete touchesState[touch.identifier];
-        }
-    }
-    DomHelp.fromId('touch_overlay').on('touchstart', function (e) {
-        touchStart(e.originalEvent['changedTouches']);
-        e.preventDefault();
-    });
-    DomHelp.fromId('touch_overlay').on('touchmove', function (e) {
-        touchMove(e.originalEvent['changedTouches']);
-        e.preventDefault();
-    });
-    DomHelp.fromId('touch_overlay').on('touchend', function (e) {
-        touchEnd(e.originalEvent['changedTouches']);
-        e.preventDefault();
-    });
-    var pressing = false;
-    function generateTouchEvent(x, y) { return { clientX: x, clientY: y, identifier: 0 }; }
-    DomHelp.fromId('touch_overlay').mousedown(function (e) {
-        pressing = true;
-        touchStart([generateTouchEvent(e.clientX, e.clientY)]);
-    });
-    DomHelp.fromId('touch_overlay').mouseup(function (e) {
-        pressing = false;
-        touchEnd([generateTouchEvent(e.clientX, e.clientY)]);
-    });
-    DomHelp.fromId('touch_overlay').mousemove(function (e) {
-        if (pressing) {
-            touchMove([generateTouchEvent(e.clientX, e.clientY)]);
-        }
-    });
-}
-var emulator = new Emulator();
-var _window = window;
-_window['emulator'] = emulator;
-var sampleDemo = undefined;
-var game_menudiv = document.getElementById('game_menu');
-if (document.location.hash) {
-    sampleDemo = document.location.hash.substr(1);
-    if (sampleDemo.startsWith('samples/')) {
-        sampleDemo = 'data/' + sampleDemo;
-    }
-}
-else {
-    game_menudiv.style.visibility = 'visible';
-}
-if (sampleDemo) {
-    emulator.downloadAndExecuteAsync(sampleDemo);
-}
-window.addEventListener('load', function () {
-    controllerRegister();
-});
 var demos = [
     "-CPU",
     "data/benchmark/benchmark.prx",
@@ -3205,40 +3089,8 @@ var demos = [
     "PSPTris.zip",
     "Alex4C.zip",
 ];
-function updateScaleWith(scale) {
-    var width = 480 * scale, height = 272 * scale;
-    DomHelp.fromId('body').width = width;
-    $('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
-    $('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-    $('#touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-    DomHelp.fromId('game_menu')
-        .css('width', '960px')
-        .css('height', '544px')
-        .css('-webkit-transform-origin', '0 0')
-        .css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-        .css('-moz-transform-origin', '0 0')
-        .css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-        .css('-ms-transform-origin', '0 0')
-        .css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-        .css('transform-origin', '0 0')
-        .css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')');
-    DomHelp.fromId('game_menu_toggler')
-        .css('-webkit-transform-origin', '100% 0')
-        .css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-        .css('-moz-transform-origin', '100% 0')
-        .css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-        .css('-ms-transform-origin', '100% 0')
-        .css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-        .css('transform-origin', '100% 0')
-        .css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')');
-}
-function updateScale() {
-    updateScaleWith(parseFloat(DomHelp.fromId('scale').val()));
-}
-DomHelp.fromId('scale').on('change', function () { updateScale(); });
-updateScale();
-DomHelp.fromId('demo_list').html('');
-DomHelp.fromId('files').html('');
+DomHelp.fromId('demo_list').html = '';
+DomHelp.fromId('files').html = '';
 var selectedItem = document.location.hash.substr(1);
 function selectFile(file) {
     console.clear();
@@ -3246,92 +3098,92 @@ function selectFile(file) {
     document.location.reload();
 }
 demos.forEach(function (fileName) {
-    if (fileName.substr(0, 1) == '-') {
-        $('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
-        $('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
-    }
-    else {
-        var path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
-        $('#demo_list').append($('<li class="' + ((selectedItem == path) ? 'active' : '') + '"><a href="javascript:void(0)" onclick="selectFile(\'' + path + '\')">' + fileName + '</a></li>'));
-        var item = $('<option value="' + path + '">' + fileName + '</option>');
-        if (selectedItem == path)
-            item.attr('selected', 'selected');
-        $('#files').append(item);
-    }
 });
-$('#files').change(function () {
-    selectFile($('#files').val());
+DomHelp.fromId('files').on('change', function () {
+    selectFile(DomHelp.fromId('files').val());
 });
-$('#load_file').change(function (e) {
-    if (e.target.files && e.target.files.length > 0) {
-        console.clear();
-        emulator.executeFileAsync(e.target.files[0]);
-    }
-});
-$(window).on('hashchange', function () {
+new DomHelp(window).on('hashchange', function () {
     console.clear();
     emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
 });
-$('#touch_buttons_font').css('display', isTouchDevice() ? 'block' : 'none');
-require('src/app');
-function onResize() {
-    var position = $('#canvas_container').position();
-    var availableHeight = $(window).height() - position.top;
-    var availableWidth = $(window).width();
-    var scale1 = availableHeight / 272;
-    var scale2 = availableWidth / 480;
-    var steps = 0.5;
-    var scale = Math.min(scale1, scale2);
-    if (scale < steps)
-        scale = steps;
-    updateScaleWith(scale);
-    var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
-    if (window.innerHeight > window.innerWidth)
-        isFullScreen = false;
-    $(document.body).toggleClass('fullscreen', isFullScreen);
-}
-$(window).on('resize', function (e) {
-    onResize();
-});
-onResize();
+var FillScreenPlugin = (function () {
+    function FillScreenPlugin() {
+    }
+    FillScreenPlugin.use = function () {
+        function updateScaleWith(scale) {
+            var width = 480 * scale, height = 272 * scale;
+            DomHelp.fromId('body').width = width;
+            DomHelp.fromId('canvas').css('width', width + 'px').css('height', height + 'px');
+            DomHelp.fromId('webgl_canvas').css('width', width + 'px').css('height', height + 'px');
+            DomHelp.fromId('touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+        }
+        function onResize() {
+            var position = DomHelp.fromId('canvas_container').position;
+            var windowSize = new DomHelp(window).size;
+            var availableHeight = windowSize.height - position.top;
+            var availableWidth = windowSize.width;
+            var scale1 = availableHeight / 272;
+            var scale2 = availableWidth / 480;
+            var steps = 0.5;
+            var scale = Math.min(scale1, scale2);
+            if (scale < steps)
+                scale = steps;
+            updateScaleWith(scale);
+            var _document = document;
+            var isFullScreen = (_document.webkitIsFullScreen || _document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
+            if (window.innerHeight > window.innerWidth)
+                isFullScreen = false;
+            new DomHelp(document.body).toggleClass('fullscreen', isFullScreen);
+            DomHelp.fromId('touch_buttons').css('display', isTouchDevice() ? 'block' : 'none');
+            if (windowSize.height >= DomHelp.fromId('canvas').height * 2) {
+                DomHelp.fromId('touch_buttons').e.className = 'standalone';
+            }
+            else {
+                DomHelp.fromId('touch_buttons').e.className = '';
+            }
+        }
+        new DomHelp(window).on('resize', function (e) { onResize(); });
+        onResize();
+    };
+    return FillScreenPlugin;
+})();
 function requestFullScreen() {
-    if (document.body['requestFullScreen']) {
-        document.body['requestFullScreen']();
+    var _document = document;
+    if (_document.body['requestFullScreen']) {
+        _document.body['requestFullScreen']();
     }
-    else if (document.body['webkitRequestFullScreen']) {
-        document.body['webkitRequestFullScreen']();
+    else if (_document.body['webkitRequestFullScreen']) {
+        _document.body['webkitRequestFullScreen']();
     }
-    else if (document.body['mozRequestFullScreen']) {
-        document.body['mozRequestFullScreen']();
-    }
-}
-emulator.checkPlugins();
-window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
-    console.error(errorObj);
-    console.error(errorObj['stack']);
-    alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
-};
-var inCrossWalk = window.screen.show;
-if (screen.lockOrientation) {
-    screen.lockOrientation('landscape');
-}
-if (inCrossWalk) {
-    requestFullScreen();
-}
-function openShareModal() {
-    var hashShare = document.location.hash.replace(/^#+/, '');
-    if (!hashShare || !hashShare.length) {
-        alert("Open a game from an url to share");
-    }
-    else {
-        $('#shareUrl').val(document.location.href);
-        $('#shareIframe').val('<iframe src="' + document.location.href + '" width="640" height="362" style="border:0;"></iframe>');
-        $('#shareModal').modal({ show: 'true' });
+    else if (_document.body['mozRequestFullScreen']) {
+        _document.body['mozRequestFullScreen']();
     }
 }
-function openHelpModal() {
-    $('#helpModal').modal({ show: 'true' });
-}
+window.addEventListener('load', function () {
+    var emulator = new Emulator();
+    var _window = window;
+    _window['emulator'] = emulator;
+    var sampleDemo = undefined;
+    if (document.location.hash) {
+        sampleDemo = document.location.hash.substr(1);
+        if (sampleDemo.startsWith('samples/')) {
+            sampleDemo = 'data/' + sampleDemo;
+        }
+    }
+    if (sampleDemo) {
+        emulator.downloadAndExecuteAsync(sampleDemo);
+    }
+    emulator.checkPlugins();
+    FillScreenPlugin.use();
+    DomHelp.fromId('load_file').on('change', function (e) {
+        var target = e.target;
+        if (target.files && target.files.length > 0) {
+            console.clear();
+            emulator.executeFileAsync(target.files[0]);
+        }
+    });
+    DomHelp.fromId('body').removeClass('unready');
+});
 
 },
 "src/context": function(module, exports, require) {
@@ -3878,7 +3730,7 @@ exports.createNativeFunction = _core.createNativeFunction;
 
 },
 "src/core/cpu/assembler": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var instructions = require('./instructions');
 var Instructions = instructions.Instructions;
 var Instruction = instructions.Instruction;
@@ -3897,6 +3749,7 @@ var MipsAssembler = (function () {
         }
     };
     MipsAssembler.prototype.assemble = function (PC, line) {
+        //console.log(line);
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
@@ -3908,7 +3761,10 @@ var MipsAssembler = (function () {
         var instructionType = this.instructions.findByName(instructionName);
         var instruction = new Instruction(PC, instructionType.vm.value);
         var types = [];
-        var formatPattern = instructionType.format.replace('(', '\\(').replace(')', '\\)').replace(/(%\w+)/g, function (type) {
+        var formatPattern = instructionType.format
+            .replace('(', '\\(')
+            .replace(')', '\\)')
+            .replace(/(%\w+)/g, function (type) {
             types.push(type);
             switch (type) {
                 case '%J':
@@ -3920,7 +3776,8 @@ var MipsAssembler = (function () {
                 case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
                 default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
-        }).replace(/\s+/g, '\\s*');
+        })
+            .replace(/\s+/g, '\\s*');
         var regex = new RegExp('^' + formatPattern + '$', '');
         var matches = instructionArguments.match(regex);
         if (matches === null) {
@@ -3985,7 +3842,7 @@ var MipsDisassembler = (function () {
     MipsDisassembler.prototype.disassemble = function (instruction) {
         var _this = this;
         var instructionType = this.instructions.findByData(instruction.data);
-        var arguments = instructionType.format.replace(/(\%\w+)/g, function (type) {
+        var args = instructionType.format.replace(/(\%\w+)/g, function (type) {
             switch (type) {
                 case '%s':
                     return _this.encodeRegister(instruction.rs);
@@ -3999,7 +3856,7 @@ var MipsDisassembler = (function () {
                 default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
-        return instructionType.name + ' ' + arguments;
+        return instructionType.name + ' ' + args;
     };
     return MipsDisassembler;
 })();
@@ -4007,22 +3864,18 @@ exports.MipsDisassembler = MipsDisassembler;
 
 },
 "src/core/cpu/ast_builder": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var state = require('./state');
 var ANode = (function () {
     function ANode() {
     }
-    ANode.prototype.toJs = function () {
-        return '';
-    };
-    ANode.prototype.optimize = function () {
-        return this;
-    };
+    ANode.prototype.toJs = function () { return ''; };
+    ANode.prototype.optimize = function () { return this; };
     return ANode;
 })();
 exports.ANode = ANode;
@@ -4048,9 +3901,7 @@ var ANodeStmReturn = (function (_super) {
     function ANodeStmReturn() {
         _super.apply(this, arguments);
     }
-    ANodeStmReturn.prototype.toJs = function () {
-        return 'return;';
-    };
+    ANodeStmReturn.prototype.toJs = function () { return 'return;'; };
     return ANodeStmReturn;
 })(ANodeStm);
 exports.ANodeStmReturn = ANodeStmReturn;
@@ -4102,9 +3953,7 @@ var ANodeStmRaw = (function (_super) {
         _super.call(this);
         this.content = content;
     }
-    ANodeStmRaw.prototype.toJs = function () {
-        return this.content;
-    };
+    ANodeStmRaw.prototype.toJs = function () { return this.content; };
     return ANodeStmRaw;
 })(ANodeStm);
 exports.ANodeStmRaw = ANodeStmRaw;
@@ -4114,9 +3963,7 @@ var ANodeStmExpr = (function (_super) {
         _super.call(this);
         this.expr = expr;
     }
-    ANodeStmExpr.prototype.toJs = function () {
-        return this.expr.toJs() + ';';
-    };
+    ANodeStmExpr.prototype.toJs = function () { return this.expr.toJs() + ';'; };
     return ANodeStmExpr;
 })(ANodeStm);
 exports.ANodeStmExpr = ANodeStmExpr;
@@ -4127,9 +3974,7 @@ var ANodeAllocVarStm = (function (_super) {
         this.name = name;
         this.initialValue = initialValue;
     }
-    ANodeAllocVarStm.prototype.toJs = function () {
-        return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';';
-    };
+    ANodeAllocVarStm.prototype.toJs = function () { return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';'; };
     return ANodeAllocVarStm;
 })(ANodeStm);
 exports.ANodeAllocVarStm = ANodeAllocVarStm;
@@ -4146,9 +3991,7 @@ var ANodeExprLValue = (function (_super) {
     function ANodeExprLValue() {
         _super.apply(this, arguments);
     }
-    ANodeExprLValue.prototype.toAssignJs = function (right) {
-        return '';
-    };
+    ANodeExprLValue.prototype.toAssignJs = function (right) { return ''; };
     return ANodeExprLValue;
 })(ANodeExpr);
 exports.ANodeExprLValue = ANodeExprLValue;
@@ -4186,12 +4029,8 @@ var ANodeExprLValueVar = (function (_super) {
         _super.call(this);
         this.name = name;
     }
-    ANodeExprLValueVar.prototype.toAssignJs = function (right) {
-        return this.name + ' = ' + right.toJs();
-    };
-    ANodeExprLValueVar.prototype.toJs = function () {
-        return this.name;
-    };
+    ANodeExprLValueVar.prototype.toAssignJs = function (right) { return this.name + ' = ' + right.toJs(); };
+    ANodeExprLValueVar.prototype.toJs = function () { return this.name; };
     return ANodeExprLValueVar;
 })(ANodeExprLValue);
 exports.ANodeExprLValueVar = ANodeExprLValueVar;
@@ -4201,9 +4040,7 @@ var ANodeExprI32 = (function (_super) {
         _super.call(this);
         this.value = value;
     }
-    ANodeExprI32.prototype.toJs = function () {
-        return String(this.value);
-    };
+    ANodeExprI32.prototype.toJs = function () { return String(this.value); };
     return ANodeExprI32;
 })(ANodeExpr);
 exports.ANodeExprI32 = ANodeExprI32;
@@ -4249,9 +4086,7 @@ var ANodeExprBinop = (function (_super) {
         if (!this.right || !this.right.toJs)
             debugger;
     }
-    ANodeExprBinop.prototype.toJs = function () {
-        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
-    };
+    ANodeExprBinop.prototype.toJs = function () { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; };
     return ANodeExprBinop;
 })(ANodeExpr);
 exports.ANodeExprBinop = ANodeExprBinop;
@@ -4262,9 +4097,7 @@ var ANodeExprUnop = (function (_super) {
         this.op = op;
         this.right = right;
     }
-    ANodeExprUnop.prototype.toJs = function () {
-        return '(' + this.op + '(' + this.right.toJs() + '))';
-    };
+    ANodeExprUnop.prototype.toJs = function () { return '(' + this.op + '(' + this.right.toJs() + '))'; };
     return ANodeExprUnop;
 })(ANodeExpr);
 exports.ANodeExprUnop = ANodeExprUnop;
@@ -4279,9 +4112,7 @@ var ANodeExprAssign = (function (_super) {
         if (!this.right)
             debugger;
     }
-    ANodeExprAssign.prototype.toJs = function () {
-        return this.left.toAssignJs(this.right);
-    };
+    ANodeExprAssign.prototype.toJs = function () { return this.left.toAssignJs(this.right); };
     return ANodeExprAssign;
 })(ANodeExpr);
 exports.ANodeExprAssign = ANodeExprAssign;
@@ -4291,9 +4122,7 @@ var ANodeExprArray = (function (_super) {
         _super.call(this);
         this._items = _items;
     }
-    ANodeExprArray.prototype.toJs = function () {
-        return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']';
-    };
+    ANodeExprArray.prototype.toJs = function () { return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']'; };
     return ANodeExprArray;
 })(ANodeExpr);
 exports.ANodeExprArray = ANodeExprArray;
@@ -4310,9 +4139,7 @@ var ANodeExprCall = (function (_super) {
                 debugger;
         });
     }
-    ANodeExprCall.prototype.toJs = function () {
-        return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')';
-    };
+    ANodeExprCall.prototype.toJs = function () { return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')'; };
     return ANodeExprCall;
 })(ANodeExpr);
 exports.ANodeExprCall = ANodeExprCall;
@@ -4338,61 +4165,27 @@ exports.ANodeStmIf = ANodeStmIf;
 var AstBuilder = (function () {
     function AstBuilder() {
     }
-    AstBuilder.prototype.assign = function (ref, value) {
-        return new ANodeExprAssign(ref, value);
-    };
-    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
-        return new ANodeStmIf(cond, codeTrue, codeFalse);
-    };
-    AstBuilder.prototype.binop = function (left, op, right) {
-        return new ANodeExprBinop(left, op, right);
-    };
-    AstBuilder.prototype.unop = function (op, right) {
-        return new ANodeExprUnop(op, right);
-    };
-    AstBuilder.prototype.binop_i = function (left, op, right) {
-        return this.binop(left, op, this.imm32(right));
-    };
-    AstBuilder.prototype.imm32 = function (value) {
-        return new ANodeExprI32(value);
-    };
-    AstBuilder.prototype.imm_f = function (value) {
-        return new ANodeExprFloat(value);
-    };
-    AstBuilder.prototype.u_imm32 = function (value) {
-        return new ANodeExprU32(value);
-    };
-    AstBuilder.prototype.stm = function (expr) {
-        return expr ? (new ANodeStmExpr(expr)) : new ANodeStm();
-    };
-    AstBuilder.prototype.stms = function (stms) {
-        return new ANodeStmList(stms);
-    };
-    AstBuilder.prototype.array = function (exprList) {
-        return new ANodeExprArray(exprList);
-    };
+    AstBuilder.prototype.assign = function (ref, value) { return new ANodeExprAssign(ref, value); };
+    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) { return new ANodeStmIf(cond, codeTrue, codeFalse); };
+    AstBuilder.prototype.binop = function (left, op, right) { return new ANodeExprBinop(left, op, right); };
+    AstBuilder.prototype.unop = function (op, right) { return new ANodeExprUnop(op, right); };
+    AstBuilder.prototype.binop_i = function (left, op, right) { return this.binop(left, op, this.imm32(right)); };
+    AstBuilder.prototype.imm32 = function (value) { return new ANodeExprI32(value); };
+    AstBuilder.prototype.imm_f = function (value) { return new ANodeExprFloat(value); };
+    AstBuilder.prototype.u_imm32 = function (value) { return new ANodeExprU32(value); };
+    AstBuilder.prototype.stm = function (expr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); };
+    AstBuilder.prototype.stms = function (stms) { return new ANodeStmList(stms); };
+    AstBuilder.prototype.array = function (exprList) { return new ANodeExprArray(exprList); };
     AstBuilder.prototype.arrayNumbers = function (values) {
         var _this = this;
         return this.array(values.map(function (value) { return _this.imm_f(value); }));
     };
-    AstBuilder.prototype.call = function (name, exprList) {
-        return new ANodeExprCall(name, exprList);
-    };
-    AstBuilder.prototype.jump = function (label) {
-        return new ANodeStmJump(label);
-    };
-    AstBuilder.prototype._return = function () {
-        return new ANodeStmReturn();
-    };
-    AstBuilder.prototype.raw_stm = function (content) {
-        return new ANodeStmRaw(content);
-    };
-    AstBuilder.prototype.raw = function (content) {
-        return new ANodeExprLValueVar(content);
-    };
-    AstBuilder.prototype.allocVar = function (name, initialValue) {
-        return new ANodeAllocVarStm(name, initialValue);
-    };
+    AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
+    AstBuilder.prototype.jump = function (label) { return new ANodeStmJump(label); };
+    AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
+    AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
+    AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
+    AstBuilder.prototype.allocVar = function (name, initialValue) { return new ANodeAllocVarStm(name, initialValue); };
     return AstBuilder;
 })();
 exports.AstBuilder = AstBuilder;
@@ -4405,9 +4198,7 @@ var MipsAstBuilder = (function (_super) {
         if (comment === void 0) { comment = '-'; }
         return new ANodeStmRaw("debugger; // " + comment + "\n");
     };
-    MipsAstBuilder.prototype.functionPrefix = function () {
-        return this.stm();
-    };
+    MipsAstBuilder.prototype.functionPrefix = function () { return this.stm(); };
     MipsAstBuilder.prototype.gpr = function (index) {
         if (index === 0)
             return new ANodeExprLValueVar('0');
@@ -4418,191 +4209,79 @@ var MipsAstBuilder = (function (_super) {
             return new ANodeExprLValueVar('0');
         return new ANodeExprLValueVar('state.gpr_f[' + index + ']');
     };
-    MipsAstBuilder.prototype.tempr = function (index) {
-        return new ANodeExprLValueVar('state.temp[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vector_vs = function (index) {
-        return new ANodeExprLValueVar('state.vector_vs[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vector_vt = function (index) {
-        return new ANodeExprLValueVar('state.vector_vt[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfpr = function (index) {
-        return new ANodeExprLValueVar('state.vfpr[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfprc = function (index) {
-        return new ANodeExprLValueVar('state.vfprc[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfpr_i = function (index) {
-        return new ANodeExprLValueVar('state.vfpr_i[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fpr = function (index) {
-        return new ANodeExprLValueVar('state.fpr[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fpr_i = function (index) {
-        return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fcr31_cc = function () {
-        return new ANodeExprLValueVar('state.fcr31_cc');
-    };
-    MipsAstBuilder.prototype.lo = function () {
-        return new ANodeExprLValueVar('state.LO');
-    };
-    MipsAstBuilder.prototype.hi = function () {
-        return new ANodeExprLValueVar('state.HI');
-    };
-    MipsAstBuilder.prototype.ic = function () {
-        return new ANodeExprLValueVar('state.IC');
-    };
-    MipsAstBuilder.prototype.pc = function () {
-        return new ANodeExprLValueVar('state.PC');
-    };
+    MipsAstBuilder.prototype.tempr = function (index) { return new ANodeExprLValueVar('state.temp[' + index + ']'); };
+    MipsAstBuilder.prototype.vector_vs = function (index) { return new ANodeExprLValueVar('state.vector_vs[' + index + ']'); };
+    MipsAstBuilder.prototype.vector_vt = function (index) { return new ANodeExprLValueVar('state.vector_vt[' + index + ']'); };
+    MipsAstBuilder.prototype.vfpr = function (index) { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); };
+    MipsAstBuilder.prototype.vfprc = function (index) { return new ANodeExprLValueVar('state.vfprc[' + index + ']'); };
+    MipsAstBuilder.prototype.vfpr_i = function (index) { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); };
+    MipsAstBuilder.prototype.fpr = function (index) { return new ANodeExprLValueVar('state.fpr[' + index + ']'); };
+    MipsAstBuilder.prototype.fpr_i = function (index) { return new ANodeExprLValueVar('state.fpr_i[' + index + ']'); };
+    MipsAstBuilder.prototype.fcr31_cc = function () { return new ANodeExprLValueVar('state.fcr31_cc'); };
+    MipsAstBuilder.prototype.lo = function () { return new ANodeExprLValueVar('state.LO'); };
+    MipsAstBuilder.prototype.hi = function () { return new ANodeExprLValueVar('state.HI'); };
+    MipsAstBuilder.prototype.ic = function () { return new ANodeExprLValueVar('state.IC'); };
+    MipsAstBuilder.prototype.pc = function () { return new ANodeExprLValueVar('state.PC'); };
     MipsAstBuilder.prototype.VCC = function (index) {
         return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
     };
-    MipsAstBuilder.prototype.ra = function () {
-        return new ANodeExprLValueVar('state.gpr[31]');
-    };
-    MipsAstBuilder.prototype.branchflag = function () {
-        return new ANodeExprLValueVar('state.BRANCHFLAG');
-    };
-    MipsAstBuilder.prototype.branchpc = function () {
-        return new ANodeExprLValueVar('state.BRANCHPC');
-    };
+    MipsAstBuilder.prototype.ra = function () { return new ANodeExprLValueVar('state.gpr[31]'); };
+    MipsAstBuilder.prototype.branchflag = function () { return new ANodeExprLValueVar('state.BRANCHFLAG'); };
+    MipsAstBuilder.prototype.branchpc = function () { return new ANodeExprLValueVar('state.BRANCHPC'); };
     MipsAstBuilder.prototype.assignGpr = function (index, expr) {
         if (index == 0)
             return this.stm();
         return this.stm(this.assign(this.gpr(index), expr));
     };
-    MipsAstBuilder.prototype.assignIC = function (expr) {
-        return this.stm(this.assign(this.ic(), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
-        return this.stm(this.assign(this.fpr_i(index), expr));
-    };
+    MipsAstBuilder.prototype.assignIC = function (expr) { return this.stm(this.assign(this.ic(), expr)); };
+    MipsAstBuilder.prototype.assignFpr = function (index, expr) { return this.stm(this.assign(this.fpr(index), expr)); };
+    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) { return this.stm(this.assign(this.fpr_i(index), expr)); };
     return MipsAstBuilder;
 })(AstBuilder);
 exports.MipsAstBuilder = MipsAstBuilder;
 
 },
 "src/core/cpu/codegen": function(module, exports, require) {
-var instructions = require('./instructions');
+///<reference path="../../global.d.ts" />
 var _ast = require('./ast_builder');
 var ast;
-function assignGpr(index, expr) {
-    return ast.assignGpr(index, expr);
-}
-function assignFpr(index, expr) {
-    return ast.assignFpr(index, expr);
-}
-function assignFpr_I(index, expr) {
-    return ast.assignFpr_I(index, expr);
-}
-function assignIC(expr) {
-    return ast.assignIC(expr);
-}
-function fcr31_cc() {
-    return ast.fcr31_cc();
-}
-function fpr(index) {
-    return ast.fpr(index);
-}
-function fpr_i(index) {
-    return ast.fpr_i(index);
-}
-function gpr(index) {
-    return ast.gpr(index);
-}
-function gpr_f(index) {
-    return ast.gpr_f(index);
-}
-function tempr(index) {
-    return ast.tempr(index);
-}
-function vfpr(reg) {
-    return ast.vfpr(reg);
-}
-function vfprc(reg) {
-    return ast.vfprc(reg);
-}
-function vfpr_i(index) {
-    return ast.vfpr_i(index);
-}
-function immBool(value) {
-    return ast.imm32(value ? 1 : 0);
-}
-function imm32(value) {
-    return ast.imm32(value);
-}
-function imm_f(value) {
-    return ast.imm_f(value);
-}
-function u_imm32(value) {
-    return ast.u_imm32(value);
-}
-function unop(op, right) {
-    return ast.unop(op, right);
-}
-function binop(left, op, right) {
-    return ast.binop(left, op, right);
-}
-function binop_i(left, op, right) {
-    return ast.binop_i(left, op, right);
-}
-function _if(cond, codeTrue, codeFalse) {
-    return ast._if(cond, codeTrue, codeFalse);
-}
-function call(name, exprList) {
-    return ast.call(name, exprList);
-}
-function call_stm(name, exprList) {
-    return stm(ast.call(name, exprList));
-}
-function stm(expr) {
-    return ast.stm(expr);
-}
-function stms(stms) {
-    return ast.stms(stms);
-}
-function pc() {
-    return ast.pc();
-}
-function lo() {
-    return ast.lo();
-}
-function hi() {
-    return ast.hi();
-}
-function ic() {
-    return ast.ic();
-}
-function branchflag() {
-    return ast.branchflag();
-}
-function branchpc() {
-    return ast.branchpc();
-}
-function assign(ref, value) {
-    return ast.assign(ref, value);
-}
-function assign_stm(ref, value) {
-    return stm(ast.assign(ref, value));
-}
-function i_simm16(i) {
-    return imm32(i.imm16);
-}
-function i_uimm16(i) {
-    return u_imm32(i.u_imm16);
-}
-function rs_imm16(i) {
-    return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0));
-}
-function cast_uint(expr) {
-    return binop(expr, '>>>', ast.imm32(0));
-}
+function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
+function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
+function assignFpr_I(index, expr) { return ast.assignFpr_I(index, expr); }
+function assignIC(expr) { return ast.assignIC(expr); }
+function fcr31_cc() { return ast.fcr31_cc(); }
+function fpr(index) { return ast.fpr(index); }
+function fpr_i(index) { return ast.fpr_i(index); }
+function gpr(index) { return ast.gpr(index); }
+function gpr_f(index) { return ast.gpr_f(index); }
+function tempr(index) { return ast.tempr(index); }
+function vfpr(reg) { return ast.vfpr(reg); }
+function vfprc(reg) { return ast.vfprc(reg); }
+function vfpr_i(index) { return ast.vfpr_i(index); }
+function immBool(value) { return ast.imm32(value ? 1 : 0); }
+function imm32(value) { return ast.imm32(value); }
+function imm_f(value) { return ast.imm_f(value); }
+function u_imm32(value) { return ast.u_imm32(value); }
+function unop(op, right) { return ast.unop(op, right); }
+function binop(left, op, right) { return ast.binop(left, op, right); }
+function binop_i(left, op, right) { return ast.binop_i(left, op, right); }
+function _if(cond, codeTrue, codeFalse) { return ast._if(cond, codeTrue, codeFalse); }
+function call(name, exprList) { return ast.call(name, exprList); }
+function call_stm(name, exprList) { return stm(ast.call(name, exprList)); }
+function stm(expr) { return ast.stm(expr); }
+function stms(stms) { return ast.stms(stms); }
+function pc() { return ast.pc(); }
+function lo() { return ast.lo(); }
+function hi() { return ast.hi(); }
+function ic() { return ast.ic(); }
+function branchflag() { return ast.branchflag(); }
+function branchpc() { return ast.branchpc(); }
+function assign(ref, value) { return ast.assign(ref, value); }
+function assign_stm(ref, value) { return stm(ast.assign(ref, value)); }
+function i_simm16(i) { return imm32(i.imm16); }
+function i_uimm16(i) { return u_imm32(i.u_imm16); }
+function rs_imm16(i) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
+function cast_uint(expr) { return binop(expr, '>>>', ast.imm32(0)); }
 var VMatRegClass = (function () {
     function VMatRegClass(reg) {
         this.reg = reg;
@@ -4637,7 +4316,7 @@ var VVecRegClass = (function () {
     VVecRegClass.prototype._setVector = function (generator) {
         var array = [];
         var statements = [];
-        var regs = getVectorRegs(this.reg, 4 /* Quad */);
+        var regs = getVectorRegs(this.reg, VectorSize.Quad);
         statements.push(stm(ast.call('state.vfpuStore', [
             ast.array(regs.map(function (item) { return imm32(item); })),
             ast.array([0, 1, 2, 3].map(function (index) { return generator(index); }))
@@ -4679,20 +4358,20 @@ function getVectorRegs(vectorReg, N) {
     var length = 0;
     var transpose = (vectorReg >>> 5) & 1;
     switch (N) {
-        case 1 /* Single */:
+        case VectorSize.Single:
             transpose = 0;
             row = (vectorReg >>> 5) & 3;
             length = 1;
             break;
-        case 2 /* Pair */:
+        case VectorSize.Pair:
             row = (vectorReg >>> 5) & 2;
             length = 2;
             break;
-        case 3 /* Triple */:
+        case VectorSize.Triple:
             row = (vectorReg >>> 6) & 1;
             length = 3;
             break;
-        case 4 /* Quad */:
+        case VectorSize.Quad:
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
@@ -4717,15 +4396,15 @@ function getMatrixRegs(matrixReg, N) {
     var row = 0;
     var side = 0;
     switch (N) {
-        case 2 /* M_2x2 */:
+        case MatrixSize.M_2x2:
             row = (matrixReg >> 5) & 2;
             side = 2;
             break;
-        case 3 /* M_3x3 */:
+        case MatrixSize.M_3x3:
             row = (matrixReg >> 6) & 1;
             side = 3;
             break;
-        case 4 /* M_4x4 */:
+        case MatrixSize.M_4x4:
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
@@ -4923,9 +4602,7 @@ var InstructionAst = (function () {
         this._vpfxt.eat();
         this._vpfxd.eat();
     };
-    InstructionAst.prototype.lui = function (i) {
-        return assignGpr(i.rt, u_imm32(i.imm16 << 16));
-    };
+    InstructionAst.prototype.lui = function (i) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); };
     InstructionAst.prototype._vset1 = function (i, generate, destSize, destType) {
         if (destSize === void 0) { destSize = 0; }
         if (destType === void 0) { destType = 'float'; }
@@ -5018,39 +4695,17 @@ var InstructionAst = (function () {
             call_stm('state.setVpfxd', [imm32(i.data)]),
         ]);
     };
-    InstructionAst.prototype["lv.s"] = function (i) {
-        return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)]));
-    };
-    InstructionAst.prototype["sv.s"] = function (i) {
-        return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]);
-    };
-    InstructionAst.prototype["lv.q"] = function (i) {
-        return setItems(readVector_f(i.VT5_1, 4 /* Quad */), getMemoryVector(address_RS_IMM14(i), 4));
-    };
-    InstructionAst.prototype["lvl.q"] = function (i) {
-        return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["lvr.q"] = function (i) {
-        return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["sv.q"] = function (i) {
-        return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, 4 /* Quad */));
-    };
-    InstructionAst.prototype["svl.q"] = function (i) {
-        return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["svr.q"] = function (i) {
-        return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype.viim = function (i) {
-        return assign_stm(vfpr(i.VT), imm32(i.imm16));
-    };
-    InstructionAst.prototype.vfim = function (i) {
-        return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF));
-    };
-    InstructionAst.prototype.vcst = function (i) {
-        return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value));
-    };
+    InstructionAst.prototype["lv.s"] = function (i) { return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)])); };
+    InstructionAst.prototype["sv.s"] = function (i) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); };
+    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); };
+    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, VectorSize.Quad)); };
+    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype.viim = function (i) { return assign_stm(vfpr(i.VT), imm32(i.imm16)); };
+    InstructionAst.prototype.vfim = function (i) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); };
+    InstructionAst.prototype.vcst = function (i) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); };
     InstructionAst.prototype.vhdp = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -5060,15 +4715,9 @@ var InstructionAst = (function () {
             });
         }, 1, vectorSize, vectorSize);
     };
-    InstructionAst.prototype.vmidt = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32((c == r) ? 1 : 0); });
-    };
-    InstructionAst.prototype.vmzero = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(0); });
-    };
-    InstructionAst.prototype.vmone = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(1); });
-    };
+    InstructionAst.prototype.vmidt = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32((c == r) ? 1 : 0); }); };
+    InstructionAst.prototype.vmzero = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(0); }); };
+    InstructionAst.prototype.vmone = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(1); }); };
     InstructionAst.prototype._vtfm_x = function (i, vectorSize) {
         var _this = this;
         var srcMat = readMatrix(i.VS, vectorSize);
@@ -5097,44 +4746,22 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return stms(st);
     };
-    InstructionAst.prototype.vtfm2 = function (i) {
-        return this._vtfm_x(i, 2);
-    };
-    InstructionAst.prototype.vtfm3 = function (i) {
-        return this._vtfm_x(i, 3);
-    };
-    InstructionAst.prototype.vtfm4 = function (i) {
-        return this._vtfm_x(i, 4);
-    };
-    InstructionAst.prototype.vhtfm2 = function (i) {
-        return this._vhtfm_x(i, 2);
-    };
-    InstructionAst.prototype.vhtfm3 = function (i) {
-        return this._vhtfm_x(i, 3);
-    };
-    InstructionAst.prototype.vhtfm4 = function (i) {
-        return this._vhtfm_x(i, 4);
-    };
+    InstructionAst.prototype.vtfm2 = function (i) { return this._vtfm_x(i, 2); };
+    InstructionAst.prototype.vtfm3 = function (i) { return this._vtfm_x(i, 3); };
+    InstructionAst.prototype.vtfm4 = function (i) { return this._vtfm_x(i, 4); };
+    InstructionAst.prototype.vhtfm2 = function (i) { return this._vhtfm_x(i, 2); };
+    InstructionAst.prototype.vhtfm3 = function (i) { return this._vhtfm_x(i, 3); };
+    InstructionAst.prototype.vhtfm4 = function (i) { return this._vhtfm_x(i, 4); };
     InstructionAst.prototype.vmscl = function (i) {
         var vectorSize = i.ONE_TWO;
         var src = readMatrix(i.VS, vectorSize);
         return setMatrix(getMatrixRegsVD(i), function (c, r, index) { return binop(src[index], '*', vfpr(i.VT)); });
     };
-    InstructionAst.prototype.vzero = function (i) {
-        return this._vset1(i, function (i) { return imm_f(0); });
-    };
-    InstructionAst.prototype.vone = function (i) {
-        return this._vset1(i, function (i) { return imm_f(1); });
-    };
-    InstructionAst.prototype.vmov = function (i) {
-        return this._vset3(i, function (i, s, t) { return s[i]; });
-    };
-    InstructionAst.prototype.vrcp = function (i) {
-        return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); });
-    };
-    InstructionAst.prototype.vmul = function (i) {
-        return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); });
-    };
+    InstructionAst.prototype.vzero = function (i) { return this._vset1(i, function (i) { return imm_f(0); }); };
+    InstructionAst.prototype.vone = function (i) { return this._vset1(i, function (i) { return imm_f(1); }); };
+    InstructionAst.prototype.vmov = function (i) { return this._vset3(i, function (i, s, t) { return s[i]; }); };
+    InstructionAst.prototype.vrcp = function (i) { return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); }); };
+    InstructionAst.prototype.vmul = function (i) { return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); }); };
     InstructionAst.prototype.vbfy1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
@@ -5213,32 +4840,18 @@ var InstructionAst = (function () {
             }
         }, i.ONE_TWO, 4);
     };
-    InstructionAst.prototype.vrnds = function (i) {
-        return call_stm('state.vrnds', []);
-    };
-    InstructionAst.prototype.vrndi = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int');
-    };
-    InstructionAst.prototype.vrndf1 = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndf1', []); });
-    };
-    InstructionAst.prototype.vrndf2 = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndf2', []); });
-    };
+    InstructionAst.prototype.vrnds = function (i) { return call_stm('state.vrnds', []); };
+    InstructionAst.prototype.vrndi = function (i) { return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int'); };
+    InstructionAst.prototype.vrndf1 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf1', []); }); };
+    InstructionAst.prototype.vrndf2 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf2', []); }); };
     InstructionAst.prototype._aggregateV = function (val, size, generator) {
         for (var n = 0; n < size; n++)
             val = generator(val, n);
         return val;
     };
-    InstructionAst.prototype.vnop = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsync = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vflush = function (i) {
-        return ast.stm();
-    };
+    InstructionAst.prototype.vnop = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vsync = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vflush = function (i) { return ast.stm(); };
     InstructionAst.prototype.vfad = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -5276,39 +4889,17 @@ var InstructionAst = (function () {
             }
         }, 3, 3, 3);
     };
-    InstructionAst.prototype.vc2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int');
-    };
-    InstructionAst.prototype.vuc2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vuc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int');
-    };
-    InstructionAst.prototype.vs2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]); }, i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int');
-    };
-    InstructionAst.prototype.vi2f = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]); }, 0, 0, 'float', 'int');
-    };
-    InstructionAst.prototype.vi2uc = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]); }, 1, 4, 'int', 'int');
-    };
-    InstructionAst.prototype.vf2id = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2in = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2iu = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2iz = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2h = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2h', [imm32(index), src[index]]); }, 0, 0, 'float', 'float');
-    };
-    InstructionAst.prototype.vh2f = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vh2f', [imm32(index), src[index]]); }, 0, 0, 'float', 'float');
-    };
+    InstructionAst.prototype.vc2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int'); };
+    InstructionAst.prototype.vuc2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vuc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int'); };
+    InstructionAst.prototype.vs2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]); }, i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int'); };
+    InstructionAst.prototype.vi2f = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]); }, 0, 0, 'float', 'int'); };
+    InstructionAst.prototype.vi2uc = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]); }, 1, 4, 'int', 'int'); };
+    InstructionAst.prototype.vf2id = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2in = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2iu = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2iz = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2h = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2h', [imm32(index), src[index]]); }, 0, 0, 'float', 'float'); };
+    InstructionAst.prototype.vh2f = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vh2f', [imm32(index), src[index]]); }, 0, 0, 'float', 'float'); };
     InstructionAst.prototype.vdet = function (i) {
         return this._vset3(i, function (i, s, t) {
             return binop(binop(s[0], '*', t[1]), '-', binop(s[1], '*', t[0]));
@@ -5324,21 +4915,11 @@ var InstructionAst = (function () {
             }
         }, 4, 4, 4);
     };
-    InstructionAst.prototype.vslt = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vslt', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsle = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsle', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsge = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsge', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsgt = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsgt', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vscmp = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.sign2', [s[i], t[i]]); });
-    };
+    InstructionAst.prototype.vslt = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vslt', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsle = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsle', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsge = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsge', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsgt = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsgt', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vscmp = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.sign2', [s[i], t[i]]); }); };
     InstructionAst.prototype._bvtf = function (i, cond) {
         var reg = i.IMM3;
         var branchExpr = ast.VCC(reg);
@@ -5346,24 +4927,12 @@ var InstructionAst = (function () {
             branchExpr = unop("!", branchExpr);
         return this._branch(i, branchExpr);
     };
-    InstructionAst.prototype.bvf = function (i) {
-        return this._bvtf(i, false);
-    };
-    InstructionAst.prototype.bvt = function (i) {
-        return this._bvtf(i, true);
-    };
-    InstructionAst.prototype.bvfl = function (i) {
-        return this.bvf(i);
-    };
-    InstructionAst.prototype.bvtl = function (i) {
-        return this.bvt(i);
-    };
-    InstructionAst.prototype.mtv = function (i) {
-        return this._vset1(i, function (_) { return gpr(i.rt); }, 1, 'int');
-    };
-    InstructionAst.prototype.mfv = function (i) {
-        return assign_stm(gpr(i.rt), vfpr_i(i.VD));
-    };
+    InstructionAst.prototype.bvf = function (i) { return this._bvtf(i, false); };
+    InstructionAst.prototype.bvt = function (i) { return this._bvtf(i, true); };
+    InstructionAst.prototype.bvfl = function (i) { return this.bvf(i); };
+    InstructionAst.prototype.bvtl = function (i) { return this.bvt(i); };
+    InstructionAst.prototype.mtv = function (i) { return this._vset1(i, function (_) { return gpr(i.rt); }, 1, 'int'); };
+    InstructionAst.prototype.mfv = function (i) { return assign_stm(gpr(i.rt), vfpr_i(i.VD)); };
     InstructionAst.prototype.mtvc = function (i) {
         switch (i.IMM7) {
             case 0:
@@ -5391,12 +4960,8 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.vcmovt = function (i) {
-        return this._vcmovtf(i, true);
-    };
-    InstructionAst.prototype.vcmovf = function (i) {
-        return this._vcmovtf(i, false);
-    };
+    InstructionAst.prototype.vcmovt = function (i) { return this._vcmovtf(i, true); };
+    InstructionAst.prototype.vcmovf = function (i) { return this._vcmovtf(i, false); };
     InstructionAst.prototype.vcmp = function (i) {
         var result = call_stm('state.vcmp', [
             imm32(i.IMM4),
@@ -5406,80 +4971,34 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.vwbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vabs = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); });
-    };
-    InstructionAst.prototype.vocp = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.ocp', [src[i]]); });
-    };
-    InstructionAst.prototype.vneg = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.neg', [src[i]]); });
-    };
-    InstructionAst.prototype.vsgn = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sign', [src[i]]); });
-    };
-    InstructionAst.prototype.vsat0 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sat0', [src[i]]); });
-    };
-    InstructionAst.prototype.vsat1 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sat1', [src[i]]); });
-    };
-    InstructionAst.prototype.vrsq = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.rsq', [src[i]]); });
-    };
-    InstructionAst.prototype.vsin = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sinv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vcos = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.cosv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vexp2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.exp2', [src[i]]); });
-    };
-    InstructionAst.prototype.vrexp2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.rexp2', [src[i]]); });
-    };
-    InstructionAst.prototype.vlog2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); });
-    };
-    InstructionAst.prototype.vsqrt = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); });
-    };
+    InstructionAst.prototype.vwbn = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vsbn = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vabs = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); }); };
+    InstructionAst.prototype.vocp = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.ocp', [src[i]]); }); };
+    InstructionAst.prototype.vneg = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.neg', [src[i]]); }); };
+    InstructionAst.prototype.vsgn = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sign', [src[i]]); }); };
+    InstructionAst.prototype.vsat0 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sat0', [src[i]]); }); };
+    InstructionAst.prototype.vsat1 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sat1', [src[i]]); }); };
+    InstructionAst.prototype.vrsq = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.rsq', [src[i]]); }); };
+    InstructionAst.prototype.vsin = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sinv1', [src[i]]); }); };
+    InstructionAst.prototype.vcos = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.cosv1', [src[i]]); }); };
+    InstructionAst.prototype.vexp2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.exp2', [src[i]]); }); };
+    InstructionAst.prototype.vrexp2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.rexp2', [src[i]]); }); };
+    InstructionAst.prototype.vlog2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); }); };
+    InstructionAst.prototype.vsqrt = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); }); };
     InstructionAst.prototype.vasin = function (i) {
         return stms([
             this._vset2(i, function (i, src) { return call('MathFloat.asinv1', [src[i]]); }),
         ]);
     };
-    InstructionAst.prototype.vnsin = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.nsinv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vnrcp = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.nrcp', [src[i]]); });
-    };
-    InstructionAst.prototype.vmin = function (i) {
-        return this._vset3(i, function (i, src, target) { return call('MathFloat.min', [src[i], target[i]]); });
-    };
-    InstructionAst.prototype.vmax = function (i) {
-        return this._vset3(i, function (i, src, target) { return call('MathFloat.max', [src[i], target[i]]); });
-    };
-    InstructionAst.prototype.vdiv = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '/', target[i]); });
-    };
-    InstructionAst.prototype.vadd = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '+', target[i]); });
-    };
-    InstructionAst.prototype.vsub = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '-', target[i]); });
-    };
-    InstructionAst.prototype.vscl = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '*', target[0]); }, 0, 0, 1);
-    };
+    InstructionAst.prototype.vnsin = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.nsinv1', [src[i]]); }); };
+    InstructionAst.prototype.vnrcp = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.nrcp', [src[i]]); }); };
+    InstructionAst.prototype.vmin = function (i) { return this._vset3(i, function (i, src, target) { return call('MathFloat.min', [src[i], target[i]]); }); };
+    InstructionAst.prototype.vmax = function (i) { return this._vset3(i, function (i, src, target) { return call('MathFloat.max', [src[i], target[i]]); }); };
+    InstructionAst.prototype.vdiv = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '/', target[i]); }); };
+    InstructionAst.prototype.vadd = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '+', target[i]); }); };
+    InstructionAst.prototype.vsub = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '-', target[i]); }); };
+    InstructionAst.prototype.vscl = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '*', target[0]); }, 0, 0, 1); };
     InstructionAst.prototype.vdot = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -5531,15 +5050,9 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return stms(st);
     };
-    InstructionAst.prototype['vt4444.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt4444_step');
-    };
-    InstructionAst.prototype['vt5551.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt5551_step');
-    };
-    InstructionAst.prototype['vt5650.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt5650_step');
-    };
+    InstructionAst.prototype['vt4444.q'] = function (i) { return this._vtXXX_q(i, '_vt4444_step'); };
+    InstructionAst.prototype['vt5551.q'] = function (i) { return this._vtXXX_q(i, '_vt5551_step'); };
+    InstructionAst.prototype['vt5650.q'] = function (i) { return this._vtXXX_q(i, '_vt5650_step'); };
     InstructionAst.prototype._vtXXX_q = function (i, func) {
         var size = i.ONE_TWO;
         if (size != 4)
@@ -5550,201 +5063,71 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.add = function (i) {
-        return this.addu(i);
-    };
-    InstructionAst.prototype.addu = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt)));
-    };
-    InstructionAst.prototype.addi = function (i) {
-        return this.addiu(i);
-    };
-    InstructionAst.prototype.addiu = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '+', imm32(i.imm16)));
-    };
-    InstructionAst.prototype.sub = function (i) {
-        return this.subu(i);
-    };
-    InstructionAst.prototype.subu = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt)));
-    };
-    InstructionAst.prototype.sll = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos)));
-    };
-    InstructionAst.prototype.sra = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos)));
-    };
-    InstructionAst.prototype.srl = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos)));
-    };
-    InstructionAst.prototype.rotr = function (i) {
-        return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)]));
-    };
-    InstructionAst.prototype.sllv = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.srav = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.srlv = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.rotrv = function (i) {
-        return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
-    };
-    InstructionAst.prototype.bitrev = function (i) {
-        return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.and = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt)));
-    };
-    InstructionAst.prototype.or = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt)));
-    };
-    InstructionAst.prototype.xor = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt)));
-    };
-    InstructionAst.prototype.nor = function (i) {
-        return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt))));
-    };
-    InstructionAst.prototype.andi = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.ori = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.xori = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '^', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.mflo = function (i) {
-        return assignGpr(i.rd, lo());
-    };
-    InstructionAst.prototype.mfhi = function (i) {
-        return assignGpr(i.rd, hi());
-    };
-    InstructionAst.prototype.mfic = function (i) {
-        return assignGpr(i.rt, ic());
-    };
-    InstructionAst.prototype.mtlo = function (i) {
-        return assign(lo(), gpr(i.rs));
-    };
-    InstructionAst.prototype.mthi = function (i) {
-        return assign(hi(), gpr(i.rs));
-    };
-    InstructionAst.prototype.mtic = function (i) {
-        return assignIC(gpr(i.rt));
-    };
-    InstructionAst.prototype.slt = function (i) {
-        return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.sltu = function (i) {
-        return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.slti = function (i) {
-        return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.sltiu = function (i) {
-        return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.movz = function (i) {
-        return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs)));
-    };
-    InstructionAst.prototype.movn = function (i) {
-        return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs)));
-    };
-    InstructionAst.prototype.ext = function (i) {
-        return assignGpr(i.rt, call('BitUtils.extract', [gpr(i.rs), imm32(i.pos), imm32(i.size_e)]));
-    };
-    InstructionAst.prototype.ins = function (i) {
-        return assignGpr(i.rt, call('BitUtils.insert', [gpr(i.rt), imm32(i.pos), imm32(i.size_i), gpr(i.rs)]));
-    };
-    InstructionAst.prototype.clz = function (i) {
-        return assignGpr(i.rd, call('BitUtils.clz', [gpr(i.rs)]));
-    };
-    InstructionAst.prototype.clo = function (i) {
-        return assignGpr(i.rd, call('BitUtils.clo', [gpr(i.rs)]));
-    };
-    InstructionAst.prototype.seb = function (i) {
-        return assignGpr(i.rd, call('BitUtils.seb', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.seh = function (i) {
-        return assignGpr(i.rd, call('BitUtils.seh', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.wsbh = function (i) {
-        return assignGpr(i.rd, call('BitUtils.wsbh', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.wsbw = function (i) {
-        return assignGpr(i.rd, call('BitUtils.wsbw', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype._trace_state = function () {
-        return stm(ast.call('state._trace_state', []));
-    };
-    InstructionAst.prototype["mov.s"] = function (i) {
-        return assignFpr(i.fd, fpr(i.fs));
-    };
-    InstructionAst.prototype["add.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '+', fpr(i.ft)));
-    };
-    InstructionAst.prototype["sub.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '-', fpr(i.ft)));
-    };
-    InstructionAst.prototype["mul.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '*', fpr(i.ft)));
-    };
-    InstructionAst.prototype["div.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '/', fpr(i.ft)));
-    };
-    InstructionAst.prototype["abs.s"] = function (i) {
-        return assignFpr(i.fd, call('Math.abs', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["sqrt.s"] = function (i) {
-        return assignFpr(i.fd, call('Math.sqrt', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["neg.s"] = function (i) {
-        return assignFpr(i.fd, unop('-', fpr(i.fs)));
-    };
-    InstructionAst.prototype.min = function (i) {
-        return assignGpr(i.rd, call('state.min', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.max = function (i) {
-        return assignGpr(i.rd, call('state.max', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.div = function (i) {
-        return stm(call('state.div', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.divu = function (i) {
-        return stm(call('state.divu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.mult = function (i) {
-        return stm(call('state.mult', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.multu = function (i) {
-        return stm(call('state.multu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.madd = function (i) {
-        return stm(call('state.madd', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.maddu = function (i) {
-        return stm(call('state.maddu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.msub = function (i) {
-        return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.msubu = function (i) {
-        return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.cache = function (i) {
-        return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.syscall = function (i) {
-        return stm(call('state.syscall', [imm32(i.syscall)]));
-    };
-    InstructionAst.prototype["break"] = function (i) {
-        return stm(call('state.break', []));
-    };
-    InstructionAst.prototype.dbreak = function (i) {
-        return ast.debugger("dbreak");
-    };
+    InstructionAst.prototype.add = function (i) { return this.addu(i); };
+    InstructionAst.prototype.addu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); };
+    InstructionAst.prototype.addi = function (i) { return this.addiu(i); };
+    InstructionAst.prototype.addiu = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '+', imm32(i.imm16))); };
+    InstructionAst.prototype.sub = function (i) { return this.subu(i); };
+    InstructionAst.prototype.subu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt))); };
+    InstructionAst.prototype.sll = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos))); };
+    InstructionAst.prototype.sra = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos))); };
+    InstructionAst.prototype.srl = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos))); };
+    InstructionAst.prototype.rotr = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)])); };
+    InstructionAst.prototype.sllv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.srav = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.srlv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.rotrv = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); };
+    InstructionAst.prototype.bitrev = function (i) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); };
+    InstructionAst.prototype.and = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt))); };
+    InstructionAst.prototype.or = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt))); };
+    InstructionAst.prototype.xor = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt))); };
+    InstructionAst.prototype.nor = function (i) { return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt)))); };
+    InstructionAst.prototype.andi = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.ori = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.xori = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '^', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.mflo = function (i) { return assignGpr(i.rd, lo()); };
+    InstructionAst.prototype.mfhi = function (i) { return assignGpr(i.rd, hi()); };
+    InstructionAst.prototype.mfic = function (i) { return assignGpr(i.rt, ic()); };
+    InstructionAst.prototype.mtlo = function (i) { return assign(lo(), gpr(i.rs)); };
+    InstructionAst.prototype.mthi = function (i) { return assign(hi(), gpr(i.rs)); };
+    InstructionAst.prototype.mtic = function (i) { return assignIC(gpr(i.rt)); };
+    InstructionAst.prototype.slt = function (i) { return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.sltu = function (i) { return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.slti = function (i) { return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)])); };
+    InstructionAst.prototype.sltiu = function (i) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)])); };
+    InstructionAst.prototype.movz = function (i) { return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs))); };
+    InstructionAst.prototype.movn = function (i) { return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs))); };
+    InstructionAst.prototype.ext = function (i) { return assignGpr(i.rt, call('BitUtils.extract', [gpr(i.rs), imm32(i.pos), imm32(i.size_e)])); };
+    InstructionAst.prototype.ins = function (i) { return assignGpr(i.rt, call('BitUtils.insert', [gpr(i.rt), imm32(i.pos), imm32(i.size_i), gpr(i.rs)])); };
+    InstructionAst.prototype.clz = function (i) { return assignGpr(i.rd, call('BitUtils.clz', [gpr(i.rs)])); };
+    InstructionAst.prototype.clo = function (i) { return assignGpr(i.rd, call('BitUtils.clo', [gpr(i.rs)])); };
+    InstructionAst.prototype.seb = function (i) { return assignGpr(i.rd, call('BitUtils.seb', [gpr(i.rt)])); };
+    InstructionAst.prototype.seh = function (i) { return assignGpr(i.rd, call('BitUtils.seh', [gpr(i.rt)])); };
+    InstructionAst.prototype.wsbh = function (i) { return assignGpr(i.rd, call('BitUtils.wsbh', [gpr(i.rt)])); };
+    InstructionAst.prototype.wsbw = function (i) { return assignGpr(i.rd, call('BitUtils.wsbw', [gpr(i.rt)])); };
+    InstructionAst.prototype._trace_state = function () { return stm(ast.call('state._trace_state', [])); };
+    InstructionAst.prototype["mov.s"] = function (i) { return assignFpr(i.fd, fpr(i.fs)); };
+    InstructionAst.prototype["add.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '+', fpr(i.ft))); };
+    InstructionAst.prototype["sub.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '-', fpr(i.ft))); };
+    InstructionAst.prototype["mul.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '*', fpr(i.ft))); };
+    InstructionAst.prototype["div.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '/', fpr(i.ft))); };
+    InstructionAst.prototype["abs.s"] = function (i) { return assignFpr(i.fd, call('Math.abs', [fpr(i.fs)])); };
+    InstructionAst.prototype["sqrt.s"] = function (i) { return assignFpr(i.fd, call('Math.sqrt', [fpr(i.fs)])); };
+    InstructionAst.prototype["neg.s"] = function (i) { return assignFpr(i.fd, unop('-', fpr(i.fs))); };
+    InstructionAst.prototype.min = function (i) { return assignGpr(i.rd, call('state.min', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.max = function (i) { return assignGpr(i.rd, call('state.max', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.div = function (i) { return stm(call('state.div', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.divu = function (i) { return stm(call('state.divu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.mult = function (i) { return stm(call('state.mult', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.multu = function (i) { return stm(call('state.multu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.madd = function (i) { return stm(call('state.madd', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.maddu = function (i) { return stm(call('state.maddu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.msub = function (i) { return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.msubu = function (i) { return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.cache = function (i) { return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)])); };
+    InstructionAst.prototype.syscall = function (i) { return stm(call('state.syscall', [imm32(i.syscall)])); };
+    InstructionAst.prototype["break"] = function (i) { return stm(call('state.break', [])); };
+    InstructionAst.prototype.dbreak = function (i) { return ast.debugger("dbreak"); };
     InstructionAst.prototype._likely = function (isLikely, code) {
         return isLikely ? _if(branchflag(), code) : code;
     };
@@ -5760,147 +5143,57 @@ var InstructionAst = (function () {
             stm(assign(branchpc(), u_imm32(i.PC + i.imm16 * 4 + 4)))
         ]);
     };
-    InstructionAst.prototype.beq = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt)));
-    };
-    InstructionAst.prototype.bne = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt)));
-    };
-    InstructionAst.prototype.bltz = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "<", imm32(0)));
-    };
-    InstructionAst.prototype.blez = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "<=", imm32(0)));
-    };
-    InstructionAst.prototype.bgtz = function (i) {
-        return this._branch(i, binop(gpr(i.rs), ">", imm32(0)));
-    };
-    InstructionAst.prototype.bgez = function (i) {
-        return this._branch(i, binop(gpr(i.rs), ">=", imm32(0)));
-    };
-    InstructionAst.prototype.beql = function (i) {
-        return this.beq(i);
-    };
-    InstructionAst.prototype.bnel = function (i) {
-        return this.bne(i);
-    };
-    InstructionAst.prototype.bltzl = function (i) {
-        return this.bltz(i);
-    };
-    InstructionAst.prototype.blezl = function (i) {
-        return this.blez(i);
-    };
-    InstructionAst.prototype.bgtzl = function (i) {
-        return this.bgtz(i);
-    };
-    InstructionAst.prototype.bgezl = function (i) {
-        return this.bgez(i);
-    };
-    InstructionAst.prototype.bltzal = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltz(i)]);
-    };
-    InstructionAst.prototype.bltzall = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltzl(i)]);
-    };
-    InstructionAst.prototype.bgezal = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgez(i)]);
-    };
-    InstructionAst.prototype.bgezall = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgezl(i)]);
-    };
-    InstructionAst.prototype.bc1t = function (i) {
-        return this._branch(i, fcr31_cc());
-    };
-    InstructionAst.prototype.bc1f = function (i) {
-        return this._branch(i, unop("!", fcr31_cc()));
-    };
-    InstructionAst.prototype.bc1tl = function (i) {
-        return this.bc1t(i);
-    };
-    InstructionAst.prototype.bc1fl = function (i) {
-        return this.bc1f(i);
-    };
-    InstructionAst.prototype.sb = function (i) {
-        return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.sh = function (i) {
-        return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.sw = function (i) {
-        return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.swc1 = function (i) {
-        return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lwc1 = function (i) {
-        return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.mfc1 = function (i) {
-        return assignGpr(i.rt, ast.fpr_i(i.fs));
-    };
-    InstructionAst.prototype.mtc1 = function (i) {
-        return assignFpr_I(i.fs, ast.gpr(i.rt));
-    };
-    InstructionAst.prototype.cfc1 = function (i) {
-        return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)]));
-    };
-    InstructionAst.prototype.ctc1 = function (i) {
-        return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)]));
-    };
-    InstructionAst.prototype["trunc.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["round.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["ceil.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["floor.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["cvt.s.w"] = function (i) {
-        return assignFpr(i.fd, fpr_i(i.fs));
-    };
-    InstructionAst.prototype["cvt.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype.lb = function (i) {
-        return assignGpr(i.rt, call('state.lb', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lbu = function (i) {
-        return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lh = function (i) {
-        return assignGpr(i.rt, call('state.lh', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lhu = function (i) {
-        return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lw = function (i) {
-        return assignGpr(i.rt, call('state.lw', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lwl = function (i) {
-        return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.lwr = function (i) {
-        return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.swl = function (i) {
-        return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.swr = function (i) {
-        return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
+    InstructionAst.prototype.beq = function (i) { return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt))); };
+    InstructionAst.prototype.bne = function (i) { return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt))); };
+    InstructionAst.prototype.bltz = function (i) { return this._branch(i, binop(gpr(i.rs), "<", imm32(0))); };
+    InstructionAst.prototype.blez = function (i) { return this._branch(i, binop(gpr(i.rs), "<=", imm32(0))); };
+    InstructionAst.prototype.bgtz = function (i) { return this._branch(i, binop(gpr(i.rs), ">", imm32(0))); };
+    InstructionAst.prototype.bgez = function (i) { return this._branch(i, binop(gpr(i.rs), ">=", imm32(0))); };
+    InstructionAst.prototype.beql = function (i) { return this.beq(i); };
+    InstructionAst.prototype.bnel = function (i) { return this.bne(i); };
+    InstructionAst.prototype.bltzl = function (i) { return this.bltz(i); };
+    InstructionAst.prototype.blezl = function (i) { return this.blez(i); };
+    InstructionAst.prototype.bgtzl = function (i) { return this.bgtz(i); };
+    InstructionAst.prototype.bgezl = function (i) { return this.bgez(i); };
+    InstructionAst.prototype.bltzal = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltz(i)]); };
+    InstructionAst.prototype.bltzall = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltzl(i)]); };
+    InstructionAst.prototype.bgezal = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgez(i)]); };
+    InstructionAst.prototype.bgezall = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgezl(i)]); };
+    InstructionAst.prototype.bc1t = function (i) { return this._branch(i, fcr31_cc()); };
+    InstructionAst.prototype.bc1f = function (i) { return this._branch(i, unop("!", fcr31_cc())); };
+    InstructionAst.prototype.bc1tl = function (i) { return this.bc1t(i); };
+    InstructionAst.prototype.bc1fl = function (i) { return this.bc1f(i); };
+    InstructionAst.prototype.sb = function (i) { return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.sh = function (i) { return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.sw = function (i) { return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.swc1 = function (i) { return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)])); };
+    InstructionAst.prototype.lwc1 = function (i) { return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)])); };
+    InstructionAst.prototype.mfc1 = function (i) { return assignGpr(i.rt, ast.fpr_i(i.fs)); };
+    InstructionAst.prototype.mtc1 = function (i) { return assignFpr_I(i.fs, ast.gpr(i.rt)); };
+    InstructionAst.prototype.cfc1 = function (i) { return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)])); };
+    InstructionAst.prototype.ctc1 = function (i) { return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)])); };
+    InstructionAst.prototype["trunc.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)])); };
+    InstructionAst.prototype["round.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)])); };
+    InstructionAst.prototype["ceil.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)])); };
+    InstructionAst.prototype["floor.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)])); };
+    InstructionAst.prototype["cvt.s.w"] = function (i) { return assignFpr(i.fd, fpr_i(i.fs)); };
+    InstructionAst.prototype["cvt.w.s"] = function (i) { return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)])); };
+    InstructionAst.prototype.lb = function (i) { return assignGpr(i.rt, call('state.lb', [rs_imm16(i)])); };
+    InstructionAst.prototype.lbu = function (i) { return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)])); };
+    InstructionAst.prototype.lh = function (i) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); };
+    InstructionAst.prototype.lhu = function (i) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); };
+    InstructionAst.prototype.lw = function (i) { return assignGpr(i.rt, call('state.lw', [rs_imm16(i)])); };
+    InstructionAst.prototype.lwl = function (i) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.lwr = function (i) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.swl = function (i) { return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.swr = function (i) { return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
     InstructionAst.prototype._callstackPush = function (i) {
         return ast.stm();
     };
     InstructionAst.prototype._callstackPop = function (i) {
         return ast.stm();
     };
-    InstructionAst.prototype.j = function (i) {
-        return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]);
-    };
+    InstructionAst.prototype.j = function (i) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); };
     InstructionAst.prototype.jr = function (i) {
         var statements = [];
         statements.push(stm(assign(branchflag(), imm32(1))));
@@ -5910,12 +5203,8 @@ var InstructionAst = (function () {
         }
         return stms(statements);
     };
-    InstructionAst.prototype.jal = function (i) {
-        return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]);
-    };
-    InstructionAst.prototype.jalr = function (i) {
-        return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]);
-    };
+    InstructionAst.prototype.jal = function (i) { return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]); };
+    InstructionAst.prototype.jalr = function (i) { return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); };
     InstructionAst.prototype._comp = function (i, fc02, fc3) {
         var fc_unordererd = ((fc02 & 1) != 0);
         var fc_equal = ((fc02 & 2) != 0);
@@ -5923,54 +5212,22 @@ var InstructionAst = (function () {
         var fc_inv_qnan = (fc3 != 0);
         return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
     };
-    InstructionAst.prototype["c.f.s"] = function (i) {
-        return this._comp(i, 0, 0);
-    };
-    InstructionAst.prototype["c.un.s"] = function (i) {
-        return this._comp(i, 1, 0);
-    };
-    InstructionAst.prototype["c.eq.s"] = function (i) {
-        return this._comp(i, 2, 0);
-    };
-    InstructionAst.prototype["c.ueq.s"] = function (i) {
-        return this._comp(i, 3, 0);
-    };
-    InstructionAst.prototype["c.olt.s"] = function (i) {
-        return this._comp(i, 4, 0);
-    };
-    InstructionAst.prototype["c.ult.s"] = function (i) {
-        return this._comp(i, 5, 0);
-    };
-    InstructionAst.prototype["c.ole.s"] = function (i) {
-        return this._comp(i, 6, 0);
-    };
-    InstructionAst.prototype["c.ule.s"] = function (i) {
-        return this._comp(i, 7, 0);
-    };
-    InstructionAst.prototype["c.sf.s"] = function (i) {
-        return this._comp(i, 0, 1);
-    };
-    InstructionAst.prototype["c.ngle.s"] = function (i) {
-        return this._comp(i, 1, 1);
-    };
-    InstructionAst.prototype["c.seq.s"] = function (i) {
-        return this._comp(i, 2, 1);
-    };
-    InstructionAst.prototype["c.ngl.s"] = function (i) {
-        return this._comp(i, 3, 1);
-    };
-    InstructionAst.prototype["c.lt.s"] = function (i) {
-        return this._comp(i, 4, 1);
-    };
-    InstructionAst.prototype["c.nge.s"] = function (i) {
-        return this._comp(i, 5, 1);
-    };
-    InstructionAst.prototype["c.le.s"] = function (i) {
-        return this._comp(i, 6, 1);
-    };
-    InstructionAst.prototype["c.ngt.s"] = function (i) {
-        return this._comp(i, 7, 1);
-    };
+    InstructionAst.prototype["c.f.s"] = function (i) { return this._comp(i, 0, 0); };
+    InstructionAst.prototype["c.un.s"] = function (i) { return this._comp(i, 1, 0); };
+    InstructionAst.prototype["c.eq.s"] = function (i) { return this._comp(i, 2, 0); };
+    InstructionAst.prototype["c.ueq.s"] = function (i) { return this._comp(i, 3, 0); };
+    InstructionAst.prototype["c.olt.s"] = function (i) { return this._comp(i, 4, 0); };
+    InstructionAst.prototype["c.ult.s"] = function (i) { return this._comp(i, 5, 0); };
+    InstructionAst.prototype["c.ole.s"] = function (i) { return this._comp(i, 6, 0); };
+    InstructionAst.prototype["c.ule.s"] = function (i) { return this._comp(i, 7, 0); };
+    InstructionAst.prototype["c.sf.s"] = function (i) { return this._comp(i, 0, 1); };
+    InstructionAst.prototype["c.ngle.s"] = function (i) { return this._comp(i, 1, 1); };
+    InstructionAst.prototype["c.seq.s"] = function (i) { return this._comp(i, 2, 1); };
+    InstructionAst.prototype["c.ngl.s"] = function (i) { return this._comp(i, 3, 1); };
+    InstructionAst.prototype["c.lt.s"] = function (i) { return this._comp(i, 4, 1); };
+    InstructionAst.prototype["c.nge.s"] = function (i) { return this._comp(i, 5, 1); };
+    InstructionAst.prototype["c.le.s"] = function (i) { return this._comp(i, 6, 1); };
+    InstructionAst.prototype["c.ngt.s"] = function (i) { return this._comp(i, 7, 1); };
     return InstructionAst;
 })();
 exports.InstructionAst = InstructionAst;
@@ -9692,8 +8949,7 @@ exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/cpu/executor": function(module, exports, require) {
-var state = require('./state');
-var icache = require('./icache');
+///<reference path="../../global.d.ts" />
 var ProgramExecutor = (function () {
     function ProgramExecutor(state, instructionCache) {
         this.state = state;
@@ -9749,14 +9005,13 @@ exports.ProgramExecutor = ProgramExecutor;
 
 },
 "src/core/cpu/generator": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var memory = require('../memory');
-var state = require('./state');
 var codegen = require('./codegen');
 var ast_builder = require('./ast_builder');
 var instructions = require('./instructions');
@@ -9776,9 +9031,7 @@ var PspInstructionStm = (function (_super) {
     PspInstructionStm.prototype.toJs = function () {
         return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
     };
-    PspInstructionStm.prototype.optimize = function () {
-        return new PspInstructionStm(this.PC, this.code.optimize(), this.di);
-    };
+    PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.PC, this.code.optimize(), this.di); };
     return PspInstructionStm;
 })(ast_builder.ANodeStm);
 var FunctionGenerator = (function () {
@@ -9815,7 +9068,6 @@ var FunctionGenerator = (function () {
     };
     FunctionGenerator.prototype.create = function (address) {
         var code = this._create(address);
-        console.log(code);
         try {
             return new Function('state', '"use strict";' + code);
         }
@@ -9933,7 +9185,7 @@ exports.FunctionGenerator = FunctionGenerator;
 
 },
 "src/core/cpu/icache": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var generator = require('./generator');
 var state = require('./state');
 var FunctionGenerator = generator.FunctionGenerator;
@@ -9955,8 +9207,11 @@ var InstructionCache = (function () {
         var item = this.cache[address];
         if (item)
             return item;
-        if (address == 268435455 /* EXIT_THREAD */) {
+        if (address == CpuSpecialAddresses.EXIT_THREAD) {
             return this.cache[address] = function (state) {
+                //console.log(state);
+                //console.log(state.thread);
+                //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
                 state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
                 throw new CpuBreakException();
             };
@@ -9971,7 +9226,7 @@ exports.InstructionCache = InstructionCache;
 
 },
 "src/core/cpu/instructions": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var IndentStringGenerator = require('../../util/IndentStringGenerator');
 var ADDR_TYPE_NONE = 0;
 var ADDR_TYPE_REG = 1;
@@ -9986,56 +9241,20 @@ var INSTR_TYPE_JUMP = (1 << 5);
 var INSTR_TYPE_BREAK = (1 << 6);
 function VM(format) {
     var counts = {
-        "cstw": 1,
-        "cstz": 1,
-        "csty": 1,
-        "cstx": 1,
-        "absw": 1,
-        "absz": 1,
-        "absy": 1,
-        "absx": 1,
-        "mskw": 1,
-        "mskz": 1,
-        "msky": 1,
-        "mskx": 1,
-        "negw": 1,
-        "negz": 1,
-        "negy": 1,
-        "negx": 1,
-        "one": 1,
-        "two": 1,
-        "vt1": 1,
+        "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
+        "absw": 1, "absz": 1, "absy": 1, "absx": 1,
+        "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
+        "negw": 1, "negz": 1, "negy": 1, "negx": 1,
+        "one": 1, "two": 1, "vt1": 1,
         "vt2": 2,
-        "satw": 2,
-        "satz": 2,
-        "saty": 2,
-        "satx": 2,
-        "swzw": 2,
-        "swzz": 2,
-        "swzy": 2,
-        "swzx": 2,
+        "satw": 2, "satz": 2, "saty": 2, "satx": 2,
+        "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
         "imm3": 3,
         "imm4": 4,
         "fcond": 4,
-        "c0dr": 5,
-        "c0cr": 5,
-        "c1dr": 5,
-        "c1cr": 5,
-        "imm5": 5,
-        "vt5": 5,
-        "rs": 5,
-        "rd": 5,
-        "rt": 5,
-        "sa": 5,
-        "lsb": 5,
-        "msb": 5,
-        "fs": 5,
-        "fd": 5,
-        "ft": 5,
-        "vs": 7,
-        "vt": 7,
-        "vd": 7,
-        "imm7": 7,
+        "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
+        "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
+        "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
         "imm8": 8,
         "imm14": 14,
         "imm16": 16,
@@ -10147,9 +9366,7 @@ var Instructions = (function () {
         var _this = this;
         this.instructionTypeListByName = {};
         this.instructionTypeList = [];
-        var ID = function (name, vm, format, addressType, instructionType) {
-            _this.add(name, vm, format, addressType, instructionType);
-        };
+        var ID = function (name, vm, format, addressType, instructionType) { _this.add(name, vm, format, addressType, instructionType); };
         ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
@@ -10515,374 +9732,222 @@ var Instruction = (function () {
         this.PC = PC;
         this.data = data;
     }
-    Instruction.fromMemoryAndPC = function (memory, PC) {
-        return new Instruction(PC, memory.readInt32(PC));
-    };
-    Instruction.prototype.extract = function (offset, length) {
-        return BitUtils.extract(this.data, offset, length);
-    };
-    Instruction.prototype.extract_s = function (offset, length) {
-        return BitUtils.extractSigned(this.data, offset, length);
-    };
-    Instruction.prototype.insert = function (offset, length, value) {
-        this.data = BitUtils.insert(this.data, offset, length, value);
-    };
+    Instruction.fromMemoryAndPC = function (memory, PC) { return new Instruction(PC, memory.readInt32(PC)); };
+    Instruction.prototype.extract = function (offset, length) { return BitUtils.extract(this.data, offset, length); };
+    Instruction.prototype.extract_s = function (offset, length) { return BitUtils.extractSigned(this.data, offset, length); };
+    Instruction.prototype.insert = function (offset, length, value) { this.data = BitUtils.insert(this.data, offset, length, value); };
     Object.defineProperty(Instruction.prototype, "rd", {
-        get: function () {
-            return this.extract(11 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 0, 5); },
+        set: function (value) { this.insert(11 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "rt", {
-        get: function () {
-            return this.extract(11 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 1, 5); },
+        set: function (value) { this.insert(11 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "rs", {
-        get: function () {
-            return this.extract(11 + 5 * 2, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 2, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 2, 5); },
+        set: function (value) { this.insert(11 + 5 * 2, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "fd", {
-        get: function () {
-            return this.extract(6 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "fs", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ft", {
-        get: function () {
-            return this.extract(6 + 5 * 2, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 2, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 2, 5); },
+        set: function (value) { this.insert(6 + 5 * 2, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VD", {
-        get: function () {
-            return this.extract(0, 7);
-        },
-        set: function (value) {
-            this.insert(0, 7, value);
-        },
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VS", {
-        get: function () {
-            return this.extract(8, 7);
-        },
-        set: function (value) {
-            this.insert(8, 7, value);
-        },
+        get: function () { return this.extract(8, 7); },
+        set: function (value) { this.insert(8, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT", {
-        get: function () {
-            return this.extract(16, 7);
-        },
-        set: function (value) {
-            this.insert(16, 7, value);
-        },
+        get: function () { return this.extract(16, 7); },
+        set: function (value) { this.insert(16, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5_1", {
-        get: function () {
-            return this.VT5 | (this.VT1 << 5);
-        },
-        set: function (value) {
-            this.VT5 = value;
-            this.VT1 = (value >>> 5);
-        },
+        get: function () { return this.VT5 | (this.VT1 << 5); },
+        set: function (value) { this.VT5 = value; this.VT1 = (value >>> 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM14", {
-        get: function () {
-            return this.extract_s(2, 14);
-        },
-        set: function (value) {
-            this.insert(2, 14, value);
-        },
+        get: function () { return this.extract_s(2, 14); },
+        set: function (value) { this.insert(2, 14, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ONE", {
-        get: function () {
-            return this.extract(7, 1);
-        },
-        set: function (value) {
-            this.insert(7, 1, value);
-        },
+        get: function () { return this.extract(7, 1); },
+        set: function (value) { this.insert(7, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "TWO", {
-        get: function () {
-            return this.extract(15, 1);
-        },
-        set: function (value) {
-            this.insert(15, 1, value);
-        },
+        get: function () { return this.extract(15, 1); },
+        set: function (value) { this.insert(15, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ONE_TWO", {
-        get: function () {
-            return (1 + 1 * this.ONE + 2 * this.TWO);
-        },
-        set: function (value) {
-            this.ONE = (((value - 1) >>> 0) & 1);
-            this.TWO = (((value - 1) >>> 1) & 1);
-        },
+        get: function () { return (1 + 1 * this.ONE + 2 * this.TWO); },
+        set: function (value) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM8", {
-        get: function () {
-            return this.extract(16, 8);
-        },
-        set: function (value) {
-            this.insert(16, 8, value);
-        },
+        get: function () { return this.extract(16, 8); },
+        set: function (value) { this.insert(16, 8, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM5", {
-        get: function () {
-            return this.extract(16, 5);
-        },
-        set: function (value) {
-            this.insert(16, 5, value);
-        },
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM3", {
-        get: function () {
-            return this.extract(18, 3);
-        },
-        set: function (value) {
-            this.insert(18, 3, value);
-        },
+        get: function () { return this.extract(18, 3); },
+        set: function (value) { this.insert(18, 3, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM7", {
-        get: function () {
-            return this.extract(0, 7);
-        },
-        set: function (value) {
-            this.insert(0, 7, value);
-        },
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM4", {
-        get: function () {
-            return this.extract(0, 4);
-        },
-        set: function (value) {
-            this.insert(0, 4, value);
-        },
+        get: function () { return this.extract(0, 4); },
+        set: function (value) { this.insert(0, 4, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT1", {
-        get: function () {
-            return this.extract(0, 1);
-        },
-        set: function (value) {
-            this.insert(0, 1, value);
-        },
+        get: function () { return this.extract(0, 1); },
+        set: function (value) { this.insert(0, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT2", {
-        get: function () {
-            return this.extract(0, 2);
-        },
-        set: function (value) {
-            this.insert(0, 2, value);
-        },
+        get: function () { return this.extract(0, 2); },
+        set: function (value) { this.insert(0, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5", {
-        get: function () {
-            return this.extract(16, 5);
-        },
-        set: function (value) {
-            this.insert(16, 5, value);
-        },
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5_2", {
-        get: function () {
-            return this.VT5 | (this.VT2 << 5);
-        },
+        get: function () { return this.VT5 | (this.VT2 << 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM_HF", {
-        get: function () {
-            return HalfFloat.toFloat(this.imm16);
-        },
+        get: function () { return HalfFloat.toFloat(this.imm16); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "pos", {
-        get: function () {
-            return this.lsb;
-        },
-        set: function (value) {
-            this.lsb = value;
-        },
+        get: function () { return this.lsb; },
+        set: function (value) { this.lsb = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "size_e", {
-        get: function () {
-            return this.msb + 1;
-        },
-        set: function (value) {
-            this.msb = value - 1;
-        },
+        get: function () { return this.msb + 1; },
+        set: function (value) { this.msb = value - 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "size_i", {
-        get: function () {
-            return this.msb - this.lsb + 1;
-        },
-        set: function (value) {
-            this.msb = this.lsb + value - 1;
-        },
+        get: function () { return this.msb - this.lsb + 1; },
+        set: function (value) { this.msb = this.lsb + value - 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "lsb", {
-        get: function () {
-            return this.extract(6 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "msb", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "c1cr", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "syscall", {
-        get: function () {
-            return this.extract(6, 20);
-        },
-        set: function (value) {
-            this.insert(6, 20, value);
-        },
+        get: function () { return this.extract(6, 20); },
+        set: function (value) { this.insert(6, 20, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "imm16", {
-        get: function () {
-            var res = this.u_imm16;
-            if (res & 0x8000)
-                res |= 0xFFFF0000;
-            return res;
-        },
-        set: function (value) {
-            this.insert(0, 16, value);
-        },
+        get: function () { var res = this.u_imm16; if (res & 0x8000)
+            res |= 0xFFFF0000; return res; },
+        set: function (value) { this.insert(0, 16, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "u_imm16", {
-        get: function () {
-            return this.extract(0, 16);
-        },
-        set: function (value) {
-            this.insert(0, 16, value);
-        },
+        get: function () { return this.extract(0, 16); },
+        set: function (value) { this.insert(0, 16, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "u_imm26", {
-        get: function () {
-            return this.extract(0, 26);
-        },
-        set: function (value) {
-            this.insert(0, 26, value);
-        },
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_bits", {
-        get: function () {
-            return this.extract(0, 26);
-        },
-        set: function (value) {
-            this.insert(0, 26, value);
-        },
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_real", {
-        get: function () {
-            return (this.jump_bits * 4) >>> 0;
-        },
-        set: function (value) {
-            this.jump_bits = (value / 4) >>> 0;
-        },
+        get: function () { return (this.jump_bits * 4) >>> 0; },
+        set: function (value) { this.jump_bits = (value / 4) >>> 0; },
         enumerable: true,
         configurable: true
     });
@@ -10900,15 +9965,15 @@ exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/cpu/state": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var memory = require('../memory');
 (function (CpuSpecialAddresses) {
-    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
+    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 268435455] = "EXIT_THREAD";
 })(exports.CpuSpecialAddresses || (exports.CpuSpecialAddresses = {}));
 var CpuSpecialAddresses = exports.CpuSpecialAddresses;
 var VfpuPrefixBase = (function () {
@@ -11075,9 +10140,9 @@ var CpuState = (function () {
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
         this.vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
-        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0 /* SPREFIX */);
-        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1 /* TPREFIX */);
-        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2 /* DPREFIX */);
+        this.vpfxs = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.SPREFIX);
+        this.vpfxt = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.TPREFIX);
+        this.vpfxd = new VfpuPrefixWrite(this.vfprc, VFPU_CTRL.DPREFIX);
         this.vector_vs = [0, 0, 0, 0];
         this.vector_vt = [0, 0, 0, 0];
         this.vector_vd = [0, 0, 0, 0];
@@ -11100,14 +10165,13 @@ var CpuState = (function () {
     }
     CpuState.prototype.setVfrCc = function (index, value) {
         if (value) {
-            this.vfprc[3 /* CC */] |= (1 << index);
+            this.vfprc[VFPU_CTRL.CC] |= (1 << index);
         }
         else {
-            this.vfprc[3 /* CC */] &= ~(1 << index);
+            this.vfprc[VFPU_CTRL.CC] &= ~(1 << index);
         }
     };
-    CpuState.prototype.vrnds = function () {
-    };
+    CpuState.prototype.vrnds = function () { };
     CpuState.prototype.vrndi = function () {
         var v = 0;
         for (var n = 0; n < 4; n++) {
@@ -11116,14 +10180,10 @@ var CpuState = (function () {
         }
         return v;
     };
-    CpuState.prototype.vrndf1 = function () {
-        return Math.random() * 2;
-    };
-    CpuState.prototype.vrndf2 = function () {
-        return Math.random() * 4;
-    };
+    CpuState.prototype.vrndf1 = function () { return Math.random() * 2; };
+    CpuState.prototype.vrndf2 = function () { return Math.random() * 4; };
     CpuState.prototype.getVfrCc = function (index) {
-        return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
+        return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
     };
     CpuState.prototype.vcmp = function (cond, vsValues, vtValues) {
         var vectorSize = vsValues.length;
@@ -11138,52 +10198,52 @@ var CpuState = (function () {
         for (var i = 0; i < vectorSize; i++) {
             var c = false;
             switch (cond) {
-                case 0 /* FL */:
+                case VCondition.FL:
                     c = false;
                     break;
-                case 1 /* EQ */:
+                case VCondition.EQ:
                     c = s[i] == t[i];
                     break;
-                case 2 /* LT */:
+                case VCondition.LT:
                     c = s[i] < t[i];
                     break;
-                case 3 /* LE */:
+                case VCondition.LE:
                     c = s[i] <= t[i];
                     break;
-                case 4 /* TR */:
+                case VCondition.TR:
                     c = true;
                     break;
-                case 5 /* NE */:
+                case VCondition.NE:
                     c = s[i] != t[i];
                     break;
-                case 6 /* GE */:
+                case VCondition.GE:
                     c = s[i] >= t[i];
                     break;
-                case 7 /* GT */:
+                case VCondition.GT:
                     c = s[i] > t[i];
                     break;
-                case 8 /* EZ */:
+                case VCondition.EZ:
                     c = s[i] == 0.0 || s[i] == -0.0;
                     break;
-                case 9 /* EN */:
+                case VCondition.EN:
                     c = MathFloat.isnan(s[i]);
                     break;
-                case 10 /* EI */:
+                case VCondition.EI:
                     c = MathFloat.isinf(s[i]);
                     break;
-                case 11 /* ES */:
+                case VCondition.ES:
                     c = MathFloat.isnanorinf(s[i]);
                     break;
-                case 12 /* NZ */:
+                case VCondition.NZ:
                     c = s[i] != 0;
                     break;
-                case 13 /* NN */:
+                case VCondition.NN:
                     c = !MathFloat.isnan(s[i]);
                     break;
-                case 14 /* NI */:
+                case VCondition.NI:
                     c = !MathFloat.isinf(s[i]);
                     break;
-                case 15 /* NS */:
+                case VCondition.NS:
                     c = !(MathFloat.isnanorinf(s[i]));
                     break;
             }
@@ -11193,7 +10253,7 @@ var CpuState = (function () {
             and_val &= c_i;
             affected_bits |= 1 << i;
         }
-        this.vfprc[3 /* CC */] = (this.vfprc[3 /* CC */] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.vfprc[VFPU_CTRL.CC] = (this.vfprc[VFPU_CTRL.CC] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
         this.eatPrefixes();
     };
     CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
@@ -11202,7 +10262,7 @@ var CpuState = (function () {
         this.loadVs_prefixed(vsRegs.map(function (reg) { return _this.vfpr[reg]; }));
         this.loadVdRegs(vdRegs);
         var compare = _true ? 1 : 0;
-        var cc = this.vfprc[3 /* CC */];
+        var cc = this.vfprc[VFPU_CTRL.CC];
         if (register < 6) {
             if (((cc >> register) & 1) == compare) {
                 for (var n = 0; n < vectorSize; n++) {
@@ -11221,68 +10281,46 @@ var CpuState = (function () {
         }
         this.storeVdRegsWithPrefix(vdRegs);
     };
-    CpuState.prototype.setVpfxt = function (value) {
-        this.vpfxt.setInfo(value);
-    };
-    CpuState.prototype.setVpfxs = function (value) {
-        this.vpfxs.setInfo(value);
-    };
-    CpuState.prototype.setVpfxd = function (value) {
-        this.vpfxd.setInfo(value);
-    };
+    CpuState.prototype.setVpfxt = function (value) { this.vpfxt.setInfo(value); };
+    CpuState.prototype.setVpfxs = function (value) { this.vpfxs.setInfo(value); };
+    CpuState.prototype.setVpfxd = function (value) { this.vpfxd.setInfo(value); };
     Object.defineProperty(CpuState.prototype, "vfpumatrix0", {
-        get: function () {
-            return this.getVfpumatrix(0);
-        },
+        get: function () { return this.getVfpumatrix(0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix1", {
-        get: function () {
-            return this.getVfpumatrix(1);
-        },
+        get: function () { return this.getVfpumatrix(1); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix2", {
-        get: function () {
-            return this.getVfpumatrix(2);
-        },
+        get: function () { return this.getVfpumatrix(2); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix3", {
-        get: function () {
-            return this.getVfpumatrix(3);
-        },
+        get: function () { return this.getVfpumatrix(3); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix4", {
-        get: function () {
-            return this.getVfpumatrix(4);
-        },
+        get: function () { return this.getVfpumatrix(4); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix5", {
-        get: function () {
-            return this.getVfpumatrix(5);
-        },
+        get: function () { return this.getVfpumatrix(5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix6", {
-        get: function () {
-            return this.getVfpumatrix(6);
-        },
+        get: function () { return this.getVfpumatrix(6); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix7", {
-        get: function () {
-            return this.getVfpumatrix(7);
-        },
+        get: function () { return this.getVfpumatrix(7); },
         enumerable: true,
         configurable: true
     });
@@ -11396,14 +10434,10 @@ var CpuState = (function () {
             this.memory.writeFloat32(address + n * 4, values[n]);
         }
     };
-    CpuState.prototype.vfpuStore = function (indices, values) {
-        for (var n = 0; n < indices.length; n++)
-            this.vfpr[indices[n]] = values[n];
-    };
-    CpuState.prototype.vfpuStore_i = function (indices, values) {
-        for (var n = 0; n < indices.length; n++)
-            this.vfpr_i[indices[n]] = values[n];
-    };
+    CpuState.prototype.vfpuStore = function (indices, values) { for (var n = 0; n < indices.length; n++)
+        this.vfpr[indices[n]] = values[n]; };
+    CpuState.prototype.vfpuStore_i = function (indices, values) { for (var n = 0; n < indices.length; n++)
+        this.vfpr_i[indices[n]] = values[n]; };
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
         this.vfpr[0] = 0;
         throw new Error("Not implemented vfpuSetMatrix!");
@@ -11433,81 +10467,49 @@ var CpuState = (function () {
             this.vfprc[n] = other.vfprc[n];
     };
     Object.defineProperty(CpuState.prototype, "V0", {
-        get: function () {
-            return this.gpr[2];
-        },
-        set: function (value) {
-            this.gpr[2] = value;
-        },
+        get: function () { return this.gpr[2]; },
+        set: function (value) { this.gpr[2] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "V1", {
-        get: function () {
-            return this.gpr[3];
-        },
-        set: function (value) {
-            this.gpr[3] = value;
-        },
+        get: function () { return this.gpr[3]; },
+        set: function (value) { this.gpr[3] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "K0", {
-        get: function () {
-            return this.gpr[26];
-        },
-        set: function (value) {
-            this.gpr[26] = value;
-        },
+        get: function () { return this.gpr[26]; },
+        set: function (value) { this.gpr[26] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "GP", {
-        get: function () {
-            return this.gpr[28];
-        },
-        set: function (value) {
-            this.gpr[28] = value;
-        },
+        get: function () { return this.gpr[28]; },
+        set: function (value) { this.gpr[28] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "SP", {
-        get: function () {
-            return this.gpr[29];
-        },
-        set: function (value) {
-            this.gpr[29] = value;
-        },
+        get: function () { return this.gpr[29]; },
+        set: function (value) { this.gpr[29] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "FP", {
-        get: function () {
-            return this.gpr[30];
-        },
-        set: function (value) {
-            this.gpr[30] = value;
-        },
+        get: function () { return this.gpr[30]; },
+        set: function (value) { this.gpr[30] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "RA", {
-        get: function () {
-            return this.gpr[31];
-        },
-        set: function (value) {
-            this.gpr[31] = value;
-        },
+        get: function () { return this.gpr[31]; },
+        set: function (value) { this.gpr[31] = value; },
         enumerable: true,
         configurable: true
     });
-    CpuState.prototype.getRA = function () {
-        return this.gpr[31];
-    };
-    CpuState.prototype.setRA = function (value) {
-        this.gpr[31] = value;
-    };
+    CpuState.prototype.getRA = function () { return this.gpr[31]; };
+    CpuState.prototype.setRA = function (value) { this.gpr[31] = value; };
     CpuState.prototype.callstackPush = function (PC) {
     };
     CpuState.prototype.callstackPop = function () {
@@ -11563,16 +10565,12 @@ var CpuState = (function () {
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "fcr0_rev", {
-        get: function () {
-            return BitUtils.extract(this.fcr0, 0, 8);
-        },
+        get: function () { return BitUtils.extract(this.fcr0, 0, 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "fcr0_imp", {
-        get: function () {
-            return BitUtils.extract(this.fcr0, 8, 24);
-        },
+        get: function () { return BitUtils.extract(this.fcr0, 8, 24); },
         enumerable: true,
         configurable: true
     });
@@ -11617,51 +10615,21 @@ var CpuState = (function () {
     };
     CpuState.prototype.cache = function (rs, type, offset) {
     };
-    CpuState.prototype.syscall = function (id) {
-        this.syscallManager.call(this, id);
-    };
-    CpuState.prototype.sb = function (value, address) {
-        this.memory.writeInt8(address, value);
-    };
-    CpuState.prototype.sh = function (value, address) {
-        this.memory.writeInt16(address, value);
-    };
-    CpuState.prototype.sw = function (value, address) {
-        this.memory.writeInt32(address, value);
-    };
-    CpuState.prototype.swc1 = function (value, address) {
-        this.memory.writeFloat32(address, value);
-    };
-    CpuState.prototype.lb = function (address) {
-        return this.memory.readInt8(address);
-    };
-    CpuState.prototype.lbu = function (address) {
-        return this.memory.readUInt8(address);
-    };
-    CpuState.prototype.lh = function (address) {
-        return this.memory.readInt16(address);
-    };
-    CpuState.prototype.lhu = function (address) {
-        return this.memory.readUInt16(address);
-    };
-    CpuState.prototype.lw = function (address) {
-        return this.memory.readInt32(address);
-    };
-    CpuState.prototype.lwc1 = function (address) {
-        return this.memory.readFloat32(address);
-    };
-    CpuState.prototype.min = function (a, b) {
-        return ((a | 0) < (b | 0)) ? a : b;
-    };
-    CpuState.prototype.max = function (a, b) {
-        return ((a | 0) > (b | 0)) ? a : b;
-    };
-    CpuState.prototype.slt = function (a, b) {
-        return ((a | 0) < (b | 0)) ? 1 : 0;
-    };
-    CpuState.prototype.sltu = function (a, b) {
-        return ((a >>> 0) < (b >>> 0)) ? 1 : 0;
-    };
+    CpuState.prototype.syscall = function (id) { this.syscallManager.call(this, id); };
+    CpuState.prototype.sb = function (value, address) { this.memory.writeInt8(address, value); };
+    CpuState.prototype.sh = function (value, address) { this.memory.writeInt16(address, value); };
+    CpuState.prototype.sw = function (value, address) { this.memory.writeInt32(address, value); };
+    CpuState.prototype.swc1 = function (value, address) { this.memory.writeFloat32(address, value); };
+    CpuState.prototype.lb = function (address) { return this.memory.readInt8(address); };
+    CpuState.prototype.lbu = function (address) { return this.memory.readUInt8(address); };
+    CpuState.prototype.lh = function (address) { return this.memory.readInt16(address); };
+    CpuState.prototype.lhu = function (address) { return this.memory.readUInt16(address); };
+    CpuState.prototype.lw = function (address) { return this.memory.readInt32(address); };
+    CpuState.prototype.lwc1 = function (address) { return this.memory.readFloat32(address); };
+    CpuState.prototype.min = function (a, b) { return ((a | 0) < (b | 0)) ? a : b; };
+    CpuState.prototype.max = function (a, b) { return ((a | 0) > (b | 0)) ? a : b; };
+    CpuState.prototype.slt = function (a, b) { return ((a | 0) < (b | 0)) ? 1 : 0; };
+    CpuState.prototype.sltu = function (a, b) { return ((a >>> 0) < (b >>> 0)) ? 1 : 0; };
     CpuState.prototype.lwl = function (RS, Offset, ValueToWrite) {
         var Address = (RS + Offset);
         var AddressAlign = Address & 3;
@@ -11759,9 +10727,7 @@ var CpuState = (function () {
             }
         }
     };
-    CpuState.prototype.break = function () {
-        throw (new CpuBreakException());
-    };
+    CpuState.prototype.break = function () { throw (new CpuBreakException()); };
     CpuState.LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
     CpuState.LwrShift = [0, 8, 16, 24];
     CpuState.LwlMask = [0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000];
@@ -11777,7 +10743,7 @@ exports.CpuState = CpuState;
 
 },
 "src/core/cpu/syscall": function(module, exports, require) {
-var state = require('./state');
+///<reference path="../../global.d.ts" />
 var NativeFunction = (function () {
     function NativeFunction() {
     }
@@ -15330,7 +14296,7 @@ var TextureHandler = (function () {
         var hash1 = Texture.hashFast(state);
         var texture = this.texturesByHash1[hash1];
         if (this.mustRecheckSlowHash(texture)) {
-            var hash2 = hash1;
+            var hash2 = Texture.hashSlow(this.memory, state);
             texture = this.texturesByHash2[hash2];
             if (!texture) {
                 if (!this.texturesByAddress[mipmap.address]) {
