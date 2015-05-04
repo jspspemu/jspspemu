@@ -7,19 +7,19 @@ interface StatInfo {
 }
 
 function waitAsync(timems: number) {
-	return new Promise((resolve, reject) => {
+	return new Promise2((resolve, reject) => {
 		setTimeout(resolve, timems);
 	});
 }
 
 function immediateAsync() {
-	return new Promise((resolve, reject) => {
-		setImmediate(resolve);
+	return new Promise2((resolve, reject) => {
+		Microtask.queue(resolve);
 	});
 }
 
 function _downloadFileAsync(method: string, url: string, headers?: any) {
-	return new Promise<XMLHttpRequest>((resolve, reject) => {
+	return new Promise2<XMLHttpRequest>((resolve, reject) => {
 		var request = new XMLHttpRequest();
 
 		request.open(method, url, true);
@@ -53,9 +53,9 @@ function toArrayBuffer(buffer:any) {
     return ab;
 }
 
-function downloadFileAsync(url: string, headers?: any):Promise<ArrayBuffer> {
+function downloadFileAsync(url: string, headers?: any):Promise2<ArrayBuffer> {
 	if (typeof XMLHttpRequest == 'undefined') {
-		return new Promise<ArrayBuffer>((resolve, reject) => {
+		return new Promise2<ArrayBuffer>((resolve, reject) => {
 			fs.readFile(url, (err:any, data:any) => {
 			  if (err) {
 				  reject(err);

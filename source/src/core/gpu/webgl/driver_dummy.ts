@@ -24,8 +24,8 @@ class DummyDrawDriver implements IDrawDriver {
 	end(): void {
 	}
 
-	initAsync(): Promise<any> {
-		return Promise.resolve();
+	initAsync(): Promise2<any> {
+		return Promise2.resolve();
 	}
 
 	/**

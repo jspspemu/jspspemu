@@ -4,10 +4,10 @@
 declare var IDBKeyRange: IDBKeyRange;
 
 export interface MyStorage {
-	putAsync(key: string, value: any): Promise<void>;
-	deleteAsync(key: string): Promise<void>;
-	hasAsync(key: string): Promise<boolean>;
-	getAsync(key: string): Promise<any>;
+	putAsync(key: string, value: any): Promise2<void>;
+	deleteAsync(key: string): Promise2<void>;
+	hasAsync(key: string): Promise2<boolean>;
+	getAsync(key: string): Promise2<any>;
 }
 
 class MyStorageIndexedDb implements MyStorage {
@@ -16,7 +16,7 @@ class MyStorageIndexedDb implements MyStorage {
 
 	static openAsync(name: string) {
 		console.info('MyStorageIndexedDb.openAsync("' + name + '")');
-		return new Promise<MyStorage>((resolve, reject) => {
+		return new Promise2<MyStorage>((resolve, reject) => {
 			var request = indexedDB.open(name, 1);
 			request.onupgradeneeded = function (e) {
 				var db = request.result;
@@ -41,10 +41,10 @@ class MyStorageIndexedDb implements MyStorage {
 		return this.db.transaction(['items'], "readwrite").objectStore('items');
 	}
 
-	putAsync(key: string, value: any): Promise<void> {
+	putAsync(key: string, value: any): Promise2<void> {
 		console.log('putAsync', key, value);
 		var store = this.getItemsStore();
-		return new Promise<void>((resolve, reject) => {
+		return new Promise2<void>((resolve, reject) => {
 			var request = store.put({ key: key, value: value });
 			request.onsuccess = function (e) {
 				resolve();
@@ -55,10 +55,10 @@ class MyStorageIndexedDb implements MyStorage {
 		});
 	}
 
-	deleteAsync(key: string): Promise<void> {
+	deleteAsync(key: string): Promise2<void> {
 		console.log('deleteAsync', key);
 		var store = this.getItemsStore();
-		return new Promise<void>((resolve, reject) => {
+		return new Promise2<void>((resolve, reject) => {
 			var request = store.delete(key);
 
 			request.onsuccess = function (e) {
@@ -71,14 +71,14 @@ class MyStorageIndexedDb implements MyStorage {
 		});
 	}
 
-	hasAsync(key: string): Promise<boolean> {
+	hasAsync(key: string): Promise2<boolean> {
 		console.log('hasAsync', key);
 		return this.getAsync(key).then(() => true, () => false);
 	}
 
-	getAsync(key: string): Promise<any> {
+	getAsync(key: string): Promise2<any> {
 		var store = this.getItemsStore();
-		return new Promise((resolve, reject) => {
+		return new Promise2((resolve, reject) => {
 			//console.log('rr');
 			//var keyRange = IDBKeyRange.only(key);
 			//var keyRange = IDBKeyRange.lowerBound(0);
@@ -111,34 +111,34 @@ class MyStorageFake implements MyStorage {
 		//console.log('new MyStorageFake(' + name + ')');
 	}
 
-	putAsync(key: string, value: any): Promise<void> {
+	putAsync(key: string, value: any): Promise2<void> {
 		console.log('putAsync', key, value);
 		this.items[key] = value;
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
-	deleteAsync(key: string): Promise<void> {
+	deleteAsync(key: string): Promise2<void> {
 		console.log('deleteAsync', key);
 		delete this.items[key];
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
-	hasAsync(key: string): Promise<boolean> {
+	hasAsync(key: string): Promise2<boolean> {
 		var value = this.items[key] !== undefined;
 		console.log('hasAsync', key, value);
-		return Promise.resolve(value);
+		return Promise2.resolve(value);
 	}
 
-	getAsync(key: string): Promise<any> {
+	getAsync(key: string): Promise2<any> {
 		var result = this.items[key];
 		console.log('getAsync', key, result);
-		return Promise.resolve(result);
+		return Promise2.resolve(result);
 	}
 }
 
-export function openAsync(name: string, version: number, stores: string[]): Promise<MyStorage> {
+export function openAsync(name: string, version: number, stores: string[]): Promise2<MyStorage> {
 	if (typeof indexedDB == "undefined") {
-		return Promise.resolve(new MyStorageFake(name));
+		return Promise2.resolve(new MyStorageFake(name));
 	} else {
 		return MyStorageIndexedDb.openAsync(name + '_v2');
 	}

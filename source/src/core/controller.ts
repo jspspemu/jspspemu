@@ -3,8 +3,8 @@
 if (typeof navigator == 'undefined') navigator = <any>{};
 
 export interface IPspController {
-	startAsync():Promise<void>;
-	stopAsync():Promise<void>;
+	startAsync():Promise2<void>;
+	stopAsync():Promise2<void>;
 	data: SceCtrlData;
 	latchSamplingCount: number;
 }
@@ -113,7 +113,7 @@ export class PspController {
 			document.addEventListener('keyup', this._keyUp = (e:any) => this.keyUp(e));
 		}
 		this.frame(0);
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
 	//private gamepadsButtons = [];
@@ -194,7 +194,7 @@ export class PspController {
 			document.removeEventListener('keyup', this._keyUp);
 		}
 		cancelAnimationFrame(this.animationTimeId);
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 }
 

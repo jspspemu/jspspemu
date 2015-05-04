@@ -54,8 +54,8 @@ export class ZipEntry {
 		return string.toUpperCase();
 	}
 
-	readRawCompressedAsync():Promise<Uint8Array> {
-		if (this.compressedData) return Promise.resolve(this.compressedData);
+	readRawCompressedAsync():Promise2<Uint8Array> {
+		if (this.compressedData) return Promise2.resolve(this.compressedData);
 		return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then((data) => {
 			var stream = Stream.fromArrayBuffer(data);
 			var zipFileRecord = ZipFileRecord.struct.read(stream);
@@ -70,7 +70,7 @@ export class ZipEntry {
 	}
 	
 	readAsync() {
-		if (this.uncompressedData) return Promise.resolve(this.uncompressedData);
+		if (this.uncompressedData) return Promise2.resolve(this.uncompressedData);
 		return this.readRawCompressedAsync().then((data:Uint8Array) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:

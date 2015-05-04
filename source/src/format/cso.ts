@@ -54,7 +54,7 @@ export class Cso implements AsyncStream {
 		});
     }
 
-	readChunkAsync(offset: number, count: number): Promise<ArrayBuffer> {
+	readChunkAsync(offset: number, count: number): Promise2<ArrayBuffer> {
 		var blockIndex = Math.floor(offset / this.header.blockSize);
 		var blockLow = MathUtils.prevAligned(offset, this.header.blockSize);
 		var blockHigh = blockLow + this.header.blockSize;

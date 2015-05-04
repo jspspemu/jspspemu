@@ -2,6 +2,7 @@
 
 //declare function require(name: string): any;
 
+export import promisetest = require('./promisetest');
 import pspTest = require('./format/pspTest'); pspTest.ref();
 import csoTest = require('./format/csoTest'); csoTest.ref();
 import isoTest = require('./format/isoTest'); isoTest.ref();

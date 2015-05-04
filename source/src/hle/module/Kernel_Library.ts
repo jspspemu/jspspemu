@@ -24,7 +24,7 @@ export class Kernel_Library {
 		thread.sceKernelCpuResumeIntrCount++;
 		if (thread.sceKernelCpuResumeIntrCount >= 3) {
 			thread.sceKernelCpuResumeIntrCount = 0;
-			return Promise.resolve(0);
+			return Promise2.resolve(0);
 			//return thread.delayMicrosecondsAsync(1000);
 		} else {
 			return 0;

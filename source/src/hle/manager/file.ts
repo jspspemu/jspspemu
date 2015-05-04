@@ -29,7 +29,7 @@ export class HleFile {
 	cursor = 0;
 
 	private _asyncResult: Integer64 = null;
-	private _asyncPromise: Promise<Integer64> = null;
+	private _asyncPromise: Promise2<Integer64> = null;
 
 	constructor(public entry: _vfs.VfsEntry) {
 	}
@@ -44,7 +44,7 @@ export class HleFile {
 		this._asyncResult = null;
 	}
 
-	setAsyncOperation(operation: Promise<Integer64>) {
+	setAsyncOperation(operation: Promise2<Integer64>) {
 		this._asyncResult = null;
 		this._asyncPromise = operation.then((value) => {
 			this._asyncResult = value;
@@ -54,7 +54,7 @@ export class HleFile {
 
 	setAsyncOperationNow(value: Integer64) {
 		this._asyncResult = value;
-		this._asyncPromise = Promise.resolve(value);
+		this._asyncPromise = Promise2.resolve(value);
 	}
 
 	close() {

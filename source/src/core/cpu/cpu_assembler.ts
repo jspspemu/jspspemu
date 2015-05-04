@@ -11,35 +11,51 @@ class Labels {
 	public labels: StringDictionary<number> = {};
 }
 
+export class MipsAssemblerResult {
+	public constructor(public entrypoint:number) {
+		
+	}
+}
+
 export class MipsAssembler {
 	private instructions: Instructions = Instructions.instance;
 
 	constructor() {
 	}
 
-	assembleToMemory(memory: Memory, startPC: number, lines: string[]) {
+	assembleToMemory(memory: Memory, startPC: number, lines: string[]):MipsAssemblerResult {
 		var labels = new Labels();
+		var entryPoint = startPC;
 		for (var n = 0; n < 2; n++) { // hack to get labels working without patching or extra code
 			var PC = startPC;
 			for (let line of lines) {
-				var instructions = this.assemble(PC, line, labels);
-				for (let instruction of instructions) {
-					memory.writeInt32(PC, instruction.data);
-					PC += 4;
+				switch (line.substr(0, 1)) {
+					case '.':
+						switch (line) {
+							case '.entrypoint': entryPoint = PC; break;
+							default: throw new Error(`Invalid ${line}`);
+						}
+						break;
+					case ':':
+						labels.labels[line.substr(1)] = PC;
+						break;
+					default:
+						var instructions = this.assemble(PC, line, labels);
+						for (let instruction of instructions) {
+							memory.writeInt32(PC, instruction.data);
+							PC += 4;
+						}
+						break;
 				}
 			}
 		}
+		return new MipsAssemblerResult(entryPoint);
 	}
 
 	assemble(PC: number, line: string, labels?:Labels): Instruction[] {
 		if (labels == null) labels = new Labels();
 		//console.log(line);
 		
-		if (line.substr(0, 1) == ':') {
-			labels.labels[line.substr(1)] = PC;
-			return [];
-		}
-
 		var matches = line.match(/^\s*(\w+)(.*)$/);
 		var instructionName = matches[1];
 		var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');

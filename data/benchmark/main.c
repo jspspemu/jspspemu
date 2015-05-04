@@ -64,7 +64,6 @@ void testSimpleLoop()
 		}
 	}
 	outResult = sum;
-	//asm("dbreak\n");
 }
 
 
@@ -194,6 +193,7 @@ void runTest9a()
 	runTest9b();
 	runTest9b();
 	runTest9b();
+	asm("dbreak\n");
 }
 
 void runTest9()

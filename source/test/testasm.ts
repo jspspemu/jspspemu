@@ -24,7 +24,7 @@ class TestSyscallManager extends _cpu.SyscallManager {
 function executeProgram(gprInitial: any, program: string[]) {
     program = program.slice(0);
     program.push('break 0');
-    assembler.assembleToMemory(memory, 4, program);
+    var result = assembler.assembleToMemory(memory, 4, program);
 	var state = new CpuState(memory, new TestSyscallManager());
 
 	for (var key in gprInitial) {
@@ -35,13 +35,13 @@ function executeProgram(gprInitial: any, program: string[]) {
 		}
     }
 
-    state.PC = 4;
+    state.PC = result.entrypoint;
     state.SP = 0x10000;
    
     try {
         state.executeAtPC();
     } catch (e) {
-        if (!(e instanceof CpuBreakException)) throw e;
+        if (e.message != 'CpuBreakException') throw e;
     }
     return state;
 }
@@ -174,26 +174,25 @@ describe('testasm cpu running', function () {
             { "$1": 20 }
         );
     });
-
-    /*
-    it('jal_several', function () {
+    
+    it('j_inside2', function () {
         assertProgram(
-            "j_inside",
-            { "$1": 0, "$2": 20 },
+            "j_inside2",
+            { "$1": 0, "$30": 20 },
             [
                 ":start",
+                "addi r2, r2, 1",
+                ".entrypoint",
                 "addi r1, r1, 1",
-                "bne r1, r2, start",
+                "beq r1, r30, end",
                 "nop",
-                
                 "j start",
                 "nop",
                 ":end",
             ],
-            { "$1": 20 }
+            { "$1": 20, "$2": 19 }
         );
     });
-    */
 
     it('shift', function () {
     });

@@ -664,7 +664,7 @@ export class CpuState {
 		}
 	}
 
-	break() { throw (new CpuBreakException()); }
+	break() { throw new Error('CpuBreakException'); }
 }
 
 var ast = new _ast.MipsAstBuilder();
@@ -752,9 +752,6 @@ export class InstructionCache {
 			console.log('****************************************');
 			console.log(func.info);
 			console.log(func.code.code);
-			//console.log(func.code.args);
-			console.log('****************************************');
-			console.log('****************************************');
 			*/
 		}
 		return func.fargs;
@@ -828,12 +825,17 @@ export class FunctionGenerator {
 	}
 
 	getFunction(info: FunctionInfo): FunctionGeneratorResult {
+		var start = performance.now();
 		var code = this.getFunctionCode(info);
 		try {
 			//var func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
 			var startHex = addressToHex(info.start);
 			var func = <ICpuFunction>(new Function('args', `return function func_${startHex}(state) { "use strict"; ${code.code} }`)(code.args));
-			return new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
+			var result = new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
+			var end = performance.now();
+			var elapsed = end - start;
+			if (elapsed >= 20) console.warn(`generated function ${startHex} in ${end - start} ms. ${addressToHex(info.min)}-${addressToHex(info.max)} : ${addressToHex(info.start)} : instructions:${(info.max - info.start) / 4}`);
+			return result;
 		} catch (e) {
 			console.info('code:\n', code.code);
 			console.info('args:\n', code.args);
@@ -870,7 +872,7 @@ export class FunctionGenerator {
 			var exploreNext = true;
 			var exploreTarget = type.isBranch && !type.isRegister;
 
-			if (this.enableJumpBranch && type.isFixedAddressJump && explored[di.targetAddress]) exploreTarget = true;
+			//if (this.enableJumpBranch && type.isFixedAddressJump && !explored[di.targetAddress]) exploreTarget = true;
 			if (type.isBreak) exploreNext = false;
 			if (type.isJumpNoLink) exploreNext = false;
 			if (di.isUnconditional) exploreNext = false;
@@ -878,8 +880,7 @@ export class FunctionGenerator {
 			// It is a local jump, a long loop for example
 			
 			if (exploreTarget) {
-				//if (di.targetAddress >= info.min)
-				{
+				if (di.targetAddress >= info.min - 8) {
 					info.labels[di.targetAddress] = true;
 					if (exploreNext) info.labels[PC + 8] = true;
 					addToExplore(di.targetAddress);
@@ -898,7 +899,7 @@ export class FunctionGenerator {
 
 	getFunctionCode(info: FunctionInfo): FunctionCode {
 		var args: any = {};
-		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
+		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
 
 		var func = ast.func(
 			info.start,

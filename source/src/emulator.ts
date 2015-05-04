@@ -96,9 +96,9 @@ export class Emulator {
 	}
 
 	stopAsync() {
-		if (!this.display) return Promise.resolve();
+		if (!this.display) return Promise2.resolve();
 
-		return Promise.all([
+		return Promise2.all([
 			this.display.stopAsync(),
 			this.controller.stopAsync(),
 			this.gpu.stopAsync(),
@@ -157,7 +157,7 @@ export class Emulator {
 
 			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
 
-			return Promise.all([
+			return Promise2.all([
 				this.display.startAsync(),
 				this.controller.startAsync(),
 				this.gpu.startAsync(),
@@ -407,7 +407,7 @@ export class Emulator {
 
 	downloadAndExecuteAsync(url: string) {
 		return UrlAsyncStream.fromUrlAsync(url).then(stream => {
-			setImmediate(() => {
+			Microtask.queue(() => {
 				// escape try/catch!
 				this.loadAndExecuteAsync(stream, url);
 			});
@@ -415,7 +415,7 @@ export class Emulator {
 	}
 
 	executeFileAsync(file: File) {
-		setImmediate(() => {
+		Microtask.queue(() => {
 			// escape try/catch!
 			this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
 		});

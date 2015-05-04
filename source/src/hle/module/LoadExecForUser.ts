@@ -16,7 +16,7 @@ export class LoadExecForUser {
         console.info('sceKernelExitGame');
 		thread.stop('sceKernelExitGame');
 		this.context.threadManager.exitGame();
-        throw (new CpuBreakException());
+        throw new Error('CpuBreakException');
         return 0;
 	});
 
@@ -28,7 +28,7 @@ export class LoadExecForUser {
 		console.info('sceKernelExitGame2');
 		this.context.threadManager.exitGame();
 		thread.stop('sceKernelExitGame2');
-        throw (new CpuBreakException());
+        throw new Error('CpuBreakException');
     });
 
     sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, (callbackId: number) => {

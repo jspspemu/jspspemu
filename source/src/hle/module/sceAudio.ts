@@ -77,7 +77,7 @@ export class sceAudio {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
-		if (!(result instanceof Promise)) return result;
+		if (!(result instanceof Promise2)) return result;
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
 	});
 

@@ -69,8 +69,8 @@ export class Thread {
 	info: WaitingThreadInfo<any> = null;
 	waitingName: string = null;
 	waitingObject: any = null;
-	waitingPromise: Promise<any> = null;
-	runningPromise: Promise<number> = null;
+	waitingPromise: Promise2<any> = null;
+	runningPromise: Promise2<number> = null;
 	runningStop: () => void;
 	acceptingCallbacks = false;
 
@@ -80,7 +80,7 @@ export class Thread {
 
 	constructor(public name: string, public manager: ThreadManager, memoryManager: MemoryManager, public state: CpuState, stackSize: number) {
         this.state.thread = this;
-		this.runningPromise = new Promise((resolve, reject) => { this.runningStop = resolve; });
+		this.runningPromise = new Promise2<any>((resolve, reject) => { this.runningStop = resolve; });
 		this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
 	}
 
@@ -93,12 +93,12 @@ export class Thread {
 	}
 
 	private wakeupCount: number = 0;
-	private wakeupPromise: Promise<number> = null;
+	private wakeupPromise: Promise2<number> = null;
 	private wakeupFunc: () => void = null;
 
 	private getWakeupPromise() {
 		if (!this.wakeupPromise) {
-			this.wakeupPromise = new Promise<number>((resolve, reject) => {
+			this.wakeupPromise = new Promise2<number>((resolve, reject) => {
 				this.wakeupFunc = resolve;
 			});
 		}
@@ -108,7 +108,7 @@ export class Thread {
 	wakeupSleepAsync(callbacks: AcceptCallbacks) {
 		this.wakeupCount--;
 		this.suspend();
-		//return new Promise((resolve, reject) => { });
+		//return new Promise2((resolve, reject) => { });
 		return this.getWakeupPromise();
 	}
 
@@ -119,7 +119,7 @@ export class Thread {
 			this.wakeupPromise = null;
 			this.wakeupFunc = null;
 		}
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	}
 
 	accumulatedMicroseconds = 0;
@@ -141,7 +141,7 @@ export class Thread {
 
 		if (delayMicroseconds <= 0.00001) {
 			//console.error('none!');
-			//return Promise.resolve(0);
+			//return Promise2.resolve(0);
 		}
 
 		var start = performance.now();
@@ -169,14 +169,14 @@ export class Thread {
 		this._suspendUntilPromiseDone(info.promise, info.compensate);
 	}
 
-	suspendUntilPromiseDone(promise: Promise<any>, info: NativeFunction) {
-		//this.waitingName = sprintf('%s:0x%08X (Promise)', info.name, info.nid);
-		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
+	suspendUntilPromiseDone(promise: Promise2<any>, info: NativeFunction) {
+		//this.waitingName = sprintf('%s:0x%08X (Promise2)', info.name, info.nid);
+		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise2)';
 		this.waitingObject = info;
 		this._suspendUntilPromiseDone(promise, Compensate.NO);
 	}
 
-	_suspendUntilPromiseDone(promise: Promise<any>, compensate: Compensate) {
+	_suspendUntilPromiseDone(promise: Promise2<any>, compensate: Compensate) {
 
 		if (compensate == Compensate.YES) {
 			var startTime = performance.now();
@@ -241,14 +241,14 @@ export class ThreadManager {
 	enqueued: boolean = false;
 	enqueuedTime = 0;
 	running: boolean = false;
-	exitPromise: Promise<any>;
+	exitPromise: Promise2<any>;
 	exitResolve: () => void;
 	current: Thread;
 	private rootCpuState: CpuState;
 
 	constructor(private memory: Memory, private interruptManager: InterruptManager, private callbackManager: CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager) {
 		this.rootCpuState = new CpuState(this.memory, this.syscallManager);
-		this.exitPromise = new Promise((resolve, reject) => {
+		this.exitPromise = new Promise2((resolve, reject) => {
 			this.exitResolve = resolve;
 		});
 		this.interruptManager.event.add(this.eventOcurred);
@@ -280,7 +280,7 @@ export class ThreadManager {
         if (this.enqueued) return;
 		this.enqueued = true;
 		this.enqueuedTime = performance.now();
-		setImmediate(() => this.eventOcurredCallback());
+		Microtask.queue(() => this.eventOcurredCallback());
     }
 
     //get runningThreads() { return this.threads.filter(thread => thread.running); }
@@ -344,6 +344,8 @@ export class ThreadManager {
 					}
 				});
 			}
+			
+			Microtask.execute();
 
             var current = window.performance.now();
 			if (current - start >= 100) {
@@ -362,7 +364,11 @@ export class ThreadManager {
 				}
 			} while (!this.interruptManager.enabled);
 		} catch (e) {
-			if (e instanceof CpuBreakException) return;
+			//console.groupEnd();
+			//console.log(e);
+			//console.log(e['stack']);
+			//debugger;
+			if (e.message = 'CpuBreakException') return;
 			console.error(e);
 			console.error(e['stack']);
 			thread.stop('error:' + e);
@@ -385,7 +391,7 @@ export class ThreadManager {
 		this.callbackAdded = this.callbackManager.onAdded.add(() => {
 			this.eventOcurred();
 		});
-		return Promise.resolve();
+		return Promise2.resolve();
     }
 
     stopAsync() {
@@ -393,14 +399,14 @@ export class ThreadManager {
 		this.callbackManager.onAdded.remove(this.callbackAdded);
 		clearInterval(this.interval);
 		this.interval = -1;
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
 	exitGame() {
 		this.exitResolve();
 	}
 
-	waitExitGameAsync(): Promise<any> {
+	waitExitGameAsync(): Promise2<any> {
 		return this.exitPromise;
 	}
 }

@@ -223,7 +223,7 @@ export class Pdp {
 	}
 
 	recvOneAsync() {
-		return new Promise<_manager.NetPacket>((resolve, reject) => {
+		return new Promise2<_manager.NetPacket>((resolve, reject) => {
 			this.onChunkRecv.once(() => {
 				resolve(this.chunks.shift());
 			});

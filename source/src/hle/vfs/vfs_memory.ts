@@ -13,7 +13,7 @@ export class MemoryVfs extends Vfs {
 		this.files[name] = new MemoryVfsEntry(name, data);
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		if (flags & FileOpenFlags.Write) {
 			if (!this.files[path]) {
 				this.addFile(path, new ArrayBuffer(0));
@@ -27,9 +27,9 @@ export class MemoryVfs extends Vfs {
 			var error:any = new Error(`MemoryVfs: Can't find '${path}'`);
 			console.error(error);
 			console.error(error['stack']);
-			return Promise.reject(error);
+			return Promise2.reject(error);
 		} else {
-			return Promise.resolve(file);
+			return Promise2.resolve(file);
 		}
 	}
 }
@@ -41,17 +41,17 @@ export class MemoryVfsEntry extends VfsEntry {
 
 	get isDirectory() { return false; }
 
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
-		return Promise.resolve(this.data.slice(offset, offset + length));
+	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> {
+		return Promise2.resolve(this.data.slice(offset, offset + length));
 	}
 
-	writeChunkAsync(offset: number, data: ArrayBuffer): Promise<number> {
+	writeChunkAsync(offset: number, data: ArrayBuffer): Promise2<number> {
 		var newData = new ArrayBuffer(Math.max(this.data.byteLength, offset + data.byteLength));
 		var newDataArray = new Uint8Array(newData);
 		newDataArray.set(new Uint8Array(this.data), 0);
 		newDataArray.set(new Uint8Array(data), offset);
 		this.data = newData;
-		return Promise.resolve(data.byteLength);
+		return Promise2.resolve(data.byteLength);
 	}
 
 	stat(): VfsStat {
@@ -67,6 +67,6 @@ export class MemoryVfsEntry extends VfsEntry {
 	close() { }
 
 	enumerateAsync() {
-		return Promise.resolve([]);
+		return Promise2.resolve([]);
 	}
 }

@@ -115,7 +115,7 @@ export class PspAudioChannel {
 			//return 0;
 			return 0;
 		} else {
-			return new Promise<number>((resolved, rejected) => {
+			return new Promise2<number>((resolved, rejected) => {
 				this.buffers.push(new PspAudioBuffer(resolved, data));
 				return 0;
 			});
@@ -154,13 +154,13 @@ export class PspAudio {
 	}
 
 	startAsync() {
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
 	stopAsync() {
 		this.playingChannels.forEach((channel:PspAudioChannel) => {
 			channel.stop();
 		});
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 }

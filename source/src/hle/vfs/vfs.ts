@@ -5,7 +5,7 @@
 		return null;
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		console.error('VfsMustOverride openAsync', this);
 		throw (new Error("Must override openAsync : " + this));
 		return null;
@@ -23,11 +23,11 @@
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
 	}
 
-	getStatAsync(path: string): Promise<VfsStat> {
+	getStatAsync(path: string): Promise2<VfsStat> {
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.stat());
 	}
 
-	existsAsync(path: string): Promise<boolean> {
+	existsAsync(path: string): Promise2<boolean> {
 		return this.getStatAsync(path).then(() => true).catch(() => false);
 	}
 }
@@ -36,7 +36,7 @@ export class ProxyVfs extends Vfs {
 	constructor(public parentVfsList: Vfs[]) { super(); }
 
 	private _callChainWhenError<T>(callback: (vfs:Vfs, e: Error) => void) {
-		var promise = Promise.reject(new Error());
+		var promise = Promise2.reject(new Error());
 		this.parentVfsList.forEach(parentVfs => {
 			promise = promise.catch((e) => {
 				return callback(parentVfs, e);
@@ -50,7 +50,7 @@ export class ProxyVfs extends Vfs {
 			return vfs.devctlAsync(command, input, output);
 		});
 	}
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		return this._callChainWhenError<VfsEntry>((vfs, e) => {
 			return vfs.openAsync(path, flags, mode);
 		});
@@ -60,7 +60,7 @@ export class ProxyVfs extends Vfs {
 			return vfs.openDirectoryAsync(path);
 		});
 	}
-	getStatAsync(path: string): Promise<VfsStat> {
+	getStatAsync(path: string): Promise2<VfsStat> {
 		return this._callChainWhenError<VfsStat>((vfs, e) => {
 			return vfs.getStatAsync(path);
 		});
@@ -76,9 +76,9 @@ export class VfsEntry {
 	readAllAsync() { return this.readChunkAsync(0, this.size); }
 	writeAllAsync(data: ArrayBuffer) { return this.writeChunkAsync(0, data); }
 
-	enumerateAsync(): Promise<VfsStat[]> { throw (new Error("Must override enumerateAsync : " + this)); }
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { throw (new Error("Must override readChunkAsync : " + this)); }
-	writeChunkAsync(offset: number, data: ArrayBuffer): Promise<number> { throw (new Error("Must override writeChunkAsync : " + this)); }
+	enumerateAsync(): Promise2<VfsStat[]> { throw (new Error("Must override enumerateAsync : " + this)); }
+	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> { throw (new Error("Must override readChunkAsync : " + this)); }
+	writeChunkAsync(offset: number, data: ArrayBuffer): Promise2<number> { throw (new Error("Must override writeChunkAsync : " + this)); }
 	stat(): VfsStat { throw (new Error("Must override stat")); }
 	close() { }
 }
@@ -88,7 +88,7 @@ export class VfsEntryStream extends VfsEntry {
 		super();
 	}
 	get size(): number { return this.asyncStream.size; }
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
+	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> {
 		return this.asyncStream.readChunkAsync(offset, length);
 	}
 	close() { }

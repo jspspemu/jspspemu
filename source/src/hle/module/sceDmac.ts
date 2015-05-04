@@ -13,7 +13,7 @@ export class sceDmac {
 		if (destination == 0) return SceKernelErrors.ERROR_INVALID_POINTER;
 		if (source == 0) return SceKernelErrors.ERROR_INVALID_POINTER;
 		this.context.memory.copy(source, destination, size);
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	}
 
 	sceDmacMemcpy = createNativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int', this, (destination: number, source: number, size: number) => {

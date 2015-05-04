@@ -20,18 +20,18 @@ export class sceUtility {
 
 	sceUtilityLoadModule = createNativeFunction(0x2A2B3DE0, 150, 'uint', 'int', this, (pspModule: PspModule) => {
 		console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	});
 
 	sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, (paramsPtr: Stream) => {
-		return Promise.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
+		return Promise2.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
 			var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
 			params.base.result = result;
 			return 0;
 		});
 	});
 
-	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise<number> {
+	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise2<number> {
 		console.log('sceUtilitySavedataInitStart');
 		var params = SceUtilitySavedataParam.struct.read(paramsPtr);
 
@@ -81,8 +81,8 @@ export class sceUtility {
 			case PspUtilitySavedataMode.ReadSecure:
 				{
 					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-					//return Promise.resolve(-1);
-					return Promise.resolve(0);
+					//return Promise2.resolve(-1);
+					return Promise2.resolve(0);
 				}
 				break;
 
@@ -141,13 +141,13 @@ export class sceUtility {
 						}
 					}
 
-					if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise.resolve(SceKernelError);
+					if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise2.resolve(SceKernelError);
 				}
 				break;
 			default:
 				throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
 		}
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	}
 
 	sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, () => {

@@ -186,7 +186,7 @@ class PrimaryVolumeDescriptor
 }
 
 export interface IIsoNode {
-	readChunkAsync(offset: number, length: number):Promise<ArrayBuffer>
+	readChunkAsync(offset: number, length: number):Promise2<ArrayBuffer>
     childs: IIsoNode[];
     childsByName: StringDictionary<IIsoNode>;
     path: string;
@@ -212,7 +212,7 @@ class IsoNode implements IIsoNode {
 	get date() { return this.directoryRecord.date.date; }
 	get extent() { return this.directoryRecord.extent; }
 
-	readChunkAsync(offset: number, count: number): Promise<ArrayBuffer> {
+	readChunkAsync(offset: number, count: number): Promise2<ArrayBuffer> {
 		var fileBaseLow = this.directoryRecord.offset;
 		var low = fileBaseLow + offset;
 		var high = Math.min(low + count, fileBaseLow + this.size);
@@ -275,7 +275,7 @@ export class Iso implements AsyncStream {
 		return this.asyncStream.readChunkAsync(offset, count);
 	}
 
-    loadAsync(asyncStream: AsyncStream): Promise<Iso> {
+    loadAsync(asyncStream: AsyncStream): Promise2<Iso> {
 		this.asyncStream = asyncStream;
 		this.date = asyncStream.date;
 

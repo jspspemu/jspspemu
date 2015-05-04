@@ -1,15 +1,14 @@
-///<reference path="../../typings/promise/promise.d.ts" />
 ///<reference path="./array.ts" />
 ///<reference path="./math.ts" />
 
 if (typeof global != 'undefined') window = global;
 if (typeof self != 'undefined') window = self;
 
-declare var global:any;
+declare var global: any;
 if (typeof self == 'undefined') window = self = global;
 if (typeof navigator == 'undefined') navigator = <any>{};
 
-function sprintf(...args:any[]):string {
+function sprintf(...args: any[]): string {
 	//  discuss at: http://phpjs.org/functions/sprintf/
 	// original by: Ash Searle (http://hexmen.com/blog/)
 	// improved by: Michael White (http://getsprink.com)
@@ -38,7 +37,7 @@ function sprintf(...args:any[]):string {
 	var format = a[i++];
 
 	// pad()
-	var pad = function (str:string, len:number, chr:string, leftJustify:boolean) {
+	var pad = function(str: string, len: number, chr: string, leftJustify: boolean) {
 		if (!chr) {
 			chr = ' ';
 		}
@@ -48,7 +47,7 @@ function sprintf(...args:any[]):string {
 	};
 
 	// justify()
-	var justify = function (value:string, prefix:string, leftJustify:boolean, minWidth:number, zeroPad:boolean, customPadChar:string = undefined) {
+	var justify = function(value: string, prefix: string, leftJustify: boolean, minWidth: number, zeroPad: boolean, customPadChar: string = undefined) {
 		var diff = minWidth - value.length;
 		if (diff > 0) {
 			if (leftJustify || !zeroPad) {
@@ -61,7 +60,7 @@ function sprintf(...args:any[]):string {
 	};
 
 	// formatBaseX()
-	var formatBaseX = function (value:number, base:number, prefix:any, leftJustify:boolean, minWidth:number, precision:number, zeroPad:boolean) {
+	var formatBaseX = function(value: number, base: number, prefix: any, leftJustify: boolean, minWidth: number, precision: number, zeroPad: boolean) {
 		// Note: casts negative numbers to positive ones
 		var number = value >>> 0;
 		prefix = prefix && number && (<any>{
@@ -74,7 +73,7 @@ function sprintf(...args:any[]):string {
 	};
 
 	// formatString()
-	var formatString = function (value:any, leftJustify:any, minWidth:any, precision:any, zeroPad:any, customPadChar:any = undefined) {
+	var formatString = function(value: any, leftJustify: any, minWidth: any, precision: any, zeroPad: any, customPadChar: any = undefined) {
 		if (precision != null) {
 			value = value.slice(0, precision);
 		}
@@ -82,8 +81,8 @@ function sprintf(...args:any[]):string {
 	};
 
 	// doFormat()
-	var doFormat = function (substring:any, valueIndex:any, flags:any, minWidth:any, _:any, precision:any, type:any) {
-		var number:any, prefix:any, method:any, textTransform:any, value:any;
+	var doFormat = function(substring: any, valueIndex: any, flags: any, minWidth: any, _: any, precision: any, type: any) {
+		var number: any, prefix: any, method: any, textTransform: any, value: any;
 
 		if (substring === '%%') {
 			return '%';
@@ -198,7 +197,7 @@ function sprintf(...args:any[]):string {
 	return format.replace(regex, doFormat);
 }
 
-function printf(...args:any[]) {
+function printf(...args: any[]) {
 	console.log(sprintf.apply(sprintf, arguments));
 }
 
@@ -220,7 +219,7 @@ enum Endian {
 }
 
 class AsyncEntry<T> {
-	constructor(public id:string, public size: number, public usageCount: number, public value: T, public lastUsedTime:number) {
+	constructor(public id: string, public size: number, public usageCount: number, public value: T, public lastUsedTime: number) {
 	}
 }
 
@@ -258,11 +257,11 @@ class AsyncCache<T> {
 		}
 	}
 
-	getOrGenerateAsync(id: string, generator: () => Promise<T>): Promise<T> {
+	getOrGenerateAsync(id: string, generator: () => Promise2<T>): Promise2<T> {
 		var item = this.itemsMap[id];
 		if (item) {
 			item.lastUsedTime = Date.now();
-			return Promise.resolve(item.value);
+			return Promise2.resolve(item.value);
 		} else {
 			return generator().then(value => {
 				var size = this.measure(value);
@@ -353,22 +352,22 @@ interface String {
 	endsWith(value: string): boolean;
 }
 
-String.prototype.startsWith = function (value: string) {
+String.prototype.startsWith = function(value: string) {
 	var string = <string>this;
 	return string.substr(0, value.length) == value;
 };
 
-String.prototype.endsWith = function (value: string) {
+String.prototype.endsWith = function(value: string) {
 	var string = <string>this;
 	return string.substr(-value.length) == value;
 };
 
-String.prototype.rstrip = function () {
+String.prototype.rstrip = function() {
     var string = <string>this;
     return string.replace(/\s+$/, '');
 };
 
-String.prototype.contains = function (value: string) {
+String.prototype.contains = function(value: string) {
 	var string = <string>this;
 	return string.indexOf(value) >= 0;
 };
@@ -384,7 +383,7 @@ class Microtask {
 	private static callbacks: MicrotaskCallback[] = [];
 	private static initialized: boolean = false;
 	private static __messageType = '__Microtask_execute';
-	private static __location:string = null;
+	private static __location: string = null;
 
 	private static initOnce() {
 		if (Microtask.initialized) return;
@@ -393,7 +392,7 @@ class Microtask {
 		Microtask.initialized = true;
 	}
 
-	private static window_message(e:any) {
+	private static window_message(e: any) {
 		if (e.data == Microtask.__messageType) Microtask.execute();
 	}
 
@@ -408,7 +407,7 @@ class Microtask {
 		}
 	}
 
-	private static execute() {
+	static execute() {
 		while (Microtask.callbacks.length > 0) {
 			var callback = Microtask.callbacks.shift();
 			callback();
@@ -417,27 +416,27 @@ class Microtask {
 	}
 }
 
-var _self:any = self;
-_self['polyfills'] =  _self['polyfills'] || {};
+var _self: any = self;
+_self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
 _self['polyfills']['setImmediate'] = !self.setImmediate;
 _self['polyfills']['performance'] = !self.performance;
 
 if (!self['performance']) {
 	self['performance'] = <any>{};
-	self['performance']['now'] = function () {
+	self['performance']['now'] = function() {
 		return Date.now();
 	};
 }
 
 if (!self['setImmediate']) {
-	self['setImmediate'] = function (callback: () => void) {
+	self['setImmediate'] = function(callback: () => void) {
 		Microtask.queue(callback);
 		//return setTimeout(callback, 0);
 		return -1;
 	};
-	self['clearImmediate'] = function (timer: number) {
-		throw(new Error("Not implemented!"));
+	self['clearImmediate'] = function(timer: number) {
+		throw (new Error("Not implemented!"));
 		//clearTimeout(timer);
 	};
 }
@@ -461,12 +460,12 @@ class Utf8 {
 }
 
 interface ArrayBuffer {
-    slice(begin: number, end?: number):ArrayBuffer;
+    slice(begin: number, end?: number): ArrayBuffer;
 	//new(count:number):ArrayBuffer;
 }
 
 if (!ArrayBuffer.prototype.slice) {
-    ArrayBuffer.prototype.slice = function (begin: number, end?: number): ArrayBuffer {
+    ArrayBuffer.prototype.slice = function(begin: number, end?: number): ArrayBuffer {
         var that = new Uint8Array(this);
         if (end == undefined) end = that.length;
         var result = new ArrayBuffer(end - begin);
@@ -477,25 +476,25 @@ if (!ArrayBuffer.prototype.slice) {
 }
 
 interface AudioBuffer {
-	getChannelData(channel:number): Float32Array;
+	getChannelData(channel: number): Float32Array;
 }
 interface AudioContext {
 	createScriptProcessor(bufferSize: number, numInputChannels: number, numOutputChannels: number): ScriptProcessorNode;
 }
 
-var _self:any = (typeof window != 'undefined') ? window : self;
+var _self: any = (typeof window != 'undefined') ? window : self;
 _self['AudioContext'] = _self['AudioContext'] || _self['webkitAudioContext'];
 
 _self.navigator['getGamepads'] = _self.navigator['getGamepads'] || _self.navigator['webkitGetGamepads'];
 
 if (!_self.requestAnimationFrame) {
-	_self.requestAnimationFrame = function (callback: FrameRequestCallback) {
+	_self.requestAnimationFrame = function(callback: FrameRequestCallback) {
 		var start = Date.now();
-		return setTimeout(function () {
+		return setTimeout(function() {
 			callback(Date.now());
 		}, 20);
 	};
-	_self.cancelAnimationFrame = function (id: number) {
+	_self.cancelAnimationFrame = function(id: number) {
 		clearTimeout(id);
 	};
 }
@@ -538,12 +537,12 @@ class ArrayBufferUtils {
 }
 
 interface PromiseGenerator<T> {
-	(): Promise<T>;
+	(): Promise2<T>;
 }
 
 class PromiseUtils {
 	static sequence<T>(generators: PromiseGenerator<T>[]) {
-		return new Promise((resolve, reject) => {
+		return new Promise2((resolve, reject) => {
 			generators = generators.slice(0);
 			function step() {
 				if (generators.length > 0) {
@@ -559,8 +558,8 @@ class PromiseUtils {
 	}
 
 	static delayAsync(ms: number) {
-		if (ms <= 0) return Promise.resolve<any>(null);
-		return new Promise<any>((resolve, reject) => setTimeout(resolve, ms));
+		if (ms <= 0) return Promise2.resolve<any>(null);
+		return new Promise2<any>((resolve, reject) => setTimeout(resolve, ms));
 	}
 
 	static delaySecondsAsync(seconds: number) {
@@ -571,7 +570,7 @@ class PromiseUtils {
 _self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
 
 function setToString(Enum: any, value: number) {
-	var items:string[] = [];
+	var items: string[] = [];
 	for (var key in Enum) {
 		if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
 			items.push(key);
@@ -584,19 +583,13 @@ enum AcceptCallbacks { NO = 0, YES = 1 }
 enum Compensate { NO = 0, YES = 1 }
 
 class WaitingThreadInfo<T> {
-	public constructor(public name: string, public object: any, public promise: Promise<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
-	}
-}
-
-class CpuBreakException implements Error {
-	constructor(public name: string = 'CpuBreakException', public message: string = 'CpuBreakException') {
+	public constructor(public name: string, public object: any, public promise: Promise2<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
 	}
 }
 
 (<any>window).WaitingThreadInfo = WaitingThreadInfo;
-(<any>window).CpuBreakException = CpuBreakException;
 
-var DebugOnceArray:{ [key:string]:number; } = {};
+var DebugOnceArray: { [key: string]: number; } = {};
 function DebugOnce(name: string, times: number = 1) {
 	if (DebugOnceArray[name] >= times) return false;
 	if (DebugOnceArray[name]) {
@@ -612,7 +605,7 @@ function isTouchDevice() {
 }
 
 class HalfFloat {
-	static fromFloat(Float:number) {
+	static fromFloat(Float: number) {
 		var i = MathFloat.reinterpretFloatAsInt(Float);
 		var s = ((i >> 16) & 0x00008000);              // sign
 		var e = ((i >> 23) & 0x000000ff) - (127 - 15); // exponent
@@ -646,7 +639,7 @@ class HalfFloat {
 		return s | (e << 10) | (f >> 13);
 	}
 
-	static toFloat(imm16:number) {
+	static toFloat(imm16: number) {
 		var s = (imm16 >> 15) & 0x00000001; // Sign
 		var e = (imm16 >> 10) & 0x0000001f; // Exponent
 		var f = (imm16 >> 0) & 0x000003ff;  // Fraction
@@ -683,8 +676,8 @@ class HalfFloat {
 }
 
 
-function htmlspecialchars(str:string) {
-	return str.replace(/[&<>]/g, (tag:string) => {
+function htmlspecialchars(str: string) {
+	return str.replace(/[&<>]/g, (tag: string) => {
 		switch (tag) {
 			case '&': return '&amp;';
 			case '<': return '&lt;';
@@ -705,7 +698,7 @@ function string2mac(string: string) {
 }
 
 interface Cancelable {
-	cancel():void;
+	cancel(): void;
 }
 
 class SignalCancelable<T> implements Cancelable {
@@ -753,7 +746,7 @@ class Signal<T> {
 }
 
 class Logger {
-	constructor(private policy:LoggerPolicies, private console:any, private name:string) {
+	constructor(private policy: LoggerPolicies, private console: any, private name: string) {
 	}
 
 	named(name: string) {
@@ -767,14 +760,14 @@ class Logger {
 		}
 	}
 
-	debug(...args:any[]) { this._log('debug', 0, args); }
-	log(...args:any[]) { this._log('log', 1, args); }
-	info(...args:any[]) { this._log('info', 2, args); }
-	warn(...args:any[]) { this._log('warn', 3, args); }
-	error(...args:any[]) { this._log('error', 4, args); }
+	debug(...args: any[]) { this._log('debug', 0, args); }
+	log(...args: any[]) { this._log('log', 1, args); }
+	info(...args: any[]) { this._log('info', 2, args); }
+	warn(...args: any[]) { this._log('warn', 3, args); }
+	error(...args: any[]) { this._log('error', 4, args); }
 
-	groupCollapsed(...args:any[]) { this._log('groupCollapsed', 5, args); }
-	groupEnd(...args:any[]) { this._log('groupEnd', 5, args); }
+	groupCollapsed(...args: any[]) { this._log('groupCollapsed', 5, args); }
+	groupEnd(...args: any[]) { this._log('groupEnd', 5, args); }
 }
 
 class LoggerPolicies {
@@ -794,37 +787,37 @@ var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
 
-declare var executeCommandAsync: (code:string, args:ArrayBuffer[]) => Promise<ArrayBuffer[]>; 
+declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => Promise2<ArrayBuffer[]>;
 
 if (typeof window.document != 'undefined') {
-	var workers:Worker[] = [];
-	var workersJobs:number[] = [];
-	var lastRequestId:number = 0;
-	var resolvers:any = {};
-	[0, 1].forEach((index:number) => {
+	var workers: Worker[] = [];
+	var workersJobs: number[] = [];
+	var lastRequestId: number = 0;
+	var resolvers: any = {};
+	[0, 1].forEach((index: number) => {
 		var ww = workers[index] = new Worker('jspspemu.js');
 		workersJobs[index] = 0;
 		console.log('created worker!');
-		ww.onmessage = function(event:any) {
+		ww.onmessage = function(event: any) {
 			var requestId = event.data.requestId;
 			workersJobs[index]--;
 			resolvers[requestId](event.data.args);
 			delete resolvers[requestId];
 		}
 	});
-	
-	executeCommandAsync = (code:string, args: ArrayBuffer[]) => {
-		return new Promise((resolve, reject) => {
+
+	executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
+		return new Promise2<ArrayBuffer[]>((resolve, reject) => {
 			var requestId = lastRequestId++;
 			resolvers[requestId] = resolve;
 			if (workersJobs[0] <= workersJobs[1]) {
 				//console.log('sent to worker0');
 				workersJobs[0]++;
-				workers[0].postMessage({code:code, args:args, requestId:requestId}, args);
+				workers[0].postMessage({ code: code, args: args, requestId: requestId }, args);
 			} else {
 				//console.log('sent to worker1');
 				workersJobs[1]++;
-				workers[1].postMessage({code:code, args:args, requestId:requestId}, args);
+				workers[1].postMessage({ code: code, args: args, requestId: requestId }, args);
 			}
 		});
 	};
@@ -839,8 +832,8 @@ if (typeof window.document != 'undefined') {
 	*/
 } else {
 	//console.log('inside worker!');
-	this.onmessage = function(event:any) {
-		var requestId = event.data.requestId; 
+	this.onmessage = function(event: any) {
+		var requestId = event.data.requestId;
 		var args = event.data.args;
 		try {
 			eval(event.data.code);
@@ -848,11 +841,11 @@ if (typeof window.document != 'undefined') {
 			console.error(e);
 			args = [];
 		}
-		this.postMessage({ requestId:requestId, args:args }, args);
+		this.postMessage({ requestId: requestId, args: args }, args);
 	}
-	
-	executeCommandAsync = (code:string, args: ArrayBuffer[]) => {
-		return new Promise((resolve, reject) => {
+
+	executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
+		return new Promise2<ArrayBuffer[]>((resolve, reject) => {
 			try {
 				eval(code);
 			} catch (e) {
@@ -864,24 +857,136 @@ if (typeof window.document != 'undefined') {
 	};
 }
 
-function inflateRawArrayBufferAsync(data:ArrayBuffer):Promise<ArrayBuffer> {
+function inflateRawArrayBufferAsync(data: ArrayBuffer): Promise2<ArrayBuffer> {
 	return inflateRawAsync(new Uint8Array(data)).then(data => data.buffer);
 }
 
-function inflateRawAsync(data:Uint8Array):Promise<Uint8Array> {
+function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
 	return executeCommandAsync(`
 		var zlib = require("src/format/zlib");
 		args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
-	`, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args:ArrayBuffer[]) {
-		if (args.length == 0) throw new Error("Can't decode"); 
+	`, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args: ArrayBuffer[]) {
+		if (args.length == 0) throw new Error("Can't decode");
 		return new Uint8Array(args[0]);
-	});	
+	});
 }
 
-function addressToHex(address:number) {
+function addressToHex(address: number) {
 	return '0x' + addressToHex2(address);
 }
 
-function addressToHex2(address:number) {
+function addressToHex2(address: number) {
 	return ('00000000' + (address >>> 0).toString(16)).substr(-8);
+}
+
+interface Thenable<T> {
+	then<Q>(resolved: (value: T) => Q, rejected: (error: Error) => void): Thenable<Q>;
+}
+
+class Promise2<T> implements Thenable<T> {
+	static resolve<T>(value: Promise2<T>): Promise2<T>;
+	static resolve<T>(value: T): Promise2<T>;
+	static resolve(): Promise2<any>;
+	static resolve<T>(value?: any): Promise2<T> {
+		if (value instanceof Promise2) return value;
+		return new Promise2<T>((resolve, reject) => resolve(value));
+	}
+	static reject(error: Error): Promise2<any> { return new Promise2((resolve, reject) => reject(error)); }
+
+	static all(promises: Promise2<any>[]): Promise2<any> {
+		return new Promise2((resolve, reject) => {
+			var total = promises.length;
+			var one = () => {
+				total--;
+				if (total <= 0) resolve();
+			};
+			var oneError = (e: Error) => {
+				reject(e);
+			};
+			for (let p of promises) p.then(one, oneError);
+		});
+	}
+
+	static race(promises: Promise2<any>[]): Promise2<any> {
+		return new Promise2((resolve, reject) => {
+			for (let p of promises) p.then(resolve, reject);
+		});
+	}
+
+	constructor(callback: (resolve: (value?: T) => void, reject: (error: Error) => void) => void) {
+		callback(this._resolve.bind(this), this._reject.bind(this));
+	}
+
+	private _resolvedValue: T = null;
+	private _rejectedValue: Error = null;
+	private _solved: boolean = false;
+	private _resolvedCallbacks: any[] = [];
+	private _rejectedCallbacks: any[] = [];
+
+	private _resolve(value: T) {
+		if (this._solved) return;
+		this._resolvedValue = value;
+		this._solved = true;
+		this._check();
+	}
+
+	private _reject(error: Error) {
+		if (this._solved) return;
+		this._rejectedValue = error;
+		this._solved = true;
+		this._check();
+	}
+
+	then<Q>(resolved: (value: T) => Promise2<Q>, rejected?: (error: Error) => void): Promise2<Q>;
+	then<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): Promise2<Q>;
+	then<Q>(resolved: (value: T) => Promise2<Q>, rejected?: (value: Error) => any): Promise2<Q> {
+		var promise = new Promise2<any>((resolve, reject) => {
+			if (resolved) {
+				this._resolvedCallbacks.push((a: any) => {
+					try {
+						var result = resolved(a);
+						if (result instanceof Promise2) {
+							result.then(resolve);
+						} else {
+							resolve(result);
+						}
+					} catch (e) {
+						reject(e);
+					}
+				});
+			}
+			if (rejected) this._rejectedCallbacks.push((a: any) => {
+				try {
+					var result = rejected(a);
+					if (result instanceof Promise2) {
+						result.then(resolve);
+					} else {
+						resolve(result);
+					}
+				} catch (e) {
+					reject(e);
+				}
+			});
+		});
+		this._check();
+		return promise;
+	}
+
+	catch(rejected: (error: Error) => void): Promise2<any>;
+	catch<Q>(rejected: (error: Error) => Q): Promise2<Q>;
+	catch<Q>(rejected: (error: Error) => Promise2<Q>): Promise2<Q>;
+	catch(rejected: (error: Error) => any): Promise2<any> {
+		return this.then(null, rejected);
+	}
+
+	private _check() {
+		if (!this._solved) return;
+		if (this._rejectedValue != null) {
+			while (this._rejectedCallbacks && this._rejectedCallbacks.length > 0) this._rejectedCallbacks.shift()(this._rejectedValue);
+		} else {
+			while (this._resolvedCallbacks && this._resolvedCallbacks.length > 0) this._resolvedCallbacks.shift()(this._resolvedValue);
+		}
+		//this._rejectedCallbacks = null;
+		//this._resolvedCallbacks = null;
+	}
 }

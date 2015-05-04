@@ -59,12 +59,12 @@ export class IoFileMgrForUser {
 
 	sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, (filename: string, flags: FileOpenFlags, mode: FileMode) => {
 		log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
-		//if (filename == '') return Promise.resolve(0);
+		//if (filename == '') return Promise2.resolve(0);
 
 		return this._sceIoOpenAsync(filename, flags, mode).then(fileId => {
 			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 			var file = this.getFileById(fileId);
-			file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+			file.setAsyncOperation(Promise2.resolve(Integer64.fromNumber(fileId)));
 			log.info('-->', fileId);
 			return fileId;
 		});
@@ -72,14 +72,14 @@ export class IoFileMgrForUser {
 
 	sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, (fileId: number) => {
 		log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
-		//if (filename == '') return Promise.resolve(0);
+		//if (filename == '') return Promise2.resolve(0);
 
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		if (file) file.close();
 
-		//file.setAsyncOperation(Promise.resolve(Integer64.fromInt(fileId)));
-		file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
+		//file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(fileId)));
+		file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(0)));
 
 		return 0;
 	});
@@ -126,7 +126,7 @@ export class IoFileMgrForUser {
 		}
 	});
 
-	sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number):number | Promise<number> => {
+	sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number):number | Promise2<number> => {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
@@ -156,12 +156,12 @@ export class IoFileMgrForUser {
 		return 0;
 	});
 
-	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream): number | Promise<number> {
+	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream): number | Promise2<number> {
 		thread.state.LO = fileId;
 
 		if (!this.fileUids.has(fileId)) {
 			if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
-			return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+			return Promise2.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
 		}
 
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -178,7 +178,7 @@ export class IoFileMgrForUser {
 		} else {
 			if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
 			resultPointer.writeInt64(Integer64.fromNumber(0));
-			return Promise.resolve(1);
+			return Promise2.resolve(1);
 		}
 	}
 

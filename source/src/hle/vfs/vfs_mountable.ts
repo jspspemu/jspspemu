@@ -39,11 +39,11 @@ export class MountableVfs extends Vfs {
 		throw (new Error("MountableVfs: Can't find file '" + path + "'"));
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		var info = this.transformPath(path);
 
 		if (info.mount.file) {
-			return Promise.resolve(info.mount.file);
+			return Promise2.resolve(info.mount.file);
 		} else {
 			return info.mount.vfs.openAsync(info.part, flags, mode);
 		}
@@ -53,17 +53,17 @@ export class MountableVfs extends Vfs {
 		var info = this.transformPath(path);
 
 		if (info.mount.file) {
-			return Promise.resolve(info.mount.file);
+			return Promise2.resolve(info.mount.file);
 		} else {
 			return info.mount.vfs.openDirectoryAsync(info.part);
 		}
 	}
 
-	getStatAsync(path: string): Promise<VfsStat> {
+	getStatAsync(path: string): Promise2<VfsStat> {
 		var info = this.transformPath(path);
 
 		if (info.mount.file) {
-			return Promise.resolve(info.mount.file.stat());
+			return Promise2.resolve(info.mount.file.stat());
 		} else {
 			return info.mount.vfs.getStatAsync(info.part);
 		}

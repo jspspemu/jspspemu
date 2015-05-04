@@ -51,7 +51,7 @@ export class ThreadManForUser {
 			console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
 
 			return newThread.id;
-			//return Promise.resolve(newThread.id);
+			//return Promise2.resolve(newThread.id);
 		} catch (e) {
 			if (e instanceof OutOfMemoryError) return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
 			throw(e);
@@ -117,14 +117,14 @@ export class ThreadManForUser {
 		console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
 
 		newThread.start();
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	});
 
 	sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, (currentThread: Thread, threadId: number, priority: number): any => {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.getThreadById(threadId);
 		thread.priority = priority;
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	});
 
 	sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
@@ -132,7 +132,7 @@ export class ThreadManForUser {
 
 		currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
 		currentThread.stop('sceKernelExitThread');
-		throw (new CpuBreakException());
+		throw new Error('CpuBreakException');
 	});
 
 	sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, (threadId: number) => {
@@ -170,7 +170,7 @@ export class ThreadManForUser {
 	sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
 		currentThread.exitStatus = exitStatus;
 		currentThread.stop('sceKernelExitDeleteThread');
-		throw (new CpuBreakException());
+		throw new Error('CpuBreakException');
 	});
 
 	sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, (threadId: number) => {
@@ -188,7 +188,7 @@ export class ThreadManForUser {
 	});
 
 	sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, (threadId: number) => {
-		if (!this.hasThreadById(threadId)) return Promise.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
+		if (!this.hasThreadById(threadId)) return Promise2.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
 		var thread = this.getThreadById(threadId);
 		return thread.wakeupWakeupAsync();
 	});

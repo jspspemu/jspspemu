@@ -13,11 +13,11 @@ export class IsoVfs extends Vfs {
 		super();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		try {
-			return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
+			return Promise2.resolve(new IsoVfsFile(this.iso.get(path)));
 		} catch (e) {
-			return Promise.reject(e);
+			return Promise2.reject(e);
 		}
 	}
 }
@@ -29,7 +29,7 @@ class IsoVfsFile extends VfsEntry {
 
 	get isDirectory() { return this.node.isDirectory; }
 	get size() { return this.node.size; }
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
+	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 	close() { }
 
 	private static statNode(node: format_iso.IIsoNode): VfsStat {
@@ -49,6 +49,6 @@ class IsoVfsFile extends VfsEntry {
 	}
 
 	enumerateAsync() {
-		return Promise.resolve(this.node.childs.map(node => IsoVfsFile.statNode(node)));
+		return Promise2.resolve(this.node.childs.map(node => IsoVfsFile.statNode(node)));
 	}
 }

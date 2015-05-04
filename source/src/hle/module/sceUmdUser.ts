@@ -30,7 +30,7 @@ export class sceUmdUser {
 		this.context.callbackManager.executePendingWithinThread(this.context.threadManager.current);
 		return 0;
 		/*
-		return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new Promise((resolve, reject) => {
+		return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new Promise2((resolve, reject) => {
 			var signalCallback = this.signal.add((result) => {
 				this.signal.remove(signalCallback);
 				resolve();
@@ -71,12 +71,12 @@ export class sceUmdUser {
 	});
 
 	sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, (state: number, timeout: number) => {
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	});
 
 	sceUmdGetErrorStat = createNativeFunction(0x20628E6F, 150, 'uint', '', this, () => {
 		console.warn('called sceUmdGetErrorStat!');
-		return Promise.resolve(0);
+		return Promise2.resolve(0);
 	});
 }
 

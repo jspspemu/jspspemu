@@ -26,8 +26,8 @@ export interface CpuExecutor {
 }
 
 export interface IPspGpu {
-    startAsync():Promise<void>;
-    stopAsync():Promise<void>;
+    startAsync():Promise2<void>;
+    stopAsync():Promise2<void>;
 
     listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream):void;
 	listSync(displayListId: number, syncType: _state.SyncType):void;
@@ -1056,7 +1056,7 @@ class PspGpuList {
 	argsPtr: Stream;
     completed: boolean = false;
 	status = DisplayListStatus.Paused;
-	private promise: Promise<any>;
+	private promise: Promise2<any>;
 	private promiseResolve: Function;
 	private promiseReject: Function;
 	errorCount: number = 0;
@@ -1149,7 +1149,7 @@ class PspGpuList {
     }
 
     private enqueueRunUntilStall() {
-        setImmediate(() => {
+        Microtask.queue(() => {
             this.runUntilStall();
         });
     }
@@ -1162,7 +1162,7 @@ class PspGpuList {
 	start() {
 		this.status = DisplayListStatus.Queued;
 
-		this.promise = new Promise((resolve, reject) => {
+		this.promise = new Promise2((resolve, reject) => {
 			this.promiseResolve = resolve;
 			this.promiseReject = reject;
 		});
@@ -1228,7 +1228,7 @@ class PspGpuListRunner {
 	}
 
 	waitAsync() {
-		return Promise.all(this.runningLists.map(list => list.waitAsync())).then(() => _state.DisplayListStatus.Completed);
+		return Promise2.all(this.runningLists.map(list => list.waitAsync())).then(() => _state.DisplayListStatus.Completed);
     }
 }
 
@@ -1258,7 +1258,7 @@ export class PspGpu implements IPspGpu {
     }
 
 	stopAsync() {
-		return Promise.resolve();
+		return Promise2.resolve();
     }
         
 	listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {

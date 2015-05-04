@@ -11,7 +11,7 @@ import PixelFormat = pixelformat.PixelFormat;
 import PixelConverter = pixelformat.PixelConverter;
 
 export interface ThreadWaiter {
-	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): Promise<number>;
+	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): Promise2<number>;
 }
 
 export interface IPspDisplay {
@@ -19,10 +19,10 @@ export interface IPspDisplay {
 	bufferWidth: number;
 	pixelFormat: PixelFormat;
 	sync: number;
-	startAsync(): Promise<void>;
-	stopAsync(): Promise<void>;
-	waitVblankAsync(waiter: ThreadWaiter): Promise<number>;
-	waitVblankStartAsync(waiter: ThreadWaiter): Promise<number>;
+	startAsync(): Promise2<void>;
+	stopAsync(): Promise2<void>;
+	waitVblankAsync(waiter: ThreadWaiter): Promise2<number>;
+	waitVblankStartAsync(waiter: ThreadWaiter): Promise2<number>;
 	setEnabledDisplay(enable: boolean): void;
 	updateTime(): void;
 	vblankCount: number;
@@ -64,12 +64,12 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	setEnabledDisplay(enable: boolean) {
 	}
 
-	startAsync() {
-		return Promise.resolve();
+	startAsync():Promise2<any> {
+		return Promise2.resolve();
 	}
 
-	stopAsync() {
-		return Promise.resolve();
+	stopAsync():Promise2<any> {
+		return Promise2.resolve();
 	}
 }
 
@@ -182,13 +182,13 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 			this.vblank.dispatch(this.vblankCount);
 			this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
 		}, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
 	stopAsync() {
 		clearInterval(this.interval);
 		this.interval = -1;
-		return Promise.resolve();
+		return Promise2.resolve();
 	}
 
 	mustWaitVBlank = true;
@@ -204,17 +204,17 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		return false;
 	}
 
-	waitVblankAsync(waiter: ThreadWaiter) {
+	waitVblankAsync(waiter: ThreadWaiter):Promise2<number> {
 		this.updateTime();
-		if (!this.mustWaitVBlank) return Promise.resolve(0);
-		if (this.checkVblankThrottle()) return Promise.resolve(0);
+		if (!this.mustWaitVBlank) return Promise2.resolve(0);
+		if (this.checkVblankThrottle()) return Promise2.resolve(0);
 		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000, true);
 	}
 
-	waitVblankStartAsync(waiter: ThreadWaiter) {
+	waitVblankStartAsync(waiter: ThreadWaiter):Promise2<number> {
 		this.updateTime();
-		if (!this.mustWaitVBlank) return Promise.resolve(0);
-		if (this.checkVblankThrottle()) return Promise.resolve(0);
+		if (!this.mustWaitVBlank) return Promise2.resolve(0);
+		if (this.checkVblankThrottle()) return Promise2.resolve(0);
 		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
 	}
 }

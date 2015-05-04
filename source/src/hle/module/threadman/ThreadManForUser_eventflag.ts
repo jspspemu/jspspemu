@@ -124,11 +124,11 @@ class EventFlag {
 	waitingThreads = new SortedSet<EventFlagWaitingThread>();
 
 	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
-		return new Promise((resolve, reject) => {
+		return new Promise2((resolve, reject) => {
 			var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);
 				resolve();
-				throw (new CpuBreakException());
+				throw new Error('CpuBreakException');
 			});
 			this.waitingThreads.add(waitingSemaphoreThread);
 		}).then(() => 0);

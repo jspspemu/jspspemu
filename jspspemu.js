@@ -1,4 +1,3 @@
-///<reference path="../../typings/promise/promise.d.ts" />
 ///<reference path="./array.ts" />
 ///<reference path="./math.ts" />
 var __extends = this.__extends || function (d, b) {
@@ -264,7 +263,7 @@ var AsyncCache = (function () {
         var item = this.itemsMap[id];
         if (item) {
             item.lastUsedTime = Date.now();
-            return Promise.resolve(item.value);
+            return Promise2.resolve(item.value);
         }
         else {
             return generator().then(function (value) {
@@ -501,7 +500,7 @@ var PromiseUtils = (function () {
     function PromiseUtils() {
     }
     PromiseUtils.sequence = function (generators) {
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             generators = generators.slice(0);
             function step() {
                 if (generators.length > 0) {
@@ -518,8 +517,8 @@ var PromiseUtils = (function () {
     };
     PromiseUtils.delayAsync = function (ms) {
         if (ms <= 0)
-            return Promise.resolve(null);
-        return new Promise(function (resolve, reject) { return setTimeout(resolve, ms); });
+            return Promise2.resolve(null);
+        return new Promise2(function (resolve, reject) { return setTimeout(resolve, ms); });
     };
     PromiseUtils.delaySecondsAsync = function (seconds) {
         return PromiseUtils.delayAsync(seconds * 1000);
@@ -557,17 +556,7 @@ var WaitingThreadInfo = (function () {
     }
     return WaitingThreadInfo;
 })();
-var CpuBreakException = (function () {
-    function CpuBreakException(name, message) {
-        if (name === void 0) { name = 'CpuBreakException'; }
-        if (message === void 0) { message = 'CpuBreakException'; }
-        this.name = name;
-        this.message = message;
-    }
-    return CpuBreakException;
-})();
 window.WaitingThreadInfo = WaitingThreadInfo;
-window.CpuBreakException = CpuBreakException;
 var DebugOnceArray = {};
 function DebugOnce(name, times) {
     if (times === void 0) { times = 1; }
@@ -811,7 +800,7 @@ if (typeof window.document != 'undefined') {
         };
     });
     executeCommandAsync = function (code, args) {
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             var requestId = lastRequestId++;
             resolvers[requestId] = resolve;
             if (workersJobs[0] <= workersJobs[1]) {
@@ -839,7 +828,7 @@ else {
         this.postMessage({ requestId: requestId, args: args }, args);
     };
     executeCommandAsync = function (code, args) {
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             try {
                 eval(code);
             }
@@ -867,6 +856,115 @@ function addressToHex(address) {
 function addressToHex2(address) {
     return ('00000000' + (address >>> 0).toString(16)).substr(-8);
 }
+var Promise2 = (function () {
+    function Promise2(callback) {
+        this._resolvedValue = null;
+        this._rejectedValue = null;
+        this._solved = false;
+        this._resolvedCallbacks = [];
+        this._rejectedCallbacks = [];
+        callback(this._resolve.bind(this), this._reject.bind(this));
+    }
+    Promise2.resolve = function (value) {
+        if (value instanceof Promise2)
+            return value;
+        return new Promise2(function (resolve, reject) { return resolve(value); });
+    };
+    Promise2.reject = function (error) { return new Promise2(function (resolve, reject) { return reject(error); }); };
+    Promise2.all = function (promises) {
+        return new Promise2(function (resolve, reject) {
+            var total = promises.length;
+            var one = function () {
+                total--;
+                if (total <= 0)
+                    resolve();
+            };
+            var oneError = function (e) {
+                reject(e);
+            };
+            for (var _i = 0; _i < promises.length; _i++) {
+                var p = promises[_i];
+                p.then(one, oneError);
+            }
+        });
+    };
+    Promise2.race = function (promises) {
+        return new Promise2(function (resolve, reject) {
+            for (var _i = 0; _i < promises.length; _i++) {
+                var p = promises[_i];
+                p.then(resolve, reject);
+            }
+        });
+    };
+    Promise2.prototype._resolve = function (value) {
+        if (this._solved)
+            return;
+        this._resolvedValue = value;
+        this._solved = true;
+        this._check();
+    };
+    Promise2.prototype._reject = function (error) {
+        if (this._solved)
+            return;
+        this._rejectedValue = error;
+        this._solved = true;
+        this._check();
+    };
+    Promise2.prototype.then = function (resolved, rejected) {
+        var _this = this;
+        var promise = new Promise2(function (resolve, reject) {
+            if (resolved) {
+                _this._resolvedCallbacks.push(function (a) {
+                    try {
+                        var result = resolved(a);
+                        if (result instanceof Promise2) {
+                            result.then(resolve);
+                        }
+                        else {
+                            resolve(result);
+                        }
+                    }
+                    catch (e) {
+                        reject(e);
+                    }
+                });
+            }
+            if (rejected)
+                _this._rejectedCallbacks.push(function (a) {
+                    try {
+                        var result = rejected(a);
+                        if (result instanceof Promise2) {
+                            result.then(resolve);
+                        }
+                        else {
+                            resolve(result);
+                        }
+                    }
+                    catch (e) {
+                        reject(e);
+                    }
+                });
+        });
+        this._check();
+        return promise;
+    };
+    Promise2.prototype.catch = function (rejected) {
+        return this.then(null, rejected);
+    };
+    Promise2.prototype._check = function () {
+        if (!this._solved)
+            return;
+        if (this._rejectedValue != null) {
+            while (this._rejectedCallbacks && this._rejectedCallbacks.length > 0)
+                this._rejectedCallbacks.shift()(this._rejectedValue);
+        }
+        else {
+            while (this._resolvedCallbacks && this._resolvedCallbacks.length > 0)
+                this._resolvedCallbacks.shift()(this._resolvedValue);
+        }
+    };
+    return Promise2;
+})();
 
 ///<reference path="./math.ts" />
 if (typeof global != 'undefined')
@@ -1017,17 +1115,17 @@ if (typeof global != 'undefined')
 if (typeof self != 'undefined')
     window = self;
 function waitAsync(timems) {
-    return new Promise(function (resolve, reject) {
+    return new Promise2(function (resolve, reject) {
         setTimeout(resolve, timems);
     });
 }
 function immediateAsync() {
-    return new Promise(function (resolve, reject) {
-        setImmediate(resolve);
+    return new Promise2(function (resolve, reject) {
+        Microtask.queue(resolve);
     });
 }
 function _downloadFileAsync(method, url, headers) {
-    return new Promise(function (resolve, reject) {
+    return new Promise2(function (resolve, reject) {
         var request = new XMLHttpRequest();
         request.open(method, url, true);
         request.overrideMimeType("text/plain; charset=x-user-defined");
@@ -1059,7 +1157,7 @@ function toArrayBuffer(buffer) {
 }
 function downloadFileAsync(url, headers) {
     if (typeof XMLHttpRequest == 'undefined') {
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             fs.readFile(url, function (err, data) {
                 if (err) {
                     reject(err);
@@ -1984,7 +2082,7 @@ var BufferedAsyncStream = (function (_super) {
         var end = offset + count;
         var cache = this.getCachedEntry(start, end);
         if (cache) {
-            return Promise.resolve(cache.data.slice(start - cache.start, end - cache.start));
+            return Promise2.resolve(cache.data.slice(start - cache.start, end - cache.start));
         }
         else {
             var bigCount = Math.max(count, this.bufferSize);
@@ -2015,7 +2113,7 @@ var MemoryAsyncStream = (function () {
         configurable: true
     });
     MemoryAsyncStream.prototype.readChunkAsync = function (offset, count) {
-        return Promise.resolve(this.data.slice(offset, offset + count));
+        return Promise2.resolve(this.data.slice(offset, offset + count));
     };
     return MemoryAsyncStream;
 })();
@@ -2038,7 +2136,7 @@ var UrlAsyncStream = (function () {
                 return downloadFileAsync(url).then(function (data) { return MemoryAsyncStream.fromArrayBuffer(data); });
             }
             else {
-                return Promise.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
+                return Promise2.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
             }
         });
     };
@@ -2070,7 +2168,7 @@ var FileAsyncStream = (function () {
     });
     FileAsyncStream.prototype.readChunkAsync = function (offset, count) {
         var _this = this;
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             var fileReader = new FileReader();
             fileReader.onload = function (e) { resolve(fileReader.result); };
             fileReader.onerror = function (e) { reject(e['error']); };
@@ -3115,7 +3213,7 @@ var PspAudioChannel = (function () {
             return 0;
         }
         else {
-            return new Promise(function (resolved, rejected) {
+            return new Promise2(function (resolved, rejected) {
                 _this.buffers.push(new PspAudioBuffer(resolved, data));
                 return 0;
             });
@@ -3153,13 +3251,13 @@ var PspAudio = (function () {
         return output;
     };
     PspAudio.prototype.startAsync = function () {
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     PspAudio.prototype.stopAsync = function () {
         this.playingChannels.forEach(function (channel) {
             channel.stop();
         });
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     return PspAudio;
 })();
@@ -3267,7 +3365,7 @@ var PspController = (function () {
             document.addEventListener('keyup', this._keyUp = function (e) { return _this.keyUp(e); });
         }
         this.frame(0);
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     PspController.prototype.frame = function (timestamp) {
         var _this = this;
@@ -3347,7 +3445,7 @@ var PspController = (function () {
             document.removeEventListener('keyup', this._keyUp);
         }
         cancelAnimationFrame(this.animationTimeId);
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     return PspController;
 })();
@@ -5012,32 +5110,52 @@ var Labels = (function () {
     }
     return Labels;
 })();
+var MipsAssemblerResult = (function () {
+    function MipsAssemblerResult(entrypoint) {
+        this.entrypoint = entrypoint;
+    }
+    return MipsAssemblerResult;
+})();
+exports.MipsAssemblerResult = MipsAssemblerResult;
 var MipsAssembler = (function () {
     function MipsAssembler() {
         this.instructions = Instructions.instance;
     }
     MipsAssembler.prototype.assembleToMemory = function (memory, startPC, lines) {
         var labels = new Labels();
+        var entryPoint = startPC;
         for (var n = 0; n < 2; n++) {
             var PC = startPC;
             for (var _i = 0; _i < lines.length; _i++) {
                 var line = lines[_i];
-                var instructions = this.assemble(PC, line, labels);
-                for (var _a = 0; _a < instructions.length; _a++) {
-                    var instruction = instructions[_a];
-                    memory.writeInt32(PC, instruction.data);
-                    PC += 4;
+                switch (line.substr(0, 1)) {
+                    case '.':
+                        switch (line) {
+                            case '.entrypoint':
+                                entryPoint = PC;
+                                break;
+                            default: throw new Error("Invalid " + line);
+                        }
+                        break;
+                    case ':':
+                        labels.labels[line.substr(1)] = PC;
+                        break;
+                    default:
+                        var instructions = this.assemble(PC, line, labels);
+                        for (var _a = 0; _a < instructions.length; _a++) {
+                            var instruction = instructions[_a];
+                            memory.writeInt32(PC, instruction.data);
+                            PC += 4;
+                        }
+                        break;
                 }
             }
         }
+        return new MipsAssemblerResult(entryPoint);
     };
     MipsAssembler.prototype.assemble = function (PC, line, labels) {
         if (labels == null)
             labels = new Labels();
-        if (line.substr(0, 1) == ':') {
-            labels.labels[line.substr(1)] = PC;
-            return [];
-        }
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
@@ -5291,22 +5409,7 @@ var IndentWriter = (function () {
         this.chunks = [];
     }
     IndentWriter.prototype.write = function (chunk) {
-        if (chunk == '')
-            return;
-        if (this.startline) {
-            this.chunks.push(this.i);
-            this.startline = false;
-        }
-        var jumpIndex = chunk.indexOf('\n');
-        if (jumpIndex >= 0) {
-            this.chunks.push(chunk.substr(0, jumpIndex));
-            this.chunks.push('\n');
-            this.startline = true;
-            this.write(chunk.substr(jumpIndex + 1));
-        }
-        else {
-            this.chunks.push(chunk);
-        }
+        this.chunks.push(chunk);
     };
     IndentWriter.prototype.indent = function () { this.i += '\t'; };
     IndentWriter.prototype.unindent = function () { this.i = this.i.substr(0, -1); };
@@ -5344,45 +5447,51 @@ var SimpleRelooper = (function () {
     };
     SimpleRelooper.prototype.render = function (first) {
         var writer = new IndentWriter();
-        writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
-        writer.indent();
-        for (var _i = 0, _a = this.blocks; _i < _a.length; _i++) {
-            var block = _a[_i];
-            var nblock = this.blocks[block.index + 1];
-            if (block.index != 0) {
-                writer.write('case ' + block.index + ':\n');
-                writer.indent();
-            }
-            if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
-                var condBranch = nblock.conditionalBranches[0];
-                writer.write("while (true) {\n");
-                writer.indent();
-                writer.write(block.code);
-                writer.write("if (!(" + condBranch.cond + ")) break;\n");
-                writer.unindent();
-                writer.write("}\n");
-                writer.write(nblock.code);
-            }
-            else {
-                for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
-                    var branch = _c[_b];
-                    writer.write("if (" + branch.cond + ") { label = " + branch.to.index + "; continue loop_label; }\n");
-                }
-                writer.write(block.code);
-            }
-            if (block.nextBlock) {
-                if (block.nextBlock != nblock) {
-                    writer.write("label = " + block.nextBlock.index + "; continue loop_label;\n");
-                }
-            }
-            else {
-                writer.write('break loop_label;\n');
-            }
-            if (block.index != 0)
-                writer.unindent();
+        if (this.blocks.length <= 1) {
+            if (this.blocks.length == 1)
+                writer.write(this.blocks[0].code);
         }
-        writer.unindent();
-        writer.write('}');
+        else {
+            writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
+            writer.indent();
+            for (var _i = 0, _a = this.blocks; _i < _a.length; _i++) {
+                var block = _a[_i];
+                var nblock = this.blocks[block.index + 1];
+                if (block.index != 0) {
+                    writer.write('case ' + block.index + ':\n');
+                    writer.indent();
+                }
+                if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
+                    var condBranch = nblock.conditionalBranches[0];
+                    writer.write("while (true) {\n");
+                    writer.indent();
+                    writer.write(block.code);
+                    writer.write("if (!(" + condBranch.cond + ")) break;\n");
+                    writer.unindent();
+                    writer.write("}\n");
+                    writer.write(nblock.code);
+                }
+                else {
+                    for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
+                        var branch = _c[_b];
+                        writer.write("if (" + branch.cond + ") { label = " + branch.to.index + "; continue loop_label; }\n");
+                    }
+                    writer.write(block.code);
+                }
+                if (block.nextBlock) {
+                    if (block.nextBlock != nblock) {
+                        writer.write("label = " + block.nextBlock.index + "; continue loop_label;\n");
+                    }
+                }
+                else {
+                    writer.write('break loop_label;\n');
+                }
+                if (block.index != 0)
+                    writer.unindent();
+            }
+            writer.unindent();
+            writer.write('}');
+        }
         return writer.output;
     };
     return SimpleRelooper;
@@ -7461,7 +7570,7 @@ var CpuState = (function () {
             this.getFunction(this.PC).execute(this);
         }
     };
-    CpuState.prototype.break = function () { throw (new CpuBreakException()); };
+    CpuState.prototype.break = function () { throw new Error('CpuBreakException'); };
     CpuState._mult_temp = [0, 0];
     return CpuState;
 })();
@@ -7601,11 +7710,17 @@ var FunctionGenerator = (function () {
         return this.getFunction(this.getFunctionInfo(address));
     };
     FunctionGenerator.prototype.getFunction = function (info) {
+        var start = performance.now();
         var code = this.getFunctionCode(info);
         try {
             var startHex = addressToHex(info.start);
             var func = (new Function('args', "return function func_" + startHex + "(state) { \"use strict\"; " + code.code + " }")(code.args));
-            return new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
+            var result = new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
+            var end = performance.now();
+            var elapsed = end - start;
+            if (elapsed >= 20)
+                console.warn("generated function " + startHex + " in " + (end - start) + " ms. " + addressToHex(info.min) + "-" + addressToHex(info.max) + " : " + addressToHex(info.start) + " : instructions:" + (info.max - info.start) / 4);
+            return result;
         }
         catch (e) {
             console.info('code:\n', code.code);
@@ -7639,8 +7754,6 @@ var FunctionGenerator = (function () {
                 throw new Error("Function too big " + exploredCount);
             var exploreNext = true;
             var exploreTarget = type.isBranch && !type.isRegister;
-            if (this.enableJumpBranch && type.isFixedAddressJump && explored[di.targetAddress])
-                exploreTarget = true;
             if (type.isBreak)
                 exploreNext = false;
             if (type.isJumpNoLink)
@@ -7648,7 +7761,7 @@ var FunctionGenerator = (function () {
             if (di.isUnconditional)
                 exploreNext = false;
             if (exploreTarget) {
-                {
+                if (di.targetAddress >= info.min - 8) {
                     info.labels[di.targetAddress] = true;
                     if (exploreNext)
                         info.labels[PC + 8] = true;
@@ -7666,7 +7779,7 @@ var FunctionGenerator = (function () {
     FunctionGenerator.prototype.getFunctionCode = function (info) {
         var args = {};
         if (info.start == CpuSpecialAddresses.EXIT_THREAD)
-            return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new CpuBreakException();", args);
+            return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
         var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), ast.raw_stm('state.jumpCall = null; return;'), []);
         var labels = {};
         for (var labelPC in info.labels)
@@ -10442,10 +10555,10 @@ var DummyPspDisplay = (function (_super) {
     DummyPspDisplay.prototype.setEnabledDisplay = function (enable) {
     };
     DummyPspDisplay.prototype.startAsync = function () {
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     DummyPspDisplay.prototype.stopAsync = function () {
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     return DummyPspDisplay;
 })(BasePspDisplay);
@@ -10534,12 +10647,12 @@ var PspDisplay = (function (_super) {
             _this.vblank.dispatch(_this.vblankCount);
             _this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
         }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     PspDisplay.prototype.stopAsync = function () {
         clearInterval(this.interval);
         this.interval = -1;
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     PspDisplay.prototype.checkVblankThrottle = function () {
         var currentTime = performance.now();
@@ -10552,17 +10665,17 @@ var PspDisplay = (function (_super) {
     PspDisplay.prototype.waitVblankAsync = function (waiter) {
         this.updateTime();
         if (!this.mustWaitVBlank)
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         if (this.checkVblankThrottle())
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000, true);
     };
     PspDisplay.prototype.waitVblankStartAsync = function (waiter) {
         this.updateTime();
         if (!this.mustWaitVBlank)
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         if (this.checkVblankThrottle())
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
     };
     PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000;
@@ -11714,7 +11827,7 @@ var PspGpuList = (function () {
     };
     PspGpuList.prototype.enqueueRunUntilStall = function () {
         var _this = this;
-        setImmediate(function () {
+        Microtask.queue(function () {
             _this.runUntilStall();
         });
     };
@@ -11725,7 +11838,7 @@ var PspGpuList = (function () {
     PspGpuList.prototype.start = function () {
         var _this = this;
         this.status = DisplayListStatus.Queued;
-        this.promise = new Promise(function (resolve, reject) {
+        this.promise = new Promise2(function (resolve, reject) {
             _this.promiseResolve = resolve;
             _this.promiseReject = reject;
         });
@@ -11789,7 +11902,7 @@ var PspGpuListRunner = (function () {
         return result;
     };
     PspGpuListRunner.prototype.waitAsync = function () {
-        return Promise.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return _state.DisplayListStatus.Completed; });
+        return Promise2.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return _state.DisplayListStatus.Completed; });
     };
     return PspGpuListRunner;
 })();
@@ -11823,7 +11936,7 @@ var PspGpu = (function () {
         return this.driver.initAsync();
     };
     PspGpu.prototype.stopAsync = function () {
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
         var list = this.listRunner.allocate();
@@ -13685,7 +13798,7 @@ var DummyDrawDriver = (function () {
     DummyDrawDriver.prototype.end = function () {
     };
     DummyDrawDriver.prototype.initAsync = function () {
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     DummyDrawDriver.prototype.textureFlush = function (state) {
     };
@@ -15390,8 +15503,8 @@ var Emulator = (function () {
     }
     Emulator.prototype.stopAsync = function () {
         if (!this.display)
-            return Promise.resolve();
-        return Promise.all([
+            return Promise2.resolve();
+        return Promise2.all([
             this.display.stopAsync(),
             this.controller.stopAsync(),
             this.gpu.stopAsync(),
@@ -15441,7 +15554,7 @@ var Emulator = (function () {
             _this.ms0Vfs.mountVfs('/', new MemoryVfs());
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
             _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop, _this.netManager);
-            return Promise.all([
+            return Promise2.all([
                 _this.display.startAsync(),
                 _this.controller.startAsync(),
                 _this.gpu.startAsync(),
@@ -15626,14 +15739,14 @@ var Emulator = (function () {
     Emulator.prototype.downloadAndExecuteAsync = function (url) {
         var _this = this;
         return UrlAsyncStream.fromUrlAsync(url).then(function (stream) {
-            setImmediate(function () {
+            Microtask.queue(function () {
                 _this.loadAndExecuteAsync(stream, url);
             });
         });
     };
     Emulator.prototype.executeFileAsync = function (file) {
         var _this = this;
-        setImmediate(function () {
+        Microtask.queue(function () {
             _this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
         });
     };
@@ -17065,7 +17178,7 @@ var ZipEntry = (function () {
     ZipEntry.prototype.readRawCompressedAsync = function () {
         var _this = this;
         if (this.compressedData)
-            return Promise.resolve(this.compressedData);
+            return Promise2.resolve(this.compressedData);
         return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then(function (data) {
             var stream = Stream.fromArrayBuffer(data);
             var zipFileRecord = ZipFileRecord.struct.read(stream);
@@ -17080,7 +17193,7 @@ var ZipEntry = (function () {
     ZipEntry.prototype.readAsync = function () {
         var _this = this;
         if (this.uncompressedData)
-            return Promise.resolve(this.uncompressedData);
+            return Promise2.resolve(this.uncompressedData);
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
                 case ZipCompressionType.DEFLATE:
@@ -18855,7 +18968,7 @@ var HleFile = (function () {
     };
     HleFile.prototype.setAsyncOperationNow = function (value) {
         this._asyncResult = value;
-        this._asyncPromise = Promise.resolve(value);
+        this._asyncPromise = Promise2.resolve(value);
     };
     HleFile.prototype.close = function () {
         this.entry.close();
@@ -19418,7 +19531,7 @@ var Thread = (function () {
         this.wakeupFunc = null;
         this.accumulatedMicroseconds = 0;
         this.state.thread = this;
-        this.runningPromise = new Promise(function (resolve, reject) { _this.runningStop = resolve; });
+        this.runningPromise = new Promise2(function (resolve, reject) { _this.runningStop = resolve; });
         this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
     }
     Object.defineProperty(Thread.prototype, "runningOrAcceptingCallbacks", {
@@ -19437,7 +19550,7 @@ var Thread = (function () {
     Thread.prototype.getWakeupPromise = function () {
         var _this = this;
         if (!this.wakeupPromise) {
-            this.wakeupPromise = new Promise(function (resolve, reject) {
+            this.wakeupPromise = new Promise2(function (resolve, reject) {
                 _this.wakeupFunc = resolve;
             });
         }
@@ -19455,7 +19568,7 @@ var Thread = (function () {
             this.wakeupPromise = null;
             this.wakeupFunc = null;
         }
-        return Promise.resolve(0);
+        return Promise2.resolve(0);
     };
     Thread.prototype.delayMicrosecondsAsync = function (delayMicroseconds, allowCompensating) {
         //console.error(delayMicroseconds, this.accumulatedMicroseconds);
@@ -19490,7 +19603,7 @@ var Thread = (function () {
         this._suspendUntilPromiseDone(info.promise, info.compensate);
     };
     Thread.prototype.suspendUntilPromiseDone = function (promise, info) {
-        this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise)';
+        this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise2)';
         this.waitingObject = info;
         this._suspendUntilPromiseDone(promise, Compensate.NO);
     };
@@ -19556,7 +19669,7 @@ var ThreadManager = (function () {
         this.running = false;
         this.callbackAdded = null;
         this.rootCpuState = new CpuState(this.memory, this.syscallManager);
-        this.exitPromise = new Promise(function (resolve, reject) {
+        this.exitPromise = new Promise2(function (resolve, reject) {
             _this.exitResolve = resolve;
         });
         this.interruptManager.event.add(this.eventOcurred);
@@ -19588,7 +19701,7 @@ var ThreadManager = (function () {
             return;
         this.enqueued = true;
         this.enqueuedTime = performance.now();
-        setImmediate(function () { return _this.eventOcurredCallback(); });
+        Microtask.queue(function () { return _this.eventOcurredCallback(); });
     };
     ThreadManager.getHighestPriority = function (threads) {
         var priority = -9999;
@@ -19641,6 +19754,7 @@ var ThreadManager = (function () {
                     }
                 });
             }
+            Microtask.execute();
             var current = window.performance.now();
             if (current - start >= 100) {
                 setTimeout(function () { return _this.eventOcurred(); }, 0);
@@ -19658,7 +19772,7 @@ var ThreadManager = (function () {
             } while (!this.interruptManager.enabled);
         }
         catch (e) {
-            if (e instanceof CpuBreakException)
+            if (e.message = 'CpuBreakException')
                 return;
             console.error(e);
             console.error(e['stack']);
@@ -19680,14 +19794,14 @@ var ThreadManager = (function () {
         this.callbackAdded = this.callbackManager.onAdded.add(function () {
             _this.eventOcurred();
         });
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     ThreadManager.prototype.stopAsync = function () {
         this.running = false;
         this.callbackManager.onAdded.remove(this.callbackAdded);
         clearInterval(this.interval);
         this.interval = -1;
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     ThreadManager.prototype.exitGame = function () {
         this.exitResolve();
@@ -19794,7 +19908,7 @@ var Kernel_Library = (function () {
             thread.sceKernelCpuResumeIntrCount++;
             if (thread.sceKernelCpuResumeIntrCount >= 3) {
                 thread.sceKernelCpuResumeIntrCount = 0;
-                return Promise.resolve(0);
+                return Promise2.resolve(0);
             }
             else {
                 return 0;
@@ -19848,7 +19962,7 @@ var LoadExecForUser = (function () {
             console.info('sceKernelExitGame');
             thread.stop('sceKernelExitGame');
             _this.context.threadManager.exitGame();
-            throw (new CpuBreakException());
+            throw new Error('CpuBreakException');
             return 0;
         });
         this.sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'Thread', this, function (thread) {
@@ -19857,7 +19971,7 @@ var LoadExecForUser = (function () {
             console.info('sceKernelExitGame2');
             _this.context.threadManager.exitGame();
             thread.stop('sceKernelExitGame2');
-            throw (new CpuBreakException());
+            throw new Error('CpuBreakException');
         });
         this.sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
             return 0;
@@ -20198,7 +20312,7 @@ var IoFileMgrForUser = (function () {
                 if (!_this.hasFileById(fileId))
                     return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
                 var file = _this.getFileById(fileId);
-                file.setAsyncOperation(Promise.resolve(Integer64.fromNumber(fileId)));
+                file.setAsyncOperation(Promise2.resolve(Integer64.fromNumber(fileId)));
                 log.info('-->', fileId);
                 return fileId;
             });
@@ -20210,7 +20324,7 @@ var IoFileMgrForUser = (function () {
             var file = _this.getFileById(fileId);
             if (file)
                 file.close();
-            file.setAsyncOperation(Promise.resolve(Integer64.fromInt(0)));
+            file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(0)));
             return 0;
         });
         this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
@@ -20399,7 +20513,7 @@ var IoFileMgrForUser = (function () {
         if (!this.fileUids.has(fileId)) {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
                 log.info('_sceIoWaitAsyncCB', fileId, 'file not found');
-            return Promise.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
+            return Promise2.resolve(SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND);
         }
         if (!this.hasFileById(fileId))
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -20418,7 +20532,7 @@ var IoFileMgrForUser = (function () {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
                 log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'incompleted');
             resultPointer.writeInt64(Integer64.fromNumber(0));
-            return Promise.resolve(1);
+            return Promise2.resolve(1);
         }
     };
     IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
@@ -20507,7 +20621,7 @@ var sceAtrac3plus = (function () {
         });
         this.sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
             if (!_this.hasById(id))
-                return Promise.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
+                return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
             var atrac3 = _this.getById(id);
             return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
                 var reachedEnd = 0;
@@ -20732,7 +20846,7 @@ var Atrac3 = (function () {
     });
     Atrac3.prototype.decodeAsync = function (samplesOutPtr) {
         if (this.dataStream.available < this.format.blockSize)
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         var blockData = this.dataStream.readBytes(this.format.blockSize);
         this.currentSample++;
         var outPromise;
@@ -20757,7 +20871,7 @@ var Atrac3 = (function () {
             if (this.firstDataChunk) {
                 this.atrac3Decoder.initWithHeader(this.firstDataChunk);
             }
-            outPromise = Promise.resolve(this.atrac3Decoder.decode(blockData));
+            outPromise = Promise2.resolve(this.atrac3Decoder.decode(blockData));
         }
         this.firstDataChunk = null;
         return outPromise.then(function (out) {
@@ -20921,7 +21035,7 @@ var sceAudio = (function () {
                 return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
             var channel = _this.getChannelById(channelId);
             var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
-            if (!(result instanceof Promise))
+            if (!(result instanceof Promise2))
                 return result;
             return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
         });
@@ -21169,7 +21283,7 @@ var sceDmac = (function () {
         if (source == 0)
             return SceKernelErrors.ERROR_INVALID_POINTER;
         this.context.memory.copy(source, destination, size);
-        return Promise.resolve(0);
+        return Promise2.resolve(0);
     };
     return sceDmac;
 })();
@@ -21216,7 +21330,7 @@ var sceGe_user = (function () {
         });
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
             var result = _this.context.gpu.drawSync(syncType);
-            if (result instanceof Promise) {
+            if (result instanceof Promise2) {
                 return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result, AcceptCallbacks.NO, Compensate.YES);
             }
             else {
@@ -21690,7 +21804,7 @@ var Pdp = (function () {
     }
     Pdp.prototype.recvOneAsync = function () {
         var _this = this;
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             _this.onChunkRecv.once(function () {
                 resolve(_this.chunks.shift());
             });
@@ -22882,11 +22996,11 @@ var sceUmdUser = (function () {
             return PspUmdState.PSP_UMD_PRESENT | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_READABLE;
         });
         this.sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         });
         this.sceUmdGetErrorStat = createNativeFunction(0x20628E6F, 150, 'uint', '', this, function () {
             console.warn('called sceUmdGetErrorStat!');
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         });
     }
     sceUmdUser.prototype._sceUmdWaitDriveStat = function (pspUmdState, acceptCallbacks) {
@@ -22936,10 +23050,10 @@ var sceUtility = (function () {
         this.currentStep = DialogStepEnum.NONE;
         this.sceUtilityLoadModule = createNativeFunction(0x2A2B3DE0, 150, 'uint', 'int', this, function (pspModule) {
             console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         });
         this.sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
-            return Promise.resolve(_this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(function (result) {
+            return Promise2.resolve(_this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(function (result) {
                 var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
                 params.base.result = result;
                 return 0;
@@ -23037,7 +23151,7 @@ var sceUtility = (function () {
             case PspUtilitySavedataMode.ReadSecure:
                 {
                     console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-                    return Promise.resolve(0);
+                    return Promise2.resolve(0);
                 }
                 break;
             case PspUtilitySavedataMode.Sizes:
@@ -23077,13 +23191,13 @@ var sceUtility = (function () {
                         }
                     }
                     if (SceKernelError != SceKernelErrors.ERROR_OK)
-                        return Promise.resolve(SceKernelError);
+                        return Promise2.resolve(SceKernelError);
                 }
                 break;
             default:
                 throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
         }
-        return Promise.resolve(0);
+        return Promise2.resolve(0);
     };
     sceUtility.prototype._getKey = function (id) {
         switch (id) {
@@ -23519,20 +23633,20 @@ var ThreadManForUser = (function () {
             newState.SP = copiedDataAddress - 0x40;
             console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
             newThread.start();
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         });
         this.sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, function (currentThread, threadId, priority) {
             if (!_this.hasThreadById(threadId))
                 return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
             var thread = _this.getThreadById(threadId);
             thread.priority = priority;
-            return Promise.resolve(0);
+            return Promise2.resolve(0);
         });
         this.sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, function (currentThread, exitStatus) {
             console.info(sprintf('sceKernelExitThread: %d', exitStatus));
             currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
             currentThread.stop('sceKernelExitThread');
-            throw (new CpuBreakException());
+            throw new Error('CpuBreakException');
         });
         this.sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, function (threadId) {
             if (!_this.hasThreadById(threadId))
@@ -23550,7 +23664,7 @@ var ThreadManForUser = (function () {
         this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, function (currentThread, exitStatus) {
             currentThread.exitStatus = exitStatus;
             currentThread.stop('sceKernelExitDeleteThread');
-            throw (new CpuBreakException());
+            throw new Error('CpuBreakException');
         });
         this.sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, function (threadId) {
             _this._sceKernelTerminateThread(threadId);
@@ -23565,7 +23679,7 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
             if (!_this.hasThreadById(threadId))
-                return Promise.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
+                return Promise2.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
             var thread = _this.getThreadById(threadId);
             return thread.wakeupWakeupAsync();
         });
@@ -23851,11 +23965,11 @@ var EventFlag = (function () {
     }
     EventFlag.prototype.waitAsync = function (bits, waitType, outBits, timeout, callbacks) {
         var _this = this;
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, _this, function () {
                 _this.waitingThreads.delete(waitingSemaphoreThread);
                 resolve();
-                throw (new CpuBreakException());
+                throw new Error('CpuBreakException');
             });
             _this.waitingThreads.add(waitingSemaphoreThread);
         }).then(function () { return 0; });
@@ -24010,7 +24124,7 @@ var ThreadManForUser = (function () {
                 return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
             var awakeCount = semaphore.incrementCount(signal);
             if (awakeCount > 0) {
-                return Promise.resolve(0);
+                return Promise2.resolve(0);
             }
             else {
                 return 0;
@@ -24104,7 +24218,7 @@ var Semaphore = (function () {
             return null;
         }
         else {
-            var promise = new Promise(function (resolve, reject) {
+            var promise = new Promise2(function (resolve, reject) {
                 var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, function () {
                     _this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
                     resolve();
@@ -24515,8 +24629,8 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     });
     code += 'var error = false;\n';
     code += 'var result = internalFunc(' + args.join(', ') + ');\n';
-    code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new CpuBreakException(); }\n';
-    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw new CpuBreakException(); } else { result = result.promise; } }\n';
+    code += 'if (result instanceof Promise2) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new Error("CpuBreakException"); }\n';
+    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise2) { state.thread.suspendUntilDone(result); throw new Error("CpuBreakException"); } else { result = result.promise; } }\n';
     switch (retval) {
         case 'void': break;
         case 'uint':
@@ -24595,7 +24709,7 @@ var MyStorageIndexedDb = (function () {
     }
     MyStorageIndexedDb.openAsync = function (name) {
         console.info('MyStorageIndexedDb.openAsync("' + name + '")');
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             var request = indexedDB.open(name, 1);
             request.onupgradeneeded = function (e) {
                 var db = request.result;
@@ -24618,7 +24732,7 @@ var MyStorageIndexedDb = (function () {
     MyStorageIndexedDb.prototype.putAsync = function (key, value) {
         console.log('putAsync', key, value);
         var store = this.getItemsStore();
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             var request = store.put({ key: key, value: value });
             request.onsuccess = function (e) {
                 resolve();
@@ -24631,7 +24745,7 @@ var MyStorageIndexedDb = (function () {
     MyStorageIndexedDb.prototype.deleteAsync = function (key) {
         console.log('deleteAsync', key);
         var store = this.getItemsStore();
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             var request = store.delete(key);
             request.onsuccess = function (e) {
                 resolve();
@@ -24647,7 +24761,7 @@ var MyStorageIndexedDb = (function () {
     };
     MyStorageIndexedDb.prototype.getAsync = function (key) {
         var store = this.getItemsStore();
-        return new Promise(function (resolve, reject) {
+        return new Promise2(function (resolve, reject) {
             //console.log('rr');
             //var keyRange = IDBKeyRange.only(key);
             //var keyRange = IDBKeyRange.lowerBound(0);
@@ -24679,28 +24793,28 @@ var MyStorageFake = (function () {
     MyStorageFake.prototype.putAsync = function (key, value) {
         console.log('putAsync', key, value);
         this.items[key] = value;
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     MyStorageFake.prototype.deleteAsync = function (key) {
         console.log('deleteAsync', key);
         delete this.items[key];
-        return Promise.resolve();
+        return Promise2.resolve();
     };
     MyStorageFake.prototype.hasAsync = function (key) {
         var value = this.items[key] !== undefined;
         console.log('hasAsync', key, value);
-        return Promise.resolve(value);
+        return Promise2.resolve(value);
     };
     MyStorageFake.prototype.getAsync = function (key) {
         var result = this.items[key];
         console.log('getAsync', key, result);
-        return Promise.resolve(result);
+        return Promise2.resolve(result);
     };
     return MyStorageFake;
 })();
 function openAsync(name, version, stores) {
     if (typeof indexedDB == "undefined") {
-        return Promise.resolve(new MyStorageFake(name));
+        return Promise2.resolve(new MyStorageFake(name));
     }
     else {
         return MyStorageIndexedDb.openAsync(name + '_v2');
@@ -24754,7 +24868,7 @@ var ProxyVfs = (function (_super) {
         this.parentVfsList = parentVfsList;
     }
     ProxyVfs.prototype._callChainWhenError = function (callback) {
-        var promise = Promise.reject(new Error());
+        var promise = Promise2.reject(new Error());
         this.parentVfsList.forEach(function (parentVfs) {
             promise = promise.catch(function (e) {
                 return callback(parentVfs, e);
@@ -24888,7 +25002,7 @@ var AsyncClient = (function () {
             this.client.authDriver(new Dropbox.AuthDriver.Redirect({
                 redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1/oauth_receive.html' : "https://" + document.location.host + '/oauth_receive.html'
             }));
-            this.initPromise = new Promise(function (resolve, reject) {
+            this.initPromise = new Promise2(function (resolve, reject) {
                 _this.client.authenticate({ interactive: true }, function (e) {
                     if (e) {
                         _this.initPromise = null;
@@ -24916,7 +25030,7 @@ var AsyncClient = (function () {
             }
         }
         return this.initOnceAsync().then(function () {
-            return new Promise(function (resolve, reject) {
+            return new Promise2(function (resolve, reject) {
                 _this.client.writeFile(fullpath, content, function (e, data) {
                     if (e) {
                         reject(e);
@@ -24931,7 +25045,7 @@ var AsyncClient = (function () {
     AsyncClient.prototype.mkdirAsync = function (path) {
         var _this = this;
         return this.initOnceAsync().then(function () {
-            return new Promise(function (resolve, reject) {
+            return new Promise2(function (resolve, reject) {
                 _this.client.mkdir(path, function (e, data) {
                     if (e) {
                         reject(e);
@@ -24948,7 +25062,7 @@ var AsyncClient = (function () {
         if (offset === void 0) { offset = 0; }
         if (length === void 0) { length = undefined; }
         return this.initOnceAsync().then(function () {
-            return new Promise(function (resolve, reject) {
+            return new Promise2(function (resolve, reject) {
                 _this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, function (e, data) {
                     if (e) {
                         reject(e);
@@ -24968,7 +25082,7 @@ var AsyncClient = (function () {
                     var basename = getBaseName(fullpath);
                     if (!files.contains(basename))
                         throw (new Error("folder not contains file"));
-                    return new Promise(function (resolve, reject) {
+                    return new Promise2(function (resolve, reject) {
                         _this.client.stat(fullpath, {}, function (e, data) {
                             if (e) {
                                 reject(e);
@@ -24988,7 +25102,7 @@ var AsyncClient = (function () {
         var _this = this;
         return this.initOnceAsync().then(function () {
             if (!_this.readdirCachePromise[name]) {
-                _this.readdirCachePromise[name] = new Promise(function (resolve, reject) {
+                _this.readdirCachePromise[name] = new Promise2(function (resolve, reject) {
                     _this.client.readdir(name, {}, function (e, data) {
                         if (e) {
                             reject(e);
@@ -25039,7 +25153,7 @@ var DropboxVfs = (function (_super) {
     DropboxVfs.prototype.openAsync = function (path, flags, mode) {
         path = normalizePath(path);
         if (!this.enabled)
-            return Promise.reject(new Error("Not using dropbox"));
+            return Promise2.reject(new Error("Not using dropbox"));
         return DropboxVfsEntry.fromPathAsync(path, flags, mode);
     };
     return DropboxVfs;
@@ -25092,7 +25206,7 @@ var DropboxVfsEntry = (function (_super) {
         var _this = this;
         if (this._size < 128 * 1024 * 1024) {
             if (this.cachedContent)
-                return Promise.resolve(this.cachedContent.slice(offset, offset + length));
+                return Promise2.resolve(this.cachedContent.slice(offset, offset + length));
             return client.readFileAsync(this.path).then(function (data) {
                 _this.cachedContent = data;
                 return _this.cachedContent.slice(offset, offset + length);
@@ -25164,7 +25278,7 @@ var EmulatorVfs = (function (_super) {
                 var str = input.readString(input.length);
                 this.output += str;
                 this.context.onStdout.dispatch(str);
-                return waitAsync(0);
+                return 0;
             case EmulatorDevclEnum.IsEmulator:
                 return 0;
             case EmulatorDevclEnum.EmitScreenshot:
@@ -25207,10 +25321,10 @@ var IsoVfs = (function (_super) {
     }
     IsoVfs.prototype.openAsync = function (path, flags, mode) {
         try {
-            return Promise.resolve(new IsoVfsFile(this.iso.get(path)));
+            return Promise2.resolve(new IsoVfsFile(this.iso.get(path)));
         }
         catch (e) {
-            return Promise.reject(e);
+            return Promise2.reject(e);
         }
     };
     return IsoVfs;
@@ -25249,7 +25363,7 @@ var IsoVfsFile = (function (_super) {
         return IsoVfsFile.statNode(this.node);
     };
     IsoVfsFile.prototype.enumerateAsync = function () {
-        return Promise.resolve(this.node.childs.map(function (node) { return IsoVfsFile.statNode(node); }));
+        return Promise2.resolve(this.node.childs.map(function (node) { return IsoVfsFile.statNode(node); }));
     };
     return IsoVfsFile;
 })(VfsEntry);
@@ -25289,10 +25403,10 @@ var MemoryVfs = (function (_super) {
             var error = new Error("MemoryVfs: Can't find '" + path + "'");
             console.error(error);
             console.error(error['stack']);
-            return Promise.reject(error);
+            return Promise2.reject(error);
         }
         else {
-            return Promise.resolve(file);
+            return Promise2.resolve(file);
         }
     };
     return MemoryVfs;
@@ -25311,7 +25425,7 @@ var MemoryVfsEntry = (function (_super) {
         configurable: true
     });
     MemoryVfsEntry.prototype.readChunkAsync = function (offset, length) {
-        return Promise.resolve(this.data.slice(offset, offset + length));
+        return Promise2.resolve(this.data.slice(offset, offset + length));
     };
     MemoryVfsEntry.prototype.writeChunkAsync = function (offset, data) {
         var newData = new ArrayBuffer(Math.max(this.data.byteLength, offset + data.byteLength));
@@ -25319,7 +25433,7 @@ var MemoryVfsEntry = (function (_super) {
         newDataArray.set(new Uint8Array(this.data), 0);
         newDataArray.set(new Uint8Array(data), offset);
         this.data = newData;
-        return Promise.resolve(data.byteLength);
+        return Promise2.resolve(data.byteLength);
     };
     MemoryVfsEntry.prototype.stat = function () {
         return {
@@ -25333,7 +25447,7 @@ var MemoryVfsEntry = (function (_super) {
     };
     MemoryVfsEntry.prototype.close = function () { };
     MemoryVfsEntry.prototype.enumerateAsync = function () {
-        return Promise.resolve([]);
+        return Promise2.resolve([]);
     };
     return MemoryVfsEntry;
 })(VfsEntry);
@@ -25381,7 +25495,7 @@ var MountableVfs = (function (_super) {
     MountableVfs.prototype.openAsync = function (path, flags, mode) {
         var info = this.transformPath(path);
         if (info.mount.file) {
-            return Promise.resolve(info.mount.file);
+            return Promise2.resolve(info.mount.file);
         }
         else {
             return info.mount.vfs.openAsync(info.part, flags, mode);
@@ -25390,7 +25504,7 @@ var MountableVfs = (function (_super) {
     MountableVfs.prototype.openDirectoryAsync = function (path) {
         var info = this.transformPath(path);
         if (info.mount.file) {
-            return Promise.resolve(info.mount.file);
+            return Promise2.resolve(info.mount.file);
         }
         else {
             return info.mount.vfs.openDirectoryAsync(info.part);
@@ -25399,7 +25513,7 @@ var MountableVfs = (function (_super) {
     MountableVfs.prototype.getStatAsync = function (path) {
         var info = this.transformPath(path);
         if (info.mount.file) {
-            return Promise.resolve(info.mount.file.stat());
+            return Promise2.resolve(info.mount.file.stat());
         }
         else {
             return info.mount.vfs.getStatAsync(info.part);
@@ -25592,7 +25706,7 @@ var StorageVfsEntry = (function (_super) {
         throw (new Error("Must override enumerateAsync : " + this));
     };
     StorageVfsEntry.prototype.readChunkAsync = function (offset, length) {
-        return Promise.resolve(this.file.content.buffer.slice(offset, offset + length));
+        return Promise2.resolve(this.file.content.buffer.slice(offset, offset + length));
     };
     StorageVfsEntry.prototype.writeChunkAsync = function (offset, data) {
         var newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
@@ -25644,13 +25758,13 @@ var UriVfs = (function (_super) {
     };
     UriVfs.prototype.openAsync = function (path, flags, mode) {
         if (flags & FileOpenFlags.Write) {
-            return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
+            return Promise2.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
         }
         var url = this.getAbsoluteUrl(path);
         return UrlAsyncStream.fromUrlAsync(url).then(function (stream) { return new VfsEntryStream(stream); });
     };
     UriVfs.prototype.openDirectoryAsync = function (path) {
-        return Promise.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
+        return Promise2.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
     };
     UriVfs.prototype.getStatAsync = function (path) {
         var url = this.getAbsoluteUrl(path);
@@ -25693,10 +25807,10 @@ var ZipVfs = (function (_super) {
     }
     ZipVfs.prototype.openAsync = function (path, flags, mode) {
         try {
-            return Promise.resolve(new ZipVfsFile(this.zip.get(path)));
+            return Promise2.resolve(new ZipVfsFile(this.zip.get(path)));
         }
         catch (e) {
-            return Promise.reject(e);
+            return Promise2.reject(e);
         }
     };
     return ZipVfs;
@@ -25734,7 +25848,7 @@ var ZipVfsFile = (function (_super) {
         return ZipVfsFile.statNode(this.node);
     };
     ZipVfsFile.prototype.enumerateAsync = function () {
-        return Promise.resolve(this.node.getChildList().map(function (node) { return ZipVfsFile.statNode(node); }));
+        return Promise2.resolve(this.node.getChildList().map(function (node) { return ZipVfsFile.statNode(node); }));
     };
     return ZipVfsFile;
 })(VfsEntry);
@@ -26136,6 +26250,7 @@ module.exports = difflib;
 },
 "test/_tests": function(module, exports, require) {
 ///<reference path="./global.d.ts" />
+exports.promisetest = require('./promisetest');
 var pspTest = require('./format/pspTest');
 pspTest.ref();
 var csoTest = require('./format/csoTest');
@@ -26545,7 +26660,7 @@ describe('vfs', function () {
     });
     it('storage', function () {
         var storageVfs = new StorageVfs('test');
-        return Promise.resolve(0)
+        return Promise2.resolve(0)
             .then(function () {
             return storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
         })
@@ -26569,7 +26684,7 @@ describe('vfs', function () {
         })
             .then(function () {
             return storageVfs.openAsync('simple2', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, parseIntFormat('0777')).then(function (file) {
-                return Promise.resolve(0)
+                return Promise2.resolve(0)
                     .then(function () {
                     return file.writeChunkAsync(0, new Int8Array([1, 2, 3, 4, 5]).buffer);
                 })
@@ -26596,7 +26711,7 @@ describe('vfs', function () {
     it('memorystick', function () {
         var storageVfs = new StorageVfs('test');
         var msVfs = new MemoryStickVfs([storageVfs], null, null);
-        return Promise.resolve(0)
+        return Promise2.resolve(0)
             .then(function () {
             return msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
         })
@@ -26623,7 +26738,7 @@ describe('vfs', function () {
         var vfs1 = new MemoryVfs();
         var vfs2 = new MemoryVfs();
         var msVfs = new MemoryStickVfs([vfs1, vfs2], null, null);
-        return Promise.resolve(0)
+        return Promise2.resolve(0)
             .then(function () {
             vfs1.writeAllAsync('simple1', new Uint8Array([1, 2, 3, 4, 5]).buffer);
             vfs2.writeAllAsync('simple2', new Uint8Array([1, 2, 3, 4, 5]).buffer);
@@ -26665,6 +26780,40 @@ describe('instruction lookup', function () {
         assert.equal(instructions.findByData(0x00081C4C).name, 'syscall');
         assert.equal(instructions.findByData(0x00001012).name, 'mflo');
         assert.equal(instructions.findByData(0xA0410004).name, 'sb');
+    });
+});
+
+},
+"test/promisetest": function(module, exports, require) {
+///<reference path="./global.d.ts" />
+function ref() { }
+exports.ref = ref;
+describe('promise', function () {
+    it('simple', function () {
+        return new Promise2(function (resolve, reject) {
+            setTimeout(function () {
+                resolve();
+            }, 10);
+        });
+    });
+    it('pass values', function () {
+        return Promise2.resolve(10).then(function (value) {
+            assert.equal(10, value);
+        });
+    });
+    it('pass values2', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return 11;
+        }).then(function (value) {
+            assert.equal(11, value);
+        });
+    });
+    it('pipe', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return Promise2.resolve(11);
+        }).then(function (value) {
+            assert.equal(11, value);
+        });
     });
 });
 
@@ -26845,7 +26994,7 @@ var TestSyscallManager = (function (_super) {
 function executeProgram(gprInitial, program) {
     program = program.slice(0);
     program.push('break 0');
-    assembler.assembleToMemory(memory, 4, program);
+    var result = assembler.assembleToMemory(memory, 4, program);
     var state = new CpuState(memory, new TestSyscallManager());
     for (var key in gprInitial) {
         if (key.substr(0, 1) == '$') {
@@ -26855,13 +27004,13 @@ function executeProgram(gprInitial, program) {
             state[key] = gprInitial[key];
         }
     }
-    state.PC = 4;
+    state.PC = result.entrypoint;
     state.SP = 0x10000;
     try {
         state.executeAtPC();
     }
     catch (e) {
-        if (!(e instanceof CpuBreakException))
+        if (e.message != 'CpuBreakException')
             throw e;
     }
     return state;
@@ -26956,6 +27105,19 @@ describe('testasm cpu running', function () {
             "nop",
             ":end",
         ], { "$1": 20 });
+    });
+    it('j_inside2', function () {
+        assertProgram("j_inside2", { "$1": 0, "$30": 20 }, [
+            ":start",
+            "addi r2, r2, 1",
+            ".entrypoint",
+            "addi r1, r1, 1",
+            "beq r1, r30, end",
+            "nop",
+            "j start",
+            "nop",
+            ":end",
+        ], { "$1": 20, "$2": 19 });
     });
     it('shift', function () {
     });

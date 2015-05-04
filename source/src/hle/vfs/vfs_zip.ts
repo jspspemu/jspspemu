@@ -12,11 +12,11 @@ export class ZipVfs extends Vfs {
 		super();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		try {
-			return Promise.resolve(new ZipVfsFile(this.zip.get(path)));
+			return Promise2.resolve(new ZipVfsFile(this.zip.get(path)));
 		} catch (e) {
-			return Promise.reject(e);
+			return Promise2.reject(e);
 		}
 	}
 }
@@ -28,7 +28,7 @@ class ZipVfsFile extends VfsEntry {
 
 	get isDirectory() { return this.node.isDirectory; }
 	get size() { return this.node.size; }
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
+	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 	close() { }
 
 	private static statNode(node: format_zip.ZipEntry): VfsStat {
@@ -47,6 +47,6 @@ class ZipVfsFile extends VfsEntry {
 	}
 
 	enumerateAsync() {
-		return Promise.resolve(this.node.getChildList().map(node => ZipVfsFile.statNode(node)));
+		return Promise2.resolve(this.node.getChildList().map(node => ZipVfsFile.statNode(node)));
 	}
 }

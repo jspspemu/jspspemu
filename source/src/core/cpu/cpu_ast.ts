@@ -122,11 +122,15 @@ class IndentWriter {
 	public chunks:string[] = [];
 	
 	write(chunk:string) {
+		this.chunks.push(chunk);
+		/*
 		if (chunk == '') return;
+		console.log(chunk);
 		if (this.startline) {
 			this.chunks.push(this.i);
 			this.startline = false;
 		}
+		var parts = chunk.split('\n').join();
 		var jumpIndex = chunk.indexOf('\n');
 		if (jumpIndex >= 0) {
 			this.chunks.push(chunk.substr(0, jumpIndex));
@@ -136,6 +140,7 @@ class IndentWriter {
 		} else {
 			this.chunks.push(chunk);
 		}
+		*/
 	}
 	indent() { this.i += '\t'; }
 	unindent() { this.i = this.i.substr(0, -1); }
@@ -167,44 +172,51 @@ class SimpleRelooper {
 	
 	render(first:RelooperBlock) {
 		var writer = new IndentWriter();
-		writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
-		writer.indent();
-		for (let block of this.blocks) {
-			let nblock = this.blocks[block.index + 1];
-			
-			if (block.index != 0) {
-				writer.write('case ' + block.index + ':\n');
-				writer.indent();
-			}
-			
-			if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
-				let condBranch = nblock.conditionalBranches[0];
-				writer.write(`while (true) {\n`);
-				writer.indent();
-				writer.write(block.code);
-				writer.write(`if (!(${condBranch.cond})) break;\n`);
-				writer.unindent();
-				writer.write(`}\n`);
-				writer.write(nblock.code);
-			} else {		
-				for (let branch of block.conditionalBranches) {
-					writer.write(`if (${branch.cond}) { label = ${branch.to.index}; continue loop_label; }\n`);
+		
+		if (this.blocks.length <= 1) {
+			if (this.blocks.length == 1) writer.write(this.blocks[0].code);
+		} else {
+			writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
+			writer.indent();
+			for (let block of this.blocks) {
+				let nblock = this.blocks[block.index + 1];
+				
+				if (block.index != 0) {
+					writer.write('case ' + block.index + ':\n');
+					writer.indent();
 				}
-	
-				writer.write(block.code);
-			}
-			
-			if (block.nextBlock) {
-				if (block.nextBlock != nblock) {
-					writer.write(`label = ${block.nextBlock.index}; continue loop_label;\n`);
+				
+				if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
+					let condBranch = nblock.conditionalBranches[0];
+					writer.write(`while (true) {\n`);
+					writer.indent();
+					writer.write(block.code);
+					writer.write(`if (!(${condBranch.cond})) break;\n`);
+					writer.unindent();
+					writer.write(`}\n`);
+					writer.write(nblock.code);
+				} else {		
+					for (let branch of block.conditionalBranches) {
+						writer.write(`if (${branch.cond}) { label = ${branch.to.index}; continue loop_label; }\n`);
+					}
+		
+					writer.write(block.code);
 				}
-			} else {
-				writer.write('break loop_label;\n');
+				
+				if (block.nextBlock) {
+					if (block.nextBlock != nblock) {
+						writer.write(`label = ${block.nextBlock.index}; continue loop_label;\n`);
+					}
+				} else {
+					writer.write('break loop_label;\n');
+				}
+				if (block.index != 0) writer.unindent();
 			}
-			if (block.index != 0) writer.unindent();
+			writer.unindent();
+			writer.write('}');
 		}
-		writer.unindent();
-		writer.write('}');
+		
+		
 		return writer.output;
 	}
 }

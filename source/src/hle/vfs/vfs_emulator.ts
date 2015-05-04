@@ -10,7 +10,7 @@ export class EmulatorVfs extends _vfs.Vfs {
 		super();
 	}
 
-	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream):number | Promise<number> {
+	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream):number | Promise2<number> {
 		switch (command) {
 			case EmulatorDevclEnum.GetHasDisplay:
 				if (output) output.writeInt32(0);
@@ -20,7 +20,8 @@ export class EmulatorVfs extends _vfs.Vfs {
 				var str = input.readString(input.length);
 				this.output += str;
 				this.context.onStdout.dispatch(str);
-				return waitAsync(0);
+				//return immediateAsync().then(_ => 0);
+				return 0;
 			case EmulatorDevclEnum.IsEmulator:
 				return 0; // Running on emulator
 			case EmulatorDevclEnum.EmitScreenshot:

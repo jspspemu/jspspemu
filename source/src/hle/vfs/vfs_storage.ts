@@ -15,7 +15,7 @@ var console = logger.named('vfs.storage');
 
 export class StorageVfs extends Vfs {
 	private db: storage.MyStorage;
-	private openDbPromise: Promise<StorageVfs>;
+	private openDbPromise: Promise2<StorageVfs>;
 
 
 	constructor(private key: string) {
@@ -32,7 +32,7 @@ export class StorageVfs extends Vfs {
 		return this.openDbPromise;
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		return this.initializeOnceAsync().then(() => {
 			return StorageVfsEntry.fromNameAsync(this.db, path, flags, mode);
 		});
@@ -73,7 +73,7 @@ class StorageVfsEntry extends VfsEntry {
 		return (new StorageVfsEntry(db, name)).initAsync(flags, mode);
 	}
 
-	private _getFileAsync(): Promise<File> {
+	private _getFileAsync(): Promise2<File> {
 		return this.db.getAsync(this.name).then(file => {
 			if (!file) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
 			return file;
@@ -93,16 +93,16 @@ class StorageVfsEntry extends VfsEntry {
 		});
 	}
 
-	enumerateAsync(): Promise<VfsStat[]> {
+	enumerateAsync(): Promise2<VfsStat[]> {
 		throw (new Error("Must override enumerateAsync : " + this));
 	}
 
-	readChunkAsync(offset: number, length: number): Promise<ArrayBuffer> {
+	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> {
 		//console.log(this.file);
-		return Promise.resolve(this.file.content.buffer.slice(offset, offset + length));
+		return Promise2.resolve(this.file.content.buffer.slice(offset, offset + length));
 	}
 
-	writeChunkAsync(offset: number, data: ArrayBuffer): Promise<number> {
+	writeChunkAsync(offset: number, data: ArrayBuffer): Promise2<number> {
 		var newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
 		var newContentArray = new Uint8Array(newContent);
 		newContentArray.set(new Uint8Array(this.file.content), 0);

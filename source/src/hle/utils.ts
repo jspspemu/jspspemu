@@ -84,13 +84,13 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
 		code += "if (DebugOnce(info, 10)) {\n";
 		code += "console.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
-		code += "if (result instanceof Promise) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+		code += "if (result instanceof Promise2) { result.then(function(value) { console.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
 		code += "}\n";
 	}
 	*/
 
-	code += 'if (result instanceof Promise) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new CpuBreakException(); }\n';
-	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise) { state.thread.suspendUntilDone(result); throw new CpuBreakException(); } else { result = result.promise; } }\n';
+	code += 'if (result instanceof Promise2) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new Error("CpuBreakException"); }\n';
+	code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise2) { state.thread.suspendUntilDone(result); throw new Error("CpuBreakException"); } else { result = result.promise; } }\n';
 
     switch (retval) {
         case 'void': break;

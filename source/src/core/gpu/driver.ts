@@ -6,7 +6,7 @@ import _state = require('./state');
 export interface IDrawDriver {
 	end(): void;
 
-	initAsync(): Promise<any>;
+	initAsync(): Promise2<any>;
 
 	/**
 	 * Flush texture page-cache.

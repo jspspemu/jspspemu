@@ -42,7 +42,7 @@ export class sceAtrac3plus {
 	});
 
 	sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, (id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) => {
-		if (!this.hasById(id)) return Promise.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
+		if (!this.hasById(id)) return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
 		var atrac3 = this.getById(id);
 
 		return atrac3.decodeAsync(samplesOutPtr).then((decodedSamples) => {
@@ -211,8 +211,8 @@ export class sceAtrac3plus {
 }
 
 declare class WorkerTask {
-	static executeAsync<T>(callback: (...args: any[]) => T, args: any[]): Promise<T>;
-	static executeAsync<T>(callback: (...args: any[]) => Promise<T>, args: any[]): Promise<T>;
+	static executeAsync<T>(callback: (...args: any[]) => T, args: any[]): Promise2<T>;
+	static executeAsync<T>(callback: (...args: any[]) => Promise2<T>, args: any[]): Promise2<T>;
 }
 
 class Atrac3 {
@@ -292,11 +292,11 @@ class Atrac3 {
 	private static useWorker = true;
 
 	decodeAsync(samplesOutPtr: Stream) {
-		if (this.dataStream.available < this.format.blockSize) return Promise.resolve(0);
+		if (this.dataStream.available < this.format.blockSize) return Promise2.resolve(0);
 		var blockData = this.dataStream.readBytes(this.format.blockSize);
 		this.currentSample++;
 
-		var outPromise: Promise<Uint16Array>;
+		var outPromise: Promise2<Uint16Array>;
 
 		if (Atrac3.useWorker) {
 			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
@@ -320,7 +320,7 @@ class Atrac3 {
 				this.atrac3Decoder.initWithHeader(this.firstDataChunk);
 			}
 
-			outPromise = Promise.resolve(this.atrac3Decoder.decode(blockData))
+			outPromise = Promise2.resolve(this.atrac3Decoder.decode(blockData))
 		}
 
 		this.firstDataChunk = null;
