@@ -869,6 +869,7 @@ class Promise2<T> implements Thenable<T> {
 
 	static all(promises: Promise2<any>[]): Promise2<any> {
 		return new Promise2((resolve, reject) => {
+			if (promises.length == 0) return resolve();
 			var total = promises.length;
 			var one = () => {
 				total--;
@@ -877,13 +878,27 @@ class Promise2<T> implements Thenable<T> {
 			var oneError = (e: Error) => {
 				reject(e);
 			};
-			for (let p of promises) p.then(one, oneError);
+			for (let p of promises) {
+				if (p instanceof Promise2) {
+					p.then(one, oneError);
+				} else {
+					one();
+				}
+			}
 		});
 	}
 
 	static race(promises: Promise2<any>[]): Promise2<any> {
 		return new Promise2((resolve, reject) => {
-			for (let p of promises) p.then(resolve, reject);
+			if (promises.length == 0) return resolve();
+			for (let p of promises) {
+				if (p instanceof Promise2) {
+					p.then(resolve, reject);
+				} else {
+					resolve();
+					return;
+				}
+			}
 		});
 	}
 

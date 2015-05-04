@@ -50,8 +50,12 @@ export class sceGe_user {
 	sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, (syncType: _gpu.SyncType): any => {
 		var result = this.context.gpu.drawSync(syncType);
 		if (result instanceof Promise2) {
-			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <Promise2<any>>result, AcceptCallbacks.NO, Compensate.YES);
+			console.log('aa');
+			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <Promise2<any>>result.then(() => {
+				console.log('bb');
+			}), AcceptCallbacks.NO, Compensate.YES);
 		} else {
+			console.log('aa/bb');
 			return result;
 		}
 	});

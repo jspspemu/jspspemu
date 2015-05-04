@@ -74,6 +74,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	//code += 'var args = [' + args.join(', ') + '];\n';
 	//code += 'var result = internalFunc.apply(_this, args);\n';
 
+	//code += `console.info(nativeFunction.name);`;
 	code += 'var result = internalFunc(' + args.join(', ') + ');\n';
 
 	/*

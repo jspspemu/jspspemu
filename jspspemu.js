@@ -855,6 +855,8 @@ var Promise2 = (function () {
     Promise2.reject = function (error) { return new Promise2(function (resolve, reject) { return reject(error); }); };
     Promise2.all = function (promises) {
         return new Promise2(function (resolve, reject) {
+            if (promises.length == 0)
+                return resolve();
             var total = promises.length;
             var one = function () {
                 total--;
@@ -866,15 +868,28 @@ var Promise2 = (function () {
             };
             for (var _i = 0; _i < promises.length; _i++) {
                 var p = promises[_i];
-                p.then(one, oneError);
+                if (p instanceof Promise2) {
+                    p.then(one, oneError);
+                }
+                else {
+                    one();
+                }
             }
         });
     };
     Promise2.race = function (promises) {
         return new Promise2(function (resolve, reject) {
+            if (promises.length == 0)
+                return resolve();
             for (var _i = 0; _i < promises.length; _i++) {
                 var p = promises[_i];
-                p.then(resolve, reject);
+                if (p instanceof Promise2) {
+                    p.then(resolve, reject);
+                }
+                else {
+                    resolve();
+                    return;
+                }
             }
         });
     };
@@ -21331,9 +21346,13 @@ var sceGe_user = (function () {
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
             var result = _this.context.gpu.drawSync(syncType);
             if (result instanceof Promise2) {
-                return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result, AcceptCallbacks.NO, Compensate.YES);
+                console.log('aa');
+                return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result.then(function () {
+                    console.log('bb');
+                }), AcceptCallbacks.NO, Compensate.YES);
             }
             else {
+                console.log('aa/bb');
                 return result;
             }
         });
