@@ -345,7 +345,7 @@ export class ThreadManager {
 				});
 			}
 			
-			Microtask.execute();
+			//Microtask.execute(); // causes game to freeze
 
             var current = window.performance.now();
 			if (current - start >= 100) {

@@ -372,8 +372,6 @@ String.prototype.contains = function(value: string) {
 	return string.indexOf(value) >= 0;
 };
 
-declare function setImmediate(callback: () => void): number;
-
 interface MicrotaskCallback {
 	(): void;
 }
@@ -381,36 +379,25 @@ interface MicrotaskCallback {
 class Microtask {
 	private static queued: boolean = false;
 	private static callbacks: MicrotaskCallback[] = [];
-	private static initialized: boolean = false;
-	private static __messageType = '__Microtask_execute';
-	private static __location: string = null;
-
-	private static initOnce() {
-		if (Microtask.initialized) return;
-		window.addEventListener("message", Microtask.window_message, false);
-		Microtask.__location = document.location.href;
-		Microtask.initialized = true;
-	}
-
-	private static window_message(e: any) {
-		if (e.data == Microtask.__messageType) Microtask.execute();
-	}
 
 	static queue(callback: MicrotaskCallback) {
-		Microtask.initOnce();
 		Microtask.callbacks.push(callback);
 		if (!Microtask.queued) {
 			Microtask.queued = true;
-			//window.postMessage(Microtask.__messageType, Microtask.__location);
 			setTimeout(Microtask.execute, 0);
-			//Microtask.execute(); // @TODO
 		}
 	}
 
 	static execute() {
+		var start = performance.now();
 		while (Microtask.callbacks.length > 0) {
 			var callback = Microtask.callbacks.shift();
 			callback();
+			var end = performance.now();
+			if ((end - start) >= 20) {
+				setTimeout(Microtask.execute, 0);
+				return;
+			}
 		}
 		Microtask.queued = false;
 	}
@@ -419,25 +406,12 @@ class Microtask {
 var _self: any = self;
 _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
-_self['polyfills']['setImmediate'] = !self.setImmediate;
 _self['polyfills']['performance'] = !self.performance;
 
 if (!self['performance']) {
 	self['performance'] = <any>{};
 	self['performance']['now'] = function() {
 		return Date.now();
-	};
-}
-
-if (!self['setImmediate']) {
-	self['setImmediate'] = function(callback: () => void) {
-		Microtask.queue(callback);
-		//return setTimeout(callback, 0);
-		return -1;
-	};
-	self['clearImmediate'] = function(timer: number) {
-		throw (new Error("Not implemented!"));
-		//clearTimeout(timer);
 	};
 }
 

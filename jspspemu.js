@@ -363,19 +363,7 @@ String.prototype.contains = function (value) {
 var Microtask = (function () {
     function Microtask() {
     }
-    Microtask.initOnce = function () {
-        if (Microtask.initialized)
-            return;
-        window.addEventListener("message", Microtask.window_message, false);
-        Microtask.__location = document.location.href;
-        Microtask.initialized = true;
-    };
-    Microtask.window_message = function (e) {
-        if (e.data == Microtask.__messageType)
-            Microtask.execute();
-    };
     Microtask.queue = function (callback) {
-        Microtask.initOnce();
         Microtask.callbacks.push(callback);
         if (!Microtask.queued) {
             Microtask.queued = true;
@@ -383,37 +371,30 @@ var Microtask = (function () {
         }
     };
     Microtask.execute = function () {
+        var start = performance.now();
         while (Microtask.callbacks.length > 0) {
             var callback = Microtask.callbacks.shift();
             callback();
+            var end = performance.now();
+            if ((end - start) >= 20) {
+                setTimeout(Microtask.execute, 0);
+                return;
+            }
         }
         Microtask.queued = false;
     };
     Microtask.queued = false;
     Microtask.callbacks = [];
-    Microtask.initialized = false;
-    Microtask.__messageType = '__Microtask_execute';
-    Microtask.__location = null;
     return Microtask;
 })();
 var _self = self;
 _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
-_self['polyfills']['setImmediate'] = !self.setImmediate;
 _self['polyfills']['performance'] = !self.performance;
 if (!self['performance']) {
     self['performance'] = {};
     self['performance']['now'] = function () {
         return Date.now();
-    };
-}
-if (!self['setImmediate']) {
-    self['setImmediate'] = function (callback) {
-        Microtask.queue(callback);
-        return -1;
-    };
-    self['clearImmediate'] = function (timer) {
-        throw (new Error("Not implemented!"));
     };
 }
 var Utf8 = (function () {
@@ -19774,7 +19755,6 @@ var ThreadManager = (function () {
                     }
                 });
             }
-            Microtask.execute();
             var current = window.performance.now();
             if (current - start >= 100) {
                 setTimeout(function () { return _this.eventOcurred(); }, 0);
