@@ -14,9 +14,12 @@ describe('cso', () => {
 	});
 
 	it('should load fine', () => {
+		console.log('[a]');
 		return _cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(cso => {
+			console.log('[b]');
 			//cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
 			return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
+				console.log('[c]');
 				var stream = Stream.fromArrayBuffer(data);
 				stream.skip(10);
 				var CD0001 = stream.readStringz(6);

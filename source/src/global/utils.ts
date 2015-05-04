@@ -922,19 +922,20 @@ class Promise2<T> implements Thenable<T> {
 	private _solved: boolean = false;
 	private _resolvedCallbacks: any[] = [];
 	private _rejectedCallbacks: any[] = [];
+	private _rejectedPropagated = false;
 
 	private _resolve(value: T) {
 		if (this._solved) return;
 		this._resolvedValue = value;
 		this._solved = true;
-		this._check();
+		this._queueCheck();
 	}
 
 	private _reject(error: Error) {
 		if (this._solved) return;
 		this._rejectedValue = error;
 		this._solved = true;
-		this._check();
+		this._queueCheck();
 	}
 
 	then<Q>(resolved: (value: T) => Promise2<Q>, rejected?: (error: Error) => void): Promise2<Q>;
@@ -946,7 +947,7 @@ class Promise2<T> implements Thenable<T> {
 					try {
 						var result = resolved(a);
 						if (result instanceof Promise2) {
-							result.then(resolve);
+							result.then(resolve, reject);
 						} else {
 							resolve(result);
 						}
@@ -954,21 +955,28 @@ class Promise2<T> implements Thenable<T> {
 						reject(e);
 					}
 				});
+			} else {
+				this._resolvedCallbacks.push(resolve);
 			}
-			if (rejected) this._rejectedCallbacks.push((a: any) => {
-				try {
-					var result = rejected(a);
-					if (result instanceof Promise2) {
-						result.then(resolve);
-					} else {
-						resolve(result);
+
+			if (rejected) {
+				this._rejectedCallbacks.push((a: any) => {
+					try {
+						var result = rejected(a);
+						if (result instanceof Promise2) {
+							result.then(resolve, reject);
+						} else {
+							resolve(result);
+						}
+					} catch (e) {
+						reject(e);
 					}
-				} catch (e) {
-					reject(e);
-				}
-			});
+				});
+			} else {
+				this._rejectedCallbacks.push(reject);
+			}
 		});
-		this._check();
+		this._queueCheck();
 		return promise;
 	}
 
@@ -979,14 +987,22 @@ class Promise2<T> implements Thenable<T> {
 		return this.then(null, rejected);
 	}
 
+	private _queueCheck() {
+		Microtask.queue(() => this._check());
+	}
+
 	private _check() {
 		if (!this._solved) return;
 		if (this._rejectedValue != null) {
-			while (this._rejectedCallbacks && this._rejectedCallbacks.length > 0) this._rejectedCallbacks.shift()(this._rejectedValue);
+			while (this._rejectedCallbacks.length > 0) {
+				this._rejectedPropagated = true;
+				this._rejectedCallbacks.shift()(this._rejectedValue);
+			}
+			if (!this._rejectedPropagated) {
+				//throw this._rejectedValue;
+			}
 		} else {
-			while (this._resolvedCallbacks && this._resolvedCallbacks.length > 0) this._resolvedCallbacks.shift()(this._resolvedValue);
+			while (this._resolvedCallbacks.length > 0) this._resolvedCallbacks.shift()(this._resolvedValue);
 		}
-		//this._rejectedCallbacks = null;
-		//this._resolvedCallbacks = null;
 	}
 }

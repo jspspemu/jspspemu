@@ -863,6 +863,7 @@ var Promise2 = (function () {
         this._solved = false;
         this._resolvedCallbacks = [];
         this._rejectedCallbacks = [];
+        this._rejectedPropagated = false;
         callback(this._resolve.bind(this), this._reject.bind(this));
     }
     Promise2.resolve = function (value) {
@@ -901,14 +902,14 @@ var Promise2 = (function () {
             return;
         this._resolvedValue = value;
         this._solved = true;
-        this._check();
+        this._queueCheck();
     };
     Promise2.prototype._reject = function (error) {
         if (this._solved)
             return;
         this._rejectedValue = error;
         this._solved = true;
-        this._check();
+        this._queueCheck();
     };
     Promise2.prototype.then = function (resolved, rejected) {
         var _this = this;
@@ -918,7 +919,7 @@ var Promise2 = (function () {
                     try {
                         var result = resolved(a);
                         if (result instanceof Promise2) {
-                            result.then(resolve);
+                            result.then(resolve, reject);
                         }
                         else {
                             resolve(result);
@@ -929,12 +930,15 @@ var Promise2 = (function () {
                     }
                 });
             }
-            if (rejected)
+            else {
+                _this._resolvedCallbacks.push(resolve);
+            }
+            if (rejected) {
                 _this._rejectedCallbacks.push(function (a) {
                     try {
                         var result = rejected(a);
                         if (result instanceof Promise2) {
-                            result.then(resolve);
+                            result.then(resolve, reject);
                         }
                         else {
                             resolve(result);
@@ -944,22 +948,34 @@ var Promise2 = (function () {
                         reject(e);
                     }
                 });
+            }
+            else {
+                _this._rejectedCallbacks.push(reject);
+            }
         });
-        this._check();
+        this._queueCheck();
         return promise;
     };
     Promise2.prototype.catch = function (rejected) {
         return this.then(null, rejected);
     };
+    Promise2.prototype._queueCheck = function () {
+        var _this = this;
+        Microtask.queue(function () { return _this._check(); });
+    };
     Promise2.prototype._check = function () {
         if (!this._solved)
             return;
         if (this._rejectedValue != null) {
-            while (this._rejectedCallbacks && this._rejectedCallbacks.length > 0)
+            while (this._rejectedCallbacks.length > 0) {
+                this._rejectedPropagated = true;
                 this._rejectedCallbacks.shift()(this._rejectedValue);
+            }
+            if (!this._rejectedPropagated) {
+            }
         }
         else {
-            while (this._resolvedCallbacks && this._resolvedCallbacks.length > 0)
+            while (this._resolvedCallbacks.length > 0)
                 this._resolvedCallbacks.shift()(this._resolvedValue);
         }
     };
@@ -15802,11 +15818,15 @@ var Cso = (function () {
             var low = _this.offsets[index + 0] & 0x7FFFFFFF;
             var high = _this.offsets[index + 1] & 0x7FFFFFFF;
             return _this.stream.readChunkAsync(low, high - low).then(function (data) {
-                return (compressed ? inflateRawArrayBufferAsync(data) : data);
+                return (compressed ? inflateRawArrayBufferAsync(data).then(function (value) {
+                    return value;
+                }) : data);
             }).catch(function (e) {
                 console.error(e);
                 throw (e);
             });
+        }).then(function (v) {
+            return v;
         });
     };
     Cso.prototype.readChunkAsync = function (offset, count) {
@@ -25278,7 +25298,7 @@ var EmulatorVfs = (function (_super) {
                 var str = input.readString(input.length);
                 this.output += str;
                 this.context.onStdout.dispatch(str);
-                return 0;
+                return immediateAsync().then(function (_) { return 0; });
             case EmulatorDevclEnum.IsEmulator:
                 return 0;
             case EmulatorDevclEnum.EmitScreenshot:
@@ -26297,8 +26317,11 @@ describe('cso', function () {
         });
     });
     it('should load fine', function () {
+        console.log('[a]');
         return _cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
+            console.log('[b]');
             return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
+                console.log('[c]');
                 var stream = Stream.fromArrayBuffer(data);
                 stream.skip(10);
                 var CD0001 = stream.readStringz(6);
@@ -26813,6 +26836,53 @@ describe('promise', function () {
             return Promise2.resolve(11);
         }).then(function (value) {
             assert.equal(11, value);
+        });
+    });
+    it('pipe2', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return Promise2.resolve(11).then(function () {
+                return 'test';
+            });
+        }).then(function (value) {
+            assert.equal('test', value);
+        });
+    });
+    it('pipe3', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return Promise2.resolve(11).then(function () {
+                return Promise2.resolve('test');
+            });
+        }).then(function (value) {
+            assert.equal('test', value);
+        });
+    });
+    it('pipe4', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return Promise2.resolve(11).then(function () {
+                return waitAsync(10).then(function (_) { return 'test'; });
+            });
+        }).then(function (value) {
+            assert.equal('test', value);
+        }, function (error) {
+            return 0;
+        });
+    });
+    it('catch', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return Promise2.resolve(10);
+        }).catch(function (e) {
+            return 7;
+        }).then(function (v) {
+            assert.equal(v, 10);
+        });
+    });
+    it('catch2', function () {
+        return Promise2.resolve(10).then(function (value) {
+            return Promise2.reject(new Error());
+        }).catch(function (e) {
+            return 7;
+        }).then(function (v) {
+            assert.equal(v, 7);
         });
     });
 });
