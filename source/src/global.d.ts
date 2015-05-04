@@ -6,8 +6,6 @@
 ///<reference path="global/me.d.ts" />
 ///<reference path="global/stream.ts" />
 ///<reference path="global/struct.ts" />
-///<reference path="../typings/jquery/jquery.d.ts" />
-///<reference path="../typings/underscore/underscore.d.ts" />
 
 declare class DataView {
 	constructor(ab:ArrayBuffer, index?:number, length?:number);

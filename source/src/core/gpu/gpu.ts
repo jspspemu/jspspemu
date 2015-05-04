@@ -1098,7 +1098,7 @@ class PspGpuList {
 	private opcodes:string[] = [];
 	finish() {
 		if (this.showOpcodes) {
-			$('#output').text('finish:' + this.primCount + ';' + this.opcodes.join(","));
+			document.getElementById('output').innerText = 'finish:' + this.primCount + ';' + this.opcodes.join(",");
 			if (this.opcodes.length) this.opcodes = [];
 		}
 		this.primCount = 0;

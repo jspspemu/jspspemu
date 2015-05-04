@@ -44,7 +44,8 @@ export class AsyncClient {
 			if (this.client.isAuthenticated()) {
 				//DropboxLogged();
 				// Client is authenticated. Display UI.
-				$('#dropbox').html('logged');
+				var dropboxhtml = document.getElementById('dropbox');
+				if (dropboxhtml) dropboxhtml.innerHTML = 'logged';
 			}
 
 			this.client.authDriver(new Dropbox.AuthDriver.Redirect({

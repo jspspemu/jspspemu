@@ -670,6 +670,12 @@ class ArrayUtils {
 		for (var n = start; n < end; n++) array.push(n);
 		return array;
 	}
+	
+	static keys(object:any):string[] {
+		var keys:string[] = [];
+		for (let key in object) keys.push(key);
+		return keys;
+	}
 }
 
 function xrange(start: number, end: number) {

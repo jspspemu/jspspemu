@@ -387,7 +387,7 @@ export class Emulator {
 	}
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
-		if (typeof $ != 'undefined') $('#game_menu').fadeOut(100);
+		if (typeof document != 'undefined') DomHelp.fromId('game_menu').hide();
 		url = String(url);
 
 		this.gameTitle = '';

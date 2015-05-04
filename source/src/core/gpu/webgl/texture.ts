@@ -213,7 +213,8 @@ export class TextureHandler {
 		var texture = this.texturesByHash1[hash1];
 		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
 		if (this.mustRecheckSlowHash(texture)) {
-			var hash2 = Texture.hashSlow(this.memory, state);
+			//var hash2 = Texture.hashSlow(this.memory, state);
+			var hash2 = hash1;
 
 			//console.log(hash);
 
@@ -293,11 +294,13 @@ export class TextureHandler {
 					ctx.putImageData(imageData, 0, 0);
 
 					console.error('generated texture!' + texture.toString());
-					$(document.body).append(
-						$('<div style="color:white;" />')
-							.append(canvas)
-							.append(texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h)
-						);
+					var div = document.createElement('div');
+					var textdiv = document.createElement('div');
+					textdiv.innerText = texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h; 
+					div.appendChild(canvas);
+					div.appendChild(textdiv);
+					
+					document.body.appendChild(div);
 					texture.fromCanvas(canvas);
 				}
 			}

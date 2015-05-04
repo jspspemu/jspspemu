@@ -27,31 +27,32 @@ interface Rect {
 
 declare var emulator: Emulator;
 
+var touch_overlay = document.getElementById('touch_overlay');
+
 function controllerRegister() {
 	var rects: Rect[] = [];
 
 	var generateRects = (() => {
-		var overlay_query = $('#touch_overlay');
-		var overlay_pos = overlay_query.offset();
-		var overlay_width = overlay_query.width(), overlay_height = overlay_query.height();
+		var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+		var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
 		[
-			{ query: '#button_menu', button: 0 },
-			{ query: '#button_select', button: PspCtrlButtons.select },
-			{ query: '#button_start', button: PspCtrlButtons.start },
-			{ query: '#button_up', button: PspCtrlButtons.up },
-			{ query: '#button_left', button: PspCtrlButtons.left },
-			{ query: '#button_down', button: PspCtrlButtons.down },
-			{ query: '#button_right', button: PspCtrlButtons.right },
-			{ query: '#button_l', button: PspCtrlButtons.leftTrigger },
-			{ query: '#button_r', button: PspCtrlButtons.rightTrigger },
-			{ query: '#button_cross', button: PspCtrlButtons.cross },
-			{ query: '#button_circle', button: PspCtrlButtons.circle },
-			{ query: '#button_square', button: PspCtrlButtons.square },
-			{ query: '#button_triangle', button: PspCtrlButtons.triangle },
+			{ query: 'button_menu', button: 0 },
+			{ query: 'button_select', button: PspCtrlButtons.select },
+			{ query: 'button_start', button: PspCtrlButtons.start },
+			{ query: 'button_up', button: PspCtrlButtons.up },
+			{ query: 'button_left', button: PspCtrlButtons.left },
+			{ query: 'button_down', button: PspCtrlButtons.down },
+			{ query: 'button_right', button: PspCtrlButtons.right },
+			{ query: 'button_l', button: PspCtrlButtons.leftTrigger },
+			{ query: 'button_r', button: PspCtrlButtons.rightTrigger },
+			{ query: 'button_cross', button: PspCtrlButtons.cross },
+			{ query: 'button_circle', button: PspCtrlButtons.circle },
+			{ query: 'button_square', button: PspCtrlButtons.square },
+			{ query: 'button_triangle', button: PspCtrlButtons.triangle },
 		].forEach(button => {
-			var query = $(button.query);
-			var item_pos = query.offset();
-			var query_width = query.width(), query_height = query.height();
+			var query = document.getElementById(button.query);
+			var item_pos = { top: query.offsetTop, left: query.offsetLeft };
+			var query_width = query.offsetWidth, query_height = query.offsetHeight;
 
 			var item_left = (item_pos.left - overlay_pos.left) / overlay_width;
 			var item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
@@ -72,9 +73,8 @@ function controllerRegister() {
 	generateRects();
 
 	var locateRect = ((screenX: number, screenY: number) => {
-		var overlay_query = $('#touch_overlay');
-		var overlay_pos = overlay_query.offset();
-		var overlay_width = overlay_query.width(), overlay_height = overlay_query.height();
+		var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+		var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
 
 		var x = (screenX - overlay_pos.left) / overlay_width;
 		var y = (screenY - overlay_pos.top) / overlay_height;
@@ -110,14 +110,14 @@ function controllerRegister() {
 			var touchState = touchesState[touch.identifier];
 
 			if (touchState.rect) {
-				$(touchState.rect.name).removeClass('pressed');
+				DomHelp.fromId(touchState.rect.name).removeClass('pressed');
 				simulateButtonUp(touchState.rect.button);
 			}
 
 			touchState.rect = rect;
 
 			if (rect) {
-				$(rect.name).addClass('pressed');
+				DomHelp.fromId(rect.name).addClass('pressed');
 				simulateButtonDown(rect.button);
 			}
 		}
@@ -128,7 +128,7 @@ function controllerRegister() {
 			var touchState = touchesState[touch.identifier];
 
 			if (touchState && touchState.rect) {
-				$(touchState.rect.name).removeClass('pressed');
+				DomHelp.fromId(touchState.rect.name).removeClass('pressed');
 				simulateButtonUp(touchState.rect.button);
 			}
 
@@ -136,17 +136,17 @@ function controllerRegister() {
 		}
 	}
 
-	$('#touch_overlay').on('touchstart', (e: any) => {
+	DomHelp.fromId('touch_overlay').on('touchstart', (e: any) => {
 		touchStart(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
 
-	$('#touch_overlay').on('touchmove', (e: any) => {
+	DomHelp.fromId('touch_overlay').on('touchmove', (e: any) => {
 		touchMove(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
 
-	$('#touch_overlay').on('touchend', (e: any) => {
+	DomHelp.fromId('touch_overlay').on('touchend', (e: any) => {
 		touchEnd(e.originalEvent['changedTouches']);
 		e.preventDefault();
 	});
@@ -156,15 +156,15 @@ function controllerRegister() {
 
 	function generateTouchEvent(x: number, y: number) { return { clientX: x, clientY: y, identifier: 0 }; }
 
-	$('#touch_overlay').mousedown((e) => {
+	DomHelp.fromId('touch_overlay').mousedown((e) => {
 		pressing = true;
 		touchStart([generateTouchEvent(e.clientX, e.clientY)]);
 	});
-	$('#touch_overlay').mouseup((e) => {
+	DomHelp.fromId('touch_overlay').mouseup((e) => {
 		pressing = false;
 		touchEnd([generateTouchEvent(e.clientX, e.clientY)]);
 	});
-	$('#touch_overlay').mousemove((e) => {
+	DomHelp.fromId('touch_overlay').mousemove((e) => {
 		if (pressing) {
 			touchMove([generateTouchEvent(e.clientX, e.clientY)]);
 		}
@@ -175,6 +175,7 @@ var emulator = new Emulator();
 var _window: any = window;
 _window['emulator'] = emulator;
 var sampleDemo: string = undefined;
+var game_menudiv = document.getElementById('game_menu')
 
 if (document.location.hash) {
 	sampleDemo = document.location.hash.substr(1);
@@ -182,13 +183,256 @@ if (document.location.hash) {
 		sampleDemo = 'data/' + sampleDemo;
 	}
 } else {
-	$('#game_menu').show();
+	game_menudiv.style.visibility = 'visible';
 }
 
 if (sampleDemo) {
 	emulator.downloadAndExecuteAsync(sampleDemo);
 }
 
-$(window).load(() => {
-	controllerRegister();
+window.addEventListener('load', () => {
+	controllerRegister();	
 });
+
+var demos = [
+    "-CPU",
+	"data/benchmark/benchmark.prx",
+    "compilerPerf.elf",
+    "counter.elf",
+    "fputest.elf",
+    "vfputest.elf",
+    "mytest.elf",
+
+    "-OS",
+    "rtctest.elf",
+    "rtctest.pbp",
+    "threadstatus.elf",
+    "taskScheduler.prx",
+    "power.pbp",
+    "controller.elf",
+
+    "-IO",
+    "mstick.pbp",
+    "cwd.elf",
+    "ioasync.pbp",
+
+    "-AUDIO",
+    "polyphonic.elf",
+
+    "-DISPLAY",
+    "displayWait.prx",
+    "minifire.elf",
+    "HelloWorldPSP.elf",
+
+    "-GPU",
+    "2dstudio.prx",
+    "3dstudio.pbp",
+    "ortho.elf",
+    "cube.elf",
+	"cube.cso",
+    "cube.iso",
+    "cubevfpu.prx",
+    "lights.pbp",
+    "skinning.pbp",
+    "morph.pbp",
+    "morphskin.pbp",
+    "sprite.pbp",
+    "lines.pbp",
+    "clut.pbp",
+    "reflection.pbp",
+    "text.elf",
+    "intraFontTest.elf",
+    "blend.pbp",
+    "nehetutorial02.pbp",
+    "nehetutorial03.pbp",
+    "nehetutorial04.pbp",
+    "nehetutorial05.pbp",
+    "nehetutorial06.pbp",
+    "nehetutorial07.pbp",
+    "nehetutorial08.pbp",
+    "nehetutorial09.pbp",
+    "nehetutorial10.pbp",
+    "zbufferfog.elf",
+
+    "-GAMES",
+    "cavestory.zip",
+    "TrigWars.zip",
+    "goldminer.zip",
+    "Doom.zip",
+    "cdogs.zip",
+    "jazz.zip",
+    "SkyRoads.zip",
+    "PSPTris.zip",
+    "Alex4C.zip",
+    //"reminiscence/EBOOT.PBP",
+    //"UraKaitenPatissierPSP/EBOOT.PBP",
+    //"Doom/EBOOT.PBP",
+];
+
+function updateScaleWith(scale:number) {
+	var width = 480 * scale, height = 272 * scale;
+	//console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
+	DomHelp.fromId('body').width = width; 
+	$('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
+	$('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+	$('#touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+
+	DomHelp.fromId('game_menu')
+		.css('width', '960px')
+		.css('height', '544px')
+		.css('-webkit-transform-origin', '0 0')
+		.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+		.css('-moz-transform-origin', '0 0')
+		.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+		.css('-ms-transform-origin', '0 0')
+		.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+		.css('transform-origin', '0 0')
+		.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+	;
+	DomHelp.fromId('game_menu_toggler')
+		.css('-webkit-transform-origin', '100% 0')
+		.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+		.css('-moz-transform-origin', '100% 0')
+		.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+		.css('-ms-transform-origin', '100% 0')
+		.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+		.css('transform-origin', '100% 0')
+		.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
+	;
+
+	//$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
+}
+
+function updateScale() {
+	updateScaleWith(parseFloat(DomHelp.fromId('scale').val()));
+}
+
+DomHelp.fromId('scale').on('change', () => { updateScale(); });
+updateScale();
+
+DomHelp.fromId('demo_list').html('');
+DomHelp.fromId('files').html('');
+var selectedItem = document.location.hash.substr(1);
+
+function selectFile(file:any) {
+	console.clear();
+	document.location.hash = file;
+	document.location.reload();
+}
+
+//$('#files').append('<option value="">-- DEMOS --</option>');
+demos.forEach(function (fileName) {
+	if (fileName.substr(0, 1) == '-') {
+		$('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
+		$('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
+	} else {
+		var path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
+
+		//<li class="active"><a href="#">Home</a></li>
+		//<li><a href="#">Profile</a></li>
+		//<li><a href="#">Messages</a></li>
+
+		$('#demo_list').append($('<li class="' + ((selectedItem == path) ? 'active' : '') + '"><a href="javascript:void(0)" onclick="selectFile(\'' + path + '\')">' + fileName + '</a></li>'));
+
+		var item = $('<option value="' + path + '">' + fileName + '</option>');
+		if (selectedItem == path) item.attr('selected', 'selected')
+		$('#files').append(item);
+	}
+});
+$('#files').change(function () {
+	selectFile($('#files').val());
+});
+$('#load_file').change(function (e) {
+	if (e.target.files && e.target.files.length > 0) {
+		console.clear();
+		emulator.executeFileAsync(e.target.files[0]);
+	}
+});
+$(window).on('hashchange', function () {
+	console.clear();
+	emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
+});
+//$(document.body).click(function (e) { e.preventDefault() });
+//$(document.body).mousedown(function (e) { e.preventDefault() });
+//$(document.body).mouseup(function (e) { e.preventDefault() });
+
+//$(window).on('select', function (e) { e.preventDefault() });
+//<a href="index.html?' + fileName + '" style="color:white;">
+
+$('#touch_buttons_font').css('display', isTouchDevice() ? 'block' : 'none');
+//$('#touch_buttons_font').css('display', 'block');
+
+require('src/app');
+
+function onResize() {
+	var position = $('#canvas_container').position();
+	//var availableHeight = $(window).height() - position.top * 2;
+	var availableHeight = $(window).height() - position.top;
+	var availableWidth = $(window).width();
+
+	var scale1 = availableHeight / 272;
+	var scale2 = availableWidth / 480;
+	var steps = 0.5;
+	var scale = Math.min(scale1, scale2);
+	//scale = Math.floor(scale * (1 / steps)) / (1 / steps);
+
+	if (scale < steps) scale = steps;
+
+	updateScaleWith(scale);
+
+	var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
+
+	if (window.innerHeight > window.innerWidth) isFullScreen = false;
+
+	$(document.body).toggleClass('fullscreen', isFullScreen);
+}
+
+$(window).on('resize', function (e) {
+	onResize();
+});
+
+onResize();
+
+function requestFullScreen() {
+	if (document.body['requestFullScreen']) {
+		document.body['requestFullScreen']();
+	} else if (document.body['webkitRequestFullScreen']) {
+		document.body['webkitRequestFullScreen']();
+	} else if (document.body['mozRequestFullScreen']) {
+		document.body['mozRequestFullScreen']();
+	}
+}
+
+emulator.checkPlugins();
+
+window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
+	console.error(errorObj);
+	console.error(errorObj['stack']);
+	alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
+}
+
+var inCrossWalk = window.screen.show;
+
+if (screen.lockOrientation) {
+	screen.lockOrientation('landscape');
+}
+
+// crosswalk
+if (inCrossWalk) {
+	requestFullScreen();
+}
+
+function openShareModal() {
+	var hashShare = document.location.hash.replace(/^#+/, '');
+	if (!hashShare || !hashShare.length) {
+		alert("Open a game from an url to share");
+	} else {
+		$('#shareUrl').val(document.location.href);
+		$('#shareIframe').val('<iframe src="' + document.location.href + '" width="640" height="362" style="border:0;"></iframe>');
+		$('#shareModal').modal({ show: 'true' });
+	}
+}
+
+function openHelpModal() {
+	$('#helpModal').modal({ show: 'true' });
+}

@@ -4,7 +4,6 @@ var url = require("url");
 var path = require("path");
 var fs = require("fs");
 var mime = require("./mime");
-var _ = require('./underscore');
 var combine_common = require('./combine_common');
 //var adhoc_server = require('./adhoc_server');
 var adhoc_server = undefined;

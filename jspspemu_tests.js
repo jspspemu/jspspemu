@@ -1,7 +1,6 @@
 /* global global */
 /* global loggerPolicies */
 
-global._ = require('./source/lib/underscore.js');
 global.fs = require('fs');
 global.assert = require('chai').assert;
 //mocha.setup('bdd');

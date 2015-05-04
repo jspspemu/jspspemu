@@ -174,7 +174,6 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		this.startTime = this.getCurrentMs();
 		this.updateTime();
 
-		//$(this.canvas).focus();
 		this.interval = setInterval(() => {
 			this.updateTime();
 			this.vblankCount++;

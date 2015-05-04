@@ -3,7 +3,6 @@ var path = require("path");
 var watch = require("./watch");
 var child_process = require("child_process");
 var wrench = require('./wrench');
-var _ = require('./underscore');
 
 function processDirectorySync(dir, matcher, out, basePath) {
 	if (matcher === undefined) matcher = function(fname) {return true; };

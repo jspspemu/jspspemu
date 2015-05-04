@@ -207,7 +207,7 @@ describe('pspautotests', function () {
 	var groupCollapsed = false;
 
 	tests.forEach((testGroup) => {
-		_.keys(testGroup).forEach(testGroupName => {
+		ArrayUtils.keys(testGroup).forEach(testGroupName => {
 			describe(testGroupName, function () {
 				var testNameList:any[] = (<any>testGroup)[testGroupName];
 

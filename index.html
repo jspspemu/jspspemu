@@ -17,23 +17,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <script src="source/lib/dropbox-datastores-1.0-latest.js" type="text/javascript"></script>
-
-    <script src="source/lib/jquery-2.1.0.js"></script>
-    <script src="source/lib/underscore.js"></script>
-    <script src="source/lib/FileSaver.js"></script>
-	<script src="source/lib/moment.min.js"></script>
+    <script type="text/javascript">window.onerror = function (errorMsg, url, lineNumber) { alert('Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber); }; </script>
 		
 	<!--
+    <script src="source/lib/dropbox-datastores-1.0-latest.js" type="text/javascript"></script>
+    <script src="source/lib/FileSaver.js"></script>
 	<script src="source/relooper/relooper.js"></script>
 	<script src="source/relooper/glue.js"></script>
 	-->
-
-    <script type="text/javascript">
-		window.onerror = function (errorMsg, url, lineNumber) {
-			alert('Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber);
-		};
-    </script>
 
     <script src="workertask.js"></script>
     <script src="data/MediaEngine.js"></script>
@@ -45,8 +36,6 @@
 	<link rel="stylesheet" href="source/lib/fontawesome/font-awesome.min.css" />
 	
 	<link rel="stylesheet" href="data/pspemu.css" />
-
-	<script src="source/lib/bootstrap/bootstrap.min.js"></script>
 </head>
 <body>
 	<input type="file" id="load_file" name="load_file" style="width:92px;display:none;" />
@@ -98,6 +87,7 @@
 								 data-ad-client="ca-pub-3395905965441916"
 								 data-ad-slot="3061814725"></ins>
 							<script>
+								/* global adsbygoogle */ 
 								(adsbygoogle = window.adsbygoogle || []).push({});
 							</script>
 						</div>
@@ -143,6 +133,7 @@
 										//	alert(data);
 										//}
 
+										/*
 										function loadGithubFromCache() {
 											var cache = JSON.parse(localStorage['github_cache']);
 											var response = cache.response;
@@ -172,6 +163,7 @@
 												loadGithubFromCache();
 											});
 										}
+										*/
 									</script>
 								</div>
 							</div>
@@ -185,11 +177,13 @@
 								</div>
 							</div>
 							<script type="text/javascript">
+								/*
 								$.ajax({
 									url: ".gitdescribe"
 								}).done(function (data) {
 									$("#version-gitdescribe").html(data + ' (<span style="font-size:0.8em;">' + moment(document.lastModified).format("YYYY-MM-DD HH:mm") + '</span>)');
 								});
+								*/
 							</script>
 							<div class="panel panel-default">
 								<div class="panel-heading"><h3 class="panel-title"><span class="glyphicon glyphicon-wrench"></span> Tools</h3></div>
@@ -265,281 +259,16 @@
 			<canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
 			<!--
 			<canvas id="webgl_canvas" width="480" height="272" style="background: black; width: 480px; height: 272px; border: 0; display: none; "></canvas>
-			<canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
 			<canvas id="webgl_canvas" width="1920" height="1044" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
-			-->
 			<canvas id="webgl_canvas" width="1440" height="816" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
+			-->
+			<canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
 
 		</div>
 		<div id="thread_list" style="color:white;"></div>
 		<div id="output"></div>
 	</div>
-	<script>
-		var demos = [
-            "-CPU",
-			"data/benchmark/benchmark.prx",
-            "compilerPerf.elf",
-            "counter.elf",
-            "fputest.elf",
-            "vfputest.elf",
-            "mytest.elf",
 
-            "-OS",
-            "rtctest.elf",
-            "rtctest.pbp",
-            "threadstatus.elf",
-            "taskScheduler.prx",
-            "power.pbp",
-            "controller.elf",
-
-            "-IO",
-            "mstick.pbp",
-            "cwd.elf",
-            "ioasync.pbp",
-
-            "-AUDIO",
-            "polyphonic.elf",
-
-            "-DISPLAY",
-            "displayWait.prx",
-            "minifire.elf",
-            "HelloWorldPSP.elf",
-
-            "-GPU",
-            "2dstudio.prx",
-            "3dstudio.pbp",
-            "ortho.elf",
-            "cube.elf",
-			"cube.cso",
-            "cube.iso",
-            "cubevfpu.prx",
-            "lights.pbp",
-            "skinning.pbp",
-            "morph.pbp",
-            "morphskin.pbp",
-            "sprite.pbp",
-            "lines.pbp",
-            "clut.pbp",
-            "reflection.pbp",
-            "text.elf",
-            "intraFontTest.elf",
-            "blend.pbp",
-            "nehetutorial02.pbp",
-            "nehetutorial03.pbp",
-            "nehetutorial04.pbp",
-            "nehetutorial05.pbp",
-            "nehetutorial06.pbp",
-            "nehetutorial07.pbp",
-            "nehetutorial08.pbp",
-            "nehetutorial09.pbp",
-            "nehetutorial10.pbp",
-            "zbufferfog.elf",
-
-            "-GAMES",
-            "cavestory.zip",
-            "TrigWars.zip",
-            "goldminer.zip",
-            "Doom.zip",
-            "cdogs.zip",
-            "jazz.zip",
-            "SkyRoads.zip",
-            "PSPTris.zip",
-            "Alex4C.zip",
-            //"reminiscence/EBOOT.PBP",
-            //"UraKaitenPatissierPSP/EBOOT.PBP",
-            //"Doom/EBOOT.PBP",
-		];
-
-		function updateScaleWith(scale) {
-			var width = 480 * scale, height = 272 * scale;
-			//console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
-			$('#body').css('width', width + 'px');
-			$('#canvas,#webgl_canvas').css('width', width + 'px').css('height', height + 'px');
-			$('#touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-			$('#touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
-
-			$('#game_menu')
-				//.css('width', width + 'px').css('height', height + 'px')
-				.css('width', '960px').css('height', '544px')
-				.css('-webkit-transform-origin', '0 0')
-				.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-				.css('-moz-transform-origin', '0 0')
-				.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-				.css('-ms-transform-origin', '0 0')
-				.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-				.css('transform-origin', '0 0')
-				.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-			;
-			$('#game_menu_toggler')
-				.css('-webkit-transform-origin', '100% 0')
-				.css('-webkit-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-				.css('-moz-transform-origin', '100% 0')
-				.css('-moz-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-				.css('-ms-transform-origin', '100% 0')
-				.css('-ms-transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-				.css('transform-origin', '100% 0')
-				.css('transform', 'scale(' + (width / 960) + ', ' + (height / 544) + ')')
-			;
-
-			//$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
-		}
-
-		function updateScale() {
-			updateScaleWith(parseFloat($('#scale').val()));
-		}
-
-		$('#scale').change(function () { updateScale(); });
-		updateScale();
-
-		$('#demo_list').html('');
-		$('#files').html('');
-		var selectedItem = document.location.hash.substr(1);
-
-		function selectFile(file) {
-			console.clear();
-			document.location.hash = file;
-			document.location.reload();
-		}
-
-		//$('#files').append('<option value="">-- DEMOS --</option>');
-		demos.forEach(function (fileName) {
-			if (fileName.substr(0, 1) == '-') {
-				$('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
-				$('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
-			} else {
-				var path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
-
-				//<li class="active"><a href="#">Home</a></li>
-				//<li><a href="#">Profile</a></li>
-				//<li><a href="#">Messages</a></li>
-
-				$('#demo_list').append($('<li class="' + ((selectedItem == path) ? 'active' : '') + '"><a href="javascript:void(0)" onclick="selectFile(\'' + path + '\')">' + fileName + '</a></li>'));
-
-				var item = $('<option value="' + path + '">' + fileName + '</option>');
-				if (selectedItem == path) item.attr('selected', 'selected')
-				$('#files').append(item);
-			}
-		});
-		$('#files').change(function () {
-			selectFile($('#files').val());
-		});
-		$('#load_file').change(function (e) {
-			if (e.target.files && e.target.files.length > 0) {
-				console.clear();
-				emulator.executeFileAsync(e.target.files[0]);
-			}
-		});
-		$(window).on('hashchange', function () {
-			console.clear();
-			emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
-		});
-		//$(document.body).click(function (e) { e.preventDefault() });
-		//$(document.body).mousedown(function (e) { e.preventDefault() });
-		//$(document.body).mouseup(function (e) { e.preventDefault() });
-
-		//$(window).on('select', function (e) { e.preventDefault() });
-		//<a href="index.html?' + fileName + '" style="color:white;">
-	</script>
-
-	<script>
-		$('#touch_buttons_font').css('display', isTouchDevice() ? 'block' : 'none');
-		//$('#touch_buttons_font').css('display', 'block');
-
-		require('src/app');
-
-		function onResize() {
-			var position = $('#canvas_container').position();
-			//var availableHeight = $(window).height() - position.top * 2;
-			var availableHeight = $(window).height() - position.top;
-			var availableWidth = $(window).width();
-
-			var scale1 = availableHeight / 272;
-			var scale2 = availableWidth / 480;
-			var steps = 0.5;
-			var scale = Math.min(scale1, scale2);
-			//scale = Math.floor(scale * (1 / steps)) / (1 / steps);
-
-			if (scale < steps) scale = steps;
-
-			updateScaleWith(scale);
-
-			var isFullScreen = (document.webkitIsFullScreen || document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
-
-			if (window.innerHeight > window.innerWidth) isFullScreen = false;
-
-			$(document.body).toggleClass('fullscreen', isFullScreen);
-		}
-
-		$(window).on('resize', function (e) {
-			onResize();
-		});
-
-		onResize();
-
-		function requestFullScreen() {
-			if (document.body['requestFullScreen']) {
-				document.body['requestFullScreen']();
-			} else if (document.body['webkitRequestFullScreen']) {
-				document.body['webkitRequestFullScreen']();
-			} else if (document.body['mozRequestFullScreen']) {
-				document.body['mozRequestFullScreen']();
-			}
-		}
-
-		emulator.checkPlugins();
-
-		window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
-			console.error(errorObj);
-			console.error(errorObj['stack']);
-			alert('Error: ' + errorMsg + '\n\n' + errorObj['stack']);
-		}
-	</script>
-
-	<script type="text/javascript">
-		var inCrossWalk = window.screen.show;
-
-		if (screen.lockOrientation) {
-			screen.lockOrientation('landscape');
-		}
-
-		// crosswalk
-		if (inCrossWalk) {
-			requestFullScreen();
-		}
-	</script>
-
-	<script>
-		(function (i, s, o, g, r, a, m) {
-			i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-				(i[r].q = i[r].q || []).push(arguments)
-			}, i[r].l = 1 * new Date(); a = s.createElement(o),
-			m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
-		})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
-
-		ga('create', 'UA-50864498-1', 'jspspemu.com');
-		ga('require', 'displayfeatures');
-		ga('send', 'pageview');
-
-	</script>
-
-	<script type="text/javascript">
-	//<![CDATA[
-		function openShareModal() {
-			var hashShare = document.location.hash.replace(/^#+/, '');
-			if (!hashShare || !hashShare.length) {
-				alert("Open a game from an url to share");
-			} else {
-				$('#shareUrl').val(document.location.href);
-				$('#shareIframe').val('<iframe src="' + document.location.href + '" width="640" height="362" style="border:0;"></iframe>');
-				$('#shareModal').modal({ show: 'true' });
-			}
-		}
-
-		function openHelpModal() {
-			$('#helpModal').modal({ show: 'true' });
-		}
-	//]]>
-	</script>
 	<div class="modal fade" id="shareModal" tabindex="-1" role="dialog" aria-labelledby="shareModalLabel" aria-hidden="true">
 		<div class="modal-dialog">
 			<div class="modal-content">
