@@ -21346,13 +21346,10 @@ var sceGe_user = (function () {
         this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
             var result = _this.context.gpu.drawSync(syncType);
             if (result instanceof Promise2) {
-                console.log('aa');
                 return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result.then(function () {
-                    console.log('bb');
                 }), AcceptCallbacks.NO, Compensate.YES);
             }
             else {
-                console.log('aa/bb');
                 return result;
             }
         });
