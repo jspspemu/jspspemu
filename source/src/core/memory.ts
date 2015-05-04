@@ -368,7 +368,6 @@ class LowMemorySegment {
 	size: number;
 	low: number;
 	high: number;
-	offset4: number;
 	s8: Uint8Array;
 	u8: Uint8Array;
 	s16: Int16Array;
@@ -380,7 +379,6 @@ class LowMemorySegment {
 	constructor(public name: string, public offset: number, public buffer: ArrayBuffer) {
 		this.size = buffer.byteLength;
 		this.low = offset;
-		this.offset4 = (offset / 4) | 0;
 		this.high = this.low + this.size;
 		this.s8 = new Int8Array(this.buffer);
 		this.u8 = new Uint8Array(this.buffer);
@@ -392,32 +390,36 @@ class LowMemorySegment {
 	}
 
 	contains(address: number) {
+		address &= MASK;
 		return address >= this.low && address < this.high;
 	}
 
-	sb(address: number, value: number) { this.u8[(address & MASK - this.offset) >> 0] = value; }
-	sh(address: number, value: number) { this.u16[(address & MASK - this.offset) >> 1] = value; }
-	sw(address: number, value: number) { this.u32[(address & MASK - this.offset) >> 2] = value; }
-	swc1(address: number, value: number) { this.f32[(address & MASK - this.offset) >> 2] = value; }
-	lb(address: number) { return this.s8[(address & MASK - this.offset) >> 0]; }
-	lbu(address: number) { return this.u8[(address & MASK - this.offset) >> 0]; }
-	lh(address: number) { return this.s16[(address & MASK - this.offset) >> 1]; }
-	lhu(address: number) { return this.u16[(address & MASK - this.offset) >> 1]; }
-	lw(address: number) { return this.s32[(address & MASK - this.offset) >> 2]; }
-	lwu(address: number) { return this.u32[(address & MASK - this.offset) >> 2]; }
-	lwc1(address: number) { return this.f32[(address & MASK - this.offset) >> 2]; }
-	lw_2(address: number) { return this.u32[address - this.offset4]; }
+	private fixAddress(address:number) { return (address & MASK) - this.offset; }
+
+	sb(address: number, value: number) { this.u8[this.fixAddress(address) >> 0] = value; }
+	sh(address: number, value: number) { this.u16[this.fixAddress(address) >> 1] = value; }
+	sw(address: number, value: number) { this.u32[this.fixAddress(address) >> 2] = value; }
+	swc1(address: number, value: number) { this.f32[this.fixAddress(address) >> 2] = value; }
+	lb(address: number) { return this.s8[this.fixAddress(address) >> 0]; }
+	lbu(address: number) { return this.u8[this.fixAddress(address) >> 0]; }
+	lh(address: number) { return this.s16[this.fixAddress(address) >> 1]; }
+	lhu(address: number) { return this.u16[this.fixAddress(address) >> 1]; }
+	lw(address: number) { return this.s32[this.fixAddress(address) >> 2]; }
+	lwu(address: number) { return this.u32[this.fixAddress(address) >> 2]; }
+	lwc1(address: number) { return this.f32[this.fixAddress(address) >> 2]; }
 
 	slice(low: number, high: number): Uint8Array {
-		low &= MASK;
-		high &= MASK;
-		low -= this.offset;
-		high -= this.offset;
-		return new Uint8Array(this.buffer, low, high - low);
+		const low2 = this.fixAddress(low);
+		const high2 = this.fixAddress(high);
+		return new Uint8Array(this.buffer, low2, high2 - low2);
+	}
+
+	getU16Array(address: number, size?: number) {
+		return new Uint16Array(this.buffer, this.fixAddress(address), size / 2);
 	}
 
 	availableAfterAddress(address: number): number {
-		return this.buffer.byteLength - (address & MASK - this.offset);
+		return this.buffer.byteLength - this.fixAddress(address);
 	}
 }
 
@@ -437,7 +439,7 @@ class LowMemory extends Memory {
 	}
 
 	getMemRange(address: number): LowMemorySegment {
-		address &= FastMemory.MASK;
+		address &= MASK;
 		if (address >= 0x08000000) {
 			return this.mainmem;
 		} else {
@@ -453,12 +455,7 @@ class LowMemory extends Memory {
 	sb(address: number, value: number) { this.getMemRange(address).sb(address, value); }
 	sh(address: number, value: number) { this.getMemRange(address).sh(address, value); }
 	sw(address: number, value: number) { this.getMemRange(address).sw(address, value); }
-	swc1(address: number, value: number) { this.getMemRange(address).swc1(address, value); }	getU16Array(address: number, size?: number) {
-		if (address == 0) return null;
-		if (!this.isValidAddress(address)) return null;
-		if (!size) size = this.availableAfterAddress(address & FastMemory.MASK);
-		return this.getPointerU16Array(address & FastMemory.MASK, size);
-	}
+	swc1(address: number, value: number) { this.getMemRange(address).swc1(address, value); }
 	lb(address: number) { return this.getMemRange(address).lb(address); }
 	lbu(address: number) { return this.getMemRange(address).lbu(address); }
 	lh(address: number) { return this.getMemRange(address).lh(address); }
@@ -466,11 +463,18 @@ class LowMemory extends Memory {
 	lw(address: number) { return this.getMemRange(address).lw(address); }
 	lwu(address: number) { return this.getMemRange(address).lwu(address); }
 	lwc1(address: number) { return this.getMemRange(address).lwc1(address); }
-	lw_2(address: number) { return this.getMemRange(address).lw_2(address); }
+	lw_2(address4: number) { return this.getMemRange(address4 * 4).lw(address4 * 4); }
 
 	slice(low: number, high: number): Uint8Array {
 		return this.getMemRange(low).slice(low, high);
 	}
+	
+	getU16Array(address: number, size?: number) {
+		if (address == 0) return null;
+		if (!this.isValidAddress(address)) return null;
+		return  this.getMemRange(address).getU16Array(address, size);
+	}
+
 
 	availableAfterAddress(address: number): number {
 		return this.getMemRange(address).availableAfterAddress(address);

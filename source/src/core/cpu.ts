@@ -13,3 +13,4 @@ export import SyscallManager = _core.SyscallManager;
 export import Instruction = _instructions.Instruction;
 export import Instructions = _instructions.Instructions;
 export import NativeFunction = _core.NativeFunction;
+export import createNativeFunction = _core.createNativeFunction;

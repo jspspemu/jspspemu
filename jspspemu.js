@@ -977,6 +977,7 @@ var Promise2 = (function () {
     };
     return Promise2;
 })();
+window.Promise2 = Promise2;
 
 ///<reference path="./math.ts" />
 if (typeof global != 'undefined')
@@ -3605,6 +3606,7 @@ exports.SyscallManager = _core.SyscallManager;
 exports.Instruction = _instructions.Instruction;
 exports.Instructions = _instructions.Instructions;
 exports.NativeFunction = _core.NativeFunction;
+exports.createNativeFunction = _core.createNativeFunction;
 
 },
 "src/core/cpu/assembler": function(module, exports, require) {
@@ -6859,6 +6861,8 @@ var _ast = require('./cpu_ast');
 var _instructions = require('./cpu_instructions');
 var _codegen = require('./cpu_codegen');
 var Memory = _memory.Memory;
+var DEBUG_FUNCGEN = false;
+var DEBUG_NATIVEFUNC = false;
 (function (CpuSpecialAddresses) {
     CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 268435455] = "EXIT_THREAD";
 })(exports.CpuSpecialAddresses || (exports.CpuSpecialAddresses = {}));
@@ -6907,6 +6911,9 @@ var SyscallManager = (function () {
         var nativeFunction = this.calls[id];
         if (!nativeFunction)
             throw "Can't call syscall " + this.getName(id) + ": " + addressToHex(id) + "\"";
+        if (DEBUG_NATIVEFUNC) {
+            console.log("calling syscall " + addressToHex(id) + ", " + id + ", " + nativeFunction.name + " with cpustate:" + state.id);
+        }
         nativeFunction.call(this.context, state);
     };
     return SyscallManager;
@@ -7044,6 +7051,7 @@ var CpuState = (function () {
     function CpuState(memory, syscallManager) {
         this.memory = memory;
         this.syscallManager = syscallManager;
+        this.id = CpuState.lastId++;
         this.gpr_Buffer = new ArrayBuffer(32 * 4);
         this.gpr = new Int32Array(this.gpr_Buffer);
         this.gpr_f = new Float32Array(this.gpr_Buffer);
@@ -7583,6 +7591,7 @@ var CpuState = (function () {
         }
     };
     CpuState.prototype.break = function () { throw new Error('CpuBreakException'); };
+    CpuState.lastId = 0;
     CpuState._mult_temp = [0, 0];
     return CpuState;
 })();
@@ -7651,6 +7660,12 @@ var InstructionCache = (function () {
         var func = this.functions[info.start];
         if (!func) {
             this.functions[info.start] = func = this.functionGenerator.getFunction(info);
+            if (DEBUG_FUNCGEN) {
+                console.log('****************************************');
+                console.log('****************************************');
+                console.log(func.info);
+                console.log(func.code.code);
+            }
         }
         return func.fargs;
     };
@@ -7803,7 +7818,7 @@ var FunctionGenerator = (function () {
             var di = this.decodeInstruction(info.min);
             var di2 = this.decodeInstruction(info.min + 4);
             if (di.type.name == 'jr' && di2.type.name == 'syscall') {
-                return new FunctionCode("/* " + this.syscallManager.getName(di2.instruction.syscall) + " */ state.PC = state.RA; state.jumpCall = null; state.syscall(" + di2.instruction.syscall + "); return;", args);
+                return new FunctionCode("\n\t\t\t\t\t/* " + this.syscallManager.getName(di2.instruction.syscall) + " at " + addressToHex(info.start) + " */\n\t\t\t\t\tstate.PC = state.RA; state.jumpCall = null;\n\t\t\t\t\tstate.syscall(" + di2.instruction.syscall + ");\n\t\t\t\t\treturn;\n\t\t\t\t\t", args);
             }
         }
         for (var PC = info.min; PC <= info.max; PC += 4) {
@@ -7903,6 +7918,124 @@ var FunctionGenerator = (function () {
     return FunctionGenerator;
 })();
 exports.FunctionGenerator = FunctionGenerator;
+function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
+    var code = '';
+    var V0 = "state.gpr[2]";
+    var V1 = "state.gpr[3]";
+    var args = [];
+    var maxGprIndex = 12;
+    var gprindex = 4;
+    var fprindex = 0;
+    function _readGpr32() {
+        if (gprindex >= maxGprIndex) {
+            return 'memory.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
+        }
+        else {
+            return 'state.gpr[' + (gprindex++) + ']';
+        }
+    }
+    function readFpr32() { return 'state.fpr[' + (fprindex++) + ']'; }
+    function readGpr32_S() { return '(' + _readGpr32() + ' | 0)'; }
+    function readGpr32_U() { return '(' + _readGpr32() + ' >>> 0)'; }
+    function readGpr64() {
+        gprindex = MathUtils.nextAligned(gprindex, 2);
+        var gprLow = readGpr32_S();
+        var gprHigh = readGpr32_S();
+        return "Integer64.fromBits(" + gprLow + ", " + gprHigh + ")";
+    }
+    var argTypes = argTypesString.split('/').filter(function (item) { return item.length > 0; });
+    if (argTypes.length != internalFunc.length)
+        throw (new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
+    argTypes.forEach(function (item) {
+        switch (item) {
+            case 'EmulatorContext':
+                args.push('context');
+                break;
+            case 'Thread':
+                args.push('state.thread');
+                break;
+            case 'CpuState':
+                args.push('state');
+                break;
+            case 'Memory':
+                args.push('state.memory');
+                break;
+            case 'string':
+                args.push('state.memory.readStringz(' + readGpr32_S() + ')');
+                break;
+            case 'uint':
+                args.push(readGpr32_U() + ' >>> 0');
+                break;
+            case 'int':
+                args.push(readGpr32_S() + ' | 0');
+                break;
+            case 'bool':
+                args.push(readGpr32_S() + ' != 0');
+                break;
+            case 'float':
+                args.push(readFpr32());
+                break;
+            case 'ulong':
+            case 'long':
+                args.push(readGpr64());
+                break;
+            case 'void*':
+                args.push('state.memory.getPointerStream(' + readGpr32_S() + ')');
+                break;
+            case 'byte[]':
+                args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
+                break;
+            default:
+                var matches = [];
+                if (matches = item.match(/^byte\[(\d+)\]$/)) {
+                    args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+                }
+                else {
+                    throw ('Invalid argument "' + item + '"');
+                }
+        }
+    });
+    code += 'var error = false;\n';
+    if (DEBUG_NATIVEFUNC) {
+        code += "console.info(nativeFunction.name);";
+    }
+    code += 'var result = internalFunc(' + args.join(', ') + ');\n';
+    code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrow new Error(\"CpuBreakException\");\n\t\t}\n\n\t";
+    code += "\n\t\tif (result instanceof WaitingThreadInfo) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : '') + "\n\t\t\tif (result.promise instanceof Promise2) {\n\t\t\t\tstate.thread.suspendUntilDone(result);\n\t\t\t\tthrow new Error(\"CpuBreakException\"); }\n\t\t\telse {\n\t\t\t\tresult = result.promise;\n\t\t\t}\n\t\t}\n\n\t";
+    switch (retval) {
+        case 'void': break;
+        case 'uint':
+        case 'int':
+            code += V0 + " = result | 0;\n";
+            break;
+        case 'bool':
+            code += V0 + " = result ? 1 : 0;\n";
+            break;
+        case 'float':
+            code += 'state.fpr[0] = result;\n';
+            break;
+        case 'long':
+            code += 'if (!error) {\n';
+            code += 'if (!(result instanceof Integer64)) { logger.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }\n';
+            code += V0 + " = result.low; " + V1 + " = result.high;\n";
+            code += '} else {\n';
+            code += V0 + " = result; " + V1 + " = 0;\n";
+            code += '}\n';
+            break;
+        default: throw ('Invalid return value "' + retval + '"');
+    }
+    var nativeFunction = new NativeFunction();
+    nativeFunction.name = 'unknown';
+    nativeFunction.nid = exportId;
+    nativeFunction.firmwareVersion = firmwareVersion;
+    if (DEBUG_FUNCGEN) {
+        console.log(code);
+    }
+    nativeFunction.call = new Function('_this', 'logger', 'internalFunc', 'nativeFunction', "return function(context, state) { \"use strict\"; /* " + addressToHex(nativeFunction.nid) + " */\n" + code + " };")(_this, logger, internalFunc, nativeFunction);
+    nativeFunction.nativeCall = internalFunc;
+    return nativeFunction;
+}
+exports.createNativeFunction = createNativeFunction;
 
 },
 "src/core/cpu/cpu_instructions": function(module, exports, require) {
@@ -15107,7 +15240,6 @@ var LowMemorySegment = (function () {
         this.buffer = buffer;
         this.size = buffer.byteLength;
         this.low = offset;
-        this.offset4 = (offset / 4) | 0;
         this.high = this.low + this.size;
         this.s8 = new Int8Array(this.buffer);
         this.u8 = new Uint8Array(this.buffer);
@@ -15118,29 +15250,31 @@ var LowMemorySegment = (function () {
         this.f32 = new Float32Array(this.buffer);
     }
     LowMemorySegment.prototype.contains = function (address) {
+        address &= MASK;
         return address >= this.low && address < this.high;
     };
-    LowMemorySegment.prototype.sb = function (address, value) { this.u8[(address & MASK - this.offset) >> 0] = value; };
-    LowMemorySegment.prototype.sh = function (address, value) { this.u16[(address & MASK - this.offset) >> 1] = value; };
-    LowMemorySegment.prototype.sw = function (address, value) { this.u32[(address & MASK - this.offset) >> 2] = value; };
-    LowMemorySegment.prototype.swc1 = function (address, value) { this.f32[(address & MASK - this.offset) >> 2] = value; };
-    LowMemorySegment.prototype.lb = function (address) { return this.s8[(address & MASK - this.offset) >> 0]; };
-    LowMemorySegment.prototype.lbu = function (address) { return this.u8[(address & MASK - this.offset) >> 0]; };
-    LowMemorySegment.prototype.lh = function (address) { return this.s16[(address & MASK - this.offset) >> 1]; };
-    LowMemorySegment.prototype.lhu = function (address) { return this.u16[(address & MASK - this.offset) >> 1]; };
-    LowMemorySegment.prototype.lw = function (address) { return this.s32[(address & MASK - this.offset) >> 2]; };
-    LowMemorySegment.prototype.lwu = function (address) { return this.u32[(address & MASK - this.offset) >> 2]; };
-    LowMemorySegment.prototype.lwc1 = function (address) { return this.f32[(address & MASK - this.offset) >> 2]; };
-    LowMemorySegment.prototype.lw_2 = function (address) { return this.u32[address - this.offset4]; };
+    LowMemorySegment.prototype.fixAddress = function (address) { return (address & MASK) - this.offset; };
+    LowMemorySegment.prototype.sb = function (address, value) { this.u8[this.fixAddress(address) >> 0] = value; };
+    LowMemorySegment.prototype.sh = function (address, value) { this.u16[this.fixAddress(address) >> 1] = value; };
+    LowMemorySegment.prototype.sw = function (address, value) { this.u32[this.fixAddress(address) >> 2] = value; };
+    LowMemorySegment.prototype.swc1 = function (address, value) { this.f32[this.fixAddress(address) >> 2] = value; };
+    LowMemorySegment.prototype.lb = function (address) { return this.s8[this.fixAddress(address) >> 0]; };
+    LowMemorySegment.prototype.lbu = function (address) { return this.u8[this.fixAddress(address) >> 0]; };
+    LowMemorySegment.prototype.lh = function (address) { return this.s16[this.fixAddress(address) >> 1]; };
+    LowMemorySegment.prototype.lhu = function (address) { return this.u16[this.fixAddress(address) >> 1]; };
+    LowMemorySegment.prototype.lw = function (address) { return this.s32[this.fixAddress(address) >> 2]; };
+    LowMemorySegment.prototype.lwu = function (address) { return this.u32[this.fixAddress(address) >> 2]; };
+    LowMemorySegment.prototype.lwc1 = function (address) { return this.f32[this.fixAddress(address) >> 2]; };
     LowMemorySegment.prototype.slice = function (low, high) {
-        low &= MASK;
-        high &= MASK;
-        low -= this.offset;
-        high -= this.offset;
-        return new Uint8Array(this.buffer, low, high - low);
+        var low2 = this.fixAddress(low);
+        var high2 = this.fixAddress(high);
+        return new Uint8Array(this.buffer, low2, high2 - low2);
+    };
+    LowMemorySegment.prototype.getU16Array = function (address, size) {
+        return new Uint16Array(this.buffer, this.fixAddress(address), size / 2);
     };
     LowMemorySegment.prototype.availableAfterAddress = function (address) {
-        return this.buffer.byteLength - (address & MASK - this.offset);
+        return this.buffer.byteLength - this.fixAddress(address);
     };
     return LowMemorySegment;
 })();
@@ -15153,7 +15287,7 @@ var LowMemory = (function (_super) {
         _super.call(this);
     }
     LowMemory.prototype.getMemRange = function (address) {
-        address &= FastMemory.MASK;
+        address &= MASK;
         if (address >= 0x08000000) {
             return this.mainmem;
         }
@@ -15172,15 +15306,6 @@ var LowMemory = (function (_super) {
     LowMemory.prototype.sh = function (address, value) { this.getMemRange(address).sh(address, value); };
     LowMemory.prototype.sw = function (address, value) { this.getMemRange(address).sw(address, value); };
     LowMemory.prototype.swc1 = function (address, value) { this.getMemRange(address).swc1(address, value); };
-    LowMemory.prototype.getU16Array = function (address, size) {
-        if (address == 0)
-            return null;
-        if (!this.isValidAddress(address))
-            return null;
-        if (!size)
-            size = this.availableAfterAddress(address & FastMemory.MASK);
-        return this.getPointerU16Array(address & FastMemory.MASK, size);
-    };
     LowMemory.prototype.lb = function (address) { return this.getMemRange(address).lb(address); };
     LowMemory.prototype.lbu = function (address) { return this.getMemRange(address).lbu(address); };
     LowMemory.prototype.lh = function (address) { return this.getMemRange(address).lh(address); };
@@ -15188,9 +15313,16 @@ var LowMemory = (function (_super) {
     LowMemory.prototype.lw = function (address) { return this.getMemRange(address).lw(address); };
     LowMemory.prototype.lwu = function (address) { return this.getMemRange(address).lwu(address); };
     LowMemory.prototype.lwc1 = function (address) { return this.getMemRange(address).lwc1(address); };
-    LowMemory.prototype.lw_2 = function (address) { return this.getMemRange(address).lw_2(address); };
+    LowMemory.prototype.lw_2 = function (address4) { return this.getMemRange(address4 * 4).lw(address4 * 4); };
     LowMemory.prototype.slice = function (low, high) {
         return this.getMemRange(low).slice(low, high);
+    };
+    LowMemory.prototype.getU16Array = function (address, size) {
+        if (address == 0)
+            return null;
+        if (!this.isValidAddress(address))
+            return null;
+        return this.getMemRange(address).getU16Array(address, size);
     };
     LowMemory.prototype.availableAfterAddress = function (address) {
         return this.getMemRange(address).availableAfterAddress(address);
@@ -23634,8 +23766,10 @@ var ThreadManForUser = (function () {
         });
         this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, function (currentThread) { return currentThread.priority; });
         this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
+            console.log('threadId: ', threadId);
             if (!_this.hasThreadById(threadId))
                 return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+            console.log('2');
             var newThread = _this.getThreadById(threadId);
             newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
             var newState = newThread.state;
@@ -23647,7 +23781,9 @@ var ThreadManForUser = (function () {
                 newState.gpr[5] = copiedDataAddress;
             }
             newState.SP = copiedDataAddress - 0x40;
+            console.log('3');
             console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
+            console.log('4');
             newThread.start();
             return Promise2.resolve(0);
         });
@@ -24567,117 +24703,7 @@ var ButtonPreference = exports.ButtonPreference;
 "src/hle/utils": function(module, exports, require) {
 var _cpu = require('../core/cpu');
 exports.NativeFunction = _cpu.NativeFunction;
-var console = logger.named('createNativeFunction');
-function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
-    var code = '';
-    var args = [];
-    var maxGprIndex = 12;
-    var gprindex = 4;
-    var fprindex = 0;
-    function _readGpr32() {
-        if (gprindex >= maxGprIndex) {
-            return 'memory.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
-        }
-        else {
-            return 'state.gpr[' + (gprindex++) + ']';
-        }
-    }
-    function readFpr32() { return 'state.fpr[' + (fprindex++) + ']'; }
-    function readGpr32_S() { return '(' + _readGpr32() + ' | 0)'; }
-    function readGpr32_U() { return '(' + _readGpr32() + ' >>> 0)'; }
-    function readGpr64() {
-        gprindex = MathUtils.nextAligned(gprindex, 2);
-        var gprLow = readGpr32_S();
-        var gprHigh = readGpr32_S();
-        return "Integer64.fromBits(" + gprLow + ", " + gprHigh + ")";
-    }
-    var argTypes = argTypesString.split('/').filter(function (item) { return item.length > 0; });
-    if (argTypes.length != internalFunc.length)
-        throw (new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
-    argTypes.forEach(function (item) {
-        switch (item) {
-            case 'EmulatorContext':
-                args.push('context');
-                break;
-            case 'Thread':
-                args.push('state.thread');
-                break;
-            case 'CpuState':
-                args.push('state');
-                break;
-            case 'Memory':
-                args.push('state.memory');
-                break;
-            case 'string':
-                args.push('state.memory.readStringz(' + readGpr32_S() + ')');
-                break;
-            case 'uint':
-                args.push(readGpr32_U() + ' >>> 0');
-                break;
-            case 'int':
-                args.push(readGpr32_S() + ' | 0');
-                break;
-            case 'bool':
-                args.push(readGpr32_S() + ' != 0');
-                break;
-            case 'float':
-                args.push(readFpr32());
-                break;
-            case 'ulong':
-            case 'long':
-                args.push(readGpr64());
-                break;
-            case 'void*':
-                args.push('state.memory.getPointerStream(' + readGpr32_S() + ')');
-                break;
-            case 'byte[]':
-                args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')');
-                break;
-            default:
-                var matches = [];
-                if (matches = item.match(/^byte\[(\d+)\]$/)) {
-                    args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
-                }
-                else {
-                    throw ('Invalid argument "' + item + '"');
-                }
-        }
-    });
-    code += 'var error = false;\n';
-    code += 'var result = internalFunc(' + args.join(', ') + ');\n';
-    code += 'if (result instanceof Promise2) { state.thread.suspendUntilPromiseDone(result, nativeFunction); throw new Error("CpuBreakException"); }\n';
-    code += 'if (result instanceof WaitingThreadInfo) { if (result.promise instanceof Promise2) { state.thread.suspendUntilDone(result); throw new Error("CpuBreakException"); } else { result = result.promise; } }\n';
-    switch (retval) {
-        case 'void': break;
-        case 'uint':
-        case 'int':
-            code += 'state.V0 = result | 0;\n';
-            break;
-        case 'bool':
-            code += 'state.V0 = result ? 1 : 0;\n';
-            break;
-        case 'float':
-            code += 'state.fpr[0] = result;\n';
-            break;
-        case 'long':
-            code += 'if (!error) {\n';
-            code += 'if (!(result instanceof Integer64)) { console.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }\n';
-            code += 'state.V0 = result.low; state.V1 = result.high;\n';
-            code += '} else {\n';
-            code += 'state.V0 = result; state.V1 = 0;\n';
-            code += '}\n';
-            break;
-        default: throw ('Invalid return value "' + retval + '"');
-    }
-    var nativeFunction = new exports.NativeFunction();
-    nativeFunction.name = 'unknown';
-    nativeFunction.nid = exportId;
-    nativeFunction.firmwareVersion = firmwareVersion;
-    nativeFunction.call = new Function('_this', 'console', 'internalFunc', 'nativeFunction', "return function(context, state) { \"use strict\"; /* " + addressToHex(nativeFunction.nid) + " */\n" + code + " };")(_this, console, internalFunc, nativeFunction);
-    nativeFunction.nativeCall = internalFunc;
-    return nativeFunction;
-}
-exports.createNativeFunction = createNativeFunction;
+exports.createNativeFunction = _cpu.createNativeFunction;
 
 },
 "src/hle/vfs": function(module, exports, require) {
@@ -26313,11 +26339,8 @@ describe('cso', function () {
         });
     });
     it('should load fine', function () {
-        console.log('[a]');
         return _cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
-            console.log('[b]');
             return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
-                console.log('[c]');
                 var stream = Stream.fromArrayBuffer(data);
                 stream.skip(10);
                 var CD0001 = stream.readStringz(6);

@@ -995,3 +995,5 @@ class Promise2<T> implements Thenable<T> {
 		}
 	}
 }
+
+(<any>window).Promise2 = Promise2;

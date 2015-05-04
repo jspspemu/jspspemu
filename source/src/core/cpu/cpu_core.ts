@@ -7,6 +7,12 @@ import _codegen = require('./cpu_codegen');
 
 import Memory = _memory.Memory;
 
+//const DEBUG_FUNCGEN = true;
+const DEBUG_FUNCGEN = false;
+
+const DEBUG_NATIVEFUNC = false;
+//const DEBUG_NATIVEFUNC = true;
+
 export enum CpuSpecialAddresses {
 	EXIT_THREAD = 0x0FFFFFFF,
 }
@@ -68,7 +74,9 @@ export class SyscallManager {
 	call(state: CpuState, id: number) {
         var nativeFunction: NativeFunction = this.calls[id];
         if (!nativeFunction) throw `Can't call syscall ${this.getName(id)}: ${addressToHex(id)}"`;
-		//printf('calling syscall 0x%04X : %s', id, nativeFunction.name);
+		if (DEBUG_NATIVEFUNC) {
+			console.log(`calling syscall ${addressToHex(id)}, ${id}, ${nativeFunction.name} with cpustate:${state.id}`);
+		}
 
         nativeFunction.call(this.context, state);
     }
@@ -169,6 +177,9 @@ export enum VCondition {
 
 
 export class CpuState {
+	static lastId:number = 0;
+	id = CpuState.lastId++;
+	
 	constructor(public memory: Memory, public syscallManager: SyscallManager) {
 		this.icache = new InstructionCache(memory, syscallManager);
 		this.fcr0 = 0x00003351;
@@ -747,12 +758,12 @@ export class InstructionCache {
 			//this.functions[info.min] = func = this.functionGenerator.getFunction(info);
 			this.functions[info.start] = func = this.functionGenerator.getFunction(info);
 
-			/*
-			console.log('****************************************');
-			console.log('****************************************');
-			console.log(func.info);
-			console.log(func.code.code);
-			*/
+			if (DEBUG_FUNCGEN) {
+				console.log('****************************************');
+				console.log('****************************************');
+				console.log(func.info);
+				console.log(func.code.code);
+			}
 		}
 		return func.fargs;
 	}
@@ -931,7 +942,15 @@ export class FunctionGenerator {
 			var di = this.decodeInstruction(info.min);
 			var di2 = this.decodeInstruction(info.min + 4);
 			if (di.type.name == 'jr' && di2.type.name == 'syscall') {
-				return new FunctionCode(`/* ${this.syscallManager.getName(di2.instruction.syscall)} */ state.PC = state.RA; state.jumpCall = null; state.syscall(${di2.instruction.syscall}); return;`, args);
+				return new FunctionCode(
+					`
+					/* ${this.syscallManager.getName(di2.instruction.syscall)} at ${addressToHex(info.start)} */
+					state.PC = state.RA; state.jumpCall = null;
+					state.syscall(${di2.instruction.syscall});
+					return;
+					`,
+					args
+				);
 			}
 		}
 
@@ -1025,4 +1044,150 @@ export class FunctionGenerator {
 		args.code = code;
 		return new FunctionCode(code, args);
 	}
+}
+
+import IndentStringGenerator = require('../../util/IndentStringGenerator');
+
+export interface CreateOptions {
+	tryCatch?: boolean;
+}
+
+export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function, options?: CreateOptions) {
+	//var console = logger.named('createNativeFunction');
+    var code = '';
+	//var code = 'debugger;';
+
+	let V0 = `state.gpr[2]`;
+	let V1 = `state.gpr[3]`;
+
+	var args:string[] = [];
+	var maxGprIndex = 12;
+	var gprindex = 4;
+	var fprindex = 0;
+	//var fprindex = 2;
+
+	function _readGpr32() {
+		if (gprindex >= maxGprIndex) {
+			//return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
+
+			return 'memory.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
+		} else {
+			return 'state.gpr[' + (gprindex++) + ']';
+		}
+	}
+
+	function readFpr32() { return 'state.fpr[' + (fprindex++) + ']'; }
+	function readGpr32_S() { return '(' + _readGpr32() + ' | 0)'; }
+	function readGpr32_U() { return '(' + _readGpr32() + ' >>> 0)'; }
+
+	function readGpr64() {
+		gprindex = MathUtils.nextAligned(gprindex, 2);
+		var gprLow = readGpr32_S();
+		var gprHigh = readGpr32_S();
+		return `Integer64.fromBits(${gprLow}, ${gprHigh})`;
+	}
+
+	var argTypes = argTypesString.split('/').filter(item => item.length > 0);
+
+	if (argTypes.length != internalFunc.length) throw(new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
+
+	argTypes.forEach(item => {
+        switch (item) {
+            case 'EmulatorContext': args.push('context'); break;
+            case 'Thread': args.push('state.thread'); break;
+            case 'CpuState': args.push('state'); break;
+            case 'Memory': args.push('state.memory'); break;
+			case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;
+			case 'uint': args.push(readGpr32_U() + ' >>> 0'); break;
+			case 'int': args.push(readGpr32_S() + ' | 0'); break;
+			case 'bool': args.push(readGpr32_S() + ' != 0'); break;
+			case 'float': args.push(readFpr32()); break;
+			case 'ulong': case 'long': args.push(readGpr64()); break;
+			case 'void*': args.push('state.memory.getPointerStream(' + readGpr32_S() + ')'); break;
+			case 'byte[]': args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
+			default:
+				var matches:string[] = [];
+				if (matches = item.match(/^byte\[(\d+)\]$/)) {
+					args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+				} else {
+					throw ('Invalid argument "' + item + '"');
+				}
+        }
+    });
+
+	code += 'var error = false;\n';
+	//code += 'var args = [' + args.join(', ') + '];\n';
+	//code += 'var result = internalFunc.apply(_this, args);\n';
+
+	if (DEBUG_NATIVEFUNC) {
+		code += `console.info(nativeFunction.name);`;
+	}
+	code += 'var result = internalFunc(' + args.join(', ') + ');\n';
+
+	/*
+	var debugSyscalls = false;
+	//var debugSyscalls = true;
+
+	if (debugSyscalls) {
+		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
+		code += "if (DebugOnce(info, 10)) {\n";
+		code += "logger.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
+		code += "if (result instanceof Promise2) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+		code += "}\n";
+	}
+	*/
+
+	code += `
+		if (result instanceof Promise2) {
+			${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
+			state.thread.suspendUntilPromiseDone(result, nativeFunction);
+			throw new Error("CpuBreakException");
+		}\n
+	`;
+	code += `
+		if (result instanceof WaitingThreadInfo) {
+			${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
+			if (result.promise instanceof Promise2) {
+				state.thread.suspendUntilDone(result);
+				throw new Error("CpuBreakException"); }
+			else {
+				result = result.promise;
+			}
+		}\n
+	`;
+
+    switch (retval) {
+        case 'void': break;
+		case 'uint': case 'int': code += `${V0} = result | 0;\n`; break;
+		case 'bool': code += `${V0} = result ? 1 : 0;\n`; break;
+		case 'float': code += 'state.fpr[0] = result;\n'; break;
+		case 'long':
+			code += 'if (!error) {\n';
+			code += 'if (!(result instanceof Integer64)) { logger.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }\n';
+			code += `${V0} = result.low; ${V1} = result.high;\n`;
+			code += '} else {\n';
+			code += `${V0} = result; ${V1} = 0;\n`;
+			code += '}\n';
+            break;
+        default: throw ('Invalid return value "' + retval + '"');
+    }
+
+    var nativeFunction = new NativeFunction();
+    nativeFunction.name = 'unknown';
+    nativeFunction.nid = exportId;
+    nativeFunction.firmwareVersion = firmwareVersion;
+	
+	if (DEBUG_FUNCGEN) {
+		console.log(code);
+	}
+
+	nativeFunction.call = <any>new Function(
+		'_this', 'logger', 'internalFunc', 'nativeFunction',
+		`return function(context, state) { "use strict"; /* ${addressToHex(nativeFunction.nid)} */\n${code} };`
+	)(
+		_this, logger, internalFunc, nativeFunction
+	);
+	nativeFunction.nativeCall = internalFunc;
+
+    return nativeFunction;
 }
