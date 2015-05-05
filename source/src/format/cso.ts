@@ -26,11 +26,48 @@ class Header {
     ]);
 }
 
+class Block {
+	private _uncompressedData: Uint8Array = null;
+	public compressedData: Uint8Array;
+	public compressed: boolean;
+	public low: number;
+	public high: number;
+	
+	constructor(raw1:number, raw2:number) {
+		this.compressed = (raw1 & 0x80000000) == 0;
+		this.low = raw1 & 0x7FFFFFFF;
+		this.high = raw2 & 0x7FFFFFFF;
+	}
+	
+	get uncompresesdData():Uint8Array {
+		if (!this._uncompressedData) {
+			if (this.compressed) {
+				this._uncompressedData = zlib.inflate_raw(this.compressedData);  
+			} else {
+				this._uncompressedData = this.compressedData; 
+			}
+		}
+		return this._uncompressedData;
+	}
+	
+	get size() {
+		return this.high - this.low;
+	}
+	
+	static getBlocksUncompressedData(blocks: Block[]) {
+		return ArrayBufferUtils.concat(blocks.map(v => v.uncompresesdData));
+	}
+}
+
 export class Cso implements AsyncStream {
 	date: Date = new Date();
     private stream: AsyncStream;
     private header: Header;
 	private offsets: Uint32Array;
+	
+	private getBlockInfo(index:number) {
+		return new Block(this.offsets[index + 0], this.offsets[index + 1]);
+	}
 
 	static fromStreamAsync(stream: AsyncStream) {
         return new Cso().loadAsync(stream);
@@ -38,51 +75,30 @@ export class Cso implements AsyncStream {
 
 	get name() { return this.stream.name; }
     get size() { return this.header.totalBytes; }
-
-	private cache = new AsyncCache<ArrayBuffer>(128 * 1024, arraybuffer => arraybuffer.byteLength);
-	private decodeBlockAsync(index: number) {
-		return this.cache.getOrGenerateAsync('item-' + index, () => {
-			var compressed = ((this.offsets[index + 0] & 0x80000000) == 0);
-			var low = this.offsets[index + 0] & 0x7FFFFFFF;
-			var high = this.offsets[index + 1] & 0x7FFFFFFF;
-			return this.stream.readChunkAsync(low, high - low).then((data) => {
-				return (compressed ? inflateRawArrayBufferAsync(data).then((value) => {
-					//console.log(value);
-					return value;
-				}) : data);
-			}).catch(e => {
-				console.error(e);
-				throw (e);
-			});
-		}).then(v => {
-			return v;
-		});
-    }
+	
+	private readUncachedBlocksAsync(index: number, count:number):Promise2<Block[]> {
+		var low = this.getBlockInfo(index).low;
+		var high = this.getBlockInfo(index + count - 1).high;
+		return this.stream.readChunkAsync(low, high - low).then((data) => {
+			var chunks:Block[] = [];
+			for (var n = 0; n < count; n++) {
+				var chunk = this.getBlockInfo(index + n);
+				chunk.compressedData = new Uint8Array(data, chunk.low - low, chunk.size);
+				chunks.push(chunk);
+			}
+			return chunks;
+		});		
+	}
 
 	readChunkAsync(offset: number, count: number): Promise2<ArrayBuffer> {
-		var blockIndex = Math.floor(offset / this.header.blockSize);
-		var blockLow = MathUtils.prevAligned(offset, this.header.blockSize);
-		var blockHigh = blockLow + this.header.blockSize;
-		var maxReadCount = blockHigh - offset;
-		var toReadInChunk = Math.min(count, maxReadCount);
-
-		var chunkPromise = this.decodeBlockAsync(blockIndex).then(data => {
-			//console.log(data.byteLength);
-			var low = offset - blockLow;
-			return data.slice(low, low + toReadInChunk);
+		var blockIndexLow = Math.floor(offset / this.header.blockSize);
+		var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
+		var blockCount = blockIndexHigh - blockIndexLow + 1;
+		var skip = (this.header.blockSize - (offset % this.header.blockSize)) % this.header.blockSize;
+		
+		return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(blocks => {
+			return Block.getBlocksUncompressedData(blocks).slice(skip);
 		});
-
-
-		if (count <= maxReadCount) {
-			return chunkPromise;
-		} else {
-			return chunkPromise.then(chunk1 => {
-				return this.readChunkAsync(offset + toReadInChunk, count - toReadInChunk).then(chunk2 => {
-					var result = ArrayBufferUtils.concat([chunk1, chunk2]);
-					return result;
-				});
-			});
-		}
     }
 
     private loadAsync(stream: AsyncStream) {
