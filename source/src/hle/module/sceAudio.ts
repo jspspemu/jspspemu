@@ -10,7 +10,7 @@ export class sceAudio {
 	private channels: Channel[] = [];
 
 	constructor(private context: _context.EmulatorContext) {
-		for (var n = 0; n < 8; n++) this.channels.push(new Channel(n));
+		for (var n = 0; n < 4; n++) this.channels.push(new Channel(n));
 	}
 
 	private isValidChannel(channelId: number) {
@@ -72,7 +72,9 @@ export class sceAudio {
 
 	@nativeFunction(0xCB2E439E, 150, 'uint', 'int/int')
 	sceAudioSetChannelDataLen(channelId: number, sampleCount: number) {
+		//ERROR_AUDIO_CHANNEL_NOT_INIT
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+		if ((sampleCount % 64) != 0) return SceKernelErrors.ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED;
 		var channel = this.getChannelById(channelId);
 		channel.sampleCount = sampleCount;
 		return 0;

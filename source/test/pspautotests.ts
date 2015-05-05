@@ -19,11 +19,12 @@ describe('pspautotests', function () {
 		//{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
 		//{ "audio/sceaudio": ["datalen", "output", "reserve"] },
 		{ "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
-		{ "cpu/fpu": ["fpu"] },
+		//{ "cpu/fpu": ["fpu"] },
 		//{ "cpu/fpu": ["fcr", "fpu"] },
 		{ "cpu/icache": ["icache"] },
 		{ "cpu/lsu": ["lsu"] },
-		//{ "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector"] },
+		{ "cpu/vfpu": ["colors", "gum", "matrix", "vavg"] },
+		//{ "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector", "vregs", "vavg"] },
 		//{ "ctrl": ["ctrl", "vblank"] },
 		//{ "ctrl/idle": ["idle"] },
 		//{ "ctrl/sampling": ["sampling"] },
@@ -51,8 +52,11 @@ describe('pspautotests', function () {
 		//{ "io/io": ["io"] },
 		//{ "io/iodrv": ["iodrv"] },
 		//{ "kirk": ["kirk"] },
-		//{ "loader/bss": ["bss"] },
-		//{ "malloc": ["malloc"] },
+		{ "loader/bss": ["bss"] },
+		{ "malloc": ["malloc"] },
+		//{ "misc": ["dcache", "testgp"] },
+		//{ "misc": ["libc", "testgp"] },
+		{ "misc": ["testgp"] },
 		//{ "misc": ["dcache", "deadbeef", "libc", "sdkver", "testgp", "timeconv"] },
 		//{ "modules/loadexec": ["loader"] },
 		//{ "mstick": ["mstick"] },
@@ -60,6 +64,7 @@ describe('pspautotests', function () {
 		//{ "net/primary": ["ether"] },
 		//{ "power": ["cpu", "freq", "power"] },
 		//{ "power/volatile": ["lock", "trylock", "unlock"] },
+		//{ "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
 		//{ "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
 		{ "string": ["string"] },
 		//{ "sysmem": ["freesize", "memblock", "partition", "sysmem"] },
@@ -78,7 +83,7 @@ describe('pspautotests', function () {
 		//{ "threads/events/set": ["set"] },
 		//{ "threads/events/wait": ["wait"] },
 		//{ "threads/fpl": ["allocate", "cancel", "create", "delete", "fpl", "free", "priority", "refer", "tryallocate"] },
-		//{ "threads/k0": ["k0"] },
+		{ "threads/k0": ["k0"] },
 		//{ "threads/lwmutex": ["create", "delete", "lock", "priority", "refer", "try", "try600", "unlock"] },
 		//{ "threads/mbx/cancel": ["cancel"] },
 		//{ "threads/mbx/create": ["create"] },
@@ -94,6 +99,7 @@ describe('pspautotests', function () {
 		//{ "threads/scheduling": ["dispatch", "scheduling"] },
 		//{ "threads/semaphores": ["cancel", "create", "delete", "fifo", "poll", "priority", "refer", "semaphores", "signal", "wait"] },
 		//{ "threads/semaphores/semaphore_greater_than_zero": ["semaphore_greater_than_zero"] },
+		//{ "threads/threads": ["create"] },
 		//{ "threads/threads": ["change", "create", "exitstatus", "extend", "refer", "release", "rotate", "stackfree", "start", "suspend", "terminate", "threadend", "threads"] },
 		//{ "threads/vpl": ["allocate", "cancel", "create", "delete", "fifo", "free", "order", "priority", "refer", "try", "vpl"] },
 		//{ "threads/vtimers": ["cancelhandler", "create", "delete", "getbase", "gettime", "interrupt", "refer", "sethandler", "settime", "start", "stop", "vtimer"] },
@@ -216,7 +222,7 @@ describe('pspautotests', function () {
 						this.timeout(15000);
 
 						var emulator = new Emulator();
-						var file_base = './data/pspautotests_embed/tests/' + testGroupName + '/' + testName;
+						var file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
 						var file_prx = file_base + '.prx';
 						//var file_prx = file_base + '.iso';
 						var file_expected = file_base + '.expected';

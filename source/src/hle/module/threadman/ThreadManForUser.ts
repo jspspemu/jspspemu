@@ -111,17 +111,35 @@ export class ThreadManForUser {
 		//if (!newThread) debugger;
 
 		var newState = newThread.state;
+		const memory = newState.memory;
 		newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
 
-		var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
+		var copiedDataAddress = ((newThread.stackPartition.high) - ((userDataLength + 0xF) & ~0xF));
 
 		if (userDataPointer != null) {
-			newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
+			memory.copy(userDataPointer, copiedDataAddress, userDataLength);
 			newState.gpr[4] = userDataLength;
 			newState.gpr[5] = copiedDataAddress;
+		} else {
+			newState.gpr[4] = 0;
+			newState.gpr[5] = 0;
+		}
+		
+		var currentStack = newThread.stackPartition;
+		if ((newThread.attributes & 0x00100000) == 0) { // PSP_THREAD_ATTR_NO_FILLSTACK
+			memory.memset(currentStack.low, 0xFF, currentStack.size);
 		}
 
-		newState.SP = copiedDataAddress - 0x40;
+		newState.SP = copiedDataAddress;
+		
+		newState.SP -= 0x100;
+		newState.K0 = newState.SP;
+		memory.memset(newState.K0, 0, 0x100);
+		memory.sw(newState.K0 + 0xc0, newThread.id); 
+		memory.sw(newState.K0 + 0xc8, currentStack.low);
+		memory.sw(newState.K0 + 0xf8, 0xFFFFFFFF);
+		memory.sw(newState.K0 + 0xfc, 0xFFFFFFFF);
+		memory.sw(currentStack.low, newThread.id);
 
 		console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
 

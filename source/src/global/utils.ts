@@ -1060,5 +1060,13 @@ class DomHelp {
 	toggleClass(clazz:string, value:boolean) { if (value) this.addClass(clazz); else this.removeClass(clazz); }
 }
 
+function throwWaitPromise<T>(promise:Promise2<T>) {
+	var error:any = new Error('WaitPromise');
+	//var error:any = new Error('WaitPromise');
+	error.promise = promise;
+	return error;
+}
+
+(<any>window).throwWaitPromise = throwWaitPromise;
 (<any>window).Promise2 = Promise2;
 (<any>window).DomHelp = DomHelp;

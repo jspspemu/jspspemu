@@ -184,6 +184,7 @@ export class CpuState {
 		this.icache = new InstructionCache(memory, syscallManager);
 		this.fcr0 = 0x00003351;
 		this.fcr31 = 0x00000e00;
+		for (var n = 0; n < 128; n++) this.vfpr[n] = NaN;
 	}
 
 	clone() {
@@ -670,8 +671,18 @@ export class CpuState {
 	}
 
 	executeAtPC() {
+		//var expectedRA = this.RA;
+		//while (this.PC != this.RA) {
 		while (true) {
 			this.getFunction(this.PC).execute(this);
+		}
+	}
+	
+	executeAtPCAsync() {
+		try {
+			this.getFunction(this.PC).execute(this);
+		} catch (e) {
+			if (e.message != 'CpuBreakException') throw e;
 		}
 	}
 
@@ -1139,6 +1150,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
 			state.thread.suspendUntilPromiseDone(result, nativeFunction);
 			throw new Error("CpuBreakException");
+			//return state.thread.suspendUntilPromiseDone(result, nativeFunction);
 		}\n
 	`;
 	code += `

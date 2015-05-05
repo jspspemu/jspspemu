@@ -13,6 +13,7 @@ export class sceDmac {
 		if (destination == 0) return SceKernelErrors.ERROR_INVALID_POINTER;
 		if (source == 0) return SceKernelErrors.ERROR_INVALID_POINTER;
 		this.context.memory.copy(source, destination, size);
+		if (size < 272) return 0;
 		return Promise2.resolve(0);
 	}
 

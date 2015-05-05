@@ -165,7 +165,6 @@ class PspGpuExecutor {
 		this.state.texture.matrix.put(v);
 	}
 
-
 	TEXOFFSETU(p: number) {
 		var v = float1(p);
 		if (this.state.texture.offsetU == v) return;
@@ -870,7 +869,7 @@ class PspGpuExecutor {
 		vertices2.push(controlPoints[ucount - 1][vcount - 1]);
 		vertices2.push(controlPoints[0][vcount - 1]);
 
-		this.list.drawDriver.drawElements(_state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
+		this.list.drawDriver.drawElements(this.state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
 	}
 
 	light(index: number) {

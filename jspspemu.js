@@ -1075,6 +1075,12 @@ var DomHelp = (function () {
         this.removeClass(clazz); };
     return DomHelp;
 })();
+function throwWaitPromise(promise) {
+    var error = new Error('WaitPromise');
+    error.promise = promise;
+    return error;
+}
+window.throwWaitPromise = throwWaitPromise;
 window.Promise2 = Promise2;
 window.DomHelp = DomHelp;
 
@@ -7205,6 +7211,8 @@ var CpuState = (function () {
         this.icache = new InstructionCache(memory, syscallManager);
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
+        for (var n = 0; n < 128; n++)
+            this.vfpr[n] = NaN;
     }
     CpuState.prototype.clone = function () {
         var that = new CpuState(this.memory, this.syscallManager);
@@ -7710,6 +7718,15 @@ var CpuState = (function () {
             this.getFunction(this.PC).execute(this);
         }
     };
+    CpuState.prototype.executeAtPCAsync = function () {
+        try {
+            this.getFunction(this.PC).execute(this);
+        }
+        catch (e) {
+            if (e.message != 'CpuBreakException')
+                throw e;
+        }
+    };
     CpuState.prototype.break = function () { throw new Error('CpuBreakException'); };
     CpuState.lastId = 0;
     CpuState._mult_temp = [0, 0];
@@ -8120,7 +8137,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         code += "console.info(nativeFunction.name);";
     }
     code += 'var result = internalFunc(' + args.join(', ') + ');\n';
-    code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrow new Error(\"CpuBreakException\");\n\t\t}\n\n\t";
+    code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrow new Error(\"CpuBreakException\");\n\t\t\t//return state.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t}\n\n\t";
     code += "\n\t\tif (result instanceof WaitingThreadInfo) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : '') + "\n\t\t\tif (result.promise instanceof Promise2) {\n\t\t\t\tstate.thread.suspendUntilDone(result);\n\t\t\t\tthrow new Error(\"CpuBreakException\"); }\n\t\t\telse {\n\t\t\t\tresult = result.promise;\n\t\t\t}\n\t\t}\n\n\t";
     switch (retval) {
         case 'void': break;
@@ -11824,7 +11841,7 @@ var PspGpuExecutor = (function () {
         vertices2.push(controlPoints[ucount - 1][0]);
         vertices2.push(controlPoints[ucount - 1][vcount - 1]);
         vertices2.push(controlPoints[0][vcount - 1]);
-        this.list.drawDriver.drawElements(_state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
+        this.list.drawDriver.drawElements(this.state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
     };
     PspGpuExecutor.prototype.light = function (index) {
         return this.state.lightning.lights[index];
@@ -21766,7 +21783,7 @@ var sceAudio = (function () {
     function sceAudio(context) {
         this.context = context;
         this.channels = [];
-        for (var n = 0; n < 8; n++)
+        for (var n = 0; n < 4; n++)
             this.channels.push(new Channel(n));
     }
     sceAudio.prototype.isValidChannel = function (channelId) {
@@ -21819,6 +21836,8 @@ var sceAudio = (function () {
     sceAudio.prototype.sceAudioSetChannelDataLen = function (channelId, sampleCount) {
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        if ((sampleCount % 64) != 0)
+            return SceKernelErrors.ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED;
         var channel = this.getChannelById(channelId);
         channel.sampleCount = sampleCount;
         return 0;
@@ -22204,6 +22223,8 @@ var sceDmac = (function () {
         if (source == 0)
             return SceKernelErrors.ERROR_INVALID_POINTER;
         this.context.memory.copy(source, destination, size);
+        if (size < 272)
+            return 0;
         return Promise2.resolve(0);
     };
     sceDmac.prototype.sceDmacMemcpy = function (destination, source, size) {
@@ -25373,14 +25394,31 @@ var ThreadManForUser = (function () {
         var newThread = this.getThreadById(threadId);
         newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
         var newState = newThread.state;
+        var memory = newState.memory;
         newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
-        var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
+        var copiedDataAddress = ((newThread.stackPartition.high) - ((userDataLength + 0xF) & ~0xF));
         if (userDataPointer != null) {
-            newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
+            memory.copy(userDataPointer, copiedDataAddress, userDataLength);
             newState.gpr[4] = userDataLength;
             newState.gpr[5] = copiedDataAddress;
         }
-        newState.SP = copiedDataAddress - 0x40;
+        else {
+            newState.gpr[4] = 0;
+            newState.gpr[5] = 0;
+        }
+        var currentStack = newThread.stackPartition;
+        if ((newThread.attributes & 0x00100000) == 0) {
+            memory.memset(currentStack.low, 0xFF, currentStack.size);
+        }
+        newState.SP = copiedDataAddress;
+        newState.SP -= 0x100;
+        newState.K0 = newState.SP;
+        memory.memset(newState.K0, 0, 0x100);
+        memory.sw(newState.K0 + 0xc0, newThread.id);
+        memory.sw(newState.K0 + 0xc8, currentStack.low);
+        memory.sw(newState.K0 + 0xf8, 0xFFFFFFFF);
+        memory.sw(newState.K0 + 0xfc, 0xFFFFFFFF);
+        memory.sw(currentStack.low, newThread.id);
         console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
         newThread.start();
         return Promise2.resolve(0);
@@ -28763,10 +28801,14 @@ describe('pspautotests', function () {
     this.timeout(5000);
     var tests = [
         { "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
-        { "cpu/fpu": ["fpu"] },
         { "cpu/icache": ["icache"] },
         { "cpu/lsu": ["lsu"] },
+        { "cpu/vfpu": ["colors", "gum", "matrix", "vavg"] },
+        { "loader/bss": ["bss"] },
+        { "malloc": ["malloc"] },
+        { "misc": ["testgp"] },
         { "string": ["string"] },
+        { "threads/k0": ["k0"] },
     ];
     function normalizeString(string) {
         return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
@@ -28861,7 +28903,7 @@ describe('pspautotests', function () {
                     it(testName, function () {
                         this.timeout(15000);
                         var emulator = new Emulator();
-                        var file_base = './data/pspautotests_embed/tests/' + testGroupName + '/' + testName;
+                        var file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
                         var file_prx = file_base + '.prx';
                         var file_expected = file_base + '.expected';
                         if (!groupCollapsed)

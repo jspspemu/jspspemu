@@ -81,6 +81,15 @@ export class InterruptManager {
 				state.gpr[5] = item.argument;
 				state.PC = item.address;
 				state.executeAtPC();
+				//var RA = state.RA;
+				//// @FIXME! @TODO: this is probably wrong, since the CpuBreakException means that a promise was yielded and we should not continue until it has been resolved!!!
+				//while (state.PC != RA) {
+				//	try {
+				//		state.executeAtPC();
+				//	} catch (e) {
+				//		if (e.message != 'CpuBreakException') throw e;
+				//	}
+				//}
 			});
 		}
 		//state.callPCSafe();
