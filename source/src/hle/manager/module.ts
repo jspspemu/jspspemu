@@ -11,17 +11,29 @@ export class ModuleWrapper {
 
 	constructor(public moduleName: string, private _modules: any[]) {
 		_modules.forEach((_module) => {
+			if (typeof _module.natives != 'undefined') {
+				var natives:any[] = _module.natives;
+				for (let nativeGenerator of natives) {
+					//console.error('Registered native', native.name);
+					this.registerNative(nativeGenerator(_module));
+				}
+			}
 			for (var key in _module) {
+				if (key == 'natives') continue;
 				var item: any = _module[key];
 				if (item && item instanceof NativeFunction) {
 					var nativeFunction: NativeFunction = item;
 					nativeFunction.name = key;
-					this.nids[nativeFunction.nid] = nativeFunction;
-					this.names[nativeFunction.name] = nativeFunction;
+					this.registerNative(nativeFunction);
 				}
 			}
 		});
     }
+	
+	private registerNative(nf:NativeFunction) {
+		this.nids[nf.nid] = nf;
+		this.names[nf.name] = nf;
+	}
 
 	getByName(name: string): NativeFunction {
 		return this.names[name];
@@ -45,6 +57,7 @@ export class ModuleManager {
 	registerModule(_module: any) {
 		for (var key in _module) {
 			if (key == 'createNativeFunction') continue;
+			if (key == 'natives') continue;
 			var _class = _module[key];
 			this.add(key, _class);
 		}

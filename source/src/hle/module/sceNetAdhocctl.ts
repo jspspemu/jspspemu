@@ -5,7 +5,7 @@ import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager');
 import SceKernelErrors = require('../SceKernelErrors');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;
 import Interop = _manager.Interop;
@@ -20,20 +20,23 @@ export class sceNetAdhocctl {
 	public ws: WebSocket;
 
 	/** Initialise the Adhoc control library */
-	sceNetAdhocctlInit = createNativeFunction(0xE26F226E, 150, 'int', 'int/int/void*', this, (stacksize: number, priority: number, product: Stream) => {
+	@nativeFunction(0xE26F226E, 150, 'int', 'int/int/void*')
+	sceNetAdhocctlInit(stacksize: number, priority: number, product: Stream) {
 		this.currentState = State.Disconnected;
 		return 0;
-	});
+	}
 
 	/** Terminate the Adhoc control library */
-	sceNetAdhocctlTerm = createNativeFunction(0x9D689E13, 150, 'int', '', this, () => {
+	@nativeFunction(0x9D689E13, 150, 'int', '')
+	sceNetAdhocctlTerm() {
 		return 0;
-	});
+	}
 
 	private connectHandlers = <Cancelable[]>[];
 
 	/** Connect to the Adhoc control */
-	sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, (name: string) => {
+	@nativeFunction(0x0AD043ED, 150, 'int', 'string')
+	sceNetAdhocctlConnect(name: string) {
 		this.currentName = name;
 
 		this.connectHandlers.push(this.context.netManager.onopen.add(() => {
@@ -50,29 +53,33 @@ export class sceNetAdhocctl {
 		}
 		this.context.netManager.connectOnce();
 		return 0;
-	});
+	}
 
 	/** Disconnect from the Adhoc control */
-	sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, () => {
+	@nativeFunction(0x34401D65, 150, 'int', '')
+	sceNetAdhocctlDisconnect() {
 		while (this.connectHandlers.length) this.connectHandlers.shift().cancel();
 		return 0;
-	});
+	}
 
 	private handlers = new UidCollection<HandlerCallback>(1);
 
-	sceNetAdhocctlAddHandler = createNativeFunction(0x20B317A0, 150, 'int', 'int/int', this, (callback: number, parameter: number) => {
+	@nativeFunction(0x20B317A0, 150, 'int', 'int/int')
+	sceNetAdhocctlAddHandler(callback: number, parameter: number) {
 		return this.handlers.allocate(new HandlerCallback(callback, parameter));
-	});
+	}
 
-	sceNetAdhocctlDelHandler = createNativeFunction(0x6402490B, 150, 'int', 'int', this, (handler: number) => {
+	@nativeFunction(0x6402490B, 150, 'int', 'int')
+	sceNetAdhocctlDelHandler(handler: number) {
 		this.handlers.remove(handler);
 		return 0;
-	});
+	}
 
-	sceNetAdhocctlGetState = createNativeFunction(0x75ECD386, 150, 'int', 'void*', this, (stateOut: Stream) => {
+	@nativeFunction(0x75ECD386, 150, 'int', 'void*')
+	sceNetAdhocctlGetState(stateOut: Stream) {
 		stateOut.writeInt32(this.currentState);
 		return 0;
-	});
+	}
 
 	private _notifyAdhocctlHandler(event: Event, error = <SceKernelErrors>0) {
 		this.handlers.list().forEach(callback => {

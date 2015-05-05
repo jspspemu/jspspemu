@@ -2,7 +2,7 @@
 
 import _utils = require('../utils');
 import _context = require('../../context');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 
 export class sceMp3 {

@@ -3,7 +3,7 @@
 import _utils = require('../utils');
 import _context = require('../../context');
 import _memory = require('../../core/memory');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 import Memory = _memory.Memory;
 
@@ -13,19 +13,23 @@ export class sceMpeg {
 	static RING_BUFFER_PACKET_SIZE = 0x800;
 	static MPEG_MEMSIZE = 64 * 1024;
 
-	sceMpegInit = createNativeFunction(0x682A619B, 150, 'uint', '', this, () => {
+	@nativeFunction(0x682A619B, 150, 'uint', '')
+	sceMpegInit() {
 		return -1;
-	});
+	}
 
-	sceMpegRingbufferQueryMemSize = createNativeFunction(0xD7A29F46, 150, 'uint', 'int', this, (numberOfPackets:number) => {
+	@nativeFunction(0xD7A29F46, 150, 'uint', 'int')
+	sceMpegRingbufferQueryMemSize(numberOfPackets:number) {
 		return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
-	});
+	}
 
-	sceMpegQueryMemSize = createNativeFunction(0xC132E22F, 150, 'uint', 'int', this, (mode: number) => {
+	@nativeFunction(0xC132E22F, 150, 'uint', 'int')
+	sceMpegQueryMemSize(mode: number) {
 		return sceMpeg.MPEG_MEMSIZE;
-	});
+	}
 
-	sceMpegRingbufferConstruct = createNativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int', this, (ringbufferAddr: Stream, numPackets: number, data: number, size: number, callbackAddr: number, callbackArg: number) => {
+	@nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
+	sceMpegRingbufferConstruct(ringbufferAddr: Stream, numPackets: number, data: number, size: number, callbackAddr: number, callbackArg: number) {
 		if (ringbufferAddr == Stream.INVALID) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
 		if (size < 0) return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
 		if (this.__mpegRingbufferQueryMemSize(numPackets) > size) {
@@ -50,9 +54,10 @@ export class sceMpeg {
 		// This isn't in ver 0104, but it is in 0105.
 		//if (mpegLibVersion >= 0x0105) buf.gp = __KernelGetModuleGP(__KernelGetCurThreadModuleId());
 		RingBuffer.struct.write(ringbufferAddr, buf);
-	});
+	}
 
-	sceMpegCreate = createNativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint', this, (mpegAddr: number, dataPtr: number, size: number, ringbufferAddr: Stream, mode: number, ddrTop: number) => {
+	@nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
+	sceMpegCreate(mpegAddr: number, dataPtr: number, size: number, ringbufferAddr: Stream, mode: number, ddrTop: number) {
 		if (!this.context.memory.isValidAddress(mpegAddr)) return -1;
 		if (size < sceMpeg.MPEG_MEMSIZE) return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
 		if (ringbufferAddr == Stream.INVALID) {
@@ -74,25 +79,28 @@ export class sceMpeg {
 		// @TODO: WIP
 		//mpegHandle.writeInt32(mpegAddr);
 		//mpegHandle.write
-	});
+	}
 
-	sceMpegDelete = createNativeFunction(0x606A4649, 150, 'uint', 'int', this, (sceMpegPointer: number) => {
+	@nativeFunction(0x606A4649, 150, 'uint', 'int')
+	sceMpegDelete(sceMpegPointer: number) {
 		//this.getMpeg(sceMpegPointer).delete();
 
 		return 0;
-	});
+	}
 
-	sceMpegFinish = createNativeFunction(0x874624D6, 150, 'uint', '', this, () => {
+	@nativeFunction(0x874624D6, 150, 'uint', '')
+	sceMpegFinish() {
 		//this.getMpeg(sceMpegPointer).delete();
 		return 0;
-	});
+	}
 
-	sceMpegRingbufferDestruct = createNativeFunction(0x13407F13, 150, 'uint', 'int', this, (ringBufferPointer: number) => {
+	@nativeFunction(0x13407F13, 150, 'uint', 'int')
+	sceMpegRingbufferDestruct(ringBufferPointer: number) {
 		//Ringbuffer- > PacketsAvailable = Ringbuffer- > PacketsTotal;
 		//Ringbuffer- > PacketsRead = 0;
 		//Ringbuffer- > PacketsWritten = 0;
 		return 0;
-	});
+	}
 
 	private __mpegRingbufferQueryMemSize(packets: number) {
 		return packets * (104 + 2048);

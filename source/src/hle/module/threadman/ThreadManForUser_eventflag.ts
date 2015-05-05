@@ -3,7 +3,7 @@
 import _utils = require('../../utils');
 import _context = require('../../../context');
 import _cpu = require('../../../core/cpu');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager');
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
@@ -16,7 +16,8 @@ export class ThreadManForUser {
 
 	private eventFlagUids = new UidCollection<EventFlag>(1);
 
-	sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, (name: string, attributes: number, bitPattern: number, optionsPtr: Stream) => {
+	@nativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*')
+	sceKernelCreateEventFlag(name: string, attributes: number, bitPattern: number, optionsPtr: Stream) {
 		if (name === null) return SceKernelErrors.ERROR_ERROR;
 		if ((attributes & 0x100) != 0 || attributes >= 0x300) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
 
@@ -27,13 +28,14 @@ export class ThreadManForUser {
 		eventFlag.initialPattern = bitPattern;
 		eventFlag.currentPattern = bitPattern;
 		return this.eventFlagUids.allocate(eventFlag);
-	});
+	}
 
-	sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, (id: number, bitPattern: number) => {
+	@nativeFunction(0x1FB15A32, 150, 'uint', 'int/uint')
+	sceKernelSetEventFlag(id: number, bitPattern: number) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.get(id).setBits(bitPattern);
 		return 0;
-	});
+	}
 
 	private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
@@ -49,15 +51,18 @@ export class ThreadManForUser {
 		}), acceptCallbacks);
 	}
 
-	sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
+	@nativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*')
+	sceKernelWaitEventFlag(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) {
 		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
-	});
+	}
 
-	sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) => {
+	@nativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*')
+	sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream) {
 		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
-	});
+	}
 
-	sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, (id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream) => {
+	@nativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*')
+	sceKernelPollEventFlag(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
 		if ((waitType & (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) == (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) {
@@ -69,27 +74,31 @@ export class ThreadManForUser {
 		var matched = this.eventFlagUids.get(id).poll(bits, waitType, outBits);
 
 		return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
-	});
+	}
 
-	sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, (id: number) => {
+	@nativeFunction(0xEF9E4C70, 150, 'uint', 'int')
+	sceKernelDeleteEventFlag(id: number) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.remove(id);
 		return 0;
-	});
+	}
 
-	sceKernelClearEventFlag = createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, (id: number, bitsToClear: number) => {
+	@nativeFunction(0x812346E4, 150, 'uint', 'int/uint')
+	sceKernelClearEventFlag(id: number, bitsToClear: number) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.get(id).clearBits(bitsToClear);
 		return 0;
-	});
+	}
 
-	sceKernelCancelEventFlag = createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, (id: number, newPattern: number, numWaitThreadPtr: Stream) => {
+	@nativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*')
+	sceKernelCancelEventFlag(id: number, newPattern: number, numWaitThreadPtr: Stream) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.get(id).cancel(newPattern);
 		return 0;
-	});
+	}
 
-	sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, (id: number, infoPtr: Stream) => {
+	@nativeFunction(0xA66B0120, 150, 'uint', 'int/void*')
+	sceKernelReferEventFlagStatus(id: number, infoPtr: Stream) {
 		var size = infoPtr.readUInt32();
 		if (size == 0) return 0;
 
@@ -106,8 +115,7 @@ export class ThreadManForUser {
 		EventFlagInfo.struct.write(infoPtr, info);
 		console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
 		return 0;
-	});
-
+	}
 }
 
 

@@ -3,7 +3,7 @@
 import _utils = require('../../utils');
 import _context = require('../../../context');
 import _cpu = require('../../../core/cpu');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager');
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
@@ -16,15 +16,17 @@ export class ThreadManForUser {
 
 	private vplUid = new UidCollection<Vpl>(1);
 
-	sceKernelCreateVpl = createNativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*', this, (name: string, partitionId: number, attribute: VplAttributeFlags, size: number, optionsPtr: Stream) => {
+	@nativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*')
+	sceKernelCreateVpl(name: string, partitionId: number, attribute: VplAttributeFlags, size: number, optionsPtr: Stream) {
 		var partition = this.context.memoryManager.memoryPartitionsUid[partitionId];
 		var allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
 
 		var vpl = new Vpl(name, allocatedPartition);
 		return this.vplUid.allocate(vpl);
-	});
+	}
 
-	sceKernelTryAllocateVpl = createNativeFunction(0xAF36D708, 150, 'int', 'int/int/void*', this, (vplId:number, size: number, addressPtr: Stream) => {
+	@nativeFunction(0xAF36D708, 150, 'int', 'int/int/void*')
+	sceKernelTryAllocateVpl(vplId:number, size: number, addressPtr: Stream) {
 		var vpl = this.vplUid.get(vplId)
 		//console.log('sceKernelTryAllocateVpl', vplId, size, addressPtr);
 		try {
@@ -36,7 +38,7 @@ export class ThreadManForUser {
 			console.error(e);
 			return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
 		}
-	});
+	}
 }
 
 class Vpl {

@@ -94,7 +94,8 @@ export class Cso implements AsyncStream {
 		var blockIndexLow = Math.floor(offset / this.header.blockSize);
 		var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
 		var blockCount = blockIndexHigh - blockIndexLow + 1;
-		var skip = (this.header.blockSize - (offset % this.header.blockSize)) % this.header.blockSize;
+		//var skip = (this.header.blockSize - (offset % this.header.blockSize)) % this.header.blockSize;
+		var skip = offset % this.header.blockSize;
 		
 		return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(blocks => {
 			return Block.getBlocksUncompressedData(blocks).slice(skip);

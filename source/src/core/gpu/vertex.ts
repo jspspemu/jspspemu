@@ -57,12 +57,31 @@ export class VertexReaderFactory {
 
 export class VertexReader {
 	private readOneFunc: (output: _state.Vertex, inputOffset: number, f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array) => void;
+	private readSeveralIndexFunc: (output: _state.Vertex[], f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array, count: number, verticesOffset:number, indices: number[]) => void;
+	private readSeveralFunc: (output: _state.Vertex[], f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array, count: number, verticesOffset:number) => void;
 	private readOffset: number = 0;
 	public readCode: string;
 
 	constructor(public vertexState: _state.VertexState) {
 		this.readCode = this.createJs();
 		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
+		this.readSeveralIndexFunc = <any>(new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', `
+			"use strict";
+			for (var n = 0; n < count; n++) {
+				var index = indices[n];
+				var output = outputs[verticesOffset + n];
+				var inputOffset = index * ${vertexState.size};
+				${this.readCode}
+			}
+		`));
+		this.readSeveralFunc = <any>(new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', `
+			var inputOffset = 0;
+			for (var n = 0; n < count; n++) {
+				var output = outputs[verticesOffset + n];
+				${this.readCode}
+				inputOffset += this.vertexState.size;
+			}
+		`));
 	}
 
 	private oneOuput = [new _state.Vertex()];
@@ -90,19 +109,10 @@ export class VertexReader {
 
 		this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
 
-		//debugger;
-
 		if (hasIndex) {
-			for (var n = 0; n < count; n++) {
-				var index = indices[n];
-				this.readOneFunc(output[verticesOffset + n], index * this.vertexState.size, this.f32, this.s8, this.s16, this.s32);
-			}
+			this.readSeveralIndexFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices);
 		} else {
-			var inputOffset = 0;
-			for (var n = 0; n < count; n++) {
-				this.readOneFunc(output[verticesOffset + n], inputOffset, this.f32, this.s8, this.s16, this.s32);
-				inputOffset += this.vertexState.size;
-			}
+			this.readSeveralFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset);
 		}
 	}
 

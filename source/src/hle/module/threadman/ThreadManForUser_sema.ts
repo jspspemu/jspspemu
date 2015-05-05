@@ -3,7 +3,7 @@
 import _utils = require('../../utils');
 import _context = require('../../../context');
 import _cpu = require('../../../core/cpu');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager');
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
@@ -15,29 +15,32 @@ export class ThreadManForUser {
 
 	private semaporesUid = new UidCollection<Semaphore>(1);
 
-	sceKernelCreateSema = createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, (name: string, attribute: SemaphoreAttribute, initialCount: number, maxCount: number, options: Stream) => {
+	@nativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*')
+	sceKernelCreateSema(name: string, attribute: SemaphoreAttribute, initialCount: number, maxCount: number, options: Stream) {
 		var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
 		var id = this.semaporesUid.allocate(semaphore);
 		semaphore.id = id;
 		console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
 		return id;
-	});
+	}
 
-	sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, (id: number) => {
+	@nativeFunction(0x28B6489C, 150, 'int', 'int')
+	sceKernelDeleteSema(id: number) {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		semaphore.delete();
 		this.semaporesUid.remove(id);
 		return 0;
-	});
+	}
 
-	sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, (id: number, count: number, numWaitingThreadsPtr: Stream) => {
+	@nativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*')
+	sceKernelCancelSema(id: number, count: number, numWaitingThreadsPtr: Stream) {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		if (numWaitingThreadsPtr) numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
 		semaphore.cancel();
 		return 0;
-	});
+	}
 
 	private _sceKernelWaitSemaCB(currentThread: Thread, id: number, signal: number, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
 
@@ -51,15 +54,18 @@ export class ThreadManForUser {
 		}
 	}
 
-	sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
+	@nativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*')
+	sceKernelWaitSemaCB(currentThread: Thread, id: number, signal: number, timeout: Stream): any {
 		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.YES);
-	});
+	}
 
-	sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*', this, (currentThread: Thread, id: number, signal: number, timeout: Stream): any => {
+	@nativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*')
+	sceKernelWaitSema(currentThread: Thread, id: number, signal: number, timeout: Stream): any {
 		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.NO);
-	});
+	}
 
-	sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, (id: number, infoStream: Stream) => {
+	@nativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*')
+	sceKernelReferSemaStatus(id: number, infoStream: Stream) {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		var semaphoreInfo = new SceKernelSemaInfo();
@@ -72,9 +78,10 @@ export class ThreadManForUser {
 		semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
 		SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
 		return 0;
-	});
+	}
 
-	sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
+	@nativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int')
+	sceKernelSignalSema(currentThread: Thread, id: number, signal: number): any {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
 		var semaphore = this.semaporesUid.get(id);
 		var previousCount = semaphore.currentCount;
@@ -85,15 +92,16 @@ export class ThreadManForUser {
 		} else {
 			return 0;
 		}
-	});
+	}
 
-	sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int', this, (currentThread: Thread, id: number, signal: number): any => {
+	@nativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int')
+	sceKernelPollSema(currentThread: Thread, id: number, signal: number): any {
 		var semaphore = this.semaporesUid.get(id);
 		if (signal <= 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
 		if (signal > semaphore.currentCount) return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;
 		semaphore.incrementCount(-signal);
 		return 0;
-	});
+	}
 }
 
 class SceKernelSemaInfo {

@@ -5,7 +5,7 @@ import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager'); _manager.Thread;
 import SceKernelErrors = require('../SceKernelErrors');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;
 import Interop = _manager.Interop;
@@ -18,63 +18,71 @@ export class sceNetAdhocMatching {
 	private poolStat = { size: 0, maxsize: 0, freesize: 0 };
 
 	/** Initialise the Adhoc matching library */
-	sceNetAdhocMatchingInit = createNativeFunction(0x2A2A1E07, 150, 'int', 'int', this, (memSize: number) => {
+	@nativeFunction(0x2A2A1E07, 150, 'int', 'int')
+	sceNetAdhocMatchingInit(memSize: number) {
 		//stateOut.writeInt32(this.currentState);
 		this.poolStat.size = memSize;
 		this.poolStat.maxsize = memSize;
 		this.poolStat.freesize = memSize;
 		return 0;
-	});
+	}
 
 	/** Terminate the Adhoc matching library */
-	sceNetAdhocMatchingTerm = createNativeFunction(0x7945ECDA, 150, 'int', '', this, () => {
+	@nativeFunction(0x7945ECDA, 150, 'int', '')
+	sceNetAdhocMatchingTerm() {
 		return 0;
-	});
+	}
 
 	private matchings = new UidCollection<Matching>(1);
 
 	/** Create an Adhoc matching object */
-	sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint', this, (thread: Thread, mode: Mode, maxPeers: number, port: number, bufSize: number, helloDelay: number, pingDelay: number, initCount: number, msgDelay: number, callback: number) => {
+	@nativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint')
+	sceNetAdhocMatchingCreate(thread: Thread, mode: Mode, maxPeers: number, port: number, bufSize: number, helloDelay: number, pingDelay: number, initCount: number, msgDelay: number, callback: number) {
 		var matching = new Matching(this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
 		matching.id = this.matchings.allocate(matching);
 		return matching.id;
-	});
+	}
 
 	/** Select a matching target */
-	sceNetAdhocMatchingSelectTarget = createNativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*', this, (matchingId: number, macStream:Stream, dataLength: number, dataPointer: Stream) => {
+	@nativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*')
+	sceNetAdhocMatchingSelectTarget(matchingId: number, macStream:Stream, dataLength: number, dataPointer: Stream) {
 		var matching = this.matchings.get(matchingId);
 		var mac = macStream.readBytes(6);
 		matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
 		return 0;
-	});
+	}
 
-	sceNetAdhocMatchingCancelTarget = createNativeFunction(0xEA3C6108, 150, 'int', 'int/void*', this, (matchingId: number, mac: Stream) => {
+	@nativeFunction(0xEA3C6108, 150, 'int', 'int/void*')
+	sceNetAdhocMatchingCancelTarget(matchingId: number, mac: Stream) {
 		var matching = this.matchings.get(matchingId);
 		matching.cancelTarget(mac.readBytes(6));
 		return 0;
-	});
+	}
 
 	/** Delete an Adhoc matching object */
-	sceNetAdhocMatchingDelete = createNativeFunction(0xF16EAF4F, 150, 'int', 'int', this, (matchingId: number) => {
+	@nativeFunction(0xF16EAF4F, 150, 'int', 'int')
+	sceNetAdhocMatchingDelete(matchingId: number) {
 		this.matchings.remove(matchingId);
 		return 0;
-	});
+	}
 
 	/** Start a matching object */
-	sceNetAdhocMatchingStart = createNativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*', this, (matchingId: number, evthPri: number, evthStack: number, inthPri: number, inthStack: number, optLen: number, optData: Stream) => {
+	@nativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*')
+	sceNetAdhocMatchingStart(matchingId: number, evthPri: number, evthStack: number, inthPri: number, inthStack: number, optLen: number, optData: Stream) {
 		//throw (new Error("sceNetAdhocMatchingStart"));
 		var matching = this.matchings.get(matchingId);
 		matching.hello = optData.readBytes(optLen);
 		matching.start();
 		return 0;
-	});
+	}
 
 	/** Stop a matching object */
-	sceNetAdhocMatchingStop = createNativeFunction(0x32B156B3, 150, 'int', 'int', this, (matchingId:number) => {
+	@nativeFunction(0x32B156B3, 150, 'int', 'int')
+	sceNetAdhocMatchingStop(matchingId:number) {
 		var matching = this.matchings.get(matchingId);
 		matching.stop();
 		return 0;
-	});
+	}
 }
 
 export enum State {

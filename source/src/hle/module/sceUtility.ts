@@ -5,7 +5,7 @@ import _manager = require('../manager');
 import _vfs = require('../vfs');
 import _structs = require('../structs');
 import _context = require('../../context');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 
 import PspLanguages = _structs.PspLanguages;
@@ -18,18 +18,20 @@ export class sceUtility {
 
 	private currentStep: DialogStepEnum = DialogStepEnum.NONE;
 
-	sceUtilityLoadModule = createNativeFunction(0x2A2B3DE0, 150, 'uint', 'int', this, (pspModule: PspModule) => {
+	@nativeFunction(0x2A2B3DE0, 150, 'uint', 'int')
+	sceUtilityLoadModule(pspModule: PspModule) {
 		console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
 		return Promise2.resolve(0);
-	});
+	}
 
-	sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, (paramsPtr: Stream) => {
+	@nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
+	sceUtilitySavedataInitStart(paramsPtr: Stream) {
 		return Promise2.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
 			var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
 			params.base.result = result;
 			return 0;
 		});
-	});
+	}
 
 	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise2<number> {
 		console.log('sceUtilitySavedataInitStart');
@@ -150,14 +152,16 @@ export class sceUtility {
 		return Promise2.resolve(0);
 	}
 
-	sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, () => {
+	@nativeFunction(0x9790B33C, 150, 'uint', '')
+	sceUtilitySavedataShutdownStart() {
 		//console.log('sceUtilitySavedataShutdownStart');
 		//debugger;
 		this.currentStep = DialogStepEnum.SHUTDOWN;
 		return 0;
-	});
+	}
 
-	sceUtilitySavedataGetStatus = createNativeFunction(0x8874DBE0, 150, 'uint', '', this, () => {
+	@nativeFunction(0x8874DBE0, 150, 'uint', '')
+	sceUtilitySavedataGetStatus() {
 		//console.log('sceUtilitySavedataGetStatus');
 		//debugger;
 		try {
@@ -165,30 +169,34 @@ export class sceUtility {
 		} finally {
 			if (this.currentStep == DialogStepEnum.SHUTDOWN) this.currentStep = DialogStepEnum.NONE;
 		}
-	});
+	}
 
-	sceUtilityMsgDialogInitStart = createNativeFunction(0x2AD8E239, 150, 'uint', 'void*', this, (paramsPtr: Stream) => {
+	@nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
+	sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
 		console.warn("Not implemented sceUtilityMsgDialogInitStart()");
 		this.currentStep = DialogStepEnum.PROCESSING;
 
 		return 0;
-	});
+	}
 
-	sceUtilityMsgDialogGetStatus = createNativeFunction(0x9A1C91D7, 150, 'uint', '', this, () => {
+	@nativeFunction(0x9A1C91D7, 150, 'uint', '')
+	sceUtilityMsgDialogGetStatus() {
 		try {
 			return this.currentStep;
 		} finally {
 			if (this.currentStep == DialogStepEnum.SHUTDOWN) this.currentStep = DialogStepEnum.NONE;
 		}
-	});
+	}
 
-	sceUtilityMsgDialogUpdate = createNativeFunction(0x9A1C91D7, 150, 'uint', 'int', this, (value: number) => {
-	});
+	@nativeFunction(0x9A1C91D7, 150, 'uint', 'int')
+	sceUtilityMsgDialogUpdate(value: number) {
+	}
 
-	sceUtilityLoadNetModule = createNativeFunction(0x1579A159, 150, 'uint', '', this, () => {
+	@nativeFunction(0x1579A159, 150, 'uint', '')
+	sceUtilityLoadNetModule() {
 		console.warn('Not implemented sceUtilityLoadNetModule');
 		return 0;
-	});
+	}
 
 	private _getKey(id: PSP_SYSTEMPARAM_ID): any {
 		switch (id) {
@@ -205,23 +213,26 @@ export class sceUtility {
 		throw (new Error("Invalid key " + id));
 	}
 
-	sceUtilityGetSystemParamInt = createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, (id: PSP_SYSTEMPARAM_ID, valuePtr: Stream) => {
+	@nativeFunction(0xA5DA2406, 150, 'uint', 'int/void*')
+	sceUtilityGetSystemParamInt(id: PSP_SYSTEMPARAM_ID, valuePtr: Stream) {
 		//console.warn("Not implemented sceUtilityGetSystemParamInt", id, PSP_SYSTEMPARAM_ID[id]);
 		var value = parseInt(this._getKey(id));
 		if (valuePtr) valuePtr.writeInt32(value);
 		return 0;
-	});
+	}
 
-	sceUtilityGetSystemParamString = createNativeFunction(0x34B78343, 150, 'uint', 'int/void*/int', this, (id: PSP_SYSTEMPARAM_ID, strPtr: Stream, len: number) => {
+	@nativeFunction(0x34B78343, 150, 'uint', 'int/void*/int')
+	sceUtilityGetSystemParamString(id: PSP_SYSTEMPARAM_ID, strPtr: Stream, len: number) {
 		var value = String(this._getKey(id));
 		value = value.substr(0, Math.min(value.length, len - 1));
 		if (strPtr) strPtr.writeStringz(value);
 		return 0;
-	});
+	}
 
-	sceUtilityLoadAvModule = createNativeFunction(0xC629AF26, 150, 'uint', 'int', this, (id: number) => {
+	@nativeFunction(0xC629AF26, 150, 'uint', 'int')
+	sceUtilityLoadAvModule(id: number) {
 		return 0;
-	});
+	}
 }
 
 enum PSP_SYSTEMPARAM_ID {

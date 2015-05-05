@@ -4,7 +4,7 @@ import _utils = require('../utils');
 import _context = require('../../context');
 import _audio = require('../../core/audio');
 import _vag = require('../../format/vag');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 import Sample = _audio.Sample;
 import VagSoundSource = _vag.VagSoundSource;
@@ -32,7 +32,8 @@ export class sceSasCore {
 	constructor(private context: _context.EmulatorContext) {
 	}
 
-	__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, (sasCorePointer: number, grainSamples: number, maxVoices: number, outputMode: number, sampleRate: number) => {
+	@nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int')
+	__sceSasInit(sasCorePointer: number, grainSamples: number, maxVoices: number, outputMode: number, sampleRate: number) {
 		if (sampleRate != 44100) {
 			return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
 		}
@@ -59,19 +60,22 @@ export class sceSasCore {
 		//MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
 		
 		return 0;
-	});
+	}
 
-	__sceSasSetGrain = createNativeFunction(0xD1E0A01E, 150, 'uint', 'int/int', this, (sasCorePointer: number, grainSamples: number) => {
+	@nativeFunction(0xD1E0A01E, 150, 'uint', 'int/int')
+	__sceSasSetGrain(sasCorePointer: number, grainSamples: number) {
 		this.core.grainSamples = grainSamples;
 		return 0;
-	});
+	}
 
-	__sceSasSetOutputmode = createNativeFunction(0xE855BF76, 150, 'uint', 'int/int', this, (sasCorePointer: number, outputMode: OutputMode) => {
+	@nativeFunction(0xE855BF76, 150, 'uint', 'int/int')
+	__sceSasSetOutputmode(sasCorePointer: number, outputMode: OutputMode) {
 		this.core.outputMode = outputMode;
 		return 0;
-	});
+	}
 
-	__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, data: Stream, loop: number) => {
+	@nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int')
+	__sceSasSetVoice(sasCorePointer: number, voiceId: number, data: Stream, loop: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		if (data == null) {
@@ -89,9 +93,10 @@ export class sceSasCore {
 			voice.setAdpcm(data, loop);
 		}
 		return 0;
-	});
+	}
 
-	__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', this, (sasCorePointer: number, voiceId: number, data: Stream, loop: number) => {
+	@nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int')
+	__sceSasSetVoicePCM(sasCorePointer: number, voiceId: number, data: Stream, loop: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		if (data == null) {
@@ -100,36 +105,42 @@ export class sceSasCore {
 			voice.setPCM(data, loop);
 		}
 		return 0;
-	});
+	}
 
-	__sceSasCoreWithMix = createNativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int', this, (sasCorePointer: number, sasOut: Stream, leftVolume: number, rightVolume: number) => {
+	@nativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int')
+	__sceSasCoreWithMix(sasCorePointer: number, sasOut: Stream, leftVolume: number, rightVolume: number) {
 		return this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
-	});
+	}
 
-	__sceSasCore = createNativeFunction(0xA3589D81, 150, 'uint', 'int/void*', this, (sasCorePointer: number, sasOut: Stream) => {
+	@nativeFunction(0xA3589D81, 150, 'uint', 'int/void*')
+	__sceSasCore(sasCorePointer: number, sasOut: Stream) {
 		return this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
-	});
+	}
 
-	__sceSasGetEndFlag = createNativeFunction(0x68A46B95, 150, 'uint', 'int', this, (sasCorePointer: number) => {
+	@nativeFunction(0x68A46B95, 150, 'uint', 'int')
+	__sceSasGetEndFlag(sasCorePointer: number) {
 		return this.core.endFlags;
-	});
+	}
 
-	__sceSasRevType = createNativeFunction(0x33D4AB37, 150, 'uint', 'int/int', this, (sasCorePointer: number, waveformEffectType: WaveformEffectType) => {
+	@nativeFunction(0x33D4AB37, 150, 'uint', 'int/int')
+	__sceSasRevType(sasCorePointer: number, waveformEffectType: WaveformEffectType) {
 		this.core.waveformEffectType = waveformEffectType;
 		return 0;
-	});
+	}
 
-	__sceSasRevVON = createNativeFunction(0xF983B186, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, waveformEffectIsDry: boolean, waveformEffectIsWet: boolean) => {
+	@nativeFunction(0xF983B186, 150, 'uint', 'int/int/int')
+	__sceSasRevVON(sasCorePointer: number, waveformEffectIsDry: boolean, waveformEffectIsWet: boolean) {
 		this.core.waveformEffectIsDry = waveformEffectIsDry;
 		this.core.waveformEffectIsWet = waveformEffectIsWet;
 		return 0;
-	});
+	}
 
-	__sceSasRevEVOL = createNativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, leftVolume: number, rightVolume: number) => {
+	@nativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int')
+	__sceSasRevEVOL(sasCorePointer: number, leftVolume: number, rightVolume: number) {
 		this.core.leftVolume = leftVolume;
 		this.core.rightVolume = rightVolume;
 		return 0;
-	});
+	}
 	
 	private hasSasCoreVoice(sasCorePointer: number, voiceId: number) {
 		return this.core.voices[voiceId] != null;
@@ -139,7 +150,8 @@ export class sceSasCore {
 		return this.core.voices[voiceId];
 	}
 
-	__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackRate: number, decayRate: number, sustainRate: number, releaseRate: number) => {
+	@nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int')
+	__sceSasSetADSR(sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackRate: number, decayRate: number, sustainRate: number, releaseRate: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 
@@ -149,73 +161,83 @@ export class sceSasCore {
 		if (flags & AdsrFlags.HasRelease) voice.envelope.releaseRate = releaseRate;
 
 		return 0;
-	});
+	}
 
-	__sceSasSetADSRmode = createNativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackCurveMode: AdsrCurveMode, decayCurveMode: AdsrCurveMode, sustainCurveMode: AdsrCurveMode, releaseCurveMode: AdsrCurveMode) => {
+	@nativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int')
+	__sceSasSetADSRmode(sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackCurveMode: AdsrCurveMode, decayCurveMode: AdsrCurveMode, sustainCurveMode: AdsrCurveMode, releaseCurveMode: AdsrCurveMode) {
 		console.warn('__sceSasSetADSRmode not implemented!');
 		return 0;
-	});
+	}
 
-	__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+	@nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int')
+	__sceSasSetKeyOff(sasCorePointer: number, voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		if (!voice.paused) return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
 		voice.setOn(false);
 		return 0;
-	});
+	}
 
-	__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+	@nativeFunction(0x76F01ACA, 150, 'uint', 'int/int')
+	__sceSasSetKeyOn(sasCorePointer: number, voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		voice.setOn(true);
 		return 0;
-	});
+	}
 
-	__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, (sasCorePointer: number, voiceId: number) => {
+	@nativeFunction(0x74AE582A, 150, 'uint', 'int/int')
+	__sceSasGetEnvelopeHeight(sasCorePointer: number, voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		return voice.envelope.height;
-	});
+	}
 
-	__sceSasSetSL = createNativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, sustainLevel: number) => {
+	@nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int')
+	__sceSasSetSL(sasCorePointer: number, voiceId: number, sustainLevel: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		voice.sustainLevel = sustainLevel;
 		return 0;
-	});
+	}
 
-	__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceBits: number, pause: boolean) => {
+	@nativeFunction(0x787D04D5, 150, 'uint', 'int/int/int')
+	__sceSasSetPause(sasCorePointer: number, voiceBits: number, pause: boolean) {
 		this.core.voices.forEach((voice) => {
 			if (voiceBits & (1 << voice.index)) {
 				voice.paused = pause;
 			}
 		});
 		return 0;
-	});
+	}
 
-	__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, (sasCorePointer: number) => {
+	@nativeFunction(0x2C8E6AB3, 150, 'uint', 'int')
+	__sceSasGetPauseFlag(sasCorePointer: number) {
 		var voiceBits = 0;
 		this.core.voices.forEach((voice) => {
 			voiceBits |= (voice.paused ? 1 : 0) << voice.index;
 		});
 		return voiceBits;
-	});
+	}
 
-	__sceSasGetAllEnvelopeHeights = createNativeFunction(0x07F58C24, 150, 'uint', 'int/void*', this, (sasCorePointer: number, heightPtr: Stream) => {
+	@nativeFunction(0x07F58C24, 150, 'uint', 'int/void*')
+	__sceSasGetAllEnvelopeHeights(sasCorePointer: number, heightPtr: Stream) {
 		this.core.voices.forEach((voice) => {
 			heightPtr.writeInt32(voice.envelope.height);
 		});
 		return 0;
-	});
+	}
 
-	__sceSasSetNoise = createNativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, noiseFrequency: number) => {
+	@nativeFunction(0xB7660A23, 150, 'uint', 'int/int/int')
+	__sceSasSetNoise(sasCorePointer: number, voiceId: number, noiseFrequency: number) {
 		if (noiseFrequency < 0 || noiseFrequency >= 64) return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		return 0;
-	});
+	}
 
-	__sceSasSetVolume = createNativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int', this, (sasCorePointer: number, voiceId: number, leftVolume: number, rightVolume: number, effectLeftVol: number, effectRightVol: number) => {
+	@nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int')
+	__sceSasSetVolume(sasCorePointer: number, voiceId: number, leftVolume: number, rightVolume: number, effectLeftVol: number, effectRightVol: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		leftVolume = Math.abs(leftVolume);
@@ -233,29 +255,32 @@ export class sceSasCore {
 		voice.effectRightVolume = effectRightVol;
 
 		return 0;
-	});
+	}
 
-	__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, voiceId: number, pitch: number) => {
+	@nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int')
+	__sceSasSetPitch(sasCorePointer: number, voiceId: number, pitch: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX) return -1;
 		voice.pitch = pitch;
 
 		return 0;
-	});
+	}
 
-	__sceSasRevParam = createNativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', this, (sasCorePointer: number, delay: number, feedback: number) => {
+	@nativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int')
+	__sceSasRevParam(sasCorePointer: number, delay: number, feedback: number) {
 		this.core.delay = delay;
 		this.core.feedback = feedback;
 		// Not implemented
 		return 0;
-	});
+	}
 
-	__sceSasSetSimpleADSR = createNativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', this, (sasCorePointer: number, voiceId: number, env1Bitfield: number, env2Bitfield: number) => {
+	@nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int')
+	__sceSasSetSimpleADSR(sasCorePointer: number, voiceId: number, env1Bitfield: number, env2Bitfield: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
 		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 		return 0;
-	});
+	}
 }
 
 class SasCore {

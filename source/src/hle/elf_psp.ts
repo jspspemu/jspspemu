@@ -379,7 +379,9 @@ export class PspElfLoader {
             callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
 		}
 
-		console.warn("Can't find functions", unknownFunctions);
+		if (unknownFunctions.length > 0) {
+			console.warn("Can't find functions", unknownFunctions);
+		}
 
 		return {
 			name : moduleImport.name,

@@ -3,7 +3,7 @@
 import _utils = require('../utils');
 import _manager = require('../manager');
 import _context = require('../../context');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 import MemoryAnchor = _manager.MemoryAnchor;
 import Thread = _manager.Thread;
@@ -17,7 +17,8 @@ export class SysMemUserForUser {
 	private partitionUids = new UidCollection<MemoryPartition>(1);
 	private blockUids = new UidCollection<MemoryPartition>(1);
 
-	sceKernelAllocPartitionMemory = createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, (partitionId: number, name: string, anchor: MemoryAnchor, size: number, address: number) => {
+	@nativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int')
+	sceKernelAllocPartitionMemory(partitionId: number, name: string, anchor: MemoryAnchor, size: number, address: number) {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 
 		try {
@@ -29,9 +30,10 @@ export class SysMemUserForUser {
 			console.error(e);
 			return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
 		}
-	});
+	}
 
-	AllocMemoryBlock = createNativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*', this, (name: string, type: MemoryAnchor, size: number, paramsAddrPtr: Stream) => {
+	@nativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*')
+	AllocMemoryBlock(name: string, type: MemoryAnchor, size: number, paramsAddrPtr: Stream) {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 		if (type < 0 || type > 1) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE;
 		if (size == 0) return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
@@ -48,64 +50,75 @@ export class SysMemUserForUser {
 			console.error(e);
 			return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
 		}
-	});
+	}
 
-	GetMemoryBlockAddr = createNativeFunction(0xDB83A952, 150, 'int', 'int', this, (blockId: number) => {
+	@nativeFunction(0xDB83A952, 150, 'int', 'int')
+	GetMemoryBlockAddr(blockId: number) {
 		if (!this.blockUids.has(blockId)) return 0;
 		var block = this.blockUids.get(blockId);
 		return block.low;
-	});
+	}
 
-	FreeMemoryBlock = createNativeFunction(0x50F61D8A, 150, 'int', 'int', this, (blockId: number) => {
+	@nativeFunction(0x50F61D8A, 150, 'int', 'int')
+	FreeMemoryBlock(blockId: number) {
 		if (!this.blockUids.has(blockId)) return SceKernelErrors.ERROR_KERNEL_UNKNOWN_UID;
 		this.blockUids.remove(blockId);
 		return 0;
-	});
+	}
 
-	sceKernelFreePartitionMemory = createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, (partitionId: number) => {
+	@nativeFunction(0xB6D61D02, 150, 'int', 'int')
+	sceKernelFreePartitionMemory(partitionId: number) {
 		if (!this.partitionUids.has(partitionId)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
 		var partition = this.partitionUids.get(partitionId);
 		partition.deallocate();
 		this.partitionUids.remove(partitionId);
 		return 0;
-	});
+	}
 
-	sceKernelTotalFreeMemSize = createNativeFunction(0xF919F628, 150, 'int', '', this, () => {
+	@nativeFunction(0xF919F628, 150, 'int', '')
+	sceKernelTotalFreeMemSize() {
 		return this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
-	});
+	}
 
-	sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'uint', 'int', this, (partitionId: number) => {
+	@nativeFunction(0x9D9A5BA1, 150, 'uint', 'int')
+	sceKernelGetBlockHeadAddr(partitionId: number) {
 		if (!this.partitionUids.has(partitionId)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
 		var block = this.partitionUids.get(partitionId)
 		return block.low;
-	});
+	}
 
 	/**
 		* Get the size of the largest free memory block.
 		*/
-	sceKernelMaxFreeMemSize = createNativeFunction(0xA291F107, 150, 'int', '', this, () => {
+	@nativeFunction(0xA291F107, 150, 'int', '')
+	sceKernelMaxFreeMemSize() {
 		return this.context.memoryManager.userPartition.nonAllocatedPartitions.max(partition => partition.size).size;
-	});
+	}
 
-	sceKernelSetCompiledSdkVersion = createNativeFunction(0x7591C7DB, 150, 'int', 'uint', this, (sdkVersion: number) => {
+	@nativeFunction(0x7591C7DB, 150, 'int', 'uint')
+	sceKernelSetCompiledSdkVersion(sdkVersion: number) {
 		console.info(sprintf('sceKernelSetCompiledSdkVersion: %08X', sdkVersion));
-	});
+	}
 
-	sceKernelSetCompilerVersion = createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, (version: number) => {
+	@nativeFunction(0xF77D77CB, 150, 'int', 'uint')
+	sceKernelSetCompilerVersion(version: number) {
 		console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
-	});
+	}
 
-	sceKernelSetCompiledSdkVersion395 = createNativeFunction(0xEBD5C3E6, 150, 'int', 'uint', this, (param: number) => {
+	@nativeFunction(0xEBD5C3E6, 150, 'int', 'uint')
+	sceKernelSetCompiledSdkVersion395(param: number) {
 		console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
-	});
+	}
 
-	sceKernelDevkitVersion = createNativeFunction(0x3FC9AE6A, 150, 'int', 'uint', this, (version: number) => {
+	@nativeFunction(0x3FC9AE6A, 150, 'int', 'uint')
+	sceKernelDevkitVersion(version: number) {
 		//var Version = HleConfig.FirmwareVersion;
 		//return (Version.Major << 24) | (Version.Minor << 16) | (Version.Revision << 8) | 0x10;
 		return 0x02070110;
-	});
+	}
 
-	sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string', this, (thread: Thread, format: string) => {
+	@nativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string')
+	sceKernelPrintf(thread: Thread, format: string) {
 		var gprIndex = 5;
 		var memory = this.context.memory;
 		var gpr = thread.state.gpr;
@@ -121,5 +134,5 @@ export class SysMemUserForUser {
 			return readParam(data);
 		}));
 		//console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
-	});
+	}
 }

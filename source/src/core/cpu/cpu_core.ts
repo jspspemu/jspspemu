@@ -1052,7 +1052,7 @@ export interface CreateOptions {
 	tryCatch?: boolean;
 }
 
-export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, _this: any, internalFunc: Function, options?: CreateOptions) {
+export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, that: any, internalFunc: Function, options?: CreateOptions, classname?:string, name?:string) {
 	//var console = logger.named('createNativeFunction');
     var code = '';
 	//var code = 'debugger;';
@@ -1116,9 +1116,6 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     });
 
 	code += 'var error = false;\n';
-	//code += 'var args = [' + args.join(', ') + '];\n';
-	//code += 'var result = internalFunc.apply(_this, args);\n';
-
 	if (DEBUG_NATIVEFUNC) {
 		code += `console.info(nativeFunction.name);`;
 	}
@@ -1173,7 +1170,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     }
 
     var nativeFunction = new NativeFunction();
-    nativeFunction.name = 'unknown';
+    nativeFunction.name = name;
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	
@@ -1181,13 +1178,13 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		console.log(code);
 	}
 
+	nativeFunction.nativeCall = internalFunc.bind(that);
 	nativeFunction.call = <any>new Function(
-		'_this', 'logger', 'internalFunc', 'nativeFunction',
-		`return function(context, state) { "use strict"; /* ${addressToHex(nativeFunction.nid)} */\n${code} };`
+		'logger', 'internalFunc', 'nativeFunction',
+		`return function(context, state) { "use strict"; /* ${addressToHex(nativeFunction.nid)} ${classname}.${name} */\n${code} };`
 	)(
-		_this, logger, internalFunc, nativeFunction
+		logger, nativeFunction.nativeCall, nativeFunction
 	);
-	nativeFunction.nativeCall = internalFunc;
 
     return nativeFunction;
 }

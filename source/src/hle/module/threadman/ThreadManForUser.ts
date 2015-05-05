@@ -3,7 +3,7 @@
 import _utils = require('../../utils');
 import _context = require('../../../context');
 import _cpu = require('../../../core/cpu');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager'); _manager.Thread;
 
@@ -22,7 +22,8 @@ export class ThreadManForUser {
 
 	private threadUids = new UidCollection<Thread>(1);
 
-	sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread', this, (name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number, currentThread: Thread) => {
+	@nativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread')
+	sceKernelCreateThread(name: string, entryPoint: number, initPriority: number, stackSize: number, attributes: PspThreadAttributes, optionPtr: number, currentThread: Thread) {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 		if (stackSize < 0x200) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_STACK_SIZE;
 		if (initPriority < 0x08 || initPriority > 0x77) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_PRIORITY;
@@ -56,7 +57,7 @@ export class ThreadManForUser {
 			if (e instanceof OutOfMemoryError) return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
 			throw(e);
 		}
-	});
+	}
 	
 	hasThreadById(id: number) { return this.threadUids.has(id);  }
 
@@ -69,31 +70,39 @@ export class ThreadManForUser {
 		return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds, false), acceptCallbacks);
 	}
 
-	sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint', this, (thread:Thread, delayInMicroseconds: number) => {
+	@nativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint')
+	sceKernelDelayThread(thread:Thread, delayInMicroseconds: number) {
 		return this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.NO);
-	});
+	}
 
-	sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint', this, (thread: Thread, delayInMicroseconds: number) => {
+	@nativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint')
+	sceKernelDelayThreadCB(thread: Thread, delayInMicroseconds: number) {
 		return this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.YES);
-	});
+	}
 
 	private _sceKernelWaitThreadEndCB(thread: Thread, acceptCallbacks:AcceptCallbacks) {
 		return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(() => thread.exitStatus), acceptCallbacks);
 	}
 
-	sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, (threadId: number, timeoutPtr: Stream):any => {
+	@nativeFunction(0x840E8133, 150, 'uint', 'uint/void*')
+	sceKernelWaitThreadEndCB(threadId: number, timeoutPtr: Stream):any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		return this._sceKernelWaitThreadEndCB(this.getThreadById(threadId), AcceptCallbacks.YES);
-	});
+	}
 
-	sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, (threadId: number, timeoutPtr: Stream): any => {
+	@nativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*')
+	sceKernelWaitThreadEnd(threadId: number, timeoutPtr: Stream): any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		return this._sceKernelWaitThreadEndCB(this.getThreadById(threadId), AcceptCallbacks.NO);
-	});
+	}
 
-	sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, (currentThread: Thread) => currentThread.priority);
+	@nativeFunction(0x94AA61EE, 150, 'int', 'Thread')
+	sceKernelGetThreadCurrentPriority(currentThread: Thread) {
+		return currentThread.priority;
+	}
 
-	sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, (currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number):any => {
+	@nativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int')
+	sceKernelStartThread(currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number):any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var newThread = this.getThreadById(threadId);
 
@@ -118,28 +127,31 @@ export class ThreadManForUser {
 
 		newThread.start();
 		return Promise2.resolve(0);
-	});
+	}
 
-	sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, (currentThread: Thread, threadId: number, priority: number): any => {
+	@nativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int')
+	sceKernelChangeThreadPriority(currentThread: Thread, threadId: number, priority: number): any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.getThreadById(threadId);
 		thread.priority = priority;
 		return Promise2.resolve(0);
-	});
+	}
 
-	sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
+	@nativeFunction(0xAA73C935, 150, 'int', 'Thread/int')
+	sceKernelExitThread(currentThread: Thread, exitStatus: number) {
 		console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
 		currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
 		currentThread.stop('sceKernelExitThread');
 		throw new Error('CpuBreakException');
-	});
+	}
 
-	sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, (threadId: number) => {
+	@nativeFunction(0x3B183E26, 150, 'int', 'int')
+	sceKernelGetThreadExitStatus(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.getThreadById(threadId);
 		return thread.exitStatus;
-	});
+	}
 
 	_sceKernelTerminateThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
@@ -157,83 +169,98 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, (threadId: number) => {
+	@nativeFunction(0x9FA03CD3, 150, 'int', 'int')
+	sceKernelDeleteThread(threadId: number) {
 		return this._sceKernelDeleteThread(threadId);
-	});
+	}
 
-	sceKernelTerminateThread = createNativeFunction(0x616403BA, 150, 'int', 'int', this, (threadId: number) => {
+	@nativeFunction(0x616403BA, 150, 'int', 'int')
+	sceKernelTerminateThread(threadId: number) {
 		console.info(sprintf('sceKernelTerminateThread: %d', threadId));
 
 		return this._sceKernelTerminateThread(threadId);
-	});
+	}
 
-	sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, (currentThread: Thread, exitStatus: number) => {
+	@nativeFunction(0x809CE29B, 150, 'uint', 'Thread/int')
+	sceKernelExitDeleteThread(currentThread: Thread, exitStatus: number) {
 		currentThread.exitStatus = exitStatus;
 		currentThread.stop('sceKernelExitDeleteThread');
 		throw new Error('CpuBreakException');
-	});
+	}
 
-	sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, (threadId: number) => {
+	@nativeFunction(0x383F7BCC, 150, 'int', 'int')
+	sceKernelTerminateDeleteThread(threadId: number) {
 		this._sceKernelTerminateThread(threadId);
 		this._sceKernelDeleteThread(threadId);
 		return 0;
-	});
+	}
 
-	sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, (currentThread: Thread) => {
+	@nativeFunction(0x82826F70, 150, 'uint', 'Thread')
+	sceKernelSleepThreadCB(currentThread: Thread) {
 		return currentThread.wakeupSleepAsync(AcceptCallbacks.YES);
-	});
+	}
 
-	sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'Thread', this, (currentThread: Thread) => {
+	@nativeFunction(0x9ACE131E, 150, 'uint', 'Thread')
+	sceKernelSleepThread(currentThread: Thread) {
 		return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
-	});
+	}
 
-	sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, (threadId: number) => {
+	@nativeFunction(0xD59EAD2F, 150, 'uint', 'int')
+	sceKernelWakeupThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return Promise2.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
 		var thread = this.getThreadById(threadId);
 		return thread.wakeupWakeupAsync();
-	});
+	}
 
 	_getCurrentMicroseconds() {
 		return this.context.rtc.getCurrentUnixMicroseconds();
 	}
 
-	sceKernelUSec2SysClock = createNativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*', this, (microseconds: number, clockPtr: Stream) => {
+	@nativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*')
+	sceKernelUSec2SysClock(microseconds: number, clockPtr: Stream) {
 		if (clockPtr != null) clockPtr.writeInt64(Integer64.fromUnsignedInt(microseconds));
 		return 0;
-	});
+	}
 
-	sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, () => {
+	@nativeFunction(0x369ED59D, 150, 'uint', '')
+	sceKernelGetSystemTimeLow() {
 		return this._getCurrentMicroseconds();
-	});
+	}
 
-	sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, (timePtr: Stream) => {
+	@nativeFunction(0xDB738F35, 150, 'uint', 'void*')
+	sceKernelGetSystemTime(timePtr: Stream) {
 		if (timePtr == null) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
 		timePtr.writeInt64(Integer64.fromNumber(this._getCurrentMicroseconds()));
 		return 0;
-	});
+	}
 
-	sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, () => {
+	@nativeFunction(0x82BC5777, 150, 'long', '')
+	sceKernelGetSystemTimeWide() {
 		//console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
 		return Integer64.fromNumber(this._getCurrentMicroseconds());
-	}, { tryCatch: false });
+	}
 
-	sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, (currentThread: Thread) => {
+	@nativeFunction(0x293B45B8, 150, 'int', 'Thread')
+	sceKernelGetThreadId(currentThread: Thread) {
 		return currentThread.id
-	});
+	}
 
-	sceKernelSuspendThread = createNativeFunction(0x9944F31F, 150, 'int', 'int', this, (threadId: number) => {
+	@nativeFunction(0x9944F31F, 150, 'int', 'int')
+	sceKernelSuspendThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		this.getThreadById(threadId).suspend();
 		return 0;
-	});
+	}
 
-	sceKernelResumeThread = createNativeFunction(0x75156E8F, 150, 'int', 'int', this, (threadId: number) => {
+	@nativeFunction(0x75156E8F, 150, 'int', 'int')
+	sceKernelResumeThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		this.getThreadById(threadId).resume();
 		return 0;
-	});
+	}
 
-	sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, (threadId: number, sceKernelThreadInfoPtr: Stream) => {
+	@nativeFunction(0x17C1684E, 150, 'int', 'int/void*')
+	sceKernelReferThreadStatus(threadId: number, sceKernelThreadInfoPtr: Stream) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.getThreadById(threadId);
 
@@ -265,17 +292,19 @@ export class ThreadManForUser {
 		SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, info);
 
 		return 0;
-	});
+	}
 
-	sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint', this, (currentThread: Thread, removeAttributes: number, addAttributes: number) => {
+	@nativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint')
+	sceKernelChangeCurrentThreadAttr(currentThread: Thread, removeAttributes: number, addAttributes: number) {
 		currentThread.attributes &= ~removeAttributes;
 		currentThread.attributes |= addAttributes;
 		return 0;
-	});
+	}
 
-	sceKernelUSec2SysClockWide = createNativeFunction(0xC8CD158C, 150, 'int', 'uint', this, (microseconds: number) => {
+	@nativeFunction(0xC8CD158C, 150, 'int', 'uint')
+	sceKernelUSec2SysClockWide(microseconds: number) {
 		return microseconds;
-	});
+	}
 }
 
 class SceKernelThreadInfo {

@@ -4,7 +4,7 @@ import _utils = require('../utils');
 import SceKernelErrors = require('../SceKernelErrors');
 import _context = require('../../context');
 import _audio = require('../../core/audio');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 
 export class sceAudio {
 	private channels: Channel[] = [];
@@ -17,16 +17,19 @@ export class sceAudio {
 		return (channelId >= 0 && channelId < this.channels.length);
 	}
 
-	sceAudioOutput2Reserve = createNativeFunction(0x01562BA3, 150, 'uint', 'int', this, (sampleCount: number) => {
+	@nativeFunction(0x01562BA3, 150, 'uint', 'int')
+	sceAudioOutput2Reserve(sampleCount: number) {
 		console.warn('sceAudioOutput2Reserve not implemented!');
 		return 0;
-	});
+	}
 
-	sceAudioOutput2OutputBlocking = createNativeFunction(0x2D53F36E, 150, 'uint', 'int/void*', this, (volume: number, buffer: Stream) => {
+	@nativeFunction(0x2D53F36E, 150, 'uint', 'int/void*')
+	sceAudioOutput2OutputBlocking(volume: number, buffer: Stream) {
 		return waitAsync(10).then(() => 0);
-	});
+	}
 
-	sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, (channelId: number, sampleCount: number, format: AudioFormat) => {
+	@nativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int')
+	sceAudioChReserve(channelId: number, sampleCount: number, format: AudioFormat) {
 		if (channelId >= this.channels.length) return -1;
 		if (channelId < 0) {
 			channelId = this.channels.first(channel => !channel.allocated).id;
@@ -43,45 +46,50 @@ export class sceAudio {
 		channel.channel = this.context.audio.createChannel();
 		channel.channel.start();
         return channelId;
-	});
+	}
 	
 	private getChannelById(id: number) {
 		return this.channels[id];
 	}
 
-	sceAudioChRelease = createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, (channelId: number) => {
+	@nativeFunction(0x6FC46853, 150, 'uint', 'int')
+	sceAudioChRelease(channelId: number) {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.allocated = false;
 		channel.channel.stop();
 		channel.channel = null;
 		return 0;
-	});
+	}
 
-	sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, (channelId: number, format: AudioFormat) => {
+	@nativeFunction(0x95FD0C2D, 150, 'uint', 'int/int')
+	sceAudioChangeChannelConfig(channelId: number, format: AudioFormat) {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.format = format;
 		return 0;
-	});
+	}
 
-	sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, (channelId: number, sampleCount: number) => {
+	@nativeFunction(0xCB2E439E, 150, 'uint', 'int/int')
+	sceAudioSetChannelDataLen(channelId: number, sampleCount: number) {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.sampleCount = sampleCount;
 		return 0;
-	});
+	}
 
-	sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any => {
+	@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
+	sceAudioOutputPannedBlocking(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
 		if (!buffer) return -1;
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		if (!(result instanceof Promise2)) return result;
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
-	});
+	}
 
-	sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, (channelId: number, volume: number, buffer: Stream): any => {
+	@nativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*')
+	sceAudioOutputBlocking(channelId: number, volume: number, buffer: Stream): any {
 		if (!buffer) return -1;
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
@@ -89,31 +97,35 @@ export class sceAudio {
 		return result;
 		//debugger;
 		//return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
-	});
+	}
 
-	sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, (channelId: number, volume: number, buffer: Stream): any => {
+	@nativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*')
+	sceAudioOutput(channelId: number, volume: number, buffer: Stream): any {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		return 0;
-	});
+	}
 
-	sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any => {
+	@nativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*')
+	sceAudioOutputPanned(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
 		channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
 		return 0;
-	});
+	}
 
-	sceAudioChangeChannelVolume = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, (channelId: number, volumeLeft: number, volumeRight: number) => {
+	@nativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int')
+	sceAudioChangeChannelVolume(channelId: number, volumeLeft: number, volumeRight: number) {
 		console.warn("Not implemented sceAudioChangeChannelVolume");
 		return 0;
-	});
+	}
 
-	sceAudioGetChannelRestLen = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int', this, (channelId: number) => {
+	@nativeFunction(0xB7E1D8E7, 150, 'uint', 'int')
+	sceAudioGetChannelRestLen(channelId: number) {
 		console.warn("Not implemented sceAudioGetChannelRestLen");
 		return 0;
-	});
+	}
 }
 
 enum AudioFormat {

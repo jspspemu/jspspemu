@@ -3730,7 +3730,7 @@ exports.createNativeFunction = _core.createNativeFunction;
 
 },
 "src/core/cpu/assembler": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var instructions = require('./instructions');
 var Instructions = instructions.Instructions;
 var Instruction = instructions.Instruction;
@@ -3749,6 +3749,7 @@ var MipsAssembler = (function () {
         }
     };
     MipsAssembler.prototype.assemble = function (PC, line) {
+        //console.log(line);
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
@@ -3760,7 +3761,10 @@ var MipsAssembler = (function () {
         var instructionType = this.instructions.findByName(instructionName);
         var instruction = new Instruction(PC, instructionType.vm.value);
         var types = [];
-        var formatPattern = instructionType.format.replace('(', '\\(').replace(')', '\\)').replace(/(%\w+)/g, function (type) {
+        var formatPattern = instructionType.format
+            .replace('(', '\\(')
+            .replace(')', '\\)')
+            .replace(/(%\w+)/g, function (type) {
             types.push(type);
             switch (type) {
                 case '%J':
@@ -3772,7 +3776,8 @@ var MipsAssembler = (function () {
                 case '%c': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
                 default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
             }
-        }).replace(/\s+/g, '\\s*');
+        })
+            .replace(/\s+/g, '\\s*');
         var regex = new RegExp('^' + formatPattern + '$', '');
         var matches = instructionArguments.match(regex);
         if (matches === null) {
@@ -3837,7 +3842,7 @@ var MipsDisassembler = (function () {
     MipsDisassembler.prototype.disassemble = function (instruction) {
         var _this = this;
         var instructionType = this.instructions.findByData(instruction.data);
-        var arguments = instructionType.format.replace(/(\%\w+)/g, function (type) {
+        var args = instructionType.format.replace(/(\%\w+)/g, function (type) {
             switch (type) {
                 case '%s':
                     return _this.encodeRegister(instruction.rs);
@@ -3851,7 +3856,7 @@ var MipsDisassembler = (function () {
                 default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
-        return instructionType.name + ' ' + arguments;
+        return instructionType.name + ' ' + args;
     };
     return MipsDisassembler;
 })();
@@ -3859,22 +3864,18 @@ exports.MipsDisassembler = MipsDisassembler;
 
 },
 "src/core/cpu/ast_builder": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var state = require('./state');
 var ANode = (function () {
     function ANode() {
     }
-    ANode.prototype.toJs = function () {
-        return '';
-    };
-    ANode.prototype.optimize = function () {
-        return this;
-    };
+    ANode.prototype.toJs = function () { return ''; };
+    ANode.prototype.optimize = function () { return this; };
     return ANode;
 })();
 exports.ANode = ANode;
@@ -3900,9 +3901,7 @@ var ANodeStmReturn = (function (_super) {
     function ANodeStmReturn() {
         _super.apply(this, arguments);
     }
-    ANodeStmReturn.prototype.toJs = function () {
-        return 'return;';
-    };
+    ANodeStmReturn.prototype.toJs = function () { return 'return;'; };
     return ANodeStmReturn;
 })(ANodeStm);
 exports.ANodeStmReturn = ANodeStmReturn;
@@ -3954,9 +3953,7 @@ var ANodeStmRaw = (function (_super) {
         _super.call(this);
         this.content = content;
     }
-    ANodeStmRaw.prototype.toJs = function () {
-        return this.content;
-    };
+    ANodeStmRaw.prototype.toJs = function () { return this.content; };
     return ANodeStmRaw;
 })(ANodeStm);
 exports.ANodeStmRaw = ANodeStmRaw;
@@ -3966,9 +3963,7 @@ var ANodeStmExpr = (function (_super) {
         _super.call(this);
         this.expr = expr;
     }
-    ANodeStmExpr.prototype.toJs = function () {
-        return this.expr.toJs() + ';';
-    };
+    ANodeStmExpr.prototype.toJs = function () { return this.expr.toJs() + ';'; };
     return ANodeStmExpr;
 })(ANodeStm);
 exports.ANodeStmExpr = ANodeStmExpr;
@@ -3979,9 +3974,7 @@ var ANodeAllocVarStm = (function (_super) {
         this.name = name;
         this.initialValue = initialValue;
     }
-    ANodeAllocVarStm.prototype.toJs = function () {
-        return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';';
-    };
+    ANodeAllocVarStm.prototype.toJs = function () { return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';'; };
     return ANodeAllocVarStm;
 })(ANodeStm);
 exports.ANodeAllocVarStm = ANodeAllocVarStm;
@@ -3998,9 +3991,7 @@ var ANodeExprLValue = (function (_super) {
     function ANodeExprLValue() {
         _super.apply(this, arguments);
     }
-    ANodeExprLValue.prototype.toAssignJs = function (right) {
-        return '';
-    };
+    ANodeExprLValue.prototype.toAssignJs = function (right) { return ''; };
     return ANodeExprLValue;
 })(ANodeExpr);
 exports.ANodeExprLValue = ANodeExprLValue;
@@ -4038,12 +4029,8 @@ var ANodeExprLValueVar = (function (_super) {
         _super.call(this);
         this.name = name;
     }
-    ANodeExprLValueVar.prototype.toAssignJs = function (right) {
-        return this.name + ' = ' + right.toJs();
-    };
-    ANodeExprLValueVar.prototype.toJs = function () {
-        return this.name;
-    };
+    ANodeExprLValueVar.prototype.toAssignJs = function (right) { return this.name + ' = ' + right.toJs(); };
+    ANodeExprLValueVar.prototype.toJs = function () { return this.name; };
     return ANodeExprLValueVar;
 })(ANodeExprLValue);
 exports.ANodeExprLValueVar = ANodeExprLValueVar;
@@ -4053,9 +4040,7 @@ var ANodeExprI32 = (function (_super) {
         _super.call(this);
         this.value = value;
     }
-    ANodeExprI32.prototype.toJs = function () {
-        return String(this.value);
-    };
+    ANodeExprI32.prototype.toJs = function () { return String(this.value); };
     return ANodeExprI32;
 })(ANodeExpr);
 exports.ANodeExprI32 = ANodeExprI32;
@@ -4101,9 +4086,7 @@ var ANodeExprBinop = (function (_super) {
         if (!this.right || !this.right.toJs)
             debugger;
     }
-    ANodeExprBinop.prototype.toJs = function () {
-        return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')';
-    };
+    ANodeExprBinop.prototype.toJs = function () { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; };
     return ANodeExprBinop;
 })(ANodeExpr);
 exports.ANodeExprBinop = ANodeExprBinop;
@@ -4114,9 +4097,7 @@ var ANodeExprUnop = (function (_super) {
         this.op = op;
         this.right = right;
     }
-    ANodeExprUnop.prototype.toJs = function () {
-        return '(' + this.op + '(' + this.right.toJs() + '))';
-    };
+    ANodeExprUnop.prototype.toJs = function () { return '(' + this.op + '(' + this.right.toJs() + '))'; };
     return ANodeExprUnop;
 })(ANodeExpr);
 exports.ANodeExprUnop = ANodeExprUnop;
@@ -4131,9 +4112,7 @@ var ANodeExprAssign = (function (_super) {
         if (!this.right)
             debugger;
     }
-    ANodeExprAssign.prototype.toJs = function () {
-        return this.left.toAssignJs(this.right);
-    };
+    ANodeExprAssign.prototype.toJs = function () { return this.left.toAssignJs(this.right); };
     return ANodeExprAssign;
 })(ANodeExpr);
 exports.ANodeExprAssign = ANodeExprAssign;
@@ -4143,9 +4122,7 @@ var ANodeExprArray = (function (_super) {
         _super.call(this);
         this._items = _items;
     }
-    ANodeExprArray.prototype.toJs = function () {
-        return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']';
-    };
+    ANodeExprArray.prototype.toJs = function () { return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']'; };
     return ANodeExprArray;
 })(ANodeExpr);
 exports.ANodeExprArray = ANodeExprArray;
@@ -4162,9 +4139,7 @@ var ANodeExprCall = (function (_super) {
                 debugger;
         });
     }
-    ANodeExprCall.prototype.toJs = function () {
-        return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')';
-    };
+    ANodeExprCall.prototype.toJs = function () { return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')'; };
     return ANodeExprCall;
 })(ANodeExpr);
 exports.ANodeExprCall = ANodeExprCall;
@@ -4190,61 +4165,27 @@ exports.ANodeStmIf = ANodeStmIf;
 var AstBuilder = (function () {
     function AstBuilder() {
     }
-    AstBuilder.prototype.assign = function (ref, value) {
-        return new ANodeExprAssign(ref, value);
-    };
-    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) {
-        return new ANodeStmIf(cond, codeTrue, codeFalse);
-    };
-    AstBuilder.prototype.binop = function (left, op, right) {
-        return new ANodeExprBinop(left, op, right);
-    };
-    AstBuilder.prototype.unop = function (op, right) {
-        return new ANodeExprUnop(op, right);
-    };
-    AstBuilder.prototype.binop_i = function (left, op, right) {
-        return this.binop(left, op, this.imm32(right));
-    };
-    AstBuilder.prototype.imm32 = function (value) {
-        return new ANodeExprI32(value);
-    };
-    AstBuilder.prototype.imm_f = function (value) {
-        return new ANodeExprFloat(value);
-    };
-    AstBuilder.prototype.u_imm32 = function (value) {
-        return new ANodeExprU32(value);
-    };
-    AstBuilder.prototype.stm = function (expr) {
-        return expr ? (new ANodeStmExpr(expr)) : new ANodeStm();
-    };
-    AstBuilder.prototype.stms = function (stms) {
-        return new ANodeStmList(stms);
-    };
-    AstBuilder.prototype.array = function (exprList) {
-        return new ANodeExprArray(exprList);
-    };
+    AstBuilder.prototype.assign = function (ref, value) { return new ANodeExprAssign(ref, value); };
+    AstBuilder.prototype._if = function (cond, codeTrue, codeFalse) { return new ANodeStmIf(cond, codeTrue, codeFalse); };
+    AstBuilder.prototype.binop = function (left, op, right) { return new ANodeExprBinop(left, op, right); };
+    AstBuilder.prototype.unop = function (op, right) { return new ANodeExprUnop(op, right); };
+    AstBuilder.prototype.binop_i = function (left, op, right) { return this.binop(left, op, this.imm32(right)); };
+    AstBuilder.prototype.imm32 = function (value) { return new ANodeExprI32(value); };
+    AstBuilder.prototype.imm_f = function (value) { return new ANodeExprFloat(value); };
+    AstBuilder.prototype.u_imm32 = function (value) { return new ANodeExprU32(value); };
+    AstBuilder.prototype.stm = function (expr) { return expr ? (new ANodeStmExpr(expr)) : new ANodeStm(); };
+    AstBuilder.prototype.stms = function (stms) { return new ANodeStmList(stms); };
+    AstBuilder.prototype.array = function (exprList) { return new ANodeExprArray(exprList); };
     AstBuilder.prototype.arrayNumbers = function (values) {
         var _this = this;
         return this.array(values.map(function (value) { return _this.imm_f(value); }));
     };
-    AstBuilder.prototype.call = function (name, exprList) {
-        return new ANodeExprCall(name, exprList);
-    };
-    AstBuilder.prototype.jump = function (label) {
-        return new ANodeStmJump(label);
-    };
-    AstBuilder.prototype._return = function () {
-        return new ANodeStmReturn();
-    };
-    AstBuilder.prototype.raw_stm = function (content) {
-        return new ANodeStmRaw(content);
-    };
-    AstBuilder.prototype.raw = function (content) {
-        return new ANodeExprLValueVar(content);
-    };
-    AstBuilder.prototype.allocVar = function (name, initialValue) {
-        return new ANodeAllocVarStm(name, initialValue);
-    };
+    AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
+    AstBuilder.prototype.jump = function (label) { return new ANodeStmJump(label); };
+    AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
+    AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
+    AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
+    AstBuilder.prototype.allocVar = function (name, initialValue) { return new ANodeAllocVarStm(name, initialValue); };
     return AstBuilder;
 })();
 exports.AstBuilder = AstBuilder;
@@ -4257,9 +4198,7 @@ var MipsAstBuilder = (function (_super) {
         if (comment === void 0) { comment = '-'; }
         return new ANodeStmRaw("debugger; // " + comment + "\n");
     };
-    MipsAstBuilder.prototype.functionPrefix = function () {
-        return this.stm();
-    };
+    MipsAstBuilder.prototype.functionPrefix = function () { return this.stm(); };
     MipsAstBuilder.prototype.gpr = function (index) {
         if (index === 0)
             return new ANodeExprLValueVar('0');
@@ -4270,191 +4209,79 @@ var MipsAstBuilder = (function (_super) {
             return new ANodeExprLValueVar('0');
         return new ANodeExprLValueVar('state.gpr_f[' + index + ']');
     };
-    MipsAstBuilder.prototype.tempr = function (index) {
-        return new ANodeExprLValueVar('state.temp[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vector_vs = function (index) {
-        return new ANodeExprLValueVar('state.vector_vs[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vector_vt = function (index) {
-        return new ANodeExprLValueVar('state.vector_vt[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfpr = function (index) {
-        return new ANodeExprLValueVar('state.vfpr[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfprc = function (index) {
-        return new ANodeExprLValueVar('state.vfprc[' + index + ']');
-    };
-    MipsAstBuilder.prototype.vfpr_i = function (index) {
-        return new ANodeExprLValueVar('state.vfpr_i[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fpr = function (index) {
-        return new ANodeExprLValueVar('state.fpr[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fpr_i = function (index) {
-        return new ANodeExprLValueVar('state.fpr_i[' + index + ']');
-    };
-    MipsAstBuilder.prototype.fcr31_cc = function () {
-        return new ANodeExprLValueVar('state.fcr31_cc');
-    };
-    MipsAstBuilder.prototype.lo = function () {
-        return new ANodeExprLValueVar('state.LO');
-    };
-    MipsAstBuilder.prototype.hi = function () {
-        return new ANodeExprLValueVar('state.HI');
-    };
-    MipsAstBuilder.prototype.ic = function () {
-        return new ANodeExprLValueVar('state.IC');
-    };
-    MipsAstBuilder.prototype.pc = function () {
-        return new ANodeExprLValueVar('state.PC');
-    };
+    MipsAstBuilder.prototype.tempr = function (index) { return new ANodeExprLValueVar('state.temp[' + index + ']'); };
+    MipsAstBuilder.prototype.vector_vs = function (index) { return new ANodeExprLValueVar('state.vector_vs[' + index + ']'); };
+    MipsAstBuilder.prototype.vector_vt = function (index) { return new ANodeExprLValueVar('state.vector_vt[' + index + ']'); };
+    MipsAstBuilder.prototype.vfpr = function (index) { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); };
+    MipsAstBuilder.prototype.vfprc = function (index) { return new ANodeExprLValueVar('state.vfprc[' + index + ']'); };
+    MipsAstBuilder.prototype.vfpr_i = function (index) { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); };
+    MipsAstBuilder.prototype.fpr = function (index) { return new ANodeExprLValueVar('state.fpr[' + index + ']'); };
+    MipsAstBuilder.prototype.fpr_i = function (index) { return new ANodeExprLValueVar('state.fpr_i[' + index + ']'); };
+    MipsAstBuilder.prototype.fcr31_cc = function () { return new ANodeExprLValueVar('state.fcr31_cc'); };
+    MipsAstBuilder.prototype.lo = function () { return new ANodeExprLValueVar('state.LO'); };
+    MipsAstBuilder.prototype.hi = function () { return new ANodeExprLValueVar('state.HI'); };
+    MipsAstBuilder.prototype.ic = function () { return new ANodeExprLValueVar('state.IC'); };
+    MipsAstBuilder.prototype.pc = function () { return new ANodeExprLValueVar('state.PC'); };
     MipsAstBuilder.prototype.VCC = function (index) {
         return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
     };
-    MipsAstBuilder.prototype.ra = function () {
-        return new ANodeExprLValueVar('state.gpr[31]');
-    };
-    MipsAstBuilder.prototype.branchflag = function () {
-        return new ANodeExprLValueVar('state.BRANCHFLAG');
-    };
-    MipsAstBuilder.prototype.branchpc = function () {
-        return new ANodeExprLValueVar('state.BRANCHPC');
-    };
+    MipsAstBuilder.prototype.ra = function () { return new ANodeExprLValueVar('state.gpr[31]'); };
+    MipsAstBuilder.prototype.branchflag = function () { return new ANodeExprLValueVar('state.BRANCHFLAG'); };
+    MipsAstBuilder.prototype.branchpc = function () { return new ANodeExprLValueVar('state.BRANCHPC'); };
     MipsAstBuilder.prototype.assignGpr = function (index, expr) {
         if (index == 0)
             return this.stm();
         return this.stm(this.assign(this.gpr(index), expr));
     };
-    MipsAstBuilder.prototype.assignIC = function (expr) {
-        return this.stm(this.assign(this.ic(), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr = function (index, expr) {
-        return this.stm(this.assign(this.fpr(index), expr));
-    };
-    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) {
-        return this.stm(this.assign(this.fpr_i(index), expr));
-    };
+    MipsAstBuilder.prototype.assignIC = function (expr) { return this.stm(this.assign(this.ic(), expr)); };
+    MipsAstBuilder.prototype.assignFpr = function (index, expr) { return this.stm(this.assign(this.fpr(index), expr)); };
+    MipsAstBuilder.prototype.assignFpr_I = function (index, expr) { return this.stm(this.assign(this.fpr_i(index), expr)); };
     return MipsAstBuilder;
 })(AstBuilder);
 exports.MipsAstBuilder = MipsAstBuilder;
 
 },
 "src/core/cpu/codegen": function(module, exports, require) {
-var instructions = require('./instructions');
+///<reference path="../../global.d.ts" />
 var _ast = require('./ast_builder');
 var ast;
-function assignGpr(index, expr) {
-    return ast.assignGpr(index, expr);
-}
-function assignFpr(index, expr) {
-    return ast.assignFpr(index, expr);
-}
-function assignFpr_I(index, expr) {
-    return ast.assignFpr_I(index, expr);
-}
-function assignIC(expr) {
-    return ast.assignIC(expr);
-}
-function fcr31_cc() {
-    return ast.fcr31_cc();
-}
-function fpr(index) {
-    return ast.fpr(index);
-}
-function fpr_i(index) {
-    return ast.fpr_i(index);
-}
-function gpr(index) {
-    return ast.gpr(index);
-}
-function gpr_f(index) {
-    return ast.gpr_f(index);
-}
-function tempr(index) {
-    return ast.tempr(index);
-}
-function vfpr(reg) {
-    return ast.vfpr(reg);
-}
-function vfprc(reg) {
-    return ast.vfprc(reg);
-}
-function vfpr_i(index) {
-    return ast.vfpr_i(index);
-}
-function immBool(value) {
-    return ast.imm32(value ? 1 : 0);
-}
-function imm32(value) {
-    return ast.imm32(value);
-}
-function imm_f(value) {
-    return ast.imm_f(value);
-}
-function u_imm32(value) {
-    return ast.u_imm32(value);
-}
-function unop(op, right) {
-    return ast.unop(op, right);
-}
-function binop(left, op, right) {
-    return ast.binop(left, op, right);
-}
-function binop_i(left, op, right) {
-    return ast.binop_i(left, op, right);
-}
-function _if(cond, codeTrue, codeFalse) {
-    return ast._if(cond, codeTrue, codeFalse);
-}
-function call(name, exprList) {
-    return ast.call(name, exprList);
-}
-function call_stm(name, exprList) {
-    return stm(ast.call(name, exprList));
-}
-function stm(expr) {
-    return ast.stm(expr);
-}
-function stms(stms) {
-    return ast.stms(stms);
-}
-function pc() {
-    return ast.pc();
-}
-function lo() {
-    return ast.lo();
-}
-function hi() {
-    return ast.hi();
-}
-function ic() {
-    return ast.ic();
-}
-function branchflag() {
-    return ast.branchflag();
-}
-function branchpc() {
-    return ast.branchpc();
-}
-function assign(ref, value) {
-    return ast.assign(ref, value);
-}
-function assign_stm(ref, value) {
-    return stm(ast.assign(ref, value));
-}
-function i_simm16(i) {
-    return imm32(i.imm16);
-}
-function i_uimm16(i) {
-    return u_imm32(i.u_imm16);
-}
-function rs_imm16(i) {
-    return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0));
-}
-function cast_uint(expr) {
-    return binop(expr, '>>>', ast.imm32(0));
-}
+function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
+function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
+function assignFpr_I(index, expr) { return ast.assignFpr_I(index, expr); }
+function assignIC(expr) { return ast.assignIC(expr); }
+function fcr31_cc() { return ast.fcr31_cc(); }
+function fpr(index) { return ast.fpr(index); }
+function fpr_i(index) { return ast.fpr_i(index); }
+function gpr(index) { return ast.gpr(index); }
+function gpr_f(index) { return ast.gpr_f(index); }
+function tempr(index) { return ast.tempr(index); }
+function vfpr(reg) { return ast.vfpr(reg); }
+function vfprc(reg) { return ast.vfprc(reg); }
+function vfpr_i(index) { return ast.vfpr_i(index); }
+function immBool(value) { return ast.imm32(value ? 1 : 0); }
+function imm32(value) { return ast.imm32(value); }
+function imm_f(value) { return ast.imm_f(value); }
+function u_imm32(value) { return ast.u_imm32(value); }
+function unop(op, right) { return ast.unop(op, right); }
+function binop(left, op, right) { return ast.binop(left, op, right); }
+function binop_i(left, op, right) { return ast.binop_i(left, op, right); }
+function _if(cond, codeTrue, codeFalse) { return ast._if(cond, codeTrue, codeFalse); }
+function call(name, exprList) { return ast.call(name, exprList); }
+function call_stm(name, exprList) { return stm(ast.call(name, exprList)); }
+function stm(expr) { return ast.stm(expr); }
+function stms(stms) { return ast.stms(stms); }
+function pc() { return ast.pc(); }
+function lo() { return ast.lo(); }
+function hi() { return ast.hi(); }
+function ic() { return ast.ic(); }
+function branchflag() { return ast.branchflag(); }
+function branchpc() { return ast.branchpc(); }
+function assign(ref, value) { return ast.assign(ref, value); }
+function assign_stm(ref, value) { return stm(ast.assign(ref, value)); }
+function i_simm16(i) { return imm32(i.imm16); }
+function i_uimm16(i) { return u_imm32(i.u_imm16); }
+function rs_imm16(i) { return binop(binop(gpr(i.rs), '+', imm32(i.imm16)), '|', imm32(0)); }
+function cast_uint(expr) { return binop(expr, '>>>', ast.imm32(0)); }
 var VMatRegClass = (function () {
     function VMatRegClass(reg) {
         this.reg = reg;
@@ -4489,7 +4316,7 @@ var VVecRegClass = (function () {
     VVecRegClass.prototype._setVector = function (generator) {
         var array = [];
         var statements = [];
-        var regs = getVectorRegs(this.reg, 4 /* Quad */);
+        var regs = getVectorRegs(this.reg, VectorSize.Quad);
         statements.push(stm(ast.call('state.vfpuStore', [
             ast.array(regs.map(function (item) { return imm32(item); })),
             ast.array([0, 1, 2, 3].map(function (index) { return generator(index); }))
@@ -4531,20 +4358,20 @@ function getVectorRegs(vectorReg, N) {
     var length = 0;
     var transpose = (vectorReg >>> 5) & 1;
     switch (N) {
-        case 1 /* Single */:
+        case VectorSize.Single:
             transpose = 0;
             row = (vectorReg >>> 5) & 3;
             length = 1;
             break;
-        case 2 /* Pair */:
+        case VectorSize.Pair:
             row = (vectorReg >>> 5) & 2;
             length = 2;
             break;
-        case 3 /* Triple */:
+        case VectorSize.Triple:
             row = (vectorReg >>> 6) & 1;
             length = 3;
             break;
-        case 4 /* Quad */:
+        case VectorSize.Quad:
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
@@ -4569,15 +4396,15 @@ function getMatrixRegs(matrixReg, N) {
     var row = 0;
     var side = 0;
     switch (N) {
-        case 2 /* M_2x2 */:
+        case MatrixSize.M_2x2:
             row = (matrixReg >> 5) & 2;
             side = 2;
             break;
-        case 3 /* M_3x3 */:
+        case MatrixSize.M_3x3:
             row = (matrixReg >> 6) & 1;
             side = 3;
             break;
-        case 4 /* M_4x4 */:
+        case MatrixSize.M_4x4:
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
@@ -4775,9 +4602,7 @@ var InstructionAst = (function () {
         this._vpfxt.eat();
         this._vpfxd.eat();
     };
-    InstructionAst.prototype.lui = function (i) {
-        return assignGpr(i.rt, u_imm32(i.imm16 << 16));
-    };
+    InstructionAst.prototype.lui = function (i) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); };
     InstructionAst.prototype._vset1 = function (i, generate, destSize, destType) {
         if (destSize === void 0) { destSize = 0; }
         if (destType === void 0) { destType = 'float'; }
@@ -4870,39 +4695,17 @@ var InstructionAst = (function () {
             call_stm('state.setVpfxd', [imm32(i.data)]),
         ]);
     };
-    InstructionAst.prototype["lv.s"] = function (i) {
-        return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)]));
-    };
-    InstructionAst.prototype["sv.s"] = function (i) {
-        return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]);
-    };
-    InstructionAst.prototype["lv.q"] = function (i) {
-        return setItems(readVector_f(i.VT5_1, 4 /* Quad */), getMemoryVector(address_RS_IMM14(i), 4));
-    };
-    InstructionAst.prototype["lvl.q"] = function (i) {
-        return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["lvr.q"] = function (i) {
-        return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["sv.q"] = function (i) {
-        return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, 4 /* Quad */));
-    };
-    InstructionAst.prototype["svl.q"] = function (i) {
-        return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype["svr.q"] = function (i) {
-        return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]);
-    };
-    InstructionAst.prototype.viim = function (i) {
-        return assign_stm(vfpr(i.VT), imm32(i.imm16));
-    };
-    InstructionAst.prototype.vfim = function (i) {
-        return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF));
-    };
-    InstructionAst.prototype.vcst = function (i) {
-        return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value));
-    };
+    InstructionAst.prototype["lv.s"] = function (i) { return assign_stm(vfpr(i.VT5_2), call('state.lwc1', [address_RS_IMM14(i, 0)])); };
+    InstructionAst.prototype["sv.s"] = function (i) { return call_stm('state.swc1', [vfpr(i.VT5_2), address_RS_IMM14(i, 0)]); };
+    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); };
+    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, VectorSize.Quad)); };
+    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype.viim = function (i) { return assign_stm(vfpr(i.VT), imm32(i.imm16)); };
+    InstructionAst.prototype.vfim = function (i) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); };
+    InstructionAst.prototype.vcst = function (i) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); };
     InstructionAst.prototype.vhdp = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -4912,15 +4715,9 @@ var InstructionAst = (function () {
             });
         }, 1, vectorSize, vectorSize);
     };
-    InstructionAst.prototype.vmidt = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32((c == r) ? 1 : 0); });
-    };
-    InstructionAst.prototype.vmzero = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(0); });
-    };
-    InstructionAst.prototype.vmone = function (i) {
-        return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(1); });
-    };
+    InstructionAst.prototype.vmidt = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32((c == r) ? 1 : 0); }); };
+    InstructionAst.prototype.vmzero = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(0); }); };
+    InstructionAst.prototype.vmone = function (i) { return setMatrix(getMatrixRegsVD(i), function (c, r) { return imm32(1); }); };
     InstructionAst.prototype._vtfm_x = function (i, vectorSize) {
         var _this = this;
         var srcMat = readMatrix(i.VS, vectorSize);
@@ -4949,44 +4746,22 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return stms(st);
     };
-    InstructionAst.prototype.vtfm2 = function (i) {
-        return this._vtfm_x(i, 2);
-    };
-    InstructionAst.prototype.vtfm3 = function (i) {
-        return this._vtfm_x(i, 3);
-    };
-    InstructionAst.prototype.vtfm4 = function (i) {
-        return this._vtfm_x(i, 4);
-    };
-    InstructionAst.prototype.vhtfm2 = function (i) {
-        return this._vhtfm_x(i, 2);
-    };
-    InstructionAst.prototype.vhtfm3 = function (i) {
-        return this._vhtfm_x(i, 3);
-    };
-    InstructionAst.prototype.vhtfm4 = function (i) {
-        return this._vhtfm_x(i, 4);
-    };
+    InstructionAst.prototype.vtfm2 = function (i) { return this._vtfm_x(i, 2); };
+    InstructionAst.prototype.vtfm3 = function (i) { return this._vtfm_x(i, 3); };
+    InstructionAst.prototype.vtfm4 = function (i) { return this._vtfm_x(i, 4); };
+    InstructionAst.prototype.vhtfm2 = function (i) { return this._vhtfm_x(i, 2); };
+    InstructionAst.prototype.vhtfm3 = function (i) { return this._vhtfm_x(i, 3); };
+    InstructionAst.prototype.vhtfm4 = function (i) { return this._vhtfm_x(i, 4); };
     InstructionAst.prototype.vmscl = function (i) {
         var vectorSize = i.ONE_TWO;
         var src = readMatrix(i.VS, vectorSize);
         return setMatrix(getMatrixRegsVD(i), function (c, r, index) { return binop(src[index], '*', vfpr(i.VT)); });
     };
-    InstructionAst.prototype.vzero = function (i) {
-        return this._vset1(i, function (i) { return imm_f(0); });
-    };
-    InstructionAst.prototype.vone = function (i) {
-        return this._vset1(i, function (i) { return imm_f(1); });
-    };
-    InstructionAst.prototype.vmov = function (i) {
-        return this._vset3(i, function (i, s, t) { return s[i]; });
-    };
-    InstructionAst.prototype.vrcp = function (i) {
-        return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); });
-    };
-    InstructionAst.prototype.vmul = function (i) {
-        return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); });
-    };
+    InstructionAst.prototype.vzero = function (i) { return this._vset1(i, function (i) { return imm_f(0); }); };
+    InstructionAst.prototype.vone = function (i) { return this._vset1(i, function (i) { return imm_f(1); }); };
+    InstructionAst.prototype.vmov = function (i) { return this._vset3(i, function (i, s, t) { return s[i]; }); };
+    InstructionAst.prototype.vrcp = function (i) { return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); }); };
+    InstructionAst.prototype.vmul = function (i) { return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); }); };
     InstructionAst.prototype.vbfy1 = function (i) {
         return this._vset2(i, function (i, src) {
             switch (i) {
@@ -5065,32 +4840,18 @@ var InstructionAst = (function () {
             }
         }, i.ONE_TWO, 4);
     };
-    InstructionAst.prototype.vrnds = function (i) {
-        return call_stm('state.vrnds', []);
-    };
-    InstructionAst.prototype.vrndi = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int');
-    };
-    InstructionAst.prototype.vrndf1 = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndf1', []); });
-    };
-    InstructionAst.prototype.vrndf2 = function (i) {
-        return this._vset1(i, function (i) { return call('state.vrndf2', []); });
-    };
+    InstructionAst.prototype.vrnds = function (i) { return call_stm('state.vrnds', []); };
+    InstructionAst.prototype.vrndi = function (i) { return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int'); };
+    InstructionAst.prototype.vrndf1 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf1', []); }); };
+    InstructionAst.prototype.vrndf2 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf2', []); }); };
     InstructionAst.prototype._aggregateV = function (val, size, generator) {
         for (var n = 0; n < size; n++)
             val = generator(val, n);
         return val;
     };
-    InstructionAst.prototype.vnop = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsync = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vflush = function (i) {
-        return ast.stm();
-    };
+    InstructionAst.prototype.vnop = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vsync = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vflush = function (i) { return ast.stm(); };
     InstructionAst.prototype.vfad = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -5128,39 +4889,17 @@ var InstructionAst = (function () {
             }
         }, 3, 3, 3);
     };
-    InstructionAst.prototype.vc2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int');
-    };
-    InstructionAst.prototype.vuc2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vuc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int');
-    };
-    InstructionAst.prototype.vs2i = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]); }, i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int');
-    };
-    InstructionAst.prototype.vi2f = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]); }, 0, 0, 'float', 'int');
-    };
-    InstructionAst.prototype.vi2uc = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]); }, 1, 4, 'int', 'int');
-    };
-    InstructionAst.prototype.vf2id = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2in = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2iu = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2iz = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float');
-    };
-    InstructionAst.prototype.vf2h = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vf2h', [imm32(index), src[index]]); }, 0, 0, 'float', 'float');
-    };
-    InstructionAst.prototype.vh2f = function (i) {
-        return this._vset2(i, function (index, src) { return call('MathVfpu.vh2f', [imm32(index), src[index]]); }, 0, 0, 'float', 'float');
-    };
+    InstructionAst.prototype.vc2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int'); };
+    InstructionAst.prototype.vuc2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vuc2i', [imm32(index), src[0]]); }, 0, 1, 'int', 'int'); };
+    InstructionAst.prototype.vs2i = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]); }, i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int'); };
+    InstructionAst.prototype.vi2f = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]); }, 0, 0, 'float', 'int'); };
+    InstructionAst.prototype.vi2uc = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]); }, 1, 4, 'int', 'int'); };
+    InstructionAst.prototype.vf2id = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2in = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2iu = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2iz = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]); }, 0, 0, 'int', 'float'); };
+    InstructionAst.prototype.vf2h = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vf2h', [imm32(index), src[index]]); }, 0, 0, 'float', 'float'); };
+    InstructionAst.prototype.vh2f = function (i) { return this._vset2(i, function (index, src) { return call('MathVfpu.vh2f', [imm32(index), src[index]]); }, 0, 0, 'float', 'float'); };
     InstructionAst.prototype.vdet = function (i) {
         return this._vset3(i, function (i, s, t) {
             return binop(binop(s[0], '*', t[1]), '-', binop(s[1], '*', t[0]));
@@ -5176,21 +4915,11 @@ var InstructionAst = (function () {
             }
         }, 4, 4, 4);
     };
-    InstructionAst.prototype.vslt = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vslt', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsle = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsle', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsge = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsge', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vsgt = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.vsgt', [s[i], t[i]]); });
-    };
-    InstructionAst.prototype.vscmp = function (i) {
-        return this._vset3(i, function (i, s, t) { return call('MathFloat.sign2', [s[i], t[i]]); });
-    };
+    InstructionAst.prototype.vslt = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vslt', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsle = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsle', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsge = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsge', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vsgt = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.vsgt', [s[i], t[i]]); }); };
+    InstructionAst.prototype.vscmp = function (i) { return this._vset3(i, function (i, s, t) { return call('MathFloat.sign2', [s[i], t[i]]); }); };
     InstructionAst.prototype._bvtf = function (i, cond) {
         var reg = i.IMM3;
         var branchExpr = ast.VCC(reg);
@@ -5198,24 +4927,12 @@ var InstructionAst = (function () {
             branchExpr = unop("!", branchExpr);
         return this._branch(i, branchExpr);
     };
-    InstructionAst.prototype.bvf = function (i) {
-        return this._bvtf(i, false);
-    };
-    InstructionAst.prototype.bvt = function (i) {
-        return this._bvtf(i, true);
-    };
-    InstructionAst.prototype.bvfl = function (i) {
-        return this.bvf(i);
-    };
-    InstructionAst.prototype.bvtl = function (i) {
-        return this.bvt(i);
-    };
-    InstructionAst.prototype.mtv = function (i) {
-        return this._vset1(i, function (_) { return gpr(i.rt); }, 1, 'int');
-    };
-    InstructionAst.prototype.mfv = function (i) {
-        return assign_stm(gpr(i.rt), vfpr_i(i.VD));
-    };
+    InstructionAst.prototype.bvf = function (i) { return this._bvtf(i, false); };
+    InstructionAst.prototype.bvt = function (i) { return this._bvtf(i, true); };
+    InstructionAst.prototype.bvfl = function (i) { return this.bvf(i); };
+    InstructionAst.prototype.bvtl = function (i) { return this.bvt(i); };
+    InstructionAst.prototype.mtv = function (i) { return this._vset1(i, function (_) { return gpr(i.rt); }, 1, 'int'); };
+    InstructionAst.prototype.mfv = function (i) { return assign_stm(gpr(i.rt), vfpr_i(i.VD)); };
     InstructionAst.prototype.mtvc = function (i) {
         switch (i.IMM7) {
             case 0:
@@ -5243,12 +4960,8 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.vcmovt = function (i) {
-        return this._vcmovtf(i, true);
-    };
-    InstructionAst.prototype.vcmovf = function (i) {
-        return this._vcmovtf(i, false);
-    };
+    InstructionAst.prototype.vcmovt = function (i) { return this._vcmovtf(i, true); };
+    InstructionAst.prototype.vcmovf = function (i) { return this._vcmovtf(i, false); };
     InstructionAst.prototype.vcmp = function (i) {
         var result = call_stm('state.vcmp', [
             imm32(i.IMM4),
@@ -5258,80 +4971,34 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.vwbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vsbn = function (i) {
-        return ast.stm();
-    };
-    InstructionAst.prototype.vabs = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); });
-    };
-    InstructionAst.prototype.vocp = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.ocp', [src[i]]); });
-    };
-    InstructionAst.prototype.vneg = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.neg', [src[i]]); });
-    };
-    InstructionAst.prototype.vsgn = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sign', [src[i]]); });
-    };
-    InstructionAst.prototype.vsat0 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sat0', [src[i]]); });
-    };
-    InstructionAst.prototype.vsat1 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sat1', [src[i]]); });
-    };
-    InstructionAst.prototype.vrsq = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.rsq', [src[i]]); });
-    };
-    InstructionAst.prototype.vsin = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sinv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vcos = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.cosv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vexp2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.exp2', [src[i]]); });
-    };
-    InstructionAst.prototype.vrexp2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.rexp2', [src[i]]); });
-    };
-    InstructionAst.prototype.vlog2 = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); });
-    };
-    InstructionAst.prototype.vsqrt = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); });
-    };
+    InstructionAst.prototype.vwbn = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vsbn = function (i) { return ast.stm(); };
+    InstructionAst.prototype.vabs = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); }); };
+    InstructionAst.prototype.vocp = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.ocp', [src[i]]); }); };
+    InstructionAst.prototype.vneg = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.neg', [src[i]]); }); };
+    InstructionAst.prototype.vsgn = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sign', [src[i]]); }); };
+    InstructionAst.prototype.vsat0 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sat0', [src[i]]); }); };
+    InstructionAst.prototype.vsat1 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sat1', [src[i]]); }); };
+    InstructionAst.prototype.vrsq = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.rsq', [src[i]]); }); };
+    InstructionAst.prototype.vsin = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sinv1', [src[i]]); }); };
+    InstructionAst.prototype.vcos = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.cosv1', [src[i]]); }); };
+    InstructionAst.prototype.vexp2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.exp2', [src[i]]); }); };
+    InstructionAst.prototype.vrexp2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.rexp2', [src[i]]); }); };
+    InstructionAst.prototype.vlog2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); }); };
+    InstructionAst.prototype.vsqrt = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); }); };
     InstructionAst.prototype.vasin = function (i) {
         return stms([
             this._vset2(i, function (i, src) { return call('MathFloat.asinv1', [src[i]]); }),
         ]);
     };
-    InstructionAst.prototype.vnsin = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.nsinv1', [src[i]]); });
-    };
-    InstructionAst.prototype.vnrcp = function (i) {
-        return this._vset2(i, function (i, src) { return call('MathFloat.nrcp', [src[i]]); });
-    };
-    InstructionAst.prototype.vmin = function (i) {
-        return this._vset3(i, function (i, src, target) { return call('MathFloat.min', [src[i], target[i]]); });
-    };
-    InstructionAst.prototype.vmax = function (i) {
-        return this._vset3(i, function (i, src, target) { return call('MathFloat.max', [src[i], target[i]]); });
-    };
-    InstructionAst.prototype.vdiv = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '/', target[i]); });
-    };
-    InstructionAst.prototype.vadd = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '+', target[i]); });
-    };
-    InstructionAst.prototype.vsub = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '-', target[i]); });
-    };
-    InstructionAst.prototype.vscl = function (i) {
-        return this._vset3(i, function (i, src, target) { return binop(src[i], '*', target[0]); }, 0, 0, 1);
-    };
+    InstructionAst.prototype.vnsin = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.nsinv1', [src[i]]); }); };
+    InstructionAst.prototype.vnrcp = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.nrcp', [src[i]]); }); };
+    InstructionAst.prototype.vmin = function (i) { return this._vset3(i, function (i, src, target) { return call('MathFloat.min', [src[i], target[i]]); }); };
+    InstructionAst.prototype.vmax = function (i) { return this._vset3(i, function (i, src, target) { return call('MathFloat.max', [src[i], target[i]]); }); };
+    InstructionAst.prototype.vdiv = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '/', target[i]); }); };
+    InstructionAst.prototype.vadd = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '+', target[i]); }); };
+    InstructionAst.prototype.vsub = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '-', target[i]); }); };
+    InstructionAst.prototype.vscl = function (i) { return this._vset3(i, function (i, src, target) { return binop(src[i], '*', target[0]); }, 0, 0, 1); };
     InstructionAst.prototype.vdot = function (i) {
         var _this = this;
         var vectorSize = i.ONE_TWO;
@@ -5383,15 +5050,9 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return stms(st);
     };
-    InstructionAst.prototype['vt4444.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt4444_step');
-    };
-    InstructionAst.prototype['vt5551.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt5551_step');
-    };
-    InstructionAst.prototype['vt5650.q'] = function (i) {
-        return this._vtXXX_q(i, '_vt5650_step');
-    };
+    InstructionAst.prototype['vt4444.q'] = function (i) { return this._vtXXX_q(i, '_vt4444_step'); };
+    InstructionAst.prototype['vt5551.q'] = function (i) { return this._vtXXX_q(i, '_vt5551_step'); };
+    InstructionAst.prototype['vt5650.q'] = function (i) { return this._vtXXX_q(i, '_vt5650_step'); };
     InstructionAst.prototype._vtXXX_q = function (i, func) {
         var size = i.ONE_TWO;
         if (size != 4)
@@ -5402,201 +5063,71 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
-    InstructionAst.prototype.add = function (i) {
-        return this.addu(i);
-    };
-    InstructionAst.prototype.addu = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt)));
-    };
-    InstructionAst.prototype.addi = function (i) {
-        return this.addiu(i);
-    };
-    InstructionAst.prototype.addiu = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '+', imm32(i.imm16)));
-    };
-    InstructionAst.prototype.sub = function (i) {
-        return this.subu(i);
-    };
-    InstructionAst.prototype.subu = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt)));
-    };
-    InstructionAst.prototype.sll = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos)));
-    };
-    InstructionAst.prototype.sra = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos)));
-    };
-    InstructionAst.prototype.srl = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos)));
-    };
-    InstructionAst.prototype.rotr = function (i) {
-        return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)]));
-    };
-    InstructionAst.prototype.sllv = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.srav = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.srlv = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31))));
-    };
-    InstructionAst.prototype.rotrv = function (i) {
-        return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)]));
-    };
-    InstructionAst.prototype.bitrev = function (i) {
-        return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.and = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt)));
-    };
-    InstructionAst.prototype.or = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt)));
-    };
-    InstructionAst.prototype.xor = function (i) {
-        return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt)));
-    };
-    InstructionAst.prototype.nor = function (i) {
-        return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt))));
-    };
-    InstructionAst.prototype.andi = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.ori = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.xori = function (i) {
-        return assignGpr(i.rt, binop(gpr(i.rs), '^', u_imm32(i.u_imm16)));
-    };
-    InstructionAst.prototype.mflo = function (i) {
-        return assignGpr(i.rd, lo());
-    };
-    InstructionAst.prototype.mfhi = function (i) {
-        return assignGpr(i.rd, hi());
-    };
-    InstructionAst.prototype.mfic = function (i) {
-        return assignGpr(i.rt, ic());
-    };
-    InstructionAst.prototype.mtlo = function (i) {
-        return assign(lo(), gpr(i.rs));
-    };
-    InstructionAst.prototype.mthi = function (i) {
-        return assign(hi(), gpr(i.rs));
-    };
-    InstructionAst.prototype.mtic = function (i) {
-        return assignIC(gpr(i.rt));
-    };
-    InstructionAst.prototype.slt = function (i) {
-        return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.sltu = function (i) {
-        return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.slti = function (i) {
-        return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.sltiu = function (i) {
-        return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.movz = function (i) {
-        return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs)));
-    };
-    InstructionAst.prototype.movn = function (i) {
-        return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs)));
-    };
-    InstructionAst.prototype.ext = function (i) {
-        return assignGpr(i.rt, call('BitUtils.extract', [gpr(i.rs), imm32(i.pos), imm32(i.size_e)]));
-    };
-    InstructionAst.prototype.ins = function (i) {
-        return assignGpr(i.rt, call('BitUtils.insert', [gpr(i.rt), imm32(i.pos), imm32(i.size_i), gpr(i.rs)]));
-    };
-    InstructionAst.prototype.clz = function (i) {
-        return assignGpr(i.rd, call('BitUtils.clz', [gpr(i.rs)]));
-    };
-    InstructionAst.prototype.clo = function (i) {
-        return assignGpr(i.rd, call('BitUtils.clo', [gpr(i.rs)]));
-    };
-    InstructionAst.prototype.seb = function (i) {
-        return assignGpr(i.rd, call('BitUtils.seb', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.seh = function (i) {
-        return assignGpr(i.rd, call('BitUtils.seh', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.wsbh = function (i) {
-        return assignGpr(i.rd, call('BitUtils.wsbh', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype.wsbw = function (i) {
-        return assignGpr(i.rd, call('BitUtils.wsbw', [gpr(i.rt)]));
-    };
-    InstructionAst.prototype._trace_state = function () {
-        return stm(ast.call('state._trace_state', []));
-    };
-    InstructionAst.prototype["mov.s"] = function (i) {
-        return assignFpr(i.fd, fpr(i.fs));
-    };
-    InstructionAst.prototype["add.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '+', fpr(i.ft)));
-    };
-    InstructionAst.prototype["sub.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '-', fpr(i.ft)));
-    };
-    InstructionAst.prototype["mul.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '*', fpr(i.ft)));
-    };
-    InstructionAst.prototype["div.s"] = function (i) {
-        return assignFpr(i.fd, binop(fpr(i.fs), '/', fpr(i.ft)));
-    };
-    InstructionAst.prototype["abs.s"] = function (i) {
-        return assignFpr(i.fd, call('Math.abs', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["sqrt.s"] = function (i) {
-        return assignFpr(i.fd, call('Math.sqrt', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["neg.s"] = function (i) {
-        return assignFpr(i.fd, unop('-', fpr(i.fs)));
-    };
-    InstructionAst.prototype.min = function (i) {
-        return assignGpr(i.rd, call('state.min', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.max = function (i) {
-        return assignGpr(i.rd, call('state.max', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.div = function (i) {
-        return stm(call('state.div', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.divu = function (i) {
-        return stm(call('state.divu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.mult = function (i) {
-        return stm(call('state.mult', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.multu = function (i) {
-        return stm(call('state.multu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.madd = function (i) {
-        return stm(call('state.madd', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.maddu = function (i) {
-        return stm(call('state.maddu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.msub = function (i) {
-        return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.msubu = function (i) {
-        return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.cache = function (i) {
-        return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)]));
-    };
-    InstructionAst.prototype.syscall = function (i) {
-        return stm(call('state.syscall', [imm32(i.syscall)]));
-    };
-    InstructionAst.prototype["break"] = function (i) {
-        return stm(call('state.break', []));
-    };
-    InstructionAst.prototype.dbreak = function (i) {
-        return ast.debugger("dbreak");
-    };
+    InstructionAst.prototype.add = function (i) { return this.addu(i); };
+    InstructionAst.prototype.addu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); };
+    InstructionAst.prototype.addi = function (i) { return this.addiu(i); };
+    InstructionAst.prototype.addiu = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '+', imm32(i.imm16))); };
+    InstructionAst.prototype.sub = function (i) { return this.subu(i); };
+    InstructionAst.prototype.subu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '-', gpr(i.rt))); };
+    InstructionAst.prototype.sll = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', imm32(i.pos))); };
+    InstructionAst.prototype.sra = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', imm32(i.pos))); };
+    InstructionAst.prototype.srl = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', imm32(i.pos))); };
+    InstructionAst.prototype.rotr = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), imm32(i.pos)])); };
+    InstructionAst.prototype.sllv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.srav = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.srlv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    InstructionAst.prototype.rotrv = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); };
+    InstructionAst.prototype.bitrev = function (i) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); };
+    InstructionAst.prototype.and = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt))); };
+    InstructionAst.prototype.or = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '|', gpr(i.rt))); };
+    InstructionAst.prototype.xor = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '^', gpr(i.rt))); };
+    InstructionAst.prototype.nor = function (i) { return assignGpr(i.rd, unop('~', binop(gpr(i.rs), '|', gpr(i.rt)))); };
+    InstructionAst.prototype.andi = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '&', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.ori = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '|', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.xori = function (i) { return assignGpr(i.rt, binop(gpr(i.rs), '^', u_imm32(i.u_imm16))); };
+    InstructionAst.prototype.mflo = function (i) { return assignGpr(i.rd, lo()); };
+    InstructionAst.prototype.mfhi = function (i) { return assignGpr(i.rd, hi()); };
+    InstructionAst.prototype.mfic = function (i) { return assignGpr(i.rt, ic()); };
+    InstructionAst.prototype.mtlo = function (i) { return assign(lo(), gpr(i.rs)); };
+    InstructionAst.prototype.mthi = function (i) { return assign(hi(), gpr(i.rs)); };
+    InstructionAst.prototype.mtic = function (i) { return assignIC(gpr(i.rt)); };
+    InstructionAst.prototype.slt = function (i) { return assignGpr(i.rd, call('state.slt', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.sltu = function (i) { return assignGpr(i.rd, call('state.sltu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.slti = function (i) { return assignGpr(i.rt, call('state.slt', [gpr(i.rs), imm32(i.imm16)])); };
+    InstructionAst.prototype.sltiu = function (i) { return assignGpr(i.rt, call('state.sltu', [gpr(i.rs), u_imm32(i.imm16)])); };
+    InstructionAst.prototype.movz = function (i) { return _if(binop(gpr(i.rt), '==', imm32(0)), assignGpr(i.rd, gpr(i.rs))); };
+    InstructionAst.prototype.movn = function (i) { return _if(binop(gpr(i.rt), '!=', imm32(0)), assignGpr(i.rd, gpr(i.rs))); };
+    InstructionAst.prototype.ext = function (i) { return assignGpr(i.rt, call('BitUtils.extract', [gpr(i.rs), imm32(i.pos), imm32(i.size_e)])); };
+    InstructionAst.prototype.ins = function (i) { return assignGpr(i.rt, call('BitUtils.insert', [gpr(i.rt), imm32(i.pos), imm32(i.size_i), gpr(i.rs)])); };
+    InstructionAst.prototype.clz = function (i) { return assignGpr(i.rd, call('BitUtils.clz', [gpr(i.rs)])); };
+    InstructionAst.prototype.clo = function (i) { return assignGpr(i.rd, call('BitUtils.clo', [gpr(i.rs)])); };
+    InstructionAst.prototype.seb = function (i) { return assignGpr(i.rd, call('BitUtils.seb', [gpr(i.rt)])); };
+    InstructionAst.prototype.seh = function (i) { return assignGpr(i.rd, call('BitUtils.seh', [gpr(i.rt)])); };
+    InstructionAst.prototype.wsbh = function (i) { return assignGpr(i.rd, call('BitUtils.wsbh', [gpr(i.rt)])); };
+    InstructionAst.prototype.wsbw = function (i) { return assignGpr(i.rd, call('BitUtils.wsbw', [gpr(i.rt)])); };
+    InstructionAst.prototype._trace_state = function () { return stm(ast.call('state._trace_state', [])); };
+    InstructionAst.prototype["mov.s"] = function (i) { return assignFpr(i.fd, fpr(i.fs)); };
+    InstructionAst.prototype["add.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '+', fpr(i.ft))); };
+    InstructionAst.prototype["sub.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '-', fpr(i.ft))); };
+    InstructionAst.prototype["mul.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '*', fpr(i.ft))); };
+    InstructionAst.prototype["div.s"] = function (i) { return assignFpr(i.fd, binop(fpr(i.fs), '/', fpr(i.ft))); };
+    InstructionAst.prototype["abs.s"] = function (i) { return assignFpr(i.fd, call('Math.abs', [fpr(i.fs)])); };
+    InstructionAst.prototype["sqrt.s"] = function (i) { return assignFpr(i.fd, call('Math.sqrt', [fpr(i.fs)])); };
+    InstructionAst.prototype["neg.s"] = function (i) { return assignFpr(i.fd, unop('-', fpr(i.fs))); };
+    InstructionAst.prototype.min = function (i) { return assignGpr(i.rd, call('state.min', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.max = function (i) { return assignGpr(i.rd, call('state.max', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.div = function (i) { return stm(call('state.div', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.divu = function (i) { return stm(call('state.divu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.mult = function (i) { return stm(call('state.mult', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.multu = function (i) { return stm(call('state.multu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.madd = function (i) { return stm(call('state.madd', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.maddu = function (i) { return stm(call('state.maddu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.msub = function (i) { return stm(call('state.msub', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.msubu = function (i) { return stm(call('state.msubu', [gpr(i.rs), gpr(i.rt)])); };
+    InstructionAst.prototype.cache = function (i) { return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)])); };
+    InstructionAst.prototype.syscall = function (i) { return stm(call('state.syscall', [imm32(i.syscall)])); };
+    InstructionAst.prototype["break"] = function (i) { return stm(call('state.break', [])); };
+    InstructionAst.prototype.dbreak = function (i) { return ast.debugger("dbreak"); };
     InstructionAst.prototype._likely = function (isLikely, code) {
         return isLikely ? _if(branchflag(), code) : code;
     };
@@ -5612,147 +5143,57 @@ var InstructionAst = (function () {
             stm(assign(branchpc(), u_imm32(i.PC + i.imm16 * 4 + 4)))
         ]);
     };
-    InstructionAst.prototype.beq = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt)));
-    };
-    InstructionAst.prototype.bne = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt)));
-    };
-    InstructionAst.prototype.bltz = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "<", imm32(0)));
-    };
-    InstructionAst.prototype.blez = function (i) {
-        return this._branch(i, binop(gpr(i.rs), "<=", imm32(0)));
-    };
-    InstructionAst.prototype.bgtz = function (i) {
-        return this._branch(i, binop(gpr(i.rs), ">", imm32(0)));
-    };
-    InstructionAst.prototype.bgez = function (i) {
-        return this._branch(i, binop(gpr(i.rs), ">=", imm32(0)));
-    };
-    InstructionAst.prototype.beql = function (i) {
-        return this.beq(i);
-    };
-    InstructionAst.prototype.bnel = function (i) {
-        return this.bne(i);
-    };
-    InstructionAst.prototype.bltzl = function (i) {
-        return this.bltz(i);
-    };
-    InstructionAst.prototype.blezl = function (i) {
-        return this.blez(i);
-    };
-    InstructionAst.prototype.bgtzl = function (i) {
-        return this.bgtz(i);
-    };
-    InstructionAst.prototype.bgezl = function (i) {
-        return this.bgez(i);
-    };
-    InstructionAst.prototype.bltzal = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltz(i)]);
-    };
-    InstructionAst.prototype.bltzall = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltzl(i)]);
-    };
-    InstructionAst.prototype.bgezal = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgez(i)]);
-    };
-    InstructionAst.prototype.bgezall = function (i) {
-        return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgezl(i)]);
-    };
-    InstructionAst.prototype.bc1t = function (i) {
-        return this._branch(i, fcr31_cc());
-    };
-    InstructionAst.prototype.bc1f = function (i) {
-        return this._branch(i, unop("!", fcr31_cc()));
-    };
-    InstructionAst.prototype.bc1tl = function (i) {
-        return this.bc1t(i);
-    };
-    InstructionAst.prototype.bc1fl = function (i) {
-        return this.bc1f(i);
-    };
-    InstructionAst.prototype.sb = function (i) {
-        return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.sh = function (i) {
-        return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.sw = function (i) {
-        return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.swc1 = function (i) {
-        return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lwc1 = function (i) {
-        return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.mfc1 = function (i) {
-        return assignGpr(i.rt, ast.fpr_i(i.fs));
-    };
-    InstructionAst.prototype.mtc1 = function (i) {
-        return assignFpr_I(i.fs, ast.gpr(i.rt));
-    };
-    InstructionAst.prototype.cfc1 = function (i) {
-        return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)]));
-    };
-    InstructionAst.prototype.ctc1 = function (i) {
-        return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)]));
-    };
-    InstructionAst.prototype["trunc.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["round.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["ceil.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["floor.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype["cvt.s.w"] = function (i) {
-        return assignFpr(i.fd, fpr_i(i.fs));
-    };
-    InstructionAst.prototype["cvt.w.s"] = function (i) {
-        return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)]));
-    };
-    InstructionAst.prototype.lb = function (i) {
-        return assignGpr(i.rt, call('state.lb', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lbu = function (i) {
-        return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lh = function (i) {
-        return assignGpr(i.rt, call('state.lh', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lhu = function (i) {
-        return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lw = function (i) {
-        return assignGpr(i.rt, call('state.lw', [rs_imm16(i)]));
-    };
-    InstructionAst.prototype.lwl = function (i) {
-        return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.lwr = function (i) {
-        return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.swl = function (i) {
-        return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
-    InstructionAst.prototype.swr = function (i) {
-        return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)]));
-    };
+    InstructionAst.prototype.beq = function (i) { return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt))); };
+    InstructionAst.prototype.bne = function (i) { return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt))); };
+    InstructionAst.prototype.bltz = function (i) { return this._branch(i, binop(gpr(i.rs), "<", imm32(0))); };
+    InstructionAst.prototype.blez = function (i) { return this._branch(i, binop(gpr(i.rs), "<=", imm32(0))); };
+    InstructionAst.prototype.bgtz = function (i) { return this._branch(i, binop(gpr(i.rs), ">", imm32(0))); };
+    InstructionAst.prototype.bgez = function (i) { return this._branch(i, binop(gpr(i.rs), ">=", imm32(0))); };
+    InstructionAst.prototype.beql = function (i) { return this.beq(i); };
+    InstructionAst.prototype.bnel = function (i) { return this.bne(i); };
+    InstructionAst.prototype.bltzl = function (i) { return this.bltz(i); };
+    InstructionAst.prototype.blezl = function (i) { return this.blez(i); };
+    InstructionAst.prototype.bgtzl = function (i) { return this.bgtz(i); };
+    InstructionAst.prototype.bgezl = function (i) { return this.bgez(i); };
+    InstructionAst.prototype.bltzal = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltz(i)]); };
+    InstructionAst.prototype.bltzall = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bltzl(i)]); };
+    InstructionAst.prototype.bgezal = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgez(i)]); };
+    InstructionAst.prototype.bgezall = function (i) { return stms([assignGpr(31, u_imm32(i.PC + 8)), this.bgezl(i)]); };
+    InstructionAst.prototype.bc1t = function (i) { return this._branch(i, fcr31_cc()); };
+    InstructionAst.prototype.bc1f = function (i) { return this._branch(i, unop("!", fcr31_cc())); };
+    InstructionAst.prototype.bc1tl = function (i) { return this.bc1t(i); };
+    InstructionAst.prototype.bc1fl = function (i) { return this.bc1f(i); };
+    InstructionAst.prototype.sb = function (i) { return stm(call('state.sb', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.sh = function (i) { return stm(call('state.sh', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.sw = function (i) { return stm(call('state.sw', [gpr(i.rt), rs_imm16(i)])); };
+    InstructionAst.prototype.swc1 = function (i) { return stm(call('state.swc1', [fpr(i.ft), rs_imm16(i)])); };
+    InstructionAst.prototype.lwc1 = function (i) { return assignFpr_I(i.ft, call('state.lw', [rs_imm16(i)])); };
+    InstructionAst.prototype.mfc1 = function (i) { return assignGpr(i.rt, ast.fpr_i(i.fs)); };
+    InstructionAst.prototype.mtc1 = function (i) { return assignFpr_I(i.fs, ast.gpr(i.rt)); };
+    InstructionAst.prototype.cfc1 = function (i) { return stm(call('state._cfc1_impl', [imm32(i.rd), imm32(i.rt)])); };
+    InstructionAst.prototype.ctc1 = function (i) { return stm(call('state._ctc1_impl', [imm32(i.rd), gpr(i.rt)])); };
+    InstructionAst.prototype["trunc.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.trunc', [fpr(i.fs)])); };
+    InstructionAst.prototype["round.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.round', [fpr(i.fs)])); };
+    InstructionAst.prototype["ceil.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.ceil', [fpr(i.fs)])); };
+    InstructionAst.prototype["floor.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)])); };
+    InstructionAst.prototype["cvt.s.w"] = function (i) { return assignFpr(i.fd, fpr_i(i.fs)); };
+    InstructionAst.prototype["cvt.w.s"] = function (i) { return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)])); };
+    InstructionAst.prototype.lb = function (i) { return assignGpr(i.rt, call('state.lb', [rs_imm16(i)])); };
+    InstructionAst.prototype.lbu = function (i) { return assignGpr(i.rt, call('state.lbu', [rs_imm16(i)])); };
+    InstructionAst.prototype.lh = function (i) { return assignGpr(i.rt, call('state.lh', [rs_imm16(i)])); };
+    InstructionAst.prototype.lhu = function (i) { return assignGpr(i.rt, call('state.lhu', [rs_imm16(i)])); };
+    InstructionAst.prototype.lw = function (i) { return assignGpr(i.rt, call('state.lw', [rs_imm16(i)])); };
+    InstructionAst.prototype.lwl = function (i) { return assignGpr(i.rt, call('state.lwl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.lwr = function (i) { return assignGpr(i.rt, call('state.lwr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.swl = function (i) { return stm(call('state.swl', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
+    InstructionAst.prototype.swr = function (i) { return stm(call('state.swr', [gpr(i.rs), i_simm16(i), gpr(i.rt)])); };
     InstructionAst.prototype._callstackPush = function (i) {
         return ast.stm();
     };
     InstructionAst.prototype._callstackPop = function (i) {
         return ast.stm();
     };
-    InstructionAst.prototype.j = function (i) {
-        return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]);
-    };
+    InstructionAst.prototype.j = function (i) { return stms([stm(assign(branchflag(), imm32(1))), stm(assign(branchpc(), u_imm32(i.u_imm26 * 4)))]); };
     InstructionAst.prototype.jr = function (i) {
         var statements = [];
         statements.push(stm(assign(branchflag(), imm32(1))));
@@ -5762,12 +5203,8 @@ var InstructionAst = (function () {
         }
         return stms(statements);
     };
-    InstructionAst.prototype.jal = function (i) {
-        return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]);
-    };
-    InstructionAst.prototype.jalr = function (i) {
-        return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]);
-    };
+    InstructionAst.prototype.jal = function (i) { return stms([this.j(i), this._callstackPush(i), assignGpr(31, u_imm32(i.PC + 8))]); };
+    InstructionAst.prototype.jalr = function (i) { return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); };
     InstructionAst.prototype._comp = function (i, fc02, fc3) {
         var fc_unordererd = ((fc02 & 1) != 0);
         var fc_equal = ((fc02 & 2) != 0);
@@ -5775,54 +5212,22 @@ var InstructionAst = (function () {
         var fc_inv_qnan = (fc3 != 0);
         return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
     };
-    InstructionAst.prototype["c.f.s"] = function (i) {
-        return this._comp(i, 0, 0);
-    };
-    InstructionAst.prototype["c.un.s"] = function (i) {
-        return this._comp(i, 1, 0);
-    };
-    InstructionAst.prototype["c.eq.s"] = function (i) {
-        return this._comp(i, 2, 0);
-    };
-    InstructionAst.prototype["c.ueq.s"] = function (i) {
-        return this._comp(i, 3, 0);
-    };
-    InstructionAst.prototype["c.olt.s"] = function (i) {
-        return this._comp(i, 4, 0);
-    };
-    InstructionAst.prototype["c.ult.s"] = function (i) {
-        return this._comp(i, 5, 0);
-    };
-    InstructionAst.prototype["c.ole.s"] = function (i) {
-        return this._comp(i, 6, 0);
-    };
-    InstructionAst.prototype["c.ule.s"] = function (i) {
-        return this._comp(i, 7, 0);
-    };
-    InstructionAst.prototype["c.sf.s"] = function (i) {
-        return this._comp(i, 0, 1);
-    };
-    InstructionAst.prototype["c.ngle.s"] = function (i) {
-        return this._comp(i, 1, 1);
-    };
-    InstructionAst.prototype["c.seq.s"] = function (i) {
-        return this._comp(i, 2, 1);
-    };
-    InstructionAst.prototype["c.ngl.s"] = function (i) {
-        return this._comp(i, 3, 1);
-    };
-    InstructionAst.prototype["c.lt.s"] = function (i) {
-        return this._comp(i, 4, 1);
-    };
-    InstructionAst.prototype["c.nge.s"] = function (i) {
-        return this._comp(i, 5, 1);
-    };
-    InstructionAst.prototype["c.le.s"] = function (i) {
-        return this._comp(i, 6, 1);
-    };
-    InstructionAst.prototype["c.ngt.s"] = function (i) {
-        return this._comp(i, 7, 1);
-    };
+    InstructionAst.prototype["c.f.s"] = function (i) { return this._comp(i, 0, 0); };
+    InstructionAst.prototype["c.un.s"] = function (i) { return this._comp(i, 1, 0); };
+    InstructionAst.prototype["c.eq.s"] = function (i) { return this._comp(i, 2, 0); };
+    InstructionAst.prototype["c.ueq.s"] = function (i) { return this._comp(i, 3, 0); };
+    InstructionAst.prototype["c.olt.s"] = function (i) { return this._comp(i, 4, 0); };
+    InstructionAst.prototype["c.ult.s"] = function (i) { return this._comp(i, 5, 0); };
+    InstructionAst.prototype["c.ole.s"] = function (i) { return this._comp(i, 6, 0); };
+    InstructionAst.prototype["c.ule.s"] = function (i) { return this._comp(i, 7, 0); };
+    InstructionAst.prototype["c.sf.s"] = function (i) { return this._comp(i, 0, 1); };
+    InstructionAst.prototype["c.ngle.s"] = function (i) { return this._comp(i, 1, 1); };
+    InstructionAst.prototype["c.seq.s"] = function (i) { return this._comp(i, 2, 1); };
+    InstructionAst.prototype["c.ngl.s"] = function (i) { return this._comp(i, 3, 1); };
+    InstructionAst.prototype["c.lt.s"] = function (i) { return this._comp(i, 4, 1); };
+    InstructionAst.prototype["c.nge.s"] = function (i) { return this._comp(i, 5, 1); };
+    InstructionAst.prototype["c.le.s"] = function (i) { return this._comp(i, 6, 1); };
+    InstructionAst.prototype["c.ngt.s"] = function (i) { return this._comp(i, 7, 1); };
     return InstructionAst;
 })();
 exports.InstructionAst = InstructionAst;
@@ -8633,7 +8038,7 @@ var FunctionGenerator = (function () {
     return FunctionGenerator;
 })();
 exports.FunctionGenerator = FunctionGenerator;
-function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, _this, internalFunc, options) {
+function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, that, internalFunc, options, classname, name) {
     var code = '';
     var V0 = "state.gpr[2]";
     var V1 = "state.gpr[3]";
@@ -8740,14 +8145,14 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         default: throw ('Invalid return value "' + retval + '"');
     }
     var nativeFunction = new NativeFunction();
-    nativeFunction.name = 'unknown';
+    nativeFunction.name = name;
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
     if (DEBUG_FUNCGEN) {
         console.log(code);
     }
-    nativeFunction.call = new Function('_this', 'logger', 'internalFunc', 'nativeFunction', "return function(context, state) { \"use strict\"; /* " + addressToHex(nativeFunction.nid) + " */\n" + code + " };")(_this, logger, internalFunc, nativeFunction);
-    nativeFunction.nativeCall = internalFunc;
+    nativeFunction.nativeCall = internalFunc.bind(that);
+    nativeFunction.call = new Function('logger', 'internalFunc', 'nativeFunction', "return function(context, state) { \"use strict\"; /* " + addressToHex(nativeFunction.nid) + " " + classname + "." + name + " */\n" + code + " };")(logger, nativeFunction.nativeCall, nativeFunction);
     return nativeFunction;
 }
 exports.createNativeFunction = createNativeFunction;
@@ -9544,8 +8949,7 @@ exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/cpu/executor": function(module, exports, require) {
-var state = require('./state');
-var icache = require('./icache');
+///<reference path="../../global.d.ts" />
 var ProgramExecutor = (function () {
     function ProgramExecutor(state, instructionCache) {
         this.state = state;
@@ -9601,14 +9005,13 @@ exports.ProgramExecutor = ProgramExecutor;
 
 },
 "src/core/cpu/generator": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var memory = require('../memory');
-var state = require('./state');
 var codegen = require('./codegen');
 var ast_builder = require('./ast_builder');
 var instructions = require('./instructions');
@@ -9628,9 +9031,7 @@ var PspInstructionStm = (function (_super) {
     PspInstructionStm.prototype.toJs = function () {
         return "/*" + IntUtils.toHexString(this.PC, 8) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
     };
-    PspInstructionStm.prototype.optimize = function () {
-        return new PspInstructionStm(this.PC, this.code.optimize(), this.di);
-    };
+    PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.PC, this.code.optimize(), this.di); };
     return PspInstructionStm;
 })(ast_builder.ANodeStm);
 var FunctionGenerator = (function () {
@@ -9667,7 +9068,6 @@ var FunctionGenerator = (function () {
     };
     FunctionGenerator.prototype.create = function (address) {
         var code = this._create(address);
-        console.log(code);
         try {
             return new Function('state', '"use strict";' + code);
         }
@@ -9785,7 +9185,7 @@ exports.FunctionGenerator = FunctionGenerator;
 
 },
 "src/core/cpu/icache": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var generator = require('./generator');
 var state = require('./state');
 var FunctionGenerator = generator.FunctionGenerator;
@@ -9807,8 +9207,11 @@ var InstructionCache = (function () {
         var item = this.cache[address];
         if (item)
             return item;
-        if (address == 268435455 /* EXIT_THREAD */) {
+        if (address == CpuSpecialAddresses.EXIT_THREAD) {
             return this.cache[address] = function (state) {
+                //console.log(state);
+                //console.log(state.thread);
+                //console.warn('Thread: CpuSpecialAddresses.EXIT_THREAD: ' + state.thread.name);
                 state.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
                 throw new CpuBreakException();
             };
@@ -9823,7 +9226,7 @@ exports.InstructionCache = InstructionCache;
 
 },
 "src/core/cpu/instructions": function(module, exports, require) {
-var memory = require('../memory');
+///<reference path="../../global.d.ts" />
 var IndentStringGenerator = require('../../util/IndentStringGenerator');
 var ADDR_TYPE_NONE = 0;
 var ADDR_TYPE_REG = 1;
@@ -9838,56 +9241,20 @@ var INSTR_TYPE_JUMP = (1 << 5);
 var INSTR_TYPE_BREAK = (1 << 6);
 function VM(format) {
     var counts = {
-        "cstw": 1,
-        "cstz": 1,
-        "csty": 1,
-        "cstx": 1,
-        "absw": 1,
-        "absz": 1,
-        "absy": 1,
-        "absx": 1,
-        "mskw": 1,
-        "mskz": 1,
-        "msky": 1,
-        "mskx": 1,
-        "negw": 1,
-        "negz": 1,
-        "negy": 1,
-        "negx": 1,
-        "one": 1,
-        "two": 1,
-        "vt1": 1,
+        "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
+        "absw": 1, "absz": 1, "absy": 1, "absx": 1,
+        "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
+        "negw": 1, "negz": 1, "negy": 1, "negx": 1,
+        "one": 1, "two": 1, "vt1": 1,
         "vt2": 2,
-        "satw": 2,
-        "satz": 2,
-        "saty": 2,
-        "satx": 2,
-        "swzw": 2,
-        "swzz": 2,
-        "swzy": 2,
-        "swzx": 2,
+        "satw": 2, "satz": 2, "saty": 2, "satx": 2,
+        "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
         "imm3": 3,
         "imm4": 4,
         "fcond": 4,
-        "c0dr": 5,
-        "c0cr": 5,
-        "c1dr": 5,
-        "c1cr": 5,
-        "imm5": 5,
-        "vt5": 5,
-        "rs": 5,
-        "rd": 5,
-        "rt": 5,
-        "sa": 5,
-        "lsb": 5,
-        "msb": 5,
-        "fs": 5,
-        "fd": 5,
-        "ft": 5,
-        "vs": 7,
-        "vt": 7,
-        "vd": 7,
-        "imm7": 7,
+        "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
+        "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
+        "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
         "imm8": 8,
         "imm14": 14,
         "imm16": 16,
@@ -9999,9 +9366,7 @@ var Instructions = (function () {
         var _this = this;
         this.instructionTypeListByName = {};
         this.instructionTypeList = [];
-        var ID = function (name, vm, format, addressType, instructionType) {
-            _this.add(name, vm, format, addressType, instructionType);
-        };
+        var ID = function (name, vm, format, addressType, instructionType) { _this.add(name, vm, format, addressType, instructionType); };
         ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
@@ -10367,374 +9732,222 @@ var Instruction = (function () {
         this.PC = PC;
         this.data = data;
     }
-    Instruction.fromMemoryAndPC = function (memory, PC) {
-        return new Instruction(PC, memory.readInt32(PC));
-    };
-    Instruction.prototype.extract = function (offset, length) {
-        return BitUtils.extract(this.data, offset, length);
-    };
-    Instruction.prototype.extract_s = function (offset, length) {
-        return BitUtils.extractSigned(this.data, offset, length);
-    };
-    Instruction.prototype.insert = function (offset, length, value) {
-        this.data = BitUtils.insert(this.data, offset, length, value);
-    };
+    Instruction.fromMemoryAndPC = function (memory, PC) { return new Instruction(PC, memory.readInt32(PC)); };
+    Instruction.prototype.extract = function (offset, length) { return BitUtils.extract(this.data, offset, length); };
+    Instruction.prototype.extract_s = function (offset, length) { return BitUtils.extractSigned(this.data, offset, length); };
+    Instruction.prototype.insert = function (offset, length, value) { this.data = BitUtils.insert(this.data, offset, length, value); };
     Object.defineProperty(Instruction.prototype, "rd", {
-        get: function () {
-            return this.extract(11 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 0, 5); },
+        set: function (value) { this.insert(11 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "rt", {
-        get: function () {
-            return this.extract(11 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 1, 5); },
+        set: function (value) { this.insert(11 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "rs", {
-        get: function () {
-            return this.extract(11 + 5 * 2, 5);
-        },
-        set: function (value) {
-            this.insert(11 + 5 * 2, 5, value);
-        },
+        get: function () { return this.extract(11 + 5 * 2, 5); },
+        set: function (value) { this.insert(11 + 5 * 2, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "fd", {
-        get: function () {
-            return this.extract(6 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "fs", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ft", {
-        get: function () {
-            return this.extract(6 + 5 * 2, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 2, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 2, 5); },
+        set: function (value) { this.insert(6 + 5 * 2, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VD", {
-        get: function () {
-            return this.extract(0, 7);
-        },
-        set: function (value) {
-            this.insert(0, 7, value);
-        },
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VS", {
-        get: function () {
-            return this.extract(8, 7);
-        },
-        set: function (value) {
-            this.insert(8, 7, value);
-        },
+        get: function () { return this.extract(8, 7); },
+        set: function (value) { this.insert(8, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT", {
-        get: function () {
-            return this.extract(16, 7);
-        },
-        set: function (value) {
-            this.insert(16, 7, value);
-        },
+        get: function () { return this.extract(16, 7); },
+        set: function (value) { this.insert(16, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5_1", {
-        get: function () {
-            return this.VT5 | (this.VT1 << 5);
-        },
-        set: function (value) {
-            this.VT5 = value;
-            this.VT1 = (value >>> 5);
-        },
+        get: function () { return this.VT5 | (this.VT1 << 5); },
+        set: function (value) { this.VT5 = value; this.VT1 = (value >>> 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM14", {
-        get: function () {
-            return this.extract_s(2, 14);
-        },
-        set: function (value) {
-            this.insert(2, 14, value);
-        },
+        get: function () { return this.extract_s(2, 14); },
+        set: function (value) { this.insert(2, 14, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ONE", {
-        get: function () {
-            return this.extract(7, 1);
-        },
-        set: function (value) {
-            this.insert(7, 1, value);
-        },
+        get: function () { return this.extract(7, 1); },
+        set: function (value) { this.insert(7, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "TWO", {
-        get: function () {
-            return this.extract(15, 1);
-        },
-        set: function (value) {
-            this.insert(15, 1, value);
-        },
+        get: function () { return this.extract(15, 1); },
+        set: function (value) { this.insert(15, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "ONE_TWO", {
-        get: function () {
-            return (1 + 1 * this.ONE + 2 * this.TWO);
-        },
-        set: function (value) {
-            this.ONE = (((value - 1) >>> 0) & 1);
-            this.TWO = (((value - 1) >>> 1) & 1);
-        },
+        get: function () { return (1 + 1 * this.ONE + 2 * this.TWO); },
+        set: function (value) { this.ONE = (((value - 1) >>> 0) & 1); this.TWO = (((value - 1) >>> 1) & 1); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM8", {
-        get: function () {
-            return this.extract(16, 8);
-        },
-        set: function (value) {
-            this.insert(16, 8, value);
-        },
+        get: function () { return this.extract(16, 8); },
+        set: function (value) { this.insert(16, 8, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM5", {
-        get: function () {
-            return this.extract(16, 5);
-        },
-        set: function (value) {
-            this.insert(16, 5, value);
-        },
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM3", {
-        get: function () {
-            return this.extract(18, 3);
-        },
-        set: function (value) {
-            this.insert(18, 3, value);
-        },
+        get: function () { return this.extract(18, 3); },
+        set: function (value) { this.insert(18, 3, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM7", {
-        get: function () {
-            return this.extract(0, 7);
-        },
-        set: function (value) {
-            this.insert(0, 7, value);
-        },
+        get: function () { return this.extract(0, 7); },
+        set: function (value) { this.insert(0, 7, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM4", {
-        get: function () {
-            return this.extract(0, 4);
-        },
-        set: function (value) {
-            this.insert(0, 4, value);
-        },
+        get: function () { return this.extract(0, 4); },
+        set: function (value) { this.insert(0, 4, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT1", {
-        get: function () {
-            return this.extract(0, 1);
-        },
-        set: function (value) {
-            this.insert(0, 1, value);
-        },
+        get: function () { return this.extract(0, 1); },
+        set: function (value) { this.insert(0, 1, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT2", {
-        get: function () {
-            return this.extract(0, 2);
-        },
-        set: function (value) {
-            this.insert(0, 2, value);
-        },
+        get: function () { return this.extract(0, 2); },
+        set: function (value) { this.insert(0, 2, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5", {
-        get: function () {
-            return this.extract(16, 5);
-        },
-        set: function (value) {
-            this.insert(16, 5, value);
-        },
+        get: function () { return this.extract(16, 5); },
+        set: function (value) { this.insert(16, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "VT5_2", {
-        get: function () {
-            return this.VT5 | (this.VT2 << 5);
-        },
+        get: function () { return this.VT5 | (this.VT2 << 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "IMM_HF", {
-        get: function () {
-            return HalfFloat.toFloat(this.imm16);
-        },
+        get: function () { return HalfFloat.toFloat(this.imm16); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "pos", {
-        get: function () {
-            return this.lsb;
-        },
-        set: function (value) {
-            this.lsb = value;
-        },
+        get: function () { return this.lsb; },
+        set: function (value) { this.lsb = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "size_e", {
-        get: function () {
-            return this.msb + 1;
-        },
-        set: function (value) {
-            this.msb = value - 1;
-        },
+        get: function () { return this.msb + 1; },
+        set: function (value) { this.msb = value - 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "size_i", {
-        get: function () {
-            return this.msb - this.lsb + 1;
-        },
-        set: function (value) {
-            this.msb = this.lsb + value - 1;
-        },
+        get: function () { return this.msb - this.lsb + 1; },
+        set: function (value) { this.msb = this.lsb + value - 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "lsb", {
-        get: function () {
-            return this.extract(6 + 5 * 0, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 0, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 0, 5); },
+        set: function (value) { this.insert(6 + 5 * 0, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "msb", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "c1cr", {
-        get: function () {
-            return this.extract(6 + 5 * 1, 5);
-        },
-        set: function (value) {
-            this.insert(6 + 5 * 1, 5, value);
-        },
+        get: function () { return this.extract(6 + 5 * 1, 5); },
+        set: function (value) { this.insert(6 + 5 * 1, 5, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "syscall", {
-        get: function () {
-            return this.extract(6, 20);
-        },
-        set: function (value) {
-            this.insert(6, 20, value);
-        },
+        get: function () { return this.extract(6, 20); },
+        set: function (value) { this.insert(6, 20, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "imm16", {
-        get: function () {
-            var res = this.u_imm16;
-            if (res & 0x8000)
-                res |= 0xFFFF0000;
-            return res;
-        },
-        set: function (value) {
-            this.insert(0, 16, value);
-        },
+        get: function () { var res = this.u_imm16; if (res & 0x8000)
+            res |= 0xFFFF0000; return res; },
+        set: function (value) { this.insert(0, 16, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "u_imm16", {
-        get: function () {
-            return this.extract(0, 16);
-        },
-        set: function (value) {
-            this.insert(0, 16, value);
-        },
+        get: function () { return this.extract(0, 16); },
+        set: function (value) { this.insert(0, 16, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "u_imm26", {
-        get: function () {
-            return this.extract(0, 26);
-        },
-        set: function (value) {
-            this.insert(0, 26, value);
-        },
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_bits", {
-        get: function () {
-            return this.extract(0, 26);
-        },
-        set: function (value) {
-            this.insert(0, 26, value);
-        },
+        get: function () { return this.extract(0, 26); },
+        set: function (value) { this.insert(0, 26, value); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Instruction.prototype, "jump_real", {
-        get: function () {
-            return (this.jump_bits * 4) >>> 0;
-        },
-        set: function (value) {
-            this.jump_bits = (value / 4) >>> 0;
-        },
+        get: function () { return (this.jump_bits * 4) >>> 0; },
+        set: function (value) { this.jump_bits = (value / 4) >>> 0; },
         enumerable: true,
         configurable: true
     });
@@ -10752,15 +9965,15 @@ exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/cpu/state": function(module, exports, require) {
+///<reference path="../../global.d.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var memory = require('../memory');
 (function (CpuSpecialAddresses) {
-    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 0x0FFFFFFF] = "EXIT_THREAD";
+    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 268435455] = "EXIT_THREAD";
 })(exports.CpuSpecialAddresses || (exports.CpuSpecialAddresses = {}));
 var CpuSpecialAddresses = exports.CpuSpecialAddresses;
 var VfpuPrefixBase = (function () {
@@ -10927,9 +10140,9 @@ var CpuState = (function () {
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
         this.vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
-        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0 /* SPREFIX */);
-        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1 /* TPREFIX */);
-        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2 /* DPREFIX */);
+        this.vpfxs = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.SPREFIX);
+        this.vpfxt = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.TPREFIX);
+        this.vpfxd = new VfpuPrefixWrite(this.vfprc, VFPU_CTRL.DPREFIX);
         this.vector_vs = [0, 0, 0, 0];
         this.vector_vt = [0, 0, 0, 0];
         this.vector_vd = [0, 0, 0, 0];
@@ -10952,14 +10165,13 @@ var CpuState = (function () {
     }
     CpuState.prototype.setVfrCc = function (index, value) {
         if (value) {
-            this.vfprc[3 /* CC */] |= (1 << index);
+            this.vfprc[VFPU_CTRL.CC] |= (1 << index);
         }
         else {
-            this.vfprc[3 /* CC */] &= ~(1 << index);
+            this.vfprc[VFPU_CTRL.CC] &= ~(1 << index);
         }
     };
-    CpuState.prototype.vrnds = function () {
-    };
+    CpuState.prototype.vrnds = function () { };
     CpuState.prototype.vrndi = function () {
         var v = 0;
         for (var n = 0; n < 4; n++) {
@@ -10968,14 +10180,10 @@ var CpuState = (function () {
         }
         return v;
     };
-    CpuState.prototype.vrndf1 = function () {
-        return Math.random() * 2;
-    };
-    CpuState.prototype.vrndf2 = function () {
-        return Math.random() * 4;
-    };
+    CpuState.prototype.vrndf1 = function () { return Math.random() * 2; };
+    CpuState.prototype.vrndf2 = function () { return Math.random() * 4; };
     CpuState.prototype.getVfrCc = function (index) {
-        return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
+        return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
     };
     CpuState.prototype.vcmp = function (cond, vsValues, vtValues) {
         var vectorSize = vsValues.length;
@@ -10990,52 +10198,52 @@ var CpuState = (function () {
         for (var i = 0; i < vectorSize; i++) {
             var c = false;
             switch (cond) {
-                case 0 /* FL */:
+                case VCondition.FL:
                     c = false;
                     break;
-                case 1 /* EQ */:
+                case VCondition.EQ:
                     c = s[i] == t[i];
                     break;
-                case 2 /* LT */:
+                case VCondition.LT:
                     c = s[i] < t[i];
                     break;
-                case 3 /* LE */:
+                case VCondition.LE:
                     c = s[i] <= t[i];
                     break;
-                case 4 /* TR */:
+                case VCondition.TR:
                     c = true;
                     break;
-                case 5 /* NE */:
+                case VCondition.NE:
                     c = s[i] != t[i];
                     break;
-                case 6 /* GE */:
+                case VCondition.GE:
                     c = s[i] >= t[i];
                     break;
-                case 7 /* GT */:
+                case VCondition.GT:
                     c = s[i] > t[i];
                     break;
-                case 8 /* EZ */:
+                case VCondition.EZ:
                     c = s[i] == 0.0 || s[i] == -0.0;
                     break;
-                case 9 /* EN */:
+                case VCondition.EN:
                     c = MathFloat.isnan(s[i]);
                     break;
-                case 10 /* EI */:
+                case VCondition.EI:
                     c = MathFloat.isinf(s[i]);
                     break;
-                case 11 /* ES */:
+                case VCondition.ES:
                     c = MathFloat.isnanorinf(s[i]);
                     break;
-                case 12 /* NZ */:
+                case VCondition.NZ:
                     c = s[i] != 0;
                     break;
-                case 13 /* NN */:
+                case VCondition.NN:
                     c = !MathFloat.isnan(s[i]);
                     break;
-                case 14 /* NI */:
+                case VCondition.NI:
                     c = !MathFloat.isinf(s[i]);
                     break;
-                case 15 /* NS */:
+                case VCondition.NS:
                     c = !(MathFloat.isnanorinf(s[i]));
                     break;
             }
@@ -11045,7 +10253,7 @@ var CpuState = (function () {
             and_val &= c_i;
             affected_bits |= 1 << i;
         }
-        this.vfprc[3 /* CC */] = (this.vfprc[3 /* CC */] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.vfprc[VFPU_CTRL.CC] = (this.vfprc[VFPU_CTRL.CC] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
         this.eatPrefixes();
     };
     CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
@@ -11054,7 +10262,7 @@ var CpuState = (function () {
         this.loadVs_prefixed(vsRegs.map(function (reg) { return _this.vfpr[reg]; }));
         this.loadVdRegs(vdRegs);
         var compare = _true ? 1 : 0;
-        var cc = this.vfprc[3 /* CC */];
+        var cc = this.vfprc[VFPU_CTRL.CC];
         if (register < 6) {
             if (((cc >> register) & 1) == compare) {
                 for (var n = 0; n < vectorSize; n++) {
@@ -11073,68 +10281,46 @@ var CpuState = (function () {
         }
         this.storeVdRegsWithPrefix(vdRegs);
     };
-    CpuState.prototype.setVpfxt = function (value) {
-        this.vpfxt.setInfo(value);
-    };
-    CpuState.prototype.setVpfxs = function (value) {
-        this.vpfxs.setInfo(value);
-    };
-    CpuState.prototype.setVpfxd = function (value) {
-        this.vpfxd.setInfo(value);
-    };
+    CpuState.prototype.setVpfxt = function (value) { this.vpfxt.setInfo(value); };
+    CpuState.prototype.setVpfxs = function (value) { this.vpfxs.setInfo(value); };
+    CpuState.prototype.setVpfxd = function (value) { this.vpfxd.setInfo(value); };
     Object.defineProperty(CpuState.prototype, "vfpumatrix0", {
-        get: function () {
-            return this.getVfpumatrix(0);
-        },
+        get: function () { return this.getVfpumatrix(0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix1", {
-        get: function () {
-            return this.getVfpumatrix(1);
-        },
+        get: function () { return this.getVfpumatrix(1); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix2", {
-        get: function () {
-            return this.getVfpumatrix(2);
-        },
+        get: function () { return this.getVfpumatrix(2); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix3", {
-        get: function () {
-            return this.getVfpumatrix(3);
-        },
+        get: function () { return this.getVfpumatrix(3); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix4", {
-        get: function () {
-            return this.getVfpumatrix(4);
-        },
+        get: function () { return this.getVfpumatrix(4); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix5", {
-        get: function () {
-            return this.getVfpumatrix(5);
-        },
+        get: function () { return this.getVfpumatrix(5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix6", {
-        get: function () {
-            return this.getVfpumatrix(6);
-        },
+        get: function () { return this.getVfpumatrix(6); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "vfpumatrix7", {
-        get: function () {
-            return this.getVfpumatrix(7);
-        },
+        get: function () { return this.getVfpumatrix(7); },
         enumerable: true,
         configurable: true
     });
@@ -11248,14 +10434,10 @@ var CpuState = (function () {
             this.memory.writeFloat32(address + n * 4, values[n]);
         }
     };
-    CpuState.prototype.vfpuStore = function (indices, values) {
-        for (var n = 0; n < indices.length; n++)
-            this.vfpr[indices[n]] = values[n];
-    };
-    CpuState.prototype.vfpuStore_i = function (indices, values) {
-        for (var n = 0; n < indices.length; n++)
-            this.vfpr_i[indices[n]] = values[n];
-    };
+    CpuState.prototype.vfpuStore = function (indices, values) { for (var n = 0; n < indices.length; n++)
+        this.vfpr[indices[n]] = values[n]; };
+    CpuState.prototype.vfpuStore_i = function (indices, values) { for (var n = 0; n < indices.length; n++)
+        this.vfpr_i[indices[n]] = values[n]; };
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
         this.vfpr[0] = 0;
         throw new Error("Not implemented vfpuSetMatrix!");
@@ -11285,81 +10467,49 @@ var CpuState = (function () {
             this.vfprc[n] = other.vfprc[n];
     };
     Object.defineProperty(CpuState.prototype, "V0", {
-        get: function () {
-            return this.gpr[2];
-        },
-        set: function (value) {
-            this.gpr[2] = value;
-        },
+        get: function () { return this.gpr[2]; },
+        set: function (value) { this.gpr[2] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "V1", {
-        get: function () {
-            return this.gpr[3];
-        },
-        set: function (value) {
-            this.gpr[3] = value;
-        },
+        get: function () { return this.gpr[3]; },
+        set: function (value) { this.gpr[3] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "K0", {
-        get: function () {
-            return this.gpr[26];
-        },
-        set: function (value) {
-            this.gpr[26] = value;
-        },
+        get: function () { return this.gpr[26]; },
+        set: function (value) { this.gpr[26] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "GP", {
-        get: function () {
-            return this.gpr[28];
-        },
-        set: function (value) {
-            this.gpr[28] = value;
-        },
+        get: function () { return this.gpr[28]; },
+        set: function (value) { this.gpr[28] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "SP", {
-        get: function () {
-            return this.gpr[29];
-        },
-        set: function (value) {
-            this.gpr[29] = value;
-        },
+        get: function () { return this.gpr[29]; },
+        set: function (value) { this.gpr[29] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "FP", {
-        get: function () {
-            return this.gpr[30];
-        },
-        set: function (value) {
-            this.gpr[30] = value;
-        },
+        get: function () { return this.gpr[30]; },
+        set: function (value) { this.gpr[30] = value; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "RA", {
-        get: function () {
-            return this.gpr[31];
-        },
-        set: function (value) {
-            this.gpr[31] = value;
-        },
+        get: function () { return this.gpr[31]; },
+        set: function (value) { this.gpr[31] = value; },
         enumerable: true,
         configurable: true
     });
-    CpuState.prototype.getRA = function () {
-        return this.gpr[31];
-    };
-    CpuState.prototype.setRA = function (value) {
-        this.gpr[31] = value;
-    };
+    CpuState.prototype.getRA = function () { return this.gpr[31]; };
+    CpuState.prototype.setRA = function (value) { this.gpr[31] = value; };
     CpuState.prototype.callstackPush = function (PC) {
     };
     CpuState.prototype.callstackPop = function () {
@@ -11415,16 +10565,12 @@ var CpuState = (function () {
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "fcr0_rev", {
-        get: function () {
-            return BitUtils.extract(this.fcr0, 0, 8);
-        },
+        get: function () { return BitUtils.extract(this.fcr0, 0, 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CpuState.prototype, "fcr0_imp", {
-        get: function () {
-            return BitUtils.extract(this.fcr0, 8, 24);
-        },
+        get: function () { return BitUtils.extract(this.fcr0, 8, 24); },
         enumerable: true,
         configurable: true
     });
@@ -11469,51 +10615,21 @@ var CpuState = (function () {
     };
     CpuState.prototype.cache = function (rs, type, offset) {
     };
-    CpuState.prototype.syscall = function (id) {
-        this.syscallManager.call(this, id);
-    };
-    CpuState.prototype.sb = function (value, address) {
-        this.memory.writeInt8(address, value);
-    };
-    CpuState.prototype.sh = function (value, address) {
-        this.memory.writeInt16(address, value);
-    };
-    CpuState.prototype.sw = function (value, address) {
-        this.memory.writeInt32(address, value);
-    };
-    CpuState.prototype.swc1 = function (value, address) {
-        this.memory.writeFloat32(address, value);
-    };
-    CpuState.prototype.lb = function (address) {
-        return this.memory.readInt8(address);
-    };
-    CpuState.prototype.lbu = function (address) {
-        return this.memory.readUInt8(address);
-    };
-    CpuState.prototype.lh = function (address) {
-        return this.memory.readInt16(address);
-    };
-    CpuState.prototype.lhu = function (address) {
-        return this.memory.readUInt16(address);
-    };
-    CpuState.prototype.lw = function (address) {
-        return this.memory.readInt32(address);
-    };
-    CpuState.prototype.lwc1 = function (address) {
-        return this.memory.readFloat32(address);
-    };
-    CpuState.prototype.min = function (a, b) {
-        return ((a | 0) < (b | 0)) ? a : b;
-    };
-    CpuState.prototype.max = function (a, b) {
-        return ((a | 0) > (b | 0)) ? a : b;
-    };
-    CpuState.prototype.slt = function (a, b) {
-        return ((a | 0) < (b | 0)) ? 1 : 0;
-    };
-    CpuState.prototype.sltu = function (a, b) {
-        return ((a >>> 0) < (b >>> 0)) ? 1 : 0;
-    };
+    CpuState.prototype.syscall = function (id) { this.syscallManager.call(this, id); };
+    CpuState.prototype.sb = function (value, address) { this.memory.writeInt8(address, value); };
+    CpuState.prototype.sh = function (value, address) { this.memory.writeInt16(address, value); };
+    CpuState.prototype.sw = function (value, address) { this.memory.writeInt32(address, value); };
+    CpuState.prototype.swc1 = function (value, address) { this.memory.writeFloat32(address, value); };
+    CpuState.prototype.lb = function (address) { return this.memory.readInt8(address); };
+    CpuState.prototype.lbu = function (address) { return this.memory.readUInt8(address); };
+    CpuState.prototype.lh = function (address) { return this.memory.readInt16(address); };
+    CpuState.prototype.lhu = function (address) { return this.memory.readUInt16(address); };
+    CpuState.prototype.lw = function (address) { return this.memory.readInt32(address); };
+    CpuState.prototype.lwc1 = function (address) { return this.memory.readFloat32(address); };
+    CpuState.prototype.min = function (a, b) { return ((a | 0) < (b | 0)) ? a : b; };
+    CpuState.prototype.max = function (a, b) { return ((a | 0) > (b | 0)) ? a : b; };
+    CpuState.prototype.slt = function (a, b) { return ((a | 0) < (b | 0)) ? 1 : 0; };
+    CpuState.prototype.sltu = function (a, b) { return ((a >>> 0) < (b >>> 0)) ? 1 : 0; };
     CpuState.prototype.lwl = function (RS, Offset, ValueToWrite) {
         var Address = (RS + Offset);
         var AddressAlign = Address & 3;
@@ -11611,9 +10727,7 @@ var CpuState = (function () {
             }
         }
     };
-    CpuState.prototype.break = function () {
-        throw (new CpuBreakException());
-    };
+    CpuState.prototype.break = function () { throw (new CpuBreakException()); };
     CpuState.LwrMask = [0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00];
     CpuState.LwrShift = [0, 8, 16, 24];
     CpuState.LwlMask = [0x00FFFFFF, 0x0000FFFF, 0x000000FF, 0x00000000];
@@ -11629,7 +10743,7 @@ exports.CpuState = CpuState;
 
 },
 "src/core/cpu/syscall": function(module, exports, require) {
-var state = require('./state');
+///<reference path="../../global.d.ts" />
 var NativeFunction = (function () {
     function NativeFunction() {
     }
@@ -14394,6 +13508,8 @@ var VertexReader = (function () {
         this.f32 = new Float32Array(this.input2.buffer);
         this.readCode = this.createJs();
         this.readOneFunc = (new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
+        this.readSeveralIndexFunc = (new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', "\n\t\t\t\"use strict\";\n\t\t\tfor (var n = 0; n < count; n++) {\n\t\t\t\tvar index = indices[n];\n\t\t\t\tvar output = outputs[verticesOffset + n];\n\t\t\t\tvar inputOffset = index * " + vertexState.size + ";\n\t\t\t\t" + this.readCode + "\n\t\t\t}\n\t\t"));
+        this.readSeveralFunc = (new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', "\n\t\t\tvar inputOffset = 0;\n\t\t\tfor (var n = 0; n < count; n++) {\n\t\t\t\tvar output = outputs[verticesOffset + n];\n\t\t\t\t" + this.readCode + "\n\t\t\t\tinputOffset += this.vertexState.size;\n\t\t\t}\n\t\t"));
     }
     VertexReader.prototype.readOne = function (input, index) {
         this.oneIndices[0] = index;
@@ -14413,17 +13529,10 @@ var VertexReader = (function () {
         maxDatacount *= this.vertexState.size;
         this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
         if (hasIndex) {
-            for (var n = 0; n < count; n++) {
-                var index = indices[n];
-                this.readOneFunc(output[verticesOffset + n], index * this.vertexState.size, this.f32, this.s8, this.s16, this.s32);
-            }
+            this.readSeveralIndexFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices);
         }
         else {
-            var inputOffset = 0;
-            for (var n = 0; n < count; n++) {
-                this.readOneFunc(output[verticesOffset + n], inputOffset, this.f32, this.s8, this.s16, this.s32);
-                inputOffset += this.vertexState.size;
-            }
+            this.readSeveralFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset);
         }
     };
     VertexReader.prototype.createJs = function () {
@@ -15151,6 +14260,7 @@ var TextureHandler = (function () {
         for (var n = 0; n < this.textures.length; n++) {
             var texture = this.textures[n];
             texture.validHint = false;
+            texture.valid = false;
         }
     };
     TextureHandler.prototype.invalidatedMemoryAll = function () {
@@ -17003,7 +16113,7 @@ var Cso = (function () {
         var blockIndexLow = Math.floor(offset / this.header.blockSize);
         var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
         var blockCount = blockIndexHigh - blockIndexLow + 1;
-        var skip = (this.header.blockSize - (offset % this.header.blockSize)) % this.header.blockSize;
+        var skip = offset % this.header.blockSize;
         return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(function (blocks) {
             return Block.getBlocksUncompressedData(blocks).slice(skip);
         });
@@ -19965,7 +19075,9 @@ var PspElfLoader = (function () {
             callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
             callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
         }
-        console.warn("Can't find functions", unknownFunctions);
+        if (unknownFunctions.length > 0) {
+            console.warn("Can't find functions", unknownFunctions);
+        }
         return {
             name: moduleImport.name,
             registeredNativeFunctions: registeredNativeFunctions,
@@ -20515,17 +19627,29 @@ var ModuleWrapper = (function () {
         this.names = {};
         this.nids = {};
         _modules.forEach(function (_module) {
+            if (typeof _module.natives != 'undefined') {
+                var natives = _module.natives;
+                for (var _i = 0; _i < natives.length; _i++) {
+                    var nativeGenerator = natives[_i];
+                    _this.registerNative(nativeGenerator(_module));
+                }
+            }
             for (var key in _module) {
+                if (key == 'natives')
+                    continue;
                 var item = _module[key];
                 if (item && item instanceof NativeFunction) {
                     var nativeFunction = item;
                     nativeFunction.name = key;
-                    _this.nids[nativeFunction.nid] = nativeFunction;
-                    _this.names[nativeFunction.name] = nativeFunction;
+                    _this.registerNative(nativeFunction);
                 }
             }
         });
     }
+    ModuleWrapper.prototype.registerNative = function (nf) {
+        this.nids[nf.nid] = nf;
+        this.names[nf.name] = nf;
+    };
     ModuleWrapper.prototype.getByName = function (name) {
         return this.names[name];
     };
@@ -20545,6 +19669,8 @@ var ModuleManager = (function () {
     ModuleManager.prototype.registerModule = function (_module) {
         for (var key in _module) {
             if (key == 'createNativeFunction')
+                continue;
+            if (key == 'natives')
                 continue;
             var _class = _module[key];
             this.add(key, _class);
@@ -20991,15 +20117,27 @@ exports.ThreadManager = ThreadManager;
 },
 "src/hle/module/ExceptionManagerForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var ExceptionManagerForKernel = (function () {
     function ExceptionManagerForKernel(context) {
         this.context = context;
-        this.sceKernelRegisterDefaultExceptionHandler = createNativeFunction(0x565C0B0E, 150, 'uint', 'uint', this, function (exceptionHandlerFunction) {
-            return 0;
-        });
     }
+    ExceptionManagerForKernel.prototype.sceKernelRegisterDefaultExceptionHandler = function (exceptionHandlerFunction) {
+        return 0;
+    };
+    Object.defineProperty(ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler",
+        __decorate([
+            nativeFunction(0x565C0B0E, 150, 'uint', 'uint')
+        ], ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler", Object.getOwnPropertyDescriptor(ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler")));
     return ExceptionManagerForKernel;
 })();
 exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
@@ -21007,43 +20145,62 @@ exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _interrupt = require('../../core/interrupt');
 var PspInterrupts = _interrupt.PspInterrupts;
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var InterruptManager = (function () {
     function InterruptManager(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelRegisterSubIntrHandler = createNativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint', this, function (thread, interrupt, handlerIndex, callbackAddress, callbackArgument) {
-            var interruptManager = _this.context.interruptManager;
-            var interruptHandler = interruptManager.get(interrupt).get(handlerIndex);
-            interruptHandler.address = callbackAddress;
-            interruptHandler.argument = callbackArgument;
-            interruptHandler.cpuState = thread.state;
-            return 0;
-        });
-        this.sceKernelEnableSubIntr = createNativeFunction(0xFB8E22EC, 150, 'uint', 'int/int', this, function (interrupt, handlerIndex) {
-            var interruptManager = _this.context.interruptManager;
-            if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
-                return -1;
-            if (!interruptManager.get(interrupt).has(handlerIndex))
-                return -1;
-            interruptManager.get(interrupt).get(handlerIndex).enabled = true;
-            return 0;
-        });
-        this.sceKernelReleaseSubIntrHandler = createNativeFunction(0xD61E6961, 150, 'uint', 'int/int', this, function (pspInterrupt, handlerIndex) {
-            var interruptManager = _this.context.interruptManager;
-            if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
-                return -1;
-            if (!interruptManager.get(pspInterrupt).has(handlerIndex))
-                return -1;
-            interruptManager.get(pspInterrupt).get(handlerIndex).enabled = false;
-            return 0;
-        });
         this.context.display.vblank.add(function () {
         });
     }
+    InterruptManager.prototype.sceKernelRegisterSubIntrHandler = function (thread, interrupt, handlerIndex, callbackAddress, callbackArgument) {
+        var interruptManager = this.context.interruptManager;
+        var interruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+        interruptHandler.address = callbackAddress;
+        interruptHandler.argument = callbackArgument;
+        interruptHandler.cpuState = thread.state;
+        return 0;
+    };
+    InterruptManager.prototype.sceKernelEnableSubIntr = function (interrupt, handlerIndex) {
+        var interruptManager = this.context.interruptManager;
+        if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
+            return -1;
+        if (!interruptManager.get(interrupt).has(handlerIndex))
+            return -1;
+        interruptManager.get(interrupt).get(handlerIndex).enabled = true;
+        return 0;
+    };
+    InterruptManager.prototype.sceKernelReleaseSubIntrHandler = function (pspInterrupt, handlerIndex) {
+        var interruptManager = this.context.interruptManager;
+        if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
+            return -1;
+        if (!interruptManager.get(pspInterrupt).has(handlerIndex))
+            return -1;
+        interruptManager.get(pspInterrupt).get(handlerIndex).enabled = false;
+        return 0;
+    };
+    Object.defineProperty(InterruptManager.prototype, "sceKernelRegisterSubIntrHandler",
+        __decorate([
+            nativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint')
+        ], InterruptManager.prototype, "sceKernelRegisterSubIntrHandler", Object.getOwnPropertyDescriptor(InterruptManager.prototype, "sceKernelRegisterSubIntrHandler")));
+    Object.defineProperty(InterruptManager.prototype, "sceKernelEnableSubIntr",
+        __decorate([
+            nativeFunction(0xFB8E22EC, 150, 'uint', 'int/int')
+        ], InterruptManager.prototype, "sceKernelEnableSubIntr", Object.getOwnPropertyDescriptor(InterruptManager.prototype, "sceKernelEnableSubIntr")));
+    Object.defineProperty(InterruptManager.prototype, "sceKernelReleaseSubIntrHandler",
+        __decorate([
+            nativeFunction(0xD61E6961, 150, 'uint', 'int/int')
+        ], InterruptManager.prototype, "sceKernelReleaseSubIntrHandler", Object.getOwnPropertyDescriptor(InterruptManager.prototype, "sceKernelReleaseSubIntrHandler")));
     return InterruptManager;
 })();
 exports.InterruptManager = InterruptManager;
@@ -21051,15 +20208,27 @@ exports.InterruptManager = InterruptManager;
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var KDebugForKernel = (function () {
     function KDebugForKernel(context) {
         this.context = context;
-        this.Kprintf = createNativeFunction(0x84F370BC, 150, 'void', 'string', this, function (format) {
-            console.info('Kprintf: ' + format);
-        });
     }
+    KDebugForKernel.prototype.Kprintf = function (format) {
+        console.info('Kprintf: ' + format);
+    };
+    Object.defineProperty(KDebugForKernel.prototype, "Kprintf",
+        __decorate([
+            nativeFunction(0x84F370BC, 150, 'void', 'string')
+        ], KDebugForKernel.prototype, "Kprintf", Object.getOwnPropertyDescriptor(KDebugForKernel.prototype, "Kprintf")));
     return KDebugForKernel;
 })();
 exports.KDebugForKernel = KDebugForKernel;
@@ -21067,37 +20236,60 @@ exports.KDebugForKernel = KDebugForKernel;
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var Kernel_Library = (function () {
     function Kernel_Library(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelCpuSuspendIntr = createNativeFunction(0x092968F4, 150, 'uint', '', this, function () {
-            return _this.context.interruptManager.suspend();
-        });
-        this.sceKernelCpuResumeIntr = createNativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint', this, function (thread, flags) {
-            _this.context.interruptManager.resume(flags);
-            thread.sceKernelCpuResumeIntrCount++;
-            if (thread.sceKernelCpuResumeIntrCount >= 3) {
-                thread.sceKernelCpuResumeIntrCount = 0;
-                return Promise2.resolve(0);
-            }
-            else {
-                return 0;
-            }
-        });
-        this.sceKernelMemset = createNativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int', this, function (address, value, size) {
-            _this.context.memory.memset(address, value, size);
-            return address;
-        });
-        this.sceKernelMemcpy = createNativeFunction(0x1839852A, 150, 'uint', 'uint/uint/int', this, function (dst, src, size) {
-            _this.context.memory.copy(src, dst, size);
-            return dst;
-        });
     }
+    Kernel_Library.prototype.sceKernelCpuSuspendIntr = function () {
+        return this.context.interruptManager.suspend();
+    };
+    Kernel_Library.prototype.sceKernelCpuResumeIntr = function (thread, flags) {
+        this.context.interruptManager.resume(flags);
+        thread.sceKernelCpuResumeIntrCount++;
+        if (thread.sceKernelCpuResumeIntrCount >= 3) {
+            thread.sceKernelCpuResumeIntrCount = 0;
+            return Promise2.resolve(0);
+        }
+        else {
+            return 0;
+        }
+    };
+    Kernel_Library.prototype.sceKernelMemset = function (address, value, size) {
+        this.context.memory.memset(address, value, size);
+        return address;
+    };
+    Kernel_Library.prototype.sceKernelMemcpy = function (dst, src, size) {
+        this.context.memory.copy(src, dst, size);
+        return dst;
+    };
+    Object.defineProperty(Kernel_Library.prototype, "sceKernelCpuSuspendIntr",
+        __decorate([
+            nativeFunction(0x092968F4, 150, 'uint', '')
+        ], Kernel_Library.prototype, "sceKernelCpuSuspendIntr", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelCpuSuspendIntr")));
+    Object.defineProperty(Kernel_Library.prototype, "sceKernelCpuResumeIntr",
+        __decorate([
+            nativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint')
+        ], Kernel_Library.prototype, "sceKernelCpuResumeIntr", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelCpuResumeIntr")));
+    Object.defineProperty(Kernel_Library.prototype, "sceKernelMemset",
+        __decorate([
+            nativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int')
+        ], Kernel_Library.prototype, "sceKernelMemset", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelMemset")));
+    Object.defineProperty(Kernel_Library.prototype, "sceKernelMemcpy",
+        __decorate([
+            nativeFunction(0x1839852A, 150, 'uint', 'uint/uint/int')
+        ], Kernel_Library.prototype, "sceKernelMemcpy", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelMemcpy")));
     return Kernel_Library;
 })();
 exports.Kernel_Library = Kernel_Library;
@@ -21105,20 +20297,35 @@ exports.Kernel_Library = Kernel_Library;
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var LoadCoreForKernel = (function () {
     function LoadCoreForKernel(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelIcacheClearAll = createNativeFunction(0xD8779AC6, 150, 'void', '', this, function () {
-            _this.context.currentInstructionCache.invalidateAll();
-        });
-        this.sceKernelFindModuleByUID = createNativeFunction(0xCCE4A157, 150, 'int', 'int', this, function (moduleID) {
-            console.warn('Not implemented sceKernelFindModuleByUID(' + moduleID + ')');
-            return 0;
-        });
     }
+    LoadCoreForKernel.prototype.sceKernelIcacheClearAll = function () {
+        this.context.currentInstructionCache.invalidateAll();
+    };
+    LoadCoreForKernel.prototype.sceKernelFindModuleByUID = function (moduleID) {
+        console.warn('Not implemented sceKernelFindModuleByUID(' + moduleID + ')');
+        return 0;
+    };
+    Object.defineProperty(LoadCoreForKernel.prototype, "sceKernelIcacheClearAll",
+        __decorate([
+            nativeFunction(0xD8779AC6, 150, 'void', '')
+        ], LoadCoreForKernel.prototype, "sceKernelIcacheClearAll", Object.getOwnPropertyDescriptor(LoadCoreForKernel.prototype, "sceKernelIcacheClearAll")));
+    Object.defineProperty(LoadCoreForKernel.prototype, "sceKernelFindModuleByUID",
+        __decorate([
+            nativeFunction(0xCCE4A157, 150, 'int', 'int')
+        ], LoadCoreForKernel.prototype, "sceKernelFindModuleByUID", Object.getOwnPropertyDescriptor(LoadCoreForKernel.prototype, "sceKernelFindModuleByUID")));
     return LoadCoreForKernel;
 })();
 exports.LoadCoreForKernel = LoadCoreForKernel;
@@ -21126,32 +20333,51 @@ exports.LoadCoreForKernel = LoadCoreForKernel;
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var console = logger.named('module.LoadExecForUser');
 var LoadExecForUser = (function () {
     function LoadExecForUser(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelExitGame = createNativeFunction(0xBD2F1094, 150, 'uint', 'Thread', this, function (thread) {
-            console.info('sceKernelExitGame');
-            thread.stop('sceKernelExitGame');
-            _this.context.threadManager.exitGame();
-            throw new Error('CpuBreakException');
-            return 0;
-        });
-        this.sceKernelExitGame2 = createNativeFunction(0x05572A5F, 150, 'uint', 'Thread', this, function (thread) {
-            console.info("Call stack:");
-            thread.state.printCallstack(_this.context.symbolLookup);
-            console.info('sceKernelExitGame2');
-            _this.context.threadManager.exitGame();
-            thread.stop('sceKernelExitGame2');
-            throw new Error('CpuBreakException');
-        });
-        this.sceKernelRegisterExitCallback = createNativeFunction(0x4AC57943, 150, 'uint', 'int', this, function (callbackId) {
-            return 0;
-        });
     }
+    LoadExecForUser.prototype.sceKernelExitGame = function (thread) {
+        console.info('sceKernelExitGame');
+        thread.stop('sceKernelExitGame');
+        this.context.threadManager.exitGame();
+        throw new Error('CpuBreakException');
+        return 0;
+    };
+    LoadExecForUser.prototype.sceKernelExitGame2 = function (thread) {
+        console.info("Call stack:");
+        thread.state.printCallstack(this.context.symbolLookup);
+        console.info('sceKernelExitGame2');
+        this.context.threadManager.exitGame();
+        thread.stop('sceKernelExitGame2');
+        throw new Error('CpuBreakException');
+    };
+    LoadExecForUser.prototype.sceKernelRegisterExitCallback = function (callbackId) {
+        return 0;
+    };
+    Object.defineProperty(LoadExecForUser.prototype, "sceKernelExitGame",
+        __decorate([
+            nativeFunction(0xBD2F1094, 150, 'uint', 'Thread')
+        ], LoadExecForUser.prototype, "sceKernelExitGame", Object.getOwnPropertyDescriptor(LoadExecForUser.prototype, "sceKernelExitGame")));
+    Object.defineProperty(LoadExecForUser.prototype, "sceKernelExitGame2",
+        __decorate([
+            nativeFunction(0x05572A5F, 150, 'uint', 'Thread')
+        ], LoadExecForUser.prototype, "sceKernelExitGame2", Object.getOwnPropertyDescriptor(LoadExecForUser.prototype, "sceKernelExitGame2")));
+    Object.defineProperty(LoadExecForUser.prototype, "sceKernelRegisterExitCallback",
+        __decorate([
+            nativeFunction(0x4AC57943, 150, 'uint', 'int')
+        ], LoadExecForUser.prototype, "sceKernelRegisterExitCallback", Object.getOwnPropertyDescriptor(LoadExecForUser.prototype, "sceKernelRegisterExitCallback")));
     return LoadExecForUser;
 })();
 exports.LoadExecForUser = LoadExecForUser;
@@ -21159,50 +20385,93 @@ exports.LoadExecForUser = LoadExecForUser;
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var ModuleMgrForUser = (function () {
     function ModuleMgrForUser(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelStopModule = createNativeFunction(0xD1FF982A, 150, 'uint', '', this, function () {
-            return 0;
-        });
-        this.sceKernelUnloadModule = createNativeFunction(0x2E0911AA, 150, 'uint', 'int', this, function (id) {
-            return 0;
-        });
-        this.sceKernelSelfStopUnloadModule = createNativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread', this, function (unknown, argsize, argp, thread) {
-            console.info("Call stack:");
-            thread.state.printCallstack(_this.context.symbolLookup);
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
-            throw (new Error("sceKernelSelfStopUnloadModule"));
-            return 0;
-        });
-        this.sceKernelStopUnloadSelfModule = createNativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread', this, function (argsize, argp, optionsAddress, thread) {
-            throw (new Error("sceKernelStopUnloadSelfModule"));
-            return 0;
-        });
-        this.sceKernelLoadModule = createNativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*', this, function (path, flags, sceKernelLMOption) {
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
-            return 0x08900000;
-        });
-        this.sceKernelStartModule = createNativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*', this, function (moduleId, argumentSize, argumentPointer, status, sceKernelSMOption) {
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
-            return 0;
-        });
-        this.sceKernelGetModuleIdByAddress = createNativeFunction(0xD8B73127, 150, 'uint', 'uint', this, function (address) {
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
-            return 3;
-        });
-        this.sceKernelGetModuleId = createNativeFunction(0xF0A26395, 150, 'uint', '', this, function () {
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
-            return 4;
-        });
-        this.sceKernelLoadModuleByID = createNativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*', this, function (fileId, flags, sceKernelLMOption) {
-            console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
-            return 0;
-        });
     }
+    ModuleMgrForUser.prototype.sceKernelStopModule = function () {
+        return 0;
+    };
+    ModuleMgrForUser.prototype.sceKernelUnloadModule = function (id) {
+        return 0;
+    };
+    ModuleMgrForUser.prototype.sceKernelSelfStopUnloadModule = function (unknown, argsize, argp, thread) {
+        console.info("Call stack:");
+        thread.state.printCallstack(this.context.symbolLookup);
+        console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
+        throw (new Error("sceKernelSelfStopUnloadModule"));
+        return 0;
+    };
+    ModuleMgrForUser.prototype.sceKernelStopUnloadSelfModule = function (argsize, argp, optionsAddress, thread) {
+        throw (new Error("sceKernelStopUnloadSelfModule"));
+        return 0;
+    };
+    ModuleMgrForUser.prototype.sceKernelLoadModule = function (path, flags, sceKernelLMOption) {
+        console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
+        return 0x08900000;
+    };
+    ModuleMgrForUser.prototype.sceKernelStartModule = function (moduleId, argumentSize, argumentPointer, status, sceKernelSMOption) {
+        console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
+        return 0;
+    };
+    ModuleMgrForUser.prototype.sceKernelGetModuleIdByAddress = function (address) {
+        console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
+        return 3;
+    };
+    ModuleMgrForUser.prototype.sceKernelGetModuleId = function () {
+        console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
+        return 4;
+    };
+    ModuleMgrForUser.prototype.sceKernelLoadModuleByID = function (fileId, flags, sceKernelLMOption) {
+        console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
+        return 0;
+    };
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelStopModule",
+        __decorate([
+            nativeFunction(0xD1FF982A, 150, 'uint', '')
+        ], ModuleMgrForUser.prototype, "sceKernelStopModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelStopModule")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelUnloadModule",
+        __decorate([
+            nativeFunction(0x2E0911AA, 150, 'uint', 'int')
+        ], ModuleMgrForUser.prototype, "sceKernelUnloadModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelUnloadModule")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule",
+        __decorate([
+            nativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread')
+        ], ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule",
+        __decorate([
+            nativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread')
+        ], ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelLoadModule",
+        __decorate([
+            nativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*')
+        ], ModuleMgrForUser.prototype, "sceKernelLoadModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelLoadModule")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelStartModule",
+        __decorate([
+            nativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*')
+        ], ModuleMgrForUser.prototype, "sceKernelStartModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelStartModule")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress",
+        __decorate([
+            nativeFunction(0xD8B73127, 150, 'uint', 'uint')
+        ], ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelGetModuleId",
+        __decorate([
+            nativeFunction(0xF0A26395, 150, 'uint', '')
+        ], ModuleMgrForUser.prototype, "sceKernelGetModuleId", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelGetModuleId")));
+    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelLoadModuleByID",
+        __decorate([
+            nativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*')
+        ], ModuleMgrForUser.prototype, "sceKernelLoadModuleByID", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelLoadModuleByID")));
     return ModuleMgrForUser;
 })();
 exports.ModuleMgrForUser = ModuleMgrForUser;
@@ -21210,15 +20479,35 @@ exports.ModuleMgrForUser = ModuleMgrForUser;
 },
 "src/hle/module/StdioForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var StdioForUser = (function () {
     function StdioForUser(context) {
         this.context = context;
-        this.sceKernelStdin = createNativeFunction(0x172D316E, 150, 'int', '', this, function () { return 0; });
-        this.sceKernelStdout = createNativeFunction(0xA6BAB2E9, 150, 'int', '', this, function () { return 1; });
-        this.sceKernelStderr = createNativeFunction(0xF78BA90A, 150, 'int', '', this, function () { return 2; });
     }
+    StdioForUser.prototype.sceKernelStdin = function () { return 0; };
+    StdioForUser.prototype.sceKernelStdout = function () { return 1; };
+    StdioForUser.prototype.sceKernelStderr = function () { return 2; };
+    Object.defineProperty(StdioForUser.prototype, "sceKernelStdin",
+        __decorate([
+            nativeFunction(0x172D316E, 150, 'int', '')
+        ], StdioForUser.prototype, "sceKernelStdin", Object.getOwnPropertyDescriptor(StdioForUser.prototype, "sceKernelStdin")));
+    Object.defineProperty(StdioForUser.prototype, "sceKernelStdout",
+        __decorate([
+            nativeFunction(0xA6BAB2E9, 150, 'int', '')
+        ], StdioForUser.prototype, "sceKernelStdout", Object.getOwnPropertyDescriptor(StdioForUser.prototype, "sceKernelStdout")));
+    Object.defineProperty(StdioForUser.prototype, "sceKernelStderr",
+        __decorate([
+            nativeFunction(0xF78BA90A, 150, 'int', '')
+        ], StdioForUser.prototype, "sceKernelStderr", Object.getOwnPropertyDescriptor(StdioForUser.prototype, "sceKernelStderr")));
     return StdioForUser;
 })();
 exports.StdioForUser = StdioForUser;
@@ -21226,113 +20515,172 @@ exports.StdioForUser = StdioForUser;
 },
 "src/hle/module/SysMemUserForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var console = logger.named('module.SysMemUserForUser');
 var SysMemUserForUser = (function () {
     function SysMemUserForUser(context) {
-        var _this = this;
         this.context = context;
         this.partitionUids = new UidCollection(1);
         this.blockUids = new UidCollection(1);
-        this.sceKernelAllocPartitionMemory = createNativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int', this, function (partitionId, name, anchor, size, address) {
-            if (name == null)
-                return SceKernelErrors.ERROR_ERROR;
-            try {
-                var parentPartition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
-                var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
-                console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
-                return _this.partitionUids.allocate(allocatedPartition);
-            }
-            catch (e) {
-                console.error(e);
-                return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
-            }
-        });
-        this.AllocMemoryBlock = createNativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*', this, function (name, type, size, paramsAddrPtr) {
-            if (name == null)
-                return SceKernelErrors.ERROR_ERROR;
-            if (type < 0 || type > 1)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE;
-            if (size == 0)
-                return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
-            if (paramsAddrPtr) {
-                var size = paramsAddrPtr.readInt32();
-                var unk = paramsAddrPtr.readInt32();
-                if (size != 4)
-                    return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT;
-            }
-            var parentPartition = _this.context.memoryManager.userPartition;
-            try {
-                var block = parentPartition.allocate(size, type, 0, name);
-                return _this.blockUids.allocate(block);
-            }
-            catch (e) {
-                console.error(e);
-                return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
-            }
-        });
-        this.GetMemoryBlockAddr = createNativeFunction(0xDB83A952, 150, 'int', 'int', this, function (blockId) {
-            if (!_this.blockUids.has(blockId))
-                return 0;
-            var block = _this.blockUids.get(blockId);
-            return block.low;
-        });
-        this.FreeMemoryBlock = createNativeFunction(0x50F61D8A, 150, 'int', 'int', this, function (blockId) {
-            if (!_this.blockUids.has(blockId))
-                return SceKernelErrors.ERROR_KERNEL_UNKNOWN_UID;
-            _this.blockUids.remove(blockId);
-            return 0;
-        });
-        this.sceKernelFreePartitionMemory = createNativeFunction(0xB6D61D02, 150, 'int', 'int', this, function (partitionId) {
-            if (!_this.partitionUids.has(partitionId))
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
-            var partition = _this.partitionUids.get(partitionId);
-            partition.deallocate();
-            _this.partitionUids.remove(partitionId);
-            return 0;
-        });
-        this.sceKernelTotalFreeMemSize = createNativeFunction(0xF919F628, 150, 'int', '', this, function () {
-            return _this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
-        });
-        this.sceKernelGetBlockHeadAddr = createNativeFunction(0x9D9A5BA1, 150, 'uint', 'int', this, function (partitionId) {
-            if (!_this.partitionUids.has(partitionId))
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
-            var block = _this.partitionUids.get(partitionId);
-            return block.low;
-        });
-        this.sceKernelMaxFreeMemSize = createNativeFunction(0xA291F107, 150, 'int', '', this, function () {
-            return _this.context.memoryManager.userPartition.nonAllocatedPartitions.max(function (partition) { return partition.size; }).size;
-        });
-        this.sceKernelSetCompiledSdkVersion = createNativeFunction(0x7591C7DB, 150, 'int', 'uint', this, function (sdkVersion) {
-            console.info(sprintf('sceKernelSetCompiledSdkVersion: %08X', sdkVersion));
-        });
-        this.sceKernelSetCompilerVersion = createNativeFunction(0xF77D77CB, 150, 'int', 'uint', this, function (version) {
-            console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
-        });
-        this.sceKernelSetCompiledSdkVersion395 = createNativeFunction(0xEBD5C3E6, 150, 'int', 'uint', this, function (param) {
-            console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
-        });
-        this.sceKernelDevkitVersion = createNativeFunction(0x3FC9AE6A, 150, 'int', 'uint', this, function (version) {
-            return 0x02070110;
-        });
-        this.sceKernelPrintf = createNativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string', this, function (thread, format) {
-            var gprIndex = 5;
-            var memory = _this.context.memory;
-            var gpr = thread.state.gpr;
-            var readParam = function (type) {
-                switch (type) {
-                    case '%s': return memory.readStringz(gpr[gprIndex++]);
-                    case '%d': return String(gpr[gprIndex++]);
-                }
-                return '??[' + type + ']??';
-            };
-            console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, function (data) {
-                return readParam(data);
-            }));
-        });
     }
+    SysMemUserForUser.prototype.sceKernelAllocPartitionMemory = function (partitionId, name, anchor, size, address) {
+        if (name == null)
+            return SceKernelErrors.ERROR_ERROR;
+        try {
+            var parentPartition = this.context.memoryManager.memoryPartitionsUid[partitionId];
+            var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
+            console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
+            return this.partitionUids.allocate(allocatedPartition);
+        }
+        catch (e) {
+            console.error(e);
+            return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
+        }
+    };
+    SysMemUserForUser.prototype.AllocMemoryBlock = function (name, type, size, paramsAddrPtr) {
+        if (name == null)
+            return SceKernelErrors.ERROR_ERROR;
+        if (type < 0 || type > 1)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE;
+        if (size == 0)
+            return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
+        if (paramsAddrPtr) {
+            var size = paramsAddrPtr.readInt32();
+            var unk = paramsAddrPtr.readInt32();
+            if (size != 4)
+                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT;
+        }
+        var parentPartition = this.context.memoryManager.userPartition;
+        try {
+            var block = parentPartition.allocate(size, type, 0, name);
+            return this.blockUids.allocate(block);
+        }
+        catch (e) {
+            console.error(e);
+            return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
+        }
+    };
+    SysMemUserForUser.prototype.GetMemoryBlockAddr = function (blockId) {
+        if (!this.blockUids.has(blockId))
+            return 0;
+        var block = this.blockUids.get(blockId);
+        return block.low;
+    };
+    SysMemUserForUser.prototype.FreeMemoryBlock = function (blockId) {
+        if (!this.blockUids.has(blockId))
+            return SceKernelErrors.ERROR_KERNEL_UNKNOWN_UID;
+        this.blockUids.remove(blockId);
+        return 0;
+    };
+    SysMemUserForUser.prototype.sceKernelFreePartitionMemory = function (partitionId) {
+        if (!this.partitionUids.has(partitionId))
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
+        var partition = this.partitionUids.get(partitionId);
+        partition.deallocate();
+        this.partitionUids.remove(partitionId);
+        return 0;
+    };
+    SysMemUserForUser.prototype.sceKernelTotalFreeMemSize = function () {
+        return this.context.memoryManager.userPartition.getTotalFreeMemory() - 0x8000;
+    };
+    SysMemUserForUser.prototype.sceKernelGetBlockHeadAddr = function (partitionId) {
+        if (!this.partitionUids.has(partitionId))
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
+        var block = this.partitionUids.get(partitionId);
+        return block.low;
+    };
+    SysMemUserForUser.prototype.sceKernelMaxFreeMemSize = function () {
+        return this.context.memoryManager.userPartition.nonAllocatedPartitions.max(function (partition) { return partition.size; }).size;
+    };
+    SysMemUserForUser.prototype.sceKernelSetCompiledSdkVersion = function (sdkVersion) {
+        console.info(sprintf('sceKernelSetCompiledSdkVersion: %08X', sdkVersion));
+    };
+    SysMemUserForUser.prototype.sceKernelSetCompilerVersion = function (version) {
+        console.info(sprintf('sceKernelSetCompilerVersion: %08X', version));
+    };
+    SysMemUserForUser.prototype.sceKernelSetCompiledSdkVersion395 = function (param) {
+        console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
+    };
+    SysMemUserForUser.prototype.sceKernelDevkitVersion = function (version) {
+        return 0x02070110;
+    };
+    SysMemUserForUser.prototype.sceKernelPrintf = function (thread, format) {
+        var gprIndex = 5;
+        var memory = this.context.memory;
+        var gpr = thread.state.gpr;
+        var readParam = function (type) {
+            switch (type) {
+                case '%s': return memory.readStringz(gpr[gprIndex++]);
+                case '%d': return String(gpr[gprIndex++]);
+            }
+            return '??[' + type + ']??';
+        };
+        console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, function (data) {
+            return readParam(data);
+        }));
+    };
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory",
+        __decorate([
+            nativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int')
+        ], SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory")));
+    Object.defineProperty(SysMemUserForUser.prototype, "AllocMemoryBlock",
+        __decorate([
+            nativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*')
+        ], SysMemUserForUser.prototype, "AllocMemoryBlock", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "AllocMemoryBlock")));
+    Object.defineProperty(SysMemUserForUser.prototype, "GetMemoryBlockAddr",
+        __decorate([
+            nativeFunction(0xDB83A952, 150, 'int', 'int')
+        ], SysMemUserForUser.prototype, "GetMemoryBlockAddr", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "GetMemoryBlockAddr")));
+    Object.defineProperty(SysMemUserForUser.prototype, "FreeMemoryBlock",
+        __decorate([
+            nativeFunction(0x50F61D8A, 150, 'int', 'int')
+        ], SysMemUserForUser.prototype, "FreeMemoryBlock", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "FreeMemoryBlock")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelFreePartitionMemory",
+        __decorate([
+            nativeFunction(0xB6D61D02, 150, 'int', 'int')
+        ], SysMemUserForUser.prototype, "sceKernelFreePartitionMemory", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelFreePartitionMemory")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize",
+        __decorate([
+            nativeFunction(0xF919F628, 150, 'int', '')
+        ], SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr",
+        __decorate([
+            nativeFunction(0x9D9A5BA1, 150, 'uint', 'int')
+        ], SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize",
+        __decorate([
+            nativeFunction(0xA291F107, 150, 'int', '')
+        ], SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion",
+        __decorate([
+            nativeFunction(0x7591C7DB, 150, 'int', 'uint')
+        ], SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelSetCompilerVersion",
+        __decorate([
+            nativeFunction(0xF77D77CB, 150, 'int', 'uint')
+        ], SysMemUserForUser.prototype, "sceKernelSetCompilerVersion", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelSetCompilerVersion")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395",
+        __decorate([
+            nativeFunction(0xEBD5C3E6, 150, 'int', 'uint')
+        ], SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelDevkitVersion",
+        __decorate([
+            nativeFunction(0x3FC9AE6A, 150, 'int', 'uint')
+        ], SysMemUserForUser.prototype, "sceKernelDevkitVersion", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelDevkitVersion")));
+    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelPrintf",
+        __decorate([
+            nativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string')
+        ], SysMemUserForUser.prototype, "sceKernelPrintf", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelPrintf")));
     return SysMemUserForUser;
 })();
 exports.SysMemUserForUser = SysMemUserForUser;
@@ -21340,16 +20688,27 @@ exports.SysMemUserForUser = SysMemUserForUser;
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var UtilsForKernel = (function () {
     function UtilsForKernel(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelIcacheInvalidateRange = createNativeFunction(0xC2DF770E, 150, 'void', 'uint/uint', this, function (address, size) {
-            _this.context.currentInstructionCache.invalidateRange(address, address + size);
-        });
     }
+    UtilsForKernel.prototype.sceKernelIcacheInvalidateRange = function (address, size) {
+        this.context.currentInstructionCache.invalidateRange(address, address + size);
+    };
+    Object.defineProperty(UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange",
+        __decorate([
+            nativeFunction(0xC2DF770E, 150, 'void', 'uint/uint')
+        ], UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange", Object.getOwnPropertyDescriptor(UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange")));
     return UtilsForKernel;
 })();
 exports.UtilsForKernel = UtilsForKernel;
@@ -21357,91 +20716,146 @@ exports.UtilsForKernel = UtilsForKernel;
 },
 "src/hle/module/UtilsForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var UtilsForUser = (function () {
     function UtilsForUser(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelLibcClock = createNativeFunction(0x91E4F6A7, 150, 'uint', '', this, function () {
-            return _this.context.rtc.getClockMicroseconds();
-        });
-        this.sceKernelLibcTime = createNativeFunction(0x27CC57F0, 150, 'uint', 'void*', this, function (pointer) {
-            if (pointer == Stream.INVALID)
-                return 0;
-            var result = (_this.context.rtc.getCurrentUnixSeconds()) | 0;
-            if (pointer)
-                pointer.writeInt32(result);
-            return result;
-        });
-        this.sceKernelGetGPI = createNativeFunction(0x37FB5C42, 150, 'uint', '', this, function () {
-            return 0;
-        });
-        this.sceKernelUtilsMt19937Init = createNativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint', this, function (memory, contextPtr, seed) {
-            console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
-            return 0;
-        });
-        this.sceKernelUtilsMt19937UInt = createNativeFunction(0x06FB8A63, 150, 'uint', 'Memory/uint', this, function (memory, contextPtr) {
-            return Math.round(Math.random() * 0xFFFFFFFF);
-        });
-        this.sceKernelLibcGettimeofday = createNativeFunction(0x71EC4271, 150, 'uint', 'void*/void*', this, function (timevalPtr, timezonePtr) {
-            if (timevalPtr) {
-                var totalMilliseconds = Date.now();
-                var totalSeconds = Math.floor(totalMilliseconds / 1000);
-                var milliseconds = Math.floor(totalMilliseconds % 1000);
-                var microseconds = milliseconds * 1000;
-                timevalPtr.writeInt32(totalSeconds);
-                timevalPtr.writeInt32(microseconds);
-            }
-            if (timezonePtr) {
-                var minutesWest = 0;
-                var dstTime = 0;
-                timevalPtr.writeInt32(minutesWest);
-                timevalPtr.writeInt32(dstTime);
-            }
-            return 0;
-        });
-        this.sceKernelDcacheWritebackInvalidateRange = createNativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint', this, function (pointer, size) {
-            if (size > 0x7FFFFFFF)
-                return SceKernelErrors.ERROR_INVALID_SIZE;
-            if (pointer >= 0x80000000)
-                return SceKernelErrors.ERROR_INVALID_POINTER;
-            _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
-            return 0;
-        });
-        this.sceKernelDcacheWritebackRange = createNativeFunction(0x3EE30821, 150, 'uint', 'uint/uint', this, function (pointer, size) {
-            if (size > 0x7FFFFFFF)
-                return SceKernelErrors.ERROR_INVALID_SIZE;
-            if (pointer >= 0x80000000)
-                return SceKernelErrors.ERROR_INVALID_POINTER;
-            _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
-            return 0;
-        });
-        this.sceKernelDcacheWritebackAll = createNativeFunction(0x79D1C3FA, 150, 'uint', '', this, function () {
-            _this.context.memory.invalidateDataAll.dispatch();
-            return 0;
-        });
-        this.sceKernelDcacheInvalidateRange = createNativeFunction(0xBFA98062, 150, 'uint', 'uint/uint', this, function (pointer, size) {
-            if (!MathUtils.isAlignedTo(size, 4))
-                return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
-            if (size > 0x7FFFFFFF)
-                return SceKernelErrors.ERROR_INVALID_SIZE;
-            if (pointer >= 0x80000000)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
-            if (!MathUtils.isAlignedTo(pointer, 4))
-                return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
-            _this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
-            return 0;
-        });
-        this.sceKernelDcacheWritebackInvalidateAll = createNativeFunction(0xB435DEC5, 150, 'uint', '', this, function () {
-            _this.context.memory.invalidateDataAll.dispatch();
-            return 0;
-        });
-        this.sceKernelSetGPO = createNativeFunction(0x6AD345D7, 150, 'uint', 'int', this, function (value) {
-            return 0;
-        });
     }
+    UtilsForUser.prototype.sceKernelLibcClock = function () {
+        return this.context.rtc.getClockMicroseconds();
+    };
+    UtilsForUser.prototype.sceKernelLibcTime = function (pointer) {
+        if (pointer == Stream.INVALID)
+            return 0;
+        var result = (this.context.rtc.getCurrentUnixSeconds()) | 0;
+        if (pointer)
+            pointer.writeInt32(result);
+        return result;
+    };
+    UtilsForUser.prototype.sceKernelGetGPI = function () {
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelUtilsMt19937Init = function (memory, contextPtr, seed) {
+        console.warn('Not implemented UtilsForUser.sceKernelUtilsMt19937Init');
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelUtilsMt19937UInt = function (memory, contextPtr) {
+        return Math.round(Math.random() * 0xFFFFFFFF);
+    };
+    UtilsForUser.prototype.sceKernelLibcGettimeofday = function (timevalPtr, timezonePtr) {
+        if (timevalPtr) {
+            var totalMilliseconds = Date.now();
+            var totalSeconds = Math.floor(totalMilliseconds / 1000);
+            var milliseconds = Math.floor(totalMilliseconds % 1000);
+            var microseconds = milliseconds * 1000;
+            timevalPtr.writeInt32(totalSeconds);
+            timevalPtr.writeInt32(microseconds);
+        }
+        if (timezonePtr) {
+            var minutesWest = 0;
+            var dstTime = 0;
+            timevalPtr.writeInt32(minutesWest);
+            timevalPtr.writeInt32(dstTime);
+        }
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelDcacheWritebackInvalidateRange = function (pointer, size) {
+        if (size > 0x7FFFFFFF)
+            return SceKernelErrors.ERROR_INVALID_SIZE;
+        if (pointer >= 0x80000000)
+            return SceKernelErrors.ERROR_INVALID_POINTER;
+        this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelDcacheWritebackRange = function (pointer, size) {
+        if (size > 0x7FFFFFFF)
+            return SceKernelErrors.ERROR_INVALID_SIZE;
+        if (pointer >= 0x80000000)
+            return SceKernelErrors.ERROR_INVALID_POINTER;
+        this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelDcacheWritebackAll = function () {
+        this.context.memory.invalidateDataAll.dispatch();
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelDcacheInvalidateRange = function (pointer, size) {
+        if (!MathUtils.isAlignedTo(size, 4))
+            return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
+        if (size > 0x7FFFFFFF)
+            return SceKernelErrors.ERROR_INVALID_SIZE;
+        if (pointer >= 0x80000000)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
+        if (!MathUtils.isAlignedTo(pointer, 4))
+            return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
+        this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelDcacheWritebackInvalidateAll = function () {
+        this.context.memory.invalidateDataAll.dispatch();
+        return 0;
+    };
+    UtilsForUser.prototype.sceKernelSetGPO = function (value) {
+        return 0;
+    };
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelLibcClock",
+        __decorate([
+            nativeFunction(0x91E4F6A7, 150, 'uint', '')
+        ], UtilsForUser.prototype, "sceKernelLibcClock", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelLibcClock")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelLibcTime",
+        __decorate([
+            nativeFunction(0x27CC57F0, 150, 'uint', 'void*')
+        ], UtilsForUser.prototype, "sceKernelLibcTime", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelLibcTime")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelGetGPI",
+        __decorate([
+            nativeFunction(0x37FB5C42, 150, 'uint', '')
+        ], UtilsForUser.prototype, "sceKernelGetGPI", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelGetGPI")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelUtilsMt19937Init",
+        __decorate([
+            nativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint')
+        ], UtilsForUser.prototype, "sceKernelUtilsMt19937Init", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelUtilsMt19937Init")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelUtilsMt19937UInt",
+        __decorate([
+            nativeFunction(0x06FB8A63, 150, 'uint', 'Memory/uint')
+        ], UtilsForUser.prototype, "sceKernelUtilsMt19937UInt", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelUtilsMt19937UInt")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelLibcGettimeofday",
+        __decorate([
+            nativeFunction(0x71EC4271, 150, 'uint', 'void*/void*')
+        ], UtilsForUser.prototype, "sceKernelLibcGettimeofday", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelLibcGettimeofday")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange",
+        __decorate([
+            nativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint')
+        ], UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackRange",
+        __decorate([
+            nativeFunction(0x3EE30821, 150, 'uint', 'uint/uint')
+        ], UtilsForUser.prototype, "sceKernelDcacheWritebackRange", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackRange")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackAll",
+        __decorate([
+            nativeFunction(0x79D1C3FA, 150, 'uint', '')
+        ], UtilsForUser.prototype, "sceKernelDcacheWritebackAll", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackAll")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheInvalidateRange",
+        __decorate([
+            nativeFunction(0xBFA98062, 150, 'uint', 'uint/uint')
+        ], UtilsForUser.prototype, "sceKernelDcacheInvalidateRange", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheInvalidateRange")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll",
+        __decorate([
+            nativeFunction(0xB435DEC5, 150, 'uint', '')
+        ], UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll")));
+    Object.defineProperty(UtilsForUser.prototype, "sceKernelSetGPO",
+        __decorate([
+            nativeFunction(0x6AD345D7, 150, 'uint', 'int')
+        ], UtilsForUser.prototype, "sceKernelSetGPO", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelSetGPO")));
     return UtilsForUser;
 })();
 exports.UtilsForUser = UtilsForUser;
@@ -21449,8 +20863,16 @@ exports.UtilsForUser = UtilsForUser;
 },
 "src/hle/module/iofilemgr/IoFileMgrForUser": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var _vfs = require('../../vfs');
 var _structs = require('../../structs');
 var SceKernelErrors = require('../../SceKernelErrors');
@@ -21460,218 +20882,29 @@ var FileOpenFlags = _vfs.FileOpenFlags;
 var log = logger.named('module.IoFileMgrForUser');
 var IoFileMgrForUser = (function () {
     function IoFileMgrForUser(context) {
-        var _this = this;
         this.context = context;
-        this.sceIoDevctl = createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, function (deviceName, command, inputPointer, inputLength, outputPointer, outputLength) {
-            var input = _this.context.memory.getPointerStream(inputPointer, inputLength);
-            var output = _this.context.memory.getPointerStream(outputPointer, outputLength);
-            return _this.context.fileManager.devctlAsync(deviceName, command, input, output);
-        }, { tryCatch: false });
         this.fileUids = new UidCollection(3);
         this.directoryUids = new UidCollection(1);
-        this.sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            return _this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
-                var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
-                if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
-                    log.error(str, result);
-                }
-                else {
-                    log.info(str, result);
-                }
-                return result;
-            });
-        });
-        this.sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, function (filename, flags, mode) {
-            log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
-            return _this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
-                if (!_this.hasFileById(fileId))
-                    return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-                var file = _this.getFileById(fileId);
-                file.setAsyncOperation(Promise2.resolve(Integer64.fromNumber(fileId)));
-                log.info('-->', fileId);
-                return fileId;
-            });
-        });
-        this.sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, function (fileId) {
-            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
-            if (!_this.hasFileById(fileId))
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            var file = _this.getFileById(fileId);
-            if (file)
-                file.close();
-            file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(0)));
-            return 0;
-        });
-        this.sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, function (device1, device2, device3, mode, unk1Ptr, unk2) {
-            log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
-            return 0;
-        });
-        this.sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, function (fileId) {
-            if (!_this.hasFileById(fileId))
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            var file = _this.getFileById(fileId);
-            if (file)
-                file.close();
-            log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
-            _this.fileUids.remove(fileId);
-            return 0;
-        });
-        this.sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, function (fileId, input) {
-            if (fileId < 3) {
-                var str = input.readString(input.length);
-                log.log('STD[' + fileId + ']', str);
-                _this.context.onStdout.dispatch(str);
-                return 0;
-            }
-            else {
-                if (!_this.hasFileById(fileId))
-                    return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-                var file = _this.getFileById(fileId);
-                return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
-                    log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
-                    file.cursor += writtenCount;
-                    return writtenCount;
-                }).catch(function (e) {
-                    log.error(e);
-                    return SceKernelErrors.ERROR_ERROR;
-                });
-            }
-        });
-        this.sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, function (fileId, outputPointer, outputLength) {
-            if (!_this.hasFileById(fileId))
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            var file = _this.getFileById(fileId);
-            return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                file.cursor += readedData.byteLength;
-                _this.context.memory.writeBytes(outputPointer, readedData);
-                return readedData.byteLength;
-            });
-        });
-        this.sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, function (thread, fileId, outputPointer, outputLength) {
-            if (!_this.hasFileById(fileId))
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            var file = _this.getFileById(fileId);
-            file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
-                file.cursor += readedData.byteLength;
-                _this.context.memory.writeBytes(outputPointer, readedData);
-                return Integer64.fromNumber(readedData.byteLength);
-            }));
-            return 0;
-        });
-        this.sceIoWaitAsync = createNativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-        });
-        this.sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            return _this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-        });
-        this.sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, function (thread, fileId, resultPointer) {
-            if (!_this.hasFileById(fileId))
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            var file = _this.getFileById(fileId);
-            if (file.asyncResult) {
-                if (DebugOnce('sceIoPollAsync', 100))
-                    log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
-                resultPointer.writeInt64(file.asyncResult);
-                return 0;
-            }
-            else {
-                if (DebugOnce('sceIoPollAsync', 100))
-                    log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
-                resultPointer.writeInt64(Integer64.fromInt(0));
-                return 1;
-            }
-        });
-        this.sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, function (fileName, sceIoStatPointer) {
-            if (sceIoStatPointer) {
-                sceIoStatPointer.position = 0;
-                _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
-            }
-            try {
-                return _this.context.fileManager.getStatAsync(fileName)
-                    .then(function (stat) {
-                    var stat2 = _this._vfsStatToSceIoStat(stat);
-                    log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
-                    if (sceIoStatPointer) {
-                        sceIoStatPointer.position = 0;
-                        _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
-                    }
-                    return 0;
-                })
-                    .catch(function (error) { return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND; });
-            }
-            catch (e) {
-                log.error(e);
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            }
-        });
-        this.sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, function (path) {
-            log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
-            try {
-                _this.context.fileManager.chdir(path);
-                return 0;
-            }
-            catch (e) {
-                log.error(e);
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            }
-        });
-        this.sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, function (fileId, offset, whence) {
-            if (!_this.hasFileById(fileId))
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            var file = _this.getFileById(fileId);
-            var result = _this._seek(fileId, offset.getNumber(), whence);
-            file.setAsyncOperationNow(Integer64.fromNumber(result));
-            return 0;
-        });
-        this.sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, function (fileId, offset, whence) {
-            var result = _this._seek(fileId, offset.getNumber(), whence);
-            return Integer64.fromNumber(result);
-        });
-        this.sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, function (fileId, offset, whence) {
-            var result = _this._seek(fileId, offset, whence);
-            return result;
-        });
-        this.sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, function (path, accessMode) {
-            log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
-            return 0;
-        });
-        this.sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, function (path) {
-            log.log('sceIoDopen("' + path + '")');
-            return _this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
-                log.log('opened directory "' + path + '"');
-                return _this.directoryUids.allocate(directory);
-            }).catch(function (error) {
-                log.error(error);
-                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-            });
-        });
-        this.sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, function (fileId) {
-            if (!_this.directoryUids.has(fileId))
-                return -1;
-            _this.directoryUids.get(fileId).close();
-            _this.directoryUids.remove(fileId);
-            return 0;
-        });
-        this.sceIoDread = createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, function (fileId, hleIoDirentPtr) {
-            if (!_this.directoryUids.has(fileId))
-                return -1;
-            var directory = _this.directoryUids.get(fileId);
-            if (directory.left > 0) {
-                var stat = directory.read();
-                var hleIoDirent = new _structs.HleIoDirent();
-                hleIoDirent.name = stat.name;
-                hleIoDirent.stat = _this._vfsStatToSceIoStat(stat);
-                hleIoDirent.privateData = 0;
-                _structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
-            }
-            return directory.left;
-        });
-        this.sceIoChangeAsyncPriority = createNativeFunction(0xB293727F, 150, 'int', 'int/int', this, function (fileId, priority) {
-            return 0;
-        });
     }
+    IoFileMgrForUser.prototype.sceIoDevctl = function (deviceName, command, inputPointer, inputLength, outputPointer, outputLength) {
+        var input = this.context.memory.getPointerStream(inputPointer, inputLength);
+        var output = this.context.memory.getPointerStream(outputPointer, outputLength);
+        return this.context.fileManager.devctlAsync(deviceName, command, input, output);
+    };
     IoFileMgrForUser.prototype.hasFileById = function (id) { return this.fileUids.has(id); };
     IoFileMgrForUser.prototype.getFileById = function (id) { return this.fileUids.get(id); };
+    IoFileMgrForUser.prototype.sceIoOpen = function (filename, flags, mode) {
+        return this._sceIoOpenAsync(filename, flags, mode).then(function (result) {
+            var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
+            if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
+                log.error(str, result);
+            }
+            else {
+                log.info(str, result);
+            }
+            return result;
+        });
+    };
     IoFileMgrForUser.prototype._sceIoOpenAsync = function (filename, flags, mode) {
         var _this = this;
         return this.context.fileManager.openAsync(filename, flags, mode)
@@ -21682,6 +20915,86 @@ var IoFileMgrForUser = (function () {
             log.error('Not found', filename, e);
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         });
+    };
+    IoFileMgrForUser.prototype.sceIoOpenAsync = function (filename, flags, mode) {
+        var _this = this;
+        log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
+        return this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
+            if (!_this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+            var file = _this.getFileById(fileId);
+            file.setAsyncOperation(Promise2.resolve(Integer64.fromNumber(fileId)));
+            log.info('-->', fileId);
+            return fileId;
+        });
+    };
+    IoFileMgrForUser.prototype.sceIoCloseAsync = function (fileId) {
+        log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        var file = this.getFileById(fileId);
+        if (file)
+            file.close();
+        file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(0)));
+        return 0;
+    };
+    IoFileMgrForUser.prototype.sceIoAssign = function (device1, device2, device3, mode, unk1Ptr, unk2) {
+        log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
+        return 0;
+    };
+    IoFileMgrForUser.prototype.sceIoClose = function (fileId) {
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        var file = this.getFileById(fileId);
+        if (file)
+            file.close();
+        log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
+        this.fileUids.remove(fileId);
+        return 0;
+    };
+    IoFileMgrForUser.prototype.sceIoWrite = function (fileId, input) {
+        if (fileId < 3) {
+            var str = input.readString(input.length);
+            log.log('STD[' + fileId + ']', str);
+            this.context.onStdout.dispatch(str);
+            return 0;
+        }
+        else {
+            if (!this.hasFileById(fileId))
+                return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+            var file = this.getFileById(fileId);
+            return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then(function (writtenCount) {
+                log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
+                file.cursor += writtenCount;
+                return writtenCount;
+            }).catch(function (e) {
+                log.error(e);
+                return SceKernelErrors.ERROR_ERROR;
+            });
+        }
+    };
+    IoFileMgrForUser.prototype.sceIoRead = function (fileId, outputPointer, outputLength) {
+        var _this = this;
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        var file = this.getFileById(fileId);
+        return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+            file.cursor += readedData.byteLength;
+            _this.context.memory.writeBytes(outputPointer, readedData);
+            return readedData.byteLength;
+        });
+    };
+    IoFileMgrForUser.prototype.sceIoReadAsync = function (thread, fileId, outputPointer, outputLength) {
+        var _this = this;
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        var file = this.getFileById(fileId);
+        file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+            file.cursor += readedData.byteLength;
+            _this.context.memory.writeBytes(outputPointer, readedData);
+            return Integer64.fromNumber(readedData.byteLength);
+        }));
+        return 0;
     };
     IoFileMgrForUser.prototype._sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
         thread.state.LO = fileId;
@@ -21710,6 +21023,29 @@ var IoFileMgrForUser = (function () {
             return Promise2.resolve(1);
         }
     };
+    IoFileMgrForUser.prototype.sceIoWaitAsync = function (thread, fileId, resultPointer) {
+        return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+    };
+    IoFileMgrForUser.prototype.sceIoWaitAsyncCB = function (thread, fileId, resultPointer) {
+        return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+    };
+    IoFileMgrForUser.prototype.sceIoPollAsync = function (thread, fileId, resultPointer) {
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        var file = this.getFileById(fileId);
+        if (file.asyncResult) {
+            if (DebugOnce('sceIoPollAsync', 100))
+                log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
+            resultPointer.writeInt64(file.asyncResult);
+            return 0;
+        }
+        else {
+            if (DebugOnce('sceIoPollAsync', 100))
+                log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+            resultPointer.writeInt64(Integer64.fromInt(0));
+            return 1;
+        }
+    };
     IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
         var stat2 = new _structs.SceIoStat();
         stat2.mode = 0;
@@ -21734,6 +21070,96 @@ var IoFileMgrForUser = (function () {
         }
         return stat2;
     };
+    IoFileMgrForUser.prototype.sceIoGetstat = function (fileName, sceIoStatPointer) {
+        var _this = this;
+        if (sceIoStatPointer) {
+            sceIoStatPointer.position = 0;
+            _structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+        }
+        try {
+            return this.context.fileManager.getStatAsync(fileName)
+                .then(function (stat) {
+                var stat2 = _this._vfsStatToSceIoStat(stat);
+                log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
+                if (sceIoStatPointer) {
+                    sceIoStatPointer.position = 0;
+                    _structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+                }
+                return 0;
+            })
+                .catch(function (error) { return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND; });
+        }
+        catch (e) {
+            log.error(e);
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        }
+    };
+    IoFileMgrForUser.prototype.sceIoChdir = function (path) {
+        log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
+        try {
+            this.context.fileManager.chdir(path);
+            return 0;
+        }
+        catch (e) {
+            log.error(e);
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        }
+    };
+    IoFileMgrForUser.prototype.sceIoLseekAsync = function (fileId, offset, whence) {
+        if (!this.hasFileById(fileId))
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        var file = this.getFileById(fileId);
+        var result = this._seek(fileId, offset.getNumber(), whence);
+        file.setAsyncOperationNow(Integer64.fromNumber(result));
+        return 0;
+    };
+    IoFileMgrForUser.prototype.sceIoLseek = function (fileId, offset, whence) {
+        var result = this._seek(fileId, offset.getNumber(), whence);
+        return Integer64.fromNumber(result);
+    };
+    IoFileMgrForUser.prototype.sceIoLseek32 = function (fileId, offset, whence) {
+        var result = this._seek(fileId, offset, whence);
+        return result;
+    };
+    IoFileMgrForUser.prototype.sceIoMkdir = function (path, accessMode) {
+        log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
+        return 0;
+    };
+    IoFileMgrForUser.prototype.sceIoDopen = function (path) {
+        var _this = this;
+        log.log('sceIoDopen("' + path + '")');
+        return this.context.fileManager.openDirectoryAsync(path).then(function (directory) {
+            log.log('opened directory "' + path + '"');
+            return _this.directoryUids.allocate(directory);
+        }).catch(function (error) {
+            log.error(error);
+            return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
+        });
+    };
+    IoFileMgrForUser.prototype.sceIoDclose = function (fileId) {
+        if (!this.directoryUids.has(fileId))
+            return -1;
+        this.directoryUids.get(fileId).close();
+        this.directoryUids.remove(fileId);
+        return 0;
+    };
+    IoFileMgrForUser.prototype.sceIoDread = function (fileId, hleIoDirentPtr) {
+        if (!this.directoryUids.has(fileId))
+            return -1;
+        var directory = this.directoryUids.get(fileId);
+        if (directory.left > 0) {
+            var stat = directory.read();
+            var hleIoDirent = new _structs.HleIoDirent();
+            hleIoDirent.name = stat.name;
+            hleIoDirent.stat = this._vfsStatToSceIoStat(stat);
+            hleIoDirent.privateData = 0;
+            _structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
+        }
+        return directory.left;
+    };
+    IoFileMgrForUser.prototype.sceIoChangeAsyncPriority = function (fileId, priority) {
+        return 0;
+    };
     IoFileMgrForUser.prototype._seek = function (fileId, offset, whence) {
         if (!this.hasFileById(fileId))
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -21751,6 +21177,94 @@ var IoFileMgrForUser = (function () {
         }
         return file.cursor;
     };
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDevctl",
+        __decorate([
+            nativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int')
+        ], IoFileMgrForUser.prototype, "sceIoDevctl", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDevctl")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoOpen",
+        __decorate([
+            nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
+        ], IoFileMgrForUser.prototype, "sceIoOpen", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoOpen")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoOpenAsync",
+        __decorate([
+            nativeFunction(0x89AA9906, 150, 'int', 'string/int/int')
+        ], IoFileMgrForUser.prototype, "sceIoOpenAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoOpenAsync")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoCloseAsync",
+        __decorate([
+            nativeFunction(0xFF5940B6, 150, 'int', 'int')
+        ], IoFileMgrForUser.prototype, "sceIoCloseAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoCloseAsync")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoAssign",
+        __decorate([
+            nativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long')
+        ], IoFileMgrForUser.prototype, "sceIoAssign", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoAssign")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoClose",
+        __decorate([
+            nativeFunction(0x810C4BC3, 150, 'int', 'int')
+        ], IoFileMgrForUser.prototype, "sceIoClose", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoClose")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoWrite",
+        __decorate([
+            nativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]')
+        ], IoFileMgrForUser.prototype, "sceIoWrite", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoWrite")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoRead",
+        __decorate([
+            nativeFunction(0x6A638D83, 150, 'int', 'int/uint/int')
+        ], IoFileMgrForUser.prototype, "sceIoRead", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoRead")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoReadAsync",
+        __decorate([
+            nativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int')
+        ], IoFileMgrForUser.prototype, "sceIoReadAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoReadAsync")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoWaitAsync",
+        __decorate([
+            nativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*')
+        ], IoFileMgrForUser.prototype, "sceIoWaitAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoWaitAsync")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoWaitAsyncCB",
+        __decorate([
+            nativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*')
+        ], IoFileMgrForUser.prototype, "sceIoWaitAsyncCB", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoWaitAsyncCB")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoPollAsync",
+        __decorate([
+            nativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*')
+        ], IoFileMgrForUser.prototype, "sceIoPollAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoPollAsync")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoGetstat",
+        __decorate([
+            nativeFunction(0xACE946E8, 150, 'int', 'string/void*')
+        ], IoFileMgrForUser.prototype, "sceIoGetstat", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoGetstat")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoChdir",
+        __decorate([
+            nativeFunction(0x55F4717D, 150, 'int', 'string')
+        ], IoFileMgrForUser.prototype, "sceIoChdir", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoChdir")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoLseekAsync",
+        __decorate([
+            nativeFunction(0x71B19E77, 150, 'int', 'int/long/int')
+        ], IoFileMgrForUser.prototype, "sceIoLseekAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoLseekAsync")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoLseek",
+        __decorate([
+            nativeFunction(0x27EB27B8, 150, 'long', 'int/long/int')
+        ], IoFileMgrForUser.prototype, "sceIoLseek", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoLseek")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoLseek32",
+        __decorate([
+            nativeFunction(0x68963324, 150, 'int', 'int/int/int')
+        ], IoFileMgrForUser.prototype, "sceIoLseek32", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoLseek32")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoMkdir",
+        __decorate([
+            nativeFunction(0x06A70004, 150, 'uint', 'string/int')
+        ], IoFileMgrForUser.prototype, "sceIoMkdir", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoMkdir")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDopen",
+        __decorate([
+            nativeFunction(0xB29DDF9C, 150, 'uint', 'string')
+        ], IoFileMgrForUser.prototype, "sceIoDopen", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDopen")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDclose",
+        __decorate([
+            nativeFunction(0xEB092469, 150, 'uint', 'int')
+        ], IoFileMgrForUser.prototype, "sceIoDclose", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDclose")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDread",
+        __decorate([
+            nativeFunction(0xE3EB004C, 150, 'int', 'int/void*')
+        ], IoFileMgrForUser.prototype, "sceIoDread", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDread")));
+    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority",
+        __decorate([
+            nativeFunction(0xB293727F, 150, 'int', 'int/int')
+        ], IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority")));
     return IoFileMgrForUser;
 })();
 exports.IoFileMgrForUser = IoFileMgrForUser;
@@ -21758,186 +21272,277 @@ exports.IoFileMgrForUser = IoFileMgrForUser;
 },
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
 var _riff = require('../../format/riff');
 _riff.Riff;
 var Riff = _riff.Riff;
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceAtrac3plus = (function () {
     function sceAtrac3plus(context) {
-        var _this = this;
         this.context = context;
         this._atrac3Ids = new UidCollection();
-        this.sceAtracSetDataAndGetID = createNativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]', this, function (data) {
-            return _this._atrac3Ids.allocate(Atrac3.fromStream(data));
-        });
-        this.sceAtracSetData = createNativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]', this, function (id, data) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            atrac3.setDataStream(data);
-            return 0;
-        });
-        this.sceAtracGetSecondBufferInfo = createNativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*', this, function (id, puiPosition, puiDataByte) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            puiPosition.writeInt32(0);
-            puiDataByte.writeInt32(0);
-            return SceKernelErrors.ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED;
-        });
-        this.sceAtracSetSecondBuffer = createNativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint', this, function (id, pucSecondBufferAddr, uiSecondBufferByte) {
-            return 0;
-        });
-        this.sceAtracReleaseAtracID = createNativeFunction(0x61EB33F5, 150, 'uint', 'int', this, function (id) {
-            _this._atrac3Ids.remove(id);
-            return 0;
-        });
-        this.sceAtracDecodeData = createNativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*', this, function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
-            if (!_this.hasById(id))
-                return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
-            var atrac3 = _this.getById(id);
-            return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
-                var reachedEnd = 0;
-                var remainingFramesToDecode = atrac3.remainingFrames;
-                function outputPointers() {
-                    if (reachedEndPtr)
-                        reachedEndPtr.writeInt32(reachedEnd);
-                    if (decodedSamplesCountPtr)
-                        decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.format.atracChannels);
-                    if (remainingFramesToDecodePtr)
-                        remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
-                }
-                if (atrac3.decodingReachedEnd) {
-                    if (atrac3.numberOfLoops == 0) {
-                        decodedSamples = 0;
-                        reachedEnd = 1;
-                        remainingFramesToDecode = 0;
-                        outputPointers();
-                        return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
-                    }
-                    if (atrac3.numberOfLoops > 0)
-                        atrac3.numberOfLoops--;
-                    atrac3.currentSample = (atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0;
-                }
-                outputPointers();
-                return 0;
-            });
-        });
-        this.sceAtracGetRemainFrame = createNativeFunction(0x9AE849A7, 150, 'uint', 'int/void*', this, function (id, remainFramePtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            if (remainFramePtr)
-                remainFramePtr.writeInt32(atrac3.remainingFrames);
-            return 0;
-        });
-        this.sceAtracGetBitrate = createNativeFunction(0xA554A158, 150, 'uint', 'int/void*', this, function (id, bitratePtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            bitratePtr.writeInt32(atrac3.bitrate);
-            return 0;
-        });
-        this.sceAtracGetChannel = createNativeFunction(0x31668baa, 150, 'uint', 'int/void*', this, function (id, channelsPtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            channelsPtr.writeInt32(atrac3.format.atracChannels);
-            return 0;
-        });
-        this.sceAtracGetMaxSample = createNativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*', this, function (id, maxNumberOfSamplesPtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
-            return 0;
-        });
-        this.sceAtracGetNextSample = createNativeFunction(0x36FAABFB, 150, 'uint', 'int/void*', this, function (id, numberOfSamplesInNextFramePtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
-            return 0;
-        });
-        this.sceAtracGetAtracID = createNativeFunction(0x780F88D1, 150, 'uint', 'int', this, function (codecType) {
-            if (codecType != CodecType.PSP_MODE_AT_3 && codecType != CodecType.PSP_MODE_AT_3_PLUS) {
-                return SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE;
-            }
-            return _this._atrac3Ids.allocate(new Atrac3(-1));
-        });
-        this.sceAtracAddStreamData = createNativeFunction(0x7DB31251, 150, 'uint', 'int/int', this, function (id, bytesToAdd) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            return 0;
-        });
-        this.sceAtracGetStreamDataInfo = createNativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*', this, function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            writePointerPointer.writeInt32(0);
-            availableBytesPtr.writeInt32(0);
-            readOffsetPtr.writeInt32(0);
-            return 0;
-        });
-        this.sceAtracGetNextDecodePosition = createNativeFunction(0xE23E3A35, 150, 'uint', 'int/void*', this, function (id, samplePositionPtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            if (atrac3.decodingReachedEnd)
-                return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
-            if (samplePositionPtr)
-                samplePositionPtr.writeInt32(atrac3.currentSample);
-            return 0;
-        });
-        this.sceAtracGetSoundSample = createNativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*', this, function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
-            if (endSamplePtr)
-                endSamplePtr.writeInt32(atrac3.fact.endSample);
-            if (loopStartSamplePtr)
-                loopStartSamplePtr.writeInt32(-1);
-            if (loopEndSamplePtr)
-                loopEndSamplePtr.writeInt32(-1);
-            return 0;
-        });
-        this.sceAtracSetLoopNum = createNativeFunction(0x868120B5, 150, 'uint', 'int/int', this, function (id, numberOfLoops) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            atrac3.numberOfLoops = numberOfLoops;
-            return 0;
-        });
-        this.sceAtracGetBufferInfoForReseting = createNativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*', this, function (id, uiSample, bufferInfoPtr) {
-            throw (new Error("Not implemented sceAtracGetBufferInfoForReseting"));
-            return 0;
-        });
-        this.sceAtracResetPlayPosition = createNativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint', this, function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
-            throw (new Error("Not implemented sceAtracResetPlayPosition"));
-            return 0;
-        });
-        this.sceAtracGetInternalErrorInfo = createNativeFunction(0xE88F759B, 150, 'uint', 'int/void*', this, function (id, errorResultPtr) {
-            throw (new Error("Not implemented sceAtracGetInternalErrorInfo"));
-            return 0;
-        });
-        this.sceAtracGetOutputChannel = createNativeFunction(0xB3B5D042, 150, 'uint', 'int/void*', this, function (id, outputChannelPtr) {
-            if (!_this.hasById(id))
-                return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-            var atrac3 = _this.getById(id);
-            var sceAudioChReserve = _this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
-            var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
-            outputChannelPtr.writeInt32(channel);
-            return 0;
-        });
     }
+    sceAtrac3plus.prototype.sceAtracSetDataAndGetID = function (data) {
+        return this._atrac3Ids.allocate(Atrac3.fromStream(data));
+    };
+    sceAtrac3plus.prototype.sceAtracSetData = function (id, data) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        atrac3.setDataStream(data);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetSecondBufferInfo = function (id, puiPosition, puiDataByte) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        puiPosition.writeInt32(0);
+        puiDataByte.writeInt32(0);
+        return SceKernelErrors.ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED;
+    };
+    sceAtrac3plus.prototype.sceAtracSetSecondBuffer = function (id, pucSecondBufferAddr, uiSecondBufferByte) {
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracReleaseAtracID = function (id) {
+        this._atrac3Ids.remove(id);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracDecodeData = function (id, samplesOutPtr, decodedSamplesCountPtr, reachedEndPtr, remainingFramesToDecodePtr) {
+        if (!this.hasById(id))
+            return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
+        var atrac3 = this.getById(id);
+        return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
+            var reachedEnd = 0;
+            var remainingFramesToDecode = atrac3.remainingFrames;
+            function outputPointers() {
+                if (reachedEndPtr)
+                    reachedEndPtr.writeInt32(reachedEnd);
+                if (decodedSamplesCountPtr)
+                    decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.format.atracChannels);
+                if (remainingFramesToDecodePtr)
+                    remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
+            }
+            if (atrac3.decodingReachedEnd) {
+                if (atrac3.numberOfLoops == 0) {
+                    decodedSamples = 0;
+                    reachedEnd = 1;
+                    remainingFramesToDecode = 0;
+                    outputPointers();
+                    return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
+                }
+                if (atrac3.numberOfLoops > 0)
+                    atrac3.numberOfLoops--;
+                atrac3.currentSample = (atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0;
+            }
+            outputPointers();
+            return 0;
+        });
+    };
+    sceAtrac3plus.prototype.sceAtracGetRemainFrame = function (id, remainFramePtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        if (remainFramePtr)
+            remainFramePtr.writeInt32(atrac3.remainingFrames);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetBitrate = function (id, bitratePtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        bitratePtr.writeInt32(atrac3.bitrate);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetChannel = function (id, channelsPtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        channelsPtr.writeInt32(atrac3.format.atracChannels);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetMaxSample = function (id, maxNumberOfSamplesPtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetNextSample = function (id, numberOfSamplesInNextFramePtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetAtracID = function (codecType) {
+        if (codecType != CodecType.PSP_MODE_AT_3 && codecType != CodecType.PSP_MODE_AT_3_PLUS) {
+            return SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE;
+        }
+        return this._atrac3Ids.allocate(new Atrac3(-1));
+    };
     sceAtrac3plus.prototype.hasById = function (id) { return this._atrac3Ids.has(id); };
     sceAtrac3plus.prototype.getById = function (id) {
         return this._atrac3Ids.get(id);
     };
+    sceAtrac3plus.prototype.sceAtracAddStreamData = function (id, bytesToAdd) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetStreamDataInfo = function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        writePointerPointer.writeInt32(0);
+        availableBytesPtr.writeInt32(0);
+        readOffsetPtr.writeInt32(0);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetNextDecodePosition = function (id, samplePositionPtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        if (atrac3.decodingReachedEnd)
+            return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
+        if (samplePositionPtr)
+            samplePositionPtr.writeInt32(atrac3.currentSample);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetSoundSample = function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
+        if (endSamplePtr)
+            endSamplePtr.writeInt32(atrac3.fact.endSample);
+        if (loopStartSamplePtr)
+            loopStartSamplePtr.writeInt32(-1);
+        if (loopEndSamplePtr)
+            loopEndSamplePtr.writeInt32(-1);
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracSetLoopNum = function (id, numberOfLoops) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        atrac3.numberOfLoops = numberOfLoops;
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetBufferInfoForReseting = function (id, uiSample, bufferInfoPtr) {
+        throw (new Error("Not implemented sceAtracGetBufferInfoForReseting"));
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracResetPlayPosition = function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
+        throw (new Error("Not implemented sceAtracResetPlayPosition"));
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetInternalErrorInfo = function (id, errorResultPtr) {
+        throw (new Error("Not implemented sceAtracGetInternalErrorInfo"));
+        return 0;
+    };
+    sceAtrac3plus.prototype.sceAtracGetOutputChannel = function (id, outputChannelPtr) {
+        if (!this.hasById(id))
+            return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        var atrac3 = this.getById(id);
+        var sceAudioChReserve = this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
+        var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
+        outputChannelPtr.writeInt32(channel);
+        return 0;
+    };
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetDataAndGetID",
+        __decorate([
+            nativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]')
+        ], sceAtrac3plus.prototype, "sceAtracSetDataAndGetID", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetDataAndGetID")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetData",
+        __decorate([
+            nativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]')
+        ], sceAtrac3plus.prototype, "sceAtracSetData", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetData")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo",
+        __decorate([
+            nativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetSecondBuffer",
+        __decorate([
+            nativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint')
+        ], sceAtrac3plus.prototype, "sceAtracSetSecondBuffer", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetSecondBuffer")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracReleaseAtracID",
+        __decorate([
+            nativeFunction(0x61EB33F5, 150, 'uint', 'int')
+        ], sceAtrac3plus.prototype, "sceAtracReleaseAtracID", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracReleaseAtracID")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracDecodeData",
+        __decorate([
+            nativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*')
+        ], sceAtrac3plus.prototype, "sceAtracDecodeData", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracDecodeData")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetRemainFrame",
+        __decorate([
+            nativeFunction(0x9AE849A7, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetRemainFrame", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetRemainFrame")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetBitrate",
+        __decorate([
+            nativeFunction(0xA554A158, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetBitrate", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetBitrate")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetChannel",
+        __decorate([
+            nativeFunction(0x31668baa, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetChannel", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetChannel")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetMaxSample",
+        __decorate([
+            nativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetMaxSample", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetMaxSample")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetNextSample",
+        __decorate([
+            nativeFunction(0x36FAABFB, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetNextSample", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetNextSample")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetAtracID",
+        __decorate([
+            nativeFunction(0x780F88D1, 150, 'uint', 'int')
+        ], sceAtrac3plus.prototype, "sceAtracGetAtracID", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetAtracID")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracAddStreamData",
+        __decorate([
+            nativeFunction(0x7DB31251, 150, 'uint', 'int/int')
+        ], sceAtrac3plus.prototype, "sceAtracAddStreamData", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracAddStreamData")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo",
+        __decorate([
+            nativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition",
+        __decorate([
+            nativeFunction(0xE23E3A35, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetSoundSample",
+        __decorate([
+            nativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetSoundSample", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetSoundSample")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetLoopNum",
+        __decorate([
+            nativeFunction(0x868120B5, 150, 'uint', 'int/int')
+        ], sceAtrac3plus.prototype, "sceAtracSetLoopNum", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetLoopNum")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting",
+        __decorate([
+            nativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracResetPlayPosition",
+        __decorate([
+            nativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint')
+        ], sceAtrac3plus.prototype, "sceAtracResetPlayPosition", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracResetPlayPosition")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo",
+        __decorate([
+            nativeFunction(0xE88F759B, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo")));
+    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetOutputChannel",
+        __decorate([
+            nativeFunction(0xB3B5D042, 150, 'uint', 'int/void*')
+        ], sceAtrac3plus.prototype, "sceAtracGetOutputChannel", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetOutputChannel")));
     return sceAtrac3plus;
 })();
 exports.sceAtrac3plus = sceAtrac3plus;
@@ -22030,7 +21635,6 @@ var Atrac3 = (function () {
                 self['window'] = self;
                 var _self = self;
                 if (!_self['MediaEngine']) {
-                    importScripts('source/polyfills/promise.js');
                     importScripts('data/MediaEngine.js');
                     _self['MediaEngine'] = MediaEngine;
                 }
@@ -22146,114 +21750,169 @@ var CodecType;
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
 var _audio = require('../../core/audio');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceAudio = (function () {
     function sceAudio(context) {
-        var _this = this;
         this.context = context;
         this.channels = [];
-        this.sceAudioOutput2Reserve = createNativeFunction(0x01562BA3, 150, 'uint', 'int', this, function (sampleCount) {
-            console.warn('sceAudioOutput2Reserve not implemented!');
-            return 0;
-        });
-        this.sceAudioOutput2OutputBlocking = createNativeFunction(0x2D53F36E, 150, 'uint', 'int/void*', this, function (volume, buffer) {
-            return waitAsync(10).then(function () { return 0; });
-        });
-        this.sceAudioChReserve = createNativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int', this, function (channelId, sampleCount, format) {
-            if (channelId >= _this.channels.length)
-                return -1;
-            if (channelId < 0) {
-                channelId = _this.channels.first(function (channel) { return !channel.allocated; }).id;
-                if (channelId === undefined) {
-                    console.warn('Not implemented sceAudio.sceAudioChReserve');
-                    return -2;
-                }
-            }
-            var channel = _this.channels[channelId];
-            channel.allocated = true;
-            channel.sampleCount = sampleCount;
-            channel.format = format;
-            channel.channel = _this.context.audio.createChannel();
-            channel.channel.start();
-            return channelId;
-        });
-        this.sceAudioChRelease = createNativeFunction(0x6FC46853, 150, 'uint', 'int', this, function (channelId) {
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            channel.allocated = false;
-            channel.channel.stop();
-            channel.channel = null;
-            return 0;
-        });
-        this.sceAudioChangeChannelConfig = createNativeFunction(0x95FD0C2D, 150, 'uint', 'int/int', this, function (channelId, format) {
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            channel.format = format;
-            return 0;
-        });
-        this.sceAudioSetChannelDataLen = createNativeFunction(0xCB2E439E, 150, 'uint', 'int/int', this, function (channelId, sampleCount) {
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            channel.sampleCount = sampleCount;
-            return 0;
-        });
-        this.sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
-            if (!buffer)
-                return -1;
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
-            if (!(result instanceof Promise2))
-                return result;
-            return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
-        });
-        this.sceAudioOutputBlocking = createNativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
-            if (!buffer)
-                return -1;
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
-            return result;
-        });
-        this.sceAudioOutput = createNativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*', this, function (channelId, volume, buffer) {
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
-            return 0;
-        });
-        this.sceAudioOutputPanned = createNativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*', this, function (channelId, leftVolume, rightVolume, buffer) {
-            if (!_this.isValidChannel(channelId))
-                return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-            var channel = _this.getChannelById(channelId);
-            channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
-            return 0;
-        });
-        this.sceAudioChangeChannelVolume = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int', this, function (channelId, volumeLeft, volumeRight) {
-            console.warn("Not implemented sceAudioChangeChannelVolume");
-            return 0;
-        });
-        this.sceAudioGetChannelRestLen = createNativeFunction(0xB7E1D8E7, 150, 'uint', 'int', this, function (channelId) {
-            console.warn("Not implemented sceAudioGetChannelRestLen");
-            return 0;
-        });
         for (var n = 0; n < 8; n++)
             this.channels.push(new Channel(n));
     }
     sceAudio.prototype.isValidChannel = function (channelId) {
         return (channelId >= 0 && channelId < this.channels.length);
     };
+    sceAudio.prototype.sceAudioOutput2Reserve = function (sampleCount) {
+        console.warn('sceAudioOutput2Reserve not implemented!');
+        return 0;
+    };
+    sceAudio.prototype.sceAudioOutput2OutputBlocking = function (volume, buffer) {
+        return waitAsync(10).then(function () { return 0; });
+    };
+    sceAudio.prototype.sceAudioChReserve = function (channelId, sampleCount, format) {
+        if (channelId >= this.channels.length)
+            return -1;
+        if (channelId < 0) {
+            channelId = this.channels.first(function (channel) { return !channel.allocated; }).id;
+            if (channelId === undefined) {
+                console.warn('Not implemented sceAudio.sceAudioChReserve');
+                return -2;
+            }
+        }
+        var channel = this.channels[channelId];
+        channel.allocated = true;
+        channel.sampleCount = sampleCount;
+        channel.format = format;
+        channel.channel = this.context.audio.createChannel();
+        channel.channel.start();
+        return channelId;
+    };
     sceAudio.prototype.getChannelById = function (id) {
         return this.channels[id];
     };
+    sceAudio.prototype.sceAudioChRelease = function (channelId) {
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        channel.allocated = false;
+        channel.channel.stop();
+        channel.channel = null;
+        return 0;
+    };
+    sceAudio.prototype.sceAudioChangeChannelConfig = function (channelId, format) {
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        channel.format = format;
+        return 0;
+    };
+    sceAudio.prototype.sceAudioSetChannelDataLen = function (channelId, sampleCount) {
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        channel.sampleCount = sampleCount;
+        return 0;
+    };
+    sceAudio.prototype.sceAudioOutputPannedBlocking = function (channelId, leftVolume, rightVolume, buffer) {
+        if (!buffer)
+            return -1;
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        if (!(result instanceof Promise2))
+            return result;
+        return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
+    };
+    sceAudio.prototype.sceAudioOutputBlocking = function (channelId, volume, buffer) {
+        if (!buffer)
+            return -1;
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        return result;
+    };
+    sceAudio.prototype.sceAudioOutput = function (channelId, volume, buffer) {
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        return 0;
+    };
+    sceAudio.prototype.sceAudioOutputPanned = function (channelId, leftVolume, rightVolume, buffer) {
+        if (!this.isValidChannel(channelId))
+            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        var channel = this.getChannelById(channelId);
+        channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        return 0;
+    };
+    sceAudio.prototype.sceAudioChangeChannelVolume = function (channelId, volumeLeft, volumeRight) {
+        console.warn("Not implemented sceAudioChangeChannelVolume");
+        return 0;
+    };
+    sceAudio.prototype.sceAudioGetChannelRestLen = function (channelId) {
+        console.warn("Not implemented sceAudioGetChannelRestLen");
+        return 0;
+    };
+    Object.defineProperty(sceAudio.prototype, "sceAudioOutput2Reserve",
+        __decorate([
+            nativeFunction(0x01562BA3, 150, 'uint', 'int')
+        ], sceAudio.prototype, "sceAudioOutput2Reserve", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutput2Reserve")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioOutput2OutputBlocking",
+        __decorate([
+            nativeFunction(0x2D53F36E, 150, 'uint', 'int/void*')
+        ], sceAudio.prototype, "sceAudioOutput2OutputBlocking", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutput2OutputBlocking")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioChReserve",
+        __decorate([
+            nativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int')
+        ], sceAudio.prototype, "sceAudioChReserve", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChReserve")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioChRelease",
+        __decorate([
+            nativeFunction(0x6FC46853, 150, 'uint', 'int')
+        ], sceAudio.prototype, "sceAudioChRelease", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChRelease")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioChangeChannelConfig",
+        __decorate([
+            nativeFunction(0x95FD0C2D, 150, 'uint', 'int/int')
+        ], sceAudio.prototype, "sceAudioChangeChannelConfig", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChangeChannelConfig")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioSetChannelDataLen",
+        __decorate([
+            nativeFunction(0xCB2E439E, 150, 'uint', 'int/int')
+        ], sceAudio.prototype, "sceAudioSetChannelDataLen", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioSetChannelDataLen")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioOutputPannedBlocking",
+        __decorate([
+            nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
+        ], sceAudio.prototype, "sceAudioOutputPannedBlocking", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutputPannedBlocking")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioOutputBlocking",
+        __decorate([
+            nativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*')
+        ], sceAudio.prototype, "sceAudioOutputBlocking", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutputBlocking")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioOutput",
+        __decorate([
+            nativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*')
+        ], sceAudio.prototype, "sceAudioOutput", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutput")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioOutputPanned",
+        __decorate([
+            nativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*')
+        ], sceAudio.prototype, "sceAudioOutputPanned", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutputPanned")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioChangeChannelVolume",
+        __decorate([
+            nativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int')
+        ], sceAudio.prototype, "sceAudioChangeChannelVolume", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChangeChannelVolume")));
+    Object.defineProperty(sceAudio.prototype, "sceAudioGetChannelRestLen",
+        __decorate([
+            nativeFunction(0xB7E1D8E7, 150, 'uint', 'int')
+        ], sceAudio.prototype, "sceAudioGetChannelRestLen", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioGetChannelRestLen")));
     return sceAudio;
 })();
 exports.sceAudio = sceAudio;
@@ -22289,47 +21948,42 @@ var Channel = (function () {
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
 var _controller = require('../../core/controller');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceCtrlData = _controller.SceCtrlData;
 var sceCtrl = (function () {
     function sceCtrl(context) {
-        var _this = this;
         this.context = context;
-        this.sceCtrlPeekBufferPositive = createNativeFunction(0x3A622550, 150, 'uint', 'void*/int', this, function (sceCtrlDataPtr, count) {
-            for (var n = 0; n < count; n++)
-                _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            return count;
-        });
-        this.sceCtrlReadBufferPositive = createNativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int', this, function (thread, sceCtrlDataPtr, count) {
-            //console.log('sceCtrlReadBufferPositive');
-            for (var n = 0; n < count; n++)
-                _controller.SceCtrlData.struct.write(sceCtrlDataPtr, _this.context.controller.data);
-            return new WaitingThreadInfo('sceCtrlReadBufferPositive', _this.context.display, _this.context.display.waitVblankStartAsync(thread).then(function (v) { return count; }), AcceptCallbacks.NO);
-        });
-        this.sceCtrlSetSamplingCycle = createNativeFunction(0x6A2774F3, 150, 'uint', 'int', this, function (samplingCycle) {
-            return 0;
-        });
-        this.sceCtrlSetSamplingMode = createNativeFunction(0x1F4011E6, 150, 'uint', 'int', this, function (samplingMode) {
-            return 0;
-        });
         this.lastLatchData = new SceCtrlData();
-        this.sceCtrlReadLatch = createNativeFunction(0x0B588501, 150, 'uint', 'void*', this, function (currentLatchPtr) {
-            try {
-                return _this._peekLatch(currentLatchPtr);
-            }
-            finally {
-                _this.lastLatchData = _this.context.controller.data;
-                _this.context.controller.latchSamplingCount = 0;
-            }
-        });
-        this.sceCtrlSetIdleCancelThreshold = createNativeFunction(0xA7144800, 150, 'uint', 'int/int', this, function (idlereset, idleback) {
-            return 0;
-        });
     }
+    sceCtrl.prototype.sceCtrlPeekBufferPositive = function (sceCtrlDataPtr, count) {
+        for (var n = 0; n < count; n++)
+            _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+        return count;
+    };
+    sceCtrl.prototype.sceCtrlReadBufferPositive = function (thread, sceCtrlDataPtr, count) {
+        //console.log('sceCtrlReadBufferPositive');
+        for (var n = 0; n < count; n++)
+            _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+        return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread).then(function (v) { return count; }), AcceptCallbacks.NO);
+    };
+    sceCtrl.prototype.sceCtrlSetSamplingCycle = function (samplingCycle) {
+        return 0;
+    };
+    sceCtrl.prototype.sceCtrlSetSamplingMode = function (samplingMode) {
+        return 0;
+    };
     sceCtrl.prototype._peekLatch = function (currentLatchPtr) {
         var ButtonsNew = this.context.controller.data.buttons;
         var ButtonsOld = this.lastLatchData.buttons;
@@ -22340,6 +21994,42 @@ var sceCtrl = (function () {
         currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged);
         return this.context.controller.latchSamplingCount;
     };
+    sceCtrl.prototype.sceCtrlReadLatch = function (currentLatchPtr) {
+        try {
+            return this._peekLatch(currentLatchPtr);
+        }
+        finally {
+            this.lastLatchData = this.context.controller.data;
+            this.context.controller.latchSamplingCount = 0;
+        }
+    };
+    sceCtrl.prototype.sceCtrlSetIdleCancelThreshold = function (idlereset, idleback) {
+        return 0;
+    };
+    Object.defineProperty(sceCtrl.prototype, "sceCtrlPeekBufferPositive",
+        __decorate([
+            nativeFunction(0x3A622550, 150, 'uint', 'void*/int')
+        ], sceCtrl.prototype, "sceCtrlPeekBufferPositive", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlPeekBufferPositive")));
+    Object.defineProperty(sceCtrl.prototype, "sceCtrlReadBufferPositive",
+        __decorate([
+            nativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int')
+        ], sceCtrl.prototype, "sceCtrlReadBufferPositive", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlReadBufferPositive")));
+    Object.defineProperty(sceCtrl.prototype, "sceCtrlSetSamplingCycle",
+        __decorate([
+            nativeFunction(0x6A2774F3, 150, 'uint', 'int')
+        ], sceCtrl.prototype, "sceCtrlSetSamplingCycle", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlSetSamplingCycle")));
+    Object.defineProperty(sceCtrl.prototype, "sceCtrlSetSamplingMode",
+        __decorate([
+            nativeFunction(0x1F4011E6, 150, 'uint', 'int')
+        ], sceCtrl.prototype, "sceCtrlSetSamplingMode", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlSetSamplingMode")));
+    Object.defineProperty(sceCtrl.prototype, "sceCtrlReadLatch",
+        __decorate([
+            nativeFunction(0x0B588501, 150, 'uint', 'void*')
+        ], sceCtrl.prototype, "sceCtrlReadLatch", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlReadLatch")));
+    Object.defineProperty(sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold",
+        __decorate([
+            nativeFunction(0xA7144800, 150, 'uint', 'int/int')
+        ], sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold")));
     return sceCtrl;
 })();
 exports.sceCtrl = sceCtrl;
@@ -22347,80 +22037,43 @@ exports.sceCtrl = sceCtrl;
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
 var _display = require('../../core/display');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var PspDisplay = _display.PspDisplay;
 var sceDisplay = (function () {
     function sceDisplay(context) {
-        var _this = this;
         this.context = context;
         this.mode = 0;
         this.width = 512;
         this.height = 272;
-        this.sceDisplaySetMode = createNativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint', this, function (mode, width, height) {
-            console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
-            _this.mode = mode;
-            _this.width = width;
-            _this.height = height;
-            return 0;
-        }, { tryCatch: false });
-        this.sceDisplayGetMode = createNativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*', this, function (modePtr, widthPtr, heightPtr) {
-            if (modePtr)
-                modePtr.writeInt32(_this.mode);
-            if (widthPtr)
-                widthPtr.writeInt32(_this.width);
-            if (heightPtr)
-                heightPtr.writeInt32(_this.height);
-            return 0;
-        }, { tryCatch: false });
-        this.sceDisplayWaitVblank = createNativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
-            return _this._waitVblankAsync(thread, AcceptCallbacks.NO);
-        }, { tryCatch: false });
-        this.sceDisplayWaitVblankCB = createNativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', this, function (thread, cycleNum) {
-            return _this._waitVblankAsync(thread, AcceptCallbacks.YES);
-        }, { tryCatch: false });
-        this.sceDisplayWaitVblankStart = createNativeFunction(0x984C27E7, 150, 'uint', 'Thread', this, function (thread) {
-            return _this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
-        }, { tryCatch: false });
-        this.sceDisplayWaitVblankStartCB = createNativeFunction(0x46F186C3, 150, 'uint', 'Thread', this, function (thread) {
-            return _this._waitVblankStartAsync(thread, AcceptCallbacks.YES);
-        }, { tryCatch: false });
-        this.sceDisplayGetVcount = createNativeFunction(0x9C6EAAD7, 150, 'int', '', this, function () {
-            _this.context.display.updateTime();
-            return _this.context.display.vblankCount;
-        }, { tryCatch: false });
-        this.sceDisplayGetFramePerSec = createNativeFunction(0xDBA6C4C4, 150, 'float', '', this, function () {
-            return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
-        }, { tryCatch: false });
-        this.sceDisplayIsVblank = createNativeFunction(0x4D4E10EC, 150, 'int', '', this, function () {
-            return (_this.context.display.secondsLeftForVblank == 0);
-        }, { tryCatch: false });
-        this.sceDisplaySetFrameBuf = createNativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint', this, function (address, bufferWidth, pixelFormat, sync) {
-            _this.context.display.address = address;
-            _this.context.display.bufferWidth = bufferWidth;
-            _this.context.display.pixelFormat = pixelFormat;
-            _this.context.display.sync = sync;
-            return 0;
-        }, { tryCatch: false });
-        this.sceDisplayGetFrameBuf = createNativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*', this, function (topaddrPtr, bufferWidthPtr, pixelFormatPtr, syncPtr) {
-            if (topaddrPtr)
-                topaddrPtr.writeInt32(_this.context.display.address);
-            if (bufferWidthPtr)
-                bufferWidthPtr.writeInt32(_this.context.display.bufferWidth);
-            if (pixelFormatPtr)
-                pixelFormatPtr.writeInt32(_this.context.display.pixelFormat);
-            if (syncPtr)
-                syncPtr.writeInt32(_this.context.display.sync);
-            return 0;
-        }, { tryCatch: false });
-        this.sceDisplayGetCurrentHcount = createNativeFunction(0x773DD3A3, 150, 'uint', '', this, function () {
-            _this.context.display.updateTime();
-            return _this.context.display.hcountTotal;
-        }, { tryCatch: false });
     }
+    sceDisplay.prototype.sceDisplaySetMode = function (mode, width, height) {
+        console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
+        this.mode = mode;
+        this.width = width;
+        this.height = height;
+        return 0;
+    };
+    sceDisplay.prototype.sceDisplayGetMode = function (modePtr, widthPtr, heightPtr) {
+        if (modePtr)
+            modePtr.writeInt32(this.mode);
+        if (widthPtr)
+            widthPtr.writeInt32(this.width);
+        if (heightPtr)
+            heightPtr.writeInt32(this.height);
+        return 0;
+    };
     sceDisplay.prototype._waitVblankAsync = function (thread, acceptCallbacks) {
         this.context.display.updateTime();
         return new WaitingThreadInfo('_waitVblankAsync', this.context.display, this.context.display.waitVblankAsync(thread), acceptCallbacks);
@@ -22429,6 +22082,98 @@ var sceDisplay = (function () {
         this.context.display.updateTime();
         return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread), acceptCallbacks);
     };
+    sceDisplay.prototype.sceDisplayWaitVblank = function (thread, cycleNum) {
+        return this._waitVblankAsync(thread, AcceptCallbacks.NO);
+    };
+    sceDisplay.prototype.sceDisplayWaitVblankCB = function (thread, cycleNum) {
+        return this._waitVblankAsync(thread, AcceptCallbacks.YES);
+    };
+    sceDisplay.prototype.sceDisplayWaitVblankStart = function (thread) {
+        return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
+    };
+    sceDisplay.prototype.sceDisplayWaitVblankStartCB = function (thread) {
+        return this._waitVblankStartAsync(thread, AcceptCallbacks.YES);
+    };
+    sceDisplay.prototype.sceDisplayGetVcount = function () {
+        this.context.display.updateTime();
+        return this.context.display.vblankCount;
+    };
+    sceDisplay.prototype.sceDisplayGetFramePerSec = function () {
+        return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
+    };
+    sceDisplay.prototype.sceDisplayIsVblank = function () {
+        return (this.context.display.secondsLeftForVblank == 0);
+    };
+    sceDisplay.prototype.sceDisplaySetFrameBuf = function (address, bufferWidth, pixelFormat, sync) {
+        this.context.display.address = address;
+        this.context.display.bufferWidth = bufferWidth;
+        this.context.display.pixelFormat = pixelFormat;
+        this.context.display.sync = sync;
+        return 0;
+    };
+    sceDisplay.prototype.sceDisplayGetFrameBuf = function (topaddrPtr, bufferWidthPtr, pixelFormatPtr, syncPtr) {
+        if (topaddrPtr)
+            topaddrPtr.writeInt32(this.context.display.address);
+        if (bufferWidthPtr)
+            bufferWidthPtr.writeInt32(this.context.display.bufferWidth);
+        if (pixelFormatPtr)
+            pixelFormatPtr.writeInt32(this.context.display.pixelFormat);
+        if (syncPtr)
+            syncPtr.writeInt32(this.context.display.sync);
+        return 0;
+    };
+    sceDisplay.prototype.sceDisplayGetCurrentHcount = function () {
+        this.context.display.updateTime();
+        return this.context.display.hcountTotal;
+    };
+    Object.defineProperty(sceDisplay.prototype, "sceDisplaySetMode",
+        __decorate([
+            nativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint')
+        ], sceDisplay.prototype, "sceDisplaySetMode", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplaySetMode")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetMode",
+        __decorate([
+            nativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*')
+        ], sceDisplay.prototype, "sceDisplayGetMode", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetMode")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblank",
+        __decorate([
+            nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int')
+        ], sceDisplay.prototype, "sceDisplayWaitVblank", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblank")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankCB",
+        __decorate([
+            nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int')
+        ], sceDisplay.prototype, "sceDisplayWaitVblankCB", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankCB")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankStart",
+        __decorate([
+            nativeFunction(0x984C27E7, 150, 'uint', 'Thread')
+        ], sceDisplay.prototype, "sceDisplayWaitVblankStart", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankStart")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankStartCB",
+        __decorate([
+            nativeFunction(0x46F186C3, 150, 'uint', 'Thread')
+        ], sceDisplay.prototype, "sceDisplayWaitVblankStartCB", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankStartCB")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetVcount",
+        __decorate([
+            nativeFunction(0x9C6EAAD7, 150, 'int', '')
+        ], sceDisplay.prototype, "sceDisplayGetVcount", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetVcount")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetFramePerSec",
+        __decorate([
+            nativeFunction(0xDBA6C4C4, 150, 'float', '')
+        ], sceDisplay.prototype, "sceDisplayGetFramePerSec", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetFramePerSec")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayIsVblank",
+        __decorate([
+            nativeFunction(0x4D4E10EC, 150, 'int', '')
+        ], sceDisplay.prototype, "sceDisplayIsVblank", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayIsVblank")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplaySetFrameBuf",
+        __decorate([
+            nativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint')
+        ], sceDisplay.prototype, "sceDisplaySetFrameBuf", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplaySetFrameBuf")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetFrameBuf",
+        __decorate([
+            nativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*')
+        ], sceDisplay.prototype, "sceDisplayGetFrameBuf", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetFrameBuf")));
+    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetCurrentHcount",
+        __decorate([
+            nativeFunction(0x773DD3A3, 150, 'uint', '')
+        ], sceDisplay.prototype, "sceDisplayGetCurrentHcount", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetCurrentHcount")));
     return sceDisplay;
 })();
 exports.sceDisplay = sceDisplay;
@@ -22436,19 +22181,20 @@ exports.sceDisplay = sceDisplay;
 },
 "src/hle/module/sceDmac": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var sceDmac = (function () {
     function sceDmac(context) {
-        var _this = this;
         this.context = context;
-        this.sceDmacMemcpy = createNativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
-            return _this._sceDmacMemcpy(destination, source, size);
-        });
-        this.sceDmacTryMemcpy = createNativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int', this, function (destination, source, size) {
-            return _this._sceDmacMemcpy(destination, source, size);
-        });
     }
     sceDmac.prototype._sceDmacMemcpy = function (destination, source, size) {
         if (size == 0)
@@ -22460,6 +22206,20 @@ var sceDmac = (function () {
         this.context.memory.copy(source, destination, size);
         return Promise2.resolve(0);
     };
+    sceDmac.prototype.sceDmacMemcpy = function (destination, source, size) {
+        return this._sceDmacMemcpy(destination, source, size);
+    };
+    sceDmac.prototype.sceDmacTryMemcpy = function (destination, source, size) {
+        return this._sceDmacMemcpy(destination, source, size);
+    };
+    Object.defineProperty(sceDmac.prototype, "sceDmacMemcpy",
+        __decorate([
+            nativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int')
+        ], sceDmac.prototype, "sceDmacMemcpy", Object.getOwnPropertyDescriptor(sceDmac.prototype, "sceDmacMemcpy")));
+    Object.defineProperty(sceDmac.prototype, "sceDmacTryMemcpy",
+        __decorate([
+            nativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int')
+        ], sceDmac.prototype, "sceDmacTryMemcpy", Object.getOwnPropertyDescriptor(sceDmac.prototype, "sceDmacTryMemcpy")));
     return sceDmac;
 })();
 exports.sceDmac = sceDmac;
@@ -22467,65 +22227,116 @@ exports.sceDmac = sceDmac;
 },
 "src/hle/module/sceGe_user": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var _gpu = require('../../core/gpu');
 _gpu.PspGpuCallback;
 var PspGpuCallback = _gpu.PspGpuCallback;
 var sceGe_user = (function () {
     function sceGe_user(context) {
-        var _this = this;
         this.context = context;
         this.eDRAMMemoryWidth = 0;
-        this.sceGeEdramSetAddrTranslation = createNativeFunction(0xB77905EA, 150, 'uint', 'int', this, function (size) {
-            try {
-                return _this.eDRAMMemoryWidth;
-            }
-            finally {
-                _this.eDRAMMemoryWidth = size;
-            }
-        });
-        this.sceGeSetCallback = createNativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*', this, function (thread, callbackDataPtr) {
-            var callbacks = _this.context.gpu.callbacks;
-            var info = CallbackData.struct.read(callbackDataPtr);
-            return callbacks.allocate(new PspGpuCallback(thread.state, info.signalFunction, info.signalArgument, info.finishFunction, info.finishArgument));
-        });
-        this.sceGeUnsetCallback = createNativeFunction(0x05DB22CE, 150, 'uint', 'int', this, function (callbackId) {
-            _this.context.gpu.callbacks.remove(callbackId);
-            return 0;
-        });
-        this.sceGeListEnQueue = createNativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*', this, function (start, stall, callbackId, argsPtr) {
-            return _this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
-        });
-        this.sceGeListSync = createNativeFunction(0x03444EB4, 150, 'uint', 'int/int', this, function (displayListId, syncType) {
-            return _this.context.gpu.listSync(displayListId, syncType);
-        });
-        this.sceGeListUpdateStallAddr = createNativeFunction(0xE0D68148, 150, 'uint', 'int/int', this, function (displayListId, stall) {
-            return _this.context.gpu.updateStallAddr(displayListId, stall);
-        });
-        this.sceGeDrawSync = createNativeFunction(0xB287BD61, 150, 'uint', 'int', this, function (syncType) {
-            var result = _this.context.gpu.drawSync(syncType);
-            if (result instanceof Promise2) {
-                return new WaitingThreadInfo('sceGeDrawSync', _this.context.gpu, result.then(function () {
-                }), AcceptCallbacks.NO, Compensate.YES);
-            }
-            else {
-                return result;
-            }
-        });
-        this.sceGeContinue = createNativeFunction(0x4C06E472, 150, 'uint', '', this, function () {
-            return -1;
-        });
-        this.sceGeBreak = createNativeFunction(0xB448EC0D, 150, 'uint', 'int/void*', this, function (mode, breakAddress) {
-            return -1;
-        });
-        this.sceGeEdramGetAddr = createNativeFunction(0xE47E40E4, 150, 'uint', '', this, function () {
-            return 0x04000000;
-        });
-        this.sceGeEdramGetSize = createNativeFunction(0x1F6752AD, 150, 'uint', '', this, function () {
-            return 0x00200000;
-        });
     }
+    sceGe_user.prototype.sceGeEdramSetAddrTranslation = function (size) {
+        try {
+            return this.eDRAMMemoryWidth;
+        }
+        finally {
+            this.eDRAMMemoryWidth = size;
+        }
+    };
+    sceGe_user.prototype.sceGeSetCallback = function (thread, callbackDataPtr) {
+        var callbacks = this.context.gpu.callbacks;
+        var info = CallbackData.struct.read(callbackDataPtr);
+        return callbacks.allocate(new PspGpuCallback(thread.state, info.signalFunction, info.signalArgument, info.finishFunction, info.finishArgument));
+    };
+    sceGe_user.prototype.sceGeUnsetCallback = function (callbackId) {
+        this.context.gpu.callbacks.remove(callbackId);
+        return 0;
+    };
+    sceGe_user.prototype.sceGeListEnQueue = function (start, stall, callbackId, argsPtr) {
+        return this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
+    };
+    sceGe_user.prototype.sceGeListSync = function (displayListId, syncType) {
+        return this.context.gpu.listSync(displayListId, syncType);
+    };
+    sceGe_user.prototype.sceGeListUpdateStallAddr = function (displayListId, stall) {
+        return this.context.gpu.updateStallAddr(displayListId, stall);
+    };
+    sceGe_user.prototype.sceGeDrawSync = function (syncType) {
+        var result = this.context.gpu.drawSync(syncType);
+        if (result instanceof Promise2) {
+            return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, result.then(function () {
+            }), AcceptCallbacks.NO, Compensate.YES);
+        }
+        else {
+            return result;
+        }
+    };
+    sceGe_user.prototype.sceGeContinue = function () {
+        return -1;
+    };
+    sceGe_user.prototype.sceGeBreak = function (mode, breakAddress) {
+        return -1;
+    };
+    sceGe_user.prototype.sceGeEdramGetAddr = function () {
+        return 0x04000000;
+    };
+    sceGe_user.prototype.sceGeEdramGetSize = function () {
+        return 0x00200000;
+    };
+    Object.defineProperty(sceGe_user.prototype, "sceGeEdramSetAddrTranslation",
+        __decorate([
+            nativeFunction(0xB77905EA, 150, 'uint', 'int')
+        ], sceGe_user.prototype, "sceGeEdramSetAddrTranslation", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeEdramSetAddrTranslation")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeSetCallback",
+        __decorate([
+            nativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*')
+        ], sceGe_user.prototype, "sceGeSetCallback", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeSetCallback")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeUnsetCallback",
+        __decorate([
+            nativeFunction(0x05DB22CE, 150, 'uint', 'int')
+        ], sceGe_user.prototype, "sceGeUnsetCallback", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeUnsetCallback")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeListEnQueue",
+        __decorate([
+            nativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*')
+        ], sceGe_user.prototype, "sceGeListEnQueue", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeListEnQueue")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeListSync",
+        __decorate([
+            nativeFunction(0x03444EB4, 150, 'uint', 'int/int')
+        ], sceGe_user.prototype, "sceGeListSync", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeListSync")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeListUpdateStallAddr",
+        __decorate([
+            nativeFunction(0xE0D68148, 150, 'uint', 'int/int')
+        ], sceGe_user.prototype, "sceGeListUpdateStallAddr", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeListUpdateStallAddr")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeDrawSync",
+        __decorate([
+            nativeFunction(0xB287BD61, 150, 'uint', 'int')
+        ], sceGe_user.prototype, "sceGeDrawSync", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeDrawSync")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeContinue",
+        __decorate([
+            nativeFunction(0x4C06E472, 150, 'uint', '')
+        ], sceGe_user.prototype, "sceGeContinue", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeContinue")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeBreak",
+        __decorate([
+            nativeFunction(0xB448EC0D, 150, 'uint', 'int/void*')
+        ], sceGe_user.prototype, "sceGeBreak", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeBreak")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeEdramGetAddr",
+        __decorate([
+            nativeFunction(0xE47E40E4, 150, 'uint', '')
+        ], sceGe_user.prototype, "sceGeEdramGetAddr", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeEdramGetAddr")));
+    Object.defineProperty(sceGe_user.prototype, "sceGeEdramGetSize",
+        __decorate([
+            nativeFunction(0x1F6752AD, 150, 'uint', '')
+        ], sceGe_user.prototype, "sceGeEdramGetSize", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeEdramGetSize")));
     return sceGe_user;
 })();
 exports.sceGe_user = sceGe_user;
@@ -22544,16 +22355,28 @@ var CallbackData = (function () {
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceHprm = (function () {
     function sceHprm(context) {
         this.context = context;
-        this.sceHprmPeekCurrentKey = createNativeFunction(0x1910B327, 150, 'uint', 'void*', this, function (PspHprmKeysEnumKeyPtr) {
-            PspHprmKeysEnumKeyPtr.writeInt32(0);
-            return 0;
-        });
     }
+    sceHprm.prototype.sceHprmPeekCurrentKey = function (PspHprmKeysEnumKeyPtr) {
+        PspHprmKeysEnumKeyPtr.writeInt32(0);
+        return 0;
+    };
+    Object.defineProperty(sceHprm.prototype, "sceHprmPeekCurrentKey",
+        __decorate([
+            nativeFunction(0x1910B327, 150, 'uint', 'void*')
+        ], sceHprm.prototype, "sceHprmPeekCurrentKey", Object.getOwnPropertyDescriptor(sceHprm.prototype, "sceHprmPeekCurrentKey")));
     return sceHprm;
 })();
 exports.sceHprm = sceHprm;
@@ -22572,28 +22395,47 @@ exports.sceHttp = sceHttp;
 },
 "src/hle/module/sceImpose": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceImpose = (function () {
     function sceImpose(context) {
-        var _this = this;
         this.context = context;
-        this.sceImposeGetBatteryIconStatus = createNativeFunction(0x8C943191, 150, 'uint', 'void*/void*', this, function (isChargingPointer, iconStatusPointer) {
-            isChargingPointer.writeInt32(ChargingEnum.NotCharging);
-            iconStatusPointer.writeInt32(BatteryStatusEnum.FullyFilled);
-            return 0;
-        });
-        this.sceImposeSetLanguageMode = createNativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint', this, function (language, buttonPreference) {
-            _this.context.config.language = language;
-            _this.context.config.buttonPreference = buttonPreference;
-            return 0;
-        });
-        this.sceImposeGetLanguageMode = createNativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*', this, function (languagePtr, buttonPreferencePtr) {
-            languagePtr.writeUInt32(_this.context.config.language);
-            buttonPreferencePtr.writeUInt32(_this.context.config.buttonPreference);
-            return 0;
-        });
     }
+    sceImpose.prototype.sceImposeGetBatteryIconStatus = function (isChargingPointer, iconStatusPointer) {
+        isChargingPointer.writeInt32(ChargingEnum.NotCharging);
+        iconStatusPointer.writeInt32(BatteryStatusEnum.FullyFilled);
+        return 0;
+    };
+    sceImpose.prototype.sceImposeSetLanguageMode = function (language, buttonPreference) {
+        this.context.config.language = language;
+        this.context.config.buttonPreference = buttonPreference;
+        return 0;
+    };
+    sceImpose.prototype.sceImposeGetLanguageMode = function (languagePtr, buttonPreferencePtr) {
+        languagePtr.writeUInt32(this.context.config.language);
+        buttonPreferencePtr.writeUInt32(this.context.config.buttonPreference);
+        return 0;
+    };
+    Object.defineProperty(sceImpose.prototype, "sceImposeGetBatteryIconStatus",
+        __decorate([
+            nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
+        ], sceImpose.prototype, "sceImposeGetBatteryIconStatus", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeGetBatteryIconStatus")));
+    Object.defineProperty(sceImpose.prototype, "sceImposeSetLanguageMode",
+        __decorate([
+            nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')
+        ], sceImpose.prototype, "sceImposeSetLanguageMode", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeSetLanguageMode")));
+    Object.defineProperty(sceImpose.prototype, "sceImposeGetLanguageMode",
+        __decorate([
+            nativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*')
+        ], sceImpose.prototype, "sceImposeGetLanguageMode", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeGetLanguageMode")));
     return sceImpose;
 })();
 exports.sceImpose = sceImpose;
@@ -22613,34 +22455,61 @@ var BatteryStatusEnum;
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceLibFont = (function () {
     function sceLibFont(context) {
-        var _this = this;
         this.context = context;
         this.fontLibUid = new UidCollection(1);
         this.fontUid = new UidCollection(1);
-        this.sceFontNewLib = createNativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*', this, function (paramsPtr, errorCodePtr) {
-            var fontLib = new FontLib();
-            return _this.fontLibUid.allocate(fontLib);
-        });
-        this.sceFontFindOptimumFont = createNativeFunction(0x099EF33C, 150, 'uint', 'int/void*/void*', this, function (fontLibId, fontStylePointer, errorCodePointer) {
-            var fontLib = _this.fontLibUid.get(fontLibId);
-            return 0;
-        });
-        this.sceFontOpen = createNativeFunction(0xA834319D, 150, 'uint', 'int/int/int/void*', this, function (fontLibId, index, mode, errorCodePointer) {
-            var fontLib = _this.fontLibUid.get(fontLibId);
-            return _this.fontUid.allocate(new Font());
-        });
-        this.sceFontGetFontInfo = createNativeFunction(0x0DA7535E, 150, 'uint', 'int/void*', this, function (fontId, fontInfoPointer) {
-            var font = _this.fontUid.get(fontId);
-            return 0;
-        });
-        this.sceFontSetResolution = createNativeFunction(0x48293280, 150, 'uint', 'int/float/float', this, function (fontLibId, horizontalResolution, verticalResolution) {
-            return 0;
-        });
     }
+    sceLibFont.prototype.sceFontNewLib = function (paramsPtr, errorCodePtr) {
+        var fontLib = new FontLib();
+        return this.fontLibUid.allocate(fontLib);
+    };
+    sceLibFont.prototype.sceFontFindOptimumFont = function (fontLibId, fontStylePointer, errorCodePointer) {
+        var fontLib = this.fontLibUid.get(fontLibId);
+        return 0;
+    };
+    sceLibFont.prototype.sceFontOpen = function (fontLibId, index, mode, errorCodePointer) {
+        var fontLib = this.fontLibUid.get(fontLibId);
+        return this.fontUid.allocate(new Font());
+    };
+    sceLibFont.prototype.sceFontGetFontInfo = function (fontId, fontInfoPointer) {
+        var font = this.fontUid.get(fontId);
+        return 0;
+    };
+    sceLibFont.prototype.sceFontSetResolution = function (fontLibId, horizontalResolution, verticalResolution) {
+        return 0;
+    };
+    Object.defineProperty(sceLibFont.prototype, "sceFontNewLib",
+        __decorate([
+            nativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*')
+        ], sceLibFont.prototype, "sceFontNewLib", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontNewLib")));
+    Object.defineProperty(sceLibFont.prototype, "sceFontFindOptimumFont",
+        __decorate([
+            nativeFunction(0x099EF33C, 150, 'uint', 'int/void*/void*')
+        ], sceLibFont.prototype, "sceFontFindOptimumFont", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontFindOptimumFont")));
+    Object.defineProperty(sceLibFont.prototype, "sceFontOpen",
+        __decorate([
+            nativeFunction(0xA834319D, 150, 'uint', 'int/int/int/void*')
+        ], sceLibFont.prototype, "sceFontOpen", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontOpen")));
+    Object.defineProperty(sceLibFont.prototype, "sceFontGetFontInfo",
+        __decorate([
+            nativeFunction(0x0DA7535E, 150, 'uint', 'int/void*')
+        ], sceLibFont.prototype, "sceFontGetFontInfo", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontGetFontInfo")));
+    Object.defineProperty(sceLibFont.prototype, "sceFontSetResolution",
+        __decorate([
+            nativeFunction(0x48293280, 150, 'uint', 'int/float/float')
+        ], sceLibFont.prototype, "sceFontSetResolution", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontSetResolution")));
     return sceLibFont;
 })();
 exports.sceLibFont = sceLibFont;
@@ -22669,85 +22538,124 @@ exports.sceMp3 = sceMp3;
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var sceMpeg = (function () {
     function sceMpeg(context) {
-        var _this = this;
         this.context = context;
-        this.sceMpegInit = createNativeFunction(0x682A619B, 150, 'uint', '', this, function () {
-            return -1;
-        });
-        this.sceMpegRingbufferQueryMemSize = createNativeFunction(0xD7A29F46, 150, 'uint', 'int', this, function (numberOfPackets) {
-            return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
-        });
-        this.sceMpegQueryMemSize = createNativeFunction(0xC132E22F, 150, 'uint', 'int', this, function (mode) {
-            return sceMpeg.MPEG_MEMSIZE;
-        });
-        this.sceMpegRingbufferConstruct = createNativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int', this, function (ringbufferAddr, numPackets, data, size, callbackAddr, callbackArg) {
-            if (ringbufferAddr == Stream.INVALID)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
-            if (size < 0)
-                return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
-            if (_this.__mpegRingbufferQueryMemSize(numPackets) > size) {
-                if (numPackets < 0x00100000) {
-                    return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
-                }
-                else {
-                }
-            }
-            var buf = new RingBuffer();
-            buf.packets = numPackets;
-            buf.packetsRead = 0;
-            buf.packetsWritten = 0;
-            buf.packetsFree = 0;
-            buf.packetSize = 2048;
-            buf.data = data;
-            buf.callback_addr = callbackAddr;
-            buf.callback_args = callbackArg;
-            buf.dataUpperBound = data + numPackets * 2048;
-            buf.semaID = 0;
-            buf.mpeg = 0;
-            RingBuffer.struct.write(ringbufferAddr, buf);
-        });
-        this.sceMpegCreate = createNativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint', this, function (mpegAddr, dataPtr, size, ringbufferAddr, mode, ddrTop) {
-            if (!_this.context.memory.isValidAddress(mpegAddr))
-                return -1;
-            if (size < sceMpeg.MPEG_MEMSIZE)
-                return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
-            if (ringbufferAddr == Stream.INVALID) {
-                var ringBuffer = RingBuffer.struct.read(ringbufferAddr.clone());
-                if (ringBuffer.packetSize == 0) {
-                    ringBuffer.packetsFree = 0;
-                }
-                else {
-                    ringBuffer.packetsFree = (ringBuffer.dataUpperBound - ringBuffer.data) / ringBuffer.packetSize;
-                }
-                ringBuffer.mpeg = mpegAddr;
-            }
-            var mpeg = _this.context.memory.getPointerStream(mpegAddr);
-            mpeg.writeInt32(dataPtr + 0x30);
-            var mpegHandle = _this.context.memory.getPointerStream(dataPtr + 0x30);
-            mpegHandle.writeString("LIBMPEG\0" + "001\0");
-            mpegHandle.writeInt32(-1);
-        });
-        this.sceMpegDelete = createNativeFunction(0x606A4649, 150, 'uint', 'int', this, function (sceMpegPointer) {
-            //this.getMpeg(sceMpegPointer).delete();
-            return 0;
-        });
-        this.sceMpegFinish = createNativeFunction(0x874624D6, 150, 'uint', '', this, function () {
-            return 0;
-        });
-        this.sceMpegRingbufferDestruct = createNativeFunction(0x13407F13, 150, 'uint', 'int', this, function (ringBufferPointer) {
-            return 0;
-        });
     }
+    sceMpeg.prototype.sceMpegInit = function () {
+        return -1;
+    };
+    sceMpeg.prototype.sceMpegRingbufferQueryMemSize = function (numberOfPackets) {
+        return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
+    };
+    sceMpeg.prototype.sceMpegQueryMemSize = function (mode) {
+        return sceMpeg.MPEG_MEMSIZE;
+    };
+    sceMpeg.prototype.sceMpegRingbufferConstruct = function (ringbufferAddr, numPackets, data, size, callbackAddr, callbackArg) {
+        if (ringbufferAddr == Stream.INVALID)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
+        if (size < 0)
+            return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
+        if (this.__mpegRingbufferQueryMemSize(numPackets) > size) {
+            if (numPackets < 0x00100000) {
+                return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
+            }
+            else {
+            }
+        }
+        var buf = new RingBuffer();
+        buf.packets = numPackets;
+        buf.packetsRead = 0;
+        buf.packetsWritten = 0;
+        buf.packetsFree = 0;
+        buf.packetSize = 2048;
+        buf.data = data;
+        buf.callback_addr = callbackAddr;
+        buf.callback_args = callbackArg;
+        buf.dataUpperBound = data + numPackets * 2048;
+        buf.semaID = 0;
+        buf.mpeg = 0;
+        RingBuffer.struct.write(ringbufferAddr, buf);
+    };
+    sceMpeg.prototype.sceMpegCreate = function (mpegAddr, dataPtr, size, ringbufferAddr, mode, ddrTop) {
+        if (!this.context.memory.isValidAddress(mpegAddr))
+            return -1;
+        if (size < sceMpeg.MPEG_MEMSIZE)
+            return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
+        if (ringbufferAddr == Stream.INVALID) {
+            var ringBuffer = RingBuffer.struct.read(ringbufferAddr.clone());
+            if (ringBuffer.packetSize == 0) {
+                ringBuffer.packetsFree = 0;
+            }
+            else {
+                ringBuffer.packetsFree = (ringBuffer.dataUpperBound - ringBuffer.data) / ringBuffer.packetSize;
+            }
+            ringBuffer.mpeg = mpegAddr;
+        }
+        var mpeg = this.context.memory.getPointerStream(mpegAddr);
+        mpeg.writeInt32(dataPtr + 0x30);
+        var mpegHandle = this.context.memory.getPointerStream(dataPtr + 0x30);
+        mpegHandle.writeString("LIBMPEG\0" + "001\0");
+        mpegHandle.writeInt32(-1);
+    };
+    sceMpeg.prototype.sceMpegDelete = function (sceMpegPointer) {
+        //this.getMpeg(sceMpegPointer).delete();
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegFinish = function () {
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegRingbufferDestruct = function (ringBufferPointer) {
+        return 0;
+    };
     sceMpeg.prototype.__mpegRingbufferQueryMemSize = function (packets) {
         return packets * (104 + 2048);
     };
     sceMpeg.RING_BUFFER_PACKET_SIZE = 0x800;
     sceMpeg.MPEG_MEMSIZE = 64 * 1024;
+    Object.defineProperty(sceMpeg.prototype, "sceMpegInit",
+        __decorate([
+            nativeFunction(0x682A619B, 150, 'uint', '')
+        ], sceMpeg.prototype, "sceMpegInit", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegInit")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize",
+        __decorate([
+            nativeFunction(0xD7A29F46, 150, 'uint', 'int')
+        ], sceMpeg.prototype, "sceMpegRingbufferQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryMemSize",
+        __decorate([
+            nativeFunction(0xC132E22F, 150, 'uint', 'int')
+        ], sceMpeg.prototype, "sceMpegQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryMemSize")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferConstruct",
+        __decorate([
+            nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
+        ], sceMpeg.prototype, "sceMpegRingbufferConstruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferConstruct")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegCreate",
+        __decorate([
+            nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
+        ], sceMpeg.prototype, "sceMpegCreate", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegCreate")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegDelete",
+        __decorate([
+            nativeFunction(0x606A4649, 150, 'uint', 'int')
+        ], sceMpeg.prototype, "sceMpegDelete", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegDelete")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegFinish",
+        __decorate([
+            nativeFunction(0x874624D6, 150, 'uint', '')
+        ], sceMpeg.prototype, "sceMpegFinish", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegFinish")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferDestruct",
+        __decorate([
+            nativeFunction(0x13407F13, 150, 'uint', 'int')
+        ], sceMpeg.prototype, "sceMpegRingbufferDestruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferDestruct")));
     return sceMpeg;
 })();
 exports.sceMpeg = sceMpeg;
@@ -22774,45 +22682,84 @@ var RingBuffer = (function () {
 },
 "src/hle/module/sceNet": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceNet = (function () {
     function sceNet(context) {
-        var _this = this;
         this.context = context;
-        this.sceNetInit = createNativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int', this, function (memoryPoolSize, calloutprio, calloutstack, netintrprio, netintrstack) {
-            _this.context.container['mac'] = new Uint8Array(xrange(0, 6).map(function (index) { return Math.random() * 255; }));
-            return 0;
-        });
-        this.sceNetTerm = createNativeFunction(0x281928A9, 150, 'int', '', this, function () {
-            return 0;
-        });
-        this.sceNetFreeThreadinfo = createNativeFunction(0x50647530, 150, 'int', 'int', this, function (threadId) {
-            throw (new Error("Not implemented"));
-            return -1;
-        });
-        this.sceNetThreadAbort = createNativeFunction(0xAD6844c6, 150, 'int', 'int', this, function (threadId) {
-            throw (new Error("Not implemented"));
-            return -1;
-        });
-        this.sceNetEtherStrton = createNativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]', this, function (string, mac) {
-            mac.set(string2mac(string));
-            return 0;
-        });
-        this.sceNetEtherNtostr = createNativeFunction(0x89360950, 150, 'int', 'byte[6]/void*', this, function (mac, outputAddress) {
-            outputAddress.writeStringz(mac2string(mac));
-            return 0;
-        });
-        this.sceNetGetLocalEtherAddr = createNativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]', this, function (macOut) {
-            console.info("sceNetGetLocalEtherAddr: ", mac2string(_this.context.netManager.mac));
-            macOut.set(_this.context.netManager.mac);
-            return 0;
-        });
-        this.sceNetGetMallocStat = createNativeFunction(0xCC393E48, 150, 'int', 'void*', this, function (statPtr) {
-            throw (new Error("Not implemented"));
-            return -1;
-        });
     }
+    sceNet.prototype.sceNetInit = function (memoryPoolSize, calloutprio, calloutstack, netintrprio, netintrstack) {
+        this.context.container['mac'] = new Uint8Array(xrange(0, 6).map(function (index) { return Math.random() * 255; }));
+        return 0;
+    };
+    sceNet.prototype.sceNetTerm = function () {
+        return 0;
+    };
+    sceNet.prototype.sceNetFreeThreadinfo = function (threadId) {
+        throw (new Error("Not implemented"));
+        return -1;
+    };
+    sceNet.prototype.sceNetThreadAbort = function (threadId) {
+        throw (new Error("Not implemented"));
+        return -1;
+    };
+    sceNet.prototype.sceNetEtherStrton = function (string, mac) {
+        mac.set(string2mac(string));
+        return 0;
+    };
+    sceNet.prototype.sceNetEtherNtostr = function (mac, outputAddress) {
+        outputAddress.writeStringz(mac2string(mac));
+        return 0;
+    };
+    sceNet.prototype.sceNetGetLocalEtherAddr = function (macOut) {
+        console.info("sceNetGetLocalEtherAddr: ", mac2string(this.context.netManager.mac));
+        macOut.set(this.context.netManager.mac);
+        return 0;
+    };
+    sceNet.prototype.sceNetGetMallocStat = function (statPtr) {
+        throw (new Error("Not implemented"));
+        return -1;
+    };
+    Object.defineProperty(sceNet.prototype, "sceNetInit",
+        __decorate([
+            nativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int')
+        ], sceNet.prototype, "sceNetInit", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetInit")));
+    Object.defineProperty(sceNet.prototype, "sceNetTerm",
+        __decorate([
+            nativeFunction(0x281928A9, 150, 'int', '')
+        ], sceNet.prototype, "sceNetTerm", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetTerm")));
+    Object.defineProperty(sceNet.prototype, "sceNetFreeThreadinfo",
+        __decorate([
+            nativeFunction(0x50647530, 150, 'int', 'int')
+        ], sceNet.prototype, "sceNetFreeThreadinfo", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetFreeThreadinfo")));
+    Object.defineProperty(sceNet.prototype, "sceNetThreadAbort",
+        __decorate([
+            nativeFunction(0xAD6844c6, 150, 'int', 'int')
+        ], sceNet.prototype, "sceNetThreadAbort", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetThreadAbort")));
+    Object.defineProperty(sceNet.prototype, "sceNetEtherStrton",
+        __decorate([
+            nativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]')
+        ], sceNet.prototype, "sceNetEtherStrton", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetEtherStrton")));
+    Object.defineProperty(sceNet.prototype, "sceNetEtherNtostr",
+        __decorate([
+            nativeFunction(0x89360950, 150, 'int', 'byte[6]/void*')
+        ], sceNet.prototype, "sceNetEtherNtostr", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetEtherNtostr")));
+    Object.defineProperty(sceNet.prototype, "sceNetGetLocalEtherAddr",
+        __decorate([
+            nativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]')
+        ], sceNet.prototype, "sceNetGetLocalEtherAddr", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetGetLocalEtherAddr")));
+    Object.defineProperty(sceNet.prototype, "sceNetGetMallocStat",
+        __decorate([
+            nativeFunction(0xCC393E48, 150, 'int', 'void*')
+        ], sceNet.prototype, "sceNetGetMallocStat", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetGetMallocStat")));
     return sceNet;
 })();
 exports.sceNet = sceNet;
@@ -22820,139 +22767,238 @@ exports.sceNet = sceNet;
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
-        var _this = this;
         this.context = context;
-        this.sceNetAdhocInit = createNativeFunction(0xE1D621D7, 150, 'int', '', this, function () {
-            _this.partition = _this.context.memoryManager.kernelPartition.allocateLow(0x4000);
-            return 0;
-        });
-        this.sceNetAdhocTerm = createNativeFunction(0xA62C6F57, 150, 'int', '', this, function () {
-            _this.partition.deallocate();
-            return 0;
-        });
-        this.sceNetAdhocPollSocket = createNativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int', this, function (socketAddress, int, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPollSocket"));
-            return -1;
-        });
         this.pdps = new UidCollection(1);
-        this.sceNetAdhocPdpCreate = createNativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int', this, function (mac, port, bufsize, unk1) {
-            var pdp = new Pdp(_this.context, mac, port, bufsize);
-            pdp.id = _this.pdps.allocate(pdp);
-            return pdp.id;
-        });
-        this.sceNetAdhocPdpDelete = createNativeFunction(0x7F27BB5E, 150, 'int', 'int/int', this, function (pdpId, unk1) {
-            var pdp = _this.pdps.get(pdpId);
-            pdp.dispose();
-            _this.pdps.remove(pdpId);
-            return 0;
-        });
-        this.sceNetAdhocPdpSend = createNativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int', this, function (pdpId, destMac, port, dataStream, timeout, nonblock) {
-            var pdp = _this.pdps.get(pdpId);
-            var data = dataStream.readBytes(dataStream.length);
-            pdp.send(port, destMac, data);
-            return 0;
-        });
-        this.sceNetAdhocPdpRecv = createNativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int', this, function (pdpId, srcMac, portPtr, data, dataLengthPtr, timeout, nonblock) {
-            var block = !nonblock;
-            var pdp = _this.pdps.get(pdpId);
-            var recvOne = function (chunk) {
-                srcMac.set(chunk.mac);
-                data.writeBytes(chunk.payload);
-                portPtr.writeInt16(pdp.port);
-                dataLengthPtr.writeInt32(chunk.payload.length);
-                return 0;
-            };
-            if (block) {
-                return pdp.recvOneAsync().then(recvOne);
-            }
-            else {
-                if (pdp.chunks.length <= 0)
-                    return 0x80410709;
-                return recvOne(pdp.chunks.shift());
-            }
-        });
-        this.sceNetAdhocGetPdpStat = createNativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*', this, function (sizeStream, pdpStatStruct) {
-            var maxSize = sizeStream.sliceWithLength(0).readInt32();
-            var pdps = _this.pdps.list();
-            var totalSize = pdps.length * PdpStatStruct.struct.length;
-            sizeStream.sliceWithLength(0).writeInt32(totalSize);
-            var pos = 0;
-            pdps.forEach(function (pdp) {
-                var stat = new PdpStatStruct();
-                stat.nextPointer = 0;
-                stat.pdpId = pdp.id;
-                stat.port = pdp.port;
-                stat.mac = xrange(0, 6).map(function (index) { return pdp.mac[index]; });
-                stat.rcvdData = pdp.getDataLength();
-                PdpStatStruct.struct.write(pdpStatStruct, stat);
-            });
-            return 0;
-        });
-        this.sceNetAdhocGameModeCreateMaster = createNativeFunction(0x7F75C338, 150, 'int', 'byte[]', this, function (data) {
-            throw (new Error("Not implemented sceNetAdhocGameModeCreateMaster"));
-            return -1;
-        });
-        this.sceNetAdhocGameModeCreateReplica = createNativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]', this, function (mac, data) {
-            throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
-            return -1;
-        });
-        this.sceNetAdhocGameModeUpdateMaster = createNativeFunction(0x98C204C8, 150, 'int', '', this, function () {
-            throw (new Error("Not implemented sceNetAdhocGameModeUpdateMaster"));
-            return -1;
-        });
-        this.sceNetAdhocGameModeUpdateReplica = createNativeFunction(0xFA324B4E, 150, 'int', 'int/int', this, function (id, unk1) {
-            throw (new Error("Not implemented sceNetAdhocGameModeUpdateReplica"));
-            return -1;
-        });
-        this.sceNetAdhocGameModeDeleteMaster = createNativeFunction(0xA0229362, 150, 'int', '', this, function () {
-            throw (new Error("Not implemented sceNetAdhocGameModeDeleteMaster"));
-            return -1;
-        });
-        this.sceNetAdhocGameModeDeleteReplica = createNativeFunction(0x0B2228E9, 150, 'int', 'int', this, function (id) {
-            throw (new Error("Not implemented sceNetAdhocGameModeDeleteReplica"));
-            return -1;
-        });
-        this.sceNetAdhocPtpOpen = createNativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int', this, function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
-            throw (new Error("Not implemented sceNetAdhocPtpOpen"));
-            return -1;
-        });
-        this.sceNetAdhocPtpListen = createNativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int', this, function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
-            throw (new Error("Not implemented sceNetAdhocPtpListen"));
-            return -1;
-        });
-        this.sceNetAdhocPtpConnect = createNativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int', this, function (id, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPtpConnect"));
-            return -1;
-        });
-        this.sceNetAdhocPtpAccept = createNativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPtpAccept"));
-            return -1;
-        });
-        this.sceNetAdhocPtpSend = createNativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPtpSend"));
-            return -1;
-        });
-        this.sceNetAdhocPtpRecv = createNativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int', this, function (id, data, datasize, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPtpRecv"));
-            return -1;
-        });
-        this.sceNetAdhocPtpFlush = createNativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int', this, function (id, timeout, nonblock) {
-            throw (new Error("Not implemented sceNetAdhocPtpFlush"));
-            return -1;
-        });
-        this.sceNetAdhocPtpClose = createNativeFunction(0x157E6225, 150, 'int', 'int/int', this, function (id, unk1) {
-            throw (new Error("Not implemented sceNetAdhocPtpClose"));
-            return -1;
-        });
-        this.sceNetAdhocGetPtpStat = createNativeFunction(0xB9685118, 150, 'int', 'void*/void*', this, function (size, stat) {
-            throw (new Error("Not implemented sceNetAdhocGetPtpStat"));
-            return -1;
-        });
     }
+    sceNetAdhoc.prototype.sceNetAdhocInit = function () {
+        this.partition = this.context.memoryManager.kernelPartition.allocateLow(0x4000);
+        return 0;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocTerm = function () {
+        this.partition.deallocate();
+        return 0;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPollSocket = function (socketAddress, int, timeout, nonblock) {
+        throw (new Error("Not implemented sceNetAdhocPollSocket"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPdpCreate = function (mac, port, bufsize, unk1) {
+        var pdp = new Pdp(this.context, mac, port, bufsize);
+        pdp.id = this.pdps.allocate(pdp);
+        return pdp.id;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPdpDelete = function (pdpId, unk1) {
+        var pdp = this.pdps.get(pdpId);
+        pdp.dispose();
+        this.pdps.remove(pdpId);
+        return 0;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPdpSend = function (pdpId, destMac, port, dataStream, timeout, nonblock) {
+        var pdp = this.pdps.get(pdpId);
+        var data = dataStream.readBytes(dataStream.length);
+        pdp.send(port, destMac, data);
+        return 0;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPdpRecv = function (pdpId, srcMac, portPtr, data, dataLengthPtr, timeout, nonblock) {
+        var block = !nonblock;
+        var pdp = this.pdps.get(pdpId);
+        var recvOne = function (chunk) {
+            srcMac.set(chunk.mac);
+            data.writeBytes(chunk.payload);
+            portPtr.writeInt16(pdp.port);
+            dataLengthPtr.writeInt32(chunk.payload.length);
+            return 0;
+        };
+        if (block) {
+            return pdp.recvOneAsync().then(recvOne);
+        }
+        else {
+            if (pdp.chunks.length <= 0)
+                return 0x80410709;
+            return recvOne(pdp.chunks.shift());
+        }
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGetPdpStat = function (sizeStream, pdpStatStruct) {
+        var maxSize = sizeStream.sliceWithLength(0).readInt32();
+        var pdps = this.pdps.list();
+        var totalSize = pdps.length * PdpStatStruct.struct.length;
+        sizeStream.sliceWithLength(0).writeInt32(totalSize);
+        var pos = 0;
+        pdps.forEach(function (pdp) {
+            var stat = new PdpStatStruct();
+            stat.nextPointer = 0;
+            stat.pdpId = pdp.id;
+            stat.port = pdp.port;
+            stat.mac = xrange(0, 6).map(function (index) { return pdp.mac[index]; });
+            stat.rcvdData = pdp.getDataLength();
+            PdpStatStruct.struct.write(pdpStatStruct, stat);
+        });
+        return 0;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGameModeCreateMaster = function (data) {
+        throw (new Error("Not implemented sceNetAdhocGameModeCreateMaster"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGameModeCreateReplica = function (mac, data) {
+        throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGameModeUpdateMaster = function () {
+        throw (new Error("Not implemented sceNetAdhocGameModeUpdateMaster"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGameModeUpdateReplica = function (id, unk1) {
+        throw (new Error("Not implemented sceNetAdhocGameModeUpdateReplica"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGameModeDeleteMaster = function () {
+        throw (new Error("Not implemented sceNetAdhocGameModeDeleteMaster"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGameModeDeleteReplica = function (id) {
+        throw (new Error("Not implemented sceNetAdhocGameModeDeleteReplica"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpOpen = function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
+        throw (new Error("Not implemented sceNetAdhocPtpOpen"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpListen = function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
+        throw (new Error("Not implemented sceNetAdhocPtpListen"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpConnect = function (id, timeout, nonblock) {
+        throw (new Error("Not implemented sceNetAdhocPtpConnect"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpAccept = function (id, data, datasize, timeout, nonblock) {
+        throw (new Error("Not implemented sceNetAdhocPtpAccept"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpSend = function (id, data, datasize, timeout, nonblock) {
+        throw (new Error("Not implemented sceNetAdhocPtpSend"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpRecv = function (id, data, datasize, timeout, nonblock) {
+        throw (new Error("Not implemented sceNetAdhocPtpRecv"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpFlush = function (id, timeout, nonblock) {
+        throw (new Error("Not implemented sceNetAdhocPtpFlush"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocPtpClose = function (id, unk1) {
+        throw (new Error("Not implemented sceNetAdhocPtpClose"));
+        return -1;
+    };
+    sceNetAdhoc.prototype.sceNetAdhocGetPtpStat = function (size, stat) {
+        throw (new Error("Not implemented sceNetAdhocGetPtpStat"));
+        return -1;
+    };
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocInit",
+        __decorate([
+            nativeFunction(0xE1D621D7, 150, 'int', '')
+        ], sceNetAdhoc.prototype, "sceNetAdhocInit", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocInit")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocTerm",
+        __decorate([
+            nativeFunction(0xA62C6F57, 150, 'int', '')
+        ], sceNetAdhoc.prototype, "sceNetAdhocTerm", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocTerm")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPollSocket",
+        __decorate([
+            nativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPollSocket", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPollSocket")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpCreate",
+        __decorate([
+            nativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPdpCreate", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpCreate")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpDelete",
+        __decorate([
+            nativeFunction(0x7F27BB5E, 150, 'int', 'int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPdpDelete", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpDelete")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpSend",
+        __decorate([
+            nativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPdpSend", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpSend")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpRecv",
+        __decorate([
+            nativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPdpRecv", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpRecv")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat",
+        __decorate([
+            nativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster",
+        __decorate([
+            nativeFunction(0x7F75C338, 150, 'int', 'byte[]')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica",
+        __decorate([
+            nativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster",
+        __decorate([
+            nativeFunction(0x98C204C8, 150, 'int', '')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica",
+        __decorate([
+            nativeFunction(0xFA324B4E, 150, 'int', 'int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster",
+        __decorate([
+            nativeFunction(0xA0229362, 150, 'int', '')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica",
+        __decorate([
+            nativeFunction(0x0B2228E9, 150, 'int', 'int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpOpen",
+        __decorate([
+            nativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpOpen", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpOpen")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpListen",
+        __decorate([
+            nativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpListen", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpListen")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpConnect",
+        __decorate([
+            nativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpConnect", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpConnect")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpAccept",
+        __decorate([
+            nativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpAccept", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpAccept")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpSend",
+        __decorate([
+            nativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpSend", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpSend")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpRecv",
+        __decorate([
+            nativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpRecv", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpRecv")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpFlush",
+        __decorate([
+            nativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpFlush", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpFlush")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpClose",
+        __decorate([
+            nativeFunction(0x157E6225, 150, 'int', 'int/int')
+        ], sceNetAdhoc.prototype, "sceNetAdhocPtpClose", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpClose")));
+    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat",
+        __decorate([
+            nativeFunction(0xB9685118, 150, 'int', 'void*/void*')
+        ], sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat")));
     return sceNetAdhoc;
 })();
 exports.sceNetAdhoc = sceNetAdhoc;
@@ -23022,57 +23068,96 @@ var PdpStatStruct = (function () {
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _manager = require('../manager');
 _manager.Thread;
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceNetAdhocMatching = (function () {
     function sceNetAdhocMatching(context) {
-        var _this = this;
         this.context = context;
         this.poolStat = { size: 0, maxsize: 0, freesize: 0 };
-        this.sceNetAdhocMatchingInit = createNativeFunction(0x2A2A1E07, 150, 'int', 'int', this, function (memSize) {
-            _this.poolStat.size = memSize;
-            _this.poolStat.maxsize = memSize;
-            _this.poolStat.freesize = memSize;
-            return 0;
-        });
-        this.sceNetAdhocMatchingTerm = createNativeFunction(0x7945ECDA, 150, 'int', '', this, function () {
-            return 0;
-        });
         this.matchings = new UidCollection(1);
-        this.sceNetAdhocMatchingCreate = createNativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint', this, function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
-            var matching = new Matching(_this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
-            matching.id = _this.matchings.allocate(matching);
-            return matching.id;
-        });
-        this.sceNetAdhocMatchingSelectTarget = createNativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*', this, function (matchingId, macStream, dataLength, dataPointer) {
-            var matching = _this.matchings.get(matchingId);
-            var mac = macStream.readBytes(6);
-            matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
-            return 0;
-        });
-        this.sceNetAdhocMatchingCancelTarget = createNativeFunction(0xEA3C6108, 150, 'int', 'int/void*', this, function (matchingId, mac) {
-            var matching = _this.matchings.get(matchingId);
-            matching.cancelTarget(mac.readBytes(6));
-            return 0;
-        });
-        this.sceNetAdhocMatchingDelete = createNativeFunction(0xF16EAF4F, 150, 'int', 'int', this, function (matchingId) {
-            _this.matchings.remove(matchingId);
-            return 0;
-        });
-        this.sceNetAdhocMatchingStart = createNativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*', this, function (matchingId, evthPri, evthStack, inthPri, inthStack, optLen, optData) {
-            var matching = _this.matchings.get(matchingId);
-            matching.hello = optData.readBytes(optLen);
-            matching.start();
-            return 0;
-        });
-        this.sceNetAdhocMatchingStop = createNativeFunction(0x32B156B3, 150, 'int', 'int', this, function (matchingId) {
-            var matching = _this.matchings.get(matchingId);
-            matching.stop();
-            return 0;
-        });
     }
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingInit = function (memSize) {
+        this.poolStat.size = memSize;
+        this.poolStat.maxsize = memSize;
+        this.poolStat.freesize = memSize;
+        return 0;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingTerm = function () {
+        return 0;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingCreate = function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
+        var matching = new Matching(this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
+        matching.id = this.matchings.allocate(matching);
+        return matching.id;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingSelectTarget = function (matchingId, macStream, dataLength, dataPointer) {
+        var matching = this.matchings.get(matchingId);
+        var mac = macStream.readBytes(6);
+        matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
+        return 0;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingCancelTarget = function (matchingId, mac) {
+        var matching = this.matchings.get(matchingId);
+        matching.cancelTarget(mac.readBytes(6));
+        return 0;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingDelete = function (matchingId) {
+        this.matchings.remove(matchingId);
+        return 0;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingStart = function (matchingId, evthPri, evthStack, inthPri, inthStack, optLen, optData) {
+        var matching = this.matchings.get(matchingId);
+        matching.hello = optData.readBytes(optLen);
+        matching.start();
+        return 0;
+    };
+    sceNetAdhocMatching.prototype.sceNetAdhocMatchingStop = function (matchingId) {
+        var matching = this.matchings.get(matchingId);
+        matching.stop();
+        return 0;
+    };
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit",
+        __decorate([
+            nativeFunction(0x2A2A1E07, 150, 'int', 'int')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm",
+        __decorate([
+            nativeFunction(0x7945ECDA, 150, 'int', '')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate",
+        __decorate([
+            nativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget",
+        __decorate([
+            nativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget",
+        __decorate([
+            nativeFunction(0xEA3C6108, 150, 'int', 'int/void*')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete",
+        __decorate([
+            nativeFunction(0xF16EAF4F, 150, 'int', 'int')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart",
+        __decorate([
+            nativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart")));
+    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop",
+        __decorate([
+            nativeFunction(0x32B156B3, 150, 'int', 'int')
+        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop")));
     return sceNetAdhocMatching;
 })();
 exports.sceNetAdhocMatching = sceNetAdhocMatching;
@@ -23227,57 +23312,65 @@ var Mode = exports.Mode;
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceNetAdhocctl = (function () {
     function sceNetAdhocctl(context) {
-        var _this = this;
         this.context = context;
         this.currentState = State.Disconnected;
         this.currentName = "noname";
-        this.sceNetAdhocctlInit = createNativeFunction(0xE26F226E, 150, 'int', 'int/int/void*', this, function (stacksize, priority, product) {
-            _this.currentState = State.Disconnected;
-            return 0;
-        });
-        this.sceNetAdhocctlTerm = createNativeFunction(0x9D689E13, 150, 'int', '', this, function () {
-            return 0;
-        });
         this.connectHandlers = [];
-        this.sceNetAdhocctlConnect = createNativeFunction(0x0AD043ED, 150, 'int', 'string', this, function (name) {
-            _this.currentName = name;
-            _this.connectHandlers.push(_this.context.netManager.onopen.add(function () {
-                _this.currentState = State.Connected;
-                _this._notifyAdhocctlHandler(Event.Connected);
-            }));
-            _this.connectHandlers.push(_this.context.netManager.onclose.add(function () {
-                _this.currentState = State.Disconnected;
-                _this._notifyAdhocctlHandler(Event.Disconnected);
-            }));
-            if (_this.context.netManager.connected) {
-                _this.currentState = State.Connected;
-                _this._notifyAdhocctlHandler(Event.Connected);
-            }
-            _this.context.netManager.connectOnce();
-            return 0;
-        });
-        this.sceNetAdhocctlDisconnect = createNativeFunction(0x34401D65, 150, 'int', '', this, function () {
-            while (_this.connectHandlers.length)
-                _this.connectHandlers.shift().cancel();
-            return 0;
-        });
         this.handlers = new UidCollection(1);
-        this.sceNetAdhocctlAddHandler = createNativeFunction(0x20B317A0, 150, 'int', 'int/int', this, function (callback, parameter) {
-            return _this.handlers.allocate(new HandlerCallback(callback, parameter));
-        });
-        this.sceNetAdhocctlDelHandler = createNativeFunction(0x6402490B, 150, 'int', 'int', this, function (handler) {
-            _this.handlers.remove(handler);
-            return 0;
-        });
-        this.sceNetAdhocctlGetState = createNativeFunction(0x75ECD386, 150, 'int', 'void*', this, function (stateOut) {
-            stateOut.writeInt32(_this.currentState);
-            return 0;
-        });
     }
+    sceNetAdhocctl.prototype.sceNetAdhocctlInit = function (stacksize, priority, product) {
+        this.currentState = State.Disconnected;
+        return 0;
+    };
+    sceNetAdhocctl.prototype.sceNetAdhocctlTerm = function () {
+        return 0;
+    };
+    sceNetAdhocctl.prototype.sceNetAdhocctlConnect = function (name) {
+        var _this = this;
+        this.currentName = name;
+        this.connectHandlers.push(this.context.netManager.onopen.add(function () {
+            _this.currentState = State.Connected;
+            _this._notifyAdhocctlHandler(Event.Connected);
+        }));
+        this.connectHandlers.push(this.context.netManager.onclose.add(function () {
+            _this.currentState = State.Disconnected;
+            _this._notifyAdhocctlHandler(Event.Disconnected);
+        }));
+        if (this.context.netManager.connected) {
+            this.currentState = State.Connected;
+            this._notifyAdhocctlHandler(Event.Connected);
+        }
+        this.context.netManager.connectOnce();
+        return 0;
+    };
+    sceNetAdhocctl.prototype.sceNetAdhocctlDisconnect = function () {
+        while (this.connectHandlers.length)
+            this.connectHandlers.shift().cancel();
+        return 0;
+    };
+    sceNetAdhocctl.prototype.sceNetAdhocctlAddHandler = function (callback, parameter) {
+        return this.handlers.allocate(new HandlerCallback(callback, parameter));
+    };
+    sceNetAdhocctl.prototype.sceNetAdhocctlDelHandler = function (handler) {
+        this.handlers.remove(handler);
+        return 0;
+    };
+    sceNetAdhocctl.prototype.sceNetAdhocctlGetState = function (stateOut) {
+        stateOut.writeInt32(this.currentState);
+        return 0;
+    };
     sceNetAdhocctl.prototype._notifyAdhocctlHandler = function (event, error) {
         var _this = this;
         if (error === void 0) { error = 0; }
@@ -23285,6 +23378,34 @@ var sceNetAdhocctl = (function () {
             _this.context.callbackManager.executeLater(callback.callback, [event, error, callback.argument]);
         });
     };
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlInit",
+        __decorate([
+            nativeFunction(0xE26F226E, 150, 'int', 'int/int/void*')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlInit", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlInit")));
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlTerm",
+        __decorate([
+            nativeFunction(0x9D689E13, 150, 'int', '')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlTerm", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlTerm")));
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlConnect",
+        __decorate([
+            nativeFunction(0x0AD043ED, 150, 'int', 'string')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlConnect", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlConnect")));
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect",
+        __decorate([
+            nativeFunction(0x34401D65, 150, 'int', '')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect")));
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler",
+        __decorate([
+            nativeFunction(0x20B317A0, 150, 'int', 'int/int')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler")));
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler",
+        __decorate([
+            nativeFunction(0x6402490B, 150, 'int', 'int')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler")));
+    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlGetState",
+        __decorate([
+            nativeFunction(0x75ECD386, 150, 'int', 'void*')
+        ], sceNetAdhocctl.prototype, "sceNetAdhocctlGetState", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlGetState")));
     return sceNetAdhocctl;
 })();
 exports.sceNetAdhocctl = sceNetAdhocctl;
@@ -23429,69 +23550,23 @@ exports.sceParseUri = sceParseUri;
 },
 "src/hle/module/scePower": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var scePower = (function () {
     function scePower(context) {
-        var _this = this;
         this.context = context;
         this.cpuMult = 511;
         this.pllFreq = 222;
         this.busFreq = 111;
-        this.scePowerRegisterCallback = createNativeFunction(0x04B7766E, 150, 'int', 'int/int', this, function (slotIndex, callbackId) {
-            _this.context.callbackManager.notify(callbackId, CallbackStatus.BATTERY_EXIST);
-            return 0;
-        });
-        this.scePowerUnregitserCallback = createNativeFunction(0xDB9D28DD, 150, 'int', 'int', this, function (slotIndex) {
-            return 0;
-        });
-        this.scePowerUnregisterCallback = createNativeFunction(0xDFA8BAF8, 150, 'int', 'int', this, function (slotIndex) {
-            return 0;
-        });
-        this.scePowerSetClockFrequency = createNativeFunction(0x737486F2, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
-            return _this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
-        });
-        this.scePowerSetClockFrequency2 = createNativeFunction(0xEBD177D6, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
-            return _this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
-        });
-        this.scePowerSetClockFrequency3 = createNativeFunction(0x469989AD, 150, 'int', 'int/int/int', this, function (pllFreq, cpuFreq, busFreq) {
-            return _this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
-        });
-        this.scePowerGetCpuClockFrequency = createNativeFunction(0xFEE03A2F, 150, 'int', '', this, function () { return _this._getCpuFreq(); });
-        this.scePowerGetCpuClockFrequencyInt = createNativeFunction(0xFDB5BFE9, 150, 'int', '', this, function () { return _this._getCpuFreq(); });
-        this.scePowerGetCpuClockFrequencyFloat = createNativeFunction(0xB1A52C83, 150, 'float', '', this, function () { return _this._getCpuFreq(); });
-        this.scePowerGetBusClockFrequency = createNativeFunction(0x478FE6F5, 150, 'int', '', this, function () { return _this.busFreq; });
-        this.scePowerGetBusClockFrequencyInt = createNativeFunction(0xBD681969, 150, 'int', '', this, function () { return _this.busFreq; });
-        this.scePowerGetBusClockFrequencyFloat = createNativeFunction(0x9BADB3EB, 150, 'float', '', this, function () { return _this.busFreq; });
-        this.scePowerGetPllClockFrequencyInt = createNativeFunction(0x34F9C463, 150, 'int', '', this, function () { return _this.pllFreq; });
-        this.scePowerGetPllClockFrequencyFloat = createNativeFunction(0xEA382A27, 150, 'float', '', this, function () { return _this.pllFreq; });
-        this.scePowerSetBusClockFrequency = createNativeFunction(0xB8D7B3FB, 150, 'int', 'int', this, function (busFreq) {
-            if (!_this._isValidBusFreq(busFreq))
-                return SceKernelErrors.ERROR_INVALID_VALUE;
-            _this.busFreq = 111;
-            return 0;
-        });
-        this.scePowerSetCpuClockFrequency = createNativeFunction(0x843FBF43, 150, 'int', 'int', this, function (cpuFreq) {
-            if (!_this._isValidCpuFreq(cpuFreq))
-                return SceKernelErrors.ERROR_INVALID_VALUE;
-            _this._setCpuFreq(cpuFreq);
-            return 0;
-        });
-        this.scePowerGetBatteryLifePercent = createNativeFunction(0x2085D15D, 150, 'int', '', this, function () { return 100; });
-        this.scePowerIsPowerOnline = createNativeFunction(0x87440F5E, 150, 'int', '', this, function () { return 1; });
-        this.scePowerIsBatteryExist = createNativeFunction(0x0AFD0D8B, 150, 'int', '', this, function () { return 1; });
-        this.scePowerIsLowBattery = createNativeFunction(0xD3075926, 150, 'int', '', this, function () { return 0; });
-        this.scePowerIsBatteryCharging = createNativeFunction(0x1E490401, 150, 'int', '', this, function () { return 1; });
-        this.scePowerGetBatteryLifeTime = createNativeFunction(0x8EFB3FA2, 150, 'int', '', this, function () { return 3 * 60; });
-        this.scePowerGetBatteryVolt = createNativeFunction(0x483CE86B, 150, 'int', '', this, function () { return 4135; });
-        this.scePowerGetBatteryTemp = createNativeFunction(0x28E12023, 150, 'int', '', this, function () { return 28; });
-        this.scePowerLock = createNativeFunction(0xD6D016EF, 150, 'int', 'int', this, function (unknown) { return 0; });
-        this.scePowerUnlock = createNativeFunction(0xCA3D34C1, 150, 'int', 'int', this, function (unknown) { return 0; });
-        this.scePowerTick = createNativeFunction(0xEFD3C963, 150, 'int', 'int', this, function (type) { return 0; });
-        this.scePowerGetBatteryChargingStatus = createNativeFunction(0xB4432BC8, 150, 'int', '', this, function () {
-            return PowerFlagsSet.BatteryExists | PowerFlagsSet.AcPower | PowerFlagsSet.BatteryPower;
-        });
     }
     scePower.prototype._getCpuMult = function () {
         return 0.43444227005871 * (this.busFreq / 111);
@@ -23508,6 +23583,16 @@ var scePower = (function () {
         else {
             this.cpuMult = Math.floor(cpuFreq / this._getCpuMult());
         }
+    };
+    scePower.prototype.scePowerRegisterCallback = function (slotIndex, callbackId) {
+        this.context.callbackManager.notify(callbackId, CallbackStatus.BATTERY_EXIST);
+        return 0;
+    };
+    scePower.prototype.scePowerUnregitserCallback = function (slotIndex) {
+        return 0;
+    };
+    scePower.prototype.scePowerUnregisterCallback = function (slotIndex) {
+        return 0;
     };
     scePower.prototype._isValidCpuFreq = function (freq) {
         return (freq >= 1 && freq <= 222);
@@ -23530,6 +23615,161 @@ var scePower = (function () {
         this.busFreq = busFreq;
         return 0;
     };
+    scePower.prototype.scePowerSetClockFrequency = function (pllFreq, cpuFreq, busFreq) {
+        return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+    };
+    scePower.prototype.scePowerSetClockFrequency2 = function (pllFreq, cpuFreq, busFreq) {
+        return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+    };
+    scePower.prototype.scePowerSetClockFrequency3 = function (pllFreq, cpuFreq, busFreq) {
+        return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
+    };
+    scePower.prototype.scePowerGetCpuClockFrequency = function () { return this._getCpuFreq(); };
+    scePower.prototype.scePowerGetCpuClockFrequencyInt = function () { return this._getCpuFreq(); };
+    scePower.prototype.scePowerGetCpuClockFrequencyFloat = function () { return this._getCpuFreq(); };
+    scePower.prototype.scePowerGetBusClockFrequency = function () { return this.busFreq; };
+    scePower.prototype.scePowerGetBusClockFrequencyInt = function () { return this.busFreq; };
+    scePower.prototype.scePowerGetBusClockFrequencyFloat = function () { return this.busFreq; };
+    scePower.prototype.scePowerGetPllClockFrequencyInt = function () { return this.pllFreq; };
+    scePower.prototype.scePowerGetPllClockFrequencyFloat = function () { return this.pllFreq; };
+    scePower.prototype.scePowerSetBusClockFrequency = function (busFreq) {
+        if (!this._isValidBusFreq(busFreq))
+            return SceKernelErrors.ERROR_INVALID_VALUE;
+        this.busFreq = 111;
+        return 0;
+    };
+    scePower.prototype.scePowerSetCpuClockFrequency = function (cpuFreq) {
+        if (!this._isValidCpuFreq(cpuFreq))
+            return SceKernelErrors.ERROR_INVALID_VALUE;
+        this._setCpuFreq(cpuFreq);
+        return 0;
+    };
+    scePower.prototype.scePowerGetBatteryLifePercent = function () { return 100; };
+    scePower.prototype.scePowerIsPowerOnline = function () { return 1; };
+    scePower.prototype.scePowerIsBatteryExist = function () { return 1; };
+    scePower.prototype.scePowerIsLowBattery = function () { return 0; };
+    scePower.prototype.scePowerIsBatteryCharging = function () { return 1; };
+    scePower.prototype.scePowerGetBatteryLifeTime = function () { return 3 * 60; };
+    scePower.prototype.scePowerGetBatteryVolt = function () { return 4135; };
+    scePower.prototype.scePowerGetBatteryTemp = function () { return 28; };
+    scePower.prototype.scePowerLock = function (unknown) { return 0; };
+    scePower.prototype.scePowerUnlock = function (unknown) { return 0; };
+    scePower.prototype.scePowerTick = function (type) { return 0; };
+    scePower.prototype.scePowerGetBatteryChargingStatus = function () {
+        return PowerFlagsSet.BatteryExists | PowerFlagsSet.AcPower | PowerFlagsSet.BatteryPower;
+    };
+    Object.defineProperty(scePower.prototype, "scePowerRegisterCallback",
+        __decorate([
+            nativeFunction(0x04B7766E, 150, 'int', 'int/int')
+        ], scePower.prototype, "scePowerRegisterCallback", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerRegisterCallback")));
+    Object.defineProperty(scePower.prototype, "scePowerUnregitserCallback",
+        __decorate([
+            nativeFunction(0xDB9D28DD, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerUnregitserCallback", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerUnregitserCallback")));
+    Object.defineProperty(scePower.prototype, "scePowerUnregisterCallback",
+        __decorate([
+            nativeFunction(0xDFA8BAF8, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerUnregisterCallback", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerUnregisterCallback")));
+    Object.defineProperty(scePower.prototype, "scePowerSetClockFrequency",
+        __decorate([
+            nativeFunction(0x737486F2, 150, 'int', 'int/int/int')
+        ], scePower.prototype, "scePowerSetClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetClockFrequency")));
+    Object.defineProperty(scePower.prototype, "scePowerSetClockFrequency2",
+        __decorate([
+            nativeFunction(0xEBD177D6, 150, 'int', 'int/int/int')
+        ], scePower.prototype, "scePowerSetClockFrequency2", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetClockFrequency2")));
+    Object.defineProperty(scePower.prototype, "scePowerSetClockFrequency3",
+        __decorate([
+            nativeFunction(0x469989AD, 150, 'int', 'int/int/int')
+        ], scePower.prototype, "scePowerSetClockFrequency3", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetClockFrequency3")));
+    Object.defineProperty(scePower.prototype, "scePowerGetCpuClockFrequency",
+        __decorate([
+            nativeFunction(0xFEE03A2F, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetCpuClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetCpuClockFrequency")));
+    Object.defineProperty(scePower.prototype, "scePowerGetCpuClockFrequencyInt",
+        __decorate([
+            nativeFunction(0xFDB5BFE9, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetCpuClockFrequencyInt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetCpuClockFrequencyInt")));
+    Object.defineProperty(scePower.prototype, "scePowerGetCpuClockFrequencyFloat",
+        __decorate([
+            nativeFunction(0xB1A52C83, 150, 'float', '')
+        ], scePower.prototype, "scePowerGetCpuClockFrequencyFloat", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetCpuClockFrequencyFloat")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBusClockFrequency",
+        __decorate([
+            nativeFunction(0x478FE6F5, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBusClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBusClockFrequency")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBusClockFrequencyInt",
+        __decorate([
+            nativeFunction(0xBD681969, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBusClockFrequencyInt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBusClockFrequencyInt")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBusClockFrequencyFloat",
+        __decorate([
+            nativeFunction(0x9BADB3EB, 150, 'float', '')
+        ], scePower.prototype, "scePowerGetBusClockFrequencyFloat", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBusClockFrequencyFloat")));
+    Object.defineProperty(scePower.prototype, "scePowerGetPllClockFrequencyInt",
+        __decorate([
+            nativeFunction(0x34F9C463, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetPllClockFrequencyInt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetPllClockFrequencyInt")));
+    Object.defineProperty(scePower.prototype, "scePowerGetPllClockFrequencyFloat",
+        __decorate([
+            nativeFunction(0xEA382A27, 150, 'float', '')
+        ], scePower.prototype, "scePowerGetPllClockFrequencyFloat", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetPllClockFrequencyFloat")));
+    Object.defineProperty(scePower.prototype, "scePowerSetBusClockFrequency",
+        __decorate([
+            nativeFunction(0xB8D7B3FB, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerSetBusClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetBusClockFrequency")));
+    Object.defineProperty(scePower.prototype, "scePowerSetCpuClockFrequency",
+        __decorate([
+            nativeFunction(0x843FBF43, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerSetCpuClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetCpuClockFrequency")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBatteryLifePercent",
+        __decorate([
+            nativeFunction(0x2085D15D, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBatteryLifePercent", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryLifePercent")));
+    Object.defineProperty(scePower.prototype, "scePowerIsPowerOnline",
+        __decorate([
+            nativeFunction(0x87440F5E, 150, 'int', '')
+        ], scePower.prototype, "scePowerIsPowerOnline", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsPowerOnline")));
+    Object.defineProperty(scePower.prototype, "scePowerIsBatteryExist",
+        __decorate([
+            nativeFunction(0x0AFD0D8B, 150, 'int', '')
+        ], scePower.prototype, "scePowerIsBatteryExist", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsBatteryExist")));
+    Object.defineProperty(scePower.prototype, "scePowerIsLowBattery",
+        __decorate([
+            nativeFunction(0xD3075926, 150, 'int', '')
+        ], scePower.prototype, "scePowerIsLowBattery", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsLowBattery")));
+    Object.defineProperty(scePower.prototype, "scePowerIsBatteryCharging",
+        __decorate([
+            nativeFunction(0x1E490401, 150, 'int', '')
+        ], scePower.prototype, "scePowerIsBatteryCharging", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsBatteryCharging")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBatteryLifeTime",
+        __decorate([
+            nativeFunction(0x8EFB3FA2, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBatteryLifeTime", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryLifeTime")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBatteryVolt",
+        __decorate([
+            nativeFunction(0x483CE86B, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBatteryVolt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryVolt")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBatteryTemp",
+        __decorate([
+            nativeFunction(0x28E12023, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBatteryTemp", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryTemp")));
+    Object.defineProperty(scePower.prototype, "scePowerLock",
+        __decorate([
+            nativeFunction(0xD6D016EF, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerLock", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerLock")));
+    Object.defineProperty(scePower.prototype, "scePowerUnlock",
+        __decorate([
+            nativeFunction(0xCA3D34C1, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerUnlock", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerUnlock")));
+    Object.defineProperty(scePower.prototype, "scePowerTick",
+        __decorate([
+            nativeFunction(0xEFD3C963, 150, 'int', 'int')
+        ], scePower.prototype, "scePowerTick", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerTick")));
+    Object.defineProperty(scePower.prototype, "scePowerGetBatteryChargingStatus",
+        __decorate([
+            nativeFunction(0xB4432BC8, 150, 'int', '')
+        ], scePower.prototype, "scePowerGetBatteryChargingStatus", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryChargingStatus")));
     return scePower;
 })();
 exports.scePower = scePower;
@@ -23567,46 +23807,86 @@ exports.scePspNpDrm_user = scePspNpDrm_user;
 },
 "src/hle/module/sceReg": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceReg = (function () {
     function sceReg(context) {
         this.context = context;
-        this.sceRegOpenRegistry = createNativeFunction(0x92E41280, 150, 'int', 'void*/int/void*', this, function (regParamPtr, mode, regHandlePtr) {
-            var regParam = RegParam.struct.read(regParamPtr);
-            console.warn('sceRegOpenRegistry: ' + regParam.name);
-            regHandlePtr.writeInt32(0);
-            return 0;
-        });
-        this.sceRegOpenCategory = createNativeFunction(0x1D8A762E, 150, 'int', 'int/string/int/void*', this, function (regHandle, name, mode, regCategoryHandlePtr) {
-            console.warn('sceRegOpenCategory: ' + name);
-            return 0;
-        });
-        this.sceRegGetKeyInfo = createNativeFunction(0xD4475AA8, 150, 'int', 'int/string/void*/void*/void*', this, function (categoryHandle, name, regKeyHandlePtr, regKeyTypesPtr, sizePtr) {
-            console.warn('sceRegGetKeyInfo: ' + name);
-            return 0;
-        });
-        this.sceRegGetKeyValue = createNativeFunction(0x28A8E98A, 150, 'int', 'int/int/void*/int', this, function (categoryHandle, regKeyHandle, bufferPtr, size) {
-            console.warn('sceRegGetKeyValue');
-            return 0;
-        });
-        this.sceRegFlushCategory = createNativeFunction(0x0D69BF40, 150, 'int', 'int', this, function (categoryHandle) {
-            console.warn('sceRegFlushCategory');
-            return 0;
-        });
-        this.sceRegCloseCategory = createNativeFunction(0x0CAE832B, 150, 'int', 'int', this, function (categoryHandle) {
-            console.warn('sceRegCloseCategory');
-            return 0;
-        });
-        this.sceRegFlushRegistry = createNativeFunction(0x39461B4D, 150, 'int', 'int', this, function (regHandle) {
-            console.warn('sceRegFlushRegistry');
-            return 0;
-        });
-        this.sceRegCloseRegistry = createNativeFunction(0xFA8A5739, 150, 'int', 'int', this, function (regHandle) {
-            console.warn('sceRegCloseRegistry');
-            return 0;
-        });
     }
+    sceReg.prototype.sceRegOpenRegistry = function (regParamPtr, mode, regHandlePtr) {
+        var regParam = RegParam.struct.read(regParamPtr);
+        console.warn('sceRegOpenRegistry: ' + regParam.name);
+        regHandlePtr.writeInt32(0);
+        return 0;
+    };
+    sceReg.prototype.sceRegOpenCategory = function (regHandle, name, mode, regCategoryHandlePtr) {
+        console.warn('sceRegOpenCategory: ' + name);
+        return 0;
+    };
+    sceReg.prototype.sceRegGetKeyInfo = function (categoryHandle, name, regKeyHandlePtr, regKeyTypesPtr, sizePtr) {
+        console.warn('sceRegGetKeyInfo: ' + name);
+        return 0;
+    };
+    sceReg.prototype.sceRegGetKeyValue = function (categoryHandle, regKeyHandle, bufferPtr, size) {
+        console.warn('sceRegGetKeyValue');
+        return 0;
+    };
+    sceReg.prototype.sceRegFlushCategory = function (categoryHandle) {
+        console.warn('sceRegFlushCategory');
+        return 0;
+    };
+    sceReg.prototype.sceRegCloseCategory = function (categoryHandle) {
+        console.warn('sceRegCloseCategory');
+        return 0;
+    };
+    sceReg.prototype.sceRegFlushRegistry = function (regHandle) {
+        console.warn('sceRegFlushRegistry');
+        return 0;
+    };
+    sceReg.prototype.sceRegCloseRegistry = function (regHandle) {
+        console.warn('sceRegCloseRegistry');
+        return 0;
+    };
+    Object.defineProperty(sceReg.prototype, "sceRegOpenRegistry",
+        __decorate([
+            nativeFunction(0x92E41280, 150, 'int', 'void*/int/void*')
+        ], sceReg.prototype, "sceRegOpenRegistry", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegOpenRegistry")));
+    Object.defineProperty(sceReg.prototype, "sceRegOpenCategory",
+        __decorate([
+            nativeFunction(0x1D8A762E, 150, 'int', 'int/string/int/void*')
+        ], sceReg.prototype, "sceRegOpenCategory", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegOpenCategory")));
+    Object.defineProperty(sceReg.prototype, "sceRegGetKeyInfo",
+        __decorate([
+            nativeFunction(0xD4475AA8, 150, 'int', 'int/string/void*/void*/void*')
+        ], sceReg.prototype, "sceRegGetKeyInfo", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegGetKeyInfo")));
+    Object.defineProperty(sceReg.prototype, "sceRegGetKeyValue",
+        __decorate([
+            nativeFunction(0x28A8E98A, 150, 'int', 'int/int/void*/int')
+        ], sceReg.prototype, "sceRegGetKeyValue", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegGetKeyValue")));
+    Object.defineProperty(sceReg.prototype, "sceRegFlushCategory",
+        __decorate([
+            nativeFunction(0x0D69BF40, 150, 'int', 'int')
+        ], sceReg.prototype, "sceRegFlushCategory", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegFlushCategory")));
+    Object.defineProperty(sceReg.prototype, "sceRegCloseCategory",
+        __decorate([
+            nativeFunction(0x0CAE832B, 150, 'int', 'int')
+        ], sceReg.prototype, "sceRegCloseCategory", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegCloseCategory")));
+    Object.defineProperty(sceReg.prototype, "sceRegFlushRegistry",
+        __decorate([
+            nativeFunction(0x39461B4D, 150, 'int', 'int')
+        ], sceReg.prototype, "sceRegFlushRegistry", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegFlushRegistry")));
+    Object.defineProperty(sceReg.prototype, "sceRegCloseRegistry",
+        __decorate([
+            nativeFunction(0xFA8A5739, 150, 'int', 'int')
+        ], sceReg.prototype, "sceRegCloseRegistry", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegCloseRegistry")));
     return sceReg;
 })();
 exports.sceReg = sceReg;
@@ -23626,51 +23906,86 @@ var RegParam = (function () {
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var _structs = require('../structs');
 var ScePspDateTime = _structs.ScePspDateTime;
 var sceRtc = (function () {
     function sceRtc(context) {
-        var _this = this;
         this.context = context;
-        this.sceRtcGetCurrentTick = createNativeFunction(0x3F7AD767, 150, 'int', 'void*', this, function (tickPtr) {
-            tickPtr.writeUInt64(_structs.ScePspDateTime.fromDate(new Date()).getTotalMicroseconds());
-            return 0;
-        });
-        this.sceRtcGetDayOfWeek = createNativeFunction(0x57726BC1, 150, 'int', 'int/int/int', this, function (year, month, day) {
-            return _this.context.rtc.getDayOfWeek(year, month, day);
-        });
-        this.sceRtcGetDaysInMonth = createNativeFunction(0x05EF322C, 150, 'int', 'int/int', this, function (year, month) {
-            return _this.context.rtc.getDaysInMonth(year, month);
-        });
-        this.sceRtcGetTickResolution = createNativeFunction(0xC41C2853, 150, 'uint', 'void*', this, function (tickPtr) {
-            return 1000000;
-        });
-        this.sceRtcSetTick = createNativeFunction(0x7ED29E40, 150, 'int', 'void*/void*', this, function (datePtr, ticksPtr) {
-            var ticks = ticksPtr.readInt64();
-            datePtr.writeStruct(_structs.ScePspDateTime.struct, _structs.ScePspDateTime.fromTicks(ticks));
-            return 0;
-        });
-        this.sceRtcGetTick = createNativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*', this, function (datePtr, ticksPtr) {
-            try {
-                var date = _structs.ScePspDateTime.struct.read(datePtr);
-                ticksPtr.writeUInt64(date.getTotalMicroseconds());
-                return 0;
-            }
-            catch (e) {
-                return SceKernelErrors.ERROR_INVALID_VALUE;
-            }
-        });
-        this.sceRtcGetCurrentClock = createNativeFunction(0x4CFA57B0, 150, 'int', 'uint/int', this, function (dateAddress, timezone) {
-            //var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
-            var date = new Date();
-            var pointer = _this.context.memory.getPointerPointer(ScePspDateTime.struct, dateAddress);
-            pointer.write(ScePspDateTime.fromDate(new Date()));
-            return 0;
-        });
     }
+    sceRtc.prototype.sceRtcGetCurrentTick = function (tickPtr) {
+        tickPtr.writeUInt64(_structs.ScePspDateTime.fromDate(new Date()).getTotalMicroseconds());
+        return 0;
+    };
+    sceRtc.prototype.sceRtcGetDayOfWeek = function (year, month, day) {
+        return this.context.rtc.getDayOfWeek(year, month, day);
+    };
+    sceRtc.prototype.sceRtcGetDaysInMonth = function (year, month) {
+        return this.context.rtc.getDaysInMonth(year, month);
+    };
+    sceRtc.prototype.sceRtcGetTickResolution = function (tickPtr) {
+        return 1000000;
+    };
+    sceRtc.prototype.sceRtcSetTick = function (datePtr, ticksPtr) {
+        var ticks = ticksPtr.readInt64();
+        datePtr.writeStruct(_structs.ScePspDateTime.struct, _structs.ScePspDateTime.fromTicks(ticks));
+        return 0;
+    };
+    sceRtc.prototype.sceRtcGetTick = function (datePtr, ticksPtr) {
+        try {
+            var date = _structs.ScePspDateTime.struct.read(datePtr);
+            ticksPtr.writeUInt64(date.getTotalMicroseconds());
+            return 0;
+        }
+        catch (e) {
+            return SceKernelErrors.ERROR_INVALID_VALUE;
+        }
+    };
+    sceRtc.prototype.sceRtcGetCurrentClock = function (dateAddress, timezone) {
+        //var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
+        var date = new Date();
+        var pointer = this.context.memory.getPointerPointer(ScePspDateTime.struct, dateAddress);
+        pointer.write(ScePspDateTime.fromDate(new Date()));
+        return 0;
+    };
+    Object.defineProperty(sceRtc.prototype, "sceRtcGetCurrentTick",
+        __decorate([
+            nativeFunction(0x3F7AD767, 150, 'int', 'void*')
+        ], sceRtc.prototype, "sceRtcGetCurrentTick", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetCurrentTick")));
+    Object.defineProperty(sceRtc.prototype, "sceRtcGetDayOfWeek",
+        __decorate([
+            nativeFunction(0x57726BC1, 150, 'int', 'int/int/int')
+        ], sceRtc.prototype, "sceRtcGetDayOfWeek", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetDayOfWeek")));
+    Object.defineProperty(sceRtc.prototype, "sceRtcGetDaysInMonth",
+        __decorate([
+            nativeFunction(0x05EF322C, 150, 'int', 'int/int')
+        ], sceRtc.prototype, "sceRtcGetDaysInMonth", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetDaysInMonth")));
+    Object.defineProperty(sceRtc.prototype, "sceRtcGetTickResolution",
+        __decorate([
+            nativeFunction(0xC41C2853, 150, 'uint', 'void*')
+        ], sceRtc.prototype, "sceRtcGetTickResolution", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetTickResolution")));
+    Object.defineProperty(sceRtc.prototype, "sceRtcSetTick",
+        __decorate([
+            nativeFunction(0x7ED29E40, 150, 'int', 'void*/void*')
+        ], sceRtc.prototype, "sceRtcSetTick", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcSetTick")));
+    Object.defineProperty(sceRtc.prototype, "sceRtcGetTick",
+        __decorate([
+            nativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*')
+        ], sceRtc.prototype, "sceRtcGetTick", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetTick")));
+    Object.defineProperty(sceRtc.prototype, "sceRtcGetCurrentClock",
+        __decorate([
+            nativeFunction(0x4CFA57B0, 150, 'int', 'uint/int')
+        ], sceRtc.prototype, "sceRtcGetCurrentClock", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetCurrentClock")));
     return sceRtc;
 })();
 exports.sceRtc = sceRtc;
@@ -23678,10 +23993,18 @@ exports.sceRtc = sceRtc;
 },
 "src/hle/module/sceSasCore": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _audio = require('../../core/audio');
 var _vag = require('../../format/vag');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var Sample = _audio.Sample;
 var VagSoundSource = _vag.VagSoundSource;
@@ -23691,214 +24014,213 @@ var PSP_SAS_PITCH_BASE = 0x1000;
 var PSP_SAS_PITCH_MAX = 0x4000;
 var sceSasCore = (function () {
     function sceSasCore(context) {
-        var _this = this;
         this.context = context;
         this.core = new SasCore();
-        this.__sceSasInit = createNativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', this, function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
-            if (sampleRate != 44100) {
-                return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
-            }
-            if (maxVoices < 1 || maxVoices > sceSasCore.PSP_SAS_VOICES_MAX) {
-                return SceKernelErrors.ERROR_SAS_INVALID_MAX_VOICES;
-            }
-            if (outputMode != OutputMode.STEREO && outputMode != OutputMode.MULTICHANNEL) {
-                return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
-            }
-            _this.core.grainSamples = grainSamples;
-            _this.core.maxVoices = maxVoices;
-            _this.core.outputMode = outputMode;
-            _this.core.sampleRate = sampleRate;
-            _this.core.initialized = true;
-            return 0;
-        });
-        this.__sceSasSetGrain = createNativeFunction(0xD1E0A01E, 150, 'uint', 'int/int', this, function (sasCorePointer, grainSamples) {
-            _this.core.grainSamples = grainSamples;
-            return 0;
-        });
-        this.__sceSasSetOutputmode = createNativeFunction(0xE855BF76, 150, 'uint', 'int/int', this, function (sasCorePointer, outputMode) {
-            _this.core.outputMode = outputMode;
-            return 0;
-        });
-        this.__sceSasSetVoice = createNativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loop) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            if (data == null) {
-                voice.unsetSource();
-                return 0;
-            }
-            if (data.length == 0)
-                return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
-            if (data.length < 0x10)
-                return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
-            if (data.length % 0x10)
-                return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
-            if (data == Stream.INVALID)
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            if (loop != 0 && loop != 1)
-                return SceKernelErrors.ERROR_SAS_INVALID_LOOP_POS;
-            if (data == null) {
-                voice.unsetSource();
-            }
-            else {
-                voice.setAdpcm(data, loop);
-            }
-            return 0;
-        });
-        this.__sceSasSetVoicePCM = createNativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', this, function (sasCorePointer, voiceId, data, loop) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            if (data == null) {
-                voice.unsetSource();
-            }
-            else {
-                voice.setPCM(data, loop);
-            }
-            return 0;
-        });
-        this.__sceSasCoreWithMix = createNativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int', this, function (sasCorePointer, sasOut, leftVolume, rightVolume) {
-            return _this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
-        });
-        this.__sceSasCore = createNativeFunction(0xA3589D81, 150, 'uint', 'int/void*', this, function (sasCorePointer, sasOut) {
-            return _this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
-        });
-        this.__sceSasGetEndFlag = createNativeFunction(0x68A46B95, 150, 'uint', 'int', this, function (sasCorePointer) {
-            return _this.core.endFlags;
-        });
-        this.__sceSasRevType = createNativeFunction(0x33D4AB37, 150, 'uint', 'int/int', this, function (sasCorePointer, waveformEffectType) {
-            _this.core.waveformEffectType = waveformEffectType;
-            return 0;
-        });
-        this.__sceSasRevVON = createNativeFunction(0xF983B186, 150, 'uint', 'int/int/int', this, function (sasCorePointer, waveformEffectIsDry, waveformEffectIsWet) {
-            _this.core.waveformEffectIsDry = waveformEffectIsDry;
-            _this.core.waveformEffectIsWet = waveformEffectIsWet;
-            return 0;
-        });
-        this.__sceSasRevEVOL = createNativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int', this, function (sasCorePointer, leftVolume, rightVolume) {
-            _this.core.leftVolume = leftVolume;
-            _this.core.rightVolume = rightVolume;
-            return 0;
-        });
-        this.__sceSasSetADSR = createNativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', this, function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            if (flags & AdsrFlags.HasAttack)
-                voice.envelope.attackRate = attackRate;
-            if (flags & AdsrFlags.HasDecay)
-                voice.envelope.decayRate = decayRate;
-            if (flags & AdsrFlags.HasSustain)
-                voice.envelope.sustainRate = sustainRate;
-            if (flags & AdsrFlags.HasRelease)
-                voice.envelope.releaseRate = releaseRate;
-            return 0;
-        });
-        this.__sceSasSetADSRmode = createNativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int', this, function (sasCorePointer, voiceId, flags, attackCurveMode, decayCurveMode, sustainCurveMode, releaseCurveMode) {
-            console.warn('__sceSasSetADSRmode not implemented!');
-            return 0;
-        });
-        this.__sceSasSetKeyOff = createNativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            if (!voice.paused)
-                return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
-            voice.setOn(false);
-            return 0;
-        });
-        this.__sceSasSetKeyOn = createNativeFunction(0x76F01ACA, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            voice.setOn(true);
-            return 0;
-        });
-        this.__sceSasGetEnvelopeHeight = createNativeFunction(0x74AE582A, 150, 'uint', 'int/int', this, function (sasCorePointer, voiceId) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            return voice.envelope.height;
-        });
-        this.__sceSasSetSL = createNativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, sustainLevel) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            voice.sustainLevel = sustainLevel;
-            return 0;
-        });
-        this.__sceSasSetPause = createNativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceBits, pause) {
-            _this.core.voices.forEach(function (voice) {
-                if (voiceBits & (1 << voice.index)) {
-                    voice.paused = pause;
-                }
-            });
-            return 0;
-        });
-        this.__sceSasGetPauseFlag = createNativeFunction(0x2C8E6AB3, 150, 'uint', 'int', this, function (sasCorePointer) {
-            var voiceBits = 0;
-            _this.core.voices.forEach(function (voice) {
-                voiceBits |= (voice.paused ? 1 : 0) << voice.index;
-            });
-            return voiceBits;
-        });
-        this.__sceSasGetAllEnvelopeHeights = createNativeFunction(0x07F58C24, 150, 'uint', 'int/void*', this, function (sasCorePointer, heightPtr) {
-            _this.core.voices.forEach(function (voice) {
-                heightPtr.writeInt32(voice.envelope.height);
-            });
-            return 0;
-        });
-        this.__sceSasSetNoise = createNativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, noiseFrequency) {
-            if (noiseFrequency < 0 || noiseFrequency >= 64)
-                return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            return 0;
-        });
-        this.__sceSasSetVolume = createNativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int', this, function (sasCorePointer, voiceId, leftVolume, rightVolume, effectLeftVol, effectRightVol) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            leftVolume = Math.abs(leftVolume);
-            rightVolume = Math.abs(rightVolume);
-            effectLeftVol = Math.abs(effectLeftVol);
-            effectRightVol = Math.abs(effectRightVol);
-            if (leftVolume > PSP_SAS_VOL_MAX || rightVolume > PSP_SAS_VOL_MAX || effectLeftVol > PSP_SAS_VOL_MAX || effectRightVol > PSP_SAS_VOL_MAX) {
-                return SceKernelErrors.ERROR_SAS_INVALID_VOLUME_VAL;
-            }
-            voice.leftVolume = leftVolume;
-            voice.rightVolume = rightVolume;
-            voice.effectLeftVolume = effectLeftVol;
-            voice.effectRightVolume = effectRightVol;
-            return 0;
-        });
-        this.__sceSasSetPitch = createNativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', this, function (sasCorePointer, voiceId, pitch) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX)
-                return -1;
-            voice.pitch = pitch;
-            return 0;
-        });
-        this.__sceSasRevParam = createNativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', this, function (sasCorePointer, delay, feedback) {
-            _this.core.delay = delay;
-            _this.core.feedback = feedback;
-            return 0;
-        });
-        this.__sceSasSetSimpleADSR = createNativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', this, function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
-            if (!_this.hasSasCoreVoice(sasCorePointer, voiceId))
-                return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-            var voice = _this.getSasCoreVoice(sasCorePointer, voiceId);
-            return 0;
-        });
     }
+    sceSasCore.prototype.__sceSasInit = function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
+        if (sampleRate != 44100) {
+            return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
+        }
+        if (maxVoices < 1 || maxVoices > sceSasCore.PSP_SAS_VOICES_MAX) {
+            return SceKernelErrors.ERROR_SAS_INVALID_MAX_VOICES;
+        }
+        if (outputMode != OutputMode.STEREO && outputMode != OutputMode.MULTICHANNEL) {
+            return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
+        }
+        this.core.grainSamples = grainSamples;
+        this.core.maxVoices = maxVoices;
+        this.core.outputMode = outputMode;
+        this.core.sampleRate = sampleRate;
+        this.core.initialized = true;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetGrain = function (sasCorePointer, grainSamples) {
+        this.core.grainSamples = grainSamples;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetOutputmode = function (sasCorePointer, outputMode) {
+        this.core.outputMode = outputMode;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetVoice = function (sasCorePointer, voiceId, data, loop) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (data == null) {
+            voice.unsetSource();
+            return 0;
+        }
+        if (data.length == 0)
+            return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
+        if (data.length < 0x10)
+            return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
+        if (data.length % 0x10)
+            return SceKernelErrors.ERROR_SAS_INVALID_ADPCM_SIZE;
+        if (data == Stream.INVALID)
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        if (loop != 0 && loop != 1)
+            return SceKernelErrors.ERROR_SAS_INVALID_LOOP_POS;
+        if (data == null) {
+            voice.unsetSource();
+        }
+        else {
+            voice.setAdpcm(data, loop);
+        }
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetVoicePCM = function (sasCorePointer, voiceId, data, loop) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (data == null) {
+            voice.unsetSource();
+        }
+        else {
+            voice.setPCM(data, loop);
+        }
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasCoreWithMix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
+        return this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
+    };
+    sceSasCore.prototype.__sceSasCore = function (sasCorePointer, sasOut) {
+        return this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
+    };
+    sceSasCore.prototype.__sceSasGetEndFlag = function (sasCorePointer) {
+        return this.core.endFlags;
+    };
+    sceSasCore.prototype.__sceSasRevType = function (sasCorePointer, waveformEffectType) {
+        this.core.waveformEffectType = waveformEffectType;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasRevVON = function (sasCorePointer, waveformEffectIsDry, waveformEffectIsWet) {
+        this.core.waveformEffectIsDry = waveformEffectIsDry;
+        this.core.waveformEffectIsWet = waveformEffectIsWet;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasRevEVOL = function (sasCorePointer, leftVolume, rightVolume) {
+        this.core.leftVolume = leftVolume;
+        this.core.rightVolume = rightVolume;
+        return 0;
+    };
     sceSasCore.prototype.hasSasCoreVoice = function (sasCorePointer, voiceId) {
         return this.core.voices[voiceId] != null;
     };
     sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voiceId) {
         return this.core.voices[voiceId];
+    };
+    sceSasCore.prototype.__sceSasSetADSR = function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (flags & AdsrFlags.HasAttack)
+            voice.envelope.attackRate = attackRate;
+        if (flags & AdsrFlags.HasDecay)
+            voice.envelope.decayRate = decayRate;
+        if (flags & AdsrFlags.HasSustain)
+            voice.envelope.sustainRate = sustainRate;
+        if (flags & AdsrFlags.HasRelease)
+            voice.envelope.releaseRate = releaseRate;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetADSRmode = function (sasCorePointer, voiceId, flags, attackCurveMode, decayCurveMode, sustainCurveMode, releaseCurveMode) {
+        console.warn('__sceSasSetADSRmode not implemented!');
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetKeyOff = function (sasCorePointer, voiceId) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (!voice.paused)
+            return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
+        voice.setOn(false);
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetKeyOn = function (sasCorePointer, voiceId) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        voice.setOn(true);
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasGetEnvelopeHeight = function (sasCorePointer, voiceId) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        return voice.envelope.height;
+    };
+    sceSasCore.prototype.__sceSasSetSL = function (sasCorePointer, voiceId, sustainLevel) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        voice.sustainLevel = sustainLevel;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetPause = function (sasCorePointer, voiceBits, pause) {
+        this.core.voices.forEach(function (voice) {
+            if (voiceBits & (1 << voice.index)) {
+                voice.paused = pause;
+            }
+        });
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasGetPauseFlag = function (sasCorePointer) {
+        var voiceBits = 0;
+        this.core.voices.forEach(function (voice) {
+            voiceBits |= (voice.paused ? 1 : 0) << voice.index;
+        });
+        return voiceBits;
+    };
+    sceSasCore.prototype.__sceSasGetAllEnvelopeHeights = function (sasCorePointer, heightPtr) {
+        this.core.voices.forEach(function (voice) {
+            heightPtr.writeInt32(voice.envelope.height);
+        });
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetNoise = function (sasCorePointer, voiceId, noiseFrequency) {
+        if (noiseFrequency < 0 || noiseFrequency >= 64)
+            return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetVolume = function (sasCorePointer, voiceId, leftVolume, rightVolume, effectLeftVol, effectRightVol) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        leftVolume = Math.abs(leftVolume);
+        rightVolume = Math.abs(rightVolume);
+        effectLeftVol = Math.abs(effectLeftVol);
+        effectRightVol = Math.abs(effectRightVol);
+        if (leftVolume > PSP_SAS_VOL_MAX || rightVolume > PSP_SAS_VOL_MAX || effectLeftVol > PSP_SAS_VOL_MAX || effectRightVol > PSP_SAS_VOL_MAX) {
+            return SceKernelErrors.ERROR_SAS_INVALID_VOLUME_VAL;
+        }
+        voice.leftVolume = leftVolume;
+        voice.rightVolume = rightVolume;
+        voice.effectLeftVolume = effectLeftVol;
+        voice.effectRightVolume = effectRightVol;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetPitch = function (sasCorePointer, voiceId, pitch) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX)
+            return -1;
+        voice.pitch = pitch;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasRevParam = function (sasCorePointer, delay, feedback) {
+        this.core.delay = delay;
+        this.core.feedback = feedback;
+        return 0;
+    };
+    sceSasCore.prototype.__sceSasSetSimpleADSR = function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
+        if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
+            return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
+        var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        return 0;
     };
     sceSasCore.PSP_SAS_VOICES_MAX = 32;
     sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
@@ -23911,6 +24233,106 @@ var sceSasCore = (function () {
     sceSasCore.PSP_SAS_ADSR_DECAY = 2;
     sceSasCore.PSP_SAS_ADSR_SUSTAIN = 4;
     sceSasCore.PSP_SAS_ADSR_RELEASE = 8;
+    Object.defineProperty(sceSasCore.prototype, "__sceSasInit",
+        __decorate([
+            nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int')
+        ], sceSasCore.prototype, "__sceSasInit", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasInit")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetGrain",
+        __decorate([
+            nativeFunction(0xD1E0A01E, 150, 'uint', 'int/int')
+        ], sceSasCore.prototype, "__sceSasSetGrain", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetGrain")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetOutputmode",
+        __decorate([
+            nativeFunction(0xE855BF76, 150, 'uint', 'int/int')
+        ], sceSasCore.prototype, "__sceSasSetOutputmode", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetOutputmode")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetVoice",
+        __decorate([
+            nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int')
+        ], sceSasCore.prototype, "__sceSasSetVoice", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetVoice")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetVoicePCM",
+        __decorate([
+            nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int')
+        ], sceSasCore.prototype, "__sceSasSetVoicePCM", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetVoicePCM")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasCoreWithMix",
+        __decorate([
+            nativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int')
+        ], sceSasCore.prototype, "__sceSasCoreWithMix", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasCoreWithMix")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasCore",
+        __decorate([
+            nativeFunction(0xA3589D81, 150, 'uint', 'int/void*')
+        ], sceSasCore.prototype, "__sceSasCore", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasCore")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasGetEndFlag",
+        __decorate([
+            nativeFunction(0x68A46B95, 150, 'uint', 'int')
+        ], sceSasCore.prototype, "__sceSasGetEndFlag", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetEndFlag")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasRevType",
+        __decorate([
+            nativeFunction(0x33D4AB37, 150, 'uint', 'int/int')
+        ], sceSasCore.prototype, "__sceSasRevType", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevType")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasRevVON",
+        __decorate([
+            nativeFunction(0xF983B186, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasRevVON", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevVON")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasRevEVOL",
+        __decorate([
+            nativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasRevEVOL", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevEVOL")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetADSR",
+        __decorate([
+            nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetADSR", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetADSR")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetADSRmode",
+        __decorate([
+            nativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetADSRmode", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetADSRmode")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetKeyOff",
+        __decorate([
+            nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int')
+        ], sceSasCore.prototype, "__sceSasSetKeyOff", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetKeyOff")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetKeyOn",
+        __decorate([
+            nativeFunction(0x76F01ACA, 150, 'uint', 'int/int')
+        ], sceSasCore.prototype, "__sceSasSetKeyOn", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetKeyOn")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasGetEnvelopeHeight",
+        __decorate([
+            nativeFunction(0x74AE582A, 150, 'uint', 'int/int')
+        ], sceSasCore.prototype, "__sceSasGetEnvelopeHeight", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetEnvelopeHeight")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetSL",
+        __decorate([
+            nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetSL", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetSL")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetPause",
+        __decorate([
+            nativeFunction(0x787D04D5, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetPause", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetPause")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasGetPauseFlag",
+        __decorate([
+            nativeFunction(0x2C8E6AB3, 150, 'uint', 'int')
+        ], sceSasCore.prototype, "__sceSasGetPauseFlag", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetPauseFlag")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasGetAllEnvelopeHeights",
+        __decorate([
+            nativeFunction(0x07F58C24, 150, 'uint', 'int/void*')
+        ], sceSasCore.prototype, "__sceSasGetAllEnvelopeHeights", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetAllEnvelopeHeights")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetNoise",
+        __decorate([
+            nativeFunction(0xB7660A23, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetNoise", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetNoise")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetVolume",
+        __decorate([
+            nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetVolume", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetVolume")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetPitch",
+        __decorate([
+            nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetPitch", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetPitch")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasRevParam",
+        __decorate([
+            nativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int')
+        ], sceSasCore.prototype, "__sceSasRevParam", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevParam")));
+    Object.defineProperty(sceSasCore.prototype, "__sceSasSetSimpleADSR",
+        __decorate([
+            nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int')
+        ], sceSasCore.prototype, "__sceSasSetSimpleADSR", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetSimpleADSR")));
     return sceSasCore;
 })();
 exports.sceSasCore = sceSasCore;
@@ -24105,26 +24527,46 @@ exports.sceSsl = sceSsl;
 },
 "src/hle/module/sceSuspendForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var sceSuspendForUser = (function () {
     function sceSuspendForUser(context) {
         this.context = context;
-        this.sceKernelPowerLock = createNativeFunction(0xEADB1BD7, 150, 'uint', 'uint', this, function (lockType) {
-            if (lockType != 0)
-                return SceKernelErrors.ERROR_INVALID_MODE;
-            return 0;
-        });
-        this.sceKernelPowerUnlock = createNativeFunction(0x3AEE7261, 150, 'uint', 'uint', this, function (lockType) {
-            if (lockType != 0)
-                return SceKernelErrors.ERROR_INVALID_MODE;
-            return 0;
-        });
-        this.sceKernelPowerTick = createNativeFunction(0x090CCB3F, 150, 'uint', 'uint', this, function (value) {
-            return 0;
-        });
     }
+    sceSuspendForUser.prototype.sceKernelPowerLock = function (lockType) {
+        if (lockType != 0)
+            return SceKernelErrors.ERROR_INVALID_MODE;
+        return 0;
+    };
+    sceSuspendForUser.prototype.sceKernelPowerUnlock = function (lockType) {
+        if (lockType != 0)
+            return SceKernelErrors.ERROR_INVALID_MODE;
+        return 0;
+    };
+    sceSuspendForUser.prototype.sceKernelPowerTick = function (value) {
+        return 0;
+    };
+    Object.defineProperty(sceSuspendForUser.prototype, "sceKernelPowerLock",
+        __decorate([
+            nativeFunction(0xEADB1BD7, 150, 'uint', 'uint')
+        ], sceSuspendForUser.prototype, "sceKernelPowerLock", Object.getOwnPropertyDescriptor(sceSuspendForUser.prototype, "sceKernelPowerLock")));
+    Object.defineProperty(sceSuspendForUser.prototype, "sceKernelPowerUnlock",
+        __decorate([
+            nativeFunction(0x3AEE7261, 150, 'uint', 'uint')
+        ], sceSuspendForUser.prototype, "sceKernelPowerUnlock", Object.getOwnPropertyDescriptor(sceSuspendForUser.prototype, "sceKernelPowerUnlock")));
+    Object.defineProperty(sceSuspendForUser.prototype, "sceKernelPowerTick",
+        __decorate([
+            nativeFunction(0x090CCB3F, 150, 'uint', 'uint')
+        ], sceSuspendForUser.prototype, "sceKernelPowerTick", Object.getOwnPropertyDescriptor(sceSuspendForUser.prototype, "sceKernelPowerTick")));
     return sceSuspendForUser;
 })();
 exports.sceSuspendForUser = sceSuspendForUser;
@@ -24132,56 +24574,45 @@ exports.sceSuspendForUser = sceSuspendForUser;
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var sceUmdUser = (function () {
     function sceUmdUser(context) {
-        var _this = this;
         this.context = context;
         this.callbackIds = [];
         this.signal = new Signal();
-        this.sceUmdRegisterUMDCallBack = createNativeFunction(0xAEE7404D, 150, 'uint', 'int', this, function (callbackId) {
-            _this.callbackIds.push(callbackId);
-            return 0;
-        });
-        this.sceUmdUnRegisterUMDCallBack = createNativeFunction(0xBD2BDE07, 150, 'uint', 'int', this, function (callbackId) {
-            if (!_this.callbackIds.contains(callbackId))
-                return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
-            _this.callbackIds.remove(callbackId);
-            return 0;
-        });
-        this.sceUmdCheckMedium = createNativeFunction(0x46EBB729, 150, 'uint', '', this, function () {
-            return UmdCheckMedium.Inserted;
-        });
-        this.sceUmdWaitDriveStat = createNativeFunction(0x8EF08FCE, 150, 'uint', 'uint', this, function (pspUmdState) {
-            return _this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.NO);
-        });
-        this.sceUmdWaitDriveStatCB = createNativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint', this, function (pspUmdState, timeout) {
-            return _this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.YES);
-        });
-        this.sceUmdActivate = createNativeFunction(0xC6183D47, 150, 'uint', 'int/string', this, function (mode, drive) {
-            _this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
-            return 0;
-        });
-        this.sceUmdDeactivate = createNativeFunction(0xE83742BA, 150, 'uint', 'int/string', this, function (mode, drive) {
-            _this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
-            return 0;
-        });
-        this.sceUmdGetDriveStat = createNativeFunction(0x6B4A146C, 150, 'uint', '', this, function () {
-            return PspUmdState.PSP_UMD_PRESENT | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_READABLE;
-        });
-        this.sceUmdWaitDriveStatWithTimer = createNativeFunction(0x56202973, 150, 'uint', 'uint/uint', this, function (state, timeout) {
-            return Promise2.resolve(0);
-        });
-        this.sceUmdGetErrorStat = createNativeFunction(0x20628E6F, 150, 'uint', '', this, function () {
-            console.warn('called sceUmdGetErrorStat!');
-            return Promise2.resolve(0);
-        });
     }
+    sceUmdUser.prototype.sceUmdRegisterUMDCallBack = function (callbackId) {
+        this.callbackIds.push(callbackId);
+        return 0;
+    };
+    sceUmdUser.prototype.sceUmdUnRegisterUMDCallBack = function (callbackId) {
+        if (!this.callbackIds.contains(callbackId))
+            return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
+        this.callbackIds.remove(callbackId);
+        return 0;
+    };
+    sceUmdUser.prototype.sceUmdCheckMedium = function () {
+        return UmdCheckMedium.Inserted;
+    };
     sceUmdUser.prototype._sceUmdWaitDriveStat = function (pspUmdState, acceptCallbacks) {
         this.context.callbackManager.executePendingWithinThread(this.context.threadManager.current);
         return 0;
+    };
+    sceUmdUser.prototype.sceUmdWaitDriveStat = function (pspUmdState) {
+        return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.NO);
+    };
+    sceUmdUser.prototype.sceUmdWaitDriveStatCB = function (pspUmdState, timeout) {
+        return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.YES);
     };
     sceUmdUser.prototype._notify = function (data) {
         var _this = this;
@@ -24190,6 +24621,64 @@ var sceUmdUser = (function () {
             _this.context.callbackManager.notify(callbackId, data);
         });
     };
+    sceUmdUser.prototype.sceUmdActivate = function (mode, drive) {
+        this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
+        return 0;
+    };
+    sceUmdUser.prototype.sceUmdDeactivate = function (mode, drive) {
+        this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
+        return 0;
+    };
+    sceUmdUser.prototype.sceUmdGetDriveStat = function () {
+        return PspUmdState.PSP_UMD_PRESENT | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_READABLE;
+    };
+    sceUmdUser.prototype.sceUmdWaitDriveStatWithTimer = function (state, timeout) {
+        return Promise2.resolve(0);
+    };
+    sceUmdUser.prototype.sceUmdGetErrorStat = function () {
+        console.warn('called sceUmdGetErrorStat!');
+        return Promise2.resolve(0);
+    };
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdRegisterUMDCallBack",
+        __decorate([
+            nativeFunction(0xAEE7404D, 150, 'uint', 'int')
+        ], sceUmdUser.prototype, "sceUmdRegisterUMDCallBack", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdRegisterUMDCallBack")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack",
+        __decorate([
+            nativeFunction(0xBD2BDE07, 150, 'uint', 'int')
+        ], sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdCheckMedium",
+        __decorate([
+            nativeFunction(0x46EBB729, 150, 'uint', '')
+        ], sceUmdUser.prototype, "sceUmdCheckMedium", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdCheckMedium")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdWaitDriveStat",
+        __decorate([
+            nativeFunction(0x8EF08FCE, 150, 'uint', 'uint')
+        ], sceUmdUser.prototype, "sceUmdWaitDriveStat", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdWaitDriveStat")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdWaitDriveStatCB",
+        __decorate([
+            nativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint')
+        ], sceUmdUser.prototype, "sceUmdWaitDriveStatCB", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdWaitDriveStatCB")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdActivate",
+        __decorate([
+            nativeFunction(0xC6183D47, 150, 'uint', 'int/string')
+        ], sceUmdUser.prototype, "sceUmdActivate", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdActivate")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdDeactivate",
+        __decorate([
+            nativeFunction(0xE83742BA, 150, 'uint', 'int/string')
+        ], sceUmdUser.prototype, "sceUmdDeactivate", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdDeactivate")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdGetDriveStat",
+        __decorate([
+            nativeFunction(0x6B4A146C, 150, 'uint', '')
+        ], sceUmdUser.prototype, "sceUmdGetDriveStat", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdGetDriveStat")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer",
+        __decorate([
+            nativeFunction(0x56202973, 150, 'uint', 'uint/uint')
+        ], sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer")));
+    Object.defineProperty(sceUmdUser.prototype, "sceUmdGetErrorStat",
+        __decorate([
+            nativeFunction(0x20628E6F, 150, 'uint', '')
+        ], sceUmdUser.prototype, "sceUmdGetErrorStat", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdGetErrorStat")));
     return sceUmdUser;
 })();
 exports.sceUmdUser = sceUmdUser;
@@ -24212,79 +24701,37 @@ var PspUmdState;
 },
 "src/hle/module/sceUtility": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
 var _vfs = require('../vfs');
 var _structs = require('../structs');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var PspLanguages = _structs.PspLanguages;
 var FileOpenFlags = _vfs.FileOpenFlags;
 var sceUtility = (function () {
     function sceUtility(context) {
-        var _this = this;
         this.context = context;
         this.currentStep = DialogStepEnum.NONE;
-        this.sceUtilityLoadModule = createNativeFunction(0x2A2B3DE0, 150, 'uint', 'int', this, function (pspModule) {
-            console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
-            return Promise2.resolve(0);
-        });
-        this.sceUtilitySavedataInitStart = createNativeFunction(0x50C4CD57, 150, 'uint', 'void*', this, function (paramsPtr) {
-            return Promise2.resolve(_this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(function (result) {
-                var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
-                params.base.result = result;
-                return 0;
-            });
-        });
-        this.sceUtilitySavedataShutdownStart = createNativeFunction(0x9790B33C, 150, 'uint', '', this, function () {
-            _this.currentStep = DialogStepEnum.SHUTDOWN;
-            return 0;
-        });
-        this.sceUtilitySavedataGetStatus = createNativeFunction(0x8874DBE0, 150, 'uint', '', this, function () {
-            try {
-                return _this.currentStep;
-            }
-            finally {
-                if (_this.currentStep == DialogStepEnum.SHUTDOWN)
-                    _this.currentStep = DialogStepEnum.NONE;
-            }
-        });
-        this.sceUtilityMsgDialogInitStart = createNativeFunction(0x2AD8E239, 150, 'uint', 'void*', this, function (paramsPtr) {
-            console.warn("Not implemented sceUtilityMsgDialogInitStart()");
-            _this.currentStep = DialogStepEnum.PROCESSING;
-            return 0;
-        });
-        this.sceUtilityMsgDialogGetStatus = createNativeFunction(0x9A1C91D7, 150, 'uint', '', this, function () {
-            try {
-                return _this.currentStep;
-            }
-            finally {
-                if (_this.currentStep == DialogStepEnum.SHUTDOWN)
-                    _this.currentStep = DialogStepEnum.NONE;
-            }
-        });
-        this.sceUtilityMsgDialogUpdate = createNativeFunction(0x9A1C91D7, 150, 'uint', 'int', this, function (value) {
-        });
-        this.sceUtilityLoadNetModule = createNativeFunction(0x1579A159, 150, 'uint', '', this, function () {
-            console.warn('Not implemented sceUtilityLoadNetModule');
-            return 0;
-        });
-        this.sceUtilityGetSystemParamInt = createNativeFunction(0xA5DA2406, 150, 'uint', 'int/void*', this, function (id, valuePtr) {
-            var value = parseInt(_this._getKey(id));
-            if (valuePtr)
-                valuePtr.writeInt32(value);
-            return 0;
-        });
-        this.sceUtilityGetSystemParamString = createNativeFunction(0x34B78343, 150, 'uint', 'int/void*/int', this, function (id, strPtr, len) {
-            var value = String(_this._getKey(id));
-            value = value.substr(0, Math.min(value.length, len - 1));
-            if (strPtr)
-                strPtr.writeStringz(value);
-            return 0;
-        });
-        this.sceUtilityLoadAvModule = createNativeFunction(0xC629AF26, 150, 'uint', 'int', this, function (id) {
-            return 0;
-        });
     }
+    sceUtility.prototype.sceUtilityLoadModule = function (pspModule) {
+        console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
+        return Promise2.resolve(0);
+    };
+    sceUtility.prototype.sceUtilitySavedataInitStart = function (paramsPtr) {
+        return Promise2.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(function (result) {
+            var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
+            params.base.result = result;
+            return 0;
+        });
+    };
     sceUtility.prototype._sceUtilitySavedataInitStart = function (paramsPtr) {
         var _this = this;
         console.log('sceUtilitySavedataInitStart');
@@ -24375,6 +24822,39 @@ var sceUtility = (function () {
         }
         return Promise2.resolve(0);
     };
+    sceUtility.prototype.sceUtilitySavedataShutdownStart = function () {
+        this.currentStep = DialogStepEnum.SHUTDOWN;
+        return 0;
+    };
+    sceUtility.prototype.sceUtilitySavedataGetStatus = function () {
+        try {
+            return this.currentStep;
+        }
+        finally {
+            if (this.currentStep == DialogStepEnum.SHUTDOWN)
+                this.currentStep = DialogStepEnum.NONE;
+        }
+    };
+    sceUtility.prototype.sceUtilityMsgDialogInitStart = function (paramsPtr) {
+        console.warn("Not implemented sceUtilityMsgDialogInitStart()");
+        this.currentStep = DialogStepEnum.PROCESSING;
+        return 0;
+    };
+    sceUtility.prototype.sceUtilityMsgDialogGetStatus = function () {
+        try {
+            return this.currentStep;
+        }
+        finally {
+            if (this.currentStep == DialogStepEnum.SHUTDOWN)
+                this.currentStep = DialogStepEnum.NONE;
+        }
+    };
+    sceUtility.prototype.sceUtilityMsgDialogUpdate = function (value) {
+    };
+    sceUtility.prototype.sceUtilityLoadNetModule = function () {
+        console.warn('Not implemented sceUtilityLoadNetModule');
+        return 0;
+    };
     sceUtility.prototype._getKey = function (id) {
         switch (id) {
             case PSP_SYSTEMPARAM_ID.INT_ADHOC_CHANNEL: return PSP_SYSTEMPARAM_ADHOC_CHANNEL.AUTOMATIC;
@@ -24389,6 +24869,66 @@ var sceUtility = (function () {
         }
         throw (new Error("Invalid key " + id));
     };
+    sceUtility.prototype.sceUtilityGetSystemParamInt = function (id, valuePtr) {
+        var value = parseInt(this._getKey(id));
+        if (valuePtr)
+            valuePtr.writeInt32(value);
+        return 0;
+    };
+    sceUtility.prototype.sceUtilityGetSystemParamString = function (id, strPtr, len) {
+        var value = String(this._getKey(id));
+        value = value.substr(0, Math.min(value.length, len - 1));
+        if (strPtr)
+            strPtr.writeStringz(value);
+        return 0;
+    };
+    sceUtility.prototype.sceUtilityLoadAvModule = function (id) {
+        return 0;
+    };
+    Object.defineProperty(sceUtility.prototype, "sceUtilityLoadModule",
+        __decorate([
+            nativeFunction(0x2A2B3DE0, 150, 'uint', 'int')
+        ], sceUtility.prototype, "sceUtilityLoadModule", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityLoadModule")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilitySavedataInitStart",
+        __decorate([
+            nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
+        ], sceUtility.prototype, "sceUtilitySavedataInitStart", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilitySavedataInitStart")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilitySavedataShutdownStart",
+        __decorate([
+            nativeFunction(0x9790B33C, 150, 'uint', '')
+        ], sceUtility.prototype, "sceUtilitySavedataShutdownStart", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilitySavedataShutdownStart")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilitySavedataGetStatus",
+        __decorate([
+            nativeFunction(0x8874DBE0, 150, 'uint', '')
+        ], sceUtility.prototype, "sceUtilitySavedataGetStatus", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilitySavedataGetStatus")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityMsgDialogInitStart",
+        __decorate([
+            nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
+        ], sceUtility.prototype, "sceUtilityMsgDialogInitStart", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityMsgDialogInitStart")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityMsgDialogGetStatus",
+        __decorate([
+            nativeFunction(0x9A1C91D7, 150, 'uint', '')
+        ], sceUtility.prototype, "sceUtilityMsgDialogGetStatus", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityMsgDialogGetStatus")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityMsgDialogUpdate",
+        __decorate([
+            nativeFunction(0x9A1C91D7, 150, 'uint', 'int')
+        ], sceUtility.prototype, "sceUtilityMsgDialogUpdate", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityMsgDialogUpdate")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityLoadNetModule",
+        __decorate([
+            nativeFunction(0x1579A159, 150, 'uint', '')
+        ], sceUtility.prototype, "sceUtilityLoadNetModule", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityLoadNetModule")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityGetSystemParamInt",
+        __decorate([
+            nativeFunction(0xA5DA2406, 150, 'uint', 'int/void*')
+        ], sceUtility.prototype, "sceUtilityGetSystemParamInt", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityGetSystemParamInt")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityGetSystemParamString",
+        __decorate([
+            nativeFunction(0x34B78343, 150, 'uint', 'int/void*/int')
+        ], sceUtility.prototype, "sceUtilityGetSystemParamString", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityGetSystemParamString")));
+    Object.defineProperty(sceUtility.prototype, "sceUtilityLoadAvModule",
+        __decorate([
+            nativeFunction(0xC629AF26, 150, 'uint', 'int')
+        ], sceUtility.prototype, "sceUtilityLoadAvModule", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityLoadAvModule")));
     return sceUtility;
 })();
 exports.sceUtility = sceUtility;
@@ -24710,15 +25250,27 @@ exports.sceVaudio = sceVaudio;
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var sceWlanDrv = (function () {
     function sceWlanDrv(context) {
         this.context = context;
-        this.sceWlanGetSwitchState = createNativeFunction(0xD7763699, 150, 'bool', '', this, function () {
-            return true;
-        });
     }
+    sceWlanDrv.prototype.sceWlanGetSwitchState = function () {
+        return true;
+    };
+    Object.defineProperty(sceWlanDrv.prototype, "sceWlanGetSwitchState",
+        __decorate([
+            nativeFunction(0xD7763699, 150, 'bool', '')
+        ], sceWlanDrv.prototype, "sceWlanGetSwitchState", Object.getOwnPropertyDescriptor(sceWlanDrv.prototype, "sceWlanGetSwitchState")));
     return sceWlanDrv;
 })();
 exports.sceWlanDrv = sceWlanDrv;
@@ -24726,9 +25278,17 @@ exports.sceWlanDrv = sceWlanDrv;
 },
 "src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
 var _cpu = require('../../../core/cpu');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
 _manager.Thread;
@@ -24739,195 +25299,43 @@ var OutOfMemoryError = _manager.OutOfMemoryError;
 var console = logger.named('module.ThreadManForUser');
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
-        var _this = this;
         this.context = context;
         this.threadUids = new UidCollection(1);
-        this.sceKernelCreateThread = createNativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread', this, function (name, entryPoint, initPriority, stackSize, attributes, optionPtr, currentThread) {
-            if (name == null)
-                return SceKernelErrors.ERROR_ERROR;
-            if (stackSize < 0x200)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_STACK_SIZE;
-            if (initPriority < 0x08 || initPriority > 0x77)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_PRIORITY;
-            if (!_this.context.memory.isValidAddress(entryPoint) || entryPoint == 0)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR;
-            if (name.length > 31)
-                name = name.substr(0, 31);
-            if (stackSize > 2 * 1024 * 1024)
-                return -3;
-            if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
-            }
-            attributes |= PspThreadAttributes.User;
-            attributes |= PspThreadAttributes.LowFF;
-            try {
-                stackSize = Math.max(stackSize, 0x200);
-                stackSize = MathUtils.nextAligned(stackSize, 0x100);
-                var newThread = _this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
-                newThread.id = _this.threadUids.allocate(newThread);
-                newThread.status = ThreadStatus.DORMANT;
-                newThread.state.GP = currentThread.state.GP;
-                console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
-                return newThread.id;
-            }
-            catch (e) {
-                if (e instanceof OutOfMemoryError)
-                    return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
-                throw (e);
-            }
-        });
-        this.sceKernelDelayThread = createNativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
-            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.NO);
-        });
-        this.sceKernelDelayThreadCB = createNativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint', this, function (thread, delayInMicroseconds) {
-            return _this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.YES);
-        });
-        this.sceKernelWaitThreadEndCB = createNativeFunction(0x840E8133, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), AcceptCallbacks.YES);
-        });
-        this.sceKernelWaitThreadEnd = createNativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*', this, function (threadId, timeoutPtr) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            return _this._sceKernelWaitThreadEndCB(_this.getThreadById(threadId), AcceptCallbacks.NO);
-        });
-        this.sceKernelGetThreadCurrentPriority = createNativeFunction(0x94AA61EE, 150, 'int', 'Thread', this, function (currentThread) { return currentThread.priority; });
-        this.sceKernelStartThread = createNativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int', this, function (currentThread, threadId, userDataLength, userDataPointer) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            var newThread = _this.getThreadById(threadId);
-            newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
-            var newState = newThread.state;
-            newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
-            var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
-            if (userDataPointer != null) {
-                newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
-                newState.gpr[4] = userDataLength;
-                newState.gpr[5] = copiedDataAddress;
-            }
-            newState.SP = copiedDataAddress - 0x40;
-            console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
-            newThread.start();
-            return Promise2.resolve(0);
-        });
-        this.sceKernelChangeThreadPriority = createNativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int', this, function (currentThread, threadId, priority) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            var thread = _this.getThreadById(threadId);
-            thread.priority = priority;
-            return Promise2.resolve(0);
-        });
-        this.sceKernelExitThread = createNativeFunction(0xAA73C935, 150, 'int', 'Thread/int', this, function (currentThread, exitStatus) {
-            console.info(sprintf('sceKernelExitThread: %d', exitStatus));
-            currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
-            currentThread.stop('sceKernelExitThread');
-            throw new Error('CpuBreakException');
-        });
-        this.sceKernelGetThreadExitStatus = createNativeFunction(0x3B183E26, 150, 'int', 'int', this, function (threadId) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            var thread = _this.getThreadById(threadId);
-            return thread.exitStatus;
-        });
-        this.sceKernelDeleteThread = createNativeFunction(0x9FA03CD3, 150, 'int', 'int', this, function (threadId) {
-            return _this._sceKernelDeleteThread(threadId);
-        });
-        this.sceKernelTerminateThread = createNativeFunction(0x616403BA, 150, 'int', 'int', this, function (threadId) {
-            console.info(sprintf('sceKernelTerminateThread: %d', threadId));
-            return _this._sceKernelTerminateThread(threadId);
-        });
-        this.sceKernelExitDeleteThread = createNativeFunction(0x809CE29B, 150, 'uint', 'Thread/int', this, function (currentThread, exitStatus) {
-            currentThread.exitStatus = exitStatus;
-            currentThread.stop('sceKernelExitDeleteThread');
-            throw new Error('CpuBreakException');
-        });
-        this.sceKernelTerminateDeleteThread = createNativeFunction(0x383F7BCC, 150, 'int', 'int', this, function (threadId) {
-            _this._sceKernelTerminateThread(threadId);
-            _this._sceKernelDeleteThread(threadId);
-            return 0;
-        });
-        this.sceKernelSleepThreadCB = createNativeFunction(0x82826F70, 150, 'uint', 'Thread', this, function (currentThread) {
-            return currentThread.wakeupSleepAsync(AcceptCallbacks.YES);
-        });
-        this.sceKernelSleepThread = createNativeFunction(0x9ACE131E, 150, 'uint', 'Thread', this, function (currentThread) {
-            return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
-        });
-        this.sceKernelWakeupThread = createNativeFunction(0xD59EAD2F, 150, 'uint', 'int', this, function (threadId) {
-            if (!_this.hasThreadById(threadId))
-                return Promise2.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
-            var thread = _this.getThreadById(threadId);
-            return thread.wakeupWakeupAsync();
-        });
-        this.sceKernelUSec2SysClock = createNativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*', this, function (microseconds, clockPtr) {
-            if (clockPtr != null)
-                clockPtr.writeInt64(Integer64.fromUnsignedInt(microseconds));
-            return 0;
-        });
-        this.sceKernelGetSystemTimeLow = createNativeFunction(0x369ED59D, 150, 'uint', '', this, function () {
-            return _this._getCurrentMicroseconds();
-        });
-        this.sceKernelGetSystemTime = createNativeFunction(0xDB738F35, 150, 'uint', 'void*', this, function (timePtr) {
-            if (timePtr == null)
-                return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
-            timePtr.writeInt64(Integer64.fromNumber(_this._getCurrentMicroseconds()));
-            return 0;
-        });
-        this.sceKernelGetSystemTimeWide = createNativeFunction(0x82BC5777, 150, 'long', '', this, function () {
-            return Integer64.fromNumber(_this._getCurrentMicroseconds());
-        }, { tryCatch: false });
-        this.sceKernelGetThreadId = createNativeFunction(0x293B45B8, 150, 'int', 'Thread', this, function (currentThread) {
-            return currentThread.id;
-        });
-        this.sceKernelSuspendThread = createNativeFunction(0x9944F31F, 150, 'int', 'int', this, function (threadId) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            _this.getThreadById(threadId).suspend();
-            return 0;
-        });
-        this.sceKernelResumeThread = createNativeFunction(0x75156E8F, 150, 'int', 'int', this, function (threadId) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            _this.getThreadById(threadId).resume();
-            return 0;
-        });
-        this.sceKernelReferThreadStatus = createNativeFunction(0x17C1684E, 150, 'int', 'int/void*', this, function (threadId, sceKernelThreadInfoPtr) {
-            if (!_this.hasThreadById(threadId))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-            var thread = _this.getThreadById(threadId);
-            var info = new SceKernelThreadInfo();
-            info.size = SceKernelThreadInfo.struct.length;
-            info.name = thread.name;
-            info.attributes = thread.attributes;
-            info.status = thread.status;
-            info.threadPreemptionCount = thread.preemptionCount;
-            info.entryPoint = thread.entryPoint;
-            info.stackPointer = thread.stackPartition.high;
-            info.stackSize = thread.stackPartition.size;
-            info.GP = thread.state.GP;
-            info.priorityInit = thread.initialPriority;
-            info.priority = thread.priority;
-            info.waitType = 0;
-            info.waitId = 0;
-            info.wakeupCount = 0;
-            info.exitStatus = thread.exitStatus;
-            info.runClocksLow = 0;
-            info.runClocksHigh = 0;
-            info.interruptPreemptionCount = 0;
-            info.threadPreemptionCount = 0;
-            info.releaseCount = 0;
-            SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, info);
-            return 0;
-        });
-        this.sceKernelChangeCurrentThreadAttr = createNativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint', this, function (currentThread, removeAttributes, addAttributes) {
-            currentThread.attributes &= ~removeAttributes;
-            currentThread.attributes |= addAttributes;
-            return 0;
-        });
-        this.sceKernelUSec2SysClockWide = createNativeFunction(0xC8CD158C, 150, 'int', 'uint', this, function (microseconds) {
-            return microseconds;
-        });
     }
+    ThreadManForUser.prototype.sceKernelCreateThread = function (name, entryPoint, initPriority, stackSize, attributes, optionPtr, currentThread) {
+        if (name == null)
+            return SceKernelErrors.ERROR_ERROR;
+        if (stackSize < 0x200)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_STACK_SIZE;
+        if (initPriority < 0x08 || initPriority > 0x77)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_PRIORITY;
+        if (!this.context.memory.isValidAddress(entryPoint) || entryPoint == 0)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_THREAD_ENTRY_ADDR;
+        if (name.length > 31)
+            name = name.substr(0, 31);
+        if (stackSize > 2 * 1024 * 1024)
+            return -3;
+        if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
+        }
+        attributes |= PspThreadAttributes.User;
+        attributes |= PspThreadAttributes.LowFF;
+        try {
+            stackSize = Math.max(stackSize, 0x200);
+            stackSize = MathUtils.nextAligned(stackSize, 0x100);
+            var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
+            newThread.id = this.threadUids.allocate(newThread);
+            newThread.status = ThreadStatus.DORMANT;
+            newThread.state.GP = currentThread.state.GP;
+            console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
+            return newThread.id;
+        }
+        catch (e) {
+            if (e instanceof OutOfMemoryError)
+                return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
+            throw (e);
+        }
+    };
     ThreadManForUser.prototype.hasThreadById = function (id) { return this.threadUids.has(id); };
     ThreadManForUser.prototype.getThreadById = function (id) {
         if (id == 0)
@@ -24937,8 +25345,64 @@ var ThreadManForUser = (function () {
     ThreadManForUser.prototype._sceKernelDelayThreadCB = function (thread, delayInMicroseconds, acceptCallbacks) {
         return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds, false), acceptCallbacks);
     };
+    ThreadManForUser.prototype.sceKernelDelayThread = function (thread, delayInMicroseconds) {
+        return this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.NO);
+    };
+    ThreadManForUser.prototype.sceKernelDelayThreadCB = function (thread, delayInMicroseconds) {
+        return this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.YES);
+    };
     ThreadManForUser.prototype._sceKernelWaitThreadEndCB = function (thread, acceptCallbacks) {
         return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(function () { return thread.exitStatus; }), acceptCallbacks);
+    };
+    ThreadManForUser.prototype.sceKernelWaitThreadEndCB = function (threadId, timeoutPtr) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        return this._sceKernelWaitThreadEndCB(this.getThreadById(threadId), AcceptCallbacks.YES);
+    };
+    ThreadManForUser.prototype.sceKernelWaitThreadEnd = function (threadId, timeoutPtr) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        return this._sceKernelWaitThreadEndCB(this.getThreadById(threadId), AcceptCallbacks.NO);
+    };
+    ThreadManForUser.prototype.sceKernelGetThreadCurrentPriority = function (currentThread) {
+        return currentThread.priority;
+    };
+    ThreadManForUser.prototype.sceKernelStartThread = function (currentThread, threadId, userDataLength, userDataPointer) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        var newThread = this.getThreadById(threadId);
+        newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
+        var newState = newThread.state;
+        newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
+        var copiedDataAddress = ((newThread.stackPartition.high - 0x100) - ((userDataLength + 0xF) & ~0xF));
+        if (userDataPointer != null) {
+            newState.memory.copy(userDataPointer, copiedDataAddress, userDataLength);
+            newState.gpr[4] = userDataLength;
+            newState.gpr[5] = copiedDataAddress;
+        }
+        newState.SP = copiedDataAddress - 0x40;
+        console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
+        newThread.start();
+        return Promise2.resolve(0);
+    };
+    ThreadManForUser.prototype.sceKernelChangeThreadPriority = function (currentThread, threadId, priority) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        var thread = this.getThreadById(threadId);
+        thread.priority = priority;
+        return Promise2.resolve(0);
+    };
+    ThreadManForUser.prototype.sceKernelExitThread = function (currentThread, exitStatus) {
+        console.info(sprintf('sceKernelExitThread: %d', exitStatus));
+        currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
+        currentThread.stop('sceKernelExitThread');
+        throw new Error('CpuBreakException');
+    };
+    ThreadManForUser.prototype.sceKernelGetThreadExitStatus = function (threadId) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        var thread = this.getThreadById(threadId);
+        return thread.exitStatus;
     };
     ThreadManForUser.prototype._sceKernelTerminateThread = function (threadId) {
         if (!this.hasThreadById(threadId))
@@ -24956,9 +25420,214 @@ var ThreadManForUser = (function () {
         this.threadUids.remove(threadId);
         return 0;
     };
+    ThreadManForUser.prototype.sceKernelDeleteThread = function (threadId) {
+        return this._sceKernelDeleteThread(threadId);
+    };
+    ThreadManForUser.prototype.sceKernelTerminateThread = function (threadId) {
+        console.info(sprintf('sceKernelTerminateThread: %d', threadId));
+        return this._sceKernelTerminateThread(threadId);
+    };
+    ThreadManForUser.prototype.sceKernelExitDeleteThread = function (currentThread, exitStatus) {
+        currentThread.exitStatus = exitStatus;
+        currentThread.stop('sceKernelExitDeleteThread');
+        throw new Error('CpuBreakException');
+    };
+    ThreadManForUser.prototype.sceKernelTerminateDeleteThread = function (threadId) {
+        this._sceKernelTerminateThread(threadId);
+        this._sceKernelDeleteThread(threadId);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelSleepThreadCB = function (currentThread) {
+        return currentThread.wakeupSleepAsync(AcceptCallbacks.YES);
+    };
+    ThreadManForUser.prototype.sceKernelSleepThread = function (currentThread) {
+        return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
+    };
+    ThreadManForUser.prototype.sceKernelWakeupThread = function (threadId) {
+        if (!this.hasThreadById(threadId))
+            return Promise2.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
+        var thread = this.getThreadById(threadId);
+        return thread.wakeupWakeupAsync();
+    };
     ThreadManForUser.prototype._getCurrentMicroseconds = function () {
         return this.context.rtc.getCurrentUnixMicroseconds();
     };
+    ThreadManForUser.prototype.sceKernelUSec2SysClock = function (microseconds, clockPtr) {
+        if (clockPtr != null)
+            clockPtr.writeInt64(Integer64.fromUnsignedInt(microseconds));
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelGetSystemTimeLow = function () {
+        return this._getCurrentMicroseconds();
+    };
+    ThreadManForUser.prototype.sceKernelGetSystemTime = function (timePtr) {
+        if (timePtr == null)
+            return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
+        timePtr.writeInt64(Integer64.fromNumber(this._getCurrentMicroseconds()));
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelGetSystemTimeWide = function () {
+        return Integer64.fromNumber(this._getCurrentMicroseconds());
+    };
+    ThreadManForUser.prototype.sceKernelGetThreadId = function (currentThread) {
+        return currentThread.id;
+    };
+    ThreadManForUser.prototype.sceKernelSuspendThread = function (threadId) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        this.getThreadById(threadId).suspend();
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelResumeThread = function (threadId) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        this.getThreadById(threadId).resume();
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelReferThreadStatus = function (threadId, sceKernelThreadInfoPtr) {
+        if (!this.hasThreadById(threadId))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
+        var thread = this.getThreadById(threadId);
+        var info = new SceKernelThreadInfo();
+        info.size = SceKernelThreadInfo.struct.length;
+        info.name = thread.name;
+        info.attributes = thread.attributes;
+        info.status = thread.status;
+        info.threadPreemptionCount = thread.preemptionCount;
+        info.entryPoint = thread.entryPoint;
+        info.stackPointer = thread.stackPartition.high;
+        info.stackSize = thread.stackPartition.size;
+        info.GP = thread.state.GP;
+        info.priorityInit = thread.initialPriority;
+        info.priority = thread.priority;
+        info.waitType = 0;
+        info.waitId = 0;
+        info.wakeupCount = 0;
+        info.exitStatus = thread.exitStatus;
+        info.runClocksLow = 0;
+        info.runClocksHigh = 0;
+        info.interruptPreemptionCount = 0;
+        info.threadPreemptionCount = 0;
+        info.releaseCount = 0;
+        SceKernelThreadInfo.struct.write(sceKernelThreadInfoPtr, info);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelChangeCurrentThreadAttr = function (currentThread, removeAttributes, addAttributes) {
+        currentThread.attributes &= ~removeAttributes;
+        currentThread.attributes |= addAttributes;
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelUSec2SysClockWide = function (microseconds) {
+        return microseconds;
+    };
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateThread",
+        __decorate([
+            nativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread')
+        ], ThreadManForUser.prototype, "sceKernelCreateThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDelayThread",
+        __decorate([
+            nativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint')
+        ], ThreadManForUser.prototype, "sceKernelDelayThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDelayThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDelayThreadCB",
+        __decorate([
+            nativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint')
+        ], ThreadManForUser.prototype, "sceKernelDelayThreadCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDelayThreadCB")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitThreadEndCB",
+        __decorate([
+            nativeFunction(0x840E8133, 150, 'uint', 'uint/void*')
+        ], ThreadManForUser.prototype, "sceKernelWaitThreadEndCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitThreadEndCB")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitThreadEnd",
+        __decorate([
+            nativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*')
+        ], ThreadManForUser.prototype, "sceKernelWaitThreadEnd", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitThreadEnd")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority",
+        __decorate([
+            nativeFunction(0x94AA61EE, 150, 'int', 'Thread')
+        ], ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelStartThread",
+        __decorate([
+            nativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int')
+        ], ThreadManForUser.prototype, "sceKernelStartThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelStartThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelChangeThreadPriority",
+        __decorate([
+            nativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int')
+        ], ThreadManForUser.prototype, "sceKernelChangeThreadPriority", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelChangeThreadPriority")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelExitThread",
+        __decorate([
+            nativeFunction(0xAA73C935, 150, 'int', 'Thread/int')
+        ], ThreadManForUser.prototype, "sceKernelExitThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelExitThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetThreadExitStatus",
+        __decorate([
+            nativeFunction(0x3B183E26, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelGetThreadExitStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetThreadExitStatus")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteThread",
+        __decorate([
+            nativeFunction(0x9FA03CD3, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelDeleteThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelTerminateThread",
+        __decorate([
+            nativeFunction(0x616403BA, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelTerminateThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelTerminateThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelExitDeleteThread",
+        __decorate([
+            nativeFunction(0x809CE29B, 150, 'uint', 'Thread/int')
+        ], ThreadManForUser.prototype, "sceKernelExitDeleteThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelExitDeleteThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelTerminateDeleteThread",
+        __decorate([
+            nativeFunction(0x383F7BCC, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelTerminateDeleteThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelTerminateDeleteThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSleepThreadCB",
+        __decorate([
+            nativeFunction(0x82826F70, 150, 'uint', 'Thread')
+        ], ThreadManForUser.prototype, "sceKernelSleepThreadCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSleepThreadCB")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSleepThread",
+        __decorate([
+            nativeFunction(0x9ACE131E, 150, 'uint', 'Thread')
+        ], ThreadManForUser.prototype, "sceKernelSleepThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSleepThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWakeupThread",
+        __decorate([
+            nativeFunction(0xD59EAD2F, 150, 'uint', 'int')
+        ], ThreadManForUser.prototype, "sceKernelWakeupThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWakeupThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelUSec2SysClock",
+        __decorate([
+            nativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*')
+        ], ThreadManForUser.prototype, "sceKernelUSec2SysClock", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelUSec2SysClock")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetSystemTimeLow",
+        __decorate([
+            nativeFunction(0x369ED59D, 150, 'uint', '')
+        ], ThreadManForUser.prototype, "sceKernelGetSystemTimeLow", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetSystemTimeLow")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetSystemTime",
+        __decorate([
+            nativeFunction(0xDB738F35, 150, 'uint', 'void*')
+        ], ThreadManForUser.prototype, "sceKernelGetSystemTime", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetSystemTime")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetSystemTimeWide",
+        __decorate([
+            nativeFunction(0x82BC5777, 150, 'long', '')
+        ], ThreadManForUser.prototype, "sceKernelGetSystemTimeWide", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetSystemTimeWide")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetThreadId",
+        __decorate([
+            nativeFunction(0x293B45B8, 150, 'int', 'Thread')
+        ], ThreadManForUser.prototype, "sceKernelGetThreadId", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetThreadId")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSuspendThread",
+        __decorate([
+            nativeFunction(0x9944F31F, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelSuspendThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSuspendThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelResumeThread",
+        __decorate([
+            nativeFunction(0x75156E8F, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelResumeThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelResumeThread")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelReferThreadStatus",
+        __decorate([
+            nativeFunction(0x17C1684E, 150, 'int', 'int/void*')
+        ], ThreadManForUser.prototype, "sceKernelReferThreadStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelReferThreadStatus")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr",
+        __decorate([
+            nativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint')
+        ], ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelUSec2SysClockWide",
+        __decorate([
+            nativeFunction(0xC8CD158C, 150, 'int', 'uint')
+        ], ThreadManForUser.prototype, "sceKernelUSec2SysClockWide", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelUSec2SysClockWide")));
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
@@ -24992,28 +25661,51 @@ var SceKernelThreadInfo = (function () {
 },
 "src/hle/module/threadman/ThreadManForUser_callbacks": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var _manager = require('../../manager');
 _manager.Thread;
 var Callback = _manager.Callback;
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
-        var _this = this;
         this.context = context;
-        this.sceKernelCreateCallback = createNativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint', this, function (name, functionCallbackAddr, argument) {
-            return _this.context.callbackManager.register(new Callback(name, functionCallbackAddr, argument));
-        });
-        this.sceKernelDeleteCallback = createNativeFunction(0xEDBA5844, 150, 'uint', 'int', this, function (callbackId) {
-            _this.context.callbackManager.remove(callbackId);
-        });
-        this.sceKernelCheckCallback = createNativeFunction(0x349D6D6C, 150, 'uint', 'Thread', this, function (thread) {
-            return _this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
-        });
-        this.sceKernelNotifyCallback = createNativeFunction(0xC11BA8C4, 150, 'uint', 'Thread/int/int', this, function (thread, callbackId, argument2) {
-            return _this.context.callbackManager.notify(callbackId, argument2);
-        });
     }
+    ThreadManForUser.prototype.sceKernelCreateCallback = function (name, functionCallbackAddr, argument) {
+        return this.context.callbackManager.register(new Callback(name, functionCallbackAddr, argument));
+    };
+    ThreadManForUser.prototype.sceKernelDeleteCallback = function (callbackId) {
+        this.context.callbackManager.remove(callbackId);
+    };
+    ThreadManForUser.prototype.sceKernelCheckCallback = function (thread) {
+        return this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
+    };
+    ThreadManForUser.prototype.sceKernelNotifyCallback = function (thread, callbackId, argument2) {
+        return this.context.callbackManager.notify(callbackId, argument2);
+    };
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateCallback",
+        __decorate([
+            nativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint')
+        ], ThreadManForUser.prototype, "sceKernelCreateCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateCallback")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteCallback",
+        __decorate([
+            nativeFunction(0xEDBA5844, 150, 'uint', 'int')
+        ], ThreadManForUser.prototype, "sceKernelDeleteCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteCallback")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCheckCallback",
+        __decorate([
+            nativeFunction(0x349D6D6C, 150, 'uint', 'Thread')
+        ], ThreadManForUser.prototype, "sceKernelCheckCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCheckCallback")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelNotifyCallback",
+        __decorate([
+            nativeFunction(0xC11BA8C4, 150, 'uint', 'Thread/int/int')
+        ], ThreadManForUser.prototype, "sceKernelNotifyCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelNotifyCallback")));
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
@@ -25021,91 +25713,40 @@ exports.ThreadManForUser = ThreadManForUser;
 },
 "src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
-        var _this = this;
         this.context = context;
         this.eventFlagUids = new UidCollection(1);
-        this.sceKernelCreateEventFlag = createNativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*', this, function (name, attributes, bitPattern, optionsPtr) {
-            if (name === null)
-                return SceKernelErrors.ERROR_ERROR;
-            if ((attributes & 0x100) != 0 || attributes >= 0x300)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
-            var eventFlag = new EventFlag();
-            eventFlag.name = name;
-            eventFlag.attributes = attributes;
-            eventFlag.initialPattern = bitPattern;
-            eventFlag.currentPattern = bitPattern;
-            return _this.eventFlagUids.allocate(eventFlag);
-        });
-        this.sceKernelSetEventFlag = createNativeFunction(0x1FB15A32, 150, 'uint', 'int/uint', this, function (id, bitPattern) {
-            if (!_this.eventFlagUids.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            _this.eventFlagUids.get(id).setBits(bitPattern);
-            return 0;
-        });
-        this.sceKernelWaitEventFlag = createNativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
-            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
-        });
-        this.sceKernelWaitEventFlagCB = createNativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*', this, function (id, bits, waitType, outBits, timeout) {
-            return _this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
-        });
-        this.sceKernelPollEventFlag = createNativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*', this, function (id, bits, waitType, outBits) {
-            if (!_this.eventFlagUids.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
-            if ((waitType & (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) == (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) {
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
-            }
-            if (bits == 0)
-                return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
-            if (EventFlag == null)
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            var matched = _this.eventFlagUids.get(id).poll(bits, waitType, outBits);
-            return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
-        });
-        this.sceKernelDeleteEventFlag = createNativeFunction(0xEF9E4C70, 150, 'uint', 'int', this, function (id) {
-            if (!_this.eventFlagUids.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            _this.eventFlagUids.remove(id);
-            return 0;
-        });
-        this.sceKernelClearEventFlag = createNativeFunction(0x812346E4, 150, 'uint', 'int/uint', this, function (id, bitsToClear) {
-            if (!_this.eventFlagUids.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            _this.eventFlagUids.get(id).clearBits(bitsToClear);
-            return 0;
-        });
-        this.sceKernelCancelEventFlag = createNativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*', this, function (id, newPattern, numWaitThreadPtr) {
-            if (!_this.eventFlagUids.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            _this.eventFlagUids.get(id).cancel(newPattern);
-            return 0;
-        });
-        this.sceKernelReferEventFlagStatus = createNativeFunction(0xA66B0120, 150, 'uint', 'int/void*', this, function (id, infoPtr) {
-            var size = infoPtr.readUInt32();
-            if (size == 0)
-                return 0;
-            infoPtr.position = 0;
-            if (!_this.eventFlagUids.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-            var eventFlag = _this.eventFlagUids.get(id);
-            var info = new EventFlagInfo();
-            info.size = EventFlagInfo.struct.length;
-            info.name = eventFlag.name;
-            info.currentPattern = eventFlag.currentPattern;
-            info.initialPattern = eventFlag.initialPattern;
-            info.attributes = eventFlag.attributes;
-            info.numberOfWaitingThreads = eventFlag.waitingThreads.length;
-            EventFlagInfo.struct.write(infoPtr, info);
-            console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
-            return 0;
-        });
     }
+    ThreadManForUser.prototype.sceKernelCreateEventFlag = function (name, attributes, bitPattern, optionsPtr) {
+        if (name === null)
+            return SceKernelErrors.ERROR_ERROR;
+        if ((attributes & 0x100) != 0 || attributes >= 0x300)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
+        var eventFlag = new EventFlag();
+        eventFlag.name = name;
+        eventFlag.attributes = attributes;
+        eventFlag.initialPattern = bitPattern;
+        eventFlag.currentPattern = bitPattern;
+        return this.eventFlagUids.allocate(eventFlag);
+    };
+    ThreadManForUser.prototype.sceKernelSetEventFlag = function (id, bitPattern) {
+        if (!this.eventFlagUids.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        this.eventFlagUids.get(id).setBits(bitPattern);
+        return 0;
+    };
     ThreadManForUser.prototype._sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout, acceptCallbacks) {
         if (!this.eventFlagUids.has(id))
             return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
@@ -25122,6 +25763,100 @@ var ThreadManForUser = (function () {
             return 0;
         }), acceptCallbacks);
     };
+    ThreadManForUser.prototype.sceKernelWaitEventFlag = function (id, bits, waitType, outBits, timeout) {
+        return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
+    };
+    ThreadManForUser.prototype.sceKernelWaitEventFlagCB = function (id, bits, waitType, outBits, timeout) {
+        return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
+    };
+    ThreadManForUser.prototype.sceKernelPollEventFlag = function (id, bits, waitType, outBits) {
+        if (!this.eventFlagUids.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        if ((waitType & ~EventFlagWaitTypeSet.MaskValidBits) != 0)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+        if ((waitType & (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) == (EventFlagWaitTypeSet.Clear | EventFlagWaitTypeSet.ClearAll)) {
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+        }
+        if (bits == 0)
+            return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
+        if (EventFlag == null)
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        var matched = this.eventFlagUids.get(id).poll(bits, waitType, outBits);
+        return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
+    };
+    ThreadManForUser.prototype.sceKernelDeleteEventFlag = function (id) {
+        if (!this.eventFlagUids.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        this.eventFlagUids.remove(id);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelClearEventFlag = function (id, bitsToClear) {
+        if (!this.eventFlagUids.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        this.eventFlagUids.get(id).clearBits(bitsToClear);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelCancelEventFlag = function (id, newPattern, numWaitThreadPtr) {
+        if (!this.eventFlagUids.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        this.eventFlagUids.get(id).cancel(newPattern);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelReferEventFlagStatus = function (id, infoPtr) {
+        var size = infoPtr.readUInt32();
+        if (size == 0)
+            return 0;
+        infoPtr.position = 0;
+        if (!this.eventFlagUids.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
+        var eventFlag = this.eventFlagUids.get(id);
+        var info = new EventFlagInfo();
+        info.size = EventFlagInfo.struct.length;
+        info.name = eventFlag.name;
+        info.currentPattern = eventFlag.currentPattern;
+        info.initialPattern = eventFlag.initialPattern;
+        info.attributes = eventFlag.attributes;
+        info.numberOfWaitingThreads = eventFlag.waitingThreads.length;
+        EventFlagInfo.struct.write(infoPtr, info);
+        console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
+        return 0;
+    };
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateEventFlag",
+        __decorate([
+            nativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelCreateEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSetEventFlag",
+        __decorate([
+            nativeFunction(0x1FB15A32, 150, 'uint', 'int/uint')
+        ], ThreadManForUser.prototype, "sceKernelSetEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSetEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitEventFlag",
+        __decorate([
+            nativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*')
+        ], ThreadManForUser.prototype, "sceKernelWaitEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitEventFlagCB",
+        __decorate([
+            nativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*')
+        ], ThreadManForUser.prototype, "sceKernelWaitEventFlagCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitEventFlagCB")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelPollEventFlag",
+        __decorate([
+            nativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelPollEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelPollEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteEventFlag",
+        __decorate([
+            nativeFunction(0xEF9E4C70, 150, 'uint', 'int')
+        ], ThreadManForUser.prototype, "sceKernelDeleteEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelClearEventFlag",
+        __decorate([
+            nativeFunction(0x812346E4, 150, 'uint', 'int/uint')
+        ], ThreadManForUser.prototype, "sceKernelClearEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelClearEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCancelEventFlag",
+        __decorate([
+            nativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*')
+        ], ThreadManForUser.prototype, "sceKernelCancelEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCancelEventFlag")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelReferEventFlagStatus",
+        __decorate([
+            nativeFunction(0xA66B0120, 150, 'uint', 'int/void*')
+        ], ThreadManForUser.prototype, "sceKernelReferEventFlagStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelReferEventFlagStatus")));
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
@@ -25219,18 +25954,34 @@ var EventFlagWaitTypeSet;
 },
 "src/hle/module/threadman/ThreadManForUser_mutex": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         this.context = context;
-        this.sceKernelCreateMutex = createNativeFunction(0xB7D098C6, 150, 'int', 'string/int/int', this, function (name, attribute, options) {
-            return -1;
-        });
-        this.sceKernelLockMutexCB = createNativeFunction(0x5BF4DD27, 150, 'int', 'int/int/void*', this, function (mutexId, count, timeout) {
-            return -1;
-        });
     }
+    ThreadManForUser.prototype.sceKernelCreateMutex = function (name, attribute, options) {
+        return -1;
+    };
+    ThreadManForUser.prototype.sceKernelLockMutexCB = function (mutexId, count, timeout) {
+        return -1;
+    };
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateMutex",
+        __decorate([
+            nativeFunction(0xB7D098C6, 150, 'int', 'string/int/int')
+        ], ThreadManForUser.prototype, "sceKernelCreateMutex", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateMutex")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelLockMutexCB",
+        __decorate([
+            nativeFunction(0x5BF4DD27, 150, 'int', 'int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelLockMutexCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelLockMutexCB")));
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
@@ -25238,84 +25989,46 @@ exports.ThreadManForUser = ThreadManForUser;
 },
 "src/hle/module/threadman/ThreadManForUser_sema": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
-        var _this = this;
         this.context = context;
         this.semaporesUid = new UidCollection(1);
-        this.sceKernelCreateSema = createNativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*', this, function (name, attribute, initialCount, maxCount, options) {
-            var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
-            var id = _this.semaporesUid.allocate(semaphore);
-            semaphore.id = id;
-            console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
-            return id;
-        });
-        this.sceKernelDeleteSema = createNativeFunction(0x28B6489C, 150, 'int', 'int', this, function (id) {
-            if (!_this.semaporesUid.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
-            var semaphore = _this.semaporesUid.get(id);
-            semaphore.delete();
-            _this.semaporesUid.remove(id);
-            return 0;
-        });
-        this.sceKernelCancelSema = createNativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*', this, function (id, count, numWaitingThreadsPtr) {
-            if (!_this.semaporesUid.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
-            var semaphore = _this.semaporesUid.get(id);
-            if (numWaitingThreadsPtr)
-                numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
-            semaphore.cancel();
-            return 0;
-        });
-        this.sceKernelWaitSemaCB = createNativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*', this, function (currentThread, id, signal, timeout) {
-            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.YES);
-        });
-        this.sceKernelWaitSema = createNativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*', this, function (currentThread, id, signal, timeout) {
-            return _this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.NO);
-        });
-        this.sceKernelReferSemaStatus = createNativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*', this, function (id, infoStream) {
-            if (!_this.semaporesUid.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
-            var semaphore = _this.semaporesUid.get(id);
-            var semaphoreInfo = new SceKernelSemaInfo();
-            semaphoreInfo.size = SceKernelSemaInfo.struct.length;
-            semaphoreInfo.attributes = semaphore.attributes;
-            semaphoreInfo.currentCount = semaphore.currentCount;
-            semaphoreInfo.initialCount = semaphore.initialCount;
-            semaphoreInfo.maximumCount = semaphore.maximumCount;
-            semaphoreInfo.name = semaphore.name;
-            semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
-            SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
-            return 0;
-        });
-        this.sceKernelSignalSema = createNativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int', this, function (currentThread, id, signal) {
-            if (!_this.semaporesUid.has(id))
-                return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
-            var semaphore = _this.semaporesUid.get(id);
-            var previousCount = semaphore.currentCount;
-            if (semaphore.currentCount + signal > semaphore.maximumCount)
-                return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
-            var awakeCount = semaphore.incrementCount(signal);
-            if (awakeCount > 0) {
-                return Promise2.resolve(0);
-            }
-            else {
-                return 0;
-            }
-        });
-        this.sceKernelPollSema = createNativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int', this, function (currentThread, id, signal) {
-            var semaphore = _this.semaporesUid.get(id);
-            if (signal <= 0)
-                return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
-            if (signal > semaphore.currentCount)
-                return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;
-            semaphore.incrementCount(-signal);
-            return 0;
-        });
     }
+    ThreadManForUser.prototype.sceKernelCreateSema = function (name, attribute, initialCount, maxCount, options) {
+        var semaphore = new Semaphore(name, attribute, initialCount, maxCount);
+        var id = this.semaporesUid.allocate(semaphore);
+        semaphore.id = id;
+        console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateSema("%s", %d, count=%d, maxCount=%d) -> %d', name, attribute, initialCount, maxCount, id));
+        return id;
+    };
+    ThreadManForUser.prototype.sceKernelDeleteSema = function (id) {
+        if (!this.semaporesUid.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
+        var semaphore = this.semaporesUid.get(id);
+        semaphore.delete();
+        this.semaporesUid.remove(id);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelCancelSema = function (id, count, numWaitingThreadsPtr) {
+        if (!this.semaporesUid.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
+        var semaphore = this.semaporesUid.get(id);
+        if (numWaitingThreadsPtr)
+            numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
+        semaphore.cancel();
+        return 0;
+    };
     ThreadManForUser.prototype._sceKernelWaitSemaCB = function (currentThread, id, signal, timeout, acceptCallbacks) {
         if (!this.semaporesUid.has(id))
             return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
@@ -25328,6 +26041,83 @@ var ThreadManForUser = (function () {
             return 0;
         }
     };
+    ThreadManForUser.prototype.sceKernelWaitSemaCB = function (currentThread, id, signal, timeout) {
+        return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.YES);
+    };
+    ThreadManForUser.prototype.sceKernelWaitSema = function (currentThread, id, signal, timeout) {
+        return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.NO);
+    };
+    ThreadManForUser.prototype.sceKernelReferSemaStatus = function (id, infoStream) {
+        if (!this.semaporesUid.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
+        var semaphore = this.semaporesUid.get(id);
+        var semaphoreInfo = new SceKernelSemaInfo();
+        semaphoreInfo.size = SceKernelSemaInfo.struct.length;
+        semaphoreInfo.attributes = semaphore.attributes;
+        semaphoreInfo.currentCount = semaphore.currentCount;
+        semaphoreInfo.initialCount = semaphore.initialCount;
+        semaphoreInfo.maximumCount = semaphore.maximumCount;
+        semaphoreInfo.name = semaphore.name;
+        semaphoreInfo.numberOfWaitingThreads = semaphore.numberOfWaitingThreads;
+        SceKernelSemaInfo.struct.write(infoStream, semaphoreInfo);
+        return 0;
+    };
+    ThreadManForUser.prototype.sceKernelSignalSema = function (currentThread, id, signal) {
+        if (!this.semaporesUid.has(id))
+            return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
+        var semaphore = this.semaporesUid.get(id);
+        var previousCount = semaphore.currentCount;
+        if (semaphore.currentCount + signal > semaphore.maximumCount)
+            return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
+        var awakeCount = semaphore.incrementCount(signal);
+        if (awakeCount > 0) {
+            return Promise2.resolve(0);
+        }
+        else {
+            return 0;
+        }
+    };
+    ThreadManForUser.prototype.sceKernelPollSema = function (currentThread, id, signal) {
+        var semaphore = this.semaporesUid.get(id);
+        if (signal <= 0)
+            return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
+        if (signal > semaphore.currentCount)
+            return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;
+        semaphore.incrementCount(-signal);
+        return 0;
+    };
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateSema",
+        __decorate([
+            nativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelCreateSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateSema")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteSema",
+        __decorate([
+            nativeFunction(0x28B6489C, 150, 'int', 'int')
+        ], ThreadManForUser.prototype, "sceKernelDeleteSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteSema")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCancelSema",
+        __decorate([
+            nativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*')
+        ], ThreadManForUser.prototype, "sceKernelCancelSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCancelSema")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitSemaCB",
+        __decorate([
+            nativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelWaitSemaCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitSemaCB")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitSema",
+        __decorate([
+            nativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelWaitSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitSema")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelReferSemaStatus",
+        __decorate([
+            nativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*')
+        ], ThreadManForUser.prototype, "sceKernelReferSemaStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelReferSemaStatus")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSignalSema",
+        __decorate([
+            nativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int')
+        ], ThreadManForUser.prototype, "sceKernelSignalSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSignalSema")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelPollSema",
+        __decorate([
+            nativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int')
+        ], ThreadManForUser.prototype, "sceKernelPollSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelPollSema")));
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
@@ -25418,37 +26208,52 @@ var SemaphoreAttribute;
 },
 "src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
+    switch (arguments.length) {
+        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
+        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
+        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
+    }
+};
 var _utils = require('../../utils');
-var createNativeFunction = _utils.createNativeFunction;
+var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
 var MemoryAnchor = _manager.MemoryAnchor;
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
-        var _this = this;
         this.context = context;
         this.vplUid = new UidCollection(1);
-        this.sceKernelCreateVpl = createNativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*', this, function (name, partitionId, attribute, size, optionsPtr) {
-            var partition = _this.context.memoryManager.memoryPartitionsUid[partitionId];
-            var allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
-            var vpl = new Vpl(name, allocatedPartition);
-            return _this.vplUid.allocate(vpl);
-        });
-        this.sceKernelTryAllocateVpl = createNativeFunction(0xAF36D708, 150, 'int', 'int/int/void*', this, function (vplId, size, addressPtr) {
-            var vpl = _this.vplUid.get(vplId);
-            try {
-                var item = vpl.partition.allocateLow(size);
-                console.log('-->', item.low);
-                if (addressPtr)
-                    addressPtr.writeInt32(item.low);
-                return 0;
-            }
-            catch (e) {
-                console.error(e);
-                return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
-            }
-        });
     }
+    ThreadManForUser.prototype.sceKernelCreateVpl = function (name, partitionId, attribute, size, optionsPtr) {
+        var partition = this.context.memoryManager.memoryPartitionsUid[partitionId];
+        var allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
+        var vpl = new Vpl(name, allocatedPartition);
+        return this.vplUid.allocate(vpl);
+    };
+    ThreadManForUser.prototype.sceKernelTryAllocateVpl = function (vplId, size, addressPtr) {
+        var vpl = this.vplUid.get(vplId);
+        try {
+            var item = vpl.partition.allocateLow(size);
+            console.log('-->', item.low);
+            if (addressPtr)
+                addressPtr.writeInt32(item.low);
+            return 0;
+        }
+        catch (e) {
+            console.error(e);
+            return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
+        }
+    };
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateVpl",
+        __decorate([
+            nativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelCreateVpl", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateVpl")));
+    Object.defineProperty(ThreadManForUser.prototype, "sceKernelTryAllocateVpl",
+        __decorate([
+            nativeFunction(0xAF36D708, 150, 'int', 'int/int/void*')
+        ], ThreadManForUser.prototype, "sceKernelTryAllocateVpl", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelTryAllocateVpl")));
     return ThreadManForUser;
 })();
 exports.ThreadManForUser = ThreadManForUser;
@@ -25727,7 +26532,18 @@ var ButtonPreference = exports.ButtonPreference;
 "src/hle/utils": function(module, exports, require) {
 var _cpu = require('../core/cpu');
 exports.NativeFunction = _cpu.NativeFunction;
-exports.createNativeFunction = _cpu.createNativeFunction;
+var createNativeFunction = _cpu.createNativeFunction;
+function nativeFunction(exportId, firmwareVersion, argTypesString, args) {
+    return function (target, key, descriptor) {
+        if (typeof target.natives == 'undefined')
+            target.natives = [];
+        target.natives.push(function (target) {
+            return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, {}, "" + target.constructor.name, key);
+        });
+        return descriptor;
+    };
+}
+exports.nativeFunction = nativeFunction;
 
 },
 "src/hle/vfs": function(module, exports, require) {

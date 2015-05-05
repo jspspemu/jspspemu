@@ -2,7 +2,7 @@
 
 import _utils = require('../../utils');
 import _context = require('../../../context');
-import createNativeFunction = _utils.createNativeFunction;
+import nativeFunction = _utils.nativeFunction;
 import _vfs = require('../../vfs');
 import _structs = require('../../structs');
 import SceKernelErrors = require('../../SceKernelErrors');
@@ -19,12 +19,13 @@ var log = logger.named('module.IoFileMgrForUser');
 export class IoFileMgrForUser {
 	constructor(private context: _context.EmulatorContext) { }
 
-	sceIoDevctl = createNativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int', this, (deviceName: string, command: number, inputPointer: number, inputLength: number, outputPointer: number, outputLength: number) => {
+	@nativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int')
+	sceIoDevctl(deviceName: string, command: number, inputPointer: number, inputLength: number, outputPointer: number, outputLength: number) {
 		var input = this.context.memory.getPointerStream(inputPointer, inputLength);
 		var output = this.context.memory.getPointerStream(outputPointer, outputLength);
 
 		return this.context.fileManager.devctlAsync(deviceName, command, input, output);
-	}, { tryCatch : false });
+	}
 
 
 	fileUids = new UidCollection<_manager.HleFile>(3);
@@ -33,7 +34,8 @@ export class IoFileMgrForUser {
 	hasFileById(id:number):boolean { return this.fileUids.has(id); }
 	getFileById(id:number):_manager.HleFile { return this.fileUids.get(id); }
 
-	sceIoOpen = createNativeFunction(0x109F50BC, 150, 'int', 'string/int/int', this, (filename: string, flags: FileOpenFlags, mode: FileMode) => {
+	@nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
+	sceIoOpen(filename: string, flags: FileOpenFlags, mode: FileMode) {
 		return this._sceIoOpenAsync(filename, flags, mode).then(result => {
 			var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
 			if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
@@ -43,7 +45,7 @@ export class IoFileMgrForUser {
 			}
 			return result;
 		});
-	});
+	}
 
 	private _sceIoOpenAsync(filename: string, flags: FileOpenFlags, mode: FileMode) {
 		return this.context.fileManager.openAsync(filename, flags, mode)
@@ -57,7 +59,8 @@ export class IoFileMgrForUser {
 		;
 	}
 
-	sceIoOpenAsync = createNativeFunction(0x89AA9906, 150, 'int', 'string/int/int', this, (filename: string, flags: FileOpenFlags, mode: FileMode) => {
+	@nativeFunction(0x89AA9906, 150, 'int', 'string/int/int')
+	sceIoOpenAsync(filename: string, flags: FileOpenFlags, mode: FileMode) {
 		log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 		//if (filename == '') return Promise2.resolve(0);
 
@@ -68,9 +71,10 @@ export class IoFileMgrForUser {
 			log.info('-->', fileId);
 			return fileId;
 		});
-	});
+	}
 
-	sceIoCloseAsync = createNativeFunction(0xFF5940B6, 150, 'int', 'int', this, (fileId: number) => {
+	@nativeFunction(0xFF5940B6, 150, 'int', 'int')
+	sceIoCloseAsync(fileId: number) {
 		log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
 		//if (filename == '') return Promise2.resolve(0);
 
@@ -82,16 +86,18 @@ export class IoFileMgrForUser {
 		file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(0)));
 
 		return 0;
-	});
+	}
 
 
-	sceIoAssign = createNativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long', this, (device1: string, device2: string, device3: string, mode: number, unk1Ptr: Stream, unk2: Integer64) => {
+	@nativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long')
+	sceIoAssign(device1: string, device2: string, device3: string, mode: number, unk1Ptr: Stream, unk2: Integer64) {
 		// IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
 		log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
 		return 0;
-	});
+	}
 
-	sceIoClose = createNativeFunction(0x810C4BC3, 150, 'int', 'int', this, (fileId: number) => {
+	@nativeFunction(0x810C4BC3, 150, 'int', 'int')
+	sceIoClose(fileId: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		if (file) file.close();
@@ -101,9 +107,10 @@ export class IoFileMgrForUser {
 		this.fileUids.remove(fileId);
 
 		return 0;
-	});
+	}
 
-	sceIoWrite = createNativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]', this, (fileId: number, input: Stream): any => {
+	@nativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]')
+	sceIoWrite(fileId: number, input: Stream): any {
 		if (fileId < 3) {
 			// @TODO: Fixme! Create a proper file
 			var str = input.readString(input.length);
@@ -124,9 +131,10 @@ export class IoFileMgrForUser {
 				return SceKernelErrors.ERROR_ERROR;
 			});
 		}
-	});
+	}
 
-	sceIoRead = createNativeFunction(0x6A638D83, 150, 'int', 'int/uint/int', this, (fileId: number, outputPointer: number, outputLength: number):number | Promise2<number> => {
+	@nativeFunction(0x6A638D83, 150, 'int', 'int/uint/int')
+	sceIoRead(fileId: number, outputPointer: number, outputLength: number):number | Promise2<number> {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
@@ -137,9 +145,10 @@ export class IoFileMgrForUser {
 			//log.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d ->%d', fileId, outputPointer, outputLength, file.cursor, readedData.byteLength));
 			return readedData.byteLength;
 		});
-	});
+	}
 
-	sceIoReadAsync = createNativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int', this, (thread:Thread, fileId: number, outputPointer: number, outputLength: number) => {
+	@nativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int')
+	sceIoReadAsync(thread:Thread, fileId: number, outputPointer: number, outputLength: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 
@@ -154,7 +163,7 @@ export class IoFileMgrForUser {
 		}));
 
 		return 0;
-	});
+	}
 
 	_sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream): number | Promise2<number> {
 		thread.state.LO = fileId;
@@ -183,15 +192,18 @@ export class IoFileMgrForUser {
 	}
 
 
-	sceIoWaitAsync = createNativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+	@nativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*')
+	sceIoWaitAsync(thread: Thread, fileId: number, resultPointer: Stream) {
 		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-	});
+	}
 
-	sceIoWaitAsyncCB = createNativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+	@nativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*')
+	sceIoWaitAsyncCB(thread: Thread, fileId: number, resultPointer: Stream) {
 		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-	});
+	}
 
-	sceIoPollAsync = createNativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*', this, (thread: Thread, fileId: number, resultPointer: Stream) => {
+	@nativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*')
+	sceIoPollAsync(thread: Thread, fileId: number, resultPointer: Stream) {
 		//log.info('sceIoPollAsync', fileId);
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
@@ -208,7 +220,7 @@ export class IoFileMgrForUser {
 			resultPointer.writeInt64(Integer64.fromInt(0));
 			return 1;
 		}
-	});
+	}
 
 	/*
 	[HlePspFunction(NID = 0xA0B5A7C2, FirmwareVersion = 150)]
@@ -249,7 +261,8 @@ export class IoFileMgrForUser {
 		return stat2;
 	}
 
-	sceIoGetstat = createNativeFunction(0xACE946E8, 150, 'int', 'string/void*', this, (fileName: string, sceIoStatPointer: Stream): any => {
+	@nativeFunction(0xACE946E8, 150, 'int', 'string/void*')
+	sceIoGetstat(fileName: string, sceIoStatPointer: Stream): any {
 		if (sceIoStatPointer) {
 			sceIoStatPointer.position = 0;
 			_structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
@@ -272,9 +285,10 @@ export class IoFileMgrForUser {
 			log.error(e);
 			return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		}
-	});
+	}
 
-	sceIoChdir = createNativeFunction(0x55F4717D, 150, 'int', 'string', this, (path: string) => {
+	@nativeFunction(0x55F4717D, 150, 'int', 'string')
+	sceIoChdir(path: string) {
 		log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
 		try {
 			this.context.fileManager.chdir(path);
@@ -283,7 +297,7 @@ export class IoFileMgrForUser {
 			log.error(e);
 			return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		}
-	});
+	}
 
 	/*
 	[HlePspFunction(NID = 0x71B19E77, FirmwareVersion = 150)]
@@ -296,33 +310,38 @@ export class IoFileMgrForUser {
 	}
 	*/
 
-	sceIoLseekAsync = createNativeFunction(0x71B19E77, 150, 'int', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
+	@nativeFunction(0x71B19E77, 150, 'int', 'int/long/int')
+	sceIoLseekAsync(fileId: number, offset: Integer64, whence: number) {
 		//var file = this.getFileById(fileId);
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		var result = this._seek(fileId, offset.getNumber(), whence);
 		file.setAsyncOperationNow(Integer64.fromNumber(result));
 		return 0;
-	});
+	}
 
-	sceIoLseek = createNativeFunction(0x27EB27B8, 150, 'long', 'int/long/int', this, (fileId: number, offset: Integer64, whence: number) => {
+	@nativeFunction(0x27EB27B8, 150, 'long', 'int/long/int')
+	sceIoLseek(fileId: number, offset: Integer64, whence: number) {
 		var result = this._seek(fileId, offset.getNumber(), whence);
 		//log.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
 		return Integer64.fromNumber(result);
-	});
+	}
 
-	sceIoLseek32 = createNativeFunction(0x68963324, 150, 'int', 'int/int/int', this, (fileId: number, offset: number, whence: number) => {
+	@nativeFunction(0x68963324, 150, 'int', 'int/int/int')
+	sceIoLseek32(fileId: number, offset: number, whence: number) {
 		var result = this._seek(fileId, offset, whence);
 		//log.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
 		return result;
-	});
+	}
 
-	sceIoMkdir = createNativeFunction(0x06A70004, 150, 'uint', 'string/int', this, (path: string, accessMode: number) => {
+	@nativeFunction(0x06A70004, 150, 'uint', 'string/int')
+	sceIoMkdir(path: string, accessMode: number) {
 		log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
 		return 0;
-	});
+	}
 
-	sceIoDopen = createNativeFunction(0xB29DDF9C, 150, 'uint', 'string', this, (path: string) => {
+	@nativeFunction(0xB29DDF9C, 150, 'uint', 'string')
+	sceIoDopen(path: string) {
 		log.log('sceIoDopen("' + path + '")');
 		return this.context.fileManager.openDirectoryAsync(path).then((directory) => {
 			log.log('opened directory "' + path + '"');
@@ -331,16 +350,18 @@ export class IoFileMgrForUser {
 			log.error(error);
 			return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		});
-	});
+	}
 
-	sceIoDclose = createNativeFunction(0xEB092469, 150, 'uint', 'int', this, (fileId: number) => {
+	@nativeFunction(0xEB092469, 150, 'uint', 'int')
+	sceIoDclose(fileId: number) {
 		if (!this.directoryUids.has(fileId)) return -1;
 		this.directoryUids.get(fileId).close();
 		this.directoryUids.remove(fileId);
 		return 0;
-	});
+	}
 
-	sceIoDread = createNativeFunction(0xE3EB004C, 150, 'int', 'int/void*', this, (fileId: number, hleIoDirentPtr: Stream) => {
+	@nativeFunction(0xE3EB004C, 150, 'int', 'int/void*')
+	sceIoDread(fileId: number, hleIoDirentPtr: Stream) {
 		if (!this.directoryUids.has(fileId)) return -1;
 		var directory = this.directoryUids.get(fileId);
 		if (directory.left > 0) {
@@ -352,11 +373,12 @@ export class IoFileMgrForUser {
 			_structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
 		}
 		return directory.left;
-	});
+	}
 
-	sceIoChangeAsyncPriority = createNativeFunction(0xB293727F, 150, 'int', 'int/int', this, (fileId: number, priority: number) => {
+	@nativeFunction(0xB293727F, 150, 'int', 'int/int')
+	sceIoChangeAsyncPriority(fileId: number, priority: number) {
 		return 0;
-	});
+	}
 
 	_seek(fileId: number, offset: number, whence: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
