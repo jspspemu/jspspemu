@@ -10,7 +10,7 @@ export class sceAudio {
 	private channels: Channel[] = [];
 
 	constructor(private context: _context.EmulatorContext) {
-		for (var n = 0; n < 4; n++) this.channels.push(new Channel(n));
+		for (var n = 0; n < 8; n++) this.channels.push(new Channel(n));
 	}
 
 	private isValidChannel(channelId: number) {

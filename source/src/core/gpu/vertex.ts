@@ -162,9 +162,9 @@ export class VertexReader {
 		var offset = 0;
 		for (var n = 0; n < 4; n++) {
 			var size = sizes[n], component = components[n];
-			indentStringGenerator.write('output.' + component + ' = ');
+			indentStringGenerator.write('output.' + component + ' = Math.fround(');
 			indentStringGenerator.write((size != 0) ? ('(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : '1.0');
-			indentStringGenerator.write('\n');
+			indentStringGenerator.write(')\n');
 			offset += size;
 		}
 		//indentStringGenerator.write('debugger;\n');
@@ -186,12 +186,12 @@ export class VertexReader {
 
 		components.forEach((component) => {
 			switch (type) {
-				case _state.NumericEnum.Byte: indentStringGenerator.write('output.' + component + ' = ' + (signed ? this.readInt8() : this.readUInt8())); break;
-				case _state.NumericEnum.Short: indentStringGenerator.write('output.' + component + ' = ' + (signed ? this.readInt16() : this.readUInt16())); break;
-				case _state.NumericEnum.Float: indentStringGenerator.write('output.' + component + ' = ' + (this.readFloat32())); break;
+				case _state.NumericEnum.Byte: indentStringGenerator.write('output.' + component + ' = Math.fround(' + (signed ? this.readInt8() : this.readUInt8())); break;
+				case _state.NumericEnum.Short: indentStringGenerator.write('output.' + component + ' = Math.fround(' + (signed ? this.readInt16() : this.readUInt16())); break;
+				case _state.NumericEnum.Float: indentStringGenerator.write('output.' + component + ' = Math.fround(' + (this.readFloat32())); break;
 			}
 			if (normalize && (scales[type] != 1)) indentStringGenerator.write(' * ' + (1 / scales[type]));
-			indentStringGenerator.write(';\n');
+			indentStringGenerator.write(');\n');
 		});
 	}
 }

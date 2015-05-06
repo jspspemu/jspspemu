@@ -112,7 +112,12 @@ export class ThreadManForUser {
 
 		var newState = newThread.state;
 		const memory = newState.memory;
+		var currentStack = newThread.stackPartition;
 		newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
+
+		if ((newThread.attributes & 0x00100000) == 0) { // PSP_THREAD_ATTR_NO_FILLSTACK
+			memory.memset(currentStack.low, 0xFF, currentStack.size);
+		}
 
 		var copiedDataAddress = ((newThread.stackPartition.high) - ((userDataLength + 0xF) & ~0xF));
 
@@ -125,11 +130,6 @@ export class ThreadManForUser {
 			newState.gpr[5] = 0;
 		}
 		
-		var currentStack = newThread.stackPartition;
-		if ((newThread.attributes & 0x00100000) == 0) { // PSP_THREAD_ATTR_NO_FILLSTACK
-			memory.memset(currentStack.low, 0xFF, currentStack.size);
-		}
-
 		newState.SP = copiedDataAddress;
 		
 		newState.SP -= 0x100;

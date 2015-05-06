@@ -13,6 +13,9 @@ const DEBUG_FUNCGEN = false;
 const DEBUG_NATIVEFUNC = false;
 //const DEBUG_NATIVEFUNC = true;
 
+const BUILD_FUNC_ON_REFERENCED = true;
+//const BUILD_FUNC_ON_REFERENCED = false;
+
 export enum CpuSpecialAddresses {
 	EXIT_THREAD = 0x0FFFFFFF,
 }
@@ -69,6 +72,10 @@ export class SyscallManager {
 		var c = this.calls[id];
 		if (c) return c.name;
 		return 'syscall_' + id;
+	}
+	
+	getNativeFunction(id:number) {
+		return this.calls[id];
 	}
 
 	call(state: CpuState, id: number) {
@@ -667,7 +674,7 @@ export class CpuState {
 	}
 
 	getFunction(pc: number): InvalidatableCpuFunction {
-		return this.icache.getFunction(pc);
+		return this.icache.getFunction(pc, 0);
 	}
 
 	executeAtPC() {
@@ -739,6 +746,7 @@ export class InstructionCache {
 	functionGenerator: FunctionGenerator;
 	private cache: NumberDictionary<InvalidatableCpuFunction> = {};
 	private functions: NumberDictionary<FunctionGeneratorResult> = {};
+	private examinedAddress: NumberDictionary<boolean> = {};
 	private createBind: IFunctionGenerator;
 
 	constructor(public memory: Memory, public syscallManager: SyscallManager) {
@@ -747,6 +755,9 @@ export class InstructionCache {
 	}
 
 	invalidateAll() {
+		for (var pc in this.examinedAddress) {
+			delete this.examinedAddress[pc];
+		}
 		for (var pc in this.cache) {
 			this.cache[pc].invalidate();
 			delete this.functions[pc];
@@ -756,18 +767,22 @@ export class InstructionCache {
 	invalidateRange(from: number, to: number) {
 		for (var pc = from; pc < to; pc += 4) {
 			if (this.cache[pc]) this.cache[pc].invalidate();
+			delete this.examinedAddress[pc];
 			delete this.functions[pc];
 		}
 	}
 
-	private create(address: number): CpuFunctionWithArgs {
+	private create(address: number, level:number): CpuFunctionWithArgs {
+		this.examinedAddress[address] = true;
 		// @TODO: check if we have a function in this range already range already!
-		var info = this.functionGenerator.getFunctionInfo(address);
+		var info = this.functionGenerator.getFunctionInfo(address, level);
 		//var func = this.functions[info.min];
 		var func = this.functions[info.start];
-		if (!func) {
+		if (func === undefined) {
+			//console.log(`Creating function ${addressToHex(address)}`);
 			//this.functions[info.min] = func = this.functionGenerator.getFunction(info);
-			this.functions[info.start] = func = this.functionGenerator.getFunction(info);
+			this.functions[info.start] = null;
+			this.functions[info.start] = func = this.functionGenerator.getFunction(info, level);
 
 			if (DEBUG_FUNCGEN) {
 				console.log('****************************************');
@@ -779,10 +794,14 @@ export class InstructionCache {
 		return func.fargs;
 	}
 
-	getFunction(address: number): InvalidatableCpuFunction {
+	getFunction(address: number, level:number): InvalidatableCpuFunction {
 		address &= Memory.MASK;
 		if (!this.cache[address]) {
 			this.cache[address] = new InvalidatableCpuFunction(address, this.createBind);
+		}
+		if (BUILD_FUNC_ON_REFERENCED) {
+			//if (level <= 1 && !this.examinedAddress[address]) this.create(address, level);
+			//if (!this.examinedAddress[address]) this.create(address, level);
 		}
 		return this.cache[address];
 	}
@@ -842,13 +861,13 @@ export class FunctionGenerator {
 		return func.call(this.instructionAst, instruction, di);
 	}
 
-	create(address: number): FunctionGeneratorResult {
-		return this.getFunction(this.getFunctionInfo(address));
+	create(address: number, level:number): FunctionGeneratorResult {
+		return this.getFunction(this.getFunctionInfo(address, level), level);
 	}
 
-	getFunction(info: FunctionInfo): FunctionGeneratorResult {
+	getFunction(info: FunctionInfo, level:number): FunctionGeneratorResult {
 		var start = performance.now();
-		var code = this.getFunctionCode(info);
+		var code = this.getFunctionCode(info, level);
 		try {
 			//var func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
 			var startHex = addressToHex(info.start);
@@ -865,7 +884,7 @@ export class FunctionGenerator {
 		}
 	}
 	
-	getFunctionInfo(address: number): FunctionInfo {
+	getFunctionInfo(address: number, level:number): FunctionInfo {
 		if (address == CpuSpecialAddresses.EXIT_THREAD) return { start: address, min: address, max: address + 4, labels: {} };
 		if (address == 0x00000000) throw (new Error("Trying to execute 0x00000000"));
 
@@ -918,8 +937,18 @@ export class FunctionGenerator {
 
 		return info;
 	}
+	
+	private detectSyscallCall(pc:number):number {
+		var di = this.decodeInstruction(pc);
+		var di2 = this.decodeInstruction(pc + 4);
+		if (di.type.name == 'jr' && di2.type.name == 'syscall') {
+			return di2.instruction.syscall;
+		} else {
+			return -1;
+		}
+	}
 
-	getFunctionCode(info: FunctionInfo): FunctionCode {
+	getFunctionCode(info: FunctionInfo, level:number): FunctionCode {
 		var args: any = {};
 		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
 
@@ -950,14 +979,13 @@ export class FunctionGenerator {
 		}
 
 		if ((info.max - info.min) == 4) {
-			var di = this.decodeInstruction(info.min);
-			var di2 = this.decodeInstruction(info.min + 4);
-			if (di.type.name == 'jr' && di2.type.name == 'syscall') {
+			var syscallId = this.detectSyscallCall(info.min);
+			if (syscallId >= 0) {
 				return new FunctionCode(
 					`
-					/* ${this.syscallManager.getName(di2.instruction.syscall)} at ${addressToHex(info.start)} */
+					/* ${this.syscallManager.getName(syscallId)} at ${addressToHex(info.start)} */
 					state.PC = state.RA; state.jumpCall = null;
-					state.syscall(${di2.instruction.syscall});
+					state.syscall(${syscallId});
 					return;
 					`,
 					args
@@ -988,23 +1016,38 @@ export class FunctionGenerator {
 				var nextAddressHex = addressToHex(nextAddress);
 
 				if (type.name == 'jal' || type.name == 'j') {
-					var cachefuncName = `cache_${addressToHex(targetAddress)}`;
-					args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
-					func.add(ast.raw(`state.PC = ${targetAddressHex};`));
-					if (type.name == 'j') {
+					/*
+					var syscallId = this.detectSyscallCall(targetAddress);
+					if (type.name == 'jal' && syscallId >= 0) {
+						//var cachefuncName = `syscall_${syscallId}`;
+						//args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
+						//func.add(ast.raw(`debugger;`));
 						func.add(delayedCode);
-						if (labels[targetAddress]) {
-							func.add(ast.sjump(ast.raw('true'), targetAddress));
+						func.add(ast.raw(`state.RA = state.PC = ${nextAddressHex};`));
+						args['syscallContext'] = this.syscallManager.context; 
+						args[`syscall_${syscallId}`] = this.syscallManager.getNativeFunction(syscallId);
+						func.add(ast.raw(`args.syscall_${syscallId}.call(args.syscallContext, state);`));
+					} else
+					*/
+					{
+						var cachefuncName = `cache_${addressToHex(targetAddress)}`;
+						args[cachefuncName] = this.instructionCache.getFunction(targetAddress, level + 1);
+						func.add(ast.raw(`state.PC = ${targetAddressHex};`));
+						if (type.name == 'j') {
+							func.add(delayedCode);
+							if (labels[targetAddress]) {
+								func.add(ast.sjump(ast.raw('true'), targetAddress));
+							} else {
+								func.add(ast.raw(`state.jumpCall = args.${cachefuncName};`));
+								func.add(ast.raw(`return;`));
+							}
 						} else {
-							func.add(ast.raw(`state.jumpCall = args.${cachefuncName};`));
-							func.add(ast.raw(`return;`));
+							func.add(ast.raw(`var expectedRA = state.RA = ${nextAddressHex};`));
+							func.add(delayedCode);
+							func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
+							func.add(ast.raw(`while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
+							func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
 						}
-					} else {
-						func.add(ast.raw(`var expectedRA = state.RA = ${nextAddressHex};`));
-						func.add(delayedCode);
-						func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
-						func.add(ast.raw(`while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
-						func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
 					}
 				} else if (type.isJal) {
 					var cachefuncName = `cachefunc_${addressToHex(PC)}`; args[cachefuncName] = null;
