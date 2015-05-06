@@ -65,20 +65,22 @@ class Overlay {
 	private sections:OverlaySection<any>[] = [];
 	
 	constructor() {
-		var element = this.element = document.createElement('div');
-		element.style.position = 'absolute';
-		element.style.zIndex = '10000';
-		element.style.top = '0';
-		element.style.right = '0';
-		element.style.background = 'rgba(0, 0, 0, 0.3)';
-		element.style.font = '12px Arial';
-		element.style.width = '200px';
-		element.style.height = '200px';
-		element.style.padding = '4px';
-		element.style.color = 'white';
-		element.style.whiteSpace = 'pre';
-		element.innerText = 'hello world!';
-		document.body.appendChild(element);
+		var element = this.element = (typeof document != 'undefined') ? document.createElement('div') : null;
+		if (element) {
+			element.style.position = 'absolute';
+			element.style.zIndex = '10000';
+			element.style.top = '0';
+			element.style.right = '0';
+			element.style.background = 'rgba(0, 0, 0, 0.3)';
+			element.style.font = '12px Arial';
+			element.style.width = '200px';
+			element.style.height = '200px';
+			element.style.padding = '4px';
+			element.style.color = 'white';
+			element.style.whiteSpace = 'pre';
+			element.innerText = 'hello world!';
+			document.body.appendChild(element);
+		}
 	}
 	
 	createSection<T>(name:string, resetValue:T):OverlaySection<T> {
@@ -88,7 +90,7 @@ class Overlay {
 	}
 	
 	update() {
-		this.element.innerText = this.sections.map(s => `${s.name}: ${s.value}`).join('\n');
+		if (this.element) this.element.innerText = this.sections.map(s => `${s.name}: ${s.value}`).join('\n');
 	}
 	
 	private reset() {

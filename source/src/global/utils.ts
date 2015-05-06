@@ -488,13 +488,9 @@ class ArrayBufferUtils {
 		return new Uint8Array(input.buffer, input.byteOffset + offset, length);
 	}
 	
-	static copyFast(input: Uint8Array, output: Uint8Array) {
-		for (var n = 0; n < output.length; n++) output[n] = input[n];
-	}
-
 	static copy(input: Uint8Array, inputPosition: number, output: Uint8Array, outputPosition: number, length: number) {
-		//output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
-		for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+		output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+		//for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
 	}
 
 	static cloneBytes(input: Uint8Array) {

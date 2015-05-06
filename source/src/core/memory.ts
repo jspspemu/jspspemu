@@ -70,7 +70,8 @@ export class Memory {
 	lwc1(address: number): number { throw `Must override`; }
 	lw_2(address: number): number { throw `Must override`; }
 
-	slice(low: number, high: number): Uint8Array { throw `Must override`; }
+	protected getBuffer(address: number):ArrayBuffer { throw `Must override`; }
+	protected getOffsetInBuffer(address: number):number { throw `Must override`; }
 	availableAfterAddress(address: number): number { throw `Must override`; }
 
 	static DEFAULT_FRAME_ADDRESS: number = 0x04000000;
@@ -108,17 +109,26 @@ export class Memory {
 	}
 
 	getPointerDataView(address: number, size?: number) {
-		var data = this.getPointerU8Array(address, size);
-		return new DataView(data.buffer, data.byteOffset, data.byteLength);
+		if (!size) size = this.availableAfterAddress(address);
+		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+		return new DataView(buffer, offset, size);
+	}
+	
+	slice(low: number, high: number) {
+		var buffer = this.getBuffer(low), offset = this.getOffsetInBuffer(low);
+		return new Uint8Array(buffer, offset, high - low);
 	}
 
 	getPointerU8Array(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
-		return this.slice(address, address + size);
+		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+		return new Uint8Array(buffer, offset, size);
 	}
 
 	getPointerU16Array(address: number, size?: number) {
-		return new Uint16Array(this.getPointerU8Array(address, size));
+		if (!size) size = this.availableAfterAddress(address);
+		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+		return new Uint16Array(buffer, offset, size / 2);
 	}
 
 	getPointerStream(address: number, size?: number) {
@@ -135,14 +145,12 @@ export class Memory {
 	getU8Array(address: number, size?: number) {
 		if (address == 0) return null;
 		if (!this.isValidAddress(address)) return null;
-		if (!size) size = this.availableAfterAddress(address & FastMemory.MASK);
 		return this.getPointerU8Array(address & FastMemory.MASK, size);
 	}
 
 	getU16Array(address: number, size?: number) {
 		if (address == 0) return null;
 		if (!this.isValidAddress(address)) return null;
-		if (!size) size = this.availableAfterAddress(address & FastMemory.MASK);
 		return this.getPointerU16Array(address & FastMemory.MASK, size);
 	}
 
@@ -233,7 +241,7 @@ export class Memory {
 		if (length <= 0) return;
 		//console.warn('copy:', from, to, length);
 		this.getPointerU8Array(to, length).set(this.getPointerU8Array(from, length));
-		this._checkWriteBreakpoints(to, to + length);
+		//this._checkWriteBreakpoints(to, to + length);
 	}
 
 	memset(address: number, value: number, length: number) {
@@ -346,21 +354,11 @@ class FastMemory extends Memory {
 	lwc1(address: number) { return this.f32[(address & MASK) >> 2]; }
 	lw_2(address: number) { return this.u32[address]; }
 
-	slice(low: number, high: number): Uint8Array {
-		low &= MASK;
-		high &= MASK;
-		return new Uint8Array(this.buffer, low, high - low);
-	}
+	protected getBuffer(address: number):ArrayBuffer { return this.buffer; }
+	protected getOffsetInBuffer(address: number):number { return address & MASK; }
 
 	availableAfterAddress(address: number): number {
 		return this.buffer.byteLength - (address & MASK);
-	}
-	
-	getU16Array(address: number, size?: number) {
-		if (address == 0) return null;
-		if (!this.isValidAddress(address)) return null;
-		if (!size) size = this.availableAfterAddress(address & FastMemory.MASK);
-		return new Uint16Array(this.buffer, address, size / 2);
 	}
 }
 
@@ -408,15 +406,8 @@ class LowMemorySegment {
 	lwu(address: number) { return this.u32[this.fixAddress(address) >> 2]; }
 	lwc1(address: number) { return this.f32[this.fixAddress(address) >> 2]; }
 
-	slice(low: number, high: number): Uint8Array {
-		const low2 = this.fixAddress(low);
-		const high2 = this.fixAddress(high);
-		return new Uint8Array(this.buffer, low2, high2 - low2);
-	}
-
-	getU16Array(address: number, size?: number) {
-		return new Uint16Array(this.buffer, this.fixAddress(address), size / 2);
-	}
+	getBuffer(address: number):ArrayBuffer { return this.buffer; }
+	getOffsetInBuffer(address: number):number { return this.fixAddress(address); }
 
 	availableAfterAddress(address: number): number {
 		return this.buffer.byteLength - this.fixAddress(address);
@@ -465,16 +456,8 @@ class LowMemory extends Memory {
 	lwc1(address: number) { return this.getMemRange(address).lwc1(address); }
 	lw_2(address4: number) { return this.getMemRange(address4 * 4).lw(address4 * 4); }
 
-	slice(low: number, high: number): Uint8Array {
-		return this.getMemRange(low).slice(low, high);
-	}
-	
-	getU16Array(address: number, size?: number) {
-		if (address == 0) return null;
-		if (!this.isValidAddress(address)) return null;
-		return  this.getMemRange(address).getU16Array(address, size);
-	}
-
+	protected getBuffer(address: number):ArrayBuffer { return this.getMemRange(address).getBuffer(address); }
+	protected getOffsetInBuffer(address: number):number { return this.getMemRange(address).getOffsetInBuffer(address); }
 
 	availableAfterAddress(address: number): number {
 		return this.getMemRange(address).availableAfterAddress(address);

@@ -204,8 +204,8 @@ export class TextureHandler {
 		//return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
 		if (!texture) return true;
 		if (texture.recheckCount++ >= texture.framesEqual) {
-			//return !texture.valid;
-			return false;
+			return !texture.valid;
+			//return false;
 		}  else {
 			texture.recheckCount = 0;
 			return false;

@@ -458,13 +458,8 @@ var ArrayBufferUtils = (function () {
             length = (input.length - offset);
         return new Uint8Array(input.buffer, input.byteOffset + offset, length);
     };
-    ArrayBufferUtils.copyFast = function (input, output) {
-        for (var n = 0; n < output.length; n++)
-            output[n] = input[n];
-    };
     ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
-        for (var n = 0; n < length; n++)
-            output[outputPosition + n] = input[inputPosition + n];
+        output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
     };
     ArrayBufferUtils.cloneBytes = function (input) {
         var out = new Uint8Array(input.length);
@@ -11098,20 +11093,22 @@ var OverlaySection = (function () {
 var Overlay = (function () {
     function Overlay() {
         this.sections = [];
-        var element = this.element = document.createElement('div');
-        element.style.position = 'absolute';
-        element.style.zIndex = '10000';
-        element.style.top = '0';
-        element.style.right = '0';
-        element.style.background = 'rgba(0, 0, 0, 0.3)';
-        element.style.font = '12px Arial';
-        element.style.width = '200px';
-        element.style.height = '200px';
-        element.style.padding = '4px';
-        element.style.color = 'white';
-        element.style.whiteSpace = 'pre';
-        element.innerText = 'hello world!';
-        document.body.appendChild(element);
+        var element = this.element = (typeof document != 'undefined') ? document.createElement('div') : null;
+        if (element) {
+            element.style.position = 'absolute';
+            element.style.zIndex = '10000';
+            element.style.top = '0';
+            element.style.right = '0';
+            element.style.background = 'rgba(0, 0, 0, 0.3)';
+            element.style.font = '12px Arial';
+            element.style.width = '200px';
+            element.style.height = '200px';
+            element.style.padding = '4px';
+            element.style.color = 'white';
+            element.style.whiteSpace = 'pre';
+            element.innerText = 'hello world!';
+            document.body.appendChild(element);
+        }
     }
     Overlay.prototype.createSection = function (name, resetValue) {
         var section = new OverlaySection(name, resetValue);
@@ -11119,7 +11116,8 @@ var Overlay = (function () {
         return section;
     };
     Overlay.prototype.update = function () {
-        this.element.innerText = this.sections.map(function (s) { return (s.name + ": " + s.value); }).join('\n');
+        if (this.element)
+            this.element.innerText = this.sections.map(function (s) { return (s.name + ": " + s.value); }).join('\n');
     };
     Overlay.prototype.reset = function () {
         for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
@@ -11922,7 +11920,7 @@ var PspGpuExecutor = (function () {
                 break;
         }
         var optimized = false;
-        if ((vertexState.index == 0) && (primitiveType != 6)) {
+        if ((vertexState.index == 0) && (primitiveType != 6) && (vertexState.realMorphingVertexCount == 1)) {
             optimized = true;
         }
         if (optimized)
@@ -14537,7 +14535,7 @@ var TextureHandler = (function () {
         if (!texture)
             return true;
         if (texture.recheckCount++ >= texture.framesEqual) {
-            return false;
+            return !texture.valid;
         }
         else {
             texture.recheckCount = 0;
@@ -15389,7 +15387,8 @@ var Memory = (function () {
     Memory.prototype.lwu = function (address) { throw "Must override"; };
     Memory.prototype.lwc1 = function (address) { throw "Must override"; };
     Memory.prototype.lw_2 = function (address) { throw "Must override"; };
-    Memory.prototype.slice = function (low, high) { throw "Must override"; };
+    Memory.prototype.getBuffer = function (address) { throw "Must override"; };
+    Memory.prototype.getOffsetInBuffer = function (address) { throw "Must override"; };
     Memory.prototype.availableAfterAddress = function (address) { throw "Must override"; };
     Memory.prototype.isAddressInRange = function (address, min, max) {
         address &= FastMemory.MASK;
@@ -15420,16 +15419,26 @@ var Memory = (function () {
         return new Pointer(type, this, address);
     };
     Memory.prototype.getPointerDataView = function (address, size) {
-        var data = this.getPointerU8Array(address, size);
-        return new DataView(data.buffer, data.byteOffset, data.byteLength);
+        if (!size)
+            size = this.availableAfterAddress(address);
+        var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new DataView(buffer, offset, size);
+    };
+    Memory.prototype.slice = function (low, high) {
+        var buffer = this.getBuffer(low), offset = this.getOffsetInBuffer(low);
+        return new Uint8Array(buffer, offset, high - low);
     };
     Memory.prototype.getPointerU8Array = function (address, size) {
         if (!size)
             size = this.availableAfterAddress(address);
-        return this.slice(address, address + size);
+        var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new Uint8Array(buffer, offset, size);
     };
     Memory.prototype.getPointerU16Array = function (address, size) {
-        return new Uint16Array(this.getPointerU8Array(address, size));
+        if (!size)
+            size = this.availableAfterAddress(address);
+        var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new Uint16Array(buffer, offset, size / 2);
     };
     Memory.prototype.getPointerStream = function (address, size) {
         if (address == 0)
@@ -15449,8 +15458,6 @@ var Memory = (function () {
             return null;
         if (!this.isValidAddress(address))
             return null;
-        if (!size)
-            size = this.availableAfterAddress(address & FastMemory.MASK);
         return this.getPointerU8Array(address & FastMemory.MASK, size);
     };
     Memory.prototype.getU16Array = function (address, size) {
@@ -15458,8 +15465,6 @@ var Memory = (function () {
             return null;
         if (!this.isValidAddress(address))
             return null;
-        if (!size)
-            size = this.availableAfterAddress(address & FastMemory.MASK);
         return this.getPointerU16Array(address & FastMemory.MASK, size);
     };
     Memory.prototype.addWatch4 = function (address) {
@@ -15511,7 +15516,6 @@ var Memory = (function () {
         if (length <= 0)
             return;
         this.getPointerU8Array(to, length).set(this.getPointerU8Array(from, length));
-        this._checkWriteBreakpoints(to, to + length);
     };
     Memory.prototype.memset = function (address, value, length) {
         var buffer = this.getPointerU8Array(address, length);
@@ -15612,22 +15616,10 @@ var FastMemory = (function (_super) {
     FastMemory.prototype.lwu = function (address) { return this.u32[(address & MASK) >> 2]; };
     FastMemory.prototype.lwc1 = function (address) { return this.f32[(address & MASK) >> 2]; };
     FastMemory.prototype.lw_2 = function (address) { return this.u32[address]; };
-    FastMemory.prototype.slice = function (low, high) {
-        low &= MASK;
-        high &= MASK;
-        return new Uint8Array(this.buffer, low, high - low);
-    };
+    FastMemory.prototype.getBuffer = function (address) { return this.buffer; };
+    FastMemory.prototype.getOffsetInBuffer = function (address) { return address & MASK; };
     FastMemory.prototype.availableAfterAddress = function (address) {
         return this.buffer.byteLength - (address & MASK);
-    };
-    FastMemory.prototype.getU16Array = function (address, size) {
-        if (address == 0)
-            return null;
-        if (!this.isValidAddress(address))
-            return null;
-        if (!size)
-            size = this.availableAfterAddress(address & FastMemory.MASK);
-        return new Uint16Array(this.buffer, address, size / 2);
     };
     return FastMemory;
 })(Memory);
@@ -15663,14 +15655,8 @@ var LowMemorySegment = (function () {
     LowMemorySegment.prototype.lw = function (address) { return this.s32[this.fixAddress(address) >> 2]; };
     LowMemorySegment.prototype.lwu = function (address) { return this.u32[this.fixAddress(address) >> 2]; };
     LowMemorySegment.prototype.lwc1 = function (address) { return this.f32[this.fixAddress(address) >> 2]; };
-    LowMemorySegment.prototype.slice = function (low, high) {
-        var low2 = this.fixAddress(low);
-        var high2 = this.fixAddress(high);
-        return new Uint8Array(this.buffer, low2, high2 - low2);
-    };
-    LowMemorySegment.prototype.getU16Array = function (address, size) {
-        return new Uint16Array(this.buffer, this.fixAddress(address), size / 2);
-    };
+    LowMemorySegment.prototype.getBuffer = function (address) { return this.buffer; };
+    LowMemorySegment.prototype.getOffsetInBuffer = function (address) { return this.fixAddress(address); };
     LowMemorySegment.prototype.availableAfterAddress = function (address) {
         return this.buffer.byteLength - this.fixAddress(address);
     };
@@ -15712,16 +15698,8 @@ var LowMemory = (function (_super) {
     LowMemory.prototype.lwu = function (address) { return this.getMemRange(address).lwu(address); };
     LowMemory.prototype.lwc1 = function (address) { return this.getMemRange(address).lwc1(address); };
     LowMemory.prototype.lw_2 = function (address4) { return this.getMemRange(address4 * 4).lw(address4 * 4); };
-    LowMemory.prototype.slice = function (low, high) {
-        return this.getMemRange(low).slice(low, high);
-    };
-    LowMemory.prototype.getU16Array = function (address, size) {
-        if (address == 0)
-            return null;
-        if (!this.isValidAddress(address))
-            return null;
-        return this.getMemRange(address).getU16Array(address, size);
-    };
+    LowMemory.prototype.getBuffer = function (address) { return this.getMemRange(address).getBuffer(address); };
+    LowMemory.prototype.getOffsetInBuffer = function (address) { return this.getMemRange(address).getOffsetInBuffer(address); };
     LowMemory.prototype.availableAfterAddress = function (address) {
         return this.getMemRange(address).availableAfterAddress(address);
     };
