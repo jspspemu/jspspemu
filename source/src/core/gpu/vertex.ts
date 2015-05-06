@@ -122,12 +122,18 @@ export class VertexReader {
 		this.readOffset = 0;
 
 		var normalize = !this.vertexState.transform2D;
+		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
+		this.createNumberJs([1, 1, 1, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
+		this.createColorJs(indentStringGenerator, this.vertexState.color);
+		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
+		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+		/*
 		this.createNumberJs([1, 0x80, 0x8000, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
 		this.createNumberJs([1, 0x80, 0x8000, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
-
 		this.createColorJs(indentStringGenerator, this.vertexState.color);
 		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
 		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+		*/
 		//if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
 
 		return indentStringGenerator.output;
@@ -194,4 +200,49 @@ export class VertexReader {
 			indentStringGenerator.write(');\n');
 		});
 	}
+}
+
+export class OptimizedDrawBuffer {
+	data = new Uint8Array(512 * 1024);
+	dataOffset = 0;
+	indices = new Uint16Array(64 * 1024);
+	indexOffset = 0;
+	vertexIndex = 0;
+	primType:_state.PrimitiveType;
+	vertexState:_state.VertexState;
+	
+	reset() {
+		this.dataOffset = 0;
+		this.indexOffset = 0;
+		this.vertexIndex = 0;
+	}
+	
+	addDataWithIndices8(vertices:Uint8Array, vertexSize:number, indices:Uint8Array) {
+		//for (var n = 0; n < )
+	}
+
+	addVertices(vertices:Uint8Array, vertexCount:number, vertexSize:number) {
+		var verticesSize = vertexCount * vertexSize;
+		ArrayBufferUtils.copy(vertices, 0, this.data, this.dataOffset, verticesSize);
+		this.dataOffset += verticesSize;
+		for (var n = 0; n < vertexCount; n++) this.indices[this.indexOffset++] = this.vertexIndex++;
+	}
+	
+	join(vertexSize:number) {
+		this.indices[this.indexOffset++] = this.vertexIndex - 1;
+		this.indices[this.indexOffset++] = this.vertexIndex;
+	}
+
+	/*
+	startDegenerateTriangleStrip() {
+		this.triangleStripOffset = this.ensureAndTake(2);
+	}
+
+	endDegenerateTriangleStrip() {
+		var offset = this.triangleStripOffset;
+		this.vertices[offset + 0].copyFrom(this.vertices[offset - 1]);
+		this.vertices[offset + 1].copyFrom(this.vertices[offset + 2]);
+	}
+	*/
+
 }

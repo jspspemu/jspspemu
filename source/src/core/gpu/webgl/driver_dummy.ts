@@ -2,6 +2,7 @@
 
 import _driver = require('../driver');
 import _state = require('../state');
+import _vertex = require('../vertex');
 import _memory = require('../../memory');
 import _display = require('../../display');
 import _shader = require('./shader');
@@ -45,6 +46,9 @@ class DummyDrawDriver implements IDrawDriver {
 	}
 
 	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
+	}
+	
+	drawOptimized(state: any, buffer:_vertex.OptimizedDrawBuffer):void {
 	}
 }
 

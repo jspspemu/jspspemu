@@ -458,8 +458,13 @@ var ArrayBufferUtils = (function () {
             length = (input.length - offset);
         return new Uint8Array(input.buffer, input.byteOffset + offset, length);
     };
+    ArrayBufferUtils.copyFast = function (input, output) {
+        for (var n = 0; n < output.length; n++)
+            output[n] = input[n];
+    };
     ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
-        output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+        for (var n = 0; n < length; n++)
+            output[outputPosition + n] = input[inputPosition + n];
     };
     ArrayBufferUtils.cloneBytes = function (input) {
         var out = new Uint8Array(input.length);
@@ -11045,8 +11050,6 @@ _vertex.VertexReader;
 exports.PspGpuCallback = _gpu.PspGpuCallback;
 _gpu.PspGpuCallback;
 exports.PspGpu = _gpu.PspGpu;
-exports.SyncType = _state.SyncType;
-exports.DisplayListStatus = _state.DisplayListStatus;
 exports.VertexReader = _vertex.VertexReader;
 exports.VertexState = _state.VertexState;
 exports.VertexReaderFactory = _vertex.VertexReaderFactory;
@@ -11064,12 +11067,12 @@ var _state = require('./state');
 var _vertex = require('./vertex');
 var _cpu = require('../cpu');
 _cpu.CpuState;
-var DisplayListStatus = _state.DisplayListStatus;
 var Memory = _memory.Memory;
 var GpuOpCodes = _instructions.GpuOpCodes;
 var WebGlPspDrawDriver = require('./webgl/driver');
 var DummyDrawDriver = require('./webgl/driver_dummy');
 var vertexBuffer = new _vertex.VertexBuffer();
+var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
 var singleCallTest = false;
 function bool1(p) { return p != 0; }
 function param1(p, offset) { return (p >> offset) & 0x1; }
@@ -11081,6 +11084,65 @@ function param8(p, offset) { return (p >> offset) & 0xFF; }
 function param10(p, offset) { return (p >> offset) & 0x3FF; }
 function param16(p, offset) { return (p >> offset) & 0xFFFF; }
 function float1(p) { return MathFloat.reinterpretIntAsFloat(p << 8); }
+var OverlaySection = (function () {
+    function OverlaySection(name, resetValue) {
+        this.name = name;
+        this.resetValue = resetValue;
+        this.reset();
+    }
+    OverlaySection.prototype.reset = function () {
+        this.value = this.resetValue;
+    };
+    return OverlaySection;
+})();
+var Overlay = (function () {
+    function Overlay() {
+        this.sections = [];
+        var element = this.element = document.createElement('div');
+        element.style.position = 'absolute';
+        element.style.zIndex = '10000';
+        element.style.top = '0';
+        element.style.right = '0';
+        element.style.background = 'rgba(0, 0, 0, 0.3)';
+        element.style.font = '12px Arial';
+        element.style.width = '200px';
+        element.style.height = '200px';
+        element.style.padding = '4px';
+        element.style.color = 'white';
+        element.style.whiteSpace = 'pre';
+        element.innerText = 'hello world!';
+        document.body.appendChild(element);
+    }
+    Overlay.prototype.createSection = function (name, resetValue) {
+        var section = new OverlaySection(name, resetValue);
+        this.sections.push(section);
+        return section;
+    };
+    Overlay.prototype.update = function () {
+        this.element.innerText = this.sections.map(function (s) { return (s.name + ": " + s.value); }).join('\n');
+    };
+    Overlay.prototype.reset = function () {
+        for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
+            var s = _a[_i];
+            s.reset();
+        }
+    };
+    Overlay.prototype.updateAndReset = function () {
+        this.update();
+        this.reset();
+    };
+    return Overlay;
+})();
+var overlay = new Overlay();
+var overlayIndexCount = overlay.createSection('indexCount', 0);
+var overlayNonIndexCount = overlay.createSection('nonIndexCount', 0);
+var overlayVertexCount = overlay.createSection('vertexCount', 0);
+var trianglePrimCount = overlay.createSection('trianglePrimCount', 0);
+var triangleStripPrimCount = overlay.createSection('triangleStripPrimCount', 0);
+var spritePrimCount = overlay.createSection('spritePrimCount', 0);
+var otherPrimCount = overlay.createSection('otherPrimCount', 0);
+var optimizedCount = overlay.createSection('optimizedCount', 0);
+var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var PspGpuExecutor = (function () {
     function PspGpuExecutor() {
         this.table = new Array(0x100);
@@ -11815,40 +11877,74 @@ var PspGpuExecutor = (function () {
         var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
         var indices = null;
         switch (vertexState.index) {
-            case _state.IndexEnum.Byte:
-                indices = list.memory.getU8Array(indicesAddress);
+            case 1:
+                indices = list.memory.getU8Array(indicesAddress, vertexCount);
                 break;
-            case _state.IndexEnum.Short:
-                indices = list.memory.getU16Array(indicesAddress);
+            case 2:
+                indices = list.memory.getU16Array(indicesAddress, vertexCount * 2);
                 break;
         }
+        if (vertexState.index == 0) {
+            overlayNonIndexCount.value += 1;
+        }
+        else {
+            overlayIndexCount.value += 1;
+        }
+        overlayVertexCount.value += vertexCount;
         var vertexInput = list.memory.getPointerU8Array(vertexAddress);
-        if (vertexState.address) {
-            if (!vertexState.hasIndex) {
-                vertexState.address += vertexState.size * vertexCount;
-            }
-        }
+        if (vertexState.address && !vertexState.hasIndex)
+            vertexState.address += vertexState.size * vertexCount;
         var drawType = PrimDrawType.SINGLE_DRAW;
         switch (primitiveType) {
-            case _state.PrimitiveType.Lines:
-            case _state.PrimitiveType.Points:
-            case _state.PrimitiveType.Triangles:
-            case _state.PrimitiveType.Sprites:
+            case 3:
+                trianglePrimCount.value++;
+                break;
+            case 4:
+                triangleStripPrimCount.value++;
+                break;
+            case 6:
+                spritePrimCount.value++;
+                break;
+            default:
+                otherPrimCount.value++;
+                break;
+        }
+        switch (primitiveType) {
+            case 1:
+            case 0:
+            case 3:
+            case 6:
                 drawType = PrimDrawType.BATCH_DRAW;
                 break;
-            case _state.PrimitiveType.TriangleStrip:
-            case _state.PrimitiveType.LineStrip:
+            case 4:
+            case 2:
                 drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
                 break;
         }
-        if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE))
-            vertexBuffer.startDegenerateTriangleStrip();
-        {
+        var optimized = false;
+        if ((vertexState.index == 0) && (primitiveType != 6)) {
+            optimized = true;
+        }
+        if (optimized)
+            optimizedCount.value++;
+        else
+            nonOptimizedCount.value++;
+        var mustDegenerate = (list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
+        if (optimized) {
+            optimizedDrawBuffer.primType = primitiveType;
+            optimizedDrawBuffer.vertexState = vertexState;
+            if (mustDegenerate)
+                optimizedDrawBuffer.join(vertexState.size);
+            optimizedDrawBuffer.addVertices(vertexInput, vertexCount, vertexState.size);
+        }
+        else {
+            if (mustDegenerate)
+                vertexBuffer.startDegenerateTriangleStrip();
             var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
             vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, indices, vertexCount, vertexState.hasIndex);
+            if (mustDegenerate)
+                vertexBuffer.endDegenerateTriangleStrip();
         }
-        if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE))
-            vertexBuffer.endDegenerateTriangleStrip();
         if (drawType == PrimDrawType.SINGLE_DRAW) {
             list.finishPrimBatch();
         }
@@ -11876,7 +11972,7 @@ var PspGpuExecutor = (function () {
         var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
         var vertexInput = this.list.memory.getPointerU8Array(vertexAddress);
         var vertexState2 = vertexState.clone();
-        vertexState2.texture = _state.NumericEnum.Float;
+        vertexState2.texture = 3;
         var getBezierControlPoints = function (ucount, vcount) {
             var controlPoints = ArrayUtils.create2D(ucount, vcount);
             var mipmap = _this.state.texture.mipmaps[0];
@@ -11900,7 +11996,7 @@ var PspGpuExecutor = (function () {
         vertices2.push(controlPoints[ucount - 1][0]);
         vertices2.push(controlPoints[ucount - 1][vcount - 1]);
         vertices2.push(controlPoints[0][vcount - 1]);
-        this.list.drawDriver.drawElements(this.state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
+        this.list.drawDriver.drawElements(this.state, 3, vertices2, vertices2.length, vertexState2);
     };
     PspGpuExecutor.prototype.light = function (index) {
         return this.state.lightning.lights[index];
@@ -12085,7 +12181,7 @@ var PspGpuList = (function () {
         this.cpuExecutor = cpuExecutor;
         this.state = state;
         this.completed = false;
-        this.status = DisplayListStatus.Paused;
+        this.status = 4;
         this.errorCount = 0;
         this.callstack = new Int32Array(1024);
         this.callstackIndex = 0;
@@ -12107,12 +12203,18 @@ var PspGpuList = (function () {
         this.current4 = ((address >>> 2) & Memory.MASK);
     };
     PspGpuList.prototype.finishPrimBatch = function () {
-        if (vertexBuffer.offsetLength == 0)
-            return;
-        this.batchPrimCount = 0;
-        this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.state.vertex);
-        vertexBuffer.reset();
-        this.primBatchPrimitiveType = -1;
+        if (optimizedDrawBuffer.dataOffset > 0) {
+            this.batchPrimCount = 0;
+            this.drawDriver.drawOptimized(this.state, optimizedDrawBuffer);
+            optimizedDrawBuffer.reset();
+            this.primBatchPrimitiveType = -1;
+        }
+        if (vertexBuffer.offsetLength > 0) {
+            this.batchPrimCount = 0;
+            this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.state.vertex);
+            vertexBuffer.reset();
+            this.primBatchPrimitiveType = -1;
+        }
     };
     PspGpuList.prototype.finish = function () {
         if (this.showOpcodes) {
@@ -12138,7 +12240,6 @@ var PspGpuList = (function () {
     });
     PspGpuList.prototype.runUntilStallInner = function () {
         var mem = this.memory;
-        var showOpcodes = this.showOpcodes;
         var table = this.executor.table;
         var stall4 = this.stall4;
         while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
@@ -12146,15 +12247,13 @@ var PspGpuList = (function () {
             var instruction = mem.readUInt32_2(instructionPC4);
             var op = (instruction >>> 24);
             var params24 = (instruction & 0x00FFFFFF);
-            if (showOpcodes)
-                this.opcodes.push(GpuOpCodes[op]);
             if (table[op](params24, instructionPC4, op))
                 return;
         }
-        this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
+        this.status = (this.isStalled) ? 3 : 0;
     };
     PspGpuList.prototype.runUntilStall = function () {
-        this.status = DisplayListStatus.Drawing;
+        this.status = 2;
         this.executor.setList(this);
         while (this.hasMoreInstructions) {
             try {
@@ -12178,7 +12277,7 @@ var PspGpuList = (function () {
     };
     PspGpuList.prototype.start = function () {
         var _this = this;
-        this.status = DisplayListStatus.Queued;
+        this.status = 1;
         this.promise = new Promise2(function (resolve, reject) {
             _this.promiseResolve = resolve;
             _this.promiseReject = reject;
@@ -12216,7 +12315,7 @@ var PspGpuListRunner = (function () {
     }
     PspGpuListRunner.prototype.allocate = function () {
         if (!this.freeLists.length)
-            throw ('Out of gpu free lists');
+            throw new Error('Out of gpu free lists');
         var list = this.freeLists.pop();
         this.runningLists.push(list);
         return list;
@@ -12233,17 +12332,17 @@ var PspGpuListRunner = (function () {
         var _peek = (function () {
             for (var n = 0; n < _this.runningLists.length; n++) {
                 var list = _this.runningLists[n];
-                if (list.status != DisplayListStatus.Completed)
+                if (list.status != 0)
                     return list.status;
             }
-            return DisplayListStatus.Completed;
+            return 0;
         });
         var result = _peek();
         console.warn('not implemented gpu list peeking -> ' + result);
         return result;
     };
     PspGpuListRunner.prototype.waitAsync = function () {
-        return Promise2.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return _state.DisplayListStatus.Completed; });
+        return Promise2.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return 0; });
     };
     return PspGpuListRunner;
 })();
@@ -12296,16 +12395,18 @@ var PspGpu = (function () {
         return 0;
     };
     PspGpu.prototype.drawSync = function (syncType) {
+        overlay.updateAndReset();
         return this.listRunner.waitAsync();
         switch (syncType) {
-            case _state.SyncType.Peek: return this.listRunner.peek();
-            case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();
+            case 1: return this.listRunner.peek();
+            case 0: return this.listRunner.waitAsync();
             default: throw (new Error("Not implemented SyncType." + syncType));
         }
     };
     return PspGpu;
 })();
 exports.PspGpu = PspGpu;
+overlay.update();
 
 },
 "src/core/gpu/instructions": function(module, exports, require) {
@@ -12575,24 +12676,6 @@ var GpuOpCodes = exports.GpuOpCodes;
 ///<reference path="../../global.d.ts" />
 var _pixelformat = require('../pixelformat');
 var PixelFormat = _pixelformat.PixelFormat;
-(function (CullingDirection) {
-    CullingDirection[CullingDirection["CounterClockWise"] = 0] = "CounterClockWise";
-    CullingDirection[CullingDirection["ClockWise"] = 1] = "ClockWise";
-})(exports.CullingDirection || (exports.CullingDirection = {}));
-var CullingDirection = exports.CullingDirection;
-(function (SyncType) {
-    SyncType[SyncType["WaitForCompletion"] = 0] = "WaitForCompletion";
-    SyncType[SyncType["Peek"] = 1] = "Peek";
-})(exports.SyncType || (exports.SyncType = {}));
-var SyncType = exports.SyncType;
-(function (DisplayListStatus) {
-    DisplayListStatus[DisplayListStatus["Completed"] = 0] = "Completed";
-    DisplayListStatus[DisplayListStatus["Queued"] = 1] = "Queued";
-    DisplayListStatus[DisplayListStatus["Drawing"] = 2] = "Drawing";
-    DisplayListStatus[DisplayListStatus["Stalling"] = 3] = "Stalling";
-    DisplayListStatus[DisplayListStatus["Paused"] = 4] = "Paused";
-})(exports.DisplayListStatus || (exports.DisplayListStatus = {}));
-var DisplayListStatus = exports.DisplayListStatus;
 var GpuFrameBufferState = (function () {
     function GpuFrameBufferState() {
         this._widthHighAddress = -1;
@@ -12603,30 +12686,6 @@ var GpuFrameBufferState = (function () {
     return GpuFrameBufferState;
 })();
 exports.GpuFrameBufferState = GpuFrameBufferState;
-(function (IndexEnum) {
-    IndexEnum[IndexEnum["Void"] = 0] = "Void";
-    IndexEnum[IndexEnum["Byte"] = 1] = "Byte";
-    IndexEnum[IndexEnum["Short"] = 2] = "Short";
-})(exports.IndexEnum || (exports.IndexEnum = {}));
-var IndexEnum = exports.IndexEnum;
-(function (NumericEnum) {
-    NumericEnum[NumericEnum["Void"] = 0] = "Void";
-    NumericEnum[NumericEnum["Byte"] = 1] = "Byte";
-    NumericEnum[NumericEnum["Short"] = 2] = "Short";
-    NumericEnum[NumericEnum["Float"] = 3] = "Float";
-})(exports.NumericEnum || (exports.NumericEnum = {}));
-var NumericEnum = exports.NumericEnum;
-(function (ColorEnum) {
-    ColorEnum[ColorEnum["Void"] = 0] = "Void";
-    ColorEnum[ColorEnum["Invalid1"] = 1] = "Invalid1";
-    ColorEnum[ColorEnum["Invalid2"] = 2] = "Invalid2";
-    ColorEnum[ColorEnum["Invalid3"] = 3] = "Invalid3";
-    ColorEnum[ColorEnum["Color5650"] = 4] = "Color5650";
-    ColorEnum[ColorEnum["Color5551"] = 5] = "Color5551";
-    ColorEnum[ColorEnum["Color4444"] = 6] = "Color4444";
-    ColorEnum[ColorEnum["Color8888"] = 7] = "Color8888";
-})(exports.ColorEnum || (exports.ColorEnum = {}));
-var ColorEnum = exports.ColorEnum;
 var Vertex = (function () {
     function Vertex() {
         this.px = 0.0;
@@ -12693,7 +12752,15 @@ var VertexState = (function () {
         this._value = 0;
         this.reversedNormal = false;
         this.textureComponentCount = 2;
+        this.weightOffset = 0;
+        this.textureOffset = 0;
+        this.colorOffset = 0;
+        this.normalOffset = 0;
+        this.positionOffset = 0;
     }
+    VertexState.prototype.oneWeightOffset = function (n) {
+        return this.weightOffset + this.weightSize * n;
+    };
     VertexState.prototype.clone = function () {
         var that = new VertexState();
         that.address = this.address;
@@ -12701,6 +12768,11 @@ var VertexState = (function () {
         that.reversedNormal = this.reversedNormal;
         that.textureComponentCount = this.textureComponentCount;
         that.size = this.size;
+        that.weightOffset = this.weightOffset;
+        that.textureOffset = this.textureOffset;
+        that.colorOffset = this.colorOffset;
+        that.normalOffset = this.normalOffset;
+        that.positionOffset = this.positionOffset;
         return that;
     };
     VertexState.prototype.getValue = function () { return this._value; };
@@ -12730,32 +12802,52 @@ var VertexState = (function () {
         }) + ')';
     };
     Object.defineProperty(VertexState.prototype, "hasTexture", {
-        get: function () { return this.texture != NumericEnum.Void; },
+        get: function () { return this.texture != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasColor", {
-        get: function () { return this.color != ColorEnum.Void; },
+        get: function () { return this.color != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasNormal", {
-        get: function () { return this.normal != NumericEnum.Void; },
+        get: function () { return this.normal != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasPosition", {
-        get: function () { return this.position != NumericEnum.Void; },
+        get: function () { return this.position != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasWeight", {
-        get: function () { return this.weight != NumericEnum.Void; },
+        get: function () { return this.weight != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "hasIndex", {
-        get: function () { return this.index != IndexEnum.Void; },
+        get: function () { return this.index != 0; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(VertexState.prototype, "positionComponents", {
+        get: function () { return 3; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(VertexState.prototype, "normalComponents", {
+        get: function () { return 3; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(VertexState.prototype, "textureComponents", {
+        get: function () { return 2; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(VertexState.prototype, "colorComponents", {
+        get: function () { return 4; },
         enumerable: true,
         configurable: true
     });
@@ -12840,28 +12932,28 @@ var VertexState = (function () {
     });
     VertexState.prototype.IndexEnumGetSize = function (item) {
         switch (item) {
-            case IndexEnum.Void: return 0;
-            case IndexEnum.Byte: return 1;
-            case IndexEnum.Short: return 2;
+            case 0: return 0;
+            case 1: return 1;
+            case 2: return 2;
             default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.NumericEnumGetSize = function (item) {
         switch (item) {
-            case NumericEnum.Void: return 0;
-            case NumericEnum.Byte: return 1;
-            case NumericEnum.Short: return 2;
-            case NumericEnum.Float: return 4;
+            case 0: return 0;
+            case 1: return 1;
+            case 2: return 2;
+            case 3: return 4;
             default: throw ("Invalid enum");
         }
     };
     VertexState.prototype.ColorEnumGetSize = function (item) {
         switch (item) {
-            case ColorEnum.Void: return 0;
-            case ColorEnum.Color5650: return 2;
-            case ColorEnum.Color5551: return 2;
-            case ColorEnum.Color4444: return 2;
-            case ColorEnum.Color8888: return 4;
+            case 0: return 0;
+            case 4: return 2;
+            case 5: return 2;
+            case 6: return 2;
+            case 7: return 4;
             default: throw ("Invalid enum");
         }
     };
@@ -12885,14 +12977,19 @@ var VertexState = (function () {
     VertexState.prototype.getVertexSize = function () {
         var size = 0;
         size = MathUtils.nextAligned(size, this.weightSize);
+        this.weightOffset = size;
         size += this.realWeightCount * this.weightSize;
         size = MathUtils.nextAligned(size, this.textureSize);
+        this.textureOffset = size;
         size += this.textureComponentCount * this.textureSize;
         size = MathUtils.nextAligned(size, this.colorSize);
+        this.colorOffset = size;
         size += 1 * this.colorSize;
         size = MathUtils.nextAligned(size, this.normalSize);
+        this.normalOffset = size;
         size += 3 * this.normalSize;
         size = MathUtils.nextAligned(size, this.positionSize);
+        this.positionOffset = size;
         size += 3 * this.positionSize;
         var alignmentSize = this.GetMaxAlignment();
         size = MathUtils.nextAligned(size, alignmentSize);
@@ -13116,18 +13213,18 @@ var TextureState = (function () {
         this.matrix = new Matrix4x4();
         this.mipmapShareClut = false;
         this.mipmapMaxLevel = 0;
-        this.filterMinification = TextureFilter.Nearest;
-        this.filterMagnification = TextureFilter.Nearest;
-        this.wrapU = WrapMode.Repeat;
+        this.filterMinification = 0;
+        this.filterMagnification = 0;
+        this.wrapU = 0;
         this.offsetU = 0;
         this.offsetV = 0;
         this.scaleU = 1;
         this.scaleV = 1;
         this.shadeU = 0;
         this.shadeV = 0;
-        this.wrapV = WrapMode.Repeat;
-        this.effect = TextureEffect.Modulate;
-        this.colorComponent = TextureColorComponent.Rgb;
+        this.wrapV = 0;
+        this.effect = 0;
+        this.colorComponent = 0;
         this.envColor = new ColorState();
         this.fragment2X = false;
         this.pixelFormat = PixelFormat.RGBA_8888;
@@ -13161,7 +13258,7 @@ exports.TextureState = TextureState;
 var CullingState = (function () {
     function CullingState() {
         this.enabled = false;
-        this.direction = CullingDirection.ClockWise;
+        this.direction = 1;
     }
     return CullingState;
 })();
@@ -13350,23 +13447,14 @@ var SkinningState = (function () {
     return SkinningState;
 })();
 exports.SkinningState = SkinningState;
-(function (StencilOperationEnum) {
-    StencilOperationEnum[StencilOperationEnum["Keep"] = 0] = "Keep";
-    StencilOperationEnum[StencilOperationEnum["Zero"] = 1] = "Zero";
-    StencilOperationEnum[StencilOperationEnum["Replace"] = 2] = "Replace";
-    StencilOperationEnum[StencilOperationEnum["Invert"] = 3] = "Invert";
-    StencilOperationEnum[StencilOperationEnum["Increment"] = 4] = "Increment";
-    StencilOperationEnum[StencilOperationEnum["Decrement"] = 5] = "Decrement";
-})(exports.StencilOperationEnum || (exports.StencilOperationEnum = {}));
-var StencilOperationEnum = exports.StencilOperationEnum;
 var StencilState = (function () {
     function StencilState() {
         this.stst = -1;
         this.sop = -1;
         this.enabled = false;
-        this.fail = StencilOperationEnum.Keep;
-        this.zpass = StencilOperationEnum.Keep;
-        this.zfail = StencilOperationEnum.Keep;
+        this.fail = 0;
+        this.zpass = 0;
+        this.zfail = 0;
         this.func = TestFunctionEnum.Always;
         this.funcRef = 0;
         this.funcMask = 0;
@@ -13479,50 +13567,12 @@ var DitheringState = (function () {
     return DitheringState;
 })();
 exports.DitheringState = DitheringState;
-(function (WrapMode) {
-    WrapMode[WrapMode["Repeat"] = 0] = "Repeat";
-    WrapMode[WrapMode["Clamp"] = 1] = "Clamp";
-})(exports.WrapMode || (exports.WrapMode = {}));
-var WrapMode = exports.WrapMode;
-(function (TextureEffect) {
-    TextureEffect[TextureEffect["Modulate"] = 0] = "Modulate";
-    TextureEffect[TextureEffect["Decal"] = 1] = "Decal";
-    TextureEffect[TextureEffect["Blend"] = 2] = "Blend";
-    TextureEffect[TextureEffect["Replace"] = 3] = "Replace";
-    TextureEffect[TextureEffect["Add"] = 4] = "Add";
-})(exports.TextureEffect || (exports.TextureEffect = {}));
-var TextureEffect = exports.TextureEffect;
-(function (TextureFilter) {
-    TextureFilter[TextureFilter["Nearest"] = 0] = "Nearest";
-    TextureFilter[TextureFilter["Linear"] = 1] = "Linear";
-    TextureFilter[TextureFilter["NearestMipmapNearest"] = 4] = "NearestMipmapNearest";
-    TextureFilter[TextureFilter["LinearMipmapNearest"] = 5] = "LinearMipmapNearest";
-    TextureFilter[TextureFilter["NearestMipmapLinear"] = 6] = "NearestMipmapLinear";
-    TextureFilter[TextureFilter["LinearMipmapLinear"] = 7] = "LinearMipmapLinear";
-})(exports.TextureFilter || (exports.TextureFilter = {}));
-var TextureFilter = exports.TextureFilter;
-(function (TextureColorComponent) {
-    TextureColorComponent[TextureColorComponent["Rgb"] = 0] = "Rgb";
-    TextureColorComponent[TextureColorComponent["Rgba"] = 1] = "Rgba";
-})(exports.TextureColorComponent || (exports.TextureColorComponent = {}));
-var TextureColorComponent = exports.TextureColorComponent;
-(function (PrimitiveType) {
-    PrimitiveType[PrimitiveType["Points"] = 0] = "Points";
-    PrimitiveType[PrimitiveType["Lines"] = 1] = "Lines";
-    PrimitiveType[PrimitiveType["LineStrip"] = 2] = "LineStrip";
-    PrimitiveType[PrimitiveType["Triangles"] = 3] = "Triangles";
-    PrimitiveType[PrimitiveType["TriangleStrip"] = 4] = "TriangleStrip";
-    PrimitiveType[PrimitiveType["TriangleFan"] = 5] = "TriangleFan";
-    PrimitiveType[PrimitiveType["Sprites"] = 6] = "Sprites";
-})(exports.PrimitiveType || (exports.PrimitiveType = {}));
-var PrimitiveType = exports.PrimitiveType;
 
 },
 "src/core/gpu/vertex": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var _state = require('./state');
 var _IndentStringGenerator = require('../../util/IndentStringGenerator');
-var ColorEnum = _state.ColorEnum;
 var VertexBuffer = (function () {
     function VertexBuffer() {
         this.offsetLength = 0;
@@ -13616,11 +13666,11 @@ var VertexReader = (function () {
         var indentStringGenerator = new _IndentStringGenerator();
         this.readOffset = 0;
         var normalize = !this.vertexState.transform2D;
-        this.createNumberJs([1, 0x80, 0x8000, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
-        this.createNumberJs([1, 0x80, 0x8000, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
+        this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
+        this.createNumberJs([1, 1, 1, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
         this.createColorJs(indentStringGenerator, this.vertexState.color);
-        this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
-        this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+        this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
+        this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
         return indentStringGenerator.output;
     };
     VertexReader.prototype.readInt8 = function () { return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])'; };
@@ -13631,25 +13681,25 @@ var VertexReader = (function () {
     VertexReader.prototype.readUInt16 = function () { return '((' + this.readInt16() + ' & 0xFFFF) >>> 0)'; };
     VertexReader.prototype.readUInt32 = function () { return '((' + this.readInt32() + ' & 0xFFFFFFFF) >>> 0)'; };
     VertexReader.prototype.createColorJs = function (indentStringGenerator, type) {
-        if (type == ColorEnum.Void)
+        if (type == 0)
             return;
         var alignment = 4;
         var sizes = [8, 8, 8, 8];
         var components = ['r', 'g', 'b', 'a'];
         switch (type) {
-            case ColorEnum.Color8888:
+            case 7:
                 alignment = 4;
                 sizes = [8, 8, 8, 8];
                 break;
-            case ColorEnum.Color5551:
+            case 5:
                 alignment = 2;
                 sizes = [5, 5, 5, 1];
                 break;
-            case ColorEnum.Color4444:
+            case 6:
                 alignment = 2;
                 sizes = [4, 4, 4, 4];
                 break;
-            case ColorEnum.Color5650:
+            case 4:
                 alignment = 2;
                 sizes = [5, 6, 5, 0];
                 break;
@@ -13677,17 +13727,17 @@ var VertexReader = (function () {
     };
     VertexReader.prototype.createNumberJs = function (scales, signed, indentStringGenerator, components, type, normalize) {
         var _this = this;
-        if (type == _state.NumericEnum.Void)
+        if (type == 0)
             return;
         components.forEach(function (component) {
             switch (type) {
-                case _state.NumericEnum.Byte:
+                case 1:
                     indentStringGenerator.write('output.' + component + ' = Math.fround(' + (signed ? _this.readInt8() : _this.readUInt8()));
                     break;
-                case _state.NumericEnum.Short:
+                case 2:
                     indentStringGenerator.write('output.' + component + ' = Math.fround(' + (signed ? _this.readInt16() : _this.readUInt16()));
                     break;
-                case _state.NumericEnum.Float:
+                case 3:
                     indentStringGenerator.write('output.' + component + ' = Math.fround(' + (_this.readFloat32()));
                     break;
             }
@@ -13699,6 +13749,35 @@ var VertexReader = (function () {
     return VertexReader;
 })();
 exports.VertexReader = VertexReader;
+var OptimizedDrawBuffer = (function () {
+    function OptimizedDrawBuffer() {
+        this.data = new Uint8Array(512 * 1024);
+        this.dataOffset = 0;
+        this.indices = new Uint16Array(64 * 1024);
+        this.indexOffset = 0;
+        this.vertexIndex = 0;
+    }
+    OptimizedDrawBuffer.prototype.reset = function () {
+        this.dataOffset = 0;
+        this.indexOffset = 0;
+        this.vertexIndex = 0;
+    };
+    OptimizedDrawBuffer.prototype.addDataWithIndices8 = function (vertices, vertexSize, indices) {
+    };
+    OptimizedDrawBuffer.prototype.addVertices = function (vertices, vertexCount, vertexSize) {
+        var verticesSize = vertexCount * vertexSize;
+        ArrayBufferUtils.copy(vertices, 0, this.data, this.dataOffset, verticesSize);
+        this.dataOffset += verticesSize;
+        for (var n = 0; n < vertexCount; n++)
+            this.indices[this.indexOffset++] = this.vertexIndex++;
+    };
+    OptimizedDrawBuffer.prototype.join = function (vertexSize) {
+        this.indices[this.indexOffset++] = this.vertexIndex - 1;
+        this.indices[this.indexOffset++] = this.vertexIndex;
+    };
+    return OptimizedDrawBuffer;
+})();
+exports.OptimizedDrawBuffer = OptimizedDrawBuffer;
 
 },
 "src/core/gpu/webgl/driver": function(module, exports, require) {
@@ -13719,10 +13798,12 @@ var WebGlPspDrawDriver = (function () {
         this.baseShaderVertString = '';
         this.transformMatrix = mat4.create();
         this.transformMatrix2d = mat4.create();
-        this.equationTranslate = null;
-        this.opsConvertTable = null;
-        this.testConvertTable = null;
-        this.testConvertTable_inv = null;
+        this.equationTranslate = [32774, 32778, 32779, 32774, 32774, 32774];
+        this.opsConvertTable = [7680, 0, 7681, 5386, 7682, 7683];
+        this.testConvertTable = [512, 519, 514, 517, 513, 515, 516, 518];
+        this.testConvertTable_inv = [512, 519, 514, 517, 516, 518, 513, 515];
+        this.optimizedDataBuffer = null;
+        this.optimizedIndexBuffer = null;
         this.vertexPool = [];
         this.vertexPool2 = [];
         this.testCount = 20;
@@ -13735,7 +13816,6 @@ var WebGlPspDrawDriver = (function () {
         this.lastBaseAddress = 0;
         this.tempVec = new Float32Array([0, 0, 0]);
         this.texMat = mat4.create();
-        this.convertPrimitiveType = null;
         var webglOptions = {
             alpha: false,
             depth: true,
@@ -13792,16 +13872,8 @@ var WebGlPspDrawDriver = (function () {
     WebGlPspDrawDriver.prototype.updateNormalState = function (program, vertexState, primitiveType) {
         var state = this.state;
         var gl = this.gl;
-        if (!this.equationTranslate)
-            this.equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD];
-        if (!this.opsConvertTable)
-            this.opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
-        if (!this.testConvertTable)
-            this.testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
-        if (!this.testConvertTable_inv)
-            this.testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
-        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
-            gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
+        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != 6))) {
+            gl.cullFace((state.culling.direction == 1) ? gl.FRONT : gl.BACK);
         }
         if (!state.clipPlane.updated) {
             state.clipPlane.updated = true;
@@ -13936,15 +14008,106 @@ var WebGlPspDrawDriver = (function () {
     WebGlPspDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
         if (count == 0)
             return;
-        this.setState(state);
-        this.setClearMode(state.clearing, state.clearFlags);
-        this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
-        this.display.setEnabledDisplay(false);
-        if (primitiveType == _state.PrimitiveType.Sprites) {
+        this.beforeDraw(state);
+        if (primitiveType == 6) {
             return this.drawSprites(vertices, count, vertexState);
         }
         else {
             return this.drawElementsInternal(primitiveType, primitiveType, vertices, count, vertexState);
+        }
+    };
+    WebGlPspDrawDriver.prototype.beforeDraw = function (state) {
+        this.setState(state);
+        this.setClearMode(state.clearing, state.clearFlags);
+        this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
+        this.display.setEnabledDisplay(false);
+    };
+    WebGlPspDrawDriver.prototype.setAttribute = function (databuffer, attribPosition, componentCount, componentType, vertexSize, offset) {
+        if (attribPosition.location < 0)
+            return;
+        var gl = this.gl;
+        gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+        gl.enableVertexAttribArray(attribPosition.location);
+        gl.vertexAttribPointer(attribPosition.location, componentCount, componentType, false, vertexSize, offset);
+    };
+    WebGlPspDrawDriver.prototype.drawOptimized = function (state, buffer) {
+        this.beforeDraw(state);
+        var state = this.state;
+        var gl = this.gl;
+        if (!this.optimizedDataBuffer)
+            this.optimizedDataBuffer = gl.createBuffer();
+        if (!this.optimizedIndexBuffer)
+            this.optimizedIndexBuffer = gl.createBuffer();
+        var databuffer = this.optimizedDataBuffer;
+        var indexbuffer = this.optimizedIndexBuffer;
+        var vs = buffer.vertexState;
+        var primType = buffer.primType;
+        gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(buffer.data.buffer, 0, buffer.dataOffset + 120), gl.DYNAMIC_DRAW);
+        var program = this.cache.getProgram(vs, state, true);
+        program.use();
+        program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
+        if (vs.hasPosition) {
+            this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset);
+        }
+        if (vs.hasTexture) {
+            this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset);
+        }
+        if (vs.hasColor) {
+            if (vs.color == 7) {
+                this.setAttribute(databuffer, program.vColor, vs.colorComponents, 5121, vs.size, vs.colorOffset);
+            }
+            else {
+                this.setAttribute(databuffer, program.vColor, 4, 5123, vs.size, vs.colorOffset);
+            }
+        }
+        if (vs.hasNormal) {
+            this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset);
+        }
+        if (vs.realWeightCount >= 1) {
+            this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0));
+            if (vs.realWeightCount >= 4) {
+                this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
+            }
+            for (var n = 0; n < vs.realWeightCount; n++) {
+                program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+            }
+        }
+        if (!vs.hasColor) {
+            var ac = this.state.ambientModelColor;
+            program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
+        }
+        if (vs.hasTexture) {
+            program.getUniform('tfx').set1i(state.texture.effect);
+            program.getUniform('tcc').set1i(state.texture.colorComponent);
+        }
+        this.updateState(program, vs, buffer.primType);
+        if (this.clearing) {
+            this.textureHandler.unbindTexture(program, state);
+        }
+        else {
+            this.prepareTexture(gl, program, vs);
+        }
+        if (vs.hasTexture) {
+            this.calcTexMatrix(vs);
+            program.getUniform('u_texMatrix').setMat4(this.texMat);
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset), gl.DYNAMIC_DRAW);
+        gl.drawElements(convertPrimitiveType[primType], buffer.indexOffset, gl.UNSIGNED_SHORT, 0);
+        if (vs.hasPosition)
+            program.vPosition.disable();
+        if (vs.hasColor)
+            program.vColor.disable();
+        if (vs.hasTexture)
+            program.vTexcoord.disable();
+        if (vs.hasNormal)
+            program.vNormal.disable();
+        if (vs.realWeightCount >= 1) {
+            program.vertexWeight1.disable();
+            if (vs.realWeightCount >= 4) {
+                program.vertexWeight2.disable();
+            }
         }
     };
     WebGlPspDrawDriver.prototype.textureFlush = function (state) {
@@ -13984,7 +14147,7 @@ var WebGlPspDrawDriver = (function () {
             this.vertexPool2[outCount++] = br;
             this.vertexPool2[outCount++] = vbl;
         }
-        this.drawElementsInternal(_state.PrimitiveType.Sprites, _state.PrimitiveType.Triangles, this.vertexPool2, outCount, vertexState);
+        this.drawElementsInternal(6, 3, this.vertexPool2, outCount, vertexState);
     };
     WebGlPspDrawDriver.prototype.demuxVertices = function (vertices, count, vertexState, primitiveType, originalPrimitiveType) {
         var textureState = this.state.texture;
@@ -14023,7 +14186,7 @@ var WebGlPspDrawDriver = (function () {
     };
     WebGlPspDrawDriver.prototype.drawElementsInternal = function (originalPrimitiveType, primitiveType, vertices, count, vertexState) {
         var gl = this.gl;
-        var program = this.cache.getProgram(vertexState, this.state);
+        var program = this.cache.getProgram(vertexState, this.state, false);
         program.use();
         this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
         this.updateState(program, vertexState, originalPrimitiveType);
@@ -14038,6 +14201,34 @@ var WebGlPspDrawDriver = (function () {
         this.unsetProgramParameters(gl, program, vertexState);
         if (this.state.clearing) {
             this.updateClearStateEnd(program, vertexState, primitiveType);
+        }
+    };
+    WebGlPspDrawDriver.prototype.calcTexMatrix = function (vertexState) {
+        var texture = this.state.texture;
+        var mipmap = texture.mipmaps[0];
+        mat4.identity(this.texMat);
+        var t = this.tempVec;
+        if (vertexState.transform2D) {
+            t[0] = 1.0 / (mipmap.bufferWidth);
+            t[1] = 1.0 / (mipmap.textureHeight);
+            t[2] = 1.0;
+            mat4.scale(this.texMat, this.texMat, t);
+        }
+        else {
+            switch (texture.textureMapMode) {
+                case _state.TextureMapMode.GU_TEXTURE_COORDS:
+                    t[0] = texture.offsetU;
+                    t[1] = texture.offsetV;
+                    t[2] = 0.0;
+                    mat4.translate(this.texMat, this.texMat, t);
+                    t[0] = texture.scaleU;
+                    t[1] = texture.scaleV;
+                    t[2] = 1.0;
+                    mat4.scale(this.texMat, this.texMat, t);
+                    break;
+                default:
+                    break;
+            }
         }
     };
     WebGlPspDrawDriver.prototype.setProgramParameters = function (gl, program, vertexState) {
@@ -14068,32 +14259,7 @@ var WebGlPspDrawDriver = (function () {
             program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
         }
         if (vertexState.hasTexture) {
-            var texture = this.state.texture;
-            var mipmap = texture.mipmaps[0];
-            mat4.identity(this.texMat);
-            var t = this.tempVec;
-            if (vertexState.transform2D) {
-                t[0] = 1.0 / (mipmap.bufferWidth);
-                t[1] = 1.0 / (mipmap.textureHeight);
-                t[2] = 1.0;
-                mat4.scale(this.texMat, this.texMat, t);
-            }
-            else {
-                switch (texture.textureMapMode) {
-                    case _state.TextureMapMode.GU_TEXTURE_COORDS:
-                        t[0] = texture.offsetU;
-                        t[1] = texture.offsetV;
-                        t[2] = 0.0;
-                        mat4.translate(this.texMat, this.texMat, t);
-                        t[0] = texture.scaleU;
-                        t[1] = texture.scaleV;
-                        t[2] = 1.0;
-                        mat4.scale(this.texMat, this.texMat, t);
-                        break;
-                    default:
-                        break;
-                }
-            }
+            this.calcTexMatrix(vertexState);
             program.getUniform('u_texMatrix').setMat4(this.texMat);
         }
     };
@@ -14111,12 +14277,13 @@ var WebGlPspDrawDriver = (function () {
             program.getAttrib('vertexWeight2').disable();
     };
     WebGlPspDrawDriver.prototype.drawArraysActual = function (gl, program, vertexState, primitiveType, count, vertices) {
-        if (!this.convertPrimitiveType)
-            this.convertPrimitiveType = [gl.POINTS, gl.LINES, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
-        gl.drawArrays(this.convertPrimitiveType[primitiveType], 0, count);
+        gl.drawArrays(convertPrimitiveType[primitiveType], 0, count);
     };
     return WebGlPspDrawDriver;
 })();
+var convertPrimitiveType = new Int32Array([0, 1, 3, 4, 5, 6]);
+var convertVertexNumericEnum = new Int32Array([0, 5120, 5122, 5126]);
+var convertVertexNumericUnsignedEnum = new Int32Array([0, 5121, 5123, 5126]);
 var ClearBufferSet;
 (function (ClearBufferSet) {
     ClearBufferSet[ClearBufferSet["ColorBuffer"] = 1] = "ColorBuffer";
@@ -14143,6 +14310,8 @@ var DummyDrawDriver = (function () {
     };
     DummyDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
     };
+    DummyDrawDriver.prototype.drawOptimized = function (state, buffer) {
+    };
     return DummyDrawDriver;
 })();
 module.exports = DummyDrawDriver;
@@ -14159,22 +14328,31 @@ var ShaderCache = (function () {
         this.shaderFragString = shaderFragString;
         this.programs = {};
     }
-    ShaderCache.prototype.getProgram = function (vertex, state) {
+    ShaderCache.prototype.getProgram = function (vertex, state, optimized) {
         var hash = vertex.hash;
         hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
         hash += Math.pow(2, 33) * (state.clearing ? 1 : 0);
+        hash += Math.pow(2, 34) * (optimized ? 1 : 0);
         if (this.programs[hash])
             return this.programs[hash];
-        return this.programs[hash] = this.createProgram(vertex, state);
+        return this.programs[hash] = this.createProgram(vertex, state, optimized);
     };
-    ShaderCache.prototype.createProgram = function (vertex, state) {
+    ShaderCache.prototype.createProgram = function (vertex, state, optimized) {
         var defines = [];
+        if (optimized)
+            defines.push('OPTIMIZED 1');
+        if (vertex.transform2D)
+            defines.push('TRANSFORM_2D 1');
+        if (vertex.hasPosition)
+            defines.push('VERTEX_POSITION ' + vertex.position);
         if (vertex.hasColor)
-            defines.push('VERTEX_COLOR 1');
+            defines.push('VERTEX_COLOR ' + vertex.color);
         if (vertex.hasTexture)
-            defines.push('VERTEX_TEXTURE 1');
+            defines.push('VERTEX_TEXTURE ' + vertex.texture);
         if (vertex.hasNormal)
-            defines.push('VERTEX_NORMAL 1');
+            defines.push('VERTEX_NORMAL ' + vertex.normal);
+        if (vertex.hasWeight)
+            defines.push('VERTEX_WEIGHT ' + vertex.weight);
         if (!state.clearing) {
             if (state.alphaTest.enabled)
                 defines.push('ALPHATEST 1');
@@ -14218,6 +14396,8 @@ var Texture = (function () {
         this.valid = true;
         this.validHint = true;
         this.swizzled = false;
+        this.recheckCount = 0;
+        this.framesEqual = 0;
         this.texture = gl.createTexture();
     }
     Texture.prototype.setInfo = function (state) {
@@ -14354,7 +14534,15 @@ var TextureHandler = (function () {
         }
     };
     TextureHandler.prototype.mustRecheckSlowHash = function (texture) {
-        return !texture || !texture.valid;
+        if (!texture)
+            return true;
+        if (texture.recheckCount++ >= texture.framesEqual) {
+            return false;
+        }
+        else {
+            texture.recheckCount = 0;
+            return false;
+        }
     };
     TextureHandler.prototype.bindTexture = function (prog, state) {
         var gl = this.gl;
@@ -14367,9 +14555,18 @@ var TextureHandler = (function () {
             return;
         var hash1 = Texture.hashFast(state);
         var texture = this.texturesByHash1[hash1];
+        var texture1 = texture;
         if (this.mustRecheckSlowHash(texture)) {
             var hash2 = Texture.hashSlow(this.memory, state);
             texture = this.texturesByHash2[hash2];
+            if (texture) {
+                if (texture1 == texture) {
+                    texture.framesEqual++;
+                }
+                else {
+                    texture.framesEqual = 0;
+                }
+            }
             if (!texture) {
                 if (!this.texturesByAddress[mipmap.address]) {
                     this.texturesByAddress[mipmap.address] = texture = new Texture(gl);
@@ -14431,7 +14628,7 @@ var TextureHandler = (function () {
             }
         }
         this.lastTexture = texture;
-        texture.bind(0, (state.texture.filterMinification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST, (state.texture.filterMagnification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST, (state.texture.wrapU == _state.WrapMode.Clamp) ? gl.CLAMP_TO_EDGE : gl.REPEAT, (state.texture.wrapV == _state.WrapMode.Clamp) ? gl.CLAMP_TO_EDGE : gl.REPEAT);
+        texture.bind(0, (state.texture.filterMinification == 1) ? gl.LINEAR : gl.NEAREST, (state.texture.filterMagnification == 1) ? gl.LINEAR : gl.NEAREST, (state.texture.wrapU == 1) ? gl.CLAMP_TO_EDGE : gl.REPEAT, (state.texture.wrapV == 1) ? gl.CLAMP_TO_EDGE : gl.REPEAT);
         prog.getUniform('uSampler').set1i(0);
         prog.getUniform('samplerClut').set1i(1);
     };
@@ -14513,6 +14710,12 @@ var WrappedWebGLProgram = (function () {
         this.fs = fs;
         this.uniforms = {};
         this.attribs = {};
+        this.vPosition = this.getAttrib('vPosition');
+        this.vColor = this.getAttrib('vColor');
+        this.vTexcoord = this.getAttrib('vTexcoord');
+        this.vNormal = this.getAttrib('vNormal');
+        this.vertexWeight1 = this.getAttrib('vertexWeight1');
+        this.vertexWeight2 = this.getAttrib('vertexWeight2');
     }
     WrappedWebGLProgram.prototype.use = function () {
         this.gl.useProgram(this.program);
@@ -28479,12 +28682,12 @@ describe('gpu', function () {
         it('should work', function () {
             var vertexState = new _state.VertexState();
             vertexState.size = 10;
-            vertexState.texture = _state.NumericEnum.Void;
-            vertexState.color = _state.ColorEnum.Void;
-            vertexState.normal = _state.NumericEnum.Void;
-            vertexState.position = _state.NumericEnum.Short;
-            vertexState.weight = _state.NumericEnum.Void;
-            vertexState.index = _state.IndexEnum.Void;
+            vertexState.texture = 0;
+            vertexState.color = 0;
+            vertexState.normal = 0;
+            vertexState.position = 2;
+            vertexState.weight = 0;
+            vertexState.index = 0;
             vertexState.weightCount = 1;
             vertexState.morphingVertexCount = 1;
             vertexState.transform2D = true;

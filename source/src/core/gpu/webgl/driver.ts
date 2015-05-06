@@ -2,6 +2,7 @@
 
 import _driver = require('../driver');
 import _state = require('../state');
+import _vertex = require('../vertex');
 import _memory = require('../../memory');
 import _display = require('../../display');
 import _shader = require('./shader');
@@ -33,6 +34,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			//antialias: false,
 			//premultipliedAlpha: false,
 			preserveDrawingBuffer: true,
+			//preserveDrawingBuffer: false,
 			//preferLowPowerToHighPerformance: false,
 			//failIfMajorPerformanceCaveat: false,
 		};
@@ -107,18 +109,13 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		this.state = state;
 	}
 
-	private equationTranslate: number[] = null;
-	private opsConvertTable: number[] = null;
-	private testConvertTable: number[] = null;
-	private testConvertTable_inv: number[] = null;
+	private equationTranslate: number[] = [GL.FUNC_ADD, GL.FUNC_SUBTRACT, GL.FUNC_REVERSE_SUBTRACT, GL.FUNC_ADD, GL.FUNC_ADD, GL.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
+	private opsConvertTable: number[] = [GL.KEEP, GL.ZERO, GL.REPLACE, GL.INVERT, GL.INCR, GL.DECR];
+	private testConvertTable: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.LESS, GL.LEQUAL, GL.GREATER, GL.GEQUAL];
+	private testConvertTable_inv: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.GREATER, GL.GEQUAL, GL.LESS, GL.LEQUAL];
 	private updateNormalState(program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
-
-		if (!this.equationTranslate) this.equationTranslate = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, gl.FUNC_ADD, gl.FUNC_ADD, gl.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
-		if (!this.opsConvertTable) this.opsConvertTable = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INVERT, gl.INCR, gl.DECR];
-		if (!this.testConvertTable) this.testConvertTable = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.LESS, gl.LEQUAL, gl.GREATER, gl.GEQUAL];
-		if (!this.testConvertTable_inv) this.testConvertTable_inv = [gl.NEVER, gl.ALWAYS, gl.EQUAL, gl.NOTEQUAL, gl.GREATER, gl.GEQUAL, gl.LESS, gl.LEQUAL];
 
 		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
 			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
@@ -223,6 +220,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			ccolorMask = true;
 		}
 
+		//calphaMask = false;
 		if (clearingFlags & ClearBufferSet.StencilBuffer) {
 			calphaMask = true;
 			gl.enable(gl.STENCIL_TEST);
@@ -271,16 +269,132 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 	drawElements(state: GpuState, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
 		if (count == 0) return;
-
-		this.setState(state);
-		this.setClearMode(state.clearing, state.clearFlags);
-		this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
-		this.display.setEnabledDisplay(false);
+		
+		this.beforeDraw(state);
 
 		if (primitiveType == _state.PrimitiveType.Sprites) {
 			return this.drawSprites(vertices, count, vertexState);
 		} else {
 			return this.drawElementsInternal(primitiveType, primitiveType, vertices, count, vertexState);
+		}
+	}
+	
+	private beforeDraw(state: GpuState) {
+		this.setState(state);
+		this.setClearMode(state.clearing, state.clearFlags);
+		this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
+		this.display.setEnabledDisplay(false);
+	}
+	
+	private setAttribute(databuffer:WebGLBuffer, attribPosition:_utils.WrappedWebGLAttrib, componentCount:number, componentType:number, vertexSize:number, offset:number) {
+		if (attribPosition.location < 0) return;
+		var gl = this.gl;
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+		gl.enableVertexAttribArray(attribPosition.location);
+		// vertexAttribPointer(this.texCoordLocation2, 2, gl.FLOAT, false, 0, 0);
+		gl.vertexAttribPointer(attribPosition.location, componentCount, componentType, false, vertexSize, offset);
+		//console.log(`${enabled}, ${name}, ${componentCount}, ${componentType}, ${vertexSize}, ${offset}`);
+	}
+	
+	private optimizedDataBuffer:WebGLBuffer = null;
+	private optimizedIndexBuffer:WebGLBuffer = null;
+	drawOptimized(state: GpuState, buffer:_vertex.OptimizedDrawBuffer):void {
+		this.beforeDraw(state);
+		var state = this.state;
+		let gl = this.gl;
+		
+		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
+		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
+		
+		let databuffer = this.optimizedDataBuffer;
+		let indexbuffer = this.optimizedIndexBuffer;
+		let vs = buffer.vertexState;
+		let primType = buffer.primType;
+		
+		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(buffer.data.buffer, 0, buffer.dataOffset + 120), gl.DYNAMIC_DRAW);
+
+		//private setAttribute(enabled:boolean, attribPosition:number, componentCount:number, componentType:number, offset:number, vertexSize:number) {
+		
+		var program = this.cache.getProgram(vs, state, true);
+		program.use();
+		program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
+		if (vs.hasPosition) {
+			this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset);	
+		}
+		if (vs.hasTexture) {
+			this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset);
+		}
+		// @TODO: Just working for RGBA8888
+		if (vs.hasColor) {
+			if (vs.color == 7) {
+				this.setAttribute(databuffer, program.vColor, vs.colorComponents, GL.UNSIGNED_BYTE, vs.size, vs.colorOffset);
+			} else {
+				this.setAttribute(databuffer, program.vColor, 4, GL.UNSIGNED_SHORT, vs.size, vs.colorOffset);
+			}
+		}
+		if (vs.hasNormal) {
+			this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset);
+		}
+		
+		if (vs.realWeightCount >= 1) {
+			this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0));
+			if (vs.realWeightCount >= 4) {
+				this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
+			}
+			for (var n = 0; n < vs.realWeightCount; n++) {
+				program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+				//program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.linear, 12 * n);
+			}
+		}
+
+		if (!vs.hasColor) {
+			var ac = this.state.ambientModelColor;
+			//console.log(ac.r, ac.g, ac.b, ac.a);
+			program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
+		}
+		//console.log(vs.hasPosition, vs.hasColor, vs.hasTexture, vs.hasNormal, vs.hasWeight, vs.position, vs.color, vs.texture);
+		
+		if (vs.hasTexture) {
+			program.getUniform('tfx').set1i(state.texture.effect);
+			program.getUniform('tcc').set1i(state.texture.colorComponent);
+		}
+
+		this.updateState(program, vs, buffer.primType);
+		//this.setProgramParameters(gl, program, vs);
+
+		// vertex: VertexState({"address":5833460,"texture":2,"color":7,"normal":0,"position":3,"weight":0,"index":0,"realWeightCount":0,"morphingVertexCount":0,"transform2D":true})
+		// jspspemu.js:14054 [0, 1, 2, 3, 4, 5, 6, 7, 6, 7]
+		if (this.clearing) {
+			this.textureHandler.unbindTexture(program, state);
+		} else {
+			this.prepareTexture(gl, program, vs);
+		}
+		
+		if (vs.hasTexture) {
+			this.calcTexMatrix(vs);
+			program.getUniform('u_texMatrix').setMat4(this.texMat);
+		}
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset), gl.DYNAMIC_DRAW);
+		//console.log('vertex.size:', vs.size, ',buffer:', buffer.dataOffset, vs.positionOffset, vs.textureOffset, vs.size);
+		//console.log('vertex:', vs.toString());
+		//console.log(new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset));
+		gl.drawElements(convertPrimitiveType[primType], buffer.indexOffset, gl.UNSIGNED_SHORT, 0);
+		//drawElements(mode: number, count: number, type: number, offset: number): void;
+		
+		if (vs.hasPosition) program.vPosition.disable();
+		if (vs.hasColor) program.vColor.disable();
+		if (vs.hasTexture) program.vTexcoord.disable();
+		if (vs.hasNormal) program.vNormal.disable();
+		
+		if (vs.realWeightCount >= 1) {
+			program.vertexWeight1.disable();
+			if (vs.realWeightCount >= 4) {
+				program.vertexWeight2.disable();
+			}
 		}
 	}
 
@@ -394,7 +508,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		var gl = this.gl;
 
 		//console.log(primitiveType);
-		var program = this.cache.getProgram(vertexState, this.state);
+		var program = this.cache.getProgram(vertexState, this.state, false);
 		program.use();
 
 		this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
@@ -413,6 +527,30 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 		if (this.state.clearing) {
 			this.updateClearStateEnd(program, vertexState, primitiveType);
+		}
+	}
+	
+	private calcTexMatrix(vertexState: _state.VertexState) {
+		var texture = this.state.texture;
+		var mipmap = texture.mipmaps[0];
+		mat4.identity(this.texMat);
+		var t = this.tempVec;
+		if (vertexState.transform2D) {
+			t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
+		} else {
+			switch (texture.textureMapMode) {
+				case _state.TextureMapMode.GU_TEXTURE_COORDS:
+					t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
+					t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
+
+					//switch (vertexState.textureSize) {
+					//	case 1: t[0] = 0x80; t[1] = 0x80; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
+					//	case 2: t[0] = 0x8000; t[1] = 0x8000; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
+					//}
+					break;
+				default:
+					break;
+			}
 		}
 	}
 
@@ -451,28 +589,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		}
 
 		if (vertexState.hasTexture) {
-			var texture = this.state.texture;
-			var mipmap = texture.mipmaps[0];
-			mat4.identity(this.texMat);
-			var t = this.tempVec;
-			if (vertexState.transform2D) {
-				t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
-			} else {
-				switch (texture.textureMapMode) {
-					case _state.TextureMapMode.GU_TEXTURE_COORDS:
-						t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
-						t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
-
-						//switch (vertexState.textureSize) {
-						//	case 1: t[0] = 0x80; t[1] = 0x80; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
-						//	case 2: t[0] = 0x8000; t[1] = 0x8000; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
-						//}
-						break;
-					default:
-						break;
-				}
-
-			}
+			this.calcTexMatrix(vertexState);
 			program.getUniform('u_texMatrix').setMat4(this.texMat);
 		}
 	}
@@ -486,13 +603,77 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		if (vertexState.realWeightCount >= 4) program.getAttrib('vertexWeight2').disable();
 	}
 
-	private convertPrimitiveType: number[] = null;
 	private drawArraysActual(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexState: _state.VertexState, primitiveType: _state.PrimitiveType, count: number, vertices: _state.Vertex[]) {
-		if (!this.convertPrimitiveType) this.convertPrimitiveType = [gl.POINTS, gl.LINES, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
-		gl.drawArrays(this.convertPrimitiveType[primitiveType], 0, count);
+		gl.drawArrays(convertPrimitiveType[primitiveType], 0, count);
 		//if (gl.getError() != gl.NO_ERROR) debugger;
 	}
+}
 
+var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, GL.TRIANGLES, GL.TRIANGLE_STRIP, GL.TRIANGLE_FAN]);
+var convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
+var convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);
+
+const enum GL {
+    DEPTH_BUFFER_BIT               = 0x00000100,
+    STENCIL_BUFFER_BIT             = 0x00000400,
+    COLOR_BUFFER_BIT               = 0x00004000,
+	
+    POINTS                         = 0x0000,
+    LINES                          = 0x0001,
+    LINE_LOOP                      = 0x0002,
+    LINE_STRIP                     = 0x0003,
+    TRIANGLES                      = 0x0004,
+    TRIANGLE_STRIP                 = 0x0005,
+    TRIANGLE_FAN                   = 0x0006,
+	
+	// BlendingFactorDest 
+    ZERO                           = 0,
+    ONE                            = 1,
+    SRC_COLOR                      = 0x0300,
+    ONE_MINUS_SRC_COLOR            = 0x0301,
+    SRC_ALPHA                      = 0x0302,
+    ONE_MINUS_SRC_ALPHA            = 0x0303,
+    DST_ALPHA                      = 0x0304,
+    ONE_MINUS_DST_ALPHA            = 0x0305,
+	
+	// BlendingFactorSrc 
+	DST_COLOR                      = 0x0306,
+    ONE_MINUS_DST_COLOR            = 0x0307,
+    SRC_ALPHA_SATURATE             = 0x0308,
+	
+    // DataType
+    BYTE                           = 0x1400, // 5120
+    UNSIGNED_BYTE                  = 0x1401, // 5121
+    SHORT                          = 0x1402, // 5122
+    UNSIGNED_SHORT                 = 0x1403, // 5123
+    INT                            = 0x1404, // 5124
+    UNSIGNED_INT                   = 0x1405, // 5125
+    FLOAT                          = 0x1406, // 5126
+	
+    NEVER                          = 0x0200,
+    LESS                           = 0x0201,
+    EQUAL                          = 0x0202,
+    LEQUAL                         = 0x0203,
+    GREATER                        = 0x0204,
+    NOTEQUAL                       = 0x0205,
+    GEQUAL                         = 0x0206,
+    ALWAYS                         = 0x0207,
+	
+	KEEP                           = 0x1E00,
+    REPLACE                        = 0x1E01,
+    INCR                           = 0x1E02,
+    DECR                           = 0x1E03,
+    INVERT                         = 0x150A,
+    INCR_WRAP                      = 0x8507,
+    DECR_WRAP                      = 0x8508,
+	
+	FUNC_ADD                       = 0x8006,
+    BLEND_EQUATION                 = 0x8009,
+    BLEND_EQUATION_RGB             = 0x8009,   /* same as BLEND_EQUATION */
+    BLEND_EQUATION_ALPHA           = 0x883D,
+	
+	FUNC_SUBTRACT                  = 0x800A,
+    FUNC_REVERSE_SUBTRACT          = 0x800B,
 }
 
 enum ClearBufferSet {

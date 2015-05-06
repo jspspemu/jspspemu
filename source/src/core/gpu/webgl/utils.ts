@@ -30,7 +30,7 @@ export class WrappedWebGLUniform {
 }
 
 export class WrappedWebGLAttrib {
-	private location: number;
+	public location: number;
 	private buffer: WebGLBuffer;
 
 	constructor(private gl: WebGLRenderingContext, private program: WebGLProgram, private name: string) {
@@ -62,21 +62,34 @@ export class WrappedWebGLAttrib {
 export class WrappedWebGLProgram {
 	private uniforms: StringDictionary<WrappedWebGLUniform> = {};
 	private attribs: StringDictionary<WrappedWebGLAttrib> = {};
+	
+	public vPosition:WrappedWebGLAttrib;
+	public vColor:WrappedWebGLAttrib;	
+	public vTexcoord:WrappedWebGLAttrib;
+	public vNormal:WrappedWebGLAttrib;
+	public vertexWeight1:WrappedWebGLAttrib;
+	public vertexWeight2:WrappedWebGLAttrib;
 
 	constructor(private gl: WebGLRenderingContext, private program: WebGLProgram, public vs: string, public fs: string) {
+		this.vPosition = this.getAttrib('vPosition');
+		this.vColor = this.getAttrib('vColor');
+		this.vTexcoord = this.getAttrib('vTexcoord');
+		this.vNormal = this.getAttrib('vNormal');
+		this.vertexWeight1 = this.getAttrib('vertexWeight1');
+		this.vertexWeight2 = this.getAttrib('vertexWeight2');
 	}
 
 	use() {
 		this.gl.useProgram(this.program);
 	}
 
-	getUniform(name: string) {
+	getUniform(name: string):WrappedWebGLUniform {
 		var uniform = this.uniforms[name];
 		if (!uniform) uniform = this.uniforms[name] = new WrappedWebGLUniform(this.gl, this.program, name);
 		return uniform;
 	}
 
-	getAttrib(name: string) {
+	getAttrib(name: string):WrappedWebGLAttrib {
 		var attrib = this.attribs[name];
 		if (!attrib) attrib = this.attribs[name] = new WrappedWebGLAttrib(this.gl, this.program, name);
 		return attrib;

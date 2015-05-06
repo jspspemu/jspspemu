@@ -1,7 +1,7 @@
 ﻿///<reference path="../../global.d.ts" />
 
 import _state = require('./state');
-
+import _vertex = require('./vertex');
 
 export interface IDrawDriver {
 	end(): void;
@@ -22,4 +22,5 @@ export interface IDrawDriver {
 	 */
 	textureSync(state: _state.GpuState):void;
 	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState):void;
+	drawOptimized(state: any, buffer:_vertex.OptimizedDrawBuffer):void;
 }

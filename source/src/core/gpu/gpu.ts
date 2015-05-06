@@ -34,8 +34,9 @@ export interface IPspGpu {
     updateStallAddr(displayListId: number, stall: number):void;
 	drawSync(syncType: _state.SyncType):void;
 }
- 
+
 var vertexBuffer = new _vertex.VertexBuffer();
+var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
 var singleCallTest = false;
 
 function bool1(p: number) { return p != 0; }
@@ -48,6 +49,68 @@ function param8(p: number, offset: number) { return (p >> offset) & 0xFF; }
 function param10(p: number, offset: number) { return (p >> offset) & 0x3FF; }
 function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
 function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
+
+class OverlaySection<T> {
+	public value:T;
+	constructor(public name:string, private resetValue:T) {
+		this.reset();
+	}
+	reset() {
+		this.value = this.resetValue;
+	}
+}
+
+class Overlay {
+	private element:HTMLDivElement;
+	private sections:OverlaySection<any>[] = [];
+	
+	constructor() {
+		var element = this.element = document.createElement('div');
+		element.style.position = 'absolute';
+		element.style.zIndex = '10000';
+		element.style.top = '0';
+		element.style.right = '0';
+		element.style.background = 'rgba(0, 0, 0, 0.3)';
+		element.style.font = '12px Arial';
+		element.style.width = '200px';
+		element.style.height = '200px';
+		element.style.padding = '4px';
+		element.style.color = 'white';
+		element.style.whiteSpace = 'pre';
+		element.innerText = 'hello world!';
+		document.body.appendChild(element);
+	}
+	
+	createSection<T>(name:string, resetValue:T):OverlaySection<T> {
+		var section = new OverlaySection(name, resetValue);
+		this.sections.push(section);
+		return section;
+	}
+	
+	update() {
+		this.element.innerText = this.sections.map(s => `${s.name}: ${s.value}`).join('\n');
+	}
+	
+	private reset() {
+		for (let s of this.sections) s.reset();
+	}
+	
+	updateAndReset() {
+		this.update();
+		this.reset();
+	}
+}
+
+var overlay = new Overlay();
+var overlayIndexCount = overlay.createSection('indexCount', 0);
+var overlayNonIndexCount = overlay.createSection('nonIndexCount', 0);
+var overlayVertexCount = overlay.createSection('vertexCount', 0);
+var trianglePrimCount = overlay.createSection('trianglePrimCount', 0);
+var triangleStripPrimCount = overlay.createSection('triangleStripPrimCount', 0);
+var spritePrimCount = overlay.createSection('spritePrimCount', 0);
+var otherPrimCount = overlay.createSection('otherPrimCount', 0);
+var optimizedCount = overlay.createSection('optimizedCount', 0);
+var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 
 class PspGpuExecutor {
 	private list: PspGpuList;
@@ -776,21 +839,40 @@ class PspGpuExecutor {
 
 		var indices: any = null;
 		switch (vertexState.index) {
-			case _state.IndexEnum.Byte: indices = list.memory.getU8Array(indicesAddress); break;
-			case _state.IndexEnum.Short: indices = list.memory.getU16Array(indicesAddress); break;
+			case _state.IndexEnum.Byte: indices = list.memory.getU8Array(indicesAddress, vertexCount); break;
+			case _state.IndexEnum.Short: indices = list.memory.getU16Array(indicesAddress, vertexCount * 2); break;
 		}
+		
+		if (vertexState.index == _state.IndexEnum.Void) {
+			overlayNonIndexCount.value += 1;
+		} else {
+			overlayIndexCount.value += 1;
+		}
+		
+		overlayVertexCount.value += vertexCount;
 
 		//if (vertexState.realWeightCount > 0) debugger;
 
 		var vertexInput = list.memory.getPointerU8Array(vertexAddress);
 
-		if (vertexState.address) {
-			if (!vertexState.hasIndex) {
-				vertexState.address += vertexState.size * vertexCount;
-			}
-		}
+		if (vertexState.address && !vertexState.hasIndex) vertexState.address += vertexState.size * vertexCount;
 
 		var drawType = PrimDrawType.SINGLE_DRAW;
+		
+		switch (primitiveType) {
+			case _state.PrimitiveType.Triangles:
+				trianglePrimCount.value++;
+				break;
+			case _state.PrimitiveType.TriangleStrip:
+				triangleStripPrimCount.value++;
+				break;
+			case _state.PrimitiveType.Sprites:
+				spritePrimCount.value++;
+				break;
+			default:
+				otherPrimCount.value++;
+				break;
+		}
 
 		switch (primitiveType) {
 			case _state.PrimitiveType.Lines:
@@ -804,13 +886,27 @@ class PspGpuExecutor {
 				drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
 				break;
 		}
-
-		if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.startDegenerateTriangleStrip();
-		{
+		
+		var optimized = false;
+		if ((vertexState.index == _state.IndexEnum.Void) && (primitiveType != _state.PrimitiveType.Sprites) && (vertexState.realMorphingVertexCount == 1)) {
+			optimized = true;	
+		}
+		
+		if (optimized) optimizedCount.value++; else nonOptimizedCount.value++; 
+		
+		var mustDegenerate = (list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE); 
+		
+		if (optimized) {
+			optimizedDrawBuffer.primType = primitiveType;
+			optimizedDrawBuffer.vertexState = vertexState;
+			if (mustDegenerate) optimizedDrawBuffer.join(vertexState.size);
+			optimizedDrawBuffer.addVertices(vertexInput, vertexCount, vertexState.size);
+		} else {
+			if (mustDegenerate) vertexBuffer.startDegenerateTriangleStrip();
 			var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
 			vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
+			if (mustDegenerate) vertexBuffer.endDegenerateTriangleStrip();
 		}
-		if ((list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE)) vertexBuffer.endDegenerateTriangleStrip();
 
 		if (drawType == PrimDrawType.SINGLE_DRAW) {
 			list.finishPrimBatch();
@@ -1083,11 +1179,18 @@ class PspGpuList {
 	primBatchPrimitiveType:number = -1;
 
 	finishPrimBatch() {
-		if (vertexBuffer.offsetLength == 0) return;
-		this.batchPrimCount = 0;
-		this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.state.vertex);
-		vertexBuffer.reset();
-		this.primBatchPrimitiveType = -1;
+		if (optimizedDrawBuffer.dataOffset > 0) {
+			this.batchPrimCount = 0;
+			this.drawDriver.drawOptimized(this.state, optimizedDrawBuffer);
+			optimizedDrawBuffer.reset();
+			this.primBatchPrimitiveType = -1;
+		}
+		if (vertexBuffer.offsetLength > 0) {
+			this.batchPrimCount = 0;
+			this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.state.vertex);
+			vertexBuffer.reset();
+			this.primBatchPrimitiveType = -1;
+		}
 	}
 
 	batchPrimCount = 0;
@@ -1115,7 +1218,7 @@ class PspGpuList {
 
 	private runUntilStallInner() {
 		var mem = this.memory;
-		var showOpcodes = this.showOpcodes;
+		//var showOpcodes = this.showOpcodes;
 		var table = this.executor.table;
 		var stall4 = this.stall4;
 
@@ -1128,7 +1231,7 @@ class PspGpuList {
 			var op = (instruction >>> 24);
 			var params24 = (instruction & 0x00FFFFFF);
 
-			if (showOpcodes) this.opcodes.push(GpuOpCodes[op]);
+			//if (showOpcodes) this.opcodes.push(GpuOpCodes[op]);
 			if (table[op](params24, instructionPC4, op)) return;
 		}
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
@@ -1197,7 +1300,7 @@ class PspGpuListRunner {
     }
 
     allocate() {
-        if (!this.freeLists.length) throw('Out of gpu free lists');
+        if (!this.freeLists.length) throw new Error('Out of gpu free lists');
         var list = this.freeLists.pop();
         this.runningLists.push(list);
         return list;
@@ -1272,6 +1375,7 @@ export class PspGpu implements IPspGpu {
 
     listSync(displayListId: number, syncType: _state.SyncType) {
         //console.log('listSync');
+		//overlay.update();
         return this.listRunner.getById(displayListId).waitAsync();
     }
 
@@ -1283,6 +1387,7 @@ export class PspGpu implements IPspGpu {
 	drawSync(syncType: _state.SyncType): any {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
+		overlay.updateAndReset();
 		return this.listRunner.waitAsync();
 
 		switch (syncType) {
@@ -1292,3 +1397,5 @@ export class PspGpu implements IPspGpu {
 		}
     }
 }
+
+overlay.update();

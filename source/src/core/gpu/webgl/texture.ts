@@ -31,6 +31,9 @@ export class Texture {
 	width: number;
 	height: number;
 
+	recheckCount = 0;
+	framesEqual = 0;
+	
 	constructor(private gl: WebGLRenderingContext) {
 		this.texture = gl.createTexture();
 	}
@@ -152,6 +155,7 @@ export class TextureHandler {
 	//private updatedTextures = new SortedSet<Texture>();
 	private invalidatedAll = false;
 
+
 	flush() {
 		//console.log('flush!');
 		for (var n = 0; n < this.textures.length; n++) {
@@ -198,7 +202,14 @@ export class TextureHandler {
 
 	private mustRecheckSlowHash(texture: Texture) {
 		//return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
-		return !texture || !texture.valid;
+		if (!texture) return true;
+		if (texture.recheckCount++ >= texture.framesEqual) {
+			//return !texture.valid;
+			return false;
+		}  else {
+			texture.recheckCount = 0;
+			return false;
+		}
 		//return !texture;
 	}
 
@@ -213,6 +224,7 @@ export class TextureHandler {
 
 		var hash1 = Texture.hashFast(state);
 		var texture = this.texturesByHash1[hash1];
+		var texture1 = texture;
 		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
 		if (this.mustRecheckSlowHash(texture)) {
 			var hash2 = Texture.hashSlow(this.memory, state);
@@ -221,6 +233,14 @@ export class TextureHandler {
 			//console.log(hash);
 
 			texture = this.texturesByHash2[hash2];
+			
+			if (texture) {
+				if (texture1 == texture) {
+					texture.framesEqual++;
+				} else {
+					texture.framesEqual = 0;
+				}
+			}
 
 			//if (!texture || !texture.valid) {
 			if (!texture) {

@@ -6,17 +6,17 @@ import _pixelformat = require('../pixelformat');
 import Memory = _memory.Memory;
 import PixelFormat = _pixelformat.PixelFormat;
 
-export enum CullingDirection {
+export const enum CullingDirection {
 	CounterClockWise = 0,
 	ClockWise = 1
 }
 
-export enum SyncType {
+export const enum SyncType {
 	WaitForCompletion = 0,
 	Peek = 1,
 }
 
-export enum DisplayListStatus {
+export const enum DisplayListStatus {
 	Completed = 0, // The list has been completed (PSP_GE_LIST_COMPLETED)
 	Queued = 1, // list is queued but not executed yet (PSP_GE_LIST_QUEUED)
 	Drawing = 2, // The list is currently being executed (PSP_GE_LIST_DRAWING)
@@ -32,20 +32,20 @@ export class GpuFrameBufferState {
 	width = 0;
 }
 
-export enum IndexEnum {
+export const enum IndexEnum {
 	Void = 0,
 	Byte = 1,
 	Short = 2,
 }
 
-export enum NumericEnum {
+export const enum NumericEnum {
 	Void = 0,
 	Byte = 1,
 	Short = 2,
 	Float = 3,
 }
 
-export enum ColorEnum {
+export const enum ColorEnum {
 	Void = 0,
 	Invalid1 = 1,
 	Invalid2 = 2,
@@ -92,6 +92,15 @@ export class VertexState {
 	reversedNormal = false;
 	textureComponentCount = 2;
 	size: number;
+	weightOffset:number = 0;
+	textureOffset:number = 0;
+	colorOffset:number = 0;
+	normalOffset:number = 0;
+	positionOffset:number = 0;
+	
+	oneWeightOffset(n:number) {
+		return this.weightOffset + this.weightSize * n; 
+	}
 
 	clone() {
 		var that = new VertexState();
@@ -100,6 +109,11 @@ export class VertexState {
 		that.reversedNormal = this.reversedNormal;
 		that.textureComponentCount = this.textureComponentCount;
 		that.size = this.size;
+		that.weightOffset = this.weightOffset;
+		that.textureOffset = this.textureOffset;
+		that.colorOffset = this.colorOffset;
+		that.normalOffset = this.normalOffset;
+		that.positionOffset = this.positionOffset;
 		return that;
 	}
 
@@ -137,6 +151,11 @@ export class VertexState {
 	get hasPosition() { return this.position != NumericEnum.Void; }
 	get hasWeight() { return this.weight != NumericEnum.Void; }
 	get hasIndex() { return this.index != IndexEnum.Void; }
+	
+	get positionComponents() { return 3; }
+	get normalComponents() { return 3; }
+	get textureComponents() { return 2; }
+	get colorComponents() { return 4; }
 
 	get texture() { return BitUtils.extractEnum<NumericEnum>(this._value, 0, 2); }
 	get color() { return BitUtils.extractEnum<ColorEnum>(this._value, 2, 3); }
@@ -209,11 +228,26 @@ export class VertexState {
 
 	private getVertexSize() {
 		var size = 0;
-		size = MathUtils.nextAligned(size, this.weightSize); size += this.realWeightCount * this.weightSize;
-		size = MathUtils.nextAligned(size, this.textureSize); size += this.textureComponentCount * this.textureSize;
-		size = MathUtils.nextAligned(size, this.colorSize); size += 1 * this.colorSize;
-		size = MathUtils.nextAligned(size, this.normalSize); size += 3 * this.normalSize;
-		size = MathUtils.nextAligned(size, this.positionSize); size += 3 * this.positionSize;
+
+		size = MathUtils.nextAligned(size, this.weightSize);
+		this.weightOffset = size;
+		size += this.realWeightCount * this.weightSize;
+
+		size = MathUtils.nextAligned(size, this.textureSize);
+		this.textureOffset = size;
+		size += this.textureComponentCount * this.textureSize;
+
+		size = MathUtils.nextAligned(size, this.colorSize);
+		this.colorOffset = size;
+		size += 1 * this.colorSize;
+		
+		size = MathUtils.nextAligned(size, this.normalSize);
+		this.normalOffset = size;
+		size += 3 * this.normalSize;
+		
+		size = MathUtils.nextAligned(size, this.positionSize);
+		this.positionOffset = size;
+		size += 3 * this.positionSize;
 
 		var alignmentSize = this.GetMaxAlignment();
 		size = MathUtils.nextAligned(size, alignmentSize);
@@ -612,7 +646,7 @@ export class SkinningState {
 	}
 }
 
-export enum StencilOperationEnum {
+export const enum StencilOperationEnum {
 	Keep = 0,
 	Zero = 1,
 	Replace = 2,
@@ -718,12 +752,12 @@ export class DitheringState {
 	enabled = false;
 }
 
-export enum WrapMode {
+export const enum WrapMode {
 	Repeat = 0,
 	Clamp = 1,
 }
 
-export enum TextureEffect {
+export const enum TextureEffect {
 	Modulate = 0,  // GU_TFX_MODULATE
 	Decal = 1,     // GU_TFX_DECAL
 	Blend = 2,     // GU_TFX_BLEND
@@ -731,7 +765,7 @@ export enum TextureEffect {
 	Add = 4,	   // GU_TFX_ADD
 }
 
-export enum TextureFilter {
+export const enum TextureFilter {
 	Nearest = 0,
 	Linear = 1,
 	NearestMipmapNearest = 4,
@@ -740,12 +774,12 @@ export enum TextureFilter {
 	LinearMipmapLinear = 7,
 }
 
-export enum TextureColorComponent {
+export const enum TextureColorComponent {
 	Rgb = 0,    // GU_TCC_RGB
 	Rgba = 1,   // GU_TCC_RGBA
 }
 
-export enum PrimitiveType {
+export const enum PrimitiveType {
 	Points = 0,
 	Lines = 1,
 	LineStrip = 2,
