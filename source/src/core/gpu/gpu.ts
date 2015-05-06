@@ -782,7 +782,7 @@ class PspGpuExecutor {
 
 		//if (vertexState.realWeightCount > 0) debugger;
 
-		var vertexInput = list.memory.getPointerDataView(vertexAddress);
+		var vertexInput = list.memory.getPointerU8Array(vertexAddress);
 
 		if (vertexState.address) {
 			if (!vertexState.hasIndex) {
@@ -837,7 +837,7 @@ class PspGpuExecutor {
 		var vertexState = this.state.vertex;
 		var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
 		var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
-		var vertexInput = this.list.memory.getPointerDataView(vertexAddress);
+		var vertexInput = this.list.memory.getPointerU8Array(vertexAddress);
 
 		var vertexState2 = vertexState.clone();
 		vertexState2.texture = _state.NumericEnum.Float;

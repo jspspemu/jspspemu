@@ -4,7 +4,7 @@ import instructions = require('./cpu_instructions');
 import _ast = require('./cpu_ast');
 import Instruction = instructions.Instruction;
 
-var ast: _ast.MipsAstBuilder;
+var ast: _ast.MipsAstBuilder = new _ast.MipsAstBuilder();
 
 function assignGpr(index: number, expr: _ast.ANodeStm) { return ast.assignGpr(index, expr); }
 function assignFpr(index: number, expr: _ast.ANodeStm) { return ast.assignFpr(index, expr); }
@@ -350,7 +350,6 @@ class PrefixPrediction {
 
 export class InstructionAst {
 	constructor() {
-		ast = new _ast.MipsAstBuilder();
 	}
 
 	private _vpfxs = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);

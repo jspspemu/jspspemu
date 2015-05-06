@@ -24,7 +24,9 @@ describe('gpu', () => {
 
 			var vertexReader = VertexReaderFactory.get(vertexState)
 
-            var vertexInput = new DataView(new ArrayBuffer(128));
+            var vi2 = new ArrayBuffer(128);
+            var vi8 = new Uint8Array(vi2);
+            var vertexInput = new DataView(vi2);
             vertexInput.setInt16(0, 100, true);
             vertexInput.setInt16(2, 200, true);
             vertexInput.setInt16(4, 0, true);
@@ -38,7 +40,7 @@ describe('gpu', () => {
 
             //console.log(vertexReader.readCode);
 
-            vertexReader.readCount([vertex1, vertex2], 0, vertexInput, null, 2, vertexState.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexState.hasIndex);
 
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);

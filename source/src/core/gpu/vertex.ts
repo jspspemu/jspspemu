@@ -86,7 +86,7 @@ export class VertexReader {
 
 	private oneOuput = [new _state.Vertex()];
 	private oneIndices = [0];
-	readOne(input: DataView, index: number) {
+	readOne(input: Uint8Array, index: number) {
 		this.oneIndices[0] = index;
 		this.oneOuput[0] = new _state.Vertex();
 		this.readCount(this.oneOuput, 0, input, this.oneIndices, 1, true);
@@ -98,7 +98,7 @@ export class VertexReader {
 	s16 = new Int16Array(this.input2.buffer);
 	s32 = new Int32Array(this.input2.buffer);
 	f32 = new Float32Array(this.input2.buffer);
-	readCount(output: _state.Vertex[], verticesOffset: number, input: DataView, indices: number[], count: number, hasIndex: boolean) {
+	readCount(output: _state.Vertex[], verticesOffset: number, input: Uint8Array, indices: number[], count: number, hasIndex: boolean) {
 		if (hasIndex) {
 			var maxDatacount = 0;
 			for (var n = 0; n < count; n++) maxDatacount = Math.max(maxDatacount, indices[n] + 1);
@@ -107,7 +107,7 @@ export class VertexReader {
 		}
 		maxDatacount *= this.vertexState.size;
 
-		this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
+		for (var n = 0; n < maxDatacount; n++) this.s8[n] = input[n];
 
 		if (hasIndex) {
 			this.readSeveralIndexFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices);
@@ -162,9 +162,9 @@ export class VertexReader {
 		var offset = 0;
 		for (var n = 0; n < 4; n++) {
 			var size = sizes[n], component = components[n];
-			indentStringGenerator.write('output.' + component + ' = Math.fround(');
-			indentStringGenerator.write((size != 0) ? ('(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : '1.0');
-			indentStringGenerator.write(')\n');
+			indentStringGenerator.write('output.' + component + ' = ');
+			indentStringGenerator.write((size != 0) ? ('Math.fround(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : 'Math.fround(1.0)');
+			indentStringGenerator.write('\n');
 			offset += size;
 		}
 		//indentStringGenerator.write('debugger;\n');

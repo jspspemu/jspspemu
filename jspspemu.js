@@ -5983,7 +5983,7 @@ exports.MipsAstBuilder = MipsAstBuilder;
 "src/core/cpu/cpu_codegen": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var _ast = require('./cpu_ast');
-var ast;
+var ast = new _ast.MipsAstBuilder();
 function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
 function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
 function assignFpr_I(index, expr) { return ast.assignFpr_I(index, expr); }
@@ -6329,7 +6329,6 @@ var InstructionAst = (function () {
         this._vpfxt = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);
         this._vpfxd = new PrefixPrediction(PrefixPrediction.DEFAULT_STORE_VALUE);
         this.enableStaticPrefixVfpuOptimization = true;
-        ast = new _ast.MipsAstBuilder();
     }
     InstructionAst.prototype.reset = function () {
         this._vpfxs.reset();
@@ -11787,7 +11786,7 @@ var PspGpuExecutor = (function () {
                 indices = list.memory.getU16Array(indicesAddress);
                 break;
         }
-        var vertexInput = list.memory.getPointerDataView(vertexAddress);
+        var vertexInput = list.memory.getPointerU8Array(vertexAddress);
         if (vertexState.address) {
             if (!vertexState.hasIndex) {
                 vertexState.address += vertexState.size * vertexCount;
@@ -11839,7 +11838,7 @@ var PspGpuExecutor = (function () {
         var vertexState = this.state.vertex;
         var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
         var vertexAddress = this.state.getAddressRelativeToBaseOffset(this.state.vertex.address);
-        var vertexInput = this.list.memory.getPointerDataView(vertexAddress);
+        var vertexInput = this.list.memory.getPointerU8Array(vertexAddress);
         var vertexState2 = vertexState.clone();
         vertexState2.texture = _state.NumericEnum.Float;
         var getBezierControlPoints = function (ucount, vcount) {
@@ -13568,7 +13567,8 @@ var VertexReader = (function () {
             maxDatacount = count;
         }
         maxDatacount *= this.vertexState.size;
-        this.input2.set(new Uint8Array(input.buffer, input.byteOffset, maxDatacount));
+        for (var n = 0; n < maxDatacount; n++)
+            this.s8[n] = input[n];
         if (hasIndex) {
             this.readSeveralIndexFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices);
         }
@@ -13624,9 +13624,9 @@ var VertexReader = (function () {
         var offset = 0;
         for (var n = 0; n < 4; n++) {
             var size = sizes[n], component = components[n];
-            indentStringGenerator.write('output.' + component + ' = Math.fround(');
-            indentStringGenerator.write((size != 0) ? ('(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : '1.0');
-            indentStringGenerator.write(')\n');
+            indentStringGenerator.write('output.' + component + ' = ');
+            indentStringGenerator.write((size != 0) ? ('Math.fround(((temp >> ' + offset + ') & ' + BitUtils.mask(size) + ') / ' + BitUtils.mask(size) + ');') : 'Math.fround(1.0)');
+            indentStringGenerator.write('\n');
             offset += size;
         }
     };
@@ -14301,7 +14301,6 @@ var TextureHandler = (function () {
         for (var n = 0; n < this.textures.length; n++) {
             var texture = this.textures[n];
             texture.validHint = false;
-            texture.valid = false;
         }
     };
     TextureHandler.prototype.invalidatedMemoryAll = function () {
@@ -28455,7 +28454,9 @@ describe('gpu', function () {
             vertexState.transform2D = true;
             vertexState.textureComponentCount = 2;
             var vertexReader = VertexReaderFactory.get(vertexState);
-            var vertexInput = new DataView(new ArrayBuffer(128));
+            var vi2 = new ArrayBuffer(128);
+            var vi8 = new Uint8Array(vi2);
+            var vertexInput = new DataView(vi2);
             vertexInput.setInt16(0, 100, true);
             vertexInput.setInt16(2, 200, true);
             vertexInput.setInt16(4, 0, true);
@@ -28464,7 +28465,7 @@ describe('gpu', function () {
             vertexInput.setInt16(14, 400, true);
             var vertex1 = new _state.Vertex();
             var vertex2 = new _state.Vertex();
-            vertexReader.readCount([vertex1, vertex2], 0, vertexInput, null, 2, vertexState.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexState.hasIndex);
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
             assert.equal(vertex1.pz, 0);

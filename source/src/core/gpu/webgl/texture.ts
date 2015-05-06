@@ -172,7 +172,7 @@ export class TextureHandler {
 		for (var n = 0; n < this.textures.length; n++) {
 			var texture = this.textures[n];
 			texture.validHint = false;
-			texture.valid = false;
+			//texture.valid = false;
 		}
 	}
 
