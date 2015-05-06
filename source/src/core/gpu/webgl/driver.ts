@@ -338,9 +338,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset);
 		}
 		
-		if (vs.realWeightCount >= 1) {
+		if (vs.realWeightCount > 0) {
 			this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0));
-			if (vs.realWeightCount >= 4) {
+			if (vs.realWeightCount > 4) {
 				this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
 			}
 			for (var n = 0; n < vs.realWeightCount; n++) {
@@ -390,9 +390,9 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		if (vs.hasTexture) program.vTexcoord.disable();
 		if (vs.hasNormal) program.vNormal.disable();
 		
-		if (vs.realWeightCount >= 1) {
+		if (vs.realWeightCount > 0) {
 			program.vertexWeight1.disable();
-			if (vs.realWeightCount >= 4) {
+			if (vs.realWeightCount > 4) {
 				program.vertexWeight2.disable();
 			}
 		}
@@ -568,10 +568,10 @@ class WebGlPspDrawDriver implements IDrawDriver {
 			program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
 		}
 
-		if (vertexState.realWeightCount >= 1) {
+		if (vertexState.realWeightCount > 0) {
 			//debugger;
 			program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
-			if (vertexState.realWeightCount >= 4) {
+			if (vertexState.realWeightCount > 4) {
 				program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
 			}
 			for (var n = 0; n < vertexState.realWeightCount; n++) {
@@ -613,6 +613,7 @@ var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, G
 var convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);
 
+// https://www.khronos.org/registry/webgl/specs/1.0/#5.14
 const enum GL {
     DEPTH_BUFFER_BIT               = 0x00000100,
     STENCIL_BUFFER_BIT             = 0x00000400,
@@ -674,6 +675,12 @@ const enum GL {
 	
 	FUNC_SUBTRACT                  = 0x800A,
     FUNC_REVERSE_SUBTRACT          = 0x800B,
+	
+    NO_ERROR                       = 0,
+    INVALID_ENUM                   = 0x0500,
+    INVALID_VALUE                  = 0x0501,
+    INVALID_OPERATION              = 0x0502,
+    OUT_OF_MEMORY                  = 0x0505,
 }
 
 enum ClearBufferSet {

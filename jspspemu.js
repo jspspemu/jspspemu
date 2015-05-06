@@ -14062,9 +14062,9 @@ var WebGlPspDrawDriver = (function () {
         if (vs.hasNormal) {
             this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset);
         }
-        if (vs.realWeightCount >= 1) {
+        if (vs.realWeightCount > 0) {
             this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0));
-            if (vs.realWeightCount >= 4) {
+            if (vs.realWeightCount > 4) {
                 this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
             }
             for (var n = 0; n < vs.realWeightCount; n++) {
@@ -14101,9 +14101,9 @@ var WebGlPspDrawDriver = (function () {
             program.vTexcoord.disable();
         if (vs.hasNormal)
             program.vNormal.disable();
-        if (vs.realWeightCount >= 1) {
+        if (vs.realWeightCount > 0) {
             program.vertexWeight1.disable();
-            if (vs.realWeightCount >= 4) {
+            if (vs.realWeightCount > 4) {
                 program.vertexWeight2.disable();
             }
         }
@@ -14240,9 +14240,9 @@ var WebGlPspDrawDriver = (function () {
         if (vertexState.hasNormal) {
             program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
         }
-        if (vertexState.realWeightCount >= 1) {
+        if (vertexState.realWeightCount > 0) {
             program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
-            if (vertexState.realWeightCount >= 4) {
+            if (vertexState.realWeightCount > 4) {
                 program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
             }
             for (var n = 0; n < vertexState.realWeightCount; n++) {

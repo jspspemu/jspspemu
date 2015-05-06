@@ -99,6 +99,12 @@ attribute vec4 vPosition;
 #endif
 
 #ifdef VERTEX_COLOR
+
+// We will be able to use >> and && when webgl2 is released.
+// Since the emulator requires quite power, probably mobiles/desktops
+// that we will be able to run it at decent speeds will support opengl es 3.0,
+// and thus webgl2
+
 void DecodeColor5650(inout highp vec4 C)
 {
     int packedBits = int(C.x);
