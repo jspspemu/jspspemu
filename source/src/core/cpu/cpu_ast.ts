@@ -33,12 +33,14 @@ export class ANodeStmLabel extends ANodeStm {
 
 export class ANodeStmStaticJump extends ANodeStm {
 	type = 'normal';
-	constructor(public cond: ANodeExpr, public address: number) { super(); }
+	constructor(public cond: ANodeExpr, public address: number, public branchCode: ANodeStm) { super(); }
+	
+	get branchCodeJs() { return this.branchCode ? this.branchCode.toJs() : ''; }
 
 	toJs() {
 		switch (this.type) {
-			case 'normal': return `if (${this.cond.toJs()}) { loop_state = ${addressToHex(this.address)}; continue loop; }`;
-			case 'while': return `if (${this.cond.toJs()}) { continue loop_${addressToHex(this.address)}; } else { break loop_${addressToHex(this.address)}; } }`;
+			case 'normal': return `if (${this.cond.toJs()}) { ${this.branchCodeJs}; loop_state = ${addressToHex(this.address)}; continue loop; }`;
+			case 'while': return `if (${this.cond.toJs()}) { ${this.branchCodeJs}; continue loop_${addressToHex(this.address)}; } else { break loop_${addressToHex(this.address)}; } }`;
 		}
 		
 	}
@@ -112,7 +114,7 @@ class RelooperBlock {
 }
 
 class RelooperBranch {
-	constructor(public to:RelooperBlock, public cond:string) {
+	constructor(public to:RelooperBlock, public cond:string, public onjumpCode:string) {
 	}
 }
 
@@ -160,8 +162,8 @@ class SimpleRelooper {
 		this.blocks.push(block);
 		return block;
 	}
-	addBranch(from:RelooperBlock, to:RelooperBlock, cond?:string) {
-		var branch = new RelooperBranch(to, cond);
+	addBranch(from:RelooperBlock, to:RelooperBlock, cond?:string, onjumpcode?:string) {
+		var branch = new RelooperBranch(to, cond, onjumpcode);
 		if (cond) {
 			from.conditionalBranches.push(branch);
 			to.conditionalReferences.push(from);
@@ -187,17 +189,18 @@ class SimpleRelooper {
 				}
 				
 				if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
-					let condBranch = nblock.conditionalBranches[0];
+					let branch = nblock.conditionalBranches[0];
 					writer.write(`while (true) {\n`);
 					writer.indent();
 					writer.write(block.code);
-					writer.write(`if (!(${condBranch.cond})) break;\n`);
+					writer.write(`if (!(${branch.cond})) break;\n`);
+					writer.write(`${branch.onjumpCode};\n`);
 					writer.unindent();
 					writer.write(`}\n`);
 					writer.write(nblock.code);
 				} else {		
 					for (let branch of block.conditionalBranches) {
-						writer.write(`if (${branch.cond}) { label = ${branch.to.index}; continue loop_label; }\n`);
+						writer.write(`if (${branch.cond}) { ${branch.onjumpCode}; label = ${branch.to.index}; continue loop_label; }\n`);
 					}
 		
 					writer.write(block.code);
@@ -240,31 +243,7 @@ export class ANodeFunction extends ANodeStmList {
 		}
 		
 		var text:string = null;
-		
-		//var relooper = new BaseRelooper();
-		//Relooper.setDebug(true);
 
-		/*
-		Relooper.init();		
-		try {
-			for (let block of blocks) block.rblock = Relooper.addBlock(block.code);
-
-			for (let n = 0; n < blocks.length; n++) {
-				let block = blocks[n];
-				let nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
-				let jblock = block.jump ? blocksByLabel[block.jump.address] : null;
-				if (nblock) Relooper.addBranch(block.rblock, nblock.rblock);
-				if (jblock) Relooper.addBranch(block.rblock, jblock.rblock, block.jump.cond.toJs());
-			}
-
-			text = Relooper.render(blocks[0].rblock);
-		} catch (e) {
-			text = null;
-		} finally {
-			Relooper.cleanup();
-		}
-		*/
-		
 		if (text === null) {
 			var relooper = new SimpleRelooper();
 
@@ -276,7 +255,7 @@ export class ANodeFunction extends ANodeStmList {
 				let nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
 				let jblock = block.jump ? blocksByLabel[block.jump.address] : null;
 				if (nblock) relooper.addBranch(block.rblock, nblock.rblock);
-				if (jblock) relooper.addBranch(block.rblock, jblock.rblock, block.jump.cond.toJs());
+				if (jblock) relooper.addBranch(block.rblock, jblock.rblock, block.jump.cond.toJs(), block.jump.branchCodeJs);
 			}
 			text = relooper.render(blocks[0].rblock);
 			relooper.cleanup();
@@ -435,7 +414,7 @@ export class AstBuilder {
 	label(address:number) { return new ANodeStmLabel(address); }
 	//jump(label: ANodeStmLabel) { return new ANodeStmJump(label); }
 	//djump(node: ANodeExpr) { return new ANodeStmDynamicJump(node); }
-	sjump(cond:ANodeExpr, value: number) { return new ANodeStmStaticJump(cond, value); }
+	sjump(cond:ANodeExpr, value: number, branchCode?:ANodeStm) { return new ANodeStmStaticJump(cond, value, branchCode); }
 	_return() { return new ANodeStmReturn(); }
 	raw_stm(content: string) { return new ANodeStmRaw(content); }
 	raw(content: string) { return new ANodeExprLValueVar(content); }

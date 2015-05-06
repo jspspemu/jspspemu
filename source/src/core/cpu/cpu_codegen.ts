@@ -348,6 +348,17 @@ class PrefixPrediction {
 	}
 }
 
+export class BranchFlagStm extends _ast.ANodeStm {
+	constructor(public cond:_ast.ANodeExpr, public pc:number) {
+		super();
+	}
+	
+	toJs() {
+		//return `BRANCHFLAG = ${this.cond.toJs()}; BRANCHPC = ${addressToHex(this.pc)};`;
+		return `BRANCHFLAG = ${this.cond.toJs()};`;
+	}
+}
+		
 export class InstructionAst {
 	constructor() {
 	}
@@ -969,10 +980,7 @@ export class InstructionAst {
 	}
 
 	private _branch(i: Instruction, cond: _ast.ANodeExpr) {
-		return stms([
-			stm(assign(branchflag(), cond)),
-			stm(assign(branchpc(), u_imm32(i.PC + i.imm16 * 4 + 4)))
-		]);
+		return new BranchFlagStm(cond, i.PC + i.imm16 * 4 + 4);
 	}
 
 	beq(i: Instruction) { return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt))); }

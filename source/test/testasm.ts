@@ -125,6 +125,19 @@ describe('testasm cpu running', function () {
             { "$1": 2, "$2": 2 }
         );
     });
+    it('branch1_likely', function () {
+        assertProgram(
+            "branch beql",
+            { "$1": 0, "$2": 0 },
+            [
+                ":label1",
+                "addi r2, r2, 1",
+                "beql r1, r0, label1",
+                "addi r1, r1, 1",
+            ],
+            { "$1": 1, "$2": 2 }
+        );
+    });
     it('branch2', function () {
         assertProgram(
             "branch bne",

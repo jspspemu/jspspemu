@@ -705,7 +705,7 @@ export interface InstructionUsage {
 
 class PspInstructionStm extends _ast.ANodeStm {
 	public PC: number;
-	constructor(private di: _instructions.DecodedInstruction, private code: _ast.ANodeStm) {
+	constructor(public di: _instructions.DecodedInstruction, public code: _ast.ANodeStm) {
 		super();
 		this.PC = di.PC;
 	}
@@ -954,7 +954,7 @@ export class FunctionGenerator {
 
 		var func = ast.func(
 			info.start,
-			ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'),
+			ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'),
 			ast.raw_stm('state.jumpCall = null; return;'),
 			[]
 		);
@@ -1008,6 +1008,7 @@ export class FunctionGenerator {
 			} else {
 				var di2 = this.decodeInstruction(PC + 4);
 				var delayedSlotInstruction = this.generatePspInstruction(di2);
+				let isLikely = di.type.isLikely;
 				var delayedCode = ast.stm(di.type.isLikely ? ast._if(ast.branchflag(), delayedSlotInstruction) : delayedSlotInstruction);
 
 				var targetAddress = di.targetAddress & Memory.MASK;
@@ -1042,21 +1043,26 @@ export class FunctionGenerator {
 								func.add(ast.raw(`return;`));
 							}
 						} else {
-							func.add(ast.raw(`var expectedRA = state.RA = ${nextAddressHex};`));
+							func.add(ast.raw(`expectedRA = state.RA = ${nextAddressHex};`));
 							func.add(delayedCode);
 							func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
-							func.add(ast.raw(`while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
-							func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
+							func.add(ast.raw(`
+								if (state.PC != expectedRA) {
+									while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);
+									state.jumpCall = null;
+									return;
+								}`
+							));
 						}
 					}
-				} else if (type.isJal) {
+				} else if (type.isJal) { // jalr, bgezal...
 					var cachefuncName = `cachefunc_${addressToHex(PC)}`; args[cachefuncName] = null;
 					var cacheaddrName = `cacheaddr_${addressToHex(PC)}`; args[cacheaddrName] = -1;
 					func.add(ins);
 					func.add(delayedCode);
 					func.add(ast.raw('if (BRANCHFLAG) {'));
 					func.add(ast.raw(`state.PC = BRANCHPC & ${Memory.MASK};`));
-					func.add(ast.raw(`var expectedRA = state.RA;`));
+					func.add(ast.raw(`expectedRA = state.RA;`));
 					func.add(ast.raw(`if (args.${cacheaddrName} != state.PC) args.${cachefuncName} = state.getFunction(args.${cacheaddrName} = state.PC);`));
 					func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
 					func.add(ast.raw(`while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
@@ -1069,18 +1075,31 @@ export class FunctionGenerator {
 						func.add(ast.raw(`state.PC = state.gpr[${di.instruction.rs}];`));
 						func.add(ast.raw('state.jumpCall = null;'));
 						func.add(ast.raw('return;'));
-					} else {
+					} else if (type.name == 'j') {
 						func.add(ins);
 						func.add(delayedCode);
 						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
 						func.add(ast.raw('return;'));
-					}
-				} else {
-					func.add(ins);
-					func.add(delayedCode);
-					if (type.isFixedAddressJump && labels[targetAddress]) {
-						func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
 					} else {
+						debugger;
+						throw new Error("Unexpected!");
+					}
+				} else { // branch
+					if (type.isFixedAddressJump && labels[targetAddress]) {
+						let bf:_codegen.BranchFlagStm = <any>((<PspInstructionStm>ins).code);
+						//console.log(ins);
+						//console.log(bf.cond);
+						
+						if (isLikely) {
+							func.add(ast.sjump(bf.cond, targetAddress, delayedSlotInstruction));
+						} else {
+							func.add(ins);
+							func.add(delayedCode);
+							func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
+						}
+					} else {
+						func.add(ins);
+						func.add(delayedCode);
 						func.add(ast.raw(`if (BRANCHFLAG) {`));
 						func.add(ast.raw(`state.PC = ${targetAddressHex};`));
 						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));

@@ -5471,16 +5471,22 @@ var ANodeStmLabel = (function (_super) {
 exports.ANodeStmLabel = ANodeStmLabel;
 var ANodeStmStaticJump = (function (_super) {
     __extends(ANodeStmStaticJump, _super);
-    function ANodeStmStaticJump(cond, address) {
+    function ANodeStmStaticJump(cond, address, branchCode) {
         _super.call(this);
         this.cond = cond;
         this.address = address;
+        this.branchCode = branchCode;
         this.type = 'normal';
     }
+    Object.defineProperty(ANodeStmStaticJump.prototype, "branchCodeJs", {
+        get: function () { return this.branchCode ? this.branchCode.toJs() : ''; },
+        enumerable: true,
+        configurable: true
+    });
     ANodeStmStaticJump.prototype.toJs = function () {
         switch (this.type) {
-            case 'normal': return "if (" + this.cond.toJs() + ") { loop_state = " + addressToHex(this.address) + "; continue loop; }";
-            case 'while': return "if (" + this.cond.toJs() + ") { continue loop_" + addressToHex(this.address) + "; } else { break loop_" + addressToHex(this.address) + "; } }";
+            case 'normal': return "if (" + this.cond.toJs() + ") { " + this.branchCodeJs + "; loop_state = " + addressToHex(this.address) + "; continue loop; }";
+            case 'while': return "if (" + this.cond.toJs() + ") { " + this.branchCodeJs + "; continue loop_" + addressToHex(this.address) + "; } else { break loop_" + addressToHex(this.address) + "; } }";
         }
     };
     return ANodeStmStaticJump;
@@ -5536,9 +5542,10 @@ var RelooperBlock = (function () {
     return RelooperBlock;
 })();
 var RelooperBranch = (function () {
-    function RelooperBranch(to, cond) {
+    function RelooperBranch(to, cond, onjumpCode) {
         this.to = to;
         this.cond = cond;
+        this.onjumpCode = onjumpCode;
     }
     return RelooperBranch;
 })();
@@ -5575,8 +5582,8 @@ var SimpleRelooper = (function () {
         this.blocks.push(block);
         return block;
     };
-    SimpleRelooper.prototype.addBranch = function (from, to, cond) {
-        var branch = new RelooperBranch(to, cond);
+    SimpleRelooper.prototype.addBranch = function (from, to, cond, onjumpcode) {
+        var branch = new RelooperBranch(to, cond, onjumpcode);
         if (cond) {
             from.conditionalBranches.push(branch);
             to.conditionalReferences.push(from);
@@ -5602,11 +5609,12 @@ var SimpleRelooper = (function () {
                     writer.indent();
                 }
                 if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
-                    var condBranch = nblock.conditionalBranches[0];
+                    var branch = nblock.conditionalBranches[0];
                     writer.write("while (true) {\n");
                     writer.indent();
                     writer.write(block.code);
-                    writer.write("if (!(" + condBranch.cond + ")) break;\n");
+                    writer.write("if (!(" + branch.cond + ")) break;\n");
+                    writer.write(branch.onjumpCode + ";\n");
                     writer.unindent();
                     writer.write("}\n");
                     writer.write(nblock.code);
@@ -5614,7 +5622,7 @@ var SimpleRelooper = (function () {
                 else {
                     for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
                         var branch = _c[_b];
-                        writer.write("if (" + branch.cond + ") { label = " + branch.to.index + "; continue loop_label; }\n");
+                        writer.write("if (" + branch.cond + ") { " + branch.onjumpCode + "; label = " + branch.to.index + "; continue loop_label; }\n");
                     }
                     writer.write(block.code);
                 }
@@ -5675,7 +5683,7 @@ var ANodeFunction = (function (_super) {
                 if (nblock)
                     relooper.addBranch(block_2.rblock, nblock.rblock);
                 if (jblock)
-                    relooper.addBranch(block_2.rblock, jblock.rblock, block_2.jump.cond.toJs());
+                    relooper.addBranch(block_2.rblock, jblock.rblock, block_2.jump.cond.toJs(), block_2.jump.branchCodeJs);
             }
             text = relooper.render(blocks[0].rblock);
             relooper.cleanup();
@@ -5921,7 +5929,7 @@ var AstBuilder = (function () {
     };
     AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
     AstBuilder.prototype.label = function (address) { return new ANodeStmLabel(address); };
-    AstBuilder.prototype.sjump = function (cond, value) { return new ANodeStmStaticJump(cond, value); };
+    AstBuilder.prototype.sjump = function (cond, value, branchCode) { return new ANodeStmStaticJump(cond, value, branchCode); };
     AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
     AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
     AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
@@ -5982,6 +5990,12 @@ exports.MipsAstBuilder = MipsAstBuilder;
 },
 "src/core/cpu/cpu_codegen": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
 var _ast = require('./cpu_ast');
 var ast = new _ast.MipsAstBuilder();
 function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
@@ -6323,6 +6337,19 @@ var PrefixPrediction = (function () {
     PrefixPrediction.DEFAULT_STORE_VALUE = 0x00000000;
     return PrefixPrediction;
 })();
+var BranchFlagStm = (function (_super) {
+    __extends(BranchFlagStm, _super);
+    function BranchFlagStm(cond, pc) {
+        _super.call(this);
+        this.cond = cond;
+        this.pc = pc;
+    }
+    BranchFlagStm.prototype.toJs = function () {
+        return "BRANCHFLAG = " + this.cond.toJs() + ";";
+    };
+    return BranchFlagStm;
+})(_ast.ANodeStm);
+exports.BranchFlagStm = BranchFlagStm;
 var InstructionAst = (function () {
     function InstructionAst() {
         this._vpfxs = new PrefixPrediction(PrefixPrediction.DEFAULT_LOAD_VALUE);
@@ -6870,10 +6897,7 @@ var InstructionAst = (function () {
         return assign(pc(), u_imm32(_pc));
     };
     InstructionAst.prototype._branch = function (i, cond) {
-        return stms([
-            stm(assign(branchflag(), cond)),
-            stm(assign(branchpc(), u_imm32(i.PC + i.imm16 * 4 + 4)))
-        ]);
+        return new BranchFlagStm(cond, i.PC + i.imm16 * 4 + 4);
     };
     InstructionAst.prototype.beq = function (i) { return this._branch(i, binop(gpr(i.rs), "==", gpr(i.rt))); };
     InstructionAst.prototype.bne = function (i) { return this._branch(i, binop(gpr(i.rs), "!=", gpr(i.rt))); };
@@ -7966,7 +7990,7 @@ var FunctionGenerator = (function () {
         var args = {};
         if (info.start == CpuSpecialAddresses.EXIT_THREAD)
             return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
-        var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), ast.raw_stm('state.jumpCall = null; return;'), []);
+        var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), ast.raw_stm('state.jumpCall = null; return;'), []);
         var labels = {};
         for (var labelPC in info.labels)
             labels[labelPC] = ast.label(labelPC);
@@ -7995,6 +8019,7 @@ var FunctionGenerator = (function () {
             else {
                 var di2 = this.decodeInstruction(PC + 4);
                 var delayedSlotInstruction = this.generatePspInstruction(di2);
+                var isLikely = di.type.isLikely;
                 var delayedCode = ast.stm(di.type.isLikely ? ast._if(ast.branchflag(), delayedSlotInstruction) : delayedSlotInstruction);
                 var targetAddress = di.targetAddress & Memory.MASK;
                 var nextAddress = (PC + 8) & Memory.MASK;
@@ -8016,11 +8041,10 @@ var FunctionGenerator = (function () {
                             }
                         }
                         else {
-                            func.add(ast.raw("var expectedRA = state.RA = " + nextAddressHex + ";"));
+                            func.add(ast.raw("expectedRA = state.RA = " + nextAddressHex + ";"));
                             func.add(delayedCode);
                             func.add(ast.raw("args." + cachefuncName + ".execute(state);"));
-                            func.add(ast.raw("while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);"));
-                            func.add(ast.raw("if (state.PC != expectedRA) { state.jumpCall = null; return; }"));
+                            func.add(ast.raw("\n\t\t\t\t\t\t\t\tif (state.PC != expectedRA) {\n\t\t\t\t\t\t\t\t\twhile ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);\n\t\t\t\t\t\t\t\t\tstate.jumpCall = null;\n\t\t\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t\t\t}"));
                         }
                     }
                 }
@@ -8033,7 +8057,7 @@ var FunctionGenerator = (function () {
                     func.add(delayedCode);
                     func.add(ast.raw('if (BRANCHFLAG) {'));
                     func.add(ast.raw("state.PC = BRANCHPC & " + Memory.MASK + ";"));
-                    func.add(ast.raw("var expectedRA = state.RA;"));
+                    func.add(ast.raw("expectedRA = state.RA;"));
                     func.add(ast.raw("if (args." + cacheaddrName + " != state.PC) args." + cachefuncName + " = state.getFunction(args." + cacheaddrName + " = state.PC);"));
                     func.add(ast.raw("args." + cachefuncName + ".execute(state);"));
                     func.add(ast.raw("while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);"));
@@ -8047,20 +8071,32 @@ var FunctionGenerator = (function () {
                         func.add(ast.raw('state.jumpCall = null;'));
                         func.add(ast.raw('return;'));
                     }
-                    else {
+                    else if (type.name == 'j') {
                         func.add(ins);
                         func.add(delayedCode);
                         func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
                         func.add(ast.raw('return;'));
                     }
+                    else {
+                        debugger;
+                        throw new Error("Unexpected!");
+                    }
                 }
                 else {
-                    func.add(ins);
-                    func.add(delayedCode);
                     if (type.isFixedAddressJump && labels[targetAddress]) {
-                        func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
+                        var bf = (ins.code);
+                        if (isLikely) {
+                            func.add(ast.sjump(bf.cond, targetAddress, delayedSlotInstruction));
+                        }
+                        else {
+                            func.add(ins);
+                            func.add(delayedCode);
+                            func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
+                        }
                     }
                     else {
+                        func.add(ins);
+                        func.add(delayedCode);
                         func.add(ast.raw("if (BRANCHFLAG) {"));
                         func.add(ast.raw("state.PC = " + targetAddressHex + ";"));
                         func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
@@ -29073,6 +29109,14 @@ describe('testasm cpu running', function () {
             "beq r1, r0, label1",
             "addi r1, r1, 1",
         ], { "$1": 2, "$2": 2 });
+    });
+    it('branch1_likely', function () {
+        assertProgram("branch beql", { "$1": 0, "$2": 0 }, [
+            ":label1",
+            "addi r2, r2, 1",
+            "beql r1, r0, label1",
+            "addi r1, r1, 1",
+        ], { "$1": 1, "$2": 2 });
     });
     it('branch2', function () {
         assertProgram("branch bne", { "$1": 0, "$2": 10 }, [
