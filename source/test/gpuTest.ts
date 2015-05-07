@@ -41,7 +41,7 @@ describe('gpu', () => {
 
             //console.log(vertexReader.readCode);
 
-            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexInfo.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, 0, null, null, 2, vertexInfo.hasIndex);
 
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);

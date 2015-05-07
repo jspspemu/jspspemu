@@ -21,6 +21,8 @@ import GpuOpCodes = _instructions.GpuOpCodes;
 import WebGlPspDrawDriver = require('./webgl/driver');
 import DummyDrawDriver = require('./webgl/driver_dummy');
 import Op = _instructions.GpuOpCodes;
+import PrimitiveType = _state.PrimitiveType;
+import IndexEnum = _state.IndexEnum;
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;
@@ -39,6 +41,22 @@ export interface IPspGpu {
 var vertexBuffer = new _vertex.VertexBuffer();
 var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
 var singleCallTest = false;
+
+const enum PrimDrawType {
+	SINGLE_DRAW = 0,
+	BATCH_DRAW = 1,
+	BATCH_DRAW_DEGENERATE = 2,
+}
+
+var DRAW_TYPE_CONV = [
+	PrimDrawType.BATCH_DRAW, // Points = 0
+	PrimDrawType.BATCH_DRAW, // Lines = 1,
+	PrimDrawType.BATCH_DRAW_DEGENERATE, // LineStrip = 2,
+	PrimDrawType.BATCH_DRAW, // Triangles = 3,
+	PrimDrawType.BATCH_DRAW_DEGENERATE, // TriangleStrip = 4,
+	PrimDrawType.SINGLE_DRAW, // TriangleFan = 5,
+	PrimDrawType.BATCH_DRAW, // Sprites = 6,
+];
 
 function bool1(p: number) { return p != 0; }
 function param1(p: number, offset: number) { return (p >> offset) & 0x1; }
@@ -119,10 +137,11 @@ var otherPrimCount = overlay.createSection('otherPrimCount', 0);
 var optimizedCount = overlay.createSection('optimizedCount', 0);
 var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
+var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var totalCommands = overlay.createSection('totalCommands', 0);
 var totalStalls = overlay.createSection('totalStalls', 0);
+var primCount = overlay.createSection('primCount', 0);
 var batchCount = overlay.createSection('batchCount', 0);
-var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var timePerFrame = overlay.createSection('time', 0, (v) => `${v.toFixed(0) } ms`);
 
 class PspGpuList {
@@ -169,16 +188,10 @@ class PspGpuList {
 	}
 
 	batchPrimCount = 0;
-	primCount = 0;
 	//private showOpcodes = true;
 	private showOpcodes = false;
 	private opcodes: string[] = [];
 	finish() {
-		if (this.showOpcodes) {
-			document.getElementById('output').innerText = 'finish:' + this.primCount + ';' + this.opcodes.join(",");
-			if (this.opcodes.length) this.opcodes = [];
-		}
-		this.primCount = 0;
 	}
 
 	private get isStalled() {
@@ -198,20 +211,28 @@ class PspGpuList {
 		let state = this.state;
 		let totalCommandsLocal = 0;
 		let current4 = this.current4;
+		let localPrimCount = 0;
 		if (stall4 == 0) stall4 = 0x7FFFFFFF;
-		
+
 		loop: while (current4 < stall4) {
 			totalCommandsLocal++;
 			let instructionPC4 = current4++;
 			let instruction = memory.lw_2(instructionPC4);
 			let op = (instruction >> 24) & 0xFF;
-			let p = instruction & 0xFFFFFF; 
-			
+			let p = instruction & 0xFFFFFF;
+
 			switch (op) {
 				case Op.PRIM: {
-					let primitiveType = <_state.PrimitiveType>param3(p, 16);
+					var rprimCount = 0;
+
+					this.current4 = current4;
+					localPrimCount++;
+					let primitiveType = <PrimitiveType>param3(p, 16);
 					if (this.primBatchPrimitiveType != primitiveType) this.finishPrimBatch();
-					this.prim(param24(p));
+					if (this.prim(param24(p))) {
+						this.finishPrimBatch();
+					}
+					current4 = this.current4;
 					break;
 				}
 				case Op.BEZIER:
@@ -255,16 +276,16 @@ class PspGpuList {
 
 				case Op.PROJMATRIXNUMBER: state.projectionMatrix.reset(param24(p)); this.finishPrimBatch(); break;
 				case Op.PROJMATRIXDATA: state.projectionMatrix.put(float1(p)); break;
-				
+
 				case Op.VIEWMATRIXNUMBER: state.viewMatrix.reset(param24(p)); this.finishPrimBatch(); break;
 				case Op.VIEWMATRIXDATA: state.viewMatrix.put(float1(p)); break;
-				
+
 				case Op.WORLDMATRIXNUMBER: state.worldMatrix.reset(param24(p)); this.finishPrimBatch(); break;
 				case Op.WORLDMATRIXDATA: state.worldMatrix.put(float1(p)); break;
-				
+
 				case Op.BONEMATRIXNUMBER: state.skinning.setCurrentBoneIndex(param24(p)); this.finishPrimBatch(); break;
 				case Op.BONEMATRIXDATA: state.skinning.write(float1(p)); break;
-				
+
 				case Op.TGENMATRIXNUMBER: state.texture.matrix.reset(param24(p)); this.finishPrimBatch(); break;
 				case Op.TGENMATRIXDATA: state.texture.matrix.put(float1(p)); break;
 				
@@ -272,114 +293,132 @@ class PspGpuList {
 				case Op.BASE:
 				case Op.IADDR:
 				case Op.VADDR:
-				break;
+					break;
 
 				default: if (state.data[op] != p) this.finishPrimBatch(); break;
 			}
 			state.data[op] = p;
 		}
-		
+
 		this.current4 = current4;
 		totalStalls.value++;
+		primCount.value += localPrimCount;
 		totalCommands.value += totalCommandsLocal;
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}
 
 	vertexInfo = new _state.VertexInfo();
-	private prim(p: number) {
-		let state = this.state;
-		let vertexCount = param16(p, 0);
-		let primitiveType = <_state.PrimitiveType>param3(p, 16);
+	private cachedVertexInput: Uint8Array = null;
+	private cachedVertexLow: number = 0;
+	private cachedVertexHigh: number = 0;
 
+	private prim(p: number) {
+		var vertexCount = param16(p, 0);
+		var primitiveType = <PrimitiveType>param3(p, 16);
 		if (vertexCount <= 0) return;
 
+		var memory = this.memory;
+		var state = this.state;
+		var vertexInfo = this.vertexInfo.setState(this.state)
+		var vertexSize = vertexInfo.size;
+		var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
+		var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
+		var hasIndices = (vertexInfo.index != IndexEnum.Void);
+
 		this.primBatchPrimitiveType = primitiveType;
-
-		this.primCount++;
-
-		var vertexInfo = this.vertexInfo.setState(this.state) 
-		let vertexState = state.vertex;
-		let vertexSize = vertexInfo.size;
-		let vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
-		let indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
-
-		let hasIndices = false;
-		let indices: any = null;
-		switch (vertexInfo.index) {
-			case _state.IndexEnum.Void: hasIndices = false; break;
-			case _state.IndexEnum.Byte: hasIndices = true; indices = this.memory.getPointerU8Array(indicesAddress, vertexCount); break;
-			case _state.IndexEnum.Short: hasIndices = true; indices = this.memory.getPointerU16Array(indicesAddress, vertexCount * 2); break;
-		}
-
-		if (vertexInfo.index == _state.IndexEnum.Void) {
-			overlayNonIndexCount.value += 1;
-		} else {
-			overlayIndexCount.value += 1;
-		}
-
-		overlayVertexCount.value += vertexCount;
+		//overlayVertexCount.value += vertexCount;
 		
 		//if (vertexState.realWeightCount > 0) debugger;
 		
-		let vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress, hasIndices ? undefined : (vertexSize * vertexCount));
-		if (vertexInfo.address && !vertexInfo.hasIndex) {
-			vertexInfo.address += vertexInfo.size * vertexCount;
-			this.state.vertex.address = vertexInfo.address;
+		if (!this.cachedVertexInput || !(vertexAddress >= this.cachedVertexLow && vertexAddress < this.cachedVertexHigh)) {
+			var cacheAddress = (vertexAddress >= Memory.MAIN_OFFSET) ? Memory.MAIN_OFFSET : Memory.DEFAULT_FRAME_ADDRESS;
+			this.cachedVertexInput = this.memory.getPointerU8Array(cacheAddress);
+			this.cachedVertexLow = cacheAddress;
+			this.cachedVertexHigh = cacheAddress + this.cachedVertexInput.length;
+			//console.log(addressToHex(this.cachedVertexLow), addressToHex(this.cachedVertexHigh));
 		}
-
-		let drawType = PrimDrawType.SINGLE_DRAW;
-
+		
+		/*
 		switch (primitiveType) {
-			case _state.PrimitiveType.Triangles: trianglePrimCount.value++; break;
-			case _state.PrimitiveType.TriangleStrip: triangleStripPrimCount.value++; break;
-			case _state.PrimitiveType.Sprites: spritePrimCount.value++; break;
+			case PrimitiveType.Triangles: trianglePrimCount.value++; break;
+			case PrimitiveType.TriangleStrip: triangleStripPrimCount.value++; break;
+			case PrimitiveType.Sprites: spritePrimCount.value++; break;
 			default: otherPrimCount.value++; break;
 		}
+		*/
 
-		switch (primitiveType) {
-			case _state.PrimitiveType.Lines:
-			case _state.PrimitiveType.Points:
-			case _state.PrimitiveType.Triangles:
-			case _state.PrimitiveType.Sprites:
-				drawType = PrimDrawType.BATCH_DRAW;
-				break;
-			case _state.PrimitiveType.TriangleStrip:
-			case _state.PrimitiveType.LineStrip:
-				drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
-				break;
-		}
-
-		let optimized = false;
-		if ((vertexInfo.index == _state.IndexEnum.Void) && (primitiveType != _state.PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1)) {
-			optimized = true;
-		}
-
-		if (optimized) optimizedCount.value++; else nonOptimizedCount.value++;
-
-		let mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
+		var vertexInput: Uint8Array = this.cachedVertexInput;
+		var vertexInputOffset = vertexAddress - this.cachedVertexLow;
+		var drawType = DRAW_TYPE_CONV[primitiveType];
+		var optimized = ((vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1));
 
 		if (optimized) {
+			optimizedCount.value++;
 			optimizedDrawBuffer.primType = primitiveType;
 			optimizedDrawBuffer.vertexInfo = vertexInfo;
-			if (mustDegenerate) optimizedDrawBuffer.join(vertexInfo.size);
-			optimizedDrawBuffer.addVertices(vertexInput, vertexCount, vertexInfo.size);
+			//if (mustDegenerate) optimizedDrawBuffer.join(vertexSize);
+			//optimizedDrawBuffer.addVertices(vertexInput, vertexInputOffset, vertexCount, vertexSize);
+			
+			this.primOptimized(primitiveType, (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
 		} else {
+			var mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
+			var indices8: Uint8Array = null;
+			var indices16: Uint16Array = null;
+			switch (vertexInfo.index) {
+				case IndexEnum.Byte: indices8 = this.memory.getPointerU8Array(indicesAddress, vertexCount); break;
+				case IndexEnum.Short: indices16 = this.memory.getPointerU16Array(indicesAddress, vertexCount * 2); break;
+			}
+
+			nonOptimizedCount.value++;
 			if (mustDegenerate) vertexBuffer.startDegenerateTriangleStrip();
-			let verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
-			let vertexReader = _vertex.VertexReaderFactory.get(vertexInfo);
-			vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexInfo.hasIndex);
+			var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
+			_vertex.VertexReaderFactory.get(vertexInfo).readCount(
+				vertexBuffer.vertices, verticesOffset, vertexInput, vertexInputOffset, indices8, indices16, vertexCount, vertexInfo.hasIndex
+				);
 			if (mustDegenerate) vertexBuffer.endDegenerateTriangleStrip();
+
+			if (vertexInfo.address && !hasIndices) {
+				vertexInfo.address += vertexSize * vertexCount;
+				this.state.vertex.address = vertexInfo.address;
+			}
+
+			if (drawType != PrimDrawType.SINGLE_DRAW) this.batchPrimCount++;
 		}
 
-		if (drawType == PrimDrawType.SINGLE_DRAW) {
-			this.finishPrimBatch();
-		} else {
-			this.batchPrimCount++;
-		}
+		return (drawType == PrimDrawType.SINGLE_DRAW);
 	}
-	
-	vertexInfo2:_state.VertexInfo = new _state.VertexInfo();
-	private bezier(p:number) {
+
+	private primOptimized(primitiveType: number, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:_state.VertexInfo, vertexInput: Uint8Array, vertexInputOffset: number) {
+		var current4 = (this.current4 - 1) | 0; 
+		var batchPrimCount = this.batchPrimCount | 0;
+		var _optimizedDrawBuffer = optimizedDrawBuffer;
+		var p2 = 0;
+		var vertex2Count = 0;
+		var memory = this.memory;
+		var totalVertexCount = 0;
+		primitiveType |= 0;
+		vertexSize |= 0;
+		while (true) {
+			p2 = memory.lw_2(current4) | 0;
+			if ((((p2 >> 24) & 0xFF) != Op.PRIM) || (param3(p2, 16) != primitiveType)) break;
+			vertex2Count = param16(p2, 0) | 0;
+			totalVertexCount += vertex2Count;
+			if (drawTypeDegenerated && (batchPrimCount > 0)) _optimizedDrawBuffer.join(vertexSize);
+			_optimizedDrawBuffer.addVerticesIndices(vertex2Count);
+			current4++;
+			batchPrimCount++;
+		}
+
+		let totalVerticesSize = totalVertexCount * vertexSize;
+		_optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
+		vertexInfo.address += totalVerticesSize;
+		this.state.vertex.address = vertexInfo.address; 
+		this.batchPrimCount = batchPrimCount;
+		this.current4 = current4;
+	}
+
+	vertexInfo2: _state.VertexInfo = new _state.VertexInfo();
+	private bezier(p: number) {
 		let state = this.state;
 
 		let ucount = param8(p, 0);
@@ -390,7 +429,7 @@ class PspGpuList {
 		let vertexInfo2 = this.vertexInfo2.setState(state);
 		let vertexReader = _vertex.VertexReaderFactory.get(vertexInfo2);
 		let vertexAddress = state.getAddressRelativeToBaseOffset(state.vertex.address);
-		let vertexInput = this.memory.getPointerU8Array(vertexAddress);
+		let vertexInput8 = this.memory.getPointerU8Array(vertexAddress);
 
 		vertexInfo2.texture = _state.NumericEnum.Float;
 
@@ -401,7 +440,7 @@ class PspGpuList {
 			let scale = mipmap.textureWidth / mipmap.bufferWidth;
 			for (let u = 0; u < ucount; u++) {
 				for (let v = 0; v < vcount; v++) {
-					let vertex = vertexReader.readOne(vertexInput, v * ucount + u);;
+					let vertex = vertexReader.readOne(vertexInput8, null, v * ucount + u);;
 					controlPoints[u][v] = vertex;
 					vertex.tx = (u / (ucount - 1)) * scale;
 					vertex.ty = (v / (vcount - 1));
@@ -428,13 +467,13 @@ class PspGpuList {
 		this.status = DisplayListStatus.Drawing;
 		while (this.hasMoreInstructions) {
 			//try {
-				this.runUntilStallInner();
-				/*
-			} catch (e) {
-				console.log(e);
-				console.log(e['stack']);
-			}
-			*/
+			this.runUntilStallInner();
+			/*
+		} catch (e) {
+			console.log(e);
+			console.log(e['stack']);
+		}
+		*/
 		}
     }
 
@@ -464,12 +503,6 @@ class PspGpuList {
     waitAsync() {
         return this.promise;
     }
-}
-
-enum PrimDrawType {
-	SINGLE_DRAW = 0,
-	BATCH_DRAW = 1,
-	BATCH_DRAW_DEGENERATE = 2,
 }
 
 class PspGpuListRunner {

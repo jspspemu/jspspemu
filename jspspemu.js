@@ -10983,6 +10983,15 @@ var DummyDrawDriver = require('./webgl/driver_dummy');
 var vertexBuffer = new _vertex.VertexBuffer();
 var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
 var singleCallTest = false;
+var DRAW_TYPE_CONV = [
+    1,
+    1,
+    2,
+    1,
+    2,
+    0,
+    1,
+];
 function bool1(p) { return p != 0; }
 function param1(p, offset) { return (p >> offset) & 0x1; }
 function param2(p, offset) { return (p >> offset) & 0x3; }
@@ -11065,10 +11074,11 @@ var otherPrimCount = overlay.createSection('otherPrimCount', 0);
 var optimizedCount = overlay.createSection('optimizedCount', 0);
 var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
+var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var totalCommands = overlay.createSection('totalCommands', 0);
 var totalStalls = overlay.createSection('totalStalls', 0);
+var primCount = overlay.createSection('primCount', 0);
 var batchCount = overlay.createSection('batchCount', 0);
-var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var timePerFrame = overlay.createSection('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
 var PspGpuList = (function () {
     function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor, state) {
@@ -11086,10 +11096,12 @@ var PspGpuList = (function () {
         this.callstackIndex = 0;
         this.primBatchPrimitiveType = -1;
         this.batchPrimCount = 0;
-        this.primCount = 0;
         this.showOpcodes = false;
         this.opcodes = [];
         this.vertexInfo = new _state.VertexInfo();
+        this.cachedVertexInput = null;
+        this.cachedVertexLow = 0;
+        this.cachedVertexHigh = 0;
         this.vertexInfo2 = new _state.VertexInfo();
     }
     PspGpuList.prototype.complete = function () {
@@ -11114,12 +11126,6 @@ var PspGpuList = (function () {
         }
     };
     PspGpuList.prototype.finish = function () {
-        if (this.showOpcodes) {
-            document.getElementById('output').innerText = 'finish:' + this.primCount + ';' + this.opcodes.join(",");
-            if (this.opcodes.length)
-                this.opcodes = [];
-        }
-        this.primCount = 0;
     };
     Object.defineProperty(PspGpuList.prototype, "isStalled", {
         get: function () {
@@ -11141,6 +11147,7 @@ var PspGpuList = (function () {
         var state = this.state;
         var totalCommandsLocal = 0;
         var current4 = this.current4;
+        var localPrimCount = 0;
         if (stall4 == 0)
             stall4 = 0x7FFFFFFF;
         loop: while (current4 < stall4) {
@@ -11151,10 +11158,16 @@ var PspGpuList = (function () {
             var p = instruction & 0xFFFFFF;
             switch (op) {
                 case 4: {
+                    var rprimCount = 0;
+                    this.current4 = current4;
+                    localPrimCount++;
                     var primitiveType = param3(p, 16);
                     if (this.primBatchPrimitiveType != primitiveType)
                         this.finishPrimBatch();
-                    this.prim(param24(p));
+                    if (this.prim(param24(p))) {
+                        this.finishPrimBatch();
+                    }
+                    current4 = this.current4;
                     break;
                 }
                 case 5:
@@ -11251,107 +11264,95 @@ var PspGpuList = (function () {
         }
         this.current4 = current4;
         totalStalls.value++;
+        primCount.value += localPrimCount;
         totalCommands.value += totalCommandsLocal;
         this.status = (this.isStalled) ? 3 : 0;
     };
     PspGpuList.prototype.prim = function (p) {
-        var state = this.state;
         var vertexCount = param16(p, 0);
         var primitiveType = param3(p, 16);
         if (vertexCount <= 0)
             return;
-        this.primBatchPrimitiveType = primitiveType;
-        this.primCount++;
+        var memory = this.memory;
+        var state = this.state;
         var vertexInfo = this.vertexInfo.setState(this.state);
-        var vertexState = state.vertex;
         var vertexSize = vertexInfo.size;
         var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
         var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
-        var hasIndices = false;
-        var indices = null;
-        switch (vertexInfo.index) {
-            case 0:
-                hasIndices = false;
-                break;
-            case 1:
-                hasIndices = true;
-                indices = this.memory.getPointerU8Array(indicesAddress, vertexCount);
-                break;
-            case 2:
-                hasIndices = true;
-                indices = this.memory.getPointerU16Array(indicesAddress, vertexCount * 2);
-                break;
+        var hasIndices = (vertexInfo.index != 0);
+        this.primBatchPrimitiveType = primitiveType;
+        if (!this.cachedVertexInput || !(vertexAddress >= this.cachedVertexLow && vertexAddress < this.cachedVertexHigh)) {
+            var cacheAddress = (vertexAddress >= Memory.MAIN_OFFSET) ? Memory.MAIN_OFFSET : Memory.DEFAULT_FRAME_ADDRESS;
+            this.cachedVertexInput = this.memory.getPointerU8Array(cacheAddress);
+            this.cachedVertexLow = cacheAddress;
+            this.cachedVertexHigh = cacheAddress + this.cachedVertexInput.length;
         }
-        if (vertexInfo.index == 0) {
-            overlayNonIndexCount.value += 1;
-        }
-        else {
-            overlayIndexCount.value += 1;
-        }
-        overlayVertexCount.value += vertexCount;
-        var vertexInput = this.memory.getPointerU8Array(vertexAddress, hasIndices ? undefined : (vertexSize * vertexCount));
-        if (vertexInfo.address && !vertexInfo.hasIndex) {
-            vertexInfo.address += vertexInfo.size * vertexCount;
-            this.state.vertex.address = vertexInfo.address;
-        }
-        var drawType = PrimDrawType.SINGLE_DRAW;
-        switch (primitiveType) {
-            case 3:
-                trianglePrimCount.value++;
-                break;
-            case 4:
-                triangleStripPrimCount.value++;
-                break;
-            case 6:
-                spritePrimCount.value++;
-                break;
-            default:
-                otherPrimCount.value++;
-                break;
-        }
-        switch (primitiveType) {
-            case 1:
-            case 0:
-            case 3:
-            case 6:
-                drawType = PrimDrawType.BATCH_DRAW;
-                break;
-            case 4:
-            case 2:
-                drawType = PrimDrawType.BATCH_DRAW_DEGENERATE;
-                break;
-        }
-        var optimized = false;
-        if ((vertexInfo.index == 0) && (primitiveType != 6) && (vertexInfo.realMorphingVertexCount == 1)) {
-            optimized = true;
-        }
-        if (optimized)
-            optimizedCount.value++;
-        else
-            nonOptimizedCount.value++;
-        var mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
+        var vertexInput = this.cachedVertexInput;
+        var vertexInputOffset = vertexAddress - this.cachedVertexLow;
+        var drawType = DRAW_TYPE_CONV[primitiveType];
+        var optimized = ((vertexInfo.index == 0) && (primitiveType != 6) && (vertexInfo.realMorphingVertexCount == 1));
         if (optimized) {
+            optimizedCount.value++;
             optimizedDrawBuffer.primType = primitiveType;
             optimizedDrawBuffer.vertexInfo = vertexInfo;
-            if (mustDegenerate)
-                optimizedDrawBuffer.join(vertexInfo.size);
-            optimizedDrawBuffer.addVertices(vertexInput, vertexCount, vertexInfo.size);
+            this.primOptimized(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
         }
         else {
+            var mustDegenerate = (this.batchPrimCount > 0) && (drawType == 2);
+            var indices8 = null;
+            var indices16 = null;
+            switch (vertexInfo.index) {
+                case 1:
+                    indices8 = this.memory.getPointerU8Array(indicesAddress, vertexCount);
+                    break;
+                case 2:
+                    indices16 = this.memory.getPointerU16Array(indicesAddress, vertexCount * 2);
+                    break;
+            }
+            nonOptimizedCount.value++;
             if (mustDegenerate)
                 vertexBuffer.startDegenerateTriangleStrip();
             var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
-            var vertexReader = _vertex.VertexReaderFactory.get(vertexInfo);
-            vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, indices, vertexCount, vertexInfo.hasIndex);
+            _vertex.VertexReaderFactory.get(vertexInfo).readCount(vertexBuffer.vertices, verticesOffset, vertexInput, vertexInputOffset, indices8, indices16, vertexCount, vertexInfo.hasIndex);
             if (mustDegenerate)
                 vertexBuffer.endDegenerateTriangleStrip();
+            if (vertexInfo.address && !hasIndices) {
+                vertexInfo.address += vertexSize * vertexCount;
+                this.state.vertex.address = vertexInfo.address;
+            }
+            if (drawType != 0)
+                this.batchPrimCount++;
         }
-        if (drawType == PrimDrawType.SINGLE_DRAW) {
-            this.finishPrimBatch();
+        return (drawType == 0);
+    };
+    PspGpuList.prototype.primOptimized = function (primitiveType, drawTypeDegenerated, vertexSize, vertexInfo, vertexInput, vertexInputOffset) {
+        var current4 = (this.current4 - 1) | 0;
+        var batchPrimCount = this.batchPrimCount | 0;
+        var _optimizedDrawBuffer = optimizedDrawBuffer;
+        var p2 = 0;
+        var vertex2Count = 0;
+        var memory = this.memory;
+        var totalVertexCount = 0;
+        primitiveType |= 0;
+        vertexSize |= 0;
+        while (true) {
+            p2 = memory.lw_2(current4) | 0;
+            if ((((p2 >> 24) & 0xFF) != 4) || (param3(p2, 16) != primitiveType))
+                break;
+            vertex2Count = param16(p2, 0) | 0;
+            totalVertexCount += vertex2Count;
+            if (drawTypeDegenerated && (batchPrimCount > 0))
+                _optimizedDrawBuffer.join(vertexSize);
+            _optimizedDrawBuffer.addVerticesIndices(vertex2Count);
+            current4++;
+            batchPrimCount++;
         }
-        else {
-            this.batchPrimCount++;
-        }
+        var totalVerticesSize = totalVertexCount * vertexSize;
+        _optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
+        vertexInfo.address += totalVerticesSize;
+        this.state.vertex.address = vertexInfo.address;
+        this.batchPrimCount = batchPrimCount;
+        this.current4 = current4;
     };
     PspGpuList.prototype.bezier = function (p) {
         var state = this.state;
@@ -11363,7 +11364,7 @@ var PspGpuList = (function () {
         var vertexInfo2 = this.vertexInfo2.setState(state);
         var vertexReader = _vertex.VertexReaderFactory.get(vertexInfo2);
         var vertexAddress = state.getAddressRelativeToBaseOffset(state.vertex.address);
-        var vertexInput = this.memory.getPointerU8Array(vertexAddress);
+        var vertexInput8 = this.memory.getPointerU8Array(vertexAddress);
         vertexInfo2.texture = 3;
         var getBezierControlPoints = function (ucount, vcount) {
             var controlPoints = ArrayUtils.create2D(ucount, vcount);
@@ -11371,7 +11372,7 @@ var PspGpuList = (function () {
             var scale = mipmap.textureWidth / mipmap.bufferWidth;
             for (var u = 0; u < ucount; u++) {
                 for (var v = 0; v < vcount; v++) {
-                    var vertex = vertexReader.readOne(vertexInput, v * ucount + u);
+                    var vertex = vertexReader.readOne(vertexInput8, null, v * ucount + u);
                     ;
                     controlPoints[u][v] = vertex;
                     vertex.tx = (u / (ucount - 1)) * scale;
@@ -11421,12 +11422,6 @@ var PspGpuList = (function () {
     };
     return PspGpuList;
 })();
-var PrimDrawType;
-(function (PrimDrawType) {
-    PrimDrawType[PrimDrawType["SINGLE_DRAW"] = 0] = "SINGLE_DRAW";
-    PrimDrawType[PrimDrawType["BATCH_DRAW"] = 1] = "BATCH_DRAW";
-    PrimDrawType[PrimDrawType["BATCH_DRAW_DEGENERATE"] = 2] = "BATCH_DRAW_DEGENERATE";
-})(PrimDrawType || (PrimDrawType = {}));
 var PspGpuListRunner = (function () {
     function PspGpuListRunner(memory, drawDriver, gpu, callbackManager) {
         this.memory = memory;
@@ -12980,7 +12975,7 @@ var VertexReader = (function () {
         this.vertexInfo = vertexInfo;
         this.readOffset = 0;
         this.oneOuput = [new _state.Vertex()];
-        this.oneIndices = [0];
+        this.oneIndices = new Uint8Array([0]);
         this.input2 = new Uint8Array(1 * 1024 * 1024);
         this.s8 = new Int8Array(this.input2.buffer);
         this.s16 = new Int16Array(this.input2.buffer);
@@ -12988,29 +12983,38 @@ var VertexReader = (function () {
         this.f32 = new Float32Array(this.input2.buffer);
         this.readCode = this.createJs();
         this.readOneFunc = (new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
-        this.readSeveralIndexFunc = (new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', "\n\t\t\t\"use strict\";\n\t\t\tfor (var n = 0; n < count; n++) {\n\t\t\t\tvar index = indices[n];\n\t\t\t\tvar output = outputs[verticesOffset + n];\n\t\t\t\tvar inputOffset = index * " + vertexInfo.size + ";\n\t\t\t\t" + this.readCode + "\n\t\t\t}\n\t\t"));
+        this.readSeveralIndex8Func = (new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', "\n\t\t\t\"use strict\";\n\t\t\tfor (var n = 0; n < count; n++) {\n\t\t\t\tvar index = indices[n];\n\t\t\t\tvar output = outputs[verticesOffset + n];\n\t\t\t\tvar inputOffset = index * " + vertexInfo.size + ";\n\t\t\t\t" + this.readCode + "\n\t\t\t}\n\t\t"));
+        this.readSeveralIndex16Func = (new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', "\n\t\t\t\"use strict\";\n\t\t\tfor (var n = 0; n < count; n++) {\n\t\t\t\tvar index = indices[n];\n\t\t\t\tvar output = outputs[verticesOffset + n];\n\t\t\t\tvar inputOffset = index * " + vertexInfo.size + ";\n\t\t\t\t" + this.readCode + "\n\t\t\t}\n\t\t"));
         this.readSeveralFunc = (new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', "\n\t\t\tvar inputOffset = 0;\n\t\t\tfor (var n = 0; n < count; n++) {\n\t\t\t\tvar output = outputs[verticesOffset + n];\n\t\t\t\t" + this.readCode + "\n\t\t\t\tinputOffset += this.vertexInfo.size;\n\t\t\t}\n\t\t"));
     }
-    VertexReader.prototype.readOne = function (input, index) {
+    VertexReader.prototype.readOne = function (input8, input16, index) {
         this.oneIndices[0] = index;
         this.oneOuput[0] = new _state.Vertex();
-        this.readCount(this.oneOuput, 0, input, this.oneIndices, 1, true);
+        this.readCount(this.oneOuput, 0, input8, 0, this.oneIndices, null, 1, true);
         return this.oneOuput[0];
     };
-    VertexReader.prototype.readCount = function (output, verticesOffset, input, indices, count, hasIndex) {
+    VertexReader.prototype.readCount = function (output, verticesOffset, input, inputOffset, indices8, indices16, count, hasIndex) {
         if (hasIndex) {
             var maxDatacount = 0;
-            for (var n = 0; n < count; n++)
-                maxDatacount = Math.max(maxDatacount, indices[n] + 1);
+            if (indices8)
+                for (var n = 0; n < count; n++)
+                    maxDatacount = Math.max(maxDatacount, indices8[n] + 1);
+            if (indices16)
+                for (var n = 0; n < count; n++)
+                    maxDatacount = Math.max(maxDatacount, indices16[n] + 1);
         }
         else {
             maxDatacount = count;
         }
         maxDatacount *= this.vertexInfo.size;
-        for (var n = 0; n < maxDatacount; n++)
-            this.s8[n] = input[n];
+        this.s8.subarray(0, maxDatacount).set(input.subarray(inputOffset, inputOffset + maxDatacount));
         if (hasIndex) {
-            this.readSeveralIndexFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices);
+            if (indices8) {
+                this.readSeveralIndex8Func(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices8);
+            }
+            else {
+                this.readSeveralIndex16Func(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices16);
+            }
         }
         else {
             this.readSeveralFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset);
@@ -13106,6 +13110,7 @@ exports.VertexReader = VertexReader;
 var OptimizedDrawBuffer = (function () {
     function OptimizedDrawBuffer() {
         this.data = new Uint8Array(512 * 1024);
+        this.data32 = new Uint32Array(this.data.buffer);
         this.dataOffset = 0;
         this.indices = new Uint16Array(64 * 1024);
         this.indexOffset = 0;
@@ -13118,10 +13123,15 @@ var OptimizedDrawBuffer = (function () {
     };
     OptimizedDrawBuffer.prototype.addDataWithIndices8 = function (vertices, vertexSize, indices) {
     };
-    OptimizedDrawBuffer.prototype.addVertices = function (vertices, vertexCount, vertexSize) {
-        var verticesSize = vertexCount * vertexSize;
-        ArrayBufferUtils.copy(vertices, 0, this.data, this.dataOffset, verticesSize);
+    OptimizedDrawBuffer.prototype.addVertices = function (vertices, inputOffset, vertexCount, verticesSize) {
+        this.addVerticesData(vertices, inputOffset, verticesSize);
+        this.addVerticesIndices(vertexCount);
+    };
+    OptimizedDrawBuffer.prototype.addVerticesData = function (vertices, inputOffset, verticesSize) {
+        ArrayBufferUtils.copy(vertices, inputOffset, this.data, this.dataOffset, verticesSize);
         this.dataOffset += verticesSize;
+    };
+    OptimizedDrawBuffer.prototype.addVerticesIndices = function (vertexCount) {
         for (var n = 0; n < vertexCount; n++)
             this.indices[this.indexOffset++] = this.vertexIndex++;
     };
@@ -27862,7 +27872,7 @@ describe('gpu', function () {
             vertexInput.setInt16(14, 400, true);
             var vertex1 = new _state.Vertex();
             var vertex2 = new _state.Vertex();
-            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexInfo.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, 0, null, null, 2, vertexInfo.hasIndex);
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
             assert.equal(vertex1.pz, 0);

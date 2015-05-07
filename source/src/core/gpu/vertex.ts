@@ -57,7 +57,8 @@ export class VertexReaderFactory {
 
 export class VertexReader {
 	private readOneFunc: (output: _state.Vertex, inputOffset: number, f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array) => void;
-	private readSeveralIndexFunc: (output: _state.Vertex[], f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array, count: number, verticesOffset:number, indices: number[]) => void;
+	private readSeveralIndex8Func: (output: _state.Vertex[], f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array, count: number, verticesOffset:number, indices: Uint8Array) => void;
+	private readSeveralIndex16Func: (output: _state.Vertex[], f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array, count: number, verticesOffset:number, indices: Uint16Array) => void;
 	private readSeveralFunc: (output: _state.Vertex[], f32: Float32Array, s8: Int8Array, s16: Int16Array, s32: Int32Array, count: number, verticesOffset:number) => void;
 	private readOffset: number = 0;
 	public readCode: string;
@@ -65,7 +66,16 @@ export class VertexReader {
 	constructor(public vertexInfo: _state.VertexInfo) {
 		this.readCode = this.createJs();
 		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
-		this.readSeveralIndexFunc = <any>(new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', `
+		this.readSeveralIndex8Func = <any>(new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', `
+			"use strict";
+			for (var n = 0; n < count; n++) {
+				var index = indices[n];
+				var output = outputs[verticesOffset + n];
+				var inputOffset = index * ${vertexInfo.size};
+				${this.readCode}
+			}
+		`));
+		this.readSeveralIndex16Func = <any>(new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', `
 			"use strict";
 			for (var n = 0; n < count; n++) {
 				var index = indices[n];
@@ -85,11 +95,11 @@ export class VertexReader {
 	}
 
 	private oneOuput = [new _state.Vertex()];
-	private oneIndices = [0];
-	readOne(input: Uint8Array, index: number) {
+	private oneIndices = new Uint8Array([0]);
+	readOne(input8: Uint8Array, input16: Uint8Array, index: number) {
 		this.oneIndices[0] = index;
 		this.oneOuput[0] = new _state.Vertex();
-		this.readCount(this.oneOuput, 0, input, this.oneIndices, 1, true);
+		this.readCount(this.oneOuput, 0, input8, 0, this.oneIndices, null, 1, true);
 		return this.oneOuput[0];
 	}
 
@@ -98,19 +108,25 @@ export class VertexReader {
 	s16 = new Int16Array(this.input2.buffer);
 	s32 = new Int32Array(this.input2.buffer);
 	f32 = new Float32Array(this.input2.buffer);
-	readCount(output: _state.Vertex[], verticesOffset: number, input: Uint8Array, indices: number[], count: number, hasIndex: boolean) {
+	readCount(output: _state.Vertex[], verticesOffset: number, input: Uint8Array, inputOffset: number, indices8: Uint8Array, indices16: Uint16Array, count: number, hasIndex: boolean) {
 		if (hasIndex) {
 			var maxDatacount = 0;
-			for (var n = 0; n < count; n++) maxDatacount = Math.max(maxDatacount, indices[n] + 1);
+			// http://jsperf.com/test-max-value-in-a-typed-array
+			if (indices8) for (var n = 0; n < count; n++) maxDatacount = Math.max(maxDatacount, indices8[n] + 1);
+			if (indices16) for (var n = 0; n < count; n++) maxDatacount = Math.max(maxDatacount, indices16[n] + 1);
 		} else {
 			maxDatacount = count;
 		}
 		maxDatacount *= this.vertexInfo.size;
 
-		for (var n = 0; n < maxDatacount; n++) this.s8[n] = input[n];
+		this.s8.subarray(0, maxDatacount).set(input.subarray(inputOffset, inputOffset + maxDatacount));
 
 		if (hasIndex) {
-			this.readSeveralIndexFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices);
+			if (indices8) {
+				this.readSeveralIndex8Func(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices8);
+			} else {
+				this.readSeveralIndex16Func(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset, indices16);
+			}
 		} else {
 			this.readSeveralFunc(output, this.f32, this.s8, this.s16, this.s32, count, verticesOffset);
 		}
@@ -204,6 +220,7 @@ export class VertexReader {
 
 export class OptimizedDrawBuffer {
 	data = new Uint8Array(512 * 1024);
+	data32 = new Uint32Array(this.data.buffer);
 	dataOffset = 0;
 	indices = new Uint16Array(64 * 1024);
 	indexOffset = 0;
@@ -221,10 +238,17 @@ export class OptimizedDrawBuffer {
 		//for (var n = 0; n < )
 	}
 
-	addVertices(vertices:Uint8Array, vertexCount:number, vertexSize:number) {
-		var verticesSize = vertexCount * vertexSize;
-		ArrayBufferUtils.copy(vertices, 0, this.data, this.dataOffset, verticesSize);
+	addVertices(vertices:Uint8Array, inputOffset:number, vertexCount:number, verticesSize:number) {
+		this.addVerticesData(vertices, inputOffset, verticesSize);
+		this.addVerticesIndices(vertexCount);
+	}
+
+	addVerticesData(vertices:Uint8Array, inputOffset:number, verticesSize:number) {
+		ArrayBufferUtils.copy(vertices, inputOffset, this.data, this.dataOffset, verticesSize);
 		this.dataOffset += verticesSize;
+	}
+
+	addVerticesIndices(vertexCount:number) {
 		for (var n = 0; n < vertexCount; n++) this.indices[this.indexOffset++] = this.vertexIndex++;
 	}
 	
