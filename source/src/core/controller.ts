@@ -38,7 +38,7 @@ export class SceCtrlData {
 
 
 var navigator = (typeof window != 'undefined') ? window.navigator : null;
-var getGamepads = navigator ? navigator.getGamepads.bind(navigator) : null;
+var getGamepads = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
 
 export class PspController {
 	data: SceCtrlData = new SceCtrlData();

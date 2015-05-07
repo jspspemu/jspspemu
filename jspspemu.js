@@ -3236,6 +3236,158 @@ window.addEventListener('load', function () {
 });
 
 },
+"src/codegen/advancedrelooper": function(module, exports, require) {
+
+},
+"src/codegen/relooper": function(module, exports, require) {
+var simplerelooper = require('./simplerelooper');
+function processAdvance(callback) {
+    throw new Error("Not implemented relooper advanced");
+}
+exports.processAdvance = processAdvance;
+function processSimple(callback) {
+    var sr = new simplerelooper.SimpleRelooper();
+    sr.init();
+    try {
+        callback(sr);
+        return sr.render(sr.blocks[0]);
+    }
+    finally {
+        sr.cleanup();
+    }
+}
+exports.processSimple = processSimple;
+function processType(type, callback) {
+    switch (type) {
+        case 'simple': return processSimple(callback);
+        case 'advanced': return processAdvance(callback);
+        default: throw new Error("Invalid relooper process type " + type);
+    }
+}
+exports.processType = processType;
+function process(callback) {
+    return processSimple(callback);
+}
+exports.process = process;
+
+},
+"src/codegen/simplerelooper": function(module, exports, require) {
+var RelooperBlock = (function () {
+    function RelooperBlock(index, code) {
+        this.index = index;
+        this.code = code;
+        this.conditionalBranches = [];
+        this.nextBlock = null;
+        this.conditionalReferences = [];
+    }
+    return RelooperBlock;
+})();
+var RelooperBranch = (function () {
+    function RelooperBranch(to, cond, onjumpCode) {
+        this.to = to;
+        this.cond = cond;
+        this.onjumpCode = onjumpCode;
+    }
+    return RelooperBranch;
+})();
+var IndentWriter = (function () {
+    function IndentWriter() {
+        this.i = '';
+        this.startline = true;
+        this.chunks = [];
+    }
+    IndentWriter.prototype.write = function (chunk) {
+        this.chunks.push(chunk);
+    };
+    IndentWriter.prototype.indent = function () { this.i += '\t'; };
+    IndentWriter.prototype.unindent = function () { this.i = this.i.substr(0, -1); };
+    Object.defineProperty(IndentWriter.prototype, "output", {
+        get: function () { return this.chunks.join(''); },
+        enumerable: true,
+        configurable: true
+    });
+    return IndentWriter;
+})();
+var SimpleRelooper = (function () {
+    function SimpleRelooper() {
+        this.blocks = [];
+        this.lastId = 0;
+    }
+    SimpleRelooper.prototype.init = function () {
+        this.lastId = 0;
+    };
+    SimpleRelooper.prototype.cleanup = function () {
+    };
+    SimpleRelooper.prototype.addBlock = function (code) {
+        var block = new RelooperBlock(this.lastId++, code);
+        this.blocks.push(block);
+        return block;
+    };
+    SimpleRelooper.prototype.addBranch = function (from, to, cond, onjumpcode) {
+        var branch = new RelooperBranch(to, cond, onjumpcode);
+        if (cond) {
+            from.conditionalBranches.push(branch);
+            to.conditionalReferences.push(from);
+        }
+        else {
+            from.nextBlock = to;
+        }
+    };
+    SimpleRelooper.prototype.render = function (first) {
+        var writer = new IndentWriter();
+        if (this.blocks.length <= 1) {
+            if (this.blocks.length == 1)
+                writer.write(this.blocks[0].code);
+        }
+        else {
+            writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
+            writer.indent();
+            for (var _i = 0, _a = this.blocks; _i < _a.length; _i++) {
+                var block = _a[_i];
+                var nblock = this.blocks[block.index + 1];
+                if (block.index != 0) {
+                    writer.write('case ' + block.index + ':\n');
+                    writer.indent();
+                }
+                if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
+                    var branch = nblock.conditionalBranches[0];
+                    writer.write("while (true) {\n");
+                    writer.indent();
+                    writer.write(block.code);
+                    writer.write("if (!(" + branch.cond + ")) break;\n");
+                    writer.write(branch.onjumpCode + ";\n");
+                    writer.unindent();
+                    writer.write("}\n");
+                    writer.write(nblock.code);
+                }
+                else {
+                    for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
+                        var branch = _c[_b];
+                        writer.write("if (" + branch.cond + ") { " + branch.onjumpCode + "; label = " + branch.to.index + "; continue loop_label; }\n");
+                    }
+                    writer.write(block.code);
+                }
+                if (block.nextBlock) {
+                    if (block.nextBlock != nblock) {
+                        writer.write("label = " + block.nextBlock.index + "; continue loop_label;\n");
+                    }
+                }
+                else {
+                    writer.write('break loop_label;\n');
+                }
+                if (block.index != 0)
+                    writer.unindent();
+            }
+            writer.unindent();
+            writer.write('}');
+        }
+        return writer.output;
+    };
+    return SimpleRelooper;
+})();
+exports.SimpleRelooper = SimpleRelooper;
+
+},
 "src/context": function(module, exports, require) {
 ///<reference path="global.ts" />
 ///<reference path="global.d.ts" />
@@ -3484,7 +3636,7 @@ var SceCtrlData = (function () {
 })();
 exports.SceCtrlData = SceCtrlData;
 var navigator = (typeof window != 'undefined') ? window.navigator : null;
-var getGamepads = navigator ? navigator.getGamepads.bind(navigator) : null;
+var getGamepads = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
 var PspController = (function () {
     function PspController() {
         this.data = new SceCtrlData();
@@ -5348,6 +5500,7 @@ var __extends = this.__extends || function (d, b) {
     __.prototype = b.prototype;
     d.prototype = new __();
 };
+var relooper = require('../../codegen/relooper');
 var ANode = (function () {
     function ANode() {
     }
@@ -5448,119 +5601,6 @@ var ABlock = (function () {
     };
     return ABlock;
 })();
-var RelooperBlock = (function () {
-    function RelooperBlock(index, code) {
-        this.index = index;
-        this.code = code;
-        this.conditionalBranches = [];
-        this.nextBlock = null;
-        this.conditionalReferences = [];
-    }
-    return RelooperBlock;
-})();
-var RelooperBranch = (function () {
-    function RelooperBranch(to, cond, onjumpCode) {
-        this.to = to;
-        this.cond = cond;
-        this.onjumpCode = onjumpCode;
-    }
-    return RelooperBranch;
-})();
-var IndentWriter = (function () {
-    function IndentWriter() {
-        this.i = '';
-        this.startline = true;
-        this.chunks = [];
-    }
-    IndentWriter.prototype.write = function (chunk) {
-        this.chunks.push(chunk);
-    };
-    IndentWriter.prototype.indent = function () { this.i += '\t'; };
-    IndentWriter.prototype.unindent = function () { this.i = this.i.substr(0, -1); };
-    Object.defineProperty(IndentWriter.prototype, "output", {
-        get: function () { return this.chunks.join(''); },
-        enumerable: true,
-        configurable: true
-    });
-    return IndentWriter;
-})();
-var SimpleRelooper = (function () {
-    function SimpleRelooper() {
-        this.blocks = [];
-        this.lastId = 0;
-    }
-    SimpleRelooper.prototype.init = function () {
-        this.lastId = 0;
-    };
-    SimpleRelooper.prototype.cleanup = function () {
-    };
-    SimpleRelooper.prototype.addBlock = function (code) {
-        var block = new RelooperBlock(this.lastId++, code);
-        this.blocks.push(block);
-        return block;
-    };
-    SimpleRelooper.prototype.addBranch = function (from, to, cond, onjumpcode) {
-        var branch = new RelooperBranch(to, cond, onjumpcode);
-        if (cond) {
-            from.conditionalBranches.push(branch);
-            to.conditionalReferences.push(from);
-        }
-        else {
-            from.nextBlock = to;
-        }
-    };
-    SimpleRelooper.prototype.render = function (first) {
-        var writer = new IndentWriter();
-        if (this.blocks.length <= 1) {
-            if (this.blocks.length == 1)
-                writer.write(this.blocks[0].code);
-        }
-        else {
-            writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
-            writer.indent();
-            for (var _i = 0, _a = this.blocks; _i < _a.length; _i++) {
-                var block = _a[_i];
-                var nblock = this.blocks[block.index + 1];
-                if (block.index != 0) {
-                    writer.write('case ' + block.index + ':\n');
-                    writer.indent();
-                }
-                if ((block.conditionalBranches.length == 0) && (block.conditionalReferences.length == 1) && (block.conditionalReferences[0] == nblock)) {
-                    var branch = nblock.conditionalBranches[0];
-                    writer.write("while (true) {\n");
-                    writer.indent();
-                    writer.write(block.code);
-                    writer.write("if (!(" + branch.cond + ")) break;\n");
-                    writer.write(branch.onjumpCode + ";\n");
-                    writer.unindent();
-                    writer.write("}\n");
-                    writer.write(nblock.code);
-                }
-                else {
-                    for (var _b = 0, _c = block.conditionalBranches; _b < _c.length; _b++) {
-                        var branch = _c[_b];
-                        writer.write("if (" + branch.cond + ") { " + branch.onjumpCode + "; label = " + branch.to.index + "; continue loop_label; }\n");
-                    }
-                    writer.write(block.code);
-                }
-                if (block.nextBlock) {
-                    if (block.nextBlock != nblock) {
-                        writer.write("label = " + block.nextBlock.index + "; continue loop_label;\n");
-                    }
-                }
-                else {
-                    writer.write('break loop_label;\n');
-                }
-                if (block.index != 0)
-                    writer.unindent();
-            }
-            writer.unindent();
-            writer.write('}');
-        }
-        return writer.output;
-    };
-    return SimpleRelooper;
-})();
 var ANodeFunction = (function (_super) {
     __extends(ANodeFunction, _super);
     function ANodeFunction(address, prefix, sufix, childs) {
@@ -5588,22 +5628,21 @@ var ANodeFunction = (function (_super) {
         }
         var text = null;
         if (text === null) {
-            var relooper = new SimpleRelooper();
-            for (var _b = 0; _b < blocks.length; _b++) {
-                var block_1 = blocks[_b];
-                block_1.rblock = relooper.addBlock(block_1.code);
-            }
-            for (var n = 0; n < blocks.length; n++) {
-                var block_2 = blocks[n];
-                var nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
-                var jblock = block_2.jump ? blocksByLabel[block_2.jump.address] : null;
-                if (nblock)
-                    relooper.addBranch(block_2.rblock, nblock.rblock);
-                if (jblock)
-                    relooper.addBranch(block_2.rblock, jblock.rblock, block_2.jump.cond.toJs(), block_2.jump.branchCodeJs);
-            }
-            text = relooper.render(blocks[0].rblock);
-            relooper.cleanup();
+            text = relooper.process(function (relooper) {
+                for (var _i = 0; _i < blocks.length; _i++) {
+                    var block_1 = blocks[_i];
+                    block_1.rblock = relooper.addBlock(block_1.code);
+                }
+                for (var n = 0; n < blocks.length; n++) {
+                    var block_2 = blocks[n];
+                    var nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
+                    var jblock = block_2.jump ? blocksByLabel[block_2.jump.address] : null;
+                    if (nblock)
+                        relooper.addBranch(block_2.rblock, nblock.rblock);
+                    if (jblock)
+                        relooper.addBranch(block_2.rblock, jblock.rblock, block_2.jump.cond.toJs(), block_2.jump.branchCodeJs);
+                }
+            });
         }
         return this.prefix.toJs() + '\n' + text + this.sufix.toJs() + '\n';
     };
@@ -11028,6 +11067,8 @@ var otherPrimCount = overlay.createSection('otherPrimCount', 0);
 var optimizedCount = overlay.createSection('optimizedCount', 0);
 var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
+var totalCommands = overlay.createSection('totalCommands', 0);
+var totalStalls = overlay.createSection('totalStalls', 0);
 var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var timePerFrame = overlay.createSection('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
 var PspGpuExecutor = (function () {
@@ -12129,14 +12170,21 @@ var PspGpuList = (function () {
         var mem = this.memory;
         var table = this.executor.table;
         var stall4 = this.stall4;
+        var totalCommandsLocal = 0;
         while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
+            totalCommandsLocal++;
             var instructionPC4 = this.current4++;
             var instruction = mem.readUInt32_2(instructionPC4);
-            var op = (instruction >>> 24);
-            var params24 = (instruction & 0x00FFFFFF);
-            if (table[op](params24, instructionPC4, op))
+            var op = (instruction >> 24) & 0xFF;
+            var params24 = ((instruction >> 0) & 0x00FFFFFF);
+            if (table[op](params24, instructionPC4, op)) {
+                totalCommands.value += totalCommandsLocal;
+                totalStalls.value++;
                 return;
+            }
         }
+        totalStalls.value++;
+        totalCommands.value += totalCommandsLocal;
         this.status = (this.isStalled) ? 3 : 0;
     };
     PspGpuList.prototype.runUntilStall = function () {
@@ -15346,6 +15394,12 @@ var Memory = (function () {
         var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
         return new Uint16Array(buffer, offset, size / 2);
     };
+    Memory.prototype.getPointerU32Array = function (address, size) {
+        if (!size)
+            size = this.availableAfterAddress(address);
+        var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new Uint32Array(buffer, offset, size / 4);
+    };
     Memory.prototype.getPointerStream = function (address, size) {
         if (address == 0)
             return null;
@@ -15850,6 +15904,9 @@ exports.PspRtc = PspRtc;
 },
 "src/core/stream": function(module, exports, require) {
 exports.MemoryAsyncStream2 = MemoryAsyncStream;
+
+},
+"src/dummy": function(module, exports, require) {
 
 },
 "src/emulator": function(module, exports, require) {
@@ -28080,6 +28137,7 @@ module.exports = difflib;
 ///<reference path="./global.d.ts" />
 exports.promisetest = require('./promisetest');
 exports.memorytest = require('./memorytest');
+exports.reloopertest = require('./codegen/reloopertest');
 var pspTest = require('./format/pspTest');
 pspTest.ref();
 var csoTest = require('./format/csoTest');
@@ -28110,6 +28168,13 @@ var elfTest = require('./hle/elfTest');
 elfTest.ref();
 var pspautotests = require('./pspautotests');
 pspautotests.ref();
+
+},
+"test/codegen/reloopertest": function(module, exports, require) {
+describe('codegen', function () {
+    describe('relooper', function () {
+    });
+});
 
 },
 "test/format/csoTest": function(module, exports, require) {

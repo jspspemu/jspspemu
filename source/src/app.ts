@@ -1,5 +1,6 @@
 ﻿///<reference path="global.d.ts" />
 
+import _relooper = require('./codegen/relooper');
 import _controller = require('./core/controller');
 import _emulator = require('./emulator');
 

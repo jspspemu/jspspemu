@@ -4,6 +4,7 @@
 
 export import promisetest = require('./promisetest');
 export import memorytest = require('./memorytest');
+export import reloopertest = require('./codegen/reloopertest');
 import pspTest = require('./format/pspTest'); pspTest.ref();
 import csoTest = require('./format/csoTest'); csoTest.ref();
 import isoTest = require('./format/isoTest'); isoTest.ref();

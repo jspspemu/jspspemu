@@ -117,6 +117,8 @@ var otherPrimCount = overlay.createSection('otherPrimCount', 0);
 var optimizedCount = overlay.createSection('optimizedCount', 0);
 var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
+var totalCommands = overlay.createSection('totalCommands', 0);
+var totalStalls = overlay.createSection('totalStalls', 0);
 var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var timePerFrame = overlay.createSection('time', 0, (v) => `${v.toFixed(0)} ms`);
 
@@ -1227,19 +1229,28 @@ class PspGpuList {
 		//var showOpcodes = this.showOpcodes;
 		var table = this.executor.table;
 		var stall4 = this.stall4;
+		
+		var totalCommandsLocal = 0;
 
 		//while (this.hasMoreInstructions) {
 		while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
+			totalCommandsLocal++;
 			var instructionPC4 = this.current4++;
 			var instruction = mem.readUInt32_2(instructionPC4);
 			//console.log(instruction);
 
-			var op = (instruction >>> 24);
-			var params24 = (instruction & 0x00FFFFFF);
+			var op = (instruction >> 24) & 0xFF;
+			var params24 = ((instruction >> 0) & 0x00FFFFFF);
 
 			//if (showOpcodes) this.opcodes.push(GpuOpCodes[op]);
-			if (table[op](params24, instructionPC4, op)) return;
+			if (table[op](params24, instructionPC4, op)) {
+				totalCommands.value += totalCommandsLocal;
+				totalStalls.value++; 
+				return;
+			}
 		}
+		totalStalls.value++;
+		totalCommands.value += totalCommandsLocal; 
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}
 

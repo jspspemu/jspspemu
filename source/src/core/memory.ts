@@ -131,6 +131,12 @@ export class Memory {
 		return new Uint16Array(buffer, offset, size / 2);
 	}
 
+	getPointerU32Array(address: number, size?: number) {
+		if (!size) size = this.availableAfterAddress(address);
+		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+		return new Uint32Array(buffer, offset, size / 4);
+	}
+
 	getPointerStream(address: number, size?: number) {
 		//console.log(sprintf("getPointerStream: %08X", address));
 		if (address == 0) return null;
