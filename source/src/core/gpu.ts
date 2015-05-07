@@ -1,8 +1,8 @@
 ﻿///<reference path="../global.d.ts" />
 
-import _gpu = require('./gpu/gpu'); _gpu.PspGpu;
-import _state = require('./gpu/state'); _state.AlphaTest;
-import _vertex = require('./gpu/vertex'); _vertex.VertexReader;
+import _gpu = require('./gpu/gpu_core'); _gpu.PspGpu;
+import _state = require('./gpu/gpu_state'); _state.AlphaTest;
+import _vertex = require('./gpu/gpu_vertex'); _vertex.VertexReader;
 
 export import PspGpuCallback = _gpu.PspGpuCallback; _gpu.PspGpuCallback;
 export import PspGpu = _gpu.PspGpu;
