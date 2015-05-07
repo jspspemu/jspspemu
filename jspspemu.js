@@ -3454,7 +3454,7 @@ if (typeof navigator == 'undefined')
 var SceCtrlData = (function () {
     function SceCtrlData() {
         this.timeStamp = 0;
-        this.buttons = PspCtrlButtons.none;
+        this.buttons = 0;
         this.lx = 0;
         this.ly = 0;
         this._rsrv = [0, 0, 0, 0, 0];
@@ -3483,6 +3483,8 @@ var SceCtrlData = (function () {
     return SceCtrlData;
 })();
 exports.SceCtrlData = SceCtrlData;
+var navigator = (typeof window != 'undefined') ? window.navigator : null;
+var getGamepads = navigator ? navigator.getGamepads.bind(navigator) : null;
 var PspController = (function () {
     function PspController() {
         this.data = new SceCtrlData();
@@ -3497,22 +3499,22 @@ var PspController = (function () {
         this.latchSamplingCount = 0;
         this.animationTimeId = 0;
         this.buttonMapping = {};
-        this.buttonMapping[HtmlKeyCodes.up] = PspCtrlButtons.up;
-        this.buttonMapping[HtmlKeyCodes.left] = PspCtrlButtons.left;
-        this.buttonMapping[HtmlKeyCodes.right] = PspCtrlButtons.right;
-        this.buttonMapping[HtmlKeyCodes.down] = PspCtrlButtons.down;
-        this.buttonMapping[HtmlKeyCodes.enter] = PspCtrlButtons.start;
-        this.buttonMapping[HtmlKeyCodes.space] = PspCtrlButtons.select;
-        this.buttonMapping[HtmlKeyCodes.q] = PspCtrlButtons.leftTrigger;
-        this.buttonMapping[HtmlKeyCodes.e] = PspCtrlButtons.rightTrigger;
-        this.buttonMapping[HtmlKeyCodes.w] = PspCtrlButtons.triangle;
-        this.buttonMapping[HtmlKeyCodes.s] = PspCtrlButtons.cross;
-        this.buttonMapping[HtmlKeyCodes.a] = PspCtrlButtons.square;
-        this.buttonMapping[HtmlKeyCodes.d] = PspCtrlButtons.circle;
-        this.fieldMapping[HtmlKeyCodes.i] = 'analogUp';
-        this.fieldMapping[HtmlKeyCodes.k] = 'analogDown';
-        this.fieldMapping[HtmlKeyCodes.j] = 'analogLeft';
-        this.fieldMapping[HtmlKeyCodes.l] = 'analogRight';
+        this.buttonMapping[38] = 16;
+        this.buttonMapping[37] = 128;
+        this.buttonMapping[39] = 32;
+        this.buttonMapping[40] = 64;
+        this.buttonMapping[13] = 8;
+        this.buttonMapping[32] = 1;
+        this.buttonMapping[81] = 256;
+        this.buttonMapping[69] = 512;
+        this.buttonMapping[87] = 4096;
+        this.buttonMapping[83] = 16384;
+        this.buttonMapping[65] = 32768;
+        this.buttonMapping[68] = 8192;
+        this.fieldMapping[73] = 'analogUp';
+        this.fieldMapping[75] = 'analogDown';
+        this.fieldMapping[74] = 'analogLeft';
+        this.fieldMapping[76] = 'analogRight';
     }
     PspController.prototype.keyDown = function (e) {
         var button = this.buttonMapping[e.keyCode];
@@ -3574,26 +3576,26 @@ var PspController = (function () {
         this.analogAddY = MathUtils.clamp(this.analogAddY, -1, +1);
         this.data.x = this.analogAddX;
         this.data.y = this.analogAddY;
-        if (window.navigator && window.navigator['getGamepads']) {
-            var gamepads = (navigator['getGamepads'])();
+        if (getGamepads) {
+            var gamepads = getGamepads();
             if (gamepads[0]) {
                 var buttonMapping = [
-                    PspCtrlButtons.cross,
-                    PspCtrlButtons.circle,
-                    PspCtrlButtons.square,
-                    PspCtrlButtons.triangle,
-                    PspCtrlButtons.leftTrigger,
-                    PspCtrlButtons.rightTrigger,
-                    PspCtrlButtons.volumeUp,
-                    PspCtrlButtons.volumeDown,
-                    PspCtrlButtons.select,
-                    PspCtrlButtons.start,
-                    PspCtrlButtons.home,
-                    PspCtrlButtons.note,
-                    PspCtrlButtons.up,
-                    PspCtrlButtons.down,
-                    PspCtrlButtons.left,
-                    PspCtrlButtons.right,
+                    16384,
+                    8192,
+                    32768,
+                    4096,
+                    256,
+                    512,
+                    1048576,
+                    2097152,
+                    1,
+                    8,
+                    65536,
+                    8388608,
+                    16,
+                    64,
+                    128,
+                    32,
                 ];
                 var gamepad = gamepads[0];
                 var buttons = gamepad['buttons'];
@@ -3633,134 +3635,6 @@ var PspController = (function () {
     return PspController;
 })();
 exports.PspController = PspController;
-(function (PspCtrlButtons) {
-    PspCtrlButtons[PspCtrlButtons["none"] = 0] = "none";
-    PspCtrlButtons[PspCtrlButtons["select"] = 1] = "select";
-    PspCtrlButtons[PspCtrlButtons["start"] = 8] = "start";
-    PspCtrlButtons[PspCtrlButtons["up"] = 16] = "up";
-    PspCtrlButtons[PspCtrlButtons["right"] = 32] = "right";
-    PspCtrlButtons[PspCtrlButtons["down"] = 64] = "down";
-    PspCtrlButtons[PspCtrlButtons["left"] = 128] = "left";
-    PspCtrlButtons[PspCtrlButtons["leftTrigger"] = 256] = "leftTrigger";
-    PspCtrlButtons[PspCtrlButtons["rightTrigger"] = 512] = "rightTrigger";
-    PspCtrlButtons[PspCtrlButtons["triangle"] = 4096] = "triangle";
-    PspCtrlButtons[PspCtrlButtons["circle"] = 8192] = "circle";
-    PspCtrlButtons[PspCtrlButtons["cross"] = 16384] = "cross";
-    PspCtrlButtons[PspCtrlButtons["square"] = 32768] = "square";
-    PspCtrlButtons[PspCtrlButtons["home"] = 65536] = "home";
-    PspCtrlButtons[PspCtrlButtons["hold"] = 131072] = "hold";
-    PspCtrlButtons[PspCtrlButtons["wirelessLanUp"] = 262144] = "wirelessLanUp";
-    PspCtrlButtons[PspCtrlButtons["remote"] = 524288] = "remote";
-    PspCtrlButtons[PspCtrlButtons["volumeUp"] = 1048576] = "volumeUp";
-    PspCtrlButtons[PspCtrlButtons["volumeDown"] = 2097152] = "volumeDown";
-    PspCtrlButtons[PspCtrlButtons["screen"] = 4194304] = "screen";
-    PspCtrlButtons[PspCtrlButtons["note"] = 8388608] = "note";
-    PspCtrlButtons[PspCtrlButtons["discPresent"] = 16777216] = "discPresent";
-    PspCtrlButtons[PspCtrlButtons["memoryStickPresent"] = 33554432] = "memoryStickPresent";
-})(exports.PspCtrlButtons || (exports.PspCtrlButtons = {}));
-var PspCtrlButtons = exports.PspCtrlButtons;
-(function (HtmlKeyCodes) {
-    HtmlKeyCodes[HtmlKeyCodes["backspace"] = 8] = "backspace";
-    HtmlKeyCodes[HtmlKeyCodes["tab"] = 9] = "tab";
-    HtmlKeyCodes[HtmlKeyCodes["enter"] = 13] = "enter";
-    HtmlKeyCodes[HtmlKeyCodes["shift"] = 16] = "shift";
-    HtmlKeyCodes[HtmlKeyCodes["ctrl"] = 17] = "ctrl";
-    HtmlKeyCodes[HtmlKeyCodes["alt"] = 18] = "alt";
-    HtmlKeyCodes[HtmlKeyCodes["pause"] = 19] = "pause";
-    HtmlKeyCodes[HtmlKeyCodes["caps_lock"] = 20] = "caps_lock";
-    HtmlKeyCodes[HtmlKeyCodes["escape"] = 27] = "escape";
-    HtmlKeyCodes[HtmlKeyCodes["space"] = 32] = "space";
-    HtmlKeyCodes[HtmlKeyCodes["page_up"] = 33] = "page_up";
-    HtmlKeyCodes[HtmlKeyCodes["page_down"] = 34] = "page_down";
-    HtmlKeyCodes[HtmlKeyCodes["end"] = 35] = "end";
-    HtmlKeyCodes[HtmlKeyCodes["home"] = 36] = "home";
-    HtmlKeyCodes[HtmlKeyCodes["left"] = 37] = "left";
-    HtmlKeyCodes[HtmlKeyCodes["up"] = 38] = "up";
-    HtmlKeyCodes[HtmlKeyCodes["right"] = 39] = "right";
-    HtmlKeyCodes[HtmlKeyCodes["down"] = 40] = "down";
-    HtmlKeyCodes[HtmlKeyCodes["insert"] = 45] = "insert";
-    HtmlKeyCodes[HtmlKeyCodes["_delete"] = 46] = "_delete";
-    HtmlKeyCodes[HtmlKeyCodes["k0"] = 48] = "k0";
-    HtmlKeyCodes[HtmlKeyCodes["k1"] = 49] = "k1";
-    HtmlKeyCodes[HtmlKeyCodes["k2"] = 50] = "k2";
-    HtmlKeyCodes[HtmlKeyCodes["k3"] = 51] = "k3";
-    HtmlKeyCodes[HtmlKeyCodes["k4"] = 52] = "k4";
-    HtmlKeyCodes[HtmlKeyCodes["k5"] = 53] = "k5";
-    HtmlKeyCodes[HtmlKeyCodes["k6"] = 54] = "k6";
-    HtmlKeyCodes[HtmlKeyCodes["k7"] = 55] = "k7";
-    HtmlKeyCodes[HtmlKeyCodes["k8"] = 56] = "k8";
-    HtmlKeyCodes[HtmlKeyCodes["k9"] = 57] = "k9";
-    HtmlKeyCodes[HtmlKeyCodes["a"] = 65] = "a";
-    HtmlKeyCodes[HtmlKeyCodes["b"] = 66] = "b";
-    HtmlKeyCodes[HtmlKeyCodes["c"] = 67] = "c";
-    HtmlKeyCodes[HtmlKeyCodes["d"] = 68] = "d";
-    HtmlKeyCodes[HtmlKeyCodes["e"] = 69] = "e";
-    HtmlKeyCodes[HtmlKeyCodes["f"] = 70] = "f";
-    HtmlKeyCodes[HtmlKeyCodes["g"] = 71] = "g";
-    HtmlKeyCodes[HtmlKeyCodes["h"] = 72] = "h";
-    HtmlKeyCodes[HtmlKeyCodes["i"] = 73] = "i";
-    HtmlKeyCodes[HtmlKeyCodes["j"] = 74] = "j";
-    HtmlKeyCodes[HtmlKeyCodes["k"] = 75] = "k";
-    HtmlKeyCodes[HtmlKeyCodes["l"] = 76] = "l";
-    HtmlKeyCodes[HtmlKeyCodes["m"] = 77] = "m";
-    HtmlKeyCodes[HtmlKeyCodes["n"] = 78] = "n";
-    HtmlKeyCodes[HtmlKeyCodes["o"] = 79] = "o";
-    HtmlKeyCodes[HtmlKeyCodes["p"] = 80] = "p";
-    HtmlKeyCodes[HtmlKeyCodes["q"] = 81] = "q";
-    HtmlKeyCodes[HtmlKeyCodes["r"] = 82] = "r";
-    HtmlKeyCodes[HtmlKeyCodes["s"] = 83] = "s";
-    HtmlKeyCodes[HtmlKeyCodes["t"] = 84] = "t";
-    HtmlKeyCodes[HtmlKeyCodes["u"] = 85] = "u";
-    HtmlKeyCodes[HtmlKeyCodes["v"] = 86] = "v";
-    HtmlKeyCodes[HtmlKeyCodes["w"] = 87] = "w";
-    HtmlKeyCodes[HtmlKeyCodes["x"] = 88] = "x";
-    HtmlKeyCodes[HtmlKeyCodes["y"] = 89] = "y";
-    HtmlKeyCodes[HtmlKeyCodes["z"] = 90] = "z";
-    HtmlKeyCodes[HtmlKeyCodes["left_window_key"] = 91] = "left_window_key";
-    HtmlKeyCodes[HtmlKeyCodes["right_window_key"] = 92] = "right_window_key";
-    HtmlKeyCodes[HtmlKeyCodes["select_key"] = 93] = "select_key";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_0"] = 96] = "numpad_0";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_1"] = 97] = "numpad_1";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_2"] = 98] = "numpad_2";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_3"] = 99] = "numpad_3";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_4"] = 100] = "numpad_4";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_5"] = 101] = "numpad_5";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_6"] = 102] = "numpad_6";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_7"] = 103] = "numpad_7";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_8"] = 104] = "numpad_8";
-    HtmlKeyCodes[HtmlKeyCodes["numpad_9"] = 105] = "numpad_9";
-    HtmlKeyCodes[HtmlKeyCodes["multiply"] = 106] = "multiply";
-    HtmlKeyCodes[HtmlKeyCodes["add"] = 107] = "add";
-    HtmlKeyCodes[HtmlKeyCodes["subtract"] = 109] = "subtract";
-    HtmlKeyCodes[HtmlKeyCodes["decimal_point"] = 110] = "decimal_point";
-    HtmlKeyCodes[HtmlKeyCodes["divide"] = 111] = "divide";
-    HtmlKeyCodes[HtmlKeyCodes["f1"] = 112] = "f1";
-    HtmlKeyCodes[HtmlKeyCodes["f2"] = 113] = "f2";
-    HtmlKeyCodes[HtmlKeyCodes["f3"] = 114] = "f3";
-    HtmlKeyCodes[HtmlKeyCodes["f4"] = 115] = "f4";
-    HtmlKeyCodes[HtmlKeyCodes["f5"] = 116] = "f5";
-    HtmlKeyCodes[HtmlKeyCodes["f6"] = 117] = "f6";
-    HtmlKeyCodes[HtmlKeyCodes["f7"] = 118] = "f7";
-    HtmlKeyCodes[HtmlKeyCodes["f8"] = 119] = "f8";
-    HtmlKeyCodes[HtmlKeyCodes["f9"] = 120] = "f9";
-    HtmlKeyCodes[HtmlKeyCodes["f10"] = 121] = "f10";
-    HtmlKeyCodes[HtmlKeyCodes["f11"] = 122] = "f11";
-    HtmlKeyCodes[HtmlKeyCodes["f12"] = 123] = "f12";
-    HtmlKeyCodes[HtmlKeyCodes["num_lock"] = 144] = "num_lock";
-    HtmlKeyCodes[HtmlKeyCodes["scroll_lock"] = 145] = "scroll_lock";
-    HtmlKeyCodes[HtmlKeyCodes["semi_colon"] = 186] = "semi_colon";
-    HtmlKeyCodes[HtmlKeyCodes["equal_sign"] = 187] = "equal_sign";
-    HtmlKeyCodes[HtmlKeyCodes["comma"] = 188] = "comma";
-    HtmlKeyCodes[HtmlKeyCodes["dash"] = 189] = "dash";
-    HtmlKeyCodes[HtmlKeyCodes["period"] = 190] = "period";
-    HtmlKeyCodes[HtmlKeyCodes["forward_slash"] = 191] = "forward_slash";
-    HtmlKeyCodes[HtmlKeyCodes["grave_accent"] = 192] = "grave_accent";
-    HtmlKeyCodes[HtmlKeyCodes["open_bracket"] = 219] = "open_bracket";
-    HtmlKeyCodes[HtmlKeyCodes["back_slash"] = 220] = "back_slash";
-    HtmlKeyCodes[HtmlKeyCodes["close_braket"] = 221] = "close_braket";
-    HtmlKeyCodes[HtmlKeyCodes["single_quote"] = 222] = "single_quote";
-})(exports.HtmlKeyCodes || (exports.HtmlKeyCodes = {}));
-var HtmlKeyCodes = exports.HtmlKeyCodes;
 
 },
 "src/core/cpu": function(module, exports, require) {
@@ -3771,7 +3645,6 @@ var _instructions = require('./cpu/cpu_instructions');
 exports.MipsAssembler = _assembler.MipsAssembler;
 exports.MipsDisassembler = _assembler.MipsDisassembler;
 exports.CpuState = _core.CpuState;
-exports.CpuSpecialAddresses = _core.CpuSpecialAddresses;
 exports.SyscallManager = _core.SyscallManager;
 exports.Instruction = _instructions.Instruction;
 exports.Instructions = _instructions.Instructions;
@@ -6113,7 +5986,7 @@ var VVecRegClass = (function () {
     VVecRegClass.prototype._setVector = function (generator) {
         var array = [];
         var statements = [];
-        var regs = getVectorRegs(this.reg, VectorSize.Quad);
+        var regs = getVectorRegs(this.reg, 4);
         statements.push(stm(ast.call('state.vfpuStore', [
             ast.array(regs.map(function (item) { return imm32(item); })),
             ast.array([0, 1, 2, 3].map(function (index) { return generator(index); }))
@@ -6134,19 +6007,6 @@ function VMatReg(index) {
 function VVecReg(index, size) {
     return new VVecRegClass(index, size);
 }
-(function (VectorSize) {
-    VectorSize[VectorSize["Single"] = 1] = "Single";
-    VectorSize[VectorSize["Pair"] = 2] = "Pair";
-    VectorSize[VectorSize["Triple"] = 3] = "Triple";
-    VectorSize[VectorSize["Quad"] = 4] = "Quad";
-})(exports.VectorSize || (exports.VectorSize = {}));
-var VectorSize = exports.VectorSize;
-(function (MatrixSize) {
-    MatrixSize[MatrixSize["M_2x2"] = 2] = "M_2x2";
-    MatrixSize[MatrixSize["M_3x3"] = 3] = "M_3x3";
-    MatrixSize[MatrixSize["M_4x4"] = 4] = "M_4x4";
-})(exports.MatrixSize || (exports.MatrixSize = {}));
-var MatrixSize = exports.MatrixSize;
 ;
 function getVectorRegs(vectorReg, N) {
     var mtx = (vectorReg >>> 2) & 7;
@@ -6155,20 +6015,20 @@ function getVectorRegs(vectorReg, N) {
     var length = 0;
     var transpose = (vectorReg >>> 5) & 1;
     switch (N) {
-        case VectorSize.Single:
+        case 1:
             transpose = 0;
             row = (vectorReg >>> 5) & 3;
             length = 1;
             break;
-        case VectorSize.Pair:
+        case 2:
             row = (vectorReg >>> 5) & 2;
             length = 2;
             break;
-        case VectorSize.Triple:
+        case 3:
             row = (vectorReg >>> 6) & 1;
             length = 3;
             break;
-        case VectorSize.Quad:
+        case 4:
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
@@ -6193,15 +6053,15 @@ function getMatrixRegs(matrixReg, N) {
     var row = 0;
     var side = 0;
     switch (N) {
-        case MatrixSize.M_2x2:
+        case 2:
             row = (matrixReg >> 5) & 2;
             side = 2;
             break;
-        case MatrixSize.M_3x3:
+        case 3:
             row = (matrixReg >> 6) & 1;
             side = 3;
             break;
-        case MatrixSize.M_4x4:
+        case 4:
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
@@ -6506,12 +6366,12 @@ var InstructionAst = (function () {
     };
     InstructionAst.prototype["lv.s"] = function (i) { return assign_stm(vfpr(i.VT5_2), call('memory.lwc1', [address_RS_IMM14(i, 0)])); };
     InstructionAst.prototype["sv.s"] = function (i) { return call_stm('memory.swc1', [address_RS_IMM14(i, 0), vfpr(i.VT5_2)]); };
-    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, VectorSize.Quad), getMemoryVector(address_RS_IMM14(i), 4)); };
-    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
-    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
-    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, VectorSize.Quad)); };
-    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
-    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, VectorSize.Quad).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, 4), getMemoryVector(address_RS_IMM14(i), 4)); };
+    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, 4)); };
+    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
     InstructionAst.prototype.viim = function (i) { return assign_stm(vfpr(i.VT), imm32(i.imm16)); };
     InstructionAst.prototype.vfim = function (i) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); };
     InstructionAst.prototype.vcst = function (i) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); };
@@ -7057,10 +6917,6 @@ var Memory = _memory.Memory;
 var DEBUG_FUNCGEN = false;
 var DEBUG_NATIVEFUNC = false;
 var BUILD_FUNC_ON_REFERENCED = true;
-(function (CpuSpecialAddresses) {
-    CpuSpecialAddresses[CpuSpecialAddresses["EXIT_THREAD"] = 268435455] = "EXIT_THREAD";
-})(exports.CpuSpecialAddresses || (exports.CpuSpecialAddresses = {}));
-var CpuSpecialAddresses = exports.CpuSpecialAddresses;
 var VfpuPrefixBase = (function () {
     function VfpuPrefixBase(vfrc, index) {
         this.vfrc = vfrc;
@@ -7204,45 +7060,6 @@ var VfpuPrefixWrite = (function (_super) {
     };
     return VfpuPrefixWrite;
 })(VfpuPrefixBase);
-(function (VFPU_CTRL) {
-    VFPU_CTRL[VFPU_CTRL["SPREFIX"] = 0] = "SPREFIX";
-    VFPU_CTRL[VFPU_CTRL["TPREFIX"] = 1] = "TPREFIX";
-    VFPU_CTRL[VFPU_CTRL["DPREFIX"] = 2] = "DPREFIX";
-    VFPU_CTRL[VFPU_CTRL["CC"] = 3] = "CC";
-    VFPU_CTRL[VFPU_CTRL["INF4"] = 4] = "INF4";
-    VFPU_CTRL[VFPU_CTRL["RSV5"] = 5] = "RSV5";
-    VFPU_CTRL[VFPU_CTRL["RSV6"] = 6] = "RSV6";
-    VFPU_CTRL[VFPU_CTRL["REV"] = 7] = "REV";
-    VFPU_CTRL[VFPU_CTRL["RCX0"] = 8] = "RCX0";
-    VFPU_CTRL[VFPU_CTRL["RCX1"] = 9] = "RCX1";
-    VFPU_CTRL[VFPU_CTRL["RCX2"] = 10] = "RCX2";
-    VFPU_CTRL[VFPU_CTRL["RCX3"] = 11] = "RCX3";
-    VFPU_CTRL[VFPU_CTRL["RCX4"] = 12] = "RCX4";
-    VFPU_CTRL[VFPU_CTRL["RCX5"] = 13] = "RCX5";
-    VFPU_CTRL[VFPU_CTRL["RCX6"] = 14] = "RCX6";
-    VFPU_CTRL[VFPU_CTRL["RCX7"] = 15] = "RCX7";
-    VFPU_CTRL[VFPU_CTRL["MAX"] = 16] = "MAX";
-})(exports.VFPU_CTRL || (exports.VFPU_CTRL = {}));
-var VFPU_CTRL = exports.VFPU_CTRL;
-(function (VCondition) {
-    VCondition[VCondition["FL"] = 0] = "FL";
-    VCondition[VCondition["EQ"] = 1] = "EQ";
-    VCondition[VCondition["LT"] = 2] = "LT";
-    VCondition[VCondition["LE"] = 3] = "LE";
-    VCondition[VCondition["TR"] = 4] = "TR";
-    VCondition[VCondition["NE"] = 5] = "NE";
-    VCondition[VCondition["GE"] = 6] = "GE";
-    VCondition[VCondition["GT"] = 7] = "GT";
-    VCondition[VCondition["EZ"] = 8] = "EZ";
-    VCondition[VCondition["EN"] = 9] = "EN";
-    VCondition[VCondition["EI"] = 10] = "EI";
-    VCondition[VCondition["ES"] = 11] = "ES";
-    VCondition[VCondition["NZ"] = 12] = "NZ";
-    VCondition[VCondition["NN"] = 13] = "NN";
-    VCondition[VCondition["NI"] = 14] = "NI";
-    VCondition[VCondition["NS"] = 15] = "NS";
-})(exports.VCondition || (exports.VCondition = {}));
-var VCondition = exports.VCondition;
 ;
 var CpuState = (function () {
     function CpuState(memory, syscallManager) {
@@ -7261,9 +7078,9 @@ var CpuState = (function () {
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
         this.vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
-        this.vpfxs = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.SPREFIX);
-        this.vpfxt = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.TPREFIX);
-        this.vpfxd = new VfpuPrefixWrite(this.vfprc, VFPU_CTRL.DPREFIX);
+        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0);
+        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1);
+        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2);
         this.vector_vs = [0, 0, 0, 0];
         this.vector_vt = [0, 0, 0, 0];
         this.vector_vd = [0, 0, 0, 0];
@@ -7293,10 +7110,10 @@ var CpuState = (function () {
     };
     CpuState.prototype.setVfrCc = function (index, value) {
         if (value) {
-            this.vfprc[VFPU_CTRL.CC] |= (1 << index);
+            this.vfprc[3] |= (1 << index);
         }
         else {
-            this.vfprc[VFPU_CTRL.CC] &= ~(1 << index);
+            this.vfprc[3] &= ~(1 << index);
         }
     };
     CpuState.prototype.vrnds = function () { };
@@ -7311,7 +7128,7 @@ var CpuState = (function () {
     CpuState.prototype.vrndf1 = function () { return Math.random() * 2; };
     CpuState.prototype.vrndf2 = function () { return Math.random() * 4; };
     CpuState.prototype.getVfrCc = function (index) {
-        return ((this.vfprc[VFPU_CTRL.CC] & (1 << index)) != 0);
+        return ((this.vfprc[3] & (1 << index)) != 0);
     };
     CpuState.prototype.vcmp = function (cond, vsValues, vtValues) {
         var vectorSize = vsValues.length;
@@ -7326,52 +7143,52 @@ var CpuState = (function () {
         for (var i = 0; i < vectorSize; i++) {
             var c = false;
             switch (cond) {
-                case VCondition.FL:
+                case 0:
                     c = false;
                     break;
-                case VCondition.EQ:
+                case 1:
                     c = s[i] == t[i];
                     break;
-                case VCondition.LT:
+                case 2:
                     c = s[i] < t[i];
                     break;
-                case VCondition.LE:
+                case 3:
                     c = s[i] <= t[i];
                     break;
-                case VCondition.TR:
+                case 4:
                     c = true;
                     break;
-                case VCondition.NE:
+                case 5:
                     c = s[i] != t[i];
                     break;
-                case VCondition.GE:
+                case 6:
                     c = s[i] >= t[i];
                     break;
-                case VCondition.GT:
+                case 7:
                     c = s[i] > t[i];
                     break;
-                case VCondition.EZ:
+                case 8:
                     c = s[i] == 0.0 || s[i] == -0.0;
                     break;
-                case VCondition.EN:
+                case 9:
                     c = MathFloat.isnan(s[i]);
                     break;
-                case VCondition.EI:
+                case 10:
                     c = MathFloat.isinf(s[i]);
                     break;
-                case VCondition.ES:
+                case 11:
                     c = MathFloat.isnanorinf(s[i]);
                     break;
-                case VCondition.NZ:
+                case 12:
                     c = s[i] != 0;
                     break;
-                case VCondition.NN:
+                case 13:
                     c = !MathFloat.isnan(s[i]);
                     break;
-                case VCondition.NI:
+                case 14:
                     c = !MathFloat.isinf(s[i]);
                     break;
-                case VCondition.NS:
+                case 15:
                     c = !(MathFloat.isnanorinf(s[i]));
                     break;
             }
@@ -7381,7 +7198,7 @@ var CpuState = (function () {
             and_val &= c_i;
             affected_bits |= 1 << i;
         }
-        this.vfprc[VFPU_CTRL.CC] = (this.vfprc[VFPU_CTRL.CC] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.vfprc[3] = (this.vfprc[3] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
         this.eatPrefixes();
     };
     CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
@@ -7390,7 +7207,7 @@ var CpuState = (function () {
         this.loadVs_prefixed(vsRegs.map(function (reg) { return _this.vfpr[reg]; }));
         this.loadVdRegs(vdRegs);
         var compare = _true ? 1 : 0;
-        var cc = this.vfprc[VFPU_CTRL.CC];
+        var cc = this.vfprc[3];
         if (register < 6) {
             if (((cc >> register) & 1) == compare) {
                 for (var n = 0; n < vectorSize; n++) {
@@ -7973,7 +7790,7 @@ var FunctionGenerator = (function () {
         }
     };
     FunctionGenerator.prototype.getFunctionInfo = function (address, level) {
-        if (address == CpuSpecialAddresses.EXIT_THREAD)
+        if (address == 268435455)
             return { start: address, min: address, max: address + 4, labels: {} };
         if (address == 0x00000000)
             throw (new Error("Trying to execute 0x00000000"));
@@ -8032,7 +7849,7 @@ var FunctionGenerator = (function () {
     };
     FunctionGenerator.prototype.getFunctionCode = function (info, level) {
         var args = {};
-        if (info.start == CpuSpecialAddresses.EXIT_THREAD)
+        if (info.start == 268435455)
             return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
         var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), ast.raw_stm('state.jumpCall = null; return;'), []);
         var labels = {};
@@ -10904,8 +10721,6 @@ var __extends = this.__extends || function (d, b) {
 };
 var memory = require('./memory');
 var pixelformat = require('./pixelformat');
-var _interrupt = require('./interrupt');
-var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
 var PixelConverter = pixelformat.PixelConverter;
 var BasePspDisplay = (function () {
@@ -11029,7 +10844,7 @@ var PspDisplay = (function (_super) {
             _this.vblankCount++;
             _this.update();
             _this.vblank.dispatch(_this.vblankCount);
-            _this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
+            _this.interruptManager.interrupt(30);
         }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
         return Promise2.resolve();
     };
@@ -12096,14 +11911,14 @@ var PspGpuExecutor = (function () {
         light.kind = kind;
         light.type = type;
         switch (light.type) {
-            case _state.LightTypeEnum.Directional:
+            case 0:
                 light.pw = 0;
                 break;
-            case _state.LightTypeEnum.PointLight:
+            case 1:
                 light.pw = 1;
                 light.cutoff = 180;
                 break;
-            case _state.LightTypeEnum.SpotLight:
+            case 2:
                 light.pw = 1;
                 break;
         }
@@ -13180,8 +12995,8 @@ var Light = (function () {
         this._diffuseColor = -1;
         this._ambientColor = -1;
         this.enabled = false;
-        this.kind = LightModelEnum.SingleColor;
-        this.type = LightTypeEnum.Directional;
+        this.kind = 0;
+        this.type = 0;
         this.cutoff = 0;
         this.px = 0;
         this.py = 0;
@@ -13203,24 +13018,13 @@ var Light = (function () {
     return Light;
 })();
 exports.Light = Light;
-(function (LightTypeEnum) {
-    LightTypeEnum[LightTypeEnum["Directional"] = 0] = "Directional";
-    LightTypeEnum[LightTypeEnum["PointLight"] = 1] = "PointLight";
-    LightTypeEnum[LightTypeEnum["SpotLight"] = 2] = "SpotLight";
-})(exports.LightTypeEnum || (exports.LightTypeEnum = {}));
-var LightTypeEnum = exports.LightTypeEnum;
-(function (LightModelEnum) {
-    LightModelEnum[LightModelEnum["SingleColor"] = 0] = "SingleColor";
-    LightModelEnum[LightModelEnum["SeparateSpecularColor"] = 1] = "SeparateSpecularColor";
-})(exports.LightModelEnum || (exports.LightModelEnum = {}));
-var LightModelEnum = exports.LightModelEnum;
 var Lightning = (function () {
     function Lightning() {
         this._ambientLightColor = -1;
         this._ambientLightColorAlpha = -1;
         this.enabled = false;
         this.lights = [new Light(), new Light(), new Light(), new Light()];
-        this.lightModel = LightModelEnum.SeparateSpecularColor;
+        this.lightModel = 1;
         this.specularPower = 1;
         this.ambientLightColor = new ColorState();
     }
@@ -13260,25 +13064,6 @@ var ClutState = (function () {
     return ClutState;
 })();
 exports.ClutState = ClutState;
-(function (TextureProjectionMapMode) {
-    TextureProjectionMapMode[TextureProjectionMapMode["GU_POSITION"] = 0] = "GU_POSITION";
-    TextureProjectionMapMode[TextureProjectionMapMode["GU_UV"] = 1] = "GU_UV";
-    TextureProjectionMapMode[TextureProjectionMapMode["GU_NORMALIZED_NORMAL"] = 2] = "GU_NORMALIZED_NORMAL";
-    TextureProjectionMapMode[TextureProjectionMapMode["GU_NORMAL"] = 3] = "GU_NORMAL";
-})(exports.TextureProjectionMapMode || (exports.TextureProjectionMapMode = {}));
-var TextureProjectionMapMode = exports.TextureProjectionMapMode;
-(function (TextureMapMode) {
-    TextureMapMode[TextureMapMode["GU_TEXTURE_COORDS"] = 0] = "GU_TEXTURE_COORDS";
-    TextureMapMode[TextureMapMode["GU_TEXTURE_MATRIX"] = 1] = "GU_TEXTURE_MATRIX";
-    TextureMapMode[TextureMapMode["GU_ENVIRONMENT_MAP"] = 2] = "GU_ENVIRONMENT_MAP";
-})(exports.TextureMapMode || (exports.TextureMapMode = {}));
-var TextureMapMode = exports.TextureMapMode;
-(function (TextureLevelMode) {
-    TextureLevelMode[TextureLevelMode["Auto"] = 0] = "Auto";
-    TextureLevelMode[TextureLevelMode["Const"] = 1] = "Const";
-    TextureLevelMode[TextureLevelMode["Slope"] = 2] = "Slope";
-})(exports.TextureLevelMode || (exports.TextureLevelMode = {}));
-var TextureLevelMode = exports.TextureLevelMode;
 var TextureState = (function () {
     function TextureState() {
         this.tmode = -1;
@@ -13311,26 +13096,26 @@ var TextureState = (function () {
         this.pixelFormat = 3;
         this.clut = new ClutState();
         this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
-        this.textureProjectionMapMode = TextureProjectionMapMode.GU_NORMAL;
-        this.textureMapMode = TextureMapMode.GU_TEXTURE_COORDS;
+        this.textureProjectionMapMode = 3;
+        this.textureMapMode = 0;
         this.slopeLevel = 0;
-        this.levelMode = TextureLevelMode.Auto;
+        this.levelMode = 0;
         this.mipmapBias = 1.0;
     }
     TextureState.prototype.getTextureComponentsCount = function () {
         switch (this.textureMapMode) {
             default: throw (new Error("Invalid textureMapMode"));
-            case TextureMapMode.GU_TEXTURE_COORDS: return 2;
-            case TextureMapMode.GU_TEXTURE_MATRIX:
+            case 0: return 2;
+            case 1:
                 switch (this.textureProjectionMapMode) {
-                    case TextureProjectionMapMode.GU_NORMAL: return 3;
-                    case TextureProjectionMapMode.GU_NORMALIZED_NORMAL: return 3;
-                    case TextureProjectionMapMode.GU_POSITION: return 3;
-                    case TextureProjectionMapMode.GU_UV: return 2;
+                    case 3: return 3;
+                    case 2: return 3;
+                    case 0: return 3;
+                    case 1: return 2;
                     default: return 2;
                 }
                 break;
-            case TextureMapMode.GU_ENVIRONMENT_MAP: return 2;
+            case 2: return 2;
         }
     };
     return TextureState;
@@ -13344,22 +13129,11 @@ var CullingState = (function () {
     return CullingState;
 })();
 exports.CullingState = CullingState;
-(function (TestFunctionEnum) {
-    TestFunctionEnum[TestFunctionEnum["Never"] = 0] = "Never";
-    TestFunctionEnum[TestFunctionEnum["Always"] = 1] = "Always";
-    TestFunctionEnum[TestFunctionEnum["Equal"] = 2] = "Equal";
-    TestFunctionEnum[TestFunctionEnum["NotEqual"] = 3] = "NotEqual";
-    TestFunctionEnum[TestFunctionEnum["Less"] = 4] = "Less";
-    TestFunctionEnum[TestFunctionEnum["LessOrEqual"] = 5] = "LessOrEqual";
-    TestFunctionEnum[TestFunctionEnum["Greater"] = 6] = "Greater";
-    TestFunctionEnum[TestFunctionEnum["GreaterOrEqual"] = 7] = "GreaterOrEqual";
-})(exports.TestFunctionEnum || (exports.TestFunctionEnum = {}));
-var TestFunctionEnum = exports.TestFunctionEnum;
 var DepthTestState = (function () {
     function DepthTestState() {
         this.updated = false;
         this.enabled = false;
-        this.func = TestFunctionEnum.Always;
+        this.func = 1;
         this.mask = 0;
         this.rangeFar = 1;
         this.rangeNear = 0;
@@ -13367,30 +13141,6 @@ var DepthTestState = (function () {
     return DepthTestState;
 })();
 exports.DepthTestState = DepthTestState;
-(function (ShadingModelEnum) {
-    ShadingModelEnum[ShadingModelEnum["Flat"] = 0] = "Flat";
-    ShadingModelEnum[ShadingModelEnum["Smooth"] = 1] = "Smooth";
-})(exports.ShadingModelEnum || (exports.ShadingModelEnum = {}));
-var ShadingModelEnum = exports.ShadingModelEnum;
-(function (GuBlendingFactor) {
-    GuBlendingFactor[GuBlendingFactor["GU_SRC_COLOR"] = 0] = "GU_SRC_COLOR";
-    GuBlendingFactor[GuBlendingFactor["GU_ONE_MINUS_SRC_COLOR"] = 1] = "GU_ONE_MINUS_SRC_COLOR";
-    GuBlendingFactor[GuBlendingFactor["GU_SRC_ALPHA"] = 2] = "GU_SRC_ALPHA";
-    GuBlendingFactor[GuBlendingFactor["GU_ONE_MINUS_SRC_ALPHA"] = 3] = "GU_ONE_MINUS_SRC_ALPHA";
-    GuBlendingFactor[GuBlendingFactor["GU_DST_ALPHA"] = 4] = "GU_DST_ALPHA";
-    GuBlendingFactor[GuBlendingFactor["GU_ONE_MINUS_DST_ALPHA"] = 5] = "GU_ONE_MINUS_DST_ALPHA";
-    GuBlendingFactor[GuBlendingFactor["GU_FIX"] = 10] = "GU_FIX";
-})(exports.GuBlendingFactor || (exports.GuBlendingFactor = {}));
-var GuBlendingFactor = exports.GuBlendingFactor;
-(function (GuBlendingEquation) {
-    GuBlendingEquation[GuBlendingEquation["Add"] = 0] = "Add";
-    GuBlendingEquation[GuBlendingEquation["Substract"] = 1] = "Substract";
-    GuBlendingEquation[GuBlendingEquation["ReverseSubstract"] = 2] = "ReverseSubstract";
-    GuBlendingEquation[GuBlendingEquation["Min"] = 3] = "Min";
-    GuBlendingEquation[GuBlendingEquation["Max"] = 4] = "Max";
-    GuBlendingEquation[GuBlendingEquation["Abs"] = 5] = "Abs";
-})(exports.GuBlendingEquation || (exports.GuBlendingEquation = {}));
-var GuBlendingEquation = exports.GuBlendingEquation;
 var Color = (function () {
     function Color(r, g, b, a) {
         if (r === void 0) { r = 0; }
@@ -13439,9 +13189,9 @@ var Blending = (function () {
         this._colorMaskA = -1;
         this.enabled = false;
         this.updated = false;
-        this.functionSource = GuBlendingFactor.GU_SRC_ALPHA;
-        this.functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
-        this.equation = GuBlendingEquation.Add;
+        this.functionSource = 2;
+        this.functionDestination = 5;
+        this.equation = 0;
         this._fixColorSourceWord = -1;
         this._fixColorDestinationWord = -1;
         this.fixColorSource = new Color();
@@ -13457,7 +13207,7 @@ var AlphaTest = (function () {
         this.enabled = false;
         this.value = 0;
         this.mask = 0xFF;
-        this.func = TestFunctionEnum.Always;
+        this.func = 1;
     }
     return AlphaTest;
 })();
@@ -13536,7 +13286,7 @@ var StencilState = (function () {
         this.fail = 0;
         this.zpass = 0;
         this.zfail = 0;
-        this.func = TestFunctionEnum.Always;
+        this.func = 1;
         this.funcRef = 0;
         this.funcMask = 0;
     }
@@ -13598,7 +13348,7 @@ var GpuState = (function () {
         this.baseAddress = 0;
         this.baseOffset = 0;
         this.indexAddress = 0;
-        this.shadeModel = ShadingModelEnum.Flat;
+        this.shadeModel = 0;
         this.frameBuffer = new GpuFrameBufferState();
         this.vertex = new VertexState();
         this.stencil = new StencilState();
@@ -13988,10 +13738,10 @@ var WebGlPspDrawDriver = (function (_super) {
                 };
                 var sfactor = gl.SRC_COLOR + blending.functionSource;
                 var dfactor = gl.SRC_COLOR + blending.functionDestination;
-                if (blending.functionSource == _state.GuBlendingFactor.GU_FIX) {
+                if (blending.functionSource == 10) {
                     sfactor = getBlendFix(blending.fixColorSource);
                 }
-                if (blending.functionDestination == _state.GuBlendingFactor.GU_FIX) {
+                if (blending.functionDestination == 10) {
                     if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
                         dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
                     }
@@ -14002,16 +13752,16 @@ var WebGlPspDrawDriver = (function (_super) {
                 gl.blendEquation(this.equationTranslate[blending.equation]);
                 gl.blendFunc(sfactor, dfactor);
                 switch (blending.equation) {
-                    case _state.GuBlendingEquation.Abs:
-                    case _state.GuBlendingEquation.Max:
-                    case _state.GuBlendingEquation.Min:
-                    case _state.GuBlendingEquation.Add:
+                    case 5:
+                    case 4:
+                    case 3:
+                    case 0:
                         gl.blendEquation(gl.FUNC_ADD);
                         break;
-                    case _state.GuBlendingEquation.Substract:
+                    case 1:
                         gl.blendEquation(gl.FUNC_SUBTRACT);
                         break;
-                    case _state.GuBlendingEquation.ReverseSubstract:
+                    case 2:
                         gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
                         break;
                 }
@@ -14310,7 +14060,7 @@ var WebGlPspDrawDriver = (function (_super) {
         }
         else {
             switch (texture.textureMapMode) {
-                case _state.TextureMapMode.GU_TEXTURE_COORDS:
+                case 0:
                     t[0] = texture.offsetU;
                     t[1] = texture.offsetV;
                     t[2] = 0.0;
@@ -15045,36 +14795,6 @@ var InterruptManager = (function () {
     return InterruptManager;
 })();
 exports.InterruptManager = InterruptManager;
-(function (PspInterrupts) {
-    PspInterrupts[PspInterrupts["PSP_GPIO_INT"] = 4] = "PSP_GPIO_INT";
-    PspInterrupts[PspInterrupts["PSP_ATA_INT"] = 5] = "PSP_ATA_INT";
-    PspInterrupts[PspInterrupts["PSP_UMD_INT"] = 6] = "PSP_UMD_INT";
-    PspInterrupts[PspInterrupts["PSP_MSCM0_INT"] = 7] = "PSP_MSCM0_INT";
-    PspInterrupts[PspInterrupts["PSP_WLAN_INT"] = 8] = "PSP_WLAN_INT";
-    PspInterrupts[PspInterrupts["PSP_AUDIO_INT"] = 10] = "PSP_AUDIO_INT";
-    PspInterrupts[PspInterrupts["PSP_I2C_INT"] = 12] = "PSP_I2C_INT";
-    PspInterrupts[PspInterrupts["PSP_SIRCS_INT"] = 14] = "PSP_SIRCS_INT";
-    PspInterrupts[PspInterrupts["PSP_SYSTIMER0_INT"] = 15] = "PSP_SYSTIMER0_INT";
-    PspInterrupts[PspInterrupts["PSP_SYSTIMER1_INT"] = 16] = "PSP_SYSTIMER1_INT";
-    PspInterrupts[PspInterrupts["PSP_SYSTIMER2_INT"] = 17] = "PSP_SYSTIMER2_INT";
-    PspInterrupts[PspInterrupts["PSP_SYSTIMER3_INT"] = 18] = "PSP_SYSTIMER3_INT";
-    PspInterrupts[PspInterrupts["PSP_THREAD0_INT"] = 19] = "PSP_THREAD0_INT";
-    PspInterrupts[PspInterrupts["PSP_NAND_INT"] = 20] = "PSP_NAND_INT";
-    PspInterrupts[PspInterrupts["PSP_DMACPLUS_INT"] = 21] = "PSP_DMACPLUS_INT";
-    PspInterrupts[PspInterrupts["PSP_DMA0_INT"] = 22] = "PSP_DMA0_INT";
-    PspInterrupts[PspInterrupts["PSP_DMA1_INT"] = 23] = "PSP_DMA1_INT";
-    PspInterrupts[PspInterrupts["PSP_MEMLMD_INT"] = 24] = "PSP_MEMLMD_INT";
-    PspInterrupts[PspInterrupts["PSP_GE_INT"] = 25] = "PSP_GE_INT";
-    PspInterrupts[PspInterrupts["PSP_VBLANK_INT"] = 30] = "PSP_VBLANK_INT";
-    PspInterrupts[PspInterrupts["PSP_MECODEC_INT"] = 31] = "PSP_MECODEC_INT";
-    PspInterrupts[PspInterrupts["PSP_HPREMOTE_INT"] = 36] = "PSP_HPREMOTE_INT";
-    PspInterrupts[PspInterrupts["PSP_MSCM1_INT"] = 60] = "PSP_MSCM1_INT";
-    PspInterrupts[PspInterrupts["PSP_MSCM2_INT"] = 61] = "PSP_MSCM2_INT";
-    PspInterrupts[PspInterrupts["PSP_THREAD1_INT"] = 65] = "PSP_THREAD1_INT";
-    PspInterrupts[PspInterrupts["PSP_INTERRUPT_INT"] = 66] = "PSP_INTERRUPT_INT";
-    PspInterrupts[PspInterrupts["PSP_NUMBER_INTERRUPTS"] = 67] = "PSP_NUMBER_INTERRUPTS";
-})(exports.PspInterrupts || (exports.PspInterrupts = {}));
-var PspInterrupts = exports.PspInterrupts;
 
 },
 "src/core/kirk": function(module, exports, require) {
@@ -15082,10 +14802,9 @@ var PspInterrupts = exports.PspInterrupts;
 var _kirk = require('./kirk/kirk');
 _kirk.CMD7;
 exports.KIRK_AES128CBC_HEADER = _kirk.KIRK_AES128CBC_HEADER;
-exports.KirkMode = _kirk.KirkMode;
 exports.CommandEnum = _kirk.CommandEnum;
 exports.hleUtilsBufferCopyWithRange = _kirk.hleUtilsBufferCopyWithRange;
-var Cmd1 = exports.KirkMode.Cmd1;
+var Cmd1 = 1;
 var CERT_VERIFY = exports.CommandEnum.CERT_VERIFY;
 var KIRK_AES128CBC_HEADER_struct = exports.KIRK_AES128CBC_HEADER.struct;
 
@@ -15404,7 +15123,7 @@ var Px1 = new Uint8Array([0xED, 0x9C, 0xE5, 0x82, 0x34, 0xE6, 0x1A, 0x53, 0xC6, 
 var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 0x44, 0x85, 0x8B, 0x61, 0xB7, 0x9B, 0x69, 0xA6, 0x3D, 0x2C, 0x39]);
 var KIRK_AES128CBC_HEADER = (function () {
     function KIRK_AES128CBC_HEADER() {
-        this.mode = KirkMode.Invalid0;
+        this.mode = 0;
         this.unk_4 = 0;
         this.unk_8 = 0;
         this.keyseed = 0;
@@ -15446,15 +15165,6 @@ function kirk_4_7_get_key(key_type) {
         throw (new Error("Unsupported key '" + key_type + "'"));
     return key;
 }
-(function (KirkMode) {
-    KirkMode[KirkMode["Invalid0"] = 0] = "Invalid0";
-    KirkMode[KirkMode["Cmd1"] = 1] = "Cmd1";
-    KirkMode[KirkMode["Cmd2"] = 2] = "Cmd2";
-    KirkMode[KirkMode["Cmd3"] = 3] = "Cmd3";
-    KirkMode[KirkMode["EncryptCbc"] = 4] = "EncryptCbc";
-    KirkMode[KirkMode["DecryptCbc"] = 5] = "DecryptCbc";
-})(exports.KirkMode || (exports.KirkMode = {}));
-var KirkMode = exports.KirkMode;
 (function (CommandEnum) {
     CommandEnum[CommandEnum["DECRYPT_PRIVATE"] = 1] = "DECRYPT_PRIVATE";
     CommandEnum[CommandEnum["ENCRYPT_SIGN"] = 2] = "ENCRYPT_SIGN";
@@ -15478,7 +15188,7 @@ var KirkMode = exports.KirkMode;
 var CommandEnum = exports.CommandEnum;
 function CMD7(input) {
     var header = KIRK_AES128CBC_HEADER.struct.read(input.slice());
-    if (header.mode != KirkMode.DecryptCbc)
+    if (header.mode != 5)
         throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
     if (header.data_size == 0)
         throw (new Error("Kirk data size == 0"));
@@ -15491,7 +15201,7 @@ function kirk_CMD7(output, input) {
 }
 function kirk_CMD1(output, input) {
     var header = input.slice().readStruct(AES128CMACHeader.struct);
-    if (header.Mode != KirkMode.Cmd1)
+    if (header.Mode != 1)
         throw (new Error("Kirk mode != Cmd1"));
     var Keys = crypto.aes_decrypt(input.sliceWithLength(0, 16 * 2).readAllBytes(), kirk1_key);
     var KeyAes = Keys.subarray(0, 16);
@@ -15946,11 +15656,10 @@ var PixelFormatUtils = (function () {
     return PixelFormatUtils;
 })();
 exports.PixelFormatUtils = PixelFormatUtils;
-var sizes = [];
+var sizes = new Float32Array(16);
 sizes[8] = 0.5;
 sizes[9] = 1;
 sizes[10] = 1;
-sizes[-1] = 0;
 sizes[6] = 2;
 sizes[7] = 4;
 sizes[5] = 1;
@@ -16594,14 +16303,14 @@ var ElfHeader = (function () {
     });
     Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
         get: function () {
-            return this.machine == ElfMachine.ALLEGREX;
+            return this.machine == 8;
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfHeader.prototype, "hasValidType", {
         get: function () {
-            return [ElfType.Executable, ElfType.Prx].indexOf(this.type) >= 0;
+            return [2, 65440].indexOf(this.type) >= 0;
         },
         enumerable: true,
         configurable: true
@@ -16664,94 +16373,6 @@ var ElfSectionHeader = (function () {
     return ElfSectionHeader;
 })();
 exports.ElfSectionHeader = ElfSectionHeader;
-(function (ElfProgramHeaderType) {
-    ElfProgramHeaderType[ElfProgramHeaderType["NoLoad"] = 0] = "NoLoad";
-    ElfProgramHeaderType[ElfProgramHeaderType["Load"] = 1] = "Load";
-    ElfProgramHeaderType[ElfProgramHeaderType["Reloc1"] = 1879048352] = "Reloc1";
-    ElfProgramHeaderType[ElfProgramHeaderType["Reloc2"] = 1879048353] = "Reloc2";
-})(exports.ElfProgramHeaderType || (exports.ElfProgramHeaderType = {}));
-var ElfProgramHeaderType = exports.ElfProgramHeaderType;
-(function (ElfSectionHeaderType) {
-    ElfSectionHeaderType[ElfSectionHeaderType["Null"] = 0] = "Null";
-    ElfSectionHeaderType[ElfSectionHeaderType["ProgramBits"] = 1] = "ProgramBits";
-    ElfSectionHeaderType[ElfSectionHeaderType["SYMTAB"] = 2] = "SYMTAB";
-    ElfSectionHeaderType[ElfSectionHeaderType["STRTAB"] = 3] = "STRTAB";
-    ElfSectionHeaderType[ElfSectionHeaderType["RELA"] = 4] = "RELA";
-    ElfSectionHeaderType[ElfSectionHeaderType["HASH"] = 5] = "HASH";
-    ElfSectionHeaderType[ElfSectionHeaderType["DYNAMIC"] = 6] = "DYNAMIC";
-    ElfSectionHeaderType[ElfSectionHeaderType["NOTE"] = 7] = "NOTE";
-    ElfSectionHeaderType[ElfSectionHeaderType["NoBits"] = 8] = "NoBits";
-    ElfSectionHeaderType[ElfSectionHeaderType["Relocation"] = 9] = "Relocation";
-    ElfSectionHeaderType[ElfSectionHeaderType["SHLIB"] = 10] = "SHLIB";
-    ElfSectionHeaderType[ElfSectionHeaderType["DYNSYM"] = 11] = "DYNSYM";
-    ElfSectionHeaderType[ElfSectionHeaderType["LOPROC"] = 1879048192] = "LOPROC";
-    ElfSectionHeaderType[ElfSectionHeaderType["HIPROC"] = 2147483647] = "HIPROC";
-    ElfSectionHeaderType[ElfSectionHeaderType["LOUSER"] = 2147483648] = "LOUSER";
-    ElfSectionHeaderType[ElfSectionHeaderType["HIUSER"] = 4294967295] = "HIUSER";
-    ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation"] = 1879048352] = "PrxRelocation";
-    ElfSectionHeaderType[ElfSectionHeaderType["PrxRelocation_FW5"] = 1879048353] = "PrxRelocation_FW5";
-})(exports.ElfSectionHeaderType || (exports.ElfSectionHeaderType = {}));
-var ElfSectionHeaderType = exports.ElfSectionHeaderType;
-(function (ElfSectionHeaderFlags) {
-    ElfSectionHeaderFlags[ElfSectionHeaderFlags["None"] = 0] = "None";
-    ElfSectionHeaderFlags[ElfSectionHeaderFlags["Write"] = 1] = "Write";
-    ElfSectionHeaderFlags[ElfSectionHeaderFlags["Allocate"] = 2] = "Allocate";
-    ElfSectionHeaderFlags[ElfSectionHeaderFlags["Execute"] = 4] = "Execute";
-})(exports.ElfSectionHeaderFlags || (exports.ElfSectionHeaderFlags = {}));
-var ElfSectionHeaderFlags = exports.ElfSectionHeaderFlags;
-(function (ElfProgramHeaderFlags) {
-    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Executable"] = 1] = "Executable";
-    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Writable"] = 2] = "Writable";
-    ElfProgramHeaderFlags[ElfProgramHeaderFlags["Readable"] = 4] = "Readable";
-})(exports.ElfProgramHeaderFlags || (exports.ElfProgramHeaderFlags = {}));
-var ElfProgramHeaderFlags = exports.ElfProgramHeaderFlags;
-(function (ElfType) {
-    ElfType[ElfType["Executable"] = 2] = "Executable";
-    ElfType[ElfType["Prx"] = 65440] = "Prx";
-})(exports.ElfType || (exports.ElfType = {}));
-var ElfType = exports.ElfType;
-(function (ElfMachine) {
-    ElfMachine[ElfMachine["ALLEGREX"] = 8] = "ALLEGREX";
-})(exports.ElfMachine || (exports.ElfMachine = {}));
-var ElfMachine = exports.ElfMachine;
-(function (ElfPspModuleFlags) {
-    ElfPspModuleFlags[ElfPspModuleFlags["User"] = 0] = "User";
-    ElfPspModuleFlags[ElfPspModuleFlags["Kernel"] = 4096] = "Kernel";
-})(exports.ElfPspModuleFlags || (exports.ElfPspModuleFlags = {}));
-var ElfPspModuleFlags = exports.ElfPspModuleFlags;
-(function (ElfPspLibFlags) {
-    ElfPspLibFlags[ElfPspLibFlags["DirectJump"] = 1] = "DirectJump";
-    ElfPspLibFlags[ElfPspLibFlags["Syscall"] = 16384] = "Syscall";
-    ElfPspLibFlags[ElfPspLibFlags["SysLib"] = 32768] = "SysLib";
-})(exports.ElfPspLibFlags || (exports.ElfPspLibFlags = {}));
-var ElfPspLibFlags = exports.ElfPspLibFlags;
-(function (ElfPspModuleNids) {
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_INFO"] = 4028461991] = "MODULE_INFO";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_BOOTSTART"] = 3547614176] = "MODULE_BOOTSTART";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_REBOOT_BEFORE"] = 788942758] = "MODULE_REBOOT_BEFORE";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_START"] = 3593645275] = "MODULE_START";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_START_THREAD_PARAMETER"] = 259794796] = "MODULE_START_THREAD_PARAMETER";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP"] = 3471333692] = "MODULE_STOP";
-    ElfPspModuleNids[ElfPspModuleNids["MODULE_STOP_THREAD_PARAMETER"] = 3473720983] = "MODULE_STOP_THREAD_PARAMETER";
-})(exports.ElfPspModuleNids || (exports.ElfPspModuleNids = {}));
-var ElfPspModuleNids = exports.ElfPspModuleNids;
-(function (ElfRelocType) {
-    ElfRelocType[ElfRelocType["None"] = 0] = "None";
-    ElfRelocType[ElfRelocType["Mips16"] = 1] = "Mips16";
-    ElfRelocType[ElfRelocType["Mips32"] = 2] = "Mips32";
-    ElfRelocType[ElfRelocType["MipsRel32"] = 3] = "MipsRel32";
-    ElfRelocType[ElfRelocType["Mips26"] = 4] = "Mips26";
-    ElfRelocType[ElfRelocType["MipsHi16"] = 5] = "MipsHi16";
-    ElfRelocType[ElfRelocType["MipsLo16"] = 6] = "MipsLo16";
-    ElfRelocType[ElfRelocType["MipsGpRel16"] = 7] = "MipsGpRel16";
-    ElfRelocType[ElfRelocType["MipsLiteral"] = 8] = "MipsLiteral";
-    ElfRelocType[ElfRelocType["MipsGot16"] = 9] = "MipsGot16";
-    ElfRelocType[ElfRelocType["MipsPc16"] = 10] = "MipsPc16";
-    ElfRelocType[ElfRelocType["MipsCall16"] = 11] = "MipsCall16";
-    ElfRelocType[ElfRelocType["MipsGpRel32"] = 12] = "MipsGpRel32";
-    ElfRelocType[ElfRelocType["StopRelocation"] = 255] = "StopRelocation";
-})(exports.ElfRelocType || (exports.ElfRelocType = {}));
-var ElfRelocType = exports.ElfRelocType;
 var ElfReloc = (function () {
     function ElfReloc() {
     }
@@ -16796,7 +16417,7 @@ var ElfLoader = (function () {
         this.sectionHeaders.forEach(function (sectionHeader) {
             var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
             sectionHeader.name = name;
-            if (sectionHeader.type != ElfSectionHeaderType.Null) {
+            if (sectionHeader.type != 0) {
                 sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
             }
             _this.sectionHeadersByName[name] = sectionHeader;
@@ -16819,8 +16440,8 @@ var ElfLoader = (function () {
     };
     ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
         switch (sectionHeader.type) {
-            case ElfSectionHeaderType.NoBits:
-            case ElfSectionHeaderType.Null:
+            case 8:
+            case 0:
                 return this.stream.sliceWithLength(0, 0);
                 break;
             default:
@@ -16833,7 +16454,7 @@ var ElfLoader = (function () {
         return elf;
     };
     Object.defineProperty(ElfLoader.prototype, "isPrx", {
-        get: function () { return (this.header.type & ElfType.Prx) != 0; },
+        get: function () { return (this.header.type & 65440) != 0; },
         enumerable: true,
         configurable: true
     });
@@ -17922,9 +17543,9 @@ var ZipEntry = (function () {
             return Promise2.resolve(this.uncompressedData);
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
-                case ZipCompressionType.DEFLATE:
+                case 8:
                     return inflateRawAsync(data);
-                case ZipCompressionType.STORED:
+                case 0:
                     return data;
                 default:
                     throw (new Error("Unsupported compression type '" + _this.compressionType + "'"));
@@ -18002,19 +17623,6 @@ var Zip = (function () {
     return Zip;
 })();
 exports.Zip = Zip;
-(function (ZipCompressionType) {
-    ZipCompressionType[ZipCompressionType["STORED"] = 0] = "STORED";
-    ZipCompressionType[ZipCompressionType["SHRUNK"] = 1] = "SHRUNK";
-    ZipCompressionType[ZipCompressionType["REDUCED1"] = 2] = "REDUCED1";
-    ZipCompressionType[ZipCompressionType["REDUCED2"] = 3] = "REDUCED2";
-    ZipCompressionType[ZipCompressionType["REDUCED3"] = 4] = "REDUCED3";
-    ZipCompressionType[ZipCompressionType["REDUCED4"] = 5] = "REDUCED4";
-    ZipCompressionType[ZipCompressionType["IMPLODED"] = 6] = "IMPLODED";
-    ZipCompressionType[ZipCompressionType["TOKEN"] = 7] = "TOKEN";
-    ZipCompressionType[ZipCompressionType["DEFLATE"] = 8] = "DEFLATE";
-    ZipCompressionType[ZipCompressionType["DEFLATE64"] = 9] = "DEFLATE64";
-})(exports.ZipCompressionType || (exports.ZipCompressionType = {}));
-var ZipCompressionType = exports.ZipCompressionType;
 var ZipEndLocator = (function () {
     function ZipEndLocator() {
     }
@@ -18771,34 +18379,31 @@ module.exports = SceKernelErrors;
 },
 "src/hle/config": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _structs = require('./structs');
-var PspLanguages = _structs.PspLanguages;
-var ButtonPreference = _structs.ButtonPreference;
 var Config = (function () {
     function Config() {
-        this.language = PspLanguages.ENGLISH;
-        this.buttonPreference = ButtonPreference.NA;
+        this.language = 1;
+        this.buttonPreference = 1;
         this.language = this.detectLanguage();
     }
     Config.prototype.detectLanguage = function () {
         if (typeof navigator == 'undefined')
-            return PspLanguages.ENGLISH;
+            return 1;
         if (!navigator.language)
-            return PspLanguages.ENGLISH;
+            return 1;
         switch (navigator.language.split(/[_\-]/g)[0]) {
-            case 'ja': return PspLanguages.JAPANESE;
-            case 'en': return PspLanguages.ENGLISH;
-            case 'fr': return PspLanguages.FRENCH;
-            case 'es': return PspLanguages.SPANISH;
-            case 'de': return PspLanguages.GERMAN;
-            case 'it': return PspLanguages.ITALIAN;
-            case 'nl': return PspLanguages.DUTCH;
-            case 'pt': return PspLanguages.PORTUGUESE;
-            case 'ru': return PspLanguages.RUSSIAN;
-            case 'ko': return PspLanguages.KOREAN;
-            case 'zh': return PspLanguages.TRADITIONAL_CHINESE;
-            case 'zh2': return PspLanguages.SIMPLIFIED_CHINESE;
-            default: return PspLanguages.ENGLISH;
+            case 'ja': return 0;
+            case 'en': return 1;
+            case 'fr': return 2;
+            case 'es': return 3;
+            case 'de': return 4;
+            case 'it': return 5;
+            case 'nl': return 6;
+            case 'pt': return 7;
+            case 'ru': return 8;
+            case 'ko': return 9;
+            case 'zh': return 10;
+            case 'zh2': return 11;
+            default: return 1;
         }
     };
     return Config;
@@ -18878,7 +18483,7 @@ function decrypt1(pbIn) {
     pbOut.slice().writeByteRepeated(0x00, 0x150);
     pbOut.slice().writeByteRepeated(0x55, 0x40);
     var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
-    h7_header.mode = kirk.KirkMode.DecryptCbc;
+    h7_header.mode = 5;
     h7_header.unk_4 = 0;
     h7_header.unk_8 = 0;
     h7_header.keyseed = pti.code;
@@ -19229,11 +18834,7 @@ var NativeFunction = _cpu.NativeFunction;
 var MipsAssembler = _cpu.MipsAssembler;
 var Instruction = _cpu.Instruction;
 var ElfLoader = _format_elf.ElfLoader;
-var ElfSectionHeaderFlags = _format_elf.ElfSectionHeaderFlags;
-var ElfSectionHeaderType = _format_elf.ElfSectionHeaderType;
 var ElfReloc = _format_elf.ElfReloc;
-var ElfRelocType = _format_elf.ElfRelocType;
-var ElfProgramHeaderType = _format_elf.ElfProgramHeaderType;
 var ElfDwarfLoader = _format_elf_dwarf.ElfDwarfLoader;
 var console = logger.named('elf.psp');
 var ElfPspModuleInfo = (function () {
@@ -19283,11 +18884,6 @@ var ElfPspModuleExport = (function () {
     return ElfPspModuleExport;
 })();
 exports.ElfPspModuleExport = ElfPspModuleExport;
-(function (ElfPspModuleInfoAtributesEnum) {
-    ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["UserMode"] = 0] = "UserMode";
-    ElfPspModuleInfoAtributesEnum[ElfPspModuleInfoAtributesEnum["KernelMode"] = 256] = "KernelMode";
-})(exports.ElfPspModuleInfoAtributesEnum || (exports.ElfPspModuleInfoAtributesEnum = {}));
-var ElfPspModuleInfoAtributesEnum = exports.ElfPspModuleInfoAtributesEnum;
 var InstructionReader = (function () {
     function InstructionReader(memory) {
         this.memory = memory;
@@ -19338,7 +18934,7 @@ var PspElfLoader = (function () {
         }
         var lowest = 0xFFFFFFFF;
         var highest = 0;
-        this.elfLoader.sectionHeaders.filter(function (section) { return ((section.flags & ElfSectionHeaderFlags.Allocate) != 0); }).forEach(function (section) {
+        this.elfLoader.sectionHeaders.filter(function (section) { return ((section.flags & 2) != 0); }).forEach(function (section) {
             lowest = Math.min(lowest, (_this.baseAddress + section.address));
             highest = Math.max(highest, (_this.baseAddress + section.address + section.size));
         });
@@ -19353,10 +18949,10 @@ var PspElfLoader = (function () {
         var RelocProgramIndex = 0;
         this.elfLoader.programHeaders.forEach(function (programHeader) {
             switch (programHeader.type) {
-                case ElfProgramHeaderType.Reloc1:
+                case 1879048352:
                     console.warn("SKIPPING Elf.ProgramHeader.TypeEnum.Reloc1!");
                     break;
-                case ElfProgramHeaderType.Reloc2:
+                case 1879048353:
                     throw ("Not implemented");
             }
         });
@@ -19365,15 +18961,15 @@ var PspElfLoader = (function () {
             //RelocOutput.WriteLine("Section Header: %d : %s".Sprintf(RelocSectionIndex++, SectionHeader.ToString()));
             //console.info(sprintf('Section Header: '));
             switch (sectionHeader.type) {
-                case ElfSectionHeaderType.Relocation:
+                case 9:
                     console.log(sectionHeader);
                     console.error("Not implemented ElfSectionHeaderType.Relocation");
                     break;
-                case ElfSectionHeaderType.PrxRelocation:
+                case 1879048352:
                     var relocs = StructArray(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
                     _this.relocateRelocs(relocs);
                     break;
-                case ElfSectionHeaderType.PrxRelocation_FW5:
+                case 1879048353:
                     throw ("Not implemented ElfSectionHeader.Type.PrxRelocation_FW5");
             }
         });
@@ -19385,7 +18981,7 @@ var PspElfLoader = (function () {
         var instructionReader = new InstructionReader(this.memory);
         for (var index = 0; index < relocs.length; index++) {
             var reloc = relocs[index];
-            if (reloc.type == ElfRelocType.StopRelocation)
+            if (reloc.type == 255)
                 break;
             var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
             var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
@@ -19395,22 +18991,22 @@ var PspElfLoader = (function () {
             var GP_ADDR = (baseAddress + reloc.pointerAddress);
             var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
             switch (reloc.type) {
-                case ElfRelocType.None: break;
-                case ElfRelocType.Mips16:
+                case 0: break;
+                case 1:
                     instruction.u_imm16 += S;
                     break;
-                case ElfRelocType.Mips32:
+                case 2:
                     instruction.data += S;
                     break;
-                case ElfRelocType.MipsRel32: throw ("Not implemented MipsRel32");
-                case ElfRelocType.Mips26:
+                case 3: throw ("Not implemented MipsRel32");
+                case 4:
                     instruction.jump_real = instruction.jump_real + S;
                     break;
-                case ElfRelocType.MipsHi16:
+                case 5:
                     hiValue = instruction.u_imm16;
                     deferredHi16.push(RelocatedPointerAddress);
                     break;
-                case ElfRelocType.MipsLo16:
+                case 6:
                     var A = instruction.u_imm16;
                     instruction.u_imm16 = ((hiValue << 16) | (A & 0x0000FFFF)) + S;
                     deferredHi16.forEach(function (data_addr2) {
@@ -19427,7 +19023,7 @@ var PspElfLoader = (function () {
                     });
                     deferredHi16 = [];
                     break;
-                case ElfRelocType.MipsGpRel16:
+                case 7:
                     break;
                 default: throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
             }
@@ -19448,17 +19044,17 @@ var PspElfLoader = (function () {
             _this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
             console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
         });
-        this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & ElfSectionHeaderFlags.Allocate) != 0); }).forEach(function (sectionHeader) {
+        this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & 2) != 0); }).forEach(function (sectionHeader) {
             var low = loadAddress + sectionHeader.address;
             console.info('Section Header: ', sectionHeader, sprintf('LOW:%08X, SIZE:%08X', low, sectionHeader.size));
             switch (sectionHeader.type) {
-                case ElfSectionHeaderType.NoBits:
+                case 8:
                     for (var n = 0; n < sectionHeader.size; n++)
                         _this.memory.writeInt8(low + n, 0);
                     break;
                 default:
                     break;
-                case ElfSectionHeaderType.ProgramBits:
+                case 1:
                     var stream = sectionHeader.stream;
                     var length = stream.length;
                     _this.memory.writeStream(low, stream);
@@ -19558,8 +19154,6 @@ exports.ModuleManager = _module.ModuleManager;
 exports.ModuleWrapper = _module.ModuleWrapper;
 exports.Thread = _thread.Thread;
 exports.ThreadManager = _thread.ThreadManager;
-exports.ThreadStatus = _thread.ThreadStatus;
-exports.PspThreadAttributes = _thread.PspThreadAttributes;
 exports.Callback = _callback.Callback;
 exports.CallbackManager = _callback.CallbackManager;
 exports.Interop = _interop.Interop;
@@ -20215,37 +19809,7 @@ exports.NetManager = NetManager;
 var _cpu = require('../../core/cpu');
 var SceKernelErrors = require('../SceKernelErrors');
 var CpuState = _cpu.CpuState;
-var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 var console = logger.named('hle.thread');
-(function (ThreadStatus) {
-    ThreadStatus[ThreadStatus["RUNNING"] = 1] = "RUNNING";
-    ThreadStatus[ThreadStatus["READY"] = 2] = "READY";
-    ThreadStatus[ThreadStatus["WAIT"] = 4] = "WAIT";
-    ThreadStatus[ThreadStatus["SUSPEND"] = 8] = "SUSPEND";
-    ThreadStatus[ThreadStatus["DORMANT"] = 16] = "DORMANT";
-    ThreadStatus[ThreadStatus["DEAD"] = 32] = "DEAD";
-    ThreadStatus[ThreadStatus["WAITSUSPEND"] = 12] = "WAITSUSPEND";
-})(exports.ThreadStatus || (exports.ThreadStatus = {}));
-var ThreadStatus = exports.ThreadStatus;
-(function (PspThreadAttributes) {
-    PspThreadAttributes[PspThreadAttributes["None"] = 0] = "None";
-    PspThreadAttributes[PspThreadAttributes["LowFF"] = 255] = "LowFF";
-    PspThreadAttributes[PspThreadAttributes["Vfpu"] = 16384] = "Vfpu";
-    PspThreadAttributes[PspThreadAttributes["V0x2000"] = 8192] = "V0x2000";
-    PspThreadAttributes[PspThreadAttributes["V0x4000"] = 16384] = "V0x4000";
-    PspThreadAttributes[PspThreadAttributes["V0x400000"] = 4194304] = "V0x400000";
-    PspThreadAttributes[PspThreadAttributes["V0x800000"] = 8388608] = "V0x800000";
-    PspThreadAttributes[PspThreadAttributes["V0xf00000"] = 15728640] = "V0xf00000";
-    PspThreadAttributes[PspThreadAttributes["V0x8000000"] = 134217728] = "V0x8000000";
-    PspThreadAttributes[PspThreadAttributes["V0xf000000"] = 251658240] = "V0xf000000";
-    PspThreadAttributes[PspThreadAttributes["User"] = 2147483648] = "User";
-    PspThreadAttributes[PspThreadAttributes["UsbWlan"] = 2684354560] = "UsbWlan";
-    PspThreadAttributes[PspThreadAttributes["Vsh"] = 3221225472] = "Vsh";
-    PspThreadAttributes[PspThreadAttributes["NoFillStack"] = 1048576] = "NoFillStack";
-    PspThreadAttributes[PspThreadAttributes["ClearStack"] = 2097152] = "ClearStack";
-    PspThreadAttributes[PspThreadAttributes["ValidMask"] = -269459201] = "ValidMask";
-})(exports.PspThreadAttributes || (exports.PspThreadAttributes = {}));
-var PspThreadAttributes = exports.PspThreadAttributes;
 var Thread = (function () {
     function Thread(name, manager, memoryManager, state, stackSize) {
         var _this = this;
@@ -20253,7 +19817,7 @@ var Thread = (function () {
         this.manager = manager;
         this.state = state;
         this.id = 0;
-        this.status = ThreadStatus.DORMANT;
+        this.status = 16;
         this.initialPriority = 10;
         this.entryPoint = 0;
         this.priority = 10;
@@ -20422,16 +19986,16 @@ var ThreadManager = (function () {
         var thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
         thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
-        thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
+        thread.state.setRA(268435455);
         thread.state.SP = thread.stackPartition.high;
         thread.initialPriority = initialPriority;
         thread.priority = initialPriority;
         thread.attributes = attributes;
         if ((thread.stackPartition.high & 0xFF) != 0)
             throw (new Error("Stack not aligned"));
-        if (!(thread.attributes & PspThreadAttributes.NoFillStack)) {
+        if (!(thread.attributes & 1048576)) {
         }
-        else if ((thread.attributes & PspThreadAttributes.ClearStack)) {
+        else if ((thread.attributes & 2097152)) {
         }
         return thread;
     };
@@ -20594,8 +20158,6 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
     }
 };
 var _utils = require('../utils');
-var _interrupt = require('../../core/interrupt');
-var PspInterrupts = _interrupt.PspInterrupts;
 var nativeFunction = _utils.nativeFunction;
 var InterruptManager = (function () {
     function InterruptManager(context) {
@@ -20613,7 +20175,7 @@ var InterruptManager = (function () {
     };
     InterruptManager.prototype.sceKernelEnableSubIntr = function (interrupt, handlerIndex) {
         var interruptManager = this.context.interruptManager;
-        if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
+        if (interrupt >= 67)
             return -1;
         if (!interruptManager.get(interrupt).has(handlerIndex))
             return -1;
@@ -20622,7 +20184,7 @@ var InterruptManager = (function () {
     };
     InterruptManager.prototype.sceKernelReleaseSubIntrHandler = function (pspInterrupt, handlerIndex) {
         var interruptManager = this.context.interruptManager;
-        if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
+        if (pspInterrupt >= 67)
             return -1;
         if (!interruptManager.get(pspInterrupt).has(handlerIndex))
             return -1;
@@ -21498,15 +21060,15 @@ var IoFileMgrForUser = (function () {
         stat2.attributes = 0;
         if (stat.isDirectory) {
             stat2.mode = 0x1000;
-            stat2.attributes |= _structs.IOFileModes.Directory;
-            stat2.attributes |= _structs.IOFileModes.CanRead;
+            stat2.attributes |= 16;
+            stat2.attributes |= 4;
         }
         else {
             stat2.mode = 0x2000;
-            stat2.attributes |= _structs.IOFileModes.File;
-            stat2.attributes |= _structs.IOFileModes.CanExecute;
-            stat2.attributes |= _structs.IOFileModes.CanRead;
-            stat2.attributes |= _structs.IOFileModes.CanWrite;
+            stat2.attributes |= 32;
+            stat2.attributes |= 1;
+            stat2.attributes |= 4;
+            stat2.attributes |= 2;
         }
         return stat2;
     };
@@ -21605,13 +21167,13 @@ var IoFileMgrForUser = (function () {
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         switch (whence) {
-            case _structs.SeekAnchor.Set:
+            case 0:
                 file.cursor = 0 + offset;
                 break;
-            case _structs.SeekAnchor.Cursor:
+            case 1:
                 file.cursor = file.cursor + offset;
                 break;
-            case _structs.SeekAnchor.End:
+            case 2:
                 file.cursor = file.entry.size + offset;
                 break;
         }
@@ -23605,13 +23167,6 @@ var sceNetAdhocMatching = (function () {
     return sceNetAdhocMatching;
 })();
 exports.sceNetAdhocMatching = sceNetAdhocMatching;
-(function (State) {
-    State[State["START"] = 0] = "START";
-    State[State["JOIN_WAIT_RESPONSE"] = 1] = "JOIN_WAIT_RESPONSE";
-    State[State["JOIN_WAIT_COMPLETE"] = 2] = "JOIN_WAIT_COMPLETE";
-    State[State["COMPLETED"] = 3] = "COMPLETED";
-})(exports.State || (exports.State = {}));
-var State = exports.State;
 var Matching = (function () {
     function Matching(context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
         this.context = context;
@@ -23632,10 +23187,10 @@ var Matching = (function () {
         this.helloTimer = -1;
         this.dataTimer = -1;
         this.onMessageCancelable = null;
-        this.state = State.START;
+        this.state = 0;
     }
     Matching.prototype.sendHello = function () {
-        if (this.state != State.START)
+        if (this.state != 0)
             return;
         this.sendMessage(Event.Hello, Matching.MAC_ALL, this.hello);
     };
@@ -23660,19 +23215,19 @@ var Matching = (function () {
     Matching.prototype.selectTarget = function (mac, data) {
         var macstr = mac2string(mac);
         console.info("net.adhoc: selectTarget", macstr);
-        if ((this.state == State.JOIN_WAIT_RESPONSE) && (macstr == this.joinMac)) {
-            this.state = State.JOIN_WAIT_COMPLETE;
+        if ((this.state == 1) && (macstr == this.joinMac)) {
+            this.state = 2;
             this.sendMessage(Event.Accept, mac, data);
         }
         else {
-            this.state = State.JOIN_WAIT_RESPONSE;
+            this.state = 1;
             this.sendMessage(Event.Join, mac, data);
         }
     };
     Matching.prototype.cancelTarget = function (mac) {
         var macstr = mac2string(mac);
         console.info("net.adhoc: cancelTarget", macstr);
-        this.state = State.START;
+        this.state = 0;
         this.sendMessage(Event.Cancel, mac, null);
     };
     Matching.prototype.sendMessage = function (event, tomac, data) {
@@ -23691,7 +23246,7 @@ var Matching = (function () {
         }
         switch (event) {
             case Event.Join:
-                this.state = State.JOIN_WAIT_RESPONSE;
+                this.state = 1;
                 this.joinMac = mac2string(frommac);
                 break;
         }
@@ -23709,12 +23264,12 @@ var Matching = (function () {
         switch (event) {
             case Event.Accept:
                 this.sendMessage(Event.Complete, frommac, data);
-                this.state = State.JOIN_WAIT_COMPLETE;
+                this.state = 2;
                 break;
             case Event.Complete:
-                if (this.state == State.JOIN_WAIT_COMPLETE) {
+                if (this.state == 2) {
                     this.sendMessage(Event.Complete, frommac, data);
-                    this.state = State.COMPLETED;
+                    this.state = 3;
                 }
                 break;
             case Event.Data:
@@ -23722,7 +23277,7 @@ var Matching = (function () {
                 break;
             case Event.Disconnect:
             case Event.Left:
-                this.state = State.START;
+                this.state = 0;
                 break;
         }
     };
@@ -23746,12 +23301,6 @@ exports.Matching = Matching;
     Event[Event["DataTimeout"] = 13] = "DataTimeout";
 })(exports.Event || (exports.Event = {}));
 var Event = exports.Event;
-(function (Mode) {
-    Mode[Mode["Host"] = 1] = "Host";
-    Mode[Mode["Client"] = 2] = "Client";
-    Mode[Mode["Ptp"] = 3] = "Ptp";
-})(exports.Mode || (exports.Mode = {}));
-var Mode = exports.Mode;
 
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
@@ -25155,10 +24704,8 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
 };
 var _utils = require('../utils');
 var _vfs = require('../vfs');
-var _structs = require('../structs');
 var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
-var PspLanguages = _structs.PspLanguages;
 var FileOpenFlags = _vfs.FileOpenFlags;
 var sceUtility = (function () {
     function sceUtility(context) {
@@ -25474,7 +25021,7 @@ var PspModule;
 var PspUtilityDialogCommon = (function () {
     function PspUtilityDialogCommon() {
         this.size = 0;
-        this.language = PspLanguages.SPANISH;
+        this.language = 3;
         this.buttonSwap = 0;
         this.graphicsThread = 0;
         this.accessThread = 0;
@@ -25731,14 +25278,10 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
     }
 };
 var _utils = require('../../utils');
-var _cpu = require('../../../core/cpu');
 var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../../SceKernelErrors');
 var _manager = require('../../manager');
 _manager.Thread;
-var CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
-var ThreadStatus = _manager.ThreadStatus;
-var PspThreadAttributes = _manager.PspThreadAttributes;
 var OutOfMemoryError = _manager.OutOfMemoryError;
 var console = logger.named('module.ThreadManForUser');
 var ThreadManForUser = (function () {
@@ -25759,17 +25302,17 @@ var ThreadManForUser = (function () {
             name = name.substr(0, 31);
         if (stackSize > 2 * 1024 * 1024)
             return -3;
-        if ((attributes & (~PspThreadAttributes.ValidMask)) != 0) {
+        if ((attributes & (~-269459201)) != 0) {
             return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
         }
-        attributes |= PspThreadAttributes.User;
-        attributes |= PspThreadAttributes.LowFF;
+        attributes |= 2147483648;
+        attributes |= 255;
         try {
             stackSize = Math.max(stackSize, 0x200);
             stackSize = MathUtils.nextAligned(stackSize, 0x100);
             var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
             newThread.id = this.threadUids.allocate(newThread);
-            newThread.status = ThreadStatus.DORMANT;
+            newThread.status = 16;
             newThread.state.GP = currentThread.state.GP;
             console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
             return newThread.id;
@@ -25819,7 +25362,7 @@ var ThreadManForUser = (function () {
         var newState = newThread.state;
         var memory = newState.memory;
         var currentStack = newThread.stackPartition;
-        newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
+        newState.setRA(268435455);
         if ((newThread.attributes & 0x00100000) == 0) {
             memory.memset(currentStack.low, 0xFF, currentStack.size);
         }
@@ -26870,25 +26413,6 @@ exports.registerModulesAndSyscalls = registerModulesAndSyscalls;
 
 },
 "src/hle/structs": function(module, exports, require) {
-(function (SeekAnchor) {
-    SeekAnchor[SeekAnchor["Set"] = 0] = "Set";
-    SeekAnchor[SeekAnchor["Cursor"] = 1] = "Cursor";
-    SeekAnchor[SeekAnchor["End"] = 2] = "End";
-})(exports.SeekAnchor || (exports.SeekAnchor = {}));
-var SeekAnchor = exports.SeekAnchor;
-(function (SceMode) {
-})(exports.SceMode || (exports.SceMode = {}));
-var SceMode = exports.SceMode;
-(function (IOFileModes) {
-    IOFileModes[IOFileModes["FormatMask"] = 56] = "FormatMask";
-    IOFileModes[IOFileModes["SymbolicLink"] = 8] = "SymbolicLink";
-    IOFileModes[IOFileModes["Directory"] = 16] = "Directory";
-    IOFileModes[IOFileModes["File"] = 32] = "File";
-    IOFileModes[IOFileModes["CanRead"] = 4] = "CanRead";
-    IOFileModes[IOFileModes["CanWrite"] = 2] = "CanWrite";
-    IOFileModes[IOFileModes["CanExecute"] = 1] = "CanExecute";
-})(exports.IOFileModes || (exports.IOFileModes = {}));
-var IOFileModes = exports.IOFileModes;
 var ScePspDateTime = (function () {
     function ScePspDateTime() {
         this.year = 0;
@@ -26933,7 +26457,7 @@ exports.ScePspDateTime = ScePspDateTime;
 var SceIoStat = (function () {
     function SceIoStat() {
         this.mode = 0;
-        this.attributes = IOFileModes.File;
+        this.attributes = 32;
         this.size = 0;
         this.timeCreation = new ScePspDateTime();
         this.timeLastAccess = new ScePspDateTime();
@@ -26968,26 +26492,6 @@ var HleIoDirent = (function () {
     return HleIoDirent;
 })();
 exports.HleIoDirent = HleIoDirent;
-(function (PspLanguages) {
-    PspLanguages[PspLanguages["JAPANESE"] = 0] = "JAPANESE";
-    PspLanguages[PspLanguages["ENGLISH"] = 1] = "ENGLISH";
-    PspLanguages[PspLanguages["FRENCH"] = 2] = "FRENCH";
-    PspLanguages[PspLanguages["SPANISH"] = 3] = "SPANISH";
-    PspLanguages[PspLanguages["GERMAN"] = 4] = "GERMAN";
-    PspLanguages[PspLanguages["ITALIAN"] = 5] = "ITALIAN";
-    PspLanguages[PspLanguages["DUTCH"] = 6] = "DUTCH";
-    PspLanguages[PspLanguages["PORTUGUESE"] = 7] = "PORTUGUESE";
-    PspLanguages[PspLanguages["RUSSIAN"] = 8] = "RUSSIAN";
-    PspLanguages[PspLanguages["KOREAN"] = 9] = "KOREAN";
-    PspLanguages[PspLanguages["TRADITIONAL_CHINESE"] = 10] = "TRADITIONAL_CHINESE";
-    PspLanguages[PspLanguages["SIMPLIFIED_CHINESE"] = 11] = "SIMPLIFIED_CHINESE";
-})(exports.PspLanguages || (exports.PspLanguages = {}));
-var PspLanguages = exports.PspLanguages;
-(function (ButtonPreference) {
-    ButtonPreference[ButtonPreference["JAP"] = 0] = "JAP";
-    ButtonPreference[ButtonPreference["NA"] = 1] = "NA";
-})(exports.ButtonPreference || (exports.ButtonPreference = {}));
-var ButtonPreference = exports.ButtonPreference;
 
 },
 "src/hle/utils": function(module, exports, require) {
@@ -27028,7 +26532,6 @@ var _emulator = require('./vfs/vfs_emulator');
 _emulator.EmulatorVfs;
 var _dropbox = require('./vfs/vfs_dropbox');
 _dropbox.DropboxVfs;
-exports.FileMode = _vfs.FileMode;
 exports.FileOpenFlags = _vfs.FileOpenFlags;
 exports.Vfs = _vfs.Vfs;
 exports.ProxyVfs = _vfs.ProxyVfs;
@@ -27311,9 +26814,6 @@ exports.VfsEntryStream = VfsEntryStream;
     FileOpenFlags[FileOpenFlags["Unknown3"] = 33554432] = "Unknown3";
 })(exports.FileOpenFlags || (exports.FileOpenFlags = {}));
 var FileOpenFlags = exports.FileOpenFlags;
-(function (FileMode) {
-})(exports.FileMode || (exports.FileMode = {}));
-var FileMode = exports.FileMode;
 
 },
 "src/hle/vfs/vfs_dropbox": function(module, exports, require) {
@@ -27615,18 +27115,18 @@ var EmulatorVfs = (function (_super) {
     }
     EmulatorVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
-            case EmulatorDevclEnum.GetHasDisplay:
+            case 1:
                 if (output)
                     output.writeInt32(0);
                 break;
-            case EmulatorDevclEnum.SendOutput:
+            case 2:
                 var str = input.readString(input.length);
                 this.output += str;
                 this.context.onStdout.dispatch(str);
                 return immediateAsync().then(function (_) { return 0; });
-            case EmulatorDevclEnum.IsEmulator:
+            case 3:
                 return 0;
-            case EmulatorDevclEnum.EmitScreenshot:
+            case 32:
                 this.screenshot = input.toUInt8Array();
                 console.warn('emit screenshot!');
                 return 0;
@@ -27638,14 +27138,6 @@ var EmulatorVfs = (function (_super) {
     return EmulatorVfs;
 })(_vfs.Vfs);
 exports.EmulatorVfs = EmulatorVfs;
-(function (EmulatorDevclEnum) {
-    EmulatorDevclEnum[EmulatorDevclEnum["GetHasDisplay"] = 1] = "GetHasDisplay";
-    EmulatorDevclEnum[EmulatorDevclEnum["SendOutput"] = 2] = "SendOutput";
-    EmulatorDevclEnum[EmulatorDevclEnum["IsEmulator"] = 3] = "IsEmulator";
-    EmulatorDevclEnum[EmulatorDevclEnum["SendCtrlData"] = 16] = "SendCtrlData";
-    EmulatorDevclEnum[EmulatorDevclEnum["EmitScreenshot"] = 32] = "EmitScreenshot";
-})(exports.EmulatorDevclEnum || (exports.EmulatorDevclEnum = {}));
-var EmulatorDevclEnum = exports.EmulatorDevclEnum;
 
 },
 "src/hle/vfs/vfs_iso": function(module, exports, require) {
@@ -27898,20 +27390,20 @@ var MemoryStickVfs = (function (_super) {
     }
     MemoryStickVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
-            case CommandType.CheckInserted:
+            case 37902371:
                 if (output == null || output.length < 4)
                     return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 output.writeInt32(1);
                 return 0;
-            case CommandType.MScmRegisterMSInsertEjectCallback:
+            case 37836833:
                 if (input == null || input.length < 4)
                     return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 var callbackId = input.readInt32();
                 this.callbackManager.notify(callbackId, 1);
                 return 0;
-            case CommandType.MScmUnregisterMSInsertEjectCallback:
+            case 37836834:
                 return 0;
-            case CommandType.GetMemoryStickCapacity:
+            case 37902360:
                 if (input == null || input.length < 4)
                     return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 var structAddress = input.readInt32();
@@ -27926,10 +27418,10 @@ var MemoryStickVfs = (function (_super) {
                 sizeInfo.maxSectors = sizeInfo.maxClusters;
                 SizeInfoStruct.struct.write(structStream, sizeInfo);
                 return 0;
-            case CommandType.CheckMemoryStickIsInserted:
+            case 33708038:
                 output.writeInt32(1);
                 return 0;
-            case CommandType.CheckMemoryStickStatus:
+            case 33708033:
                 output.writeInt32(4);
                 return 0;
             default:
@@ -27941,15 +27433,6 @@ var MemoryStickVfs = (function (_super) {
     return MemoryStickVfs;
 })(ProxyVfs);
 exports.MemoryStickVfs = MemoryStickVfs;
-(function (CommandType) {
-    CommandType[CommandType["CheckInserted"] = 37902371] = "CheckInserted";
-    CommandType[CommandType["MScmRegisterMSInsertEjectCallback"] = 37836833] = "MScmRegisterMSInsertEjectCallback";
-    CommandType[CommandType["MScmUnregisterMSInsertEjectCallback"] = 37836834] = "MScmUnregisterMSInsertEjectCallback";
-    CommandType[CommandType["GetMemoryStickCapacity"] = 37902360] = "GetMemoryStickCapacity";
-    CommandType[CommandType["CheckMemoryStickIsInserted"] = 33708038] = "CheckMemoryStickIsInserted";
-    CommandType[CommandType["CheckMemoryStickStatus"] = 33708033] = "CheckMemoryStickStatus";
-})(exports.CommandType || (exports.CommandType = {}));
-var CommandType = exports.CommandType;
 var SizeInfoStruct = (function () {
     function SizeInfoStruct() {
     }

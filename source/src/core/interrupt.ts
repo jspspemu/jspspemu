@@ -96,7 +96,7 @@ export class InterruptManager {
 	}
 }
 
-export enum PspInterrupts {
+export const enum PspInterrupts {
 	PSP_GPIO_INT = 4,
 	PSP_ATA_INT = 5,
 	PSP_UMD_INT = 6,

@@ -587,7 +587,7 @@ function kirk_4_7_get_key(key_type: number) {
 	return key; 
 }
 
-export enum KirkMode {
+export const enum KirkMode {
 	Invalid0 = 0,
 	Cmd1 = 1,
 	Cmd2 = 2,

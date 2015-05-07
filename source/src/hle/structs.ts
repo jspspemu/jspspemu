@@ -1,13 +1,13 @@
-﻿export enum SeekAnchor {
+﻿export const enum SeekAnchor {
 	Set = 0,
 	Cursor = 1,
 	End = 2,
 }
 
-export enum SceMode {
+export const enum SceMode {
 }
 
-export enum IOFileModes {
+export const enum IOFileModes {
 	FormatMask = 0x0038,
 	SymbolicLink = 0x0008,
 	Directory = 0x0010,
@@ -94,7 +94,7 @@ export class HleIoDirent {
 	]);
 }
 
-export enum PspLanguages { // ISO-639-1
+export const enum PspLanguages { // ISO-639-1
 	JAPANESE = 0, // ja
 	ENGLISH = 1, // en
 	FRENCH = 2, // fr
@@ -109,7 +109,7 @@ export enum PspLanguages { // ISO-639-1
 	SIMPLIFIED_CHINESE = 11, // zh?
 }
 
-export enum ButtonPreference {
+export const enum ButtonPreference {
 	JAP = 0,
 	NA = 1,
 }

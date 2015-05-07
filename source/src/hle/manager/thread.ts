@@ -22,7 +22,7 @@ import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 
 var console = logger.named('hle.thread');
 
-export enum ThreadStatus {
+export const enum ThreadStatus {
 	RUNNING = 1,
 	READY = 2,
 	WAIT = 4,
@@ -33,7 +33,7 @@ export enum ThreadStatus {
 	WAITSUSPEND = WAIT | SUSPEND,
 }
 
-export enum PspThreadAttributes {
+export const enum PspThreadAttributes {
 	None = 0,
 	LowFF = 0x000000FF,
 	Vfpu = 0x00004000, // Enable VFPU access for the thread.

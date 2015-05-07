@@ -36,6 +36,10 @@ export class SceCtrlData {
 	]);
 }
 
+
+var navigator = (typeof window != 'undefined') ? window.navigator : null;
+var getGamepads = navigator ? navigator.getGamepads.bind(navigator) : null;
+
 export class PspController {
 	data: SceCtrlData = new SceCtrlData();
 	buttonMapping: any = {};
@@ -134,9 +138,9 @@ export class PspController {
 		this.data.y = this.analogAddY;
 
 		//console.log('zzzzzzzzz');
-		if (window.navigator && window.navigator['getGamepads']) {
+		if (getGamepads) {
 			//console.log('bbbbbbbbb');
-			var gamepads = (navigator['getGamepads'])();
+			var gamepads = getGamepads();
 			if (gamepads[0]) {
 				//console.log('aaaaaaaa');
 				var buttonMapping = [
@@ -198,7 +202,7 @@ export class PspController {
 	}
 }
 
-export enum PspCtrlButtons //: uint
+export const enum PspCtrlButtons //: uint
 {
 	none = 0x0000000,
 	select = 0x0000001,
@@ -225,7 +229,7 @@ export enum PspCtrlButtons //: uint
 	memoryStickPresent = 0x2000000,
 }
 
-export enum HtmlKeyCodes {
+export const enum HtmlKeyCodes {
 	backspace = 8, tab = 9, enter = 13, shift = 16,
 	ctrl = 17, alt = 18, pause = 19, caps_lock = 20,
 	escape = 27, space = 32, page_up = 33, page_down = 34,

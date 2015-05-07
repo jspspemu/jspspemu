@@ -85,7 +85,7 @@ export class sceNetAdhocMatching {
 	}
 }
 
-export enum State {
+export const enum State {
 	START,
 	JOIN_WAIT_RESPONSE,
 	JOIN_WAIT_COMPLETE,
@@ -245,7 +245,7 @@ export enum Event {
 	//InternalPing = 100, // Internal ping message.
 }
 
-export enum Mode {
+export const enum Mode {
 	Host = 1,
 	Client = 2,
 	Ptp = 3,

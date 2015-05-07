@@ -109,14 +109,14 @@ export class ElfSectionHeader {
 	]);
 }
 
-export enum ElfProgramHeaderType {
+export const enum ElfProgramHeaderType {
 	NoLoad = 0,
 	Load = 1,
 	Reloc1 = 0x700000A0,
 	Reloc2 = 0x700000A1,
 }
 
-export enum ElfSectionHeaderType {
+export const enum ElfSectionHeaderType {
 	Null = 0,
 	ProgramBits = 1,
 	SYMTAB = 2,
@@ -137,43 +137,43 @@ export enum ElfSectionHeaderType {
 	PrxRelocation_FW5 = (LOPROC | 0xA1),
 }
 
-export enum ElfSectionHeaderFlags {
+export const enum ElfSectionHeaderFlags {
 	None = 0,
 	Write = 1,
 	Allocate = 2,
 	Execute = 4
 }
 
-export enum ElfProgramHeaderFlags {
+export const enum ElfProgramHeaderFlags {
 	Executable = 0x1,
 	// Note: demo PRX's were found to be not writable
 	Writable = 0x2,
 	Readable = 0x4,
 }
 
-export enum ElfType {
+export const enum ElfType {
 	Executable = 0x0002,
 	Prx = 0xFFA0,
 }
 
-export enum ElfMachine {
+export const enum ElfMachine {
 	ALLEGREX = 8,
 }
 
-export enum ElfPspModuleFlags // ushort
+export const enum ElfPspModuleFlags // ushort
 {
 	User = 0x0000,
 	Kernel = 0x1000,
 }
 
-export enum ElfPspLibFlags // ushort
+export const enum ElfPspLibFlags // ushort
 {
 	DirectJump = 0x0001,
 	Syscall = 0x4000,
 	SysLib = 0x8000,
 }
 
-export enum ElfPspModuleNids // uint
+export const enum ElfPspModuleNids // uint
 {
 	MODULE_INFO = 0xF01D73A7,
 	MODULE_BOOTSTART = 0xD3744BE0,
@@ -185,7 +185,7 @@ export enum ElfPspModuleNids // uint
 }
 
 	
-export enum ElfRelocType {
+export const enum ElfRelocType {
 	None = 0,
 	Mips16 = 1,
 	Mips32 = 2,

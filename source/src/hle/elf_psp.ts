@@ -90,7 +90,7 @@ export class ElfPspModuleExport {
 	]);
 }
 
-export enum ElfPspModuleInfoAtributesEnum {
+export const enum ElfPspModuleInfoAtributesEnum {
 	UserMode = 0x0000,
 	KernelMode = 0x100,
 }

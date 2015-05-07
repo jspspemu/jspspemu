@@ -24,11 +24,10 @@ export const enum PixelFormat {
 	COMPRESSED_DXT5 = 10,
 }
 
-var sizes:{[k:number]:number} = [];
+var sizes = new Float32Array(16);
 sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
 sizes[PixelFormat.COMPRESSED_DXT3] = 1;
 sizes[PixelFormat.COMPRESSED_DXT5] = 1;
-sizes[PixelFormat.NONE] = 0;
 sizes[PixelFormat.PALETTE_T16] = 2;
 sizes[PixelFormat.PALETTE_T32] = 4;
 sizes[PixelFormat.PALETTE_T8] = 1;

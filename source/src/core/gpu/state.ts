@@ -378,8 +378,8 @@ export class Light {
 	specularColor = new Color();
 }
 
-export enum LightTypeEnum { Directional = 0, PointLight = 1, SpotLight = 2 }
-export enum LightModelEnum { SingleColor = 0, SeparateSpecularColor = 1 }
+export const enum LightTypeEnum { Directional = 0, PointLight = 1, SpotLight = 2 }
+export const enum LightModelEnum { SingleColor = 0, SeparateSpecularColor = 1 }
 
 export class Lightning {
 	_ambientLightColor = -1;
@@ -416,20 +416,20 @@ export class ClutState {
 	start = 0;
 }
 
-export enum TextureProjectionMapMode {
+export const enum TextureProjectionMapMode {
 	GU_POSITION = 0, // TMAP_TEXTURE_PROJECTION_MODE_POSITION - 3 texture components
 	GU_UV = 1, // TMAP_TEXTURE_PROJECTION_MODE_TEXTURE_COORDINATES - 2 texture components
 	GU_NORMALIZED_NORMAL = 2, // TMAP_TEXTURE_PROJECTION_MODE_NORMALIZED_NORMAL - 3 texture components
 	GU_NORMAL = 3, // TMAP_TEXTURE_PROJECTION_MODE_NORMAL - 3 texture components
 }
 
-export enum TextureMapMode {
+export const enum TextureMapMode {
 	GU_TEXTURE_COORDS = 0,
 	GU_TEXTURE_MATRIX = 1,
 	GU_ENVIRONMENT_MAP = 2,
 }
 
-export enum TextureLevelMode { Auto = 0, Const = 1, Slope = 2 }
+export const enum TextureLevelMode { Auto = 0, Const = 1, Slope = 2 }
 
 
 export class TextureState {
@@ -493,7 +493,7 @@ export class CullingState {
 	direction = CullingDirection.ClockWise;
 }
 
-export enum TestFunctionEnum {
+export const enum TestFunctionEnum {
 	Never = 0,
 	Always = 1,
 	Equal = 2,
@@ -513,12 +513,12 @@ export class DepthTestState {
 	rangeNear = 0;
 }
 
-export enum ShadingModelEnum {
+export const enum ShadingModelEnum {
 	Flat = 0,
 	Smooth = 1,
 }
 
-export enum GuBlendingFactor {
+export const enum GuBlendingFactor {
 	GU_SRC_COLOR                     = 0,// = 0x0300,
 	GU_ONE_MINUS_SRC_COLOR           = 1,// = 0x0301,
 	GU_SRC_ALPHA                     = 2,// = 0x0302,
@@ -528,7 +528,7 @@ export enum GuBlendingFactor {
 	GU_FIX = 10,
 }
 	
-export enum GuBlendingEquation {
+export const enum GuBlendingEquation {
 	Add = 0,
 	Substract = 1,
 	ReverseSubstract = 2,

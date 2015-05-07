@@ -120,7 +120,7 @@ export enum FileOpenFlags {
 	Unknown3 = 0x2000000, // seen on Puzzle Guzzle, Hammerin' Hero
 }
 
-export enum FileMode {
+export const enum FileMode {
 }
 
 export interface VfsStat {

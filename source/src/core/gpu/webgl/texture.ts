@@ -390,6 +390,8 @@ export class TextureHandler {
 				} else {
 					texture.fromBytesRGBA(PixelConverter.decode(state.texture.pixelFormat, data, new Uint32Array(w2 * h), true), w2, h);
 				}
+				
+				//console.log('texture updated!');
 			}
 		}
 
@@ -453,6 +455,8 @@ export class TextureHandler {
 				var palette = new Uint32Array(256);
 				PixelConverter.decode(clutState.pixelFormat, this.memory.getPointerU8Array(clutState.address), palette.subarray(0, _clut.numberOfColors), true);
 				_clut.fromBytesRGBA(palette, 256);
+				
+				//console.log('clut updated!');
 			}
 		}
 		

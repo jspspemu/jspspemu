@@ -36,7 +36,7 @@ export class EmulatorVfs extends _vfs.Vfs {
 	}
 }
 
-export enum EmulatorDevclEnum
+export const enum EmulatorDevclEnum
 {
 	GetHasDisplay = 0x00000001,
 	SendOutput = 0x00000002,

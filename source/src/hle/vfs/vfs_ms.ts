@@ -73,7 +73,7 @@ export class MemoryStickVfs extends ProxyVfs {
 	}
 }
 
-export enum CommandType {
+export const enum CommandType {
 	CheckInserted = 0x02425823,
 	MScmRegisterMSInsertEjectCallback = 0x02415821,
 	MScmUnregisterMSInsertEjectCallback = 0x02415822,

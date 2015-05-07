@@ -16,7 +16,7 @@ const DEBUG_NATIVEFUNC = false;
 const BUILD_FUNC_ON_REFERENCED = true;
 //const BUILD_FUNC_ON_REFERENCED = false;
 
-export enum CpuSpecialAddresses {
+export const enum CpuSpecialAddresses {
 	EXIT_THREAD = 0x0FFFFFFF,
 }
 
@@ -172,12 +172,12 @@ class VfpuPrefixWrite extends VfpuPrefixBase {
 	}
 }
 
-export enum VFPU_CTRL {
+export const enum VFPU_CTRL {
 	SPREFIX, TPREFIX, DPREFIX, CC, INF4, RSV5, RSV6, REV,
 	RCX0, RCX1, RCX2, RCX3, RCX4, RCX5, RCX6, RCX7, MAX,
 }
 
-export enum VCondition {
+export const enum VCondition {
 	FL, EQ, LT, LE, TR, NE, GE, GT,
 	EZ, EN, EI, ES, NZ, NN, NI, NS
 };

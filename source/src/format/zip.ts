@@ -152,7 +152,7 @@ export class Zip {
 	}
 }
 
-export enum ZipCompressionType {
+export const enum ZipCompressionType {
 	STORED = 0,
 	SHRUNK = 1,
 	REDUCED1 = 2,

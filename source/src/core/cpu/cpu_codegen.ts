@@ -112,8 +112,8 @@ function VVecReg(index: number, size:VectorSize) {
 	return new VVecRegClass(index, size);
 }
 
-export enum VectorSize { Single = 1, Pair = 2, Triple = 3, Quad = 4 }
-export enum MatrixSize { M_2x2 = 2, M_3x3 = 3, M_4x4 = 4 };
+export const enum VectorSize { Single = 1, Pair = 2, Triple = 3, Quad = 4 }
+export const enum MatrixSize { M_2x2 = 2, M_3x3 = 3, M_4x4 = 4 };
 
 function getVectorRegs(vectorReg: number, N: VectorSize) {
 	var mtx = (vectorReg >>> 2) & 7;
