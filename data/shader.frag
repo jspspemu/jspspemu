@@ -13,12 +13,17 @@ precision mediump float;
 
 #ifdef VERTEX_TEXTURE
 	uniform sampler2D uSampler;
+	uniform vec2 textureSize;
+	uniform vec2 pixelSize;
 	uniform int tfx;
 	uniform int tcc;
 	varying vec4 v_Texcoord;
 
 	#ifdef TEXTURE_CLUT
 		uniform sampler2D samplerClut;
+		uniform float samplerClutStart;
+		uniform float samplerClutShift;
+		uniform float samplerClutMask;
 	#endif
 #endif
 
@@ -26,6 +31,34 @@ precision mediump float;
 	uniform int alphaTestFunc;
 	uniform int alphaTestReference;
 	uniform int alphaTestMask;
+#endif
+
+uniform float time;
+
+#ifdef TEXTURE_CLUT
+vec4 getClutColor(float color) {
+	return texture2D(samplerClut, vec2(color, 0.0));
+}
+
+vec4 getClutColorAt(vec2 coords) {
+	return getClutColor(texture2D(uSampler, vec2(coords.s, coords.t)).x);
+}
+
+vec4 bilinearInterpolate(in vec4 topLeft, in vec4 topRight, in vec4 bottomLeft, in vec4 bottomRight, in vec2 mixFactor) {
+	vec4 top = mix(topLeft, topRight, mixFactor.x);
+	vec4 bottom = mix(bottomLeft, bottomRight, mixFactor.x);
+    return mix(top, bottom, mixFactor.y);
+}
+
+vec4 getInterpolatedClutColor(vec2 coords) {
+	vec2 delta = pixelSize;
+	vec4 topLeft = getClutColorAt(coords + vec2(0, 0));
+	vec4 topRight = getClutColorAt(coords + vec2(+delta.x, 0));
+	vec4 bottomLeft = getClutColorAt(coords + vec2(0, +delta.y));
+	vec4 bottomRight = getClutColorAt(coords + vec2(+delta.x, +delta.y));
+	vec2 mixFactor = fract(coords * textureSize);
+	return bilinearInterpolate(topLeft, topRight, bottomLeft, bottomRight, mixFactor);
+}
 #endif
 
 void main() {
@@ -44,9 +77,10 @@ void main() {
 		#endif
 
 		#ifdef VERTEX_TEXTURE
-			vec4 texColor = texture2D(uSampler, vec2(v_Texcoord.s, v_Texcoord.t));
 			#ifdef TEXTURE_CLUT
-				texColor = texture2D(samplerClut, vec2(texColor.r, 0.0));
+				vec4 texColor = getInterpolatedClutColor(v_Texcoord.st);
+			#else
+				vec4 texColor = texture2D(uSampler, vec2(v_Texcoord.s, v_Texcoord.t));
 			#endif
 
 			#ifdef ALPHATEST

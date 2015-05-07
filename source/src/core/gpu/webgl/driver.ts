@@ -319,6 +319,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		
 		var program = this.cache.getProgram(vs, state, true);
 		program.use();
+		program.getUniform('time').set1f(performance.now() / 1000.0);
 		program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
 		if (vs.hasPosition) {
 			this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset);	
@@ -510,6 +511,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 		//console.log(primitiveType);
 		var program = this.cache.getProgram(vertexState, this.state, false);
 		program.use();
+		program.getUniform('time').set1f(performance.now() / 1000.0);
 
 		this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
 		this.updateState(program, vertexState, originalPrimitiveType);

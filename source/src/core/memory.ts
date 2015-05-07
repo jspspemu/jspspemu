@@ -288,6 +288,8 @@ export class Memory {
 
 	hash(address: number, count: number) {
 		var result = 0;
+		
+		address &= MASK;
 
 		while ((address & 3) != 0) { result += this.lbu(address++); count--; }
 

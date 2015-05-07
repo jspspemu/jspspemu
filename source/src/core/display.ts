@@ -151,13 +151,13 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		if (!this.context || !this.imageData) return;
 		if (!this.enabled) return;
 
-		var count = 512 * 272;
 		var imageData = this.imageData;
-		var w8 = imageData.data;
+		//var w8 = <Uint8ClampedArray><any>imageData.data;
+		var w8 = <Uint8Array><any>imageData.data;
+		var w32 = ArrayBufferUtils.uint8ToUint32(w8);
 		var baseAddress = this.address & 0x0FFFFFFF;
 
-		PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), <Uint8Array><any>w8, 0, count, false);
-		//PixelConverter.decode(this.pixelFormat, this.memory.buffer, baseAddress, <Uint8Array><any>w8, 0, count, false);
+		PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w32, false);
 		this.context.putImageData(imageData, 0, 0);
 	}
 

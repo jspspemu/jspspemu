@@ -478,9 +478,22 @@ class ArrayBufferUtils {
 		return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
 	}
 
+	static uint16ToUint8(input: Uint16Array) {
+		return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+	}
+
+	static uint32ToUint8(input: Uint32Array) {
+		return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+	}
+	
 	static uint8ToUint32(input: Uint8Array, offset: number = 0, length?: number) {
-		if (length === undefined) length = ((input.length >>> 2) - (offset >>> 2));
+		if (length === undefined) length = (input.length - offset) >>> 2;
 		return new Uint32Array(input.buffer, input.byteOffset + offset, length);
+	}
+
+	static uint8ToUint16(input: Uint8Array, offset: number = 0, length?: number) {
+		if (length === undefined) length = (input.length - offset) >>> 1;
+		return new Uint16Array(input.buffer, input.byteOffset + offset, length);
 	}
 
 	static uint8ToUint8(input: Uint8Array, offset: number = 0, length?: number) {
@@ -489,8 +502,21 @@ class ArrayBufferUtils {
 	}
 	
 	static copy(input: Uint8Array, inputPosition: number, output: Uint8Array, outputPosition: number, length: number) {
-		output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
-		//for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+		//new Uint8Array(output.buffer, output.byteOffset + outputPosition, length).set(new Uint8Array(input.buffer, input.byteOffset + inputPosition, length));
+		//output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+		for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+	}
+	
+	static copyUint8ToUint32(from: Uint8Array) {
+		var to = new Uint32Array(from.length);
+		for (var n = 0; n < to.length; n++) to[n] = from[n];
+		return to;
+	}
+	
+	static copyUint8ToUint32_rep(from: Uint8Array) {
+		var to = new Uint32Array(from.length);
+		for (var n = 0; n < to.length; n++) to[n] = from[n] | (from[n] << 8) | (from[n] << 16) | (from[n] << 24);
+		return to;
 	}
 
 	static cloneBytes(input: Uint8Array) {
@@ -1070,3 +1096,13 @@ function throwWaitPromise<T>(promise:Promise2<T>) {
 (<any>window).throwWaitPromise = throwWaitPromise;
 (<any>window).Promise2 = Promise2;
 (<any>window).DomHelp = DomHelp;
+
+declare class Map<K, V> {
+	constructor();
+	size: number;
+	clear(): void;
+	delete(key:K):boolean;
+	set(key:K, value:V):Map<K, V>;
+	get(key:K):V;
+	has(key:K):boolean;
+}

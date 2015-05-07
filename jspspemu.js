@@ -446,11 +446,23 @@ var ArrayBufferUtils = (function () {
     ArrayBufferUtils.fromUInt8Array = function (input) {
         return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
     };
+    ArrayBufferUtils.uint16ToUint8 = function (input) {
+        return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+    };
+    ArrayBufferUtils.uint32ToUint8 = function (input) {
+        return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+    };
     ArrayBufferUtils.uint8ToUint32 = function (input, offset, length) {
         if (offset === void 0) { offset = 0; }
         if (length === undefined)
-            length = ((input.length >>> 2) - (offset >>> 2));
+            length = (input.length - offset) >>> 2;
         return new Uint32Array(input.buffer, input.byteOffset + offset, length);
+    };
+    ArrayBufferUtils.uint8ToUint16 = function (input, offset, length) {
+        if (offset === void 0) { offset = 0; }
+        if (length === undefined)
+            length = (input.length - offset) >>> 1;
+        return new Uint16Array(input.buffer, input.byteOffset + offset, length);
     };
     ArrayBufferUtils.uint8ToUint8 = function (input, offset, length) {
         if (offset === void 0) { offset = 0; }
@@ -459,7 +471,20 @@ var ArrayBufferUtils = (function () {
         return new Uint8Array(input.buffer, input.byteOffset + offset, length);
     };
     ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
-        output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+        for (var n = 0; n < length; n++)
+            output[outputPosition + n] = input[inputPosition + n];
+    };
+    ArrayBufferUtils.copyUint8ToUint32 = function (from) {
+        var to = new Uint32Array(from.length);
+        for (var n = 0; n < to.length; n++)
+            to[n] = from[n];
+        return to;
+    };
+    ArrayBufferUtils.copyUint8ToUint32_rep = function (from) {
+        var to = new Uint32Array(from.length);
+        for (var n = 0; n < to.length; n++)
+            to[n] = from[n] | (from[n] << 8) | (from[n] << 16) | (from[n] << 24);
+        return to;
     };
     ArrayBufferUtils.cloneBytes = function (input) {
         var out = new Uint8Array(input.length);
@@ -10863,13 +10888,12 @@ var pixelformat = require('./pixelformat');
 var _interrupt = require('./interrupt');
 var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
-var PixelFormat = pixelformat.PixelFormat;
 var PixelConverter = pixelformat.PixelConverter;
 var BasePspDisplay = (function () {
     function BasePspDisplay() {
         this.address = Memory.DEFAULT_FRAME_ADDRESS;
         this.bufferWidth = 512;
-        this.pixelFormat = PixelFormat.RGBA_8888;
+        this.pixelFormat = 3;
         this.sync = 1;
     }
     return BasePspDisplay;
@@ -10963,11 +10987,11 @@ var PspDisplay = (function (_super) {
             return;
         if (!this.enabled)
             return;
-        var count = 512 * 272;
         var imageData = this.imageData;
         var w8 = imageData.data;
+        var w32 = ArrayBufferUtils.uint8ToUint32(w8);
         var baseAddress = this.address & 0x0FFFFFFF;
-        PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w8, 0, count, false);
+        PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w32, false);
         this.context.putImageData(imageData, 0, 0);
     };
     PspDisplay.prototype.setEnabledDisplay = function (enable) {
@@ -11724,18 +11748,18 @@ var PspGpuExecutor = (function () {
         this.state.specularModelColor.a = 1;
     };
     PspGpuExecutor.prototype.CLUTADDR = function (p) {
-        var v = (this.state.texture.clut.adress & 0xFF000000) | ((p << 0) & 0x00FFFFFF);
-        if (this.state.texture.clut.adress == v)
+        var v = (this.state.texture.clut.address & 0xFF000000) | ((p << 0) & 0x00FFFFFF);
+        if (this.state.texture.clut.address == v)
             return;
         this.invalidatePrim();
-        this.state.texture.clut.adress = v;
+        this.state.texture.clut.address = v;
     };
     PspGpuExecutor.prototype.CLUTADDRUPPER = function (p) {
-        var v = (this.state.texture.clut.adress & 0x00FFFFFF) | ((p << 8) & 0xFF000000);
-        if (this.state.texture.clut.adress == v)
+        var v = (this.state.texture.clut.address & 0x00FFFFFF) | ((p << 8) & 0xFF000000);
+        if (this.state.texture.clut.address == v)
             return;
         this.invalidatePrim();
-        this.state.texture.clut.adress = v;
+        this.state.texture.clut.address = v;
     };
     PspGpuExecutor.prototype.CLOAD = function (p) {
         var v = param8(p, 0) * 8;
@@ -11872,7 +11896,6 @@ var PspGpuExecutor = (function () {
         var vertexSize = vertexState.size;
         var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
         var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
-        var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
         var indices = null;
         switch (vertexState.index) {
             case 1:
@@ -11889,7 +11912,7 @@ var PspGpuExecutor = (function () {
             overlayIndexCount.value += 1;
         }
         overlayVertexCount.value += vertexCount;
-        var vertexInput = list.memory.getPointerU8Array(vertexAddress);
+        var vertexInput = list.memory.getPointerU8Array(vertexAddress, indices ? undefined : (vertexSize * vertexCount));
         if (vertexState.address && !vertexState.hasIndex)
             vertexState.address += vertexState.size * vertexCount;
         var drawType = PrimDrawType.SINGLE_DRAW;
@@ -11939,6 +11962,7 @@ var PspGpuExecutor = (function () {
             if (mustDegenerate)
                 vertexBuffer.startDegenerateTriangleStrip();
             var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
+            var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
             vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, indices, vertexCount, vertexState.hasIndex);
             if (mustDegenerate)
                 vertexBuffer.endDegenerateTriangleStrip();
@@ -12672,8 +12696,6 @@ var GpuOpCodes = exports.GpuOpCodes;
 },
 "src/core/gpu/state": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _pixelformat = require('../pixelformat');
-var PixelFormat = _pixelformat.PixelFormat;
 var GpuFrameBufferState = (function () {
     function GpuFrameBufferState() {
         this._widthHighAddress = -1;
@@ -13167,9 +13189,9 @@ var ColorState = (function () {
 exports.ColorState = ColorState;
 var ClutState = (function () {
     function ClutState() {
-        this.adress = 0;
+        this.address = 0;
         this.numberOfColors = 0;
-        this.pixelFormat = PixelFormat.RGBA_8888;
+        this.pixelFormat = 3;
         this.shift = 0;
         this.mask = 0x00;
         this.start = 0;
@@ -13225,7 +13247,7 @@ var TextureState = (function () {
         this.colorComponent = 0;
         this.envColor = new ColorState();
         this.fragment2X = false;
-        this.pixelFormat = PixelFormat.RGBA_8888;
+        this.pixelFormat = 3;
         this.clut = new ClutState();
         this.mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
         this.textureProjectionMapMode = TextureProjectionMapMode.GU_NORMAL;
@@ -13544,7 +13566,7 @@ var GpuState = (function () {
         this.dithering = new DitheringState();
         this.colorTest = new ColorTestState();
         this.depthTest = new DepthTestState();
-        this.drawPixelFormat = PixelFormat.RGBA_8888;
+        this.drawPixelFormat = 3;
     }
     GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) { return (this.baseAddress | relativeAddress); };
     GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) { return ((this.baseAddress | relativeAddress) + this.baseOffset); };
@@ -14044,6 +14066,7 @@ var WebGlPspDrawDriver = (function () {
         gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(buffer.data.buffer, 0, buffer.dataOffset + 120), gl.DYNAMIC_DRAW);
         var program = this.cache.getProgram(vs, state, true);
         program.use();
+        program.getUniform('time').set1f(performance.now() / 1000.0);
         program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
         if (vs.hasPosition) {
             this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset);
@@ -14186,6 +14209,7 @@ var WebGlPspDrawDriver = (function () {
         var gl = this.gl;
         var program = this.cache.getProgram(vertexState, this.state, false);
         program.use();
+        program.getUniform('time').set1f(performance.now() / 1000.0);
         this.demuxVertices(vertices, count, vertexState, primitiveType, originalPrimitiveType);
         this.updateState(program, vertexState, originalPrimitiveType);
         this.setProgramParameters(gl, program, vertexState);
@@ -14318,6 +14342,8 @@ module.exports = DummyDrawDriver;
 "src/core/gpu/webgl/shader": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
 var _utils = require('./utils');
+var _pixelformat = require('../../pixelformat');
+var PixelFormatUtils = _pixelformat.PixelFormatUtils;
 var WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 var ShaderCache = (function () {
     function ShaderCache(gl, shaderVertString, shaderFragString) {
@@ -14345,8 +14371,12 @@ var ShaderCache = (function () {
             defines.push('VERTEX_POSITION ' + vertex.position);
         if (vertex.hasColor)
             defines.push('VERTEX_COLOR ' + vertex.color);
-        if (vertex.hasTexture)
+        if (vertex.hasTexture) {
             defines.push('VERTEX_TEXTURE ' + vertex.texture);
+            if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
+                defines.push('TEXTURE_CLUT 1');
+            }
+        }
         if (vertex.hasNormal)
             defines.push('VERTEX_NORMAL ' + vertex.normal);
         if (vertex.hasWeight)
@@ -14387,6 +14417,55 @@ var _state = require('../state');
 var _pixelformat = require('../../pixelformat');
 var PixelFormatUtils = _pixelformat.PixelFormatUtils;
 var PixelConverter = _pixelformat.PixelConverter;
+var Clut = (function () {
+    function Clut(gl) {
+        this.gl = gl;
+        this.valid = true;
+        this.validHint = true;
+        this.texture = gl.createTexture();
+    }
+    Clut.prototype.setInfo = function (clut) {
+        this.clutFormat = clut.pixelFormat;
+        this.clut_start = clut.address;
+        this.clut_end = clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors);
+    };
+    Clut.prototype._create = function (callbackTex2D) {
+        var gl = this.gl;
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        callbackTex2D();
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    };
+    Clut.prototype.fromBytesRGBA = function (data, numberOfColors) {
+        var gl = this.gl;
+        this.numberOfColors = numberOfColors;
+        this._create(function () {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, numberOfColors, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
+        });
+    };
+    Clut.prototype.bind = function (textureUnit) {
+        var gl = this.gl;
+        gl.activeTexture(gl.TEXTURE0 + textureUnit);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    };
+    Clut.hashFast = function (state) {
+        return state.texture.clut.address;
+    };
+    Clut.hashSlow = function (memory, state) {
+        var clut = state.texture.clut;
+        var hash_number = 0;
+        hash_number += memory.hash(clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 30);
+        hash_number += clut.info * Math.pow(2, 26);
+        return hash_number;
+    };
+    return Clut;
+})();
+exports.Clut = Clut;
 var Texture = (function () {
     function Texture(gl) {
         this.gl = gl;
@@ -14401,14 +14480,10 @@ var Texture = (function () {
     Texture.prototype.setInfo = function (state) {
         var texture = state.texture;
         var mipmap = texture.mipmaps[0];
-        var clut = texture.clut;
         this.swizzled = texture.swizzled;
         this.address_start = mipmap.address;
         this.address_end = mipmap.address + PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.bufferWidth * mipmap.textureHeight);
         this.pixelFormat = texture.pixelFormat;
-        this.clutFormat = clut.pixelFormat;
-        this.clut_start = clut.adress;
-        this.clut_end = clut.adress + PixelConverter.getSizeInBytes(texture.clut.pixelFormat, clut.numberOfColors);
     };
     Texture.prototype._create = function (callbackTex2D) {
         var gl = this.gl;
@@ -14418,12 +14493,20 @@ var Texture = (function () {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null);
     };
-    Texture.prototype.fromBytes = function (data, width, height) {
+    Texture.prototype.fromBytesRGBA = function (data, width, height) {
         var gl = this.gl;
         this.width = width;
         this.height = height;
         this._create(function () {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
+        });
+    };
+    Texture.prototype.fromBytesIndex = function (data, width, height) {
+        var gl = this.gl;
+        this.width = width;
+        this.height = height;
+        this._create(function () {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width, height, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, data);
         });
     };
     Texture.prototype.fromCanvas = function (canvas) {
@@ -14448,9 +14531,6 @@ var Texture = (function () {
     };
     Texture.hashFast = function (state) {
         var result = state.texture.mipmaps[0].address;
-        if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-            result += state.texture.clut.adress * Math.pow(2, 23);
-        }
         result += (state.texture.swizzled ? 1 : 0) * Math.pow(2, 13);
         return result;
     };
@@ -14465,20 +14545,12 @@ var Texture = (function () {
         hash_number += (mipmap.textureWidth) * Math.pow(2, 6);
         hash_number += (mipmap.textureHeight) * Math.pow(2, 8);
         hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 12);
-        if (PixelFormatUtils.hasClut(texture.pixelFormat)) {
-            hash_number += memory.hash(clut.adress + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 30);
-            hash_number += clut.info * Math.pow(2, 26);
-        }
         return hash_number;
     };
+    Texture.createCanvas = function () {
+    };
     Texture.prototype.toString = function () {
-        var out = '';
-        out += 'Texture(address = ' + this.address_start + ', hash1 = ' + this.hash1 + ', hash2 = ' + this.hash2 + ', pixelFormat = ' + this.pixelFormat + ', swizzled = ' + this.swizzled;
-        if (PixelFormatUtils.hasClut(this.pixelFormat)) {
-            out += ', clutFormat=' + this.clutFormat;
-        }
-        out += ')';
-        return out;
+        return "Texture(address = " + this.address_start + ", hash1 = " + this.hash1 + ", hash2 = " + this.hash2 + ", pixelFormat = " + this.pixelFormat + ", swizzled = " + this.swizzled;
     };
     return Texture;
 })();
@@ -14492,17 +14564,28 @@ var TextureHandler = (function () {
         this.texturesByHash1 = {};
         this.texturesByAddress = {};
         this.textures = [];
+        this.clutsByHash2 = {};
+        this.clutsByHash1 = {};
+        this.clutsByAddress = {};
+        this.cluts = [];
         this.recheckTimestamp = 0;
         this.invalidatedAll = false;
         memory.invalidateDataRange.add(function (range) { return _this.invalidatedMemoryRange(range); });
         memory.invalidateDataAll.add(function () { return _this.invalidatedMemoryAll(); });
     }
     TextureHandler.prototype.flush = function () {
-        for (var n = 0; n < this.textures.length; n++) {
-            var texture = this.textures[n];
+        for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
+            var texture = _a[_i];
             if (!texture.validHint) {
                 texture.valid = false;
                 texture.validHint = true;
+            }
+        }
+        for (var _b = 0, _c = this.cluts; _b < _c.length; _b++) {
+            var clut = _c[_b];
+            if (!clut.validHint) {
+                clut.valid = false;
+                clut.validHint = true;
             }
         }
     };
@@ -14512,26 +14595,31 @@ var TextureHandler = (function () {
         if (!this.invalidatedAll)
             return;
         this.invalidatedAll = false;
-        for (var n = 0; n < this.textures.length; n++) {
-            var texture = this.textures[n];
+        for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
+            var texture = _a[_i];
             texture.validHint = false;
+        }
+        for (var _b = 0, _c = this.cluts; _b < _c.length; _b++) {
+            var clut = _c[_b];
+            clut.validHint = false;
         }
     };
     TextureHandler.prototype.invalidatedMemoryAll = function () {
         this.invalidatedAll = true;
     };
     TextureHandler.prototype.invalidatedMemoryRange = function (range) {
-        for (var n = 0; n < this.textures.length; n++) {
-            var texture = this.textures[n];
-            if (texture.address_start >= range.start && texture.address_end <= range.end) {
+        for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
+            var texture = _a[_i];
+            if (texture.address_start >= range.start && texture.address_end <= range.end)
                 texture.validHint = false;
-            }
-            if (texture.clut_start >= range.start && texture.clut_end <= range.end) {
-                texture.validHint = false;
-            }
+        }
+        for (var _b = 0, _c = this.cluts; _b < _c.length; _b++) {
+            var clut = _c[_b];
+            if (clut.clut_start >= range.start && clut.clut_end <= range.end)
+                clut.validHint = false;
         }
     };
-    TextureHandler.prototype.mustRecheckSlowHash = function (texture) {
+    TextureHandler.prototype.mustRecheckSlowHashTexture = function (texture) {
         if (!texture)
             return true;
         if (texture.recheckCount++ >= texture.framesEqual) {
@@ -14542,7 +14630,15 @@ var TextureHandler = (function () {
             return false;
         }
     };
+    TextureHandler.prototype.mustRecheckSlowHashClut = function (clut) {
+        return !clut || !clut.valid;
+    };
     TextureHandler.prototype.bindTexture = function (prog, state) {
+        this._bindClut(prog, state);
+        this._bindTexture(prog, state);
+        this.gl.activeTexture(this.gl.TEXTURE0);
+    };
+    TextureHandler.prototype._bindTexture = function (prog, state) {
         var gl = this.gl;
         var mipmap = state.texture.mipmaps[0];
         if (mipmap.bufferWidth == 0)
@@ -14551,10 +14647,11 @@ var TextureHandler = (function () {
             return;
         if (mipmap.textureHeight == 0)
             return;
+        var hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
         var hash1 = Texture.hashFast(state);
         var texture = this.texturesByHash1[hash1];
         var texture1 = texture;
-        if (this.mustRecheckSlowHash(texture)) {
+        if (this.mustRecheckSlowHashTexture(texture)) {
             var hash2 = Texture.hashSlow(this.memory, state);
             texture = this.texturesByHash2[hash2];
             if (texture) {
@@ -14576,68 +14673,75 @@ var TextureHandler = (function () {
                 texture.hash1 = hash1;
                 texture.hash2 = hash2;
                 texture.valid = true;
+                texture.validHint = true;
                 texture.recheckTimestamp = this.recheckTimestamp;
                 var mipmap = state.texture.mipmaps[0];
-                var h = mipmap.textureHeight;
-                var w = mipmap.textureWidth;
-                var w2 = mipmap.bufferWidth;
-                var data2 = new Uint8Array(w2 * h * 4);
-                var clut = state.texture.clut;
-                if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-                    clut.numberOfColors = Math.max(clut.numberOfColors, clut.mask + 1);
-                }
-                var paletteBuffer = new ArrayBuffer(clut.numberOfColors * 4);
-                var paletteU8 = new Uint8Array(paletteBuffer);
-                var palette = new Uint32Array(paletteBuffer);
-                if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
-                    PixelConverter.decode(clut.pixelFormat, this.memory.getPointerU8Array(clut.adress), paletteU8, 0, clut.numberOfColors, true);
-                }
-                var dataBuffer = new ArrayBuffer(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
-                var data = new Uint8Array(dataBuffer);
+                var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+                var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
                 data.set(this.memory.getPointerU8Array(mipmap.address, data.length));
-                if (state.texture.swizzled) {
-                    PixelConverter.unswizzleInline(state.texture.pixelFormat, dataBuffer, 0, w2, h);
-                }
-                PixelConverter.decode(state.texture.pixelFormat, data, data2, 0, w2 * h, true, palette, clut.start, clut.shift, clut.mask);
-                if (true) {
-                    texture.fromBytes(data2, w2, h);
+                if (state.texture.swizzled)
+                    PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
+                if (hasClut) {
+                    texture.fromBytesIndex(PixelConverter.decodeIndex(state.texture.pixelFormat, data, new Uint8Array(w2 * h)), w2, h);
                 }
                 else {
-                    var canvas = document.createElement('canvas');
-                    canvas.style.border = '1px solid white';
-                    canvas.width = w2;
-                    canvas.height = h;
-                    var ctx = canvas.getContext('2d');
-                    var imageData = ctx.createImageData(w2, h);
-                    var u8 = imageData.data;
-                    ctx.clearRect(0, 0, w, h);
-                    for (var n = 0; n < w2 * h * 4; n++)
-                        u8[n] = data2[n];
-                    ctx.putImageData(imageData, 0, 0);
-                    console.error('generated texture!' + texture.toString());
-                    var div = document.createElement('div');
-                    var textdiv = document.createElement('div');
-                    textdiv.innerText = texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h;
-                    div.appendChild(canvas);
-                    div.appendChild(textdiv);
-                    document.body.appendChild(div);
-                    texture.fromCanvas(canvas);
+                    texture.fromBytesRGBA(PixelConverter.decode(state.texture.pixelFormat, data, new Uint32Array(w2 * h), true), w2, h);
                 }
             }
         }
         this.lastTexture = texture;
-        texture.bind(0, (state.texture.filterMinification == 1) ? gl.LINEAR : gl.NEAREST, (state.texture.filterMagnification == 1) ? gl.LINEAR : gl.NEAREST, (state.texture.wrapU == 1) ? gl.CLAMP_TO_EDGE : gl.REPEAT, (state.texture.wrapV == 1) ? gl.CLAMP_TO_EDGE : gl.REPEAT);
+        texture.bind(0, (!hasClut && state.texture.filterMinification == 1) ? gl.LINEAR : gl.NEAREST, (!hasClut && state.texture.filterMagnification == 1) ? gl.LINEAR : gl.NEAREST, convertWrapMode[state.texture.wrapU], convertWrapMode[state.texture.wrapV]);
+        prog.getUniform('textureSize').set2f(texture.width, texture.height);
+        prog.getUniform('pixelSize').set2f(1.0 / texture.width, 1.0 / texture.height);
         prog.getUniform('uSampler').set1i(0);
+    };
+    TextureHandler.prototype._bindClut = function (prog, state) {
+        var gl = this.gl;
+        var hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
+        if (!hasClut)
+            return;
+        var _clut;
+        var clutState = state.texture.clut;
+        var hash1 = Clut.hashFast(state);
+        _clut = this.clutsByHash1[hash1];
+        if (this.mustRecheckSlowHashClut(_clut)) {
+            var hash2 = Clut.hashSlow(this.memory, state);
+            _clut = this.clutsByHash2[hash2];
+            if (!_clut) {
+                if (!this.clutsByAddress[clutState.address]) {
+                    this.clutsByAddress[clutState.address] = _clut = new Clut(gl);
+                    this.cluts.push(_clut);
+                    console.warn('New clut allocated!', clutState);
+                }
+                _clut = this.clutsByHash2[hash2] = this.clutsByHash1[hash1] = this.clutsByAddress[clutState.address];
+                _clut.setInfo(clutState);
+                _clut.hash1 = hash1;
+                _clut.hash2 = hash2;
+                _clut.valid = true;
+                _clut.validHint = true;
+                _clut.numberOfColors = Math.max(clutState.numberOfColors, clutState.mask + 1);
+                var palette = new Uint32Array(256);
+                PixelConverter.decode(clutState.pixelFormat, this.memory.getPointerU8Array(clutState.address), palette.subarray(0, _clut.numberOfColors), true);
+                _clut.fromBytesRGBA(palette, 256);
+            }
+        }
+        _clut.bind(1);
         prog.getUniform('samplerClut').set1i(1);
+        prog.getUniform('samplerClutStart').set1f(clutState.start);
+        prog.getUniform('samplerClutShift').set1f(clutState.shift);
+        prog.getUniform('samplerClutMask').set1f(clutState.mask);
     };
     TextureHandler.prototype.unbindTexture = function (program, state) {
         var gl = this.gl;
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, null);
     };
     return TextureHandler;
 })();
 exports.TextureHandler = TextureHandler;
+var convertWrapMode = [10497, 33071];
 
 },
 "src/core/gpu/webgl/utils": function(module, exports, require) {
@@ -14660,12 +14764,10 @@ var WrappedWebGLUniform = (function () {
             mat4x3[mat4x3_indices[n]] = data[index + n];
         this.gl.uniformMatrix4fv(this.location, false, data);
     };
-    WrappedWebGLUniform.prototype.set1i = function (value) {
-        this.gl.uniform1i(this.location, value);
-    };
-    WrappedWebGLUniform.prototype.set4f = function (x, y, z, w) {
-        this.gl.uniform4f(this.location, x, y, z, w);
-    };
+    WrappedWebGLUniform.prototype.set1i = function (x) { this.gl.uniform1i(this.location, x); };
+    WrappedWebGLUniform.prototype.set1f = function (x) { this.gl.uniform1f(this.location, x); };
+    WrappedWebGLUniform.prototype.set2f = function (x, y) { this.gl.uniform2f(this.location, x, y); };
+    WrappedWebGLUniform.prototype.set4f = function (x, y, z, w) { this.gl.uniform4f(this.location, x, y, z, w); };
     return WrappedWebGLUniform;
 })();
 exports.WrappedWebGLUniform = WrappedWebGLUniform;
@@ -15558,6 +15660,7 @@ var Memory = (function () {
     };
     Memory.prototype.hash = function (address, count) {
         var result = 0;
+        address &= MASK;
         while ((address & 3) != 0) {
             result += this.lbu(address++);
             count--;
@@ -15740,58 +15843,41 @@ exports.getInstance = getInstance;
 },
 "src/core/pixelformat": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _memory = require('./memory');
-var Memory = _memory.Memory;
 var PixelFormatUtils = (function () {
     function PixelFormatUtils() {
     }
     PixelFormatUtils.hasClut = function (pixelFormat) {
-        return ((pixelFormat >= PixelFormat.PALETTE_T4) && (pixelFormat <= PixelFormat.PALETTE_T32));
+        return ((pixelFormat >= 4) && (pixelFormat <= 7));
     };
     return PixelFormatUtils;
 })();
 exports.PixelFormatUtils = PixelFormatUtils;
-(function (PixelFormat) {
-    PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
-    PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
-    PixelFormat[PixelFormat["RGBA_5551"] = 1] = "RGBA_5551";
-    PixelFormat[PixelFormat["RGBA_4444"] = 2] = "RGBA_4444";
-    PixelFormat[PixelFormat["RGBA_8888"] = 3] = "RGBA_8888";
-    PixelFormat[PixelFormat["PALETTE_T4"] = 4] = "PALETTE_T4";
-    PixelFormat[PixelFormat["PALETTE_T8"] = 5] = "PALETTE_T8";
-    PixelFormat[PixelFormat["PALETTE_T16"] = 6] = "PALETTE_T16";
-    PixelFormat[PixelFormat["PALETTE_T32"] = 7] = "PALETTE_T32";
-    PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
-    PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
-    PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
-})(exports.PixelFormat || (exports.PixelFormat = {}));
-var PixelFormat = exports.PixelFormat;
-var sizes = {};
-sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
-sizes[PixelFormat.COMPRESSED_DXT3] = 1;
-sizes[PixelFormat.COMPRESSED_DXT5] = 1;
-sizes[PixelFormat.NONE] = 0;
-sizes[PixelFormat.PALETTE_T16] = 2;
-sizes[PixelFormat.PALETTE_T32] = 4;
-sizes[PixelFormat.PALETTE_T8] = 1;
-sizes[PixelFormat.PALETTE_T4] = 0.5;
-sizes[PixelFormat.RGBA_4444] = 2;
-sizes[PixelFormat.RGBA_5551] = 2;
-sizes[PixelFormat.RGBA_5650] = 2;
-sizes[PixelFormat.RGBA_8888] = 4;
+var sizes = [];
+sizes[8] = 0.5;
+sizes[9] = 1;
+sizes[10] = 1;
+sizes[-1] = 0;
+sizes[6] = 2;
+sizes[7] = 4;
+sizes[5] = 1;
+sizes[4] = 0.5;
+sizes[2] = 2;
+sizes[1] = 2;
+sizes[0] = 2;
+sizes[3] = 4;
 var PixelConverter = (function () {
     function PixelConverter() {
     }
     PixelConverter.getSizeInBytes = function (format, count) {
         return sizes[format] * count;
     };
-    PixelConverter.unswizzleInline = function (format, from, fromIndex, width, height) {
+    PixelConverter.unswizzleInline = function (format, from, width, height) {
         var rowWidth = PixelConverter.getSizeInBytes(format, width);
         var textureHeight = height;
         var size = rowWidth * textureHeight;
         var temp = new Uint8Array(size);
-        PixelConverter.unswizzle(new Uint8Array(from, fromIndex), new Uint8Array(temp.buffer), rowWidth, textureHeight);
-        new Uint8Array(from, fromIndex, size).set(temp);
+        PixelConverter.unswizzle(from, temp, rowWidth, textureHeight);
+        ArrayBufferUtils.copy(temp, 0, from, 0, size);
     };
     PixelConverter.unswizzle = function (input, output, rowWidth, textureHeight) {
         var pitch = ToInt32((rowWidth - 16) / 4);
@@ -15813,45 +15899,46 @@ var PixelConverter = (function () {
             ydest += rowWidth * 8;
         }
     };
-    PixelConverter.decode = function (format, fromArray, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
-        if (useAlpha === void 0) { useAlpha = true; }
-        if (palette === void 0) { palette = null; }
-        if (clutStart === void 0) { clutStart = 0; }
-        if (clutShift === void 0) { clutShift = 0; }
-        if (clutMask === void 0) { clutMask = 0; }
-        var from = fromArray.buffer;
-        var fromIndex = fromArray.byteOffset;
+    PixelConverter.decodeIndex = function (format, from, to) {
         switch (format) {
-            case PixelFormat.RGBA_8888:
-                PixelConverter.decode8888(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha);
-                break;
-            case PixelFormat.RGBA_5551:
-                PixelConverter.update5551(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
-                break;
-            case PixelFormat.RGBA_5650:
-                PixelConverter.update5650(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
-                break;
-            case PixelFormat.RGBA_4444:
-                PixelConverter.update4444(new Uint16Array(from), (fromIndex >>> 1) & Memory.MASK, to, toIndex, count, useAlpha);
-                break;
-            case PixelFormat.PALETTE_T8:
-                PixelConverter.updateT8(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
-                break;
-            case PixelFormat.PALETTE_T4:
-                PixelConverter.updateT4(new Uint8Array(from), (fromIndex >>> 0) & Memory.MASK, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask);
-                break;
+            case 4:
+                var m = 0;
+                for (var n = 0; n < from.length; n++) {
+                    var value = from[n];
+                    to[m++] = (value >> 0) & 0xF;
+                    to[m++] = (value >> 4) & 0xF;
+                }
+                return to;
+            case 5:
+                to.set(from);
+                return to;
             default: throw new Error("Unsupported pixel format " + format);
         }
     };
-    PixelConverter.updateT4 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+    PixelConverter.decode = function (format, from, to, useAlpha, palette, clutStart, clutShift, clutMask) {
         if (useAlpha === void 0) { useAlpha = true; }
         if (palette === void 0) { palette = null; }
         if (clutStart === void 0) { clutStart = 0; }
         if (clutShift === void 0) { clutShift = 0; }
         if (clutMask === void 0) { clutMask = 0; }
-        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
+        switch (format) {
+            case 3: return PixelConverter.decode8888(from, to, useAlpha);
+            case 1: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case 0: return PixelConverter.update5650(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case 2: return PixelConverter.update4444(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case 5: return PixelConverter.updateT8(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
+            case 4: return PixelConverter.updateT4(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
+            default: throw new Error("Unsupported pixel format " + format);
+        }
+    };
+    PixelConverter.updateT4 = function (from, to, useAlpha, palette, clutStart, clutShift, clutMask) {
+        if (useAlpha === void 0) { useAlpha = true; }
+        if (palette === void 0) { palette = null; }
+        if (clutStart === void 0) { clutStart = 0; }
+        if (clutShift === void 0) { clutShift = 0; }
+        if (clutMask === void 0) { clutMask = 0; }
         var orValue = useAlpha ? 0 : 0xFF000000;
-        count |= 0;
+        var count = to.length;
         clutStart |= 0;
         clutShift |= 0;
         clutMask &= 0xF;
@@ -15859,80 +15946,82 @@ var PixelConverter = (function () {
         for (var m = 0; m < 16; m++)
             updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
         for (var n = 0, m = 0; n < count; n++) {
-            var char = from[fromIndex + n];
-            to32[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
-            to32[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
+            var char = from[n];
+            to[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
+            to[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
         }
+        return to;
     };
-    PixelConverter.updateT8 = function (from, fromIndex, to, toIndex, count, useAlpha, palette, clutStart, clutShift, clutMask) {
+    PixelConverter.updateT8 = function (from, to, useAlpha, palette, clutStart, clutShift, clutMask) {
         if (useAlpha === void 0) { useAlpha = true; }
         if (palette === void 0) { palette = null; }
         if (clutStart === void 0) { clutStart = 0; }
         if (clutShift === void 0) { clutShift = 0; }
         if (clutMask === void 0) { clutMask = 0; }
-        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
+        var count = to.length;
         clutMask &= 0xFF;
         if (count > 1024) {
             var updateT8Translate = PixelConverter.updateT8Translate;
             for (var m = 0; m < 256; m++)
                 updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
             for (var m = 0; m < count; m++)
-                to32[m] = updateT8Translate[from[fromIndex + m]] | orValue;
+                to[m] = updateT8Translate[from[m]] | orValue;
         }
         else {
             for (var m = 0; m < count; m++)
-                to32[m] = palette[clutStart + ((from[fromIndex + m] & clutMask) << clutShift)] | orValue;
+                to[m] = palette[clutStart + ((from[m] & clutMask) << clutShift)] | orValue;
         }
+        return to;
     };
-    PixelConverter.decode8888 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+    PixelConverter.decode8888 = function (from8, to, useAlpha) {
         if (useAlpha === void 0) { useAlpha = true; }
-        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-        var from32 = ArrayBufferUtils.uint8ToUint32(from, fromIndex);
+        var from = ArrayBufferUtils.uint8ToUint32(from8);
         var orValue = useAlpha ? 0 : 0xFF000000;
-        for (var n = 0; n < count; n++)
-            to32[n] = from32[n] | orValue;
+        for (var n = 0; n < to.length; n++)
+            to[n] = from[n] | orValue;
+        return to;
     };
-    PixelConverter.update5551 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+    PixelConverter.update5551 = function (from, to, useAlpha) {
         if (useAlpha === void 0) { useAlpha = true; }
-        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
         var orValue = useAlpha ? 0 : 0xFF000000;
-        for (var n = 0; n < count; n++) {
-            var it_1 = from[fromIndex++];
+        for (var n = 0; n < to.length; n++) {
+            var it_1 = from[n];
             var value = 0;
             value |= BitUtils.extractScalei(it_1, 0, 5, 0xFF) << 0;
             value |= BitUtils.extractScalei(it_1, 5, 5, 0xFF) << 8;
             value |= BitUtils.extractScalei(it_1, 10, 5, 0xFF) << 16;
             value |= BitUtils.extractScalei(it_1, 15, 1, 0xFF) << 24;
             value |= orValue;
-            to32[n] = value;
+            to[n] = value;
         }
+        return to;
     };
-    PixelConverter.update5650 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+    PixelConverter.update5650 = function (from, to, useAlpha) {
         if (useAlpha === void 0) { useAlpha = true; }
-        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-        for (var n = 0; n < count; n++) {
-            var it_2 = from[fromIndex++];
+        for (var n = 0; n < to.length; n++) {
+            var it_2 = from[n];
             var value = 0;
             value |= BitUtils.extractScalei(it_2, 0, 5, 0xFF) << 0;
             value |= BitUtils.extractScalei(it_2, 5, 6, 0xFF) << 8;
             value |= BitUtils.extractScalei(it_2, 11, 5, 0xFF) << 16;
             value |= 0xFF000000;
-            to32[n] = value;
+            to[n] = value;
         }
+        return to;
     };
-    PixelConverter.update4444 = function (from, fromIndex, to, toIndex, count, useAlpha) {
+    PixelConverter.update4444 = function (from, to, useAlpha) {
         if (useAlpha === void 0) { useAlpha = true; }
-        var to32 = ArrayBufferUtils.uint8ToUint32(to, toIndex);
-        for (var n = 0; n < count; n++) {
-            var it_3 = from[fromIndex++];
+        for (var n = 0; n < to.length; n++) {
+            var it_3 = from[n];
             var value = 0;
             value |= BitUtils.extractScalei(it_3, 0, 4, 0xFF) << 0;
             value |= BitUtils.extractScalei(it_3, 4, 4, 0xFF) << 8;
             value |= BitUtils.extractScalei(it_3, 8, 4, 0xFF) << 16;
             value |= (useAlpha ? BitUtils.extractScalei(it_3, 12, 4, 0xFF) : 0xFF) << 24;
-            to32[n] = value;
+            to[n] = value;
         }
+        return to;
     };
     PixelConverter.updateT4Translate = new Uint32Array(16);
     PixelConverter.updateT8Translate = new Uint32Array(256);

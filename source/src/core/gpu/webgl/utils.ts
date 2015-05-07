@@ -20,13 +20,10 @@ export class WrappedWebGLUniform {
 		this.gl.uniformMatrix4fv(this.location, false, data);
 	}
 
-	set1i(value: number) {
-		this.gl.uniform1i(this.location, value);
-	}
-
-	set4f(x: number, y: number, z: number, w: number) {
-		this.gl.uniform4f(this.location, x, y, z, w);
-	}
+	set1i(x: number) { this.gl.uniform1i(this.location, x); }
+	set1f(x: number) { this.gl.uniform1f(this.location, x); }
+	set2f(x: number, y:number) { this.gl.uniform2f(this.location, x, y); }
+	set4f(x: number, y: number, z: number, w: number) { this.gl.uniform4f(this.location, x, y, z, w); }
 }
 
 export class WrappedWebGLAttrib {

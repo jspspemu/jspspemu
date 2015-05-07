@@ -680,17 +680,17 @@ class PspGpuExecutor {
 	}
 
 	CLUTADDR(p: number) {
-		var v = (this.state.texture.clut.adress & 0xFF000000) | ((p << 0) & 0x00FFFFFF);
-		if (this.state.texture.clut.adress == v) return;
+		var v = (this.state.texture.clut.address & 0xFF000000) | ((p << 0) & 0x00FFFFFF);
+		if (this.state.texture.clut.address == v) return;
 		this.invalidatePrim();
-		this.state.texture.clut.adress = v;
+		this.state.texture.clut.address = v;
 	}
 
 	CLUTADDRUPPER(p: number) {
-		var v = (this.state.texture.clut.adress & 0x00FFFFFF) | ((p << 8) & 0xFF000000);
-		if (this.state.texture.clut.adress == v) return;
+		var v = (this.state.texture.clut.address & 0x00FFFFFF) | ((p << 8) & 0xFF000000);
+		if (this.state.texture.clut.address == v) return;
 		this.invalidatePrim();
-		this.state.texture.clut.adress = v;
+		this.state.texture.clut.address = v;
 	}
 
 	CLOAD(p: number) {
@@ -837,8 +837,6 @@ class PspGpuExecutor {
 		var vertexAddress = this.state.getAddressRelativeToBaseOffset(vertexState.address);
 		var indicesAddress = this.state.getAddressRelativeToBaseOffset(this.state.indexAddress);
 
-		var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
-
 		var indices: any = null;
 		switch (vertexState.index) {
 			case _state.IndexEnum.Byte: indices = list.memory.getU8Array(indicesAddress, vertexCount); break;
@@ -855,8 +853,7 @@ class PspGpuExecutor {
 
 		//if (vertexState.realWeightCount > 0) debugger;
 
-		var vertexInput = list.memory.getPointerU8Array(vertexAddress);
-
+		var vertexInput:Uint8Array = list.memory.getPointerU8Array(vertexAddress, indices ? undefined : (vertexSize * vertexCount));
 		if (vertexState.address && !vertexState.hasIndex) vertexState.address += vertexState.size * vertexCount;
 
 		var drawType = PrimDrawType.SINGLE_DRAW;
@@ -906,6 +903,7 @@ class PspGpuExecutor {
 		} else {
 			if (mustDegenerate) vertexBuffer.startDegenerateTriangleStrip();
 			var verticesOffset = vertexBuffer.ensureAndTake(vertexCount);
+			var vertexReader = _vertex.VertexReaderFactory.get(vertexState);
 			vertexReader.readCount(vertexBuffer.vertices, verticesOffset, vertexInput, <number[]><any>indices, vertexCount, vertexState.hasIndex);
 			if (mustDegenerate) vertexBuffer.endDegenerateTriangleStrip();
 		}

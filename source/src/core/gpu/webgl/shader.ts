@@ -2,6 +2,8 @@
 
 import _state = require('../state');
 import _utils = require('./utils');
+import _pixelformat = require('../../pixelformat');
+import PixelFormatUtils = _pixelformat.PixelFormatUtils;
 
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 
@@ -26,7 +28,12 @@ export class ShaderCache {
 		if (vertex.transform2D) defines.push('TRANSFORM_2D 1');
 		if (vertex.hasPosition) defines.push('VERTEX_POSITION ' + vertex.position);
 		if (vertex.hasColor) defines.push('VERTEX_COLOR ' + vertex.color);
-		if (vertex.hasTexture) defines.push('VERTEX_TEXTURE ' + vertex.texture);
+		if (vertex.hasTexture) {
+			defines.push('VERTEX_TEXTURE ' + vertex.texture);
+			if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
+				defines.push('TEXTURE_CLUT 1');
+			}
+		}
 		if (vertex.hasNormal) defines.push('VERTEX_NORMAL ' + vertex.normal);
 		if (vertex.hasWeight) defines.push('VERTEX_WEIGHT ' + vertex.weight);
 

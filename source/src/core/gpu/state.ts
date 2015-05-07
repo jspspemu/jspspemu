@@ -408,7 +408,7 @@ export class ColorState {
 
 export class ClutState {
 	info: number;
-	adress = 0;
+	address = 0;
 	numberOfColors = 0;
 	pixelFormat = PixelFormat.RGBA_8888;
 	shift = 0;
