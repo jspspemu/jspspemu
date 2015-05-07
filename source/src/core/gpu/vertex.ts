@@ -47,10 +47,10 @@ export class VertexBuffer {
 export class VertexReaderFactory {
 	private static cache: NumberDictionary<VertexReader> = {};
 
-	static get(vertexState: _state.VertexState): VertexReader {
-		var cacheId = vertexState.hash;
+	static get(vertexInfo: _state.VertexInfo): VertexReader {
+		var cacheId = vertexInfo.hash;
 		var vertexReader = this.cache[cacheId];
-		if (vertexReader === undefined) vertexReader = this.cache[cacheId] = new VertexReader(vertexState.clone());
+		if (vertexReader === undefined) vertexReader = this.cache[cacheId] = new VertexReader(vertexInfo.clone());
 		return vertexReader;
 	}
 }
@@ -62,7 +62,7 @@ export class VertexReader {
 	private readOffset: number = 0;
 	public readCode: string;
 
-	constructor(public vertexState: _state.VertexState) {
+	constructor(public vertexInfo: _state.VertexInfo) {
 		this.readCode = this.createJs();
 		this.readOneFunc = <any>(new Function('output', 'inputOffset', 'f32', 's8', 's16', 's32', '"use strict";' + this.readCode));
 		this.readSeveralIndexFunc = <any>(new Function('outputs', 'f32', 's8', 's16', 's32', 'count', 'verticesOffset', 'indices', `
@@ -70,7 +70,7 @@ export class VertexReader {
 			for (var n = 0; n < count; n++) {
 				var index = indices[n];
 				var output = outputs[verticesOffset + n];
-				var inputOffset = index * ${vertexState.size};
+				var inputOffset = index * ${vertexInfo.size};
 				${this.readCode}
 			}
 		`));
@@ -79,7 +79,7 @@ export class VertexReader {
 			for (var n = 0; n < count; n++) {
 				var output = outputs[verticesOffset + n];
 				${this.readCode}
-				inputOffset += this.vertexState.size;
+				inputOffset += this.vertexInfo.size;
 			}
 		`));
 	}
@@ -105,7 +105,7 @@ export class VertexReader {
 		} else {
 			maxDatacount = count;
 		}
-		maxDatacount *= this.vertexState.size;
+		maxDatacount *= this.vertexInfo.size;
 
 		for (var n = 0; n < maxDatacount; n++) this.s8[n] = input[n];
 
@@ -121,20 +121,20 @@ export class VertexReader {
 
 		this.readOffset = 0;
 
-		var normalize = !this.vertexState.transform2D;
-		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
-		this.createNumberJs([1, 1, 1, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
-		this.createColorJs(indentStringGenerator, this.vertexState.color);
-		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
-		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+		var normalize = !this.vertexInfo.transform2D;
+		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexInfo.realWeightCount), this.vertexInfo.weight, normalize);
+		this.createNumberJs([1, 1, 1, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexInfo.textureComponentsCount), this.vertexInfo.texture, normalize);
+		this.createColorJs(indentStringGenerator, this.vertexInfo.color);
+		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexInfo.normal, normalize);
+		this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexInfo.position, normalize);
 		/*
-		this.createNumberJs([1, 0x80, 0x8000, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexState.realWeightCount), this.vertexState.weight, normalize);
-		this.createNumberJs([1, 0x80, 0x8000, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexState.textureComponentCount), this.vertexState.texture, normalize);
-		this.createColorJs(indentStringGenerator, this.vertexState.color);
-		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexState.normal, normalize);
-		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexState.position, normalize);
+		this.createNumberJs([1, 0x80, 0x8000, 1], true, indentStringGenerator, ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'].slice(0, this.vertexInfo.realWeightCount), this.vertexInfo.weight, normalize);
+		this.createNumberJs([1, 0x80, 0x8000, 1], false, indentStringGenerator, ['tx', 'ty', 'tx'].slice(0, this.vertexInfo.textureComponentCount), this.vertexInfo.texture, normalize);
+		this.createColorJs(indentStringGenerator, this.vertexInfo.color);
+		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['nx', 'ny', 'nz'], this.vertexInfo.normal, normalize);
+		this.createNumberJs([1, 0x7F, 0x7FFF, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexInfo.position, normalize);
 		*/
-		//if (this.vertexState.hasWeight) indentStringGenerator.write("debugger;\n");
+		//if (this.vertexInfo.hasWeight) indentStringGenerator.write("debugger;\n");
 
 		return indentStringGenerator.output;
 	}
@@ -209,7 +209,7 @@ export class OptimizedDrawBuffer {
 	indexOffset = 0;
 	vertexIndex = 0;
 	primType:_state.PrimitiveType;
-	vertexState:_state.VertexState;
+	vertexInfo:_state.VertexInfo;
 	
 	reset() {
 		this.dataOffset = 0;

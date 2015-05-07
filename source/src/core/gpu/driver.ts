@@ -31,7 +31,7 @@ export class IDrawDriver {
 	textureSync(state: _state.GpuState):void {
 		
 	}
-	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState):void {
+	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo):void {
 		
 	}
 	drawOptimized(state: any, buffer:_vertex.OptimizedDrawBuffer):void {

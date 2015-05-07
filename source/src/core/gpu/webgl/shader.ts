@@ -13,7 +13,7 @@ export class ShaderCache {
 	constructor(private gl: WebGLRenderingContext, private shaderVertString: string, private shaderFragString: string) {
 	}
 
-	getProgram(vertex: _state.VertexState, state: _state.GpuState, optimized:boolean) {
+	getProgram(vertex: _state.VertexInfo, state: _state.GpuState, optimized:boolean) {
 		var hash = vertex.hash;
 		hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
 		hash += Math.pow(2, 33) * (state.clearing ? 1 : 0);
@@ -22,7 +22,7 @@ export class ShaderCache {
 		return this.programs[hash] = this.createProgram(vertex, state, optimized);
 	}
 
-	createProgram(vertex: _state.VertexState, state: _state.GpuState, optimized:boolean) {
+	createProgram(vertex: _state.VertexInfo, state: _state.GpuState, optimized:boolean) {
 		var defines:string[] = [];
 		if (optimized) defines.push('OPTIMIZED 1');
 		if (vertex.transform2D) defines.push('TRANSFORM_2D 1');

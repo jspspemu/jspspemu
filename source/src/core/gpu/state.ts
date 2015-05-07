@@ -2,9 +2,24 @@
 
 import _memory = require('../memory');
 import _pixelformat = require('../pixelformat');
+import _instructions = require('./instructions');
+
+import Op = _instructions.GpuOpCodes;
 
 import Memory = _memory.Memory;
 import PixelFormat = _pixelformat.PixelFormat;
+
+function bool1(p: number) { return p != 0; }
+function param1(p: number, offset: number) { return (p >> offset) & 0x1; }
+function param2(p: number, offset: number) { return (p >> offset) & 0x3; }
+function param3(p: number, offset: number) { return (p >> offset) & 0x7; }
+function param4(p: number, offset: number) { return (p >> offset) & 0xF; }
+function param5(p: number, offset: number) { return (p >> offset) & 0x1F; }
+function param8(p: number, offset: number) { return (p >> offset) & 0xFF; }
+function param10(p: number, offset: number) { return (p >> offset) & 0x3FF; }
+function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
+function param24(p: number) { return p & 0xFFFFFF; }
+function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
 export const enum CullingDirection {
 	CounterClockWise = 0,
@@ -25,11 +40,11 @@ export const enum DisplayListStatus {
 }
 
 export class GpuFrameBufferState {
-	_widthHighAddress = -1;
-
-	lowAddress = 0;
-	highAddress = 0;
-	width = 0;
+	constructor(private data:Uint32Array) { }
+	
+	get width() { return param16(this.data[Op.FRAMEBUFWIDTH], 0); }
+	get highAddress() { return param8(this.data[Op.FRAMEBUFWIDTH], 16); } 
+	get lowAddress() { return param24(this.data[Op.FRAMEBUFPTR]); }
 }
 
 export const enum IndexEnum {
@@ -86,137 +101,119 @@ export class Vertex {
 	}
 }
 
-export class VertexState {
-	address = 0;
-	private _value = 0;
-	reversedNormal = false;
-	textureComponentCount = 2;
-	size: number;
+export class VertexInfo {
 	weightOffset:number = 0;
 	textureOffset:number = 0;
 	colorOffset:number = 0;
 	normalOffset:number = 0;
 	positionOffset:number = 0;
+	textureComponentsCount:number = 0;
+	value: number;
+	size: number;
+	reversedNormal: boolean;
+	address: number;
+	texture: number;
+	color: number;
+	normal: number;
+	position: number;
+	weight: number;
+	index: number;
+	weightCount: number;
+	morphingVertexCount: number;
+	transform2D: boolean;
+	weightSize:number;
+	colorSize:number;
+	textureSize:number;
+	positionSize:number;
+	normalSize:number;
 	
+	clone() {
+		return new VertexInfo().copyFrom(this);
+	}
+	
+	copyFrom(that:VertexInfo) {
+		this.weightOffset = that.weightOffset;
+		this.textureOffset = that.textureOffset;
+		this.colorOffset = that.colorOffset;
+		this.normalOffset = that.normalOffset; 
+		this.positionOffset = that.positionOffset;
+		this.textureComponentsCount = that.textureComponentsCount;
+		this.value = that.value;
+		this.size = that.size;
+		this.reversedNormal = that.reversedNormal;
+		this.address = that.address;
+		this.texture = that.texture;
+		this.color = that.color;
+		this.normal = that.normal;
+		this.position = that.position;
+		this.weight = that.weight;
+		this.index = that.index;
+		this.weightCount = that.weightCount;
+		this.morphingVertexCount = that.morphingVertexCount
+		this.transform2D = that.transform2D;
+		this.weightSize = that.weightSize;
+		this.colorSize = that.colorSize;
+		this.textureSize = that.textureSize
+		this.positionSize = that.positionSize;
+		this.normalSize = that.normalSize;
+		return this;
+	}
+
+	setState(state:GpuState) {
+		var vstate = state.vertex;
+		this.textureComponentsCount = state.texture.textureComponentsCount;
+		this.value = vstate.value;
+		this.reversedNormal = vstate.reversedNormal;
+		this.address = vstate.address;
+		this.texture = vstate.texture;
+		this.color = vstate.color;
+		this.normal = vstate.normal;
+		this.position = vstate.position;
+		this.weight = vstate.weight;
+		this.index = vstate.index;
+		this.weightCount = vstate.weightCount;
+		this.morphingVertexCount = vstate.morphingVertexCount;
+		this.transform2D = vstate.transform2D;
+		
+		this.weightSize = VertexInfo.NumericEnumSizes[this.weight];
+		this.colorSize = VertexInfo.ColorEnumSizes[this.color];
+		this.textureSize = VertexInfo.NumericEnumSizes[this.texture];
+		this.positionSize = VertexInfo.NumericEnumSizes[this.position];
+		this.normalSize = VertexInfo.NumericEnumSizes[this.normal];
+
+		this.size = 0;
+		this.size = MathUtils.nextAligned(this.size, this.weightSize);
+		this.weightOffset = this.size;
+		this.size += this.realWeightCount * this.weightSize;
+
+		this.size = MathUtils.nextAligned(this.size, this.textureSize);
+		this.textureOffset = this.size;
+		this.size += this.textureComponentsCount * this.textureSize;
+
+		this.size = MathUtils.nextAligned(this.size, this.colorSize);
+		this.colorOffset = this.size;
+		this.size += 1 * this.colorSize;
+		
+		this.size = MathUtils.nextAligned(this.size, this.normalSize);
+		this.normalOffset = this.size;
+		this.size += 3 * this.normalSize;
+		
+		this.size = MathUtils.nextAligned(this.size, this.positionSize);
+		this.positionOffset = this.size;
+		this.size += 3 * this.positionSize;
+
+		var alignmentSize = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
+		this.size = MathUtils.nextAligned(this.size, alignmentSize);
+
+		return this;
+	}
+
 	oneWeightOffset(n:number) {
 		return this.weightOffset + this.weightSize * n; 
 	}
-
-	clone() {
-		var that = new VertexState();
-		that.address = this.address;
-		that._value = this._value;
-		that.reversedNormal = this.reversedNormal;
-		that.textureComponentCount = this.textureComponentCount;
-		that.size = this.size;
-		that.weightOffset = this.weightOffset;
-		that.textureOffset = this.textureOffset;
-		that.colorOffset = this.colorOffset;
-		that.normalOffset = this.normalOffset;
-		that.positionOffset = this.positionOffset;
-		return that;
-	}
-
-	getValue() { return this._value; }
-
-	setValue(value: number) {
-		this._value = value;
-		this.size = this.getVertexSize();
-	}
-
-	//getReader() { return VertexReaderFactory.get(this.size, this.texture, this.color, this.normal, this.position, this.weight, this.index, this.realWeightCount, this.realMorphingVertexCount, this.transform2D, this.textureComponentCount); }
-
-	get hash() {
-		return this._value + (this.textureComponentCount * Math.pow(2, 24));
-	}
-
-	toString() {
-		return 'VertexState(' + JSON.stringify({
-			address: this.address,
-			texture: this.texture,
-			color: this.color,
-			normal: this.normal,
-			position: this.position,
-			weight: this.weight,
-			index: this.index,
-			realWeightCount: this.realWeightCount,
-			morphingVertexCount: this.morphingVertexCount,
-			transform2D: this.transform2D,
-		}) + ')';
-	}
-
-	get hasTexture() { return this.texture != NumericEnum.Void; }
-	get hasColor() { return this.color != ColorEnum.Void; }
-	get hasNormal() { return this.normal != NumericEnum.Void; }
-	get hasPosition() { return this.position != NumericEnum.Void; }
-	get hasWeight() { return this.weight != NumericEnum.Void; }
-	get hasIndex() { return this.index != IndexEnum.Void; }
 	
-	get positionComponents() { return 3; }
-	get normalComponents() { return 3; }
-	get textureComponents() { return 2; }
-	get colorComponents() { return 4; }
-
-	get texture() { return BitUtils.extractEnum<NumericEnum>(this._value, 0, 2); }
-	get color() { return BitUtils.extractEnum<ColorEnum>(this._value, 2, 3); }
-	get normal() { return BitUtils.extractEnum<NumericEnum>(this._value, 5, 2); }
-	get position() { return BitUtils.extractEnum<NumericEnum>(this._value, 7, 2); }
-	get weight() { return BitUtils.extractEnum<NumericEnum>(this._value, 9, 2); }
-	get index() { return BitUtils.extractEnum<IndexEnum>(this._value, 11, 2); }
-	get weightCount() { return BitUtils.extract(this._value, 14, 3); }
-	get morphingVertexCount() { return BitUtils.extract(this._value, 18, 2); }
-	get transform2D() { return BitUtils.extractBool(this._value, 23); }
-
-	set texture(value: NumericEnum) { this._value = BitUtils.insert(this._value, 0, 2, value); }
-	set color(value: ColorEnum) { this._value = BitUtils.insert(this._value, 2, 3, value); }
-	set normal(value: NumericEnum) { this._value = BitUtils.insert(this._value, 5, 2, value); }
-	set position(value: NumericEnum) { this._value = BitUtils.insert(this._value, 7, 2, value); }
-	set weight(value: NumericEnum) { this._value = BitUtils.insert(this._value, 9, 2, value); }
-	set index(value: IndexEnum) { this._value = BitUtils.insert(this._value, 11, 2, value); }
-	set weightCount(value: number) { this._value = BitUtils.insert(this._value, 14, 3, value); }
-	set morphingVertexCount(value: number) { this._value = BitUtils.insert(this._value, 18, 2, value); }
-	set transform2D(value: boolean) { this._value = BitUtils.insert(this._value, 23, 1, value ? 1 : 0); }
-
-	get weightSize() { return this.NumericEnumGetSize(this.weight); }
-	get colorSize() { return this.ColorEnumGetSize(this.color); }
-	get textureSize() { return this.NumericEnumGetSize(this.texture); }
-	get positionSize() { return this.NumericEnumGetSize(this.position); }
-	get normalSize() { return this.NumericEnumGetSize(this.normal); }
-
-	private IndexEnumGetSize(item: IndexEnum) {
-		switch (item) {
-			case IndexEnum.Void: return 0;
-			case IndexEnum.Byte: return 1;
-			case IndexEnum.Short: return 2;
-			default: throw ("Invalid enum");
-		}
-	}
-
-	private NumericEnumGetSize(item: NumericEnum) {
-		switch (item) {
-			case NumericEnum.Void: return 0;
-			case NumericEnum.Byte: return 1;
-			case NumericEnum.Short: return 2;
-			case NumericEnum.Float: return 4;
-			default: throw ("Invalid enum");
-		}
-	}
-
-	private ColorEnumGetSize(item: ColorEnum) {
-		switch (item) {
-			case ColorEnum.Void: return 0;
-			case ColorEnum.Color5650: return 2;
-			case ColorEnum.Color5551: return 2;
-			case ColorEnum.Color4444: return 2;
-			case ColorEnum.Color8888: return 4;
-			default: throw ("Invalid enum");
-		}
-	}
-
-
-	private GetMaxAlignment() {
-		return Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
-	}
+	private static NumericEnumSizes = [0, 1, 2, 4];
+	private static ColorEnumSizes = [0, 0, 0, 0, 2, 2, 2, 4];
 
 	get realWeightCount() {
 		return this.hasWeight ? (this.weightCount + 1) : 0;
@@ -224,36 +221,6 @@ export class VertexState {
 
 	get realMorphingVertexCount() {
 		return this.morphingVertexCount + 1;
-	}
-
-	private getVertexSize() {
-		var size = 0;
-
-		size = MathUtils.nextAligned(size, this.weightSize);
-		this.weightOffset = size;
-		size += this.realWeightCount * this.weightSize;
-
-		size = MathUtils.nextAligned(size, this.textureSize);
-		this.textureOffset = size;
-		size += this.textureComponentCount * this.textureSize;
-
-		size = MathUtils.nextAligned(size, this.colorSize);
-		this.colorOffset = size;
-		size += 1 * this.colorSize;
-		
-		size = MathUtils.nextAligned(size, this.normalSize);
-		this.normalOffset = size;
-		size += 3 * this.normalSize;
-		
-		size = MathUtils.nextAligned(size, this.positionSize);
-		this.positionOffset = size;
-		size += 3 * this.positionSize;
-
-		var alignmentSize = this.GetMaxAlignment();
-		size = MathUtils.nextAligned(size, alignmentSize);
-
-		//Console.WriteLine("Size:" + Size);
-		return size;
 	}
 
 	read(memory: Memory, count: number) {
@@ -272,6 +239,55 @@ export class VertexState {
 
 		return vertex;
 	}
+	
+	get hasTexture() { return this.texture != NumericEnum.Void; }
+	get hasColor() { return this.color != ColorEnum.Void; }
+	get hasNormal() { return this.normal != NumericEnum.Void; }
+	get hasPosition() { return this.position != NumericEnum.Void; }
+	get hasWeight() { return this.weight != NumericEnum.Void; }
+	get hasIndex() { return this.index != IndexEnum.Void; }
+	
+	get positionComponents() { return 3; }
+	get normalComponents() { return 3; }
+	get colorComponents() { return 4; }
+	get textureComponents() { return this.textureComponentsCount; }
+
+	get hash() {
+		return this.value + (this.textureComponentsCount * Math.pow(2, 24));
+	}
+	
+	toString() {
+		return 'VertexInfo(' + JSON.stringify({
+			address: this.address,
+			texture: this.texture,
+			color: this.color,
+			normal: this.normal,
+			position: this.position,
+			weight: this.weight,
+			index: this.index,
+			realWeightCount: this.realWeightCount,
+			morphingVertexCount: this.morphingVertexCount,
+			transform2D: this.transform2D,
+		}) + ')';
+	}
+
+}
+
+export class VertexState {
+	constructor(private data:Uint32Array) { }
+	
+	get value() { return param24(this.data[Op.VERTEXTYPE]); }
+	get reversedNormal() { return bool1(this.data[Op.REVERSENORMAL]); }
+	get address() { return param24(this.data[Op.VADDR]); }
+	get texture() { return BitUtils.extractEnum<NumericEnum>(this.value, 0, 2); }
+	get color() { return BitUtils.extractEnum<ColorEnum>(this.value, 2, 3); }
+	get normal() { return BitUtils.extractEnum<NumericEnum>(this.value, 5, 2); }
+	get position() { return BitUtils.extractEnum<NumericEnum>(this.value, 7, 2); }
+	get weight() { return BitUtils.extractEnum<NumericEnum>(this.value, 9, 2); }
+	get index() { return BitUtils.extractEnum<IndexEnum>(this.value, 11, 2); }
+	get weightCount() { return BitUtils.extract(this.value, 14, 3); }
+	get morphingVertexCount() { return BitUtils.extract(this.value, 18, 2); }
+	get transform2D() { return BitUtils.extractBool(this.value, 23); }
 }
 
 export class Matrix4x4 {
@@ -339,81 +355,119 @@ export class Matrix4x3 {
 }
 
 export class ViewPort {
-	x = 2048;
-	y = 2048;
-	z = 0;
-	width = 256;
-	height = 136;
-	depth = 0;
+	constructor(private data:Uint32Array) { }
+	
+	get x() { return float1(this.data[Op.VIEWPORTX1]); }
+	get y() { return float1(this.data[Op.VIEWPORTY1]); }
+	get z() { return float1(this.data[Op.VIEWPORTZ1]); }
+
+	get width() { return float1(this.data[Op.VIEWPORTX2]); }
+	get height() { return float1(this.data[Op.VIEWPORTY2]); }
+	get depth() { return float1(this.data[Op.VIEWPORTZ2]); }
 }
 
 export class Region {
-	_xy1 = -1;
-	_xy2 = -1;
-	x1 = 0;
-	y1 = 0;
-	x2 = 512;
-	y2 = 272;
+	constructor(private data:Uint32Array) { }
+	
+	get x1() { return param10(this.data[Op.REGION1], 0); }
+	get y1() { return param10(this.data[Op.REGION1], 10); }
+
+	get x2() { return param10(this.data[Op.REGION2], 0); }
+	get y2() { return param10(this.data[Op.REGION2], 10); }
 }
 
 export class Light {
-	_type = -1;
-	_specularColor = -1;
-	_diffuseColor = -1;
-	_ambientColor = -1;
+	private static REG_TYPES = [Op.LIGHTTYPE0, Op.LIGHTTYPE1, Op.LIGHTTYPE2, Op.LIGHTTYPE3];
+	private static REG_LCA = [Op.LCA0, Op.LCA1, Op.LCA2, Op.LCA3];
+	private static REG_LLA = [Op.LLA0, Op.LLA1, Op.LLA2, Op.LLA3];
+	private static REG_LQA = [Op.LQA0, Op.LQA1, Op.LQA2, Op.LQA3];
+	private static REG_SPOTEXP = [Op.SPOTEXP0, Op.SPOTEXP1, Op.SPOTEXP2, Op.SPOTEXP3];
+	private static REG_SPOTCUT = [Op.SPOTCUT0, Op.SPOTCUT1, Op.SPOTCUT2, Op.SPOTCUT3];
+	
+	private static LXP = [Op.LXP0, Op.LXP1, Op.LXP2, Op.LXP3];
+	private static LYP = [Op.LYP0, Op.LYP1, Op.LYP2, Op.LYP3];
+	private static LZP = [Op.LZP0, Op.LZP1, Op.LZP2, Op.LZP3];
 
-	enabled = false;
-	kind = LightModelEnum.SingleColor;
-	type = LightTypeEnum.Directional;
-	cutoff = 0;
-	px = 0; py = 0; pz = 0; pw = 1;
-	dx = 0; dy = 0; dz = 0; dw = 1;
-	spotExponent = 0;
-	spotCutoff = 0;
-	constantAttenuation = 0;
-	linearAttenuation = 0;
-	quadraticAttenuation = 0;
-	ambientColor = new Color();
-	diffuseColor = new Color();
-	specularColor = new Color();
+	private static LXD = [Op.LXD0, Op.LXD1, Op.LXD2, Op.LXD3];
+	private static LYD = [Op.LYD0, Op.LYD1, Op.LYD2, Op.LYD3];
+	private static LZD = [Op.LZD0, Op.LZD1, Op.LZD2, Op.LZD3];
+	
+	private static ALC = [Op.ALC0, Op.ALC1, Op.ALC2, Op.ALC3];
+	private static DLC = [Op.DLC0, Op.DLC1, Op.DLC2, Op.DLC3];
+	private static SLC = [Op.SLC0, Op.SLC1, Op.SLC2, Op.SLC3];
+	
+	constructor(private data:Uint32Array, public index:number) { }
+	
+	get enabled() { return bool1(this.data[Op.LIGHTENABLE0 + this.index]); }
+	
+	get kind() { return <LightModelEnum>param8(this.data[Light.REG_TYPES[this.index]], 0); }
+	get type() { return <LightTypeEnum>param8(this.data[Light.REG_TYPES[this.index]], 8); }
+	
+	get pw() { return (this.type == LightTypeEnum.SpotLight) ? 1 : 0; }
+	
+	get px() { return float1(this.data[Light.LXP[this.index]]); }
+	get py() { return float1(this.data[Light.LYP[this.index]]); }
+	get pz() { return float1(this.data[Light.LZP[this.index]]); }
+
+	get dx() { return float1(this.data[Light.LXD[this.index]]); }
+	get dy() { return float1(this.data[Light.LYD[this.index]]); }
+	get dz() { return float1(this.data[Light.LZD[this.index]]); }
+
+	get spotExponent() { return float1(this.data[Light.REG_SPOTEXP[this.index]]); }
+	get spotCutoff() { return float1(this.data[Light.REG_SPOTCUT[this.index]]); }
+	get constantAttenuation() { return float1(this.data[Light.REG_LCA[this.index]]); }
+	get linearAttenuation() { return float1(this.data[Light.REG_LLA[this.index]]); }
+	get quadraticAttenuation() { return float1(this.data[Light.REG_LQA[this.index]]); }
+	
+	get ambientColor() { return new Color().setRGB(Light.ALC[this.index]); } 
+	get diffuseColor() { return new Color().setRGB(Light.DLC[this.index]); }
+	get specularColor() { return new Color().setRGB(Light.SLC[this.index]); }
 }
 
 export const enum LightTypeEnum { Directional = 0, PointLight = 1, SpotLight = 2 }
 export const enum LightModelEnum { SingleColor = 0, SeparateSpecularColor = 1 }
 
 export class Lightning {
-	_ambientLightColor = -1;
-	_ambientLightColorAlpha = -1;
-	enabled = false;
-	lights = [new Light(), new Light(), new Light(), new Light()];
-	lightModel = LightModelEnum.SeparateSpecularColor;
-	specularPower = 1;
-	ambientLightColor = new ColorState();
+	lights:Light[];
+
+	constructor(private data:Uint32Array) {
+		 this.lights = [
+			 new Light(this.data, 0),
+			 new Light(this.data, 1),
+			 new Light(this.data, 2),
+			 new Light(this.data, 3)
+		];
+	}
+	
+	get lightModel() { return <LightModelEnum>param8(this.data[Op.LIGHTMODE], 0); }
+	
+	get specularPower() { return float1(this.data[Op.MATERIALSPECULARCOEF]); }
+	get ambientLightColor() { return new Color().setRGB_A(this.data[Op.AMBIENTCOLOR], this.data[Op.AMBIENTALPHA]); }
+	
+	get enabled() { return bool1(this.data[Op.LIGHTINGENABLE]); }
 }
 
 export class MipmapState {
-	tsizeValue = -1;
-	address = 0;
-	bufferWidth = 0;
-	textureWidth = 0;
-	textureHeight = 0;
-}
-
-export class ColorState {
-	r = 1;
-	g = 1;
-	b = 1;
-	a = 1;
+	constructor(private data:Uint32Array, public index:number) { }
+	
+	get bufferWidth() { return param16(this.data[Op.TEXBUFWIDTH0 + this.index], 0); }
+	get address() { return param24(this.data[Op.TEXADDR0 + this.index]) | ((param8(this.data[Op.TEXBUFWIDTH0 + this.index], 16) << 24)) }
+	get textureWidth() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 0); } 
+	get textureHeight() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 8); }
 }
 
 export class ClutState {
-	info: number;
-	address = 0;
-	numberOfColors = 0;
-	pixelFormat = PixelFormat.RGBA_8888;
-	shift = 0;
-	mask = 0x00;
-	start = 0;
+	constructor(private data:Uint32Array) { }
+	
+	get hash() {
+		return this.data[Op.CMODE] + (this.data[Op.CLUTADDR] << 8) + (this.data[Op.CLUTADDRUPPER] << 16);
+	}
+	get address() { return param24(this.data[Op.CLUTADDR]) | ((this.data[Op.CLUTADDRUPPER] << 8) & 0xFF000000); }
+	get numberOfColors() { return this.data[Op.CLOAD] * 8; }
+	get pixelFormat() { return <PixelFormat>param2(this.data[Op.CMODE], 0); }
+	get shift() { return param5(this.data[Op.CMODE], 2); }
+	get mask() { return param8(this.data[Op.CMODE], 8); }
+	get start() { return param5(this.data[Op.CMODE], 16); }
 }
 
 export const enum TextureProjectionMapMode {
@@ -433,44 +487,59 @@ export const enum TextureLevelMode { Auto = 0, Const = 1, Slope = 2 }
 
 
 export class TextureState {
-	tmode = -1;
-	tflt = -1;
-	twrap = -1;
-	tmap = -1;
-	_envColor = -1;
-	_tfunc = -1;
-	_shadeUV = -1;
-	_tbias = -1;
-
-	enabled = false;
-	swizzled = false;
+	constructor(private data:Uint32Array) {
+	}
+	
 	matrix = new Matrix4x4();
-	mipmapShareClut = false;
-	mipmapMaxLevel = 0;
-	filterMinification = TextureFilter.Nearest;
-	filterMagnification = TextureFilter.Nearest;
-	wrapU = WrapMode.Repeat;
-	offsetU = 0;
-	offsetV = 0;
-	scaleU = 1;
-	scaleV = 1;
-	shadeU = 0;
-	shadeV = 0;
-	wrapV = WrapMode.Repeat;
-	effect = TextureEffect.Modulate;
-	colorComponent = TextureColorComponent.Rgb;
-	envColor = new ColorState();
-	fragment2X = false;
-	pixelFormat = PixelFormat.RGBA_8888;
-	clut = new ClutState();
-	mipmaps = [new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState(), new MipmapState()];
-	textureProjectionMapMode = TextureProjectionMapMode.GU_NORMAL;
-	textureMapMode = TextureMapMode.GU_TEXTURE_COORDS;
-	slopeLevel = 0;
-	levelMode = TextureLevelMode.Auto;
-	mipmapBias = 1.0;
 
-	getTextureComponentsCount() {
+	clut = new ClutState(this.data);
+	mipmaps = [
+		new MipmapState(this.data, 0),
+		new MipmapState(this.data, 1),
+		new MipmapState(this.data, 2),
+		new MipmapState(this.data, 3),
+		new MipmapState(this.data, 4),
+		new MipmapState(this.data, 5),
+		new MipmapState(this.data, 6),
+		new MipmapState(this.data, 7)
+	];
+
+	get wrapU() { return <WrapMode>param8(this.data[Op.TWRAP], 0); }	
+	get wrapV() { return <WrapMode>param8(this.data[Op.TWRAP], 8); }
+
+	get levelMode() { return <TextureLevelMode>param8(this.data[Op.TBIAS], 0); }
+	get mipmapBias() { return param8(this.data[Op.TBIAS], 16) / 16; }
+
+	get offsetU() { return float1(this.data[Op.TEXOFFSETU]); }
+	get offsetV() { return float1(this.data[Op.TEXOFFSETV]); }
+
+	get scaleU() { return float1(this.data[Op.TEXSCALEU]); }
+	get scaleV() { return float1(this.data[Op.TEXSCALEV]); }
+
+	get shadeU() { return param2(this.data[Op.TEXTURE_ENV_MAP_MATRIX], 0); }
+	get shadeV() { return param2(this.data[Op.TEXTURE_ENV_MAP_MATRIX], 8); }
+				
+	get effect() { return <TextureEffect>param8(this.data[Op.TFUNC], 0); }
+	get colorComponent() { return <TextureColorComponent>param8(this.data[Op.TFUNC], 8); }
+	get fragment2X() { return param8(this.data[Op.TFUNC], 16) != 0; }
+	get envColor() { return new Color().setRGB(param24(this.data[Op.TEC])); }
+	
+	get pixelFormat() { return <PixelFormat>param4(this.data[Op.TPSM], 0); }
+
+	get slopeLevel() { return float1(this.data[Op.TSLOPE]); }
+	
+	get swizzled() { return param8(this.data[Op.TMODE], 0) != 0; }
+	get mipmapShareClut() { return param8(this.data[Op.TMODE], 8) != 0; }
+	get mipmapMaxLevel() { return param8(this.data[Op.TMODE], 16) != 0; }
+	
+	get filterMinification() { return <TextureFilter>param8(this.data[Op.TFLT], 0); }
+	get filterMagnification() { return <TextureFilter>param8(this.data[Op.TFLT], 8); }
+	get enabled() { return bool1(this.data[Op.TEXTUREMAPENABLE]); }
+	
+	get textureMapMode() { return <TextureMapMode>param8(this.data[Op.TMAP], 0); }
+	get textureProjectionMapMode() { return <TextureProjectionMapMode>param8(this.data[Op.TMAP], 8); }
+
+	get textureComponentsCount() {
 		switch (this.textureMapMode) {
 			default: throw(new Error("Invalid textureMapMode"));
 			case TextureMapMode.GU_TEXTURE_COORDS: return 2;
@@ -489,8 +558,10 @@ export class TextureState {
 }
 
 export class CullingState {
-	enabled = false;
-	direction = CullingDirection.ClockWise;
+	constructor(private data:Uint32Array) { }
+	
+	get enabled() { return bool1(this.data[Op.CULLFACEENABLE]); }
+	get direction() { return <CullingDirection>param24(this.data[Op.CULL]); }
 }
 
 export const enum TestFunctionEnum {
@@ -505,12 +576,14 @@ export const enum TestFunctionEnum {
 }
 
 export class DepthTestState {
-	updated = false;
-	enabled = false;
-	func = TestFunctionEnum.Always;
-	mask = 0;
-	rangeFar = 1;
-	rangeNear = 0;
+	constructor(private data:Uint32Array) {}
+	
+	get enabled() { return bool1(this.data[Op.ZTESTENABLE]); }
+	get func() { return param8(this.data[Op.ZTST], 0); }
+	get mask() { return param16(this.data[Op.ZMSK], 0); }
+	
+	get rangeNear() { return (this.data[Op.MAXZ] & 0xFFFF) / 65536; }
+	get rangeFar() { return (this.data[Op.MINZ] & 0xFFFF) / 65536; }
 }
 
 export const enum ShadingModelEnum {
@@ -546,6 +619,13 @@ export class Color {
 		this.g = BitUtils.extractScale1f(rgb, 8, 8);
 		this.b = BitUtils.extractScale1f(rgb, 16, 8);
 		this.a = 1;
+		return this;
+	}
+	
+	setRGB_A(rgb:number, a:number) {
+		this.setRGB(rgb);
+		this.a = BitUtils.extractScale1f(rgb, 0, 8); 
+		return this;
 	}
 
 	set(r: number, g: number, b: number, a: number = 1) {
@@ -571,31 +651,37 @@ export class Color {
 }
 
 export class Blending {
-	_alpha = -1;
-	_colorMask = -1;
-	_colorMaskA = -1;
-	enabled = false;
-	updated = false;
-	functionSource = GuBlendingFactor.GU_SRC_ALPHA;
-	functionDestination = GuBlendingFactor.GU_ONE_MINUS_DST_ALPHA;
-	equation = GuBlendingEquation.Add;
-	_fixColorSourceWord = -1;
-	_fixColorDestinationWord = -1;
-	fixColorSource: Color = new Color();
-	fixColorDestination: Color = new Color();
-	colorMask = { r: 0, g: 0, b: 0, a: 0 };
+	constructor(private data:Uint32Array) { }
+	
+	get fixColorSource() { return new Color().setRGB(param24(this.data[Op.SFIX])); }
+	get fixColorDestination() { return new Color().setRGB(param24(this.data[Op.DFIX])); }
+	
+	get enabled() { return bool1(this.data[Op.ALPHABLENDENABLE]); }
+	
+	get functionSource() { return <GuBlendingFactor>param4(this.data[Op.ALPHA], 0); }
+	get functionDestination() { return <GuBlendingFactor>param4(this.data[Op.ALPHA], 4); }
+	get equation() { return <GuBlendingEquation > param4(this.data[Op.ALPHA], 8); }
+	
+	get colorMask() {
+		return new Color().setRGB_A(
+			param24(this.data[Op.PMSKC]),
+			param8(this.data[Op.PMSKA], 0)
+		);
+	}
 }
 
 export class AlphaTest {
-	_atst = -1;
-	enabled = false;
-	value = 0;
-	mask = 0xFF;
-	func = TestFunctionEnum.Always;
+	constructor(private data:Uint32Array) { }
+
+	get enabled() { return bool1(this.data[Op.ALPHATESTENABLE]); }
+	
+	get func() { return <TestFunctionEnum>param8(this.data[Op.ATST], 0); }
+	get value() { return param8(this.data[Op.ATST], 8); }	
+	get mask() { return param8(this.data[Op.ATST], 16); }
 }
 
 export class Rectangle {
-	constructor(public top:number, public left:number, public right:number, public bottom:number) {
+	constructor(public left:number, public top:number, public right:number, public bottom:number) {
 	}
 
 	get width() { return this.right - this.left; }
@@ -603,11 +689,14 @@ export class Rectangle {
 }
 
 export class ClipPlane {
-	updated = false;
-	enabled = true;
-	scissor = new Rectangle(0, 0, 512, 272);
-	_scissorLeftTop = -1;
-	_scissorRightBottom = -1;
+	constructor(private data:Uint32Array) { }
+	
+	get enabled() { return bool1(this.data[Op.CLIPENABLE]); }
+	get scissor() { return new Rectangle(this.left, this.top, this.right, this.bottom); }
+	get left() { return param10(this.data[Op.SCISSOR1], 0); }
+	get top() { return param10(this.data[Op.SCISSOR1], 10); }
+	get right() { return param10(this.data[Op.SCISSOR2], 0); }
+	get bottom() { return param10(this.data[Op.SCISSOR2], 10); }
 }
 
 export class SkinningState {
@@ -656,100 +745,124 @@ export const enum StencilOperationEnum {
 }
 
 export class StencilState {
-	stst = -1;
-	sop = -1;
+	constructor(private data:Uint32Array) { }
+	
+	get enabled() { return bool1(this.data[Op.STENCILTESTENABLE]);  }
+	
+	get fail() { return <StencilOperationEnum>param8(this.data[Op.SOP], 0); }
+	get zfail() { return <StencilOperationEnum>param8(this.data[Op.SOP], 8); }
+	get zpass() { return <StencilOperationEnum>param8(this.data[Op.SOP], 16); }
 
-	enabled = false;
-	fail = StencilOperationEnum.Keep;
-	zpass = StencilOperationEnum.Keep;
-	zfail = StencilOperationEnum.Keep;
-	func = TestFunctionEnum.Always;
-	funcRef = 0;
-	funcMask = 0;
+	get func() { return <TestFunctionEnum>param8(this.data[Op.STST], 0); }
+	get funcRef() { return param8(this.data[Op.STST], 8); }
+	get funcMask() { return param8(this.data[Op.STST], 16); }
 }
 
 export class PatchState {
-	_divst = -1;
-	divs = 0;
-	divt = 0;
+	constructor(private data:Uint32Array) { }
+	get divs() { return param8(this.data[Op.PATCHDIVISION], 0); }
+	get divt() { return param8(this.data[Op.PATCHDIVISION], 8); }
 }
 
 export class Fog {
-	_color = -1;
+	constructor(private data:Uint32Array) { }
 
+	/*
+	case Op.FCOL: var v = param24(p); if (state.fog._color != v) { this.invalidatePrim(); state.fog._color = v; state.fog.color.setRGB(p); } break;
+	*/
+	
+	get color() { return new Color().setRGB(this.data[Op.FCOL]); }
+	get far() { return float1(this.data[Op.FFAR]); }
+	get dist() { return float1(this.data[Op.FDIST]); }
+	get enabled() { return bool1(this.data[Op.FOGENABLE]); }
+
+	/*	
 	enabled = false;
 	far = 0;
 	dist = 1;
 	color = new Color();
+	*/
 }
 
 export class LogicOp {
-	enabled = false;
+	constructor(private data:Uint32Array) { }
+	
+	get enabled() { return this.data[Op.LOGICOPENABLE]; }
 }
 
 export class LineSmoothState {
-	enabled = false;
+	constructor(private data:Uint32Array) {}
+	get enabled() { return bool1(this.data[Op.ANTIALIASENABLE]); }
 }
 
 export class PatchCullingState {
-	enabled = false;
-	faceFlag = false;
+	constructor(private data:Uint32Array) {}
+	get enabled() { return bool1(this.data[Op.PATCHCULLENABLE]); }
+	get faceFlag() { return bool1(this.data[Op.PATCHFACING]); }
+}
+
+export class OffsetState {
+	constructor(private data:Uint32Array) {}
+	get x() { return param4(this.data[Op.OFFSETX], 0); }
+	get y() { return param4(this.data[Op.OFFSETY], 0); }
 }
 
 export class GpuState {
+	data = new Uint32Array(256);
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }
 	getAddressRelativeToBaseOffset(relativeAddress: number) { return ((this.baseAddress | relativeAddress) + this.baseOffset); }
 
 	_clearingWord = -1;
-	_ambientModelColor = -1;
-	_ambientModelColorAlpha = -1;
 	_ambientLightColorAlpha = -1;
 	_diffuseModelColor = -1;
 	_specularModelColor = -1;
 
-	clearing = false;
-	clearFlags = 0;
-	baseAddress = 0;
-	baseOffset = 0;
-	indexAddress = 0;
-	shadeModel = ShadingModelEnum.Flat;
-	frameBuffer = new GpuFrameBufferState();
-	vertex = new VertexState();
-	stencil = new StencilState();
+	get clearing() { return param1(this.data[Op.CLEAR], 0) != 0; }
+	get clearFlags() { return param8(this.data[Op.CLEAR], 8); }
+	
+	get baseAddress() { return ((param24(this.data[Op.BASE]) << 8) & 0xff000000); }
+	get baseOffset() { return param24(this.data[Op.OFFSETADDR]) << 8; }
+	get indexAddress() { return param24(this.data[Op.IADDR]); }
+	getMorphWeight(index:number) { return float1(this.data[Op.MORPHWEIGHT0 + index]);  }
+	get shadeModel() { return <ShadingModelEnum>param16(this.data[Op.SHADEMODE], 0); }
+	frameBuffer = new GpuFrameBufferState(this.data);
+	vertex = new VertexState(this.data);
+	stencil = new StencilState(this.data);
 	skinning = new SkinningState();
-	morphWeights = [1, 0, 0, 0, 0, 0, 0, 0];
 	projectionMatrix = new Matrix4x4();
 	viewMatrix = new Matrix4x3();
 	worldMatrix = new Matrix4x3();
-	viewport = new ViewPort();
-	region = new Region();
-	offset = { x: 0, y: 0 };
-	fog = new Fog();
-	clipPlane = new ClipPlane();
-	logicOp = new LogicOp();
-	lightning = new Lightning();
-	alphaTest = new AlphaTest();
-	blending = new Blending();
-	patch = new PatchState();
-	texture = new TextureState();
-	lineSmoothState = new LineSmoothState();
-	patchCullingState = new PatchCullingState();
-	ambientModelColor = new ColorState();
-	diffuseModelColor = new ColorState();
-	specularModelColor = new ColorState();
-	culling = new CullingState();
-	dithering = new DitheringState();
-	colorTest = new ColorTestState();
-	depthTest = new DepthTestState();
-	drawPixelFormat = PixelFormat.RGBA_8888;
+	viewport = new ViewPort(this.data);
+	region = new Region(this.data);
+	offset = new OffsetState(this.data);
+	fog = new Fog(this.data);
+	clipPlane = new ClipPlane(this.data);
+	logicOp = new LogicOp(this.data);
+	lightning = new Lightning(this.data);
+	alphaTest = new AlphaTest(this.data);
+	blending = new Blending(this.data);
+	patch = new PatchState(this.data);
+	texture = new TextureState(this.data);
+	lineSmoothState = new LineSmoothState(this.data);
+	patchCullingState = new PatchCullingState(this.data);
+	get ambientModelColor() { return new Color().setRGB_A(this.data[Op.MATERIALAMBIENT], this.data[Op.MATERIALALPHA]); }
+	get diffuseModelColor() { return new Color().setRGB(this.data[Op.MATERIALDIFFUSE]); }
+	get specularModelColor() { return new Color().setRGB(this.data[Op.MATERIALSPECULAR]); }
+	culling = new CullingState(this.data);
+	dithering = new DitheringState(this.data);
+	colorTest = new ColorTestState(this.data);
+	depthTest = new DepthTestState(this.data);
+	get drawPixelFormat() { return <PixelFormat>param4(this.data[Op.PSM], 0); } 
 }
 
 export class ColorTestState {
-	enabled = false;
+	constructor(private data:Uint32Array) { }
+	get enabled() { return bool1(this.data[Op.COLORTESTENABLE]); }
 }
 
 export class DitheringState {
-	enabled = false;
+	constructor(private data:Uint32Array) { }
+	get enabled() { return bool1(this.data[Op.DITHERENABLE]); }
 }
 
 export const enum WrapMode {

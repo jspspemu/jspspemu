@@ -64,7 +64,7 @@ export class Clut {
 	}
 
 	static hashFast(state: _state.GpuState) {
-		return state.texture.clut.address + state.texture.clut.info * 16;
+		return state.texture.clut.hash;
 	}
 
 	static hashSlow(memory: Memory, state: _state.GpuState) {
@@ -75,7 +75,7 @@ export class Clut {
 			clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors),
 			PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)
 		) * Math.pow(2, 30);
-		hash_number += clut.info * Math.pow(2, 16);
+		hash_number += clut.hash * Math.pow(2, 16);
 
 		return hash_number;
 	}
