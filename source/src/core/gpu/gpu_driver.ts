@@ -5,6 +5,7 @@ import _vertex = require('./gpu_vertex');
 
 export class BaseDrawDriver {
 	rehashSignal = new Signal<number>();
+	enableColors: boolean = true;
 	
 	end(): void {
 		

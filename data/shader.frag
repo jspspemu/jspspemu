@@ -5,6 +5,8 @@ precision mediump float;
 #define GU_TCC_RGB       0
 #define GU_TCC_RGBA      1
 
+uniform int u_enableColors;
+
 #ifdef VERTEX_COLOR
 	varying vec4 v_Color;
 #else
@@ -97,26 +99,30 @@ void main() {
 				else if (alphaTestFunc == 7) { if (!(alphaTestColor >= alphaTestReference)) discard; } // GU_GREATER_OR_EQUAL
 			#endif
 
-			if (tfx == 0) { // GU_TFX_MODULATE
-				gl_FragColor.rgb = texColor.rgb * gl_FragColor.rgb;
-				gl_FragColor.a = (tcc == GU_TCC_RGBA) ? (gl_FragColor.a * texColor.a) : texColor.a;
-			} else if (tfx == 1) { // GU_TFX_DECAL
-				if (tcc == GU_TCC_RGB) {
-					gl_FragColor.rgba = texColor.rgba;
-				} else {
+			if (u_enableColors != 0) {
+				if (tfx == 0) { // GU_TFX_MODULATE
 					gl_FragColor.rgb = texColor.rgb * gl_FragColor.rgb;
-					gl_FragColor.a = texColor.a;
+					gl_FragColor.a = (tcc == GU_TCC_RGBA) ? (gl_FragColor.a * texColor.a) : texColor.a;
+				} else if (tfx == 1) { // GU_TFX_DECAL
+					if (tcc == GU_TCC_RGB) {
+						gl_FragColor.rgba = texColor.rgba;
+					} else {
+						gl_FragColor.rgb = texColor.rgb * gl_FragColor.rgb;
+						gl_FragColor.a = texColor.a;
+					}
+				} else if (tfx == 2) { // GU_TFX_BLEND
+					gl_FragColor.rgba = mix(texColor, gl_FragColor, 0.5);
+				} else if (tfx == 3) { // GU_TFX_REPLACE
+					gl_FragColor.rgb = texColor.rgb;
+					gl_FragColor.a = (tcc == GU_TCC_RGB) ? gl_FragColor.a : texColor.a;
+				} else if (tfx == 4) { // GU_TFX_ADD
+					gl_FragColor.rgb += texColor.rgb;
+					gl_FragColor.a = (tcc == GU_TCC_RGB) ? gl_FragColor.a : (texColor.a * gl_FragColor.a);
+				} else {
+					gl_FragColor = vec4(1, 0, 1, 1);
 				}
-			} else if (tfx == 2) { // GU_TFX_BLEND
-				gl_FragColor.rgba = mix(texColor, gl_FragColor, 0.5);
-			} else if (tfx == 3) { // GU_TFX_REPLACE
-				gl_FragColor.rgb = texColor.rgb;
-				gl_FragColor.a = (tcc == GU_TCC_RGB) ? gl_FragColor.a : texColor.a;
-			} else if (tfx == 4) { // GU_TFX_ADD
-				gl_FragColor.rgb += texColor.rgb;
-				gl_FragColor.a = (tcc == GU_TCC_RGB) ? gl_FragColor.a : (texColor.a * gl_FragColor.a);
 			} else {
-				gl_FragColor = vec4(1, 0, 1, 1);
+				gl_FragColor = texColor;
 			}
 		#endif
 	#endif

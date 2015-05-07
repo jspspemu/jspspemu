@@ -7646,29 +7646,50 @@ function param10(p, offset) { return (p >> offset) & 0x3FF; }
 function param16(p, offset) { return (p >> offset) & 0xFFFF; }
 function param24(p) { return p & 0xFFFFFF; }
 function float1(p) { return MathFloat.reinterpretIntAsFloat(p << 8); }
-var OverlaySection = (function () {
-    function OverlaySection(name, resetValue, representer) {
+var canDOMCreateElements = (typeof document != 'undefined');
+var OverlayCounter = (function () {
+    function OverlayCounter(name, resetValue, representer) {
         this.name = name;
         this.resetValue = resetValue;
         this.representer = representer;
         this.reset();
+        if (canDOMCreateElements) {
+            this.element = document.createElement('div');
+        }
     }
-    Object.defineProperty(OverlaySection.prototype, "representedValue", {
+    OverlayCounter.prototype.update = function () {
+        this.element.innerText = this.name + ": " + this.representedValue;
+    };
+    Object.defineProperty(OverlayCounter.prototype, "representedValue", {
         get: function () {
             return this.representer ? this.representer(this.value) : this.value;
         },
         enumerable: true,
         configurable: true
     });
-    OverlaySection.prototype.reset = function () {
+    OverlayCounter.prototype.reset = function () {
         this.value = this.resetValue;
     };
-    return OverlaySection;
+    return OverlayCounter;
+})();
+var OverlayIntent = (function () {
+    function OverlayIntent(text, action) {
+        if (canDOMCreateElements) {
+            this.element = document.createElement('button');
+            this.element.innerText = text;
+            this.element.onclick = function (e) { return action(); };
+        }
+    }
+    OverlayIntent.prototype.update = function () {
+    };
+    OverlayIntent.prototype.reset = function () {
+    };
+    return OverlayIntent;
 })();
 var Overlay = (function () {
     function Overlay() {
         this.sections = [];
-        var element = this.element = (typeof document != 'undefined') ? document.createElement('div') : null;
+        var element = this.element = canDOMCreateElements ? document.createElement('div') : null;
         if (element) {
             element.style.position = 'absolute';
             element.style.zIndex = '10000';
@@ -7680,19 +7701,27 @@ var Overlay = (function () {
             element.style.height = 'auto';
             element.style.padding = '4px';
             element.style.color = 'white';
-            element.style.whiteSpace = 'pre';
-            element.innerText = 'hello world!';
             document.body.appendChild(element);
         }
     }
-    Overlay.prototype.createSection = function (name, resetValue, representer) {
-        var section = new OverlaySection(name, resetValue, representer);
-        this.sections.push(section);
-        return section;
+    Overlay.prototype.addElement = function (element) {
+        this.sections.push(element);
+        if (this.element) {
+            this.element.appendChild(element.element);
+        }
+        return element;
+    };
+    Overlay.prototype.createCounter = function (name, resetValue, representer) {
+        return this.addElement(new OverlayCounter(name, resetValue, representer));
+    };
+    Overlay.prototype.createIntent = function (text, action) {
+        return this.addElement(new OverlayIntent(text, action));
     };
     Overlay.prototype.update = function () {
-        if (this.element)
-            this.element.innerText = this.sections.map(function (s) { return (s.name + ": " + s.representedValue); }).join('\n');
+        for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
+            var section = _a[_i];
+            section.update();
+        }
     };
     Overlay.prototype.reset = function () {
         for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
@@ -7707,22 +7736,28 @@ var Overlay = (function () {
     return Overlay;
 })();
 var overlay = new Overlay();
-var overlayIndexCount = overlay.createSection('indexCount', 0);
-var overlayNonIndexCount = overlay.createSection('nonIndexCount', 0);
-var overlayVertexCount = overlay.createSection('vertexCount', 0);
-var trianglePrimCount = overlay.createSection('trianglePrimCount', 0);
-var triangleStripPrimCount = overlay.createSection('triangleStripPrimCount', 0);
-var spritePrimCount = overlay.createSection('spritePrimCount', 0);
-var otherPrimCount = overlay.createSection('otherPrimCount', 0);
-var optimizedCount = overlay.createSection('optimizedCount', 0);
-var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
-var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
-var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
-var totalCommands = overlay.createSection('totalCommands', 0);
-var totalStalls = overlay.createSection('totalStalls', 0);
-var primCount = overlay.createSection('primCount', 0);
-var batchCount = overlay.createSection('batchCount', 0);
-var timePerFrame = overlay.createSection('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
+var overlayIndexCount = overlay.createCounter('indexCount', 0);
+var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0);
+var overlayVertexCount = overlay.createCounter('vertexCount', 0);
+var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0);
+var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0);
+var spritePrimCount = overlay.createCounter('spritePrimCount', 0);
+var otherPrimCount = overlay.createCounter('otherPrimCount', 0);
+var optimizedCount = overlay.createCounter('optimizedCount', 0);
+var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0);
+var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0);
+var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
+var totalCommands = overlay.createCounter('totalCommands', 0);
+var totalStalls = overlay.createCounter('totalStalls', 0);
+var primCount = overlay.createCounter('primCount', 0);
+var batchCount = overlay.createCounter('batchCount', 0);
+var timePerFrame = overlay.createCounter('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
+var globalDriver;
+overlay.createIntent('toggle colors', function () {
+    if (globalDriver) {
+        globalDriver.enableColors = !globalDriver.enableColors;
+    }
+});
 var PspGpuList = (function () {
     function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor, state) {
         this.id = id;
@@ -8139,6 +8174,7 @@ var PspGpu = (function () {
         catch (e) {
             this.driver = new _driver.BaseDrawDriver();
         }
+        globalDriver = this.driver;
         this.driver.rehashSignal.add(function (size) {
             hashMemoryCount.value++;
             hashMemorySize.value += size;
@@ -8193,6 +8229,7 @@ overlay.update();
 var BaseDrawDriver = (function () {
     function BaseDrawDriver() {
         this.rehashSignal = new Signal();
+        this.enableColors = true;
     }
     BaseDrawDriver.prototype.end = function () {
     };
@@ -10022,6 +10059,7 @@ var WebGlPspDrawDriver = (function (_super) {
         this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
     };
     WebGlPspDrawDriver.prototype.updateState = function (program, vertexInfo, primitiveType) {
+        program.getUniform('u_enableColors').set1i(this.enableColors ? 1 : 0);
         if (this.state.clearing) {
             this.updateClearStateStart(program, vertexInfo, primitiveType);
         }

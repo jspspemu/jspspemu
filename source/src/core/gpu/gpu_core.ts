@@ -68,10 +68,25 @@ function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
 function param24(p: number) { return p & 0xFFFFFF; }
 function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
-class OverlaySection<T> {
+var canDOMCreateElements = (typeof document != 'undefined');
+
+interface OverlaySection {
+	element:HTMLElement;
+	update():void;
+	reset():void;
+}
+
+class OverlayCounter<T> implements OverlaySection {
 	public value: T;
+	public element:HTMLElement;
 	constructor(public name: string, private resetValue: T, private representer?: (v: T) => any) {
 		this.reset();
+		if (canDOMCreateElements) {
+			this.element = document.createElement('div');
+		}
+	}
+	update() {
+		this.element.innerText = `${this.name}: ${this.representedValue}`;
 	}
 	get representedValue() {
 		return this.representer ? this.representer(this.value) : this.value;
@@ -81,12 +96,27 @@ class OverlaySection<T> {
 	}
 }
 
+class OverlayIntent implements OverlaySection {
+	public element:HTMLButtonElement;
+	constructor(text:string, action: () => void) {
+		if (canDOMCreateElements) {
+			this.element = document.createElement('button');
+			this.element.innerText = text;
+			this.element.onclick = e => action();
+		}
+	}
+	update() {
+	}
+	reset() {
+	}
+}
+
 class Overlay {
 	private element: HTMLDivElement;
-	private sections: OverlaySection<any>[] = [];
+	private sections: OverlaySection[] = [];
 
 	constructor() {
-		var element = this.element = (typeof document != 'undefined') ? document.createElement('div') : null;
+		var element = this.element = canDOMCreateElements ? document.createElement('div') : null;
 		if (element) {
 			element.style.position = 'absolute';
 			element.style.zIndex = '10000';
@@ -98,20 +128,28 @@ class Overlay {
 			element.style.height = 'auto';
 			element.style.padding = '4px';
 			element.style.color = 'white';
-			element.style.whiteSpace = 'pre';
-			element.innerText = 'hello world!';
 			document.body.appendChild(element);
 		}
 	}
+	
+	private addElement<T extends OverlaySection>(element:T):T {
+		this.sections.push(element);
+		if (this.element) {
+			this.element.appendChild(element.element);
+		}
+		return element;
+	}
 
-	createSection<T>(name: string, resetValue: T, representer?: (v: T) => any): OverlaySection<T> {
-		var section = new OverlaySection(name, resetValue, representer);
-		this.sections.push(section);
-		return section;
+	createCounter<T>(name: string, resetValue: T, representer?: (v: T) => any): OverlayCounter<T> {
+		return this.addElement(new OverlayCounter(name, resetValue, representer));
+	}
+	
+	createIntent(text: string, action: () => void) {
+		return this.addElement(new OverlayIntent(text, action));
 	}
 
 	update() {
-		if (this.element) this.element.innerText = this.sections.map(s => `${s.name}: ${s.representedValue}`).join('\n');
+		for (let section of this.sections) section.update();
 	}
 
 	private reset() {
@@ -125,22 +163,30 @@ class Overlay {
 }
 
 var overlay = new Overlay();
-var overlayIndexCount = overlay.createSection('indexCount', 0);
-var overlayNonIndexCount = overlay.createSection('nonIndexCount', 0);
-var overlayVertexCount = overlay.createSection('vertexCount', 0);
-var trianglePrimCount = overlay.createSection('trianglePrimCount', 0);
-var triangleStripPrimCount = overlay.createSection('triangleStripPrimCount', 0);
-var spritePrimCount = overlay.createSection('spritePrimCount', 0);
-var otherPrimCount = overlay.createSection('otherPrimCount', 0);
-var optimizedCount = overlay.createSection('optimizedCount', 0);
-var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
-var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
-var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
-var totalCommands = overlay.createSection('totalCommands', 0);
-var totalStalls = overlay.createSection('totalStalls', 0);
-var primCount = overlay.createSection('primCount', 0);
-var batchCount = overlay.createSection('batchCount', 0);
-var timePerFrame = overlay.createSection('time', 0, (v) => `${v.toFixed(0) } ms`);
+var overlayIndexCount = overlay.createCounter('indexCount', 0);
+var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0);
+var overlayVertexCount = overlay.createCounter('vertexCount', 0);
+var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0);
+var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0);
+var spritePrimCount = overlay.createCounter('spritePrimCount', 0);
+var otherPrimCount = overlay.createCounter('otherPrimCount', 0);
+var optimizedCount = overlay.createCounter('optimizedCount', 0);
+var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0);
+var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0);
+var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
+var totalCommands = overlay.createCounter('totalCommands', 0);
+var totalStalls = overlay.createCounter('totalStalls', 0);
+var primCount = overlay.createCounter('primCount', 0);
+var batchCount = overlay.createCounter('batchCount', 0);
+var timePerFrame = overlay.createCounter('time', 0, (v) => `${v.toFixed(0) } ms`);
+
+var globalDriver: IDrawDriver;
+
+overlay.createIntent('toggle colors', () => {
+	if (globalDriver) {
+		globalDriver.enableColors = !globalDriver.enableColors; 
+	}
+});
 
 class PspGpuList {
     current4: number;
@@ -569,6 +615,7 @@ export class PspGpu implements IPspGpu {
 		} catch (e) {
 			this.driver = new _driver.BaseDrawDriver();
 		}
+		globalDriver = this.driver;
 		this.driver.rehashSignal.add(size => {
 			hashMemoryCount.value++;
 			hashMemorySize.value += size;

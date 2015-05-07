@@ -250,6 +250,8 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	}
 
 	private updateState(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
+		program.getUniform('u_enableColors').set1i(this.enableColors ? 1 : 0);
+		
 		if (this.state.clearing) {
 			this.updateClearStateStart(program, vertexInfo, primitiveType);
 		} else {
