@@ -21,35 +21,7 @@ import GpuState = _state.GpuState;
 import IPspDisplay = _display.IPspDisplay;
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 
-class DummyDrawDriver implements IDrawDriver {
-	end(): void {
-	}
-
-	initAsync(): Promise2<any> {
-		return Promise2.resolve();
-	}
-
-	/**
-	 * Flush texture page-cache.
-	 * 
-	 * Do this if you have copied/rendered into an area currently in the texture-cache
-	 */
-	textureFlush(state: any) {
-	}
-
-	/**
-	 * Synchronize rendering pipeline with image upload.
-	 * 
-	 * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
-	 */
-	textureSync(state: _state.GpuState) {
-	}
-
-	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexState: _state.VertexState) {
-	}
-	
-	drawOptimized(state: any, buffer:_vertex.OptimizedDrawBuffer):void {
-	}
+class DummyDrawDriver extends IDrawDriver {
 }
 
 export = DummyDrawDriver;

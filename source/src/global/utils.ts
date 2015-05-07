@@ -717,6 +717,10 @@ class Signal<T> {
 		return this.callbacks.length;
 	}
 
+	pipeTo(other:Signal<T>) {
+		return this.add(v => other.dispatch(v));
+	}
+
 	add(callback: (value?: T) => void) {
 		this.callbacks.push(callback);
 		return new SignalCancelable(this, callback);
@@ -869,6 +873,17 @@ function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
 		if (args.length == 0) throw new Error("Can't decode");
 		return new Uint8Array(args[0]);
 	});
+}
+
+function numberToFileSize(value: number) {
+	const KB = 1024;
+	const MB = 1024 * KB;
+	const GB = 1024 * MB;
+	const TB = 1024 * GB;
+	if (value >= GB * 0.5) return `${(value / GB).toFixed(2)} GB`;
+	if (value >= MB * 0.5) return `${(value / MB).toFixed(2)} MB`;
+	if (value >= KB * 0.5) return `${(value / KB).toFixed(2)} KB`;
+	return `${value} B`;
 }
 
 function addressToHex(address: number) {

@@ -21,12 +21,14 @@ import GpuState = _state.GpuState;
 import IPspDisplay = _display.IPspDisplay;
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 
-class WebGlPspDrawDriver implements IDrawDriver {
+class WebGlPspDrawDriver extends IDrawDriver {
 	private gl: WebGLRenderingContext;
 	private cache: ShaderCache;
 	private textureHandler: TextureHandler;
 
 	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
+		super();
+		
 		var webglOptions = {
 			alpha: false,
 			depth: true,
@@ -63,6 +65,7 @@ class WebGlPspDrawDriver implements IDrawDriver {
 
 				this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);
 				this.textureHandler = new TextureHandler(this.memory, this.gl);
+				this.textureHandler.rehashSignal.pipeTo(this.rehashSignal);
 			});
 		});
 	}

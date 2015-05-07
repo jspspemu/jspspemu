@@ -52,8 +52,11 @@ function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
 class OverlaySection<T> {
 	public value:T;
-	constructor(public name:string, private resetValue:T) {
+	constructor(public name:string, private resetValue:T, private representer?: (v:T) => any) {
 		this.reset();
+	}
+	get representedValue() {
+		return this.representer ? this.representer(this.value) : this.value;
 	}
 	reset() {
 		this.value = this.resetValue;
@@ -83,14 +86,14 @@ class Overlay {
 		}
 	}
 	
-	createSection<T>(name:string, resetValue:T):OverlaySection<T> {
-		var section = new OverlaySection(name, resetValue);
+	createSection<T>(name:string, resetValue:T, representer?: (v:T) => any):OverlaySection<T> {
+		var section = new OverlaySection(name, resetValue, representer);
 		this.sections.push(section);
 		return section;
 	}
 	
 	update() {
-		if (this.element) this.element.innerText = this.sections.map(s => `${s.name}: ${s.value}`).join('\n');
+		if (this.element) this.element.innerText = this.sections.map(s => `${s.name}: ${s.representedValue}`).join('\n');
 	}
 	
 	private reset() {
@@ -113,6 +116,9 @@ var spritePrimCount = overlay.createSection('spritePrimCount', 0);
 var otherPrimCount = overlay.createSection('otherPrimCount', 0);
 var optimizedCount = overlay.createSection('optimizedCount', 0);
 var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
+var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
+var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
+var timePerFrame = overlay.createSection('time', 0, (v) => `${v.toFixed(0)} ms`);
 
 class PspGpuExecutor {
 	private list: PspGpuList;
@@ -1351,6 +1357,10 @@ export class PspGpu implements IPspGpu {
 		} catch (e) {
 			this.driver = new DummyDrawDriver();
 		}
+		this.driver.rehashSignal.add(size => {
+			hashMemoryCount.value++;
+			hashMemorySize.value += size;
+		});
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
 		this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
     }
@@ -1384,11 +1394,17 @@ export class PspGpu implements IPspGpu {
         return 0;
     }
 
+	private lastTime = 0;
 	drawSync(syncType: _state.SyncType): any {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
-		overlay.updateAndReset();
-		return this.listRunner.waitAsync();
+		return this.listRunner.waitAsync().then(() => {
+			var end = performance.now();
+			timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
+			MathUtils.prevAligned
+			this.lastTime = end;
+			overlay.updateAndReset();
+		});
 
 		switch (syncType) {
 			case _state.SyncType.Peek: return this.listRunner.peek();

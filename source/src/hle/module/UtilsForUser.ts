@@ -64,6 +64,7 @@ export class UtilsForUser {
 
 	@nativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint')
 	sceKernelDcacheWritebackInvalidateRange(pointer: number, size: number) {
+		//console.log('sceKernelDcacheWritebackInvalidateRange');
 		if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 		if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
 		this.context.memory.invalidateDataRange.dispatch({ start: pointer, end : pointer + size });
@@ -72,6 +73,7 @@ export class UtilsForUser {
 
 	@nativeFunction(0x3EE30821, 150, 'uint', 'uint/uint')
 	sceKernelDcacheWritebackRange(pointer: number, size: number) {
+		//console.log('sceKernelDcacheWritebackRange');
 		if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 		if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
 		this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
@@ -80,12 +82,14 @@ export class UtilsForUser {
 
 	@nativeFunction(0x79D1C3FA, 150, 'uint', '')
 	sceKernelDcacheWritebackAll() {
+		//console.log('sceKernelDcacheWritebackAll');
 		this.context.memory.invalidateDataAll.dispatch();
 		return 0;
 	}
 
 	@nativeFunction(0xBFA98062, 150, 'uint', 'uint/uint')
 	sceKernelDcacheInvalidateRange(pointer: number, size: number) {
+		//console.log('sceKernelDcacheInvalidateRange');
 		if (!MathUtils.isAlignedTo(size, 4)) return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
 		//if (!this.context.memory.isValidAddress(pointer + size)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
 		if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
@@ -97,6 +101,7 @@ export class UtilsForUser {
 		
 	@nativeFunction(0xB435DEC5, 150, 'uint', '')
 	sceKernelDcacheWritebackInvalidateAll() {
+		//console.log('sceKernelDcacheWritebackInvalidateAll');
 		this.context.memory.invalidateDataAll.dispatch();
 		return 0;
 	}

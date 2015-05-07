@@ -19,8 +19,8 @@ export class Clut {
 	clutFormat: PixelFormat;
 	valid: boolean = true;
 	validHint: boolean = true;
-	hash1: number;
-	hash2: number;
+	hash1: number = -1;
+	hash2: number = -1;
 
 	constructor(private gl: WebGLRenderingContext) {
 		this.texture = gl.createTexture();
@@ -64,7 +64,7 @@ export class Clut {
 	}
 
 	static hashFast(state: _state.GpuState) {
-		return state.texture.clut.address;
+		return state.texture.clut.address + state.texture.clut.info * 16;
 	}
 
 	static hashSlow(memory: Memory, state: _state.GpuState) {
@@ -75,7 +75,7 @@ export class Clut {
 			clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors),
 			PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)
 		) * Math.pow(2, 30);
-		hash_number += clut.info * Math.pow(2, 26);
+		hash_number += clut.info * Math.pow(2, 16);
 
 		return hash_number;
 	}
@@ -87,8 +87,8 @@ export class Texture {
 	valid = true;
 	validHint = true;
 	swizzled = false;
-	hash1: number;
-	hash2: number;
+	hash1: number = -1;
+	hash2: number = -1;
 
 	address_start: number;
 	address_end: number
@@ -129,9 +129,7 @@ export class Texture {
 		this.width = width;
 		this.height = height;
 		this._create(() => {
-			// @TODO: not detected signature
 			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
-			//gl.generateMipmap(gl.TEXTURE_2D);
 		});
 	}
 
@@ -140,7 +138,6 @@ export class Texture {
 		this.width = width;
 		this.height = height;
 		this._create(() => {
-			//(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, width, height, 0, gl.ALPHA, gl.UNSIGNED_BYTE, data);
 			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width, height, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, data);
 		});
 	}
@@ -232,14 +229,14 @@ export class TextureHandler {
 		memory.invalidateDataAll.add(() => this.invalidatedMemoryAll());
 	}
 
-	private texturesByHash2: NumberDictionary<Texture> = {};
-	private texturesByHash1: NumberDictionary<Texture> = {};
-	private texturesByAddress: NumberDictionary<Texture> = {};
+	private texturesByHash2 = new Map<number, Texture>();
+	private texturesByHash1 = new Map<number, Texture>();
+	private texturesByAddress = new Map<number, Texture>();
 	private textures = <Texture[]>[];
 	
-	private clutsByHash2: NumberDictionary<Clut> = {};
-	private clutsByHash1: NumberDictionary<Clut> = {};
-	private clutsByAddress: NumberDictionary<Clut> = {};
+	private clutsByHash2 = new Map<number, Clut>();
+	private clutsByHash1 = new Map<number, Clut>();
+	private clutsByAddress = new Map<number, Clut>();
 	private cluts = <Clut[]>[];
 	
 	private recheckTimestamp: number = 0;
@@ -247,6 +244,7 @@ export class TextureHandler {
 	//private updatedTextures = new SortedSet<Texture>();
 	private invalidatedAll = false;
 
+	rehashSignal = new Signal<number>();
 
 	flush() {
 		//console.log('flush!');
@@ -305,9 +303,12 @@ export class TextureHandler {
 	}
 	
 	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState) {
-		this._bindClut(prog, state);
+		var gl = this.gl;
+		gl.activeTexture(gl.TEXTURE0);
 		this._bindTexture(prog, state);
-		this.gl.activeTexture(this.gl.TEXTURE0);
+		gl.activeTexture(gl.TEXTURE1);
+		this._bindClut(prog, state);
+		gl.activeTexture(gl.TEXTURE0);
 	}
 
 	_bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState) {
@@ -320,18 +321,20 @@ export class TextureHandler {
 		if (mipmap.textureHeight == 0) return;
 
 		let hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
+		let textureState = state.texture;
 
 		var hash1 = Texture.hashFast(state);
-		var texture = this.texturesByHash1[hash1];
+		var texture = this.texturesByHash1.get(hash1);
 		var texture1 = texture;
 		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
 		if (this.mustRecheckSlowHashTexture(texture)) {
 			var hash2 = Texture.hashSlow(this.memory, state);
+			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(textureState.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
 			//var hash2 = hash1;
 
 			//console.log(hash);
 
-			texture = this.texturesByHash2[hash2];
+			texture = this.texturesByHash2.get(hash2);
 
 			if (texture) {
 				if (texture1 == texture) {
@@ -343,19 +346,28 @@ export class TextureHandler {
 
 			//if (!texture || !texture.valid) {
 			if (!texture) {
-				if (!this.texturesByAddress[mipmap.address]) {
-					this.texturesByAddress[mipmap.address] = texture = new Texture(gl);
+				if (!this.texturesByAddress.get(mipmap.address)) {
+					texture = new Texture(gl);
+					this.texturesByAddress.set(mipmap.address, texture);
 					this.textures.push(texture);
 					console.warn('New texture allocated!', mipmap, state.texture);
 				}
 
-				texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = this.texturesByAddress[mipmap.address];
+				texture = this.texturesByAddress.get(mipmap.address);
+			}
+			
+			if (texture.hash2 != hash2) {
+				this.texturesByHash1.delete(texture.hash1);
+				this.texturesByHash2.delete(texture.hash2);
 
 				texture.setInfo(state);
 				texture.hash1 = hash1;
 				texture.hash2 = hash2;
 				texture.valid = true;
 				texture.validHint = true;
+
+				this.texturesByHash1.set(hash1, texture);
+				this.texturesByHash2.set(hash2, texture); 
 
 				//this.updatedTextures.add(texture);
 
@@ -401,30 +413,41 @@ export class TextureHandler {
 		let gl = this.gl;
 		let hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
 		if (!hasClut) return;
-		var _clut: Clut;
+		var _clut: Clut = null;
 		var clutState = state.texture.clut;
 		var hash1 = Clut.hashFast(state);
-		_clut = this.clutsByHash1[hash1];
+		_clut = this.clutsByHash1.get(hash1);
 		
 		if (this.mustRecheckSlowHashClut(_clut)) {
 			var hash2 = Clut.hashSlow(this.memory, state);
+			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
 			
-			_clut = this.clutsByHash2[hash2];
+			_clut = this.clutsByHash2.get(hash2);
+			
+			//console.log('rechecked clut!', hash2);
 			
 			if (!_clut) {
-				if (!this.clutsByAddress[clutState.address]) {
-					this.clutsByAddress[clutState.address] = _clut = new Clut(gl);
+				if (!this.clutsByAddress.get(clutState.address)) {
+					_clut = new Clut(gl);
+					this.clutsByAddress.set(clutState.address, _clut);
 					this.cluts.push(_clut);
 					console.warn('New clut allocated!', clutState);
 				}
-
-				_clut = this.clutsByHash2[hash2] = this.clutsByHash1[hash1] = this.clutsByAddress[clutState.address];
-
+				_clut = this.clutsByAddress.get(clutState.address);
+				//console.log('changed clut!');
+			}
+			
+			if (_clut.hash2 != hash2) {
+				this.clutsByHash1.delete(_clut.hash1);
+				this.clutsByHash2.delete(_clut.hash2);
+				
 				_clut.setInfo(clutState);
 				_clut.hash1 = hash1;
 				_clut.hash2 = hash2;
 				_clut.valid = true;
 				_clut.validHint = true;
+				this.clutsByHash1.set(hash1, _clut);
+				this.clutsByHash2.set(hash2, _clut);
 	
 				_clut.numberOfColors = Math.max(clutState.numberOfColors, clutState.mask + 1);
 				var palette = new Uint32Array(256);
@@ -445,9 +468,9 @@ export class TextureHandler {
 
 	unbindTexture(program: WrappedWebGLProgram, state: _state.GpuState) {
 		var gl = this.gl;
-		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 }

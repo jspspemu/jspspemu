@@ -676,6 +676,9 @@ var Signal = (function () {
         enumerable: true,
         configurable: true
     });
+    Signal.prototype.pipeTo = function (other) {
+        return this.add(function (v) { return other.dispatch(v); });
+    };
     Signal.prototype.add = function (callback) {
         this.callbacks.push(callback);
         return new SignalCancelable(this, callback);
@@ -855,6 +858,19 @@ function inflateRawAsync(data) {
             throw new Error("Can't decode");
         return new Uint8Array(args[0]);
     });
+}
+function numberToFileSize(value) {
+    var KB = 1024;
+    var MB = 1024 * KB;
+    var GB = 1024 * MB;
+    var TB = 1024 * GB;
+    if (value >= GB * 0.5)
+        return (value / GB).toFixed(2) + " GB";
+    if (value >= MB * 0.5)
+        return (value / MB).toFixed(2) + " MB";
+    if (value >= KB * 0.5)
+        return (value / KB).toFixed(2) + " KB";
+    return value + " B";
 }
 function addressToHex(address) {
     return '0x' + addressToHex2(address);
@@ -2074,6 +2090,9 @@ var MathUtils = (function () {
     }
     MathUtils.sextend16 = function (value) {
         return (((value & 0xFFFF) << 16) >> 16);
+    };
+    MathUtils.interpolate = function (a, b, ratio) {
+        return a * (1 - ratio) + b * ratio;
     };
     MathUtils.prevAligned = function (value, alignment) {
         return Math.floor(value / alignment) * alignment;
@@ -11076,6 +11095,26 @@ exports.VertexReaderFactory = _vertex.VertexReaderFactory;
 },
 "src/core/gpu/driver": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+var IDrawDriver = (function () {
+    function IDrawDriver() {
+        this.rehashSignal = new Signal();
+    }
+    IDrawDriver.prototype.end = function () {
+    };
+    IDrawDriver.prototype.initAsync = function () {
+        return Promise2.resolve();
+    };
+    IDrawDriver.prototype.textureFlush = function (state) {
+    };
+    IDrawDriver.prototype.textureSync = function (state) {
+    };
+    IDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
+    };
+    IDrawDriver.prototype.drawOptimized = function (state, buffer) {
+    };
+    return IDrawDriver;
+})();
+exports.IDrawDriver = IDrawDriver;
 
 },
 "src/core/gpu/gpu": function(module, exports, require) {
@@ -11104,11 +11143,19 @@ function param10(p, offset) { return (p >> offset) & 0x3FF; }
 function param16(p, offset) { return (p >> offset) & 0xFFFF; }
 function float1(p) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 var OverlaySection = (function () {
-    function OverlaySection(name, resetValue) {
+    function OverlaySection(name, resetValue, representer) {
         this.name = name;
         this.resetValue = resetValue;
+        this.representer = representer;
         this.reset();
     }
+    Object.defineProperty(OverlaySection.prototype, "representedValue", {
+        get: function () {
+            return this.representer ? this.representer(this.value) : this.value;
+        },
+        enumerable: true,
+        configurable: true
+    });
     OverlaySection.prototype.reset = function () {
         this.value = this.resetValue;
     };
@@ -11134,14 +11181,14 @@ var Overlay = (function () {
             document.body.appendChild(element);
         }
     }
-    Overlay.prototype.createSection = function (name, resetValue) {
-        var section = new OverlaySection(name, resetValue);
+    Overlay.prototype.createSection = function (name, resetValue, representer) {
+        var section = new OverlaySection(name, resetValue, representer);
         this.sections.push(section);
         return section;
     };
     Overlay.prototype.update = function () {
         if (this.element)
-            this.element.innerText = this.sections.map(function (s) { return (s.name + ": " + s.value); }).join('\n');
+            this.element.innerText = this.sections.map(function (s) { return (s.name + ": " + s.representedValue); }).join('\n');
     };
     Overlay.prototype.reset = function () {
         for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
@@ -11165,6 +11212,9 @@ var spritePrimCount = overlay.createSection('spritePrimCount', 0);
 var otherPrimCount = overlay.createSection('otherPrimCount', 0);
 var optimizedCount = overlay.createSection('optimizedCount', 0);
 var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
+var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
+var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
+var timePerFrame = overlay.createSection('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
 var PspGpuExecutor = (function () {
     function PspGpuExecutor() {
         this.table = new Array(0x100);
@@ -12386,12 +12436,17 @@ var PspGpu = (function () {
         this.canvas = canvas;
         this.cpuExecutor = cpuExecutor;
         this.callbacks = new UidCollection(1);
+        this.lastTime = 0;
         try {
             this.driver = new WebGlPspDrawDriver(memory, display, canvas);
         }
         catch (e) {
             this.driver = new DummyDrawDriver();
         }
+        this.driver.rehashSignal.add(function (size) {
+            hashMemoryCount.value++;
+            hashMemorySize.value += size;
+        });
         this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
     }
     PspGpu.prototype.startAsync = function () {
@@ -12417,8 +12472,14 @@ var PspGpu = (function () {
         return 0;
     };
     PspGpu.prototype.drawSync = function (syncType) {
-        overlay.updateAndReset();
-        return this.listRunner.waitAsync();
+        var _this = this;
+        return this.listRunner.waitAsync().then(function () {
+            var end = performance.now();
+            timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - _this.lastTime, 0.5);
+            MathUtils.prevAligned;
+            _this.lastTime = end;
+            overlay.updateAndReset();
+        });
         switch (syncType) {
             case 1: return this.listRunner.peek();
             case 0: return this.listRunner.waitAsync();
@@ -13802,15 +13863,25 @@ exports.OptimizedDrawBuffer = OptimizedDrawBuffer;
 },
 "src/core/gpu/webgl/driver": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var _driver = require('../driver');
 var _state = require('../state');
 var _shader = require('./shader');
 var _texture = require('./texture');
 var _utils = require('./utils');
 var FastFloat32Buffer = _utils.FastFloat32Buffer;
+var IDrawDriver = _driver.IDrawDriver;
 var ShaderCache = _shader.ShaderCache;
 var TextureHandler = _texture.TextureHandler;
-var WebGlPspDrawDriver = (function () {
+var WebGlPspDrawDriver = (function (_super) {
+    __extends(WebGlPspDrawDriver, _super);
     function WebGlPspDrawDriver(memory, display, canvas) {
+        _super.call(this);
         this.memory = memory;
         this.display = display;
         this.canvas = canvas;
@@ -13860,6 +13931,7 @@ var WebGlPspDrawDriver = (function () {
                 var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
                 _this.cache = new ShaderCache(_this.gl, shaderVertString, shaderFragString);
                 _this.textureHandler = new TextureHandler(_this.memory, _this.gl);
+                _this.textureHandler.rehashSignal.pipeTo(_this.rehashSignal);
             });
         });
     };
@@ -14302,7 +14374,7 @@ var WebGlPspDrawDriver = (function () {
         gl.drawArrays(convertPrimitiveType[primitiveType], 0, count);
     };
     return WebGlPspDrawDriver;
-})();
+})(IDrawDriver);
 var convertPrimitiveType = new Int32Array([0, 1, 3, 4, 5, 6]);
 var convertVertexNumericEnum = new Int32Array([0, 5120, 5122, 5126]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, 5121, 5123, 5126]);
@@ -14318,24 +14390,21 @@ module.exports = WebGlPspDrawDriver;
 },
 "src/core/gpu/webgl/driver_dummy": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-var DummyDrawDriver = (function () {
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var _driver = require('../driver');
+var IDrawDriver = _driver.IDrawDriver;
+var DummyDrawDriver = (function (_super) {
+    __extends(DummyDrawDriver, _super);
     function DummyDrawDriver() {
+        _super.apply(this, arguments);
     }
-    DummyDrawDriver.prototype.end = function () {
-    };
-    DummyDrawDriver.prototype.initAsync = function () {
-        return Promise2.resolve();
-    };
-    DummyDrawDriver.prototype.textureFlush = function (state) {
-    };
-    DummyDrawDriver.prototype.textureSync = function (state) {
-    };
-    DummyDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexState) {
-    };
-    DummyDrawDriver.prototype.drawOptimized = function (state, buffer) {
-    };
     return DummyDrawDriver;
-})();
+})(IDrawDriver);
 module.exports = DummyDrawDriver;
 
 },
@@ -14422,6 +14491,8 @@ var Clut = (function () {
         this.gl = gl;
         this.valid = true;
         this.validHint = true;
+        this.hash1 = -1;
+        this.hash2 = -1;
         this.texture = gl.createTexture();
     }
     Clut.prototype.setInfo = function (clut) {
@@ -14454,13 +14525,13 @@ var Clut = (function () {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     };
     Clut.hashFast = function (state) {
-        return state.texture.clut.address;
+        return state.texture.clut.address + state.texture.clut.info * 16;
     };
     Clut.hashSlow = function (memory, state) {
         var clut = state.texture.clut;
         var hash_number = 0;
         hash_number += memory.hash(clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 30);
-        hash_number += clut.info * Math.pow(2, 26);
+        hash_number += clut.info * Math.pow(2, 16);
         return hash_number;
     };
     return Clut;
@@ -14473,6 +14544,8 @@ var Texture = (function () {
         this.valid = true;
         this.validHint = true;
         this.swizzled = false;
+        this.hash1 = -1;
+        this.hash2 = -1;
         this.recheckCount = 0;
         this.framesEqual = 0;
         this.texture = gl.createTexture();
@@ -14560,16 +14633,17 @@ var TextureHandler = (function () {
         var _this = this;
         this.memory = memory;
         this.gl = gl;
-        this.texturesByHash2 = {};
-        this.texturesByHash1 = {};
-        this.texturesByAddress = {};
+        this.texturesByHash2 = new Map();
+        this.texturesByHash1 = new Map();
+        this.texturesByAddress = new Map();
         this.textures = [];
-        this.clutsByHash2 = {};
-        this.clutsByHash1 = {};
-        this.clutsByAddress = {};
+        this.clutsByHash2 = new Map();
+        this.clutsByHash1 = new Map();
+        this.clutsByAddress = new Map();
         this.cluts = [];
         this.recheckTimestamp = 0;
         this.invalidatedAll = false;
+        this.rehashSignal = new Signal();
         memory.invalidateDataRange.add(function (range) { return _this.invalidatedMemoryRange(range); });
         memory.invalidateDataAll.add(function () { return _this.invalidatedMemoryAll(); });
     }
@@ -14634,9 +14708,12 @@ var TextureHandler = (function () {
         return !clut || !clut.valid;
     };
     TextureHandler.prototype.bindTexture = function (prog, state) {
-        this._bindClut(prog, state);
+        var gl = this.gl;
+        gl.activeTexture(gl.TEXTURE0);
         this._bindTexture(prog, state);
-        this.gl.activeTexture(this.gl.TEXTURE0);
+        gl.activeTexture(gl.TEXTURE1);
+        this._bindClut(prog, state);
+        gl.activeTexture(gl.TEXTURE0);
     };
     TextureHandler.prototype._bindTexture = function (prog, state) {
         var gl = this.gl;
@@ -14648,12 +14725,14 @@ var TextureHandler = (function () {
         if (mipmap.textureHeight == 0)
             return;
         var hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
+        var textureState = state.texture;
         var hash1 = Texture.hashFast(state);
-        var texture = this.texturesByHash1[hash1];
+        var texture = this.texturesByHash1.get(hash1);
         var texture1 = texture;
         if (this.mustRecheckSlowHashTexture(texture)) {
             var hash2 = Texture.hashSlow(this.memory, state);
-            texture = this.texturesByHash2[hash2];
+            this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(textureState.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
+            texture = this.texturesByHash2.get(hash2);
             if (texture) {
                 if (texture1 == texture) {
                     texture.framesEqual++;
@@ -14663,17 +14742,24 @@ var TextureHandler = (function () {
                 }
             }
             if (!texture) {
-                if (!this.texturesByAddress[mipmap.address]) {
-                    this.texturesByAddress[mipmap.address] = texture = new Texture(gl);
+                if (!this.texturesByAddress.get(mipmap.address)) {
+                    texture = new Texture(gl);
+                    this.texturesByAddress.set(mipmap.address, texture);
                     this.textures.push(texture);
                     console.warn('New texture allocated!', mipmap, state.texture);
                 }
-                texture = this.texturesByHash2[hash2] = this.texturesByHash1[hash1] = this.texturesByAddress[mipmap.address];
+                texture = this.texturesByAddress.get(mipmap.address);
+            }
+            if (texture.hash2 != hash2) {
+                this.texturesByHash1.delete(texture.hash1);
+                this.texturesByHash2.delete(texture.hash2);
                 texture.setInfo(state);
                 texture.hash1 = hash1;
                 texture.hash2 = hash2;
                 texture.valid = true;
                 texture.validHint = true;
+                this.texturesByHash1.set(hash1, texture);
+                this.texturesByHash2.set(hash2, texture);
                 texture.recheckTimestamp = this.recheckTimestamp;
                 var mipmap = state.texture.mipmaps[0];
                 var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
@@ -14700,25 +14786,33 @@ var TextureHandler = (function () {
         var hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
         if (!hasClut)
             return;
-        var _clut;
+        var _clut = null;
         var clutState = state.texture.clut;
         var hash1 = Clut.hashFast(state);
-        _clut = this.clutsByHash1[hash1];
+        _clut = this.clutsByHash1.get(hash1);
         if (this.mustRecheckSlowHashClut(_clut)) {
             var hash2 = Clut.hashSlow(this.memory, state);
-            _clut = this.clutsByHash2[hash2];
+            this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
+            _clut = this.clutsByHash2.get(hash2);
             if (!_clut) {
-                if (!this.clutsByAddress[clutState.address]) {
-                    this.clutsByAddress[clutState.address] = _clut = new Clut(gl);
+                if (!this.clutsByAddress.get(clutState.address)) {
+                    _clut = new Clut(gl);
+                    this.clutsByAddress.set(clutState.address, _clut);
                     this.cluts.push(_clut);
                     console.warn('New clut allocated!', clutState);
                 }
-                _clut = this.clutsByHash2[hash2] = this.clutsByHash1[hash1] = this.clutsByAddress[clutState.address];
+                _clut = this.clutsByAddress.get(clutState.address);
+            }
+            if (_clut.hash2 != hash2) {
+                this.clutsByHash1.delete(_clut.hash1);
+                this.clutsByHash2.delete(_clut.hash2);
                 _clut.setInfo(clutState);
                 _clut.hash1 = hash1;
                 _clut.hash2 = hash2;
                 _clut.valid = true;
                 _clut.validHint = true;
+                this.clutsByHash1.set(hash1, _clut);
+                this.clutsByHash2.set(hash2, _clut);
                 _clut.numberOfColors = Math.max(clutState.numberOfColors, clutState.mask + 1);
                 var palette = new Uint32Array(256);
                 PixelConverter.decode(clutState.pixelFormat, this.memory.getPointerU8Array(clutState.address), palette.subarray(0, _clut.numberOfColors), true);
@@ -14733,9 +14827,9 @@ var TextureHandler = (function () {
     };
     TextureHandler.prototype.unbindTexture = function (program, state) {
         var gl = this.gl;
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, null);
         gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, null);
     };
     return TextureHandler;
@@ -28502,6 +28596,7 @@ module.exports = difflib;
 "test/_tests": function(module, exports, require) {
 ///<reference path="./global.d.ts" />
 exports.promisetest = require('./promisetest');
+exports.memorytest = require('./memorytest');
 var pspTest = require('./format/pspTest');
 pspTest.ref();
 var csoTest = require('./format/csoTest');
@@ -29033,6 +29128,20 @@ describe('instruction lookup', function () {
         assert.equal(instructions.findByData(0x00081C4C).name, 'syscall');
         assert.equal(instructions.findByData(0x00001012).name, 'mflo');
         assert.equal(instructions.findByData(0xA0410004).name, 'sb');
+    });
+});
+
+},
+"test/memorytest": function(module, exports, require) {
+var _memory = require('../src/core/memory');
+function ext() { }
+exports.ext = ext;
+var memory = _memory.getInstance();
+describe('memory', function () {
+    it('memory_hash', function () {
+        for (var n = 0; n < 20; n++) {
+            memory.hash(0x08000000, 32 * 1024 * 1024);
+        }
     });
 });
 

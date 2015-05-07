@@ -598,6 +598,10 @@ class MathUtils {
 		return (((value & 0xFFFF) << 16) >> 16);
 		//value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
 	}
+	
+	static interpolate(a:number, b:number, ratio:number) {
+		return a * (1 - ratio) + b * ratio; 
+	}
 
 	static prevAligned(value: number, alignment: number) {
 		return Math.floor(value / alignment) * alignment;
