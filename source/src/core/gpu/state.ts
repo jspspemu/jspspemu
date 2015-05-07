@@ -10,6 +10,7 @@ import Memory = _memory.Memory;
 import PixelFormat = _pixelformat.PixelFormat;
 
 function bool1(p: number) { return p != 0; }
+function parambool(p: number, offset: number) { return ((p >> offset) & 0x1) != 0; }
 function param1(p: number, offset: number) { return (p >> offset) & 0x1; }
 function param2(p: number, offset: number) { return (p >> offset) & 0x3; }
 function param3(p: number, offset: number) { return (p >> offset) & 0x7; }
@@ -160,21 +161,30 @@ export class VertexInfo {
 	}
 
 	setState(state:GpuState) {
-		var vstate = state.vertex;
-		this.textureComponentsCount = state.texture.textureComponentsCount;
-		this.value = vstate.value;
-		this.reversedNormal = vstate.reversedNormal;
+		let vstate = state.vertex;
 		this.address = vstate.address;
-		this.texture = vstate.texture;
-		this.color = vstate.color;
-		this.normal = vstate.normal;
-		this.position = vstate.position;
-		this.weight = vstate.weight;
-		this.index = vstate.index;
-		this.weightCount = vstate.weightCount;
-		this.morphingVertexCount = vstate.morphingVertexCount;
-		this.transform2D = vstate.transform2D;
+	
+		if ((this.value != vstate.value) || (this.textureComponentsCount != state.texture.textureComponentsCount) || (this.reversedNormal != vstate.reversedNormal)) {
+			this.textureComponentsCount = state.texture.textureComponentsCount;
+			this.reversedNormal = vstate.reversedNormal;
+			this.value = vstate.value;
+			this.texture = vstate.texture;
+			this.color = vstate.color;
+			this.normal = vstate.normal;
+			this.position = vstate.position;
+			this.weight = vstate.weight;
+			this.index = vstate.index;
+			this.weightCount = vstate.weightCount;
+			this.morphingVertexCount = vstate.morphingVertexCount;
+			this.transform2D = vstate.transform2D;
 		
+			this.updateSizeAndPositions();	
+		}
+
+		return this;
+	}
+	
+	updateSizeAndPositions() {
 		this.weightSize = VertexInfo.NumericEnumSizes[this.weight];
 		this.colorSize = VertexInfo.ColorEnumSizes[this.color];
 		this.textureSize = VertexInfo.NumericEnumSizes[this.texture];
@@ -204,8 +214,6 @@ export class VertexInfo {
 
 		var alignmentSize = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
 		this.size = MathUtils.nextAligned(this.size, alignmentSize);
-
-		return this;
 	}
 
 	oneWeightOffset(n:number) {
@@ -279,15 +287,17 @@ export class VertexState {
 	get value() { return param24(this.data[Op.VERTEXTYPE]); }
 	get reversedNormal() { return bool1(this.data[Op.REVERSENORMAL]); }
 	get address() { return param24(this.data[Op.VADDR]); }
-	get texture() { return BitUtils.extractEnum<NumericEnum>(this.value, 0, 2); }
-	get color() { return BitUtils.extractEnum<ColorEnum>(this.value, 2, 3); }
-	get normal() { return BitUtils.extractEnum<NumericEnum>(this.value, 5, 2); }
-	get position() { return BitUtils.extractEnum<NumericEnum>(this.value, 7, 2); }
-	get weight() { return BitUtils.extractEnum<NumericEnum>(this.value, 9, 2); }
-	get index() { return BitUtils.extractEnum<IndexEnum>(this.value, 11, 2); }
-	get weightCount() { return BitUtils.extract(this.value, 14, 3); }
-	get morphingVertexCount() { return BitUtils.extract(this.value, 18, 2); }
-	get transform2D() { return BitUtils.extractBool(this.value, 23); }
+	set address(value:number) { this.data[Op.VADDR] = value | (Op.VADDR << 24); }
+	
+	get texture() { return param2(this.data[Op.VERTEXTYPE], 0); }
+	get color() { return <ColorEnum>param3(this.data[Op.VERTEXTYPE], 2); }
+	get normal() { return <NumericEnum>param2(this.data[Op.VERTEXTYPE], 5); }
+	get position() { return <NumericEnum>param2(this.data[Op.VERTEXTYPE], 7); }
+	get weight() { return <NumericEnum>param2(this.data[Op.VERTEXTYPE], 9); }
+	get index() { return <IndexEnum>param2(this.data[Op.VERTEXTYPE], 11); }
+	get weightCount() { return param3(this.data[Op.VERTEXTYPE], 14); }
+	get morphingVertexCount() { return param2(this.data[Op.VERTEXTYPE], 18); }
+	get transform2D() { return parambool(this.data[Op.VERTEXTYPE], 23); }
 }
 
 export class Matrix4x4 {
@@ -357,13 +367,13 @@ export class Matrix4x3 {
 export class ViewPort {
 	constructor(private data:Uint32Array) { }
 	
-	get x() { return float1(this.data[Op.VIEWPORTX1]); }
-	get y() { return float1(this.data[Op.VIEWPORTY1]); }
-	get z() { return float1(this.data[Op.VIEWPORTZ1]); }
+	get x() { return float1(this.data[Op.VIEWPORTX2]); }
+	get y() { return float1(this.data[Op.VIEWPORTY2]); }
+	get z() { return float1(this.data[Op.VIEWPORTZ2]); }
 
-	get width() { return float1(this.data[Op.VIEWPORTX2]); }
-	get height() { return float1(this.data[Op.VIEWPORTY2]); }
-	get depth() { return float1(this.data[Op.VIEWPORTZ2]); }
+	get width() { return float1(this.data[Op.VIEWPORTX1]); }
+	get height() { return float1(this.data[Op.VIEWPORTY1]); }
+	get depth() { return float1(this.data[Op.VIEWPORTZ1]); }
 }
 
 export class Region {

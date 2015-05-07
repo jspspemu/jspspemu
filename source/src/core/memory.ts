@@ -213,6 +213,7 @@ export class Memory {
 		//this._updateWriteFunctions();
 	}
 
+	/*
 	_checkWriteBreakpoints(start: number, end: number) {
 		start &= FastMemory.MASK;
 		end &= FastMemory.MASK;
@@ -224,6 +225,7 @@ export class Memory {
 			}
 		}
 	}
+	*/
 
 	readArrayBuffer(address: number, length: number) {
 		var out = new Uint8Array(length);
@@ -251,35 +253,42 @@ export class Memory {
 	}
 
 	memset(address: number, value: number, length: number) {
-		var buffer = this.getPointerU8Array(address, length);
-		for (var n = 0; n < buffer.length; n++) buffer[n] = value & 0xFF;
-		this._checkWriteBreakpoints(address, address + length);
+		let buffer = this.getPointerU8Array(address, length);
+		if (typeof buffer.fill != 'undefined') {
+			buffer.fill(value);
+		} else {
+			let value8 = value & 0xFF;
+			//let value16 = value8 | (value8 << 8);
+			//let value32 = value16 | (value16 << 8);
+			// @TODO: Improve performance writing 32-bit values
+			for (var n = 0; n < buffer.length; n++) buffer[n] = value8;
+		}
+		//this._checkWriteBreakpoints(address, address + length);
 	}
 
 	writeBytes(address: number, data: ArrayBuffer) {
 		this.getPointerU8Array(address, data.byteLength).set(new Uint8Array(data));
-		this._checkWriteBreakpoints(address, address + data.byteLength);
+		//this._checkWriteBreakpoints(address, address + data.byteLength);
+	}
+
+	writeUint8Array(address: number, data: Uint8Array) {
+		this.getPointerU8Array(address, data.length).set(data);
+		//this._checkWriteBreakpoints(address, address + data.length);
 	}
 
 	writeStream(address: number, stream: Stream) {
-		stream = stream.sliceWithLength(0, stream.length);
-		while (stream.available > 0) {
-			this.sb(address++, stream.readUInt8());
-		}
-		this._checkWriteBreakpoints(address, address + stream.length);
+		this.writeUint8Array(address, stream.slice().readAllBytes());
+		//this._checkWriteBreakpoints(address, address + stream.length);
 	}
 
 	readStringz(address: number) {
 		if (address == 0) return null;
-		var out = '';
-		while (true) {
-			var _char = this.lbu(address++);
-			if (_char == 0) break;
-			out += String.fromCharCode(_char);
-		}
-		return out;
+		var endAddress = address;
+		while (this.lbu(endAddress) != 0) endAddress++;
+		return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
 	}
 
+	/*
 	hashWordCount(addressAligned: number, count: number) {
 		addressAligned >>>= 2;
 		count >>>= 2;
@@ -287,6 +296,19 @@ export class Memory {
 		var result = 0;
 		for (var n = 0; n < count; n++) {
 			var v = this.lw_2(addressAligned + n);
+			result = (result + v ^ n) | 0;
+		}
+		return result;
+	}
+	*/
+
+	hashWordCount(_addressAligned: number, _count: number) {
+		let addressAligned = (_addressAligned >>> 2) | 0;
+		let count = (_count >>> 2) | 0;
+
+		var result = 0;
+		for (var n = 0; n < count; n++) {
+			var v = this.lw_2(addressAligned + n) | 0;
 			result = (result + v ^ n) | 0;
 		}
 		return result;
@@ -309,11 +331,6 @@ export class Memory {
 		while ((address & 3) != 0) { result += this.lbu(address++) * 7; count--; }
 
 		return result;
-	}
-
-	writeUint8Array(address: number, data: Uint8Array) {
-		for (var n = 0; n < data.length; n++) this.sb(address + n, data[n]);
-		//this._checkWriteBreakpoints(address, address + data.length);
 	}
 
 	static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {

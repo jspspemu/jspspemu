@@ -471,8 +471,7 @@ var ArrayBufferUtils = (function () {
         return new Uint8Array(input.buffer, input.byteOffset + offset, length);
     };
     ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
-        for (var n = 0; n < length; n++)
-            output[outputPosition + n] = input[inputPosition + n];
+        output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
     };
     ArrayBufferUtils.copyUint8ToUint32 = function (from) {
         var to = new Uint32Array(from.length);
@@ -11026,7 +11025,7 @@ var Overlay = (function () {
             element.style.background = 'rgba(0, 0, 0, 0.3)';
             element.style.font = '12px Arial';
             element.style.width = '200px';
-            element.style.height = '200px';
+            element.style.height = 'auto';
             element.style.padding = '4px';
             element.style.color = 'white';
             element.style.whiteSpace = 'pre';
@@ -11068,6 +11067,7 @@ var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
 var totalCommands = overlay.createSection('totalCommands', 0);
 var totalStalls = overlay.createSection('totalStalls', 0);
+var batchCount = overlay.createSection('batchCount', 0);
 var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var timePerFrame = overlay.createSection('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
 var PspGpuList = (function () {
@@ -11090,25 +11090,12 @@ var PspGpuList = (function () {
         this.showOpcodes = false;
         this.opcodes = [];
         this.vertexInfo = new _state.VertexInfo();
+        this.vertexInfo2 = new _state.VertexInfo();
     }
     PspGpuList.prototype.complete = function () {
         this.completed = true;
         this.runner.deallocate(this);
         this.promiseResolve(0);
-    };
-    PspGpuList.prototype.jumpRelativeOffset = function (offset) {
-        this.current4 = (((this.state.baseAddress + offset) >> 2) & Memory.MASK);
-    };
-    PspGpuList.prototype.jumpAbsolute = function (address) {
-        this.current4 = ((address >>> 2) & Memory.MASK);
-    };
-    PspGpuList.prototype.invalidatePrimIf = function (check) {
-        if (check)
-            this.finishPrimBatch();
-        return check;
-    };
-    PspGpuList.prototype.invalidatePrim = function () {
-        this.finishPrimBatch();
     };
     PspGpuList.prototype.finishPrimBatch = function () {
         if (optimizedDrawBuffer.dataOffset > 0) {
@@ -11116,12 +11103,14 @@ var PspGpuList = (function () {
             this.drawDriver.drawOptimized(this.state, optimizedDrawBuffer);
             optimizedDrawBuffer.reset();
             this.primBatchPrimitiveType = -1;
+            batchCount.value++;
         }
         if (vertexBuffer.offsetLength > 0) {
             this.batchPrimCount = 0;
             this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.vertexInfo);
             vertexBuffer.reset();
             this.primBatchPrimitiveType = -1;
+            batchCount.value++;
         }
     };
     PspGpuList.prototype.finish = function () {
@@ -11147,68 +11136,39 @@ var PspGpuList = (function () {
         configurable: true
     });
     PspGpuList.prototype.runUntilStallInner = function () {
-        var mem = this.memory;
+        var memory = this.memory;
         var stall4 = this.stall4;
         var state = this.state;
-        var gpu = this.gpu;
         var totalCommandsLocal = 0;
-        while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
+        var current4 = this.current4;
+        if (stall4 == 0)
+            stall4 = 0x7FFFFFFF;
+        loop: while (current4 < stall4) {
             totalCommandsLocal++;
-            var instructionPC4 = this.current4++;
-            var p = mem.readUInt32_2(instructionPC4);
-            var op = (p >> 24) & 0xFF;
+            var instructionPC4 = current4++;
+            var instruction = memory.lw_2(instructionPC4);
+            var op = (instruction >> 24) & 0xFF;
+            var p = instruction & 0xFFFFFF;
             switch (op) {
-                case 12:
-                case 203:
-                case 4:
+                case 4: {
+                    var primitiveType = param3(p, 16);
+                    if (this.primBatchPrimitiveType != primitiveType)
+                        this.finishPrimBatch();
+                    this.prim(param24(p));
+                    break;
+                }
                 case 5:
-                case 204:
-                case 0:
-                case 255:
-                case 1:
-                case 2:
-                case 19:
-                case 156:
-                case 16:
-                case 8:
-                case 10:
-                case 11:
-                case 14:
-                case 15:
-                case 62:
-                case 63:
-                case 60:
-                case 61:
-                case 58:
-                case 59:
-                case 42:
-                case 43:
-                case 64:
-                case 65:
-                    break;
-                default:
-                    if (state.data[op] != p)
-                        this.invalidatePrim();
-                    break;
-            }
-            state.data[op] = p;
-            switch (op) {
-                case 4:
-                    this.prim(p);
-                    break;
-                case 5:
-                    this.bezier(p);
+                    this.finishPrimBatch();
+                    this.bezier(param24(p));
                     break;
                 case 12:
-                    this.invalidatePrim();
+                    this.finishPrimBatch();
                     this.gpu.driver.end();
                     this.complete();
-                    totalCommands.value += totalCommandsLocal;
-                    totalStalls.value++;
-                    return;
+                    break loop;
                 case 203:
                     this.drawDriver.textureFlush(state);
-                    this.invalidatePrim();
+                    this.finishPrimBatch();
                     break;
                 case 204:
                     this.drawDriver.textureSync(state);
@@ -11216,17 +11176,17 @@ var PspGpuList = (function () {
                 case 0: break;
                 case 255: break;
                 case 8:
-                    this.jumpRelativeOffset(p & ~3);
-                    break;
                 case 10:
-                    this.callstack[this.callstackIndex++] = ((instructionPC4 << 2) + 4);
-                    this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & Memory.MASK));
-                    this.jumpRelativeOffset(p & ~3);
+                    if (op == 10) {
+                        this.callstack[this.callstackIndex++] = ((instructionPC4 << 2) + 4);
+                        this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & Memory.MASK));
+                    }
+                    current4 = (((this.state.baseAddress + (param24(p) & ~3))) >> 2) & Memory.MASK;
                     break;
                 case 11:
                     if (this.callstackIndex > 0 && this.callstackIndex < 1024) {
                         state.baseOffset = this.callstack[--this.callstackIndex];
-                        this.jumpAbsolute(this.callstack[--this.callstackIndex]);
+                        current4 = ((this.callstack[--this.callstackIndex] >>> 2) & Memory.MASK);
                     }
                     else {
                         console.info('gpu callstack empty or overflow');
@@ -11234,7 +11194,7 @@ var PspGpuList = (function () {
                     break;
                 case 15: {
                     this.finish();
-                    var callback = gpu.callbacks.get(this.callbackId);
+                    var callback = this.gpu.callbacks.get(this.callbackId);
                     if (callback && callback.cpuState && callback.finishFunction) {
                         this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [param24(p), callback.finishArgument]);
                     }
@@ -11245,92 +11205,81 @@ var PspGpuList = (function () {
                     break;
                 case 62:
                     state.projectionMatrix.reset(param24(p));
+                    this.finishPrimBatch();
                     break;
-                case 63: {
-                    var v = float1(p);
-                    if (!state.projectionMatrix.check(v)) {
-                        this.invalidatePrim();
-                        state.projectionMatrix.put(param24(v));
-                    }
+                case 63:
+                    state.projectionMatrix.put(float1(p));
                     break;
-                }
-                case 60: {
+                case 60:
                     state.viewMatrix.reset(param24(p));
+                    this.finishPrimBatch();
                     break;
-                }
-                case 61: {
-                    var v = float1(p);
-                    if (!state.viewMatrix.check(v)) {
-                        this.invalidatePrim();
-                        state.viewMatrix.put(v);
-                    }
+                case 61:
+                    state.viewMatrix.put(float1(p));
                     break;
-                }
-                case 58: {
+                case 58:
                     state.worldMatrix.reset(param24(p));
+                    this.finishPrimBatch();
                     break;
-                }
-                case 59: {
-                    var v = float1(p);
-                    if (!state.worldMatrix.check(v)) {
-                        this.invalidatePrim();
-                        state.worldMatrix.put(v);
-                    }
+                case 59:
+                    state.worldMatrix.put(float1(p));
                     break;
-                }
-                case 42: {
+                case 42:
                     state.skinning.setCurrentBoneIndex(param24(p));
+                    this.finishPrimBatch();
                     break;
-                }
-                case 43: {
-                    var v = float1(p);
-                    if (!state.skinning.check(v)) {
-                        this.invalidatePrim();
-                        state.skinning.write(v);
-                    }
+                case 43:
+                    state.skinning.write(float1(p));
                     break;
-                }
-                case 64: {
+                case 64:
                     state.texture.matrix.reset(param24(p));
+                    this.finishPrimBatch();
                     break;
-                }
-                case 65: {
-                    var v = float1(p);
-                    if (!state.texture.matrix.check(v)) {
-                        this.invalidatePrim();
-                        state.texture.matrix.put(v);
-                    }
+                case 65:
+                    state.texture.matrix.put(float1(p));
                     break;
-                }
+                case 16:
+                case 2:
+                case 1:
+                    break;
+                default:
+                    if (state.data[op] != p)
+                        this.finishPrimBatch();
+                    break;
             }
+            state.data[op] = p;
         }
+        this.current4 = current4;
         totalStalls.value++;
         totalCommands.value += totalCommandsLocal;
         this.status = (this.isStalled) ? 3 : 0;
     };
     PspGpuList.prototype.prim = function (p) {
         var state = this.state;
-        var primitiveType = param3(p, 16);
         var vertexCount = param16(p, 0);
-        var list = this;
-        if (list.primBatchPrimitiveType != primitiveType)
-            list.finishPrimBatch();
+        var primitiveType = param3(p, 16);
         if (vertexCount <= 0)
             return;
-        list.primBatchPrimitiveType = primitiveType;
-        list.primCount++;
+        this.primBatchPrimitiveType = primitiveType;
+        this.primCount++;
         var vertexInfo = this.vertexInfo.setState(this.state);
         var vertexState = state.vertex;
         var vertexSize = vertexInfo.size;
         var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
         var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
+        var hasIndices = false;
         var indices = null;
         switch (vertexInfo.index) {
+            case 0:
+                hasIndices = false;
+                break;
             case 1:
-                indices = list.memory.getU8Array(indicesAddress, vertexCount);
+                hasIndices = true;
+                indices = this.memory.getPointerU8Array(indicesAddress, vertexCount);
                 break;
             case 2:
-                indices = list.memory.getU16Array(indicesAddress, vertexCount * 2);
+                hasIndices = true;
+                indices = this.memory.getPointerU16Array(indicesAddress, vertexCount * 2);
                 break;
         }
         if (vertexInfo.index == 0) {
@@ -11340,9 +11289,11 @@ var PspGpuList = (function () {
             overlayIndexCount.value += 1;
         }
         overlayVertexCount.value += vertexCount;
-        var vertexInput = list.memory.getPointerU8Array(vertexAddress, indices ? undefined : (vertexSize * vertexCount));
-        if (vertexInfo.address && !vertexInfo.hasIndex)
+        var vertexInput = this.memory.getPointerU8Array(vertexAddress, hasIndices ? undefined : (vertexSize * vertexCount));
+        if (vertexInfo.address && !vertexInfo.hasIndex) {
             vertexInfo.address += vertexInfo.size * vertexCount;
+            this.state.vertex.address = vertexInfo.address;
+        }
         var drawType = PrimDrawType.SINGLE_DRAW;
         switch (primitiveType) {
             case 3:
@@ -11378,7 +11329,7 @@ var PspGpuList = (function () {
             optimizedCount.value++;
         else
             nonOptimizedCount.value++;
-        var mustDegenerate = (list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
+        var mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
         if (optimized) {
             optimizedDrawBuffer.primType = primitiveType;
             optimizedDrawBuffer.vertexInfo = vertexInfo;
@@ -11396,26 +11347,53 @@ var PspGpuList = (function () {
                 vertexBuffer.endDegenerateTriangleStrip();
         }
         if (drawType == PrimDrawType.SINGLE_DRAW) {
-            list.finishPrimBatch();
+            this.finishPrimBatch();
         }
         else {
-            list.batchPrimCount++;
+            this.batchPrimCount++;
         }
     };
     PspGpuList.prototype.bezier = function (p) {
         var state = this.state;
-        this.invalidatePrim();
+        var ucount = param8(p, 0);
+        var vcount = param8(p, 8);
+        var divs = state.patch.divs;
+        var divt = state.patch.divt;
+        var vertexState = state.vertex;
+        var vertexInfo2 = this.vertexInfo2.setState(state);
+        var vertexReader = _vertex.VertexReaderFactory.get(vertexInfo2);
+        var vertexAddress = state.getAddressRelativeToBaseOffset(state.vertex.address);
+        var vertexInput = this.memory.getPointerU8Array(vertexAddress);
+        vertexInfo2.texture = 3;
+        var getBezierControlPoints = function (ucount, vcount) {
+            var controlPoints = ArrayUtils.create2D(ucount, vcount);
+            var mipmap = state.texture.mipmaps[0];
+            var scale = mipmap.textureWidth / mipmap.bufferWidth;
+            for (var u = 0; u < ucount; u++) {
+                for (var v = 0; v < vcount; v++) {
+                    var vertex = vertexReader.readOne(vertexInput, v * ucount + u);
+                    ;
+                    controlPoints[u][v] = vertex;
+                    vertex.tx = (u / (ucount - 1)) * scale;
+                    vertex.ty = (v / (vcount - 1));
+                }
+            }
+            return controlPoints;
+        };
+        var controlPoints = getBezierControlPoints(ucount, vcount);
+        var vertices2 = [];
+        vertices2.push(controlPoints[0][0]);
+        vertices2.push(controlPoints[ucount - 1][0]);
+        vertices2.push(controlPoints[0][vcount - 1]);
+        vertices2.push(controlPoints[ucount - 1][0]);
+        vertices2.push(controlPoints[ucount - 1][vcount - 1]);
+        vertices2.push(controlPoints[0][vcount - 1]);
+        this.drawDriver.drawElements(state, 3, vertices2, vertices2.length, vertexInfo2);
     };
     PspGpuList.prototype.runUntilStall = function () {
         this.status = 2;
         while (this.hasMoreInstructions) {
-            try {
-                this.runUntilStallInner();
-            }
-            catch (e) {
-                console.log(e);
-                console.log(e['stack']);
-            }
+            this.runUntilStallInner();
         }
     };
     PspGpuList.prototype.enqueueRunUntilStall = function () {
@@ -11579,6 +11557,7 @@ overlay.update();
 "src/core/gpu/state": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 function bool1(p) { return p != 0; }
+function parambool(p, offset) { return ((p >> offset) & 0x1) != 0; }
 function param1(p, offset) { return (p >> offset) & 0x1; }
 function param2(p, offset) { return (p >> offset) & 0x3; }
 function param3(p, offset) { return (p >> offset) & 0x7; }
@@ -11712,19 +11691,25 @@ var VertexInfo = (function () {
     };
     VertexInfo.prototype.setState = function (state) {
         var vstate = state.vertex;
-        this.textureComponentsCount = state.texture.textureComponentsCount;
-        this.value = vstate.value;
-        this.reversedNormal = vstate.reversedNormal;
         this.address = vstate.address;
-        this.texture = vstate.texture;
-        this.color = vstate.color;
-        this.normal = vstate.normal;
-        this.position = vstate.position;
-        this.weight = vstate.weight;
-        this.index = vstate.index;
-        this.weightCount = vstate.weightCount;
-        this.morphingVertexCount = vstate.morphingVertexCount;
-        this.transform2D = vstate.transform2D;
+        if ((this.value != vstate.value) || (this.textureComponentsCount != state.texture.textureComponentsCount) || (this.reversedNormal != vstate.reversedNormal)) {
+            this.textureComponentsCount = state.texture.textureComponentsCount;
+            this.reversedNormal = vstate.reversedNormal;
+            this.value = vstate.value;
+            this.texture = vstate.texture;
+            this.color = vstate.color;
+            this.normal = vstate.normal;
+            this.position = vstate.position;
+            this.weight = vstate.weight;
+            this.index = vstate.index;
+            this.weightCount = vstate.weightCount;
+            this.morphingVertexCount = vstate.morphingVertexCount;
+            this.transform2D = vstate.transform2D;
+            this.updateSizeAndPositions();
+        }
+        return this;
+    };
+    VertexInfo.prototype.updateSizeAndPositions = function () {
         this.weightSize = VertexInfo.NumericEnumSizes[this.weight];
         this.colorSize = VertexInfo.ColorEnumSizes[this.color];
         this.textureSize = VertexInfo.NumericEnumSizes[this.texture];
@@ -11748,7 +11733,6 @@ var VertexInfo = (function () {
         this.size += 3 * this.positionSize;
         var alignmentSize = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
         this.size = MathUtils.nextAligned(this.size, alignmentSize);
-        return this;
     };
     VertexInfo.prototype.oneWeightOffset = function (n) {
         return this.weightOffset + this.weightSize * n;
@@ -11871,51 +11855,52 @@ var VertexState = (function () {
     });
     Object.defineProperty(VertexState.prototype, "address", {
         get: function () { return param24(this.data[1]); },
+        set: function (value) { this.data[1] = value | (1 << 24); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "texture", {
-        get: function () { return BitUtils.extractEnum(this.value, 0, 2); },
+        get: function () { return param2(this.data[18], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "color", {
-        get: function () { return BitUtils.extractEnum(this.value, 2, 3); },
+        get: function () { return param3(this.data[18], 2); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "normal", {
-        get: function () { return BitUtils.extractEnum(this.value, 5, 2); },
+        get: function () { return param2(this.data[18], 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "position", {
-        get: function () { return BitUtils.extractEnum(this.value, 7, 2); },
+        get: function () { return param2(this.data[18], 7); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weight", {
-        get: function () { return BitUtils.extractEnum(this.value, 9, 2); },
+        get: function () { return param2(this.data[18], 9); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "index", {
-        get: function () { return BitUtils.extractEnum(this.value, 11, 2); },
+        get: function () { return param2(this.data[18], 11); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weightCount", {
-        get: function () { return BitUtils.extract(this.value, 14, 3); },
+        get: function () { return param3(this.data[18], 14); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
-        get: function () { return BitUtils.extract(this.value, 18, 2); },
+        get: function () { return param2(this.data[18], 18); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "transform2D", {
-        get: function () { return BitUtils.extractBool(this.value, 23); },
+        get: function () { return parambool(this.data[18], 23); },
         enumerable: true,
         configurable: true
     });
@@ -11985,32 +11970,32 @@ var ViewPort = (function () {
         this.data = data;
     }
     Object.defineProperty(ViewPort.prototype, "x", {
-        get: function () { return float1(this.data[66]); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ViewPort.prototype, "y", {
-        get: function () { return float1(this.data[67]); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ViewPort.prototype, "z", {
-        get: function () { return float1(this.data[68]); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(ViewPort.prototype, "width", {
         get: function () { return float1(this.data[69]); },
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(ViewPort.prototype, "height", {
+    Object.defineProperty(ViewPort.prototype, "y", {
         get: function () { return float1(this.data[70]); },
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(ViewPort.prototype, "depth", {
+    Object.defineProperty(ViewPort.prototype, "z", {
         get: function () { return float1(this.data[71]); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ViewPort.prototype, "width", {
+        get: function () { return float1(this.data[66]); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ViewPort.prototype, "height", {
+        get: function () { return float1(this.data[67]); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ViewPort.prototype, "depth", {
+        get: function () { return float1(this.data[68]); },
         enumerable: true,
         configurable: true
     });
@@ -14066,7 +14051,7 @@ var TextureHandler = (function () {
         var clutState = state.texture.clut;
         var hash1 = Clut.hashFast(state);
         _clut = this.clutsByHash1.get(hash1);
-        if (this.mustRecheckSlowHashClut(_clut)) {
+        if (true) {
             var hash2 = Clut.hashSlow(this.memory, state);
             this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
             _clut = this.clutsByHash2.get(hash2);
@@ -14925,17 +14910,6 @@ var Memory = (function () {
     Memory.prototype.addWriteAction = function (address, action) {
         this.writeBreakpoints.push({ address: address, action: action });
     };
-    Memory.prototype._checkWriteBreakpoints = function (start, end) {
-        start &= FastMemory.MASK;
-        end &= FastMemory.MASK;
-        for (var n = 0; n < this.writeBreakpoints.length; n++) {
-            var writeBreakpoint = this.writeBreakpoints[n];
-            var addressCheck = writeBreakpoint.address & FastMemory.MASK;
-            if (addressCheck >= start && addressCheck < end) {
-                writeBreakpoint.action(writeBreakpoint.address);
-            }
-        }
-    };
     Memory.prototype.readArrayBuffer = function (address, length) {
         var out = new Uint8Array(length);
         out.set(this.getPointerU8Array(address, length));
@@ -14957,39 +14931,38 @@ var Memory = (function () {
     };
     Memory.prototype.memset = function (address, value, length) {
         var buffer = this.getPointerU8Array(address, length);
-        for (var n = 0; n < buffer.length; n++)
-            buffer[n] = value & 0xFF;
-        this._checkWriteBreakpoints(address, address + length);
+        if (typeof buffer.fill != 'undefined') {
+            buffer.fill(value);
+        }
+        else {
+            var value8 = value & 0xFF;
+            for (var n = 0; n < buffer.length; n++)
+                buffer[n] = value8;
+        }
     };
     Memory.prototype.writeBytes = function (address, data) {
         this.getPointerU8Array(address, data.byteLength).set(new Uint8Array(data));
-        this._checkWriteBreakpoints(address, address + data.byteLength);
+    };
+    Memory.prototype.writeUint8Array = function (address, data) {
+        this.getPointerU8Array(address, data.length).set(data);
     };
     Memory.prototype.writeStream = function (address, stream) {
-        stream = stream.sliceWithLength(0, stream.length);
-        while (stream.available > 0) {
-            this.sb(address++, stream.readUInt8());
-        }
-        this._checkWriteBreakpoints(address, address + stream.length);
+        this.writeUint8Array(address, stream.slice().readAllBytes());
     };
     Memory.prototype.readStringz = function (address) {
         if (address == 0)
             return null;
-        var out = '';
-        while (true) {
-            var _char = this.lbu(address++);
-            if (_char == 0)
-                break;
-            out += String.fromCharCode(_char);
-        }
-        return out;
+        var endAddress = address;
+        while (this.lbu(endAddress) != 0)
+            endAddress++;
+        return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
     };
-    Memory.prototype.hashWordCount = function (addressAligned, count) {
-        addressAligned >>>= 2;
-        count >>>= 2;
+    Memory.prototype.hashWordCount = function (_addressAligned, _count) {
+        var addressAligned = (_addressAligned >>> 2) | 0;
+        var count = (_count >>> 2) | 0;
         var result = 0;
         for (var n = 0; n < count; n++) {
-            var v = this.lw_2(addressAligned + n);
+            var v = this.lw_2(addressAligned + n) | 0;
             result = (result + v ^ n) | 0;
         }
         return result;
@@ -15010,10 +14983,6 @@ var Memory = (function () {
             count--;
         }
         return result;
-    };
-    Memory.prototype.writeUint8Array = function (address, data) {
-        for (var n = 0; n < data.length; n++)
-            this.sb(address + n, data[n]);
     };
     Memory.memoryCopy = function (source, sourcePosition, destination, destinationPosition, length) {
         var _source = new Uint8Array(source, sourcePosition, length);
@@ -27868,19 +27837,20 @@ var VertexReaderFactory = _gpu.VertexReaderFactory;
 describe('gpu', function () {
     describe('vertex reading', function () {
         it('should work', function () {
-            var vertexState = new _state.VertexState();
-            vertexState.size = 10;
-            vertexState.texture = 0;
-            vertexState.color = 0;
-            vertexState.normal = 0;
-            vertexState.position = 2;
-            vertexState.weight = 0;
-            vertexState.index = 0;
-            vertexState.weightCount = 1;
-            vertexState.morphingVertexCount = 1;
-            vertexState.transform2D = true;
-            vertexState.textureComponentCount = 2;
-            var vertexReader = VertexReaderFactory.get(vertexState);
+            var vertexInfo = new _state.VertexInfo();
+            vertexInfo.size = 10;
+            vertexInfo.texture = 0;
+            vertexInfo.color = 0;
+            vertexInfo.normal = 0;
+            vertexInfo.position = 2;
+            vertexInfo.weight = 0;
+            vertexInfo.index = 0;
+            vertexInfo.weightCount = 1;
+            vertexInfo.morphingVertexCount = 1;
+            vertexInfo.transform2D = true;
+            vertexInfo.textureComponentsCount = 2;
+            vertexInfo.updateSizeAndPositions();
+            var vertexReader = VertexReaderFactory.get(vertexInfo);
             var vi2 = new ArrayBuffer(128);
             var vi8 = new Uint8Array(vi2);
             var vertexInput = new DataView(vi2);
@@ -27892,7 +27862,7 @@ describe('gpu', function () {
             vertexInput.setInt16(14, 400, true);
             var vertex1 = new _state.Vertex();
             var vertex2 = new _state.Vertex();
-            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexState.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexInfo.hasIndex);
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
             assert.equal(vertex1.pz, 0);

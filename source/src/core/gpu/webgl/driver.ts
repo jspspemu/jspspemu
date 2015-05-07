@@ -95,7 +95,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.worldMatrix = worldMatrix;
 		//mat4.copy(this.transformMatrix, this.projectionMatrix.values);
 		mat4.identity(this.transformMatrix);
-
 		mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
 		mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
 		mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
@@ -246,6 +245,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 
 		var ratio = this.getScaleRatio();
 		this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
+		//this.gl.viewport(0, 0, 1440, 816);
 	}
 
 	private updateState(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {

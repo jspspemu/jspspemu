@@ -342,7 +342,7 @@ class Stream {
 		return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
 	}
 
-	readAllBytes() {
+	readAllBytes():Uint8Array {
 		return this.readBytes(this.available);
 	}
 

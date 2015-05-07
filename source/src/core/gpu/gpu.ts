@@ -79,7 +79,7 @@ class Overlay {
 			element.style.background = 'rgba(0, 0, 0, 0.3)';
 			element.style.font = '12px Arial';
 			element.style.width = '200px';
-			element.style.height = '200px';
+			element.style.height = 'auto';
 			element.style.padding = '4px';
 			element.style.color = 'white';
 			element.style.whiteSpace = 'pre';
@@ -121,6 +121,7 @@ var nonOptimizedCount = overlay.createSection('nonOptimizedCount', 0);
 var hashMemoryCount = overlay.createSection('hashMemoryCount', 0);
 var totalCommands = overlay.createSection('totalCommands', 0);
 var totalStalls = overlay.createSection('totalStalls', 0);
+var batchCount = overlay.createSection('batchCount', 0);
 var hashMemorySize = overlay.createSection('hashMemorySize', 0, numberToFileSize);
 var timePerFrame = overlay.createSection('time', 0, (v) => `${v.toFixed(0) } ms`);
 
@@ -145,27 +146,10 @@ class PspGpuList {
 		this.promiseResolve(0);
     }
 
-    jumpRelativeOffset(offset: number) {
-		this.current4 = (((this.state.baseAddress + offset) >> 2) & Memory.MASK);
-	}
-
-	jumpAbsolute(address: number) {
-		this.current4 = ((address >>> 2) & Memory.MASK);
-	}
-
 	callstack = new Int32Array(1024);
 	callstackIndex = 0;
 
 	primBatchPrimitiveType: number = -1;
-
-	invalidatePrimIf(check: boolean) {
-		if (check) this.finishPrimBatch();
-		return check;
-	}
-
-	invalidatePrim() {
-		this.finishPrimBatch();
-	}
 
 	finishPrimBatch() {
 		if (optimizedDrawBuffer.dataOffset > 0) {
@@ -173,12 +157,14 @@ class PspGpuList {
 			this.drawDriver.drawOptimized(this.state, optimizedDrawBuffer);
 			optimizedDrawBuffer.reset();
 			this.primBatchPrimitiveType = -1;
+			batchCount.value++;
 		}
 		if (vertexBuffer.offsetLength > 0) {
 			this.batchPrimCount = 0;
 			this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.vertexInfo);
 			vertexBuffer.reset();
 			this.primBatchPrimitiveType = -1;
+			batchCount.value++;
 		}
 	}
 
@@ -206,70 +192,60 @@ class PspGpuList {
 	}
 
 	private runUntilStallInner() {
-		var mem = this.memory;
-		//var showOpcodes = this.showOpcodes;
-		var stall4 = this.stall4;
-		var state = this.state;
-		var gpu = this.gpu;
-
-		var totalCommandsLocal = 0;
-
-		//while (this.hasMoreInstructions) {
-		while (!this.completed && ((stall4 == 0) || (this.current4 < stall4))) {
+		let memory = this.memory;
+		//let showOpcodes = this.showOpcodes;
+		let stall4 = this.stall4;
+		let state = this.state;
+		let totalCommandsLocal = 0;
+		let current4 = this.current4;
+		if (stall4 == 0) stall4 = 0x7FFFFFFF;
+		
+		loop: while (current4 < stall4) {
 			totalCommandsLocal++;
-			var instructionPC4 = this.current4++;
-			var p = mem.readUInt32_2(instructionPC4);
-			var op = (p >> 24) & 0xFF;
-
+			let instructionPC4 = current4++;
+			let instruction = memory.lw_2(instructionPC4);
+			let op = (instruction >> 24) & 0xFF;
+			let p = instruction & 0xFFFFFF; 
+			
 			switch (op) {
-				case Op.END: case Op.TFLUSH: case Op.PRIM: case Op.BEZIER:
-				case Op.TSYNC: case Op.NOP: case Op.DUMMY: case Op.VADDR:
-				case Op.IADDR: case Op.OFFSETADDR: case Op.FRAMEBUFPTR:
-				case Op.BASE: case Op.JUMP: case Op.CALL: case Op.RET: case Op.SIGNAL: case Op.FINISH:
-				case Op.PROJMATRIXNUMBER: case Op.PROJMATRIXDATA:
-				case Op.VIEWMATRIXNUMBER: case Op.VIEWMATRIXDATA:
-				case Op.WORLDMATRIXNUMBER: case Op.WORLDMATRIXDATA:
-				case Op.BONEMATRIXNUMBER: case Op.BONEMATRIXDATA:
-				case Op.TGENMATRIXNUMBER: case Op.TGENMATRIXDATA:
+				case Op.PRIM: {
+					let primitiveType = <_state.PrimitiveType>param3(p, 16);
+					if (this.primBatchPrimitiveType != primitiveType) this.finishPrimBatch();
+					this.prim(param24(p));
 					break;
-				default:
-					if (state.data[op] != p) this.invalidatePrim();
+				}
+				case Op.BEZIER:
+					this.finishPrimBatch();
+					this.bezier(param24(p));
 					break;
-			}
-
-			state.data[op] = p;
-
-			switch (op) {
-				case Op.PRIM: this.prim(p); break;
-				case Op.BEZIER: this.bezier(p); break;
 				case Op.END:
-					this.invalidatePrim();
+					this.finishPrimBatch();
 					this.gpu.driver.end();
 					this.complete();
-					totalCommands.value += totalCommandsLocal;
-					totalStalls.value++;
-					return;
-				case Op.TFLUSH: this.drawDriver.textureFlush(state); this.invalidatePrim(); break;
+					break loop;
+				case Op.TFLUSH: this.drawDriver.textureFlush(state); this.finishPrimBatch(); break;
 				case Op.TSYNC: this.drawDriver.textureSync(state); break;
 				case Op.NOP: break;
 				case Op.DUMMY: break;
-				case Op.JUMP: this.jumpRelativeOffset(p & ~3); break;
+				case Op.JUMP:
 				case Op.CALL:
-					this.callstack[this.callstackIndex++] = ((instructionPC4 << 2) + 4);
-					this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & Memory.MASK));
-					this.jumpRelativeOffset(p & ~3);
+					if (op == Op.CALL) {
+						this.callstack[this.callstackIndex++] = ((instructionPC4 << 2) + 4);
+						this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & Memory.MASK));
+					}
+					current4 = (((this.state.baseAddress + (param24(p) & ~3))) >> 2) & Memory.MASK;
 					break;
 				case Op.RET:
 					if (this.callstackIndex > 0 && this.callstackIndex < 1024) {
 						state.baseOffset = this.callstack[--this.callstackIndex];
-						this.jumpAbsolute(this.callstack[--this.callstackIndex]);
+						current4 = ((this.callstack[--this.callstackIndex] >>> 2) & Memory.MASK);
 					} else {
 						console.info('gpu callstack empty or overflow');
 					}
 					break;
 				case Op.FINISH: {
 					this.finish();
-					let callback = gpu.callbacks.get(this.callbackId);
+					let callback = this.gpu.callbacks.get(this.callbackId);
 					if (callback && callback.cpuState && callback.finishFunction) {
 						this.cpuExecutor.execute(callback.cpuState, callback.finishFunction, [param24(p), callback.finishArgument]);
 					}
@@ -277,23 +253,33 @@ class PspGpuList {
 				}
 				case Op.SIGNAL: console.warn('Not implemented: GPU SIGNAL'); break;
 
-				case Op.PROJMATRIXNUMBER: state.projectionMatrix.reset(param24(p)); break;
-				case Op.PROJMATRIXDATA: { let v = float1(p); if (!state.projectionMatrix.check(v)) { this.invalidatePrim(); state.projectionMatrix.put(param24(v)); } break; }
+				case Op.PROJMATRIXNUMBER: state.projectionMatrix.reset(param24(p)); this.finishPrimBatch(); break;
+				case Op.PROJMATRIXDATA: state.projectionMatrix.put(float1(p)); break;
 				
-				case Op.VIEWMATRIXNUMBER: { state.viewMatrix.reset(param24(p)); break; }
-				case Op.VIEWMATRIXDATA: { let v = float1(p); if (!state.viewMatrix.check(v)) { this.invalidatePrim(); state.viewMatrix.put(v); } break; }
+				case Op.VIEWMATRIXNUMBER: state.viewMatrix.reset(param24(p)); this.finishPrimBatch(); break;
+				case Op.VIEWMATRIXDATA: state.viewMatrix.put(float1(p)); break;
 				
-				case Op.WORLDMATRIXNUMBER: { state.worldMatrix.reset(param24(p)); break; }
-				case Op.WORLDMATRIXDATA: { let v = float1(p); if (!state.worldMatrix.check(v)) { this.invalidatePrim(); state.worldMatrix.put(v); } break; }
+				case Op.WORLDMATRIXNUMBER: state.worldMatrix.reset(param24(p)); this.finishPrimBatch(); break;
+				case Op.WORLDMATRIXDATA: state.worldMatrix.put(float1(p)); break;
 				
-				case Op.BONEMATRIXNUMBER: { state.skinning.setCurrentBoneIndex(param24(p)); break; }
-				case Op.BONEMATRIXDATA: { let v = float1(p); if (!state.skinning.check(v)) { this.invalidatePrim(); state.skinning.write(v); } break; }
+				case Op.BONEMATRIXNUMBER: state.skinning.setCurrentBoneIndex(param24(p)); this.finishPrimBatch(); break;
+				case Op.BONEMATRIXDATA: state.skinning.write(float1(p)); break;
 				
-				case Op.TGENMATRIXNUMBER: { state.texture.matrix.reset(param24(p)); break; }
-				case Op.TGENMATRIXDATA: { let v = float1(p); if (!state.texture.matrix.check(v)) { this.invalidatePrim(); state.texture.matrix.put(v); } break; }
-			}
+				case Op.TGENMATRIXNUMBER: state.texture.matrix.reset(param24(p)); this.finishPrimBatch(); break;
+				case Op.TGENMATRIXDATA: state.texture.matrix.put(float1(p)); break;
+				
+				// No invalidate prim
+				case Op.BASE:
+				case Op.IADDR:
+				case Op.VADDR:
+				break;
 
+				default: if (state.data[op] != p) this.finishPrimBatch(); break;
+			}
+			state.data[op] = p;
 		}
+		
+		this.current4 = current4;
 		totalStalls.value++;
 		totalCommands.value += totalCommandsLocal;
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
@@ -302,16 +288,14 @@ class PspGpuList {
 	vertexInfo = new _state.VertexInfo();
 	private prim(p: number) {
 		let state = this.state;
-		let primitiveType = <_state.PrimitiveType>param3(p, 16);
 		let vertexCount = param16(p, 0);
-		let list = this;
+		let primitiveType = <_state.PrimitiveType>param3(p, 16);
 
-		if (list.primBatchPrimitiveType != primitiveType) list.finishPrimBatch();
 		if (vertexCount <= 0) return;
 
-		list.primBatchPrimitiveType = primitiveType;
+		this.primBatchPrimitiveType = primitiveType;
 
-		list.primCount++;
+		this.primCount++;
 
 		var vertexInfo = this.vertexInfo.setState(this.state) 
 		let vertexState = state.vertex;
@@ -319,10 +303,12 @@ class PspGpuList {
 		let vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
 		let indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
 
+		let hasIndices = false;
 		let indices: any = null;
 		switch (vertexInfo.index) {
-			case _state.IndexEnum.Byte: indices = list.memory.getU8Array(indicesAddress, vertexCount); break;
-			case _state.IndexEnum.Short: indices = list.memory.getU16Array(indicesAddress, vertexCount * 2); break;
+			case _state.IndexEnum.Void: hasIndices = false; break;
+			case _state.IndexEnum.Byte: hasIndices = true; indices = this.memory.getPointerU8Array(indicesAddress, vertexCount); break;
+			case _state.IndexEnum.Short: hasIndices = true; indices = this.memory.getPointerU16Array(indicesAddress, vertexCount * 2); break;
 		}
 
 		if (vertexInfo.index == _state.IndexEnum.Void) {
@@ -335,8 +321,11 @@ class PspGpuList {
 		
 		//if (vertexState.realWeightCount > 0) debugger;
 		
-		let vertexInput: Uint8Array = list.memory.getPointerU8Array(vertexAddress, indices ? undefined : (vertexSize * vertexCount));
-		if (vertexInfo.address && !vertexInfo.hasIndex) vertexInfo.address += vertexInfo.size * vertexCount;
+		let vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress, hasIndices ? undefined : (vertexSize * vertexCount));
+		if (vertexInfo.address && !vertexInfo.hasIndex) {
+			vertexInfo.address += vertexInfo.size * vertexCount;
+			this.state.vertex.address = vertexInfo.address;
+		}
 
 		let drawType = PrimDrawType.SINGLE_DRAW;
 
@@ -367,7 +356,7 @@ class PspGpuList {
 
 		if (optimized) optimizedCount.value++; else nonOptimizedCount.value++;
 
-		let mustDegenerate = (list.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
+		let mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
 
 		if (optimized) {
 			optimizedDrawBuffer.primType = primitiveType;
@@ -383,28 +372,27 @@ class PspGpuList {
 		}
 
 		if (drawType == PrimDrawType.SINGLE_DRAW) {
-			list.finishPrimBatch();
+			this.finishPrimBatch();
 		} else {
-			list.batchPrimCount++;
+			this.batchPrimCount++;
 		}
 	}
 	
+	vertexInfo2:_state.VertexInfo = new _state.VertexInfo();
 	private bezier(p:number) {
 		let state = this.state;
-		this.invalidatePrim();
 
-		/*
 		let ucount = param8(p, 0);
 		let vcount = param8(p, 8);
 		let divs = state.patch.divs;
 		let divt = state.patch.divt;
 		let vertexState = state.vertex;
-		let vertexReader = _vertex.VertexReaderFactory.get(vertexState);
+		let vertexInfo2 = this.vertexInfo2.setState(state);
+		let vertexReader = _vertex.VertexReaderFactory.get(vertexInfo2);
 		let vertexAddress = state.getAddressRelativeToBaseOffset(state.vertex.address);
 		let vertexInput = this.memory.getPointerU8Array(vertexAddress);
 
-		let vertexInfo2 = vertexInfo.clone();
-		vertexState2.texture = _state.NumericEnum.Float;
+		vertexInfo2.texture = _state.NumericEnum.Float;
 
 		let getBezierControlPoints = (ucount: number, vcount: number) => {
 			let controlPoints = ArrayUtils.create2D<_state.Vertex>(ucount, vcount);
@@ -433,19 +421,20 @@ class PspGpuList {
 		vertices2.push(controlPoints[ucount - 1][vcount - 1]);
 		vertices2.push(controlPoints[0][vcount - 1]);
 
-		this.drawDriver.drawElements(state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexState2);
-		*/
+		this.drawDriver.drawElements(state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexInfo2);
 	}
 
 	private runUntilStall() {
 		this.status = DisplayListStatus.Drawing;
 		while (this.hasMoreInstructions) {
-			try {
+			//try {
 				this.runUntilStallInner();
+				/*
 			} catch (e) {
 				console.log(e);
 				console.log(e['stack']);
 			}
+			*/
 		}
     }
 

@@ -501,10 +501,11 @@ class ArrayBufferUtils {
 		return new Uint8Array(input.buffer, input.byteOffset + offset, length);
 	}
 	
+	// http://jsperf.com/test-memory-copying
 	static copy(input: Uint8Array, inputPosition: number, output: Uint8Array, outputPosition: number, length: number) {
 		//new Uint8Array(output.buffer, output.byteOffset + outputPosition, length).set(new Uint8Array(input.buffer, input.byteOffset + inputPosition, length));
-		//output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
-		for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+		output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+		//for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
 	}
 	
 	static copyUint8ToUint32(from: Uint8Array) {

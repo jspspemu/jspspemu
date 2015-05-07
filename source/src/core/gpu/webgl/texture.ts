@@ -420,7 +420,8 @@ export class TextureHandler {
 		var hash1 = Clut.hashFast(state);
 		_clut = this.clutsByHash1.get(hash1);
 		
-		if (this.mustRecheckSlowHashClut(_clut)) {
+		//if (this.mustRecheckSlowHashClut(_clut)) {
+		if (true) {
 			var hash2 = Clut.hashSlow(this.memory, state);
 			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
 			

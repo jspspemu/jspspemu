@@ -8,21 +8,22 @@ import VertexReaderFactory = _gpu.VertexReaderFactory;
 describe('gpu', () => {
     describe('vertex reading', () => {
 		it('should work', () => {
-			var vertexState = new _state.VertexState();
-			vertexState.size = 10;
+			var vertexInfo = new _state.VertexInfo();
+			vertexInfo.size = 10;
 		
-			vertexState.texture = _state.NumericEnum.Void;
-			vertexState.color = _state.ColorEnum.Void;
-			vertexState.normal = _state.NumericEnum.Void;
-			vertexState.position = _state.NumericEnum.Short;
-			vertexState.weight = _state.NumericEnum.Void;
-			vertexState.index = _state.IndexEnum.Void;
-			vertexState.weightCount = 1;
-			vertexState.morphingVertexCount = 1;
-			vertexState.transform2D = true;
-			vertexState.textureComponentCount = 2;
+			vertexInfo.texture = _state.NumericEnum.Void;
+			vertexInfo.color = _state.ColorEnum.Void;
+			vertexInfo.normal = _state.NumericEnum.Void;
+			vertexInfo.position = _state.NumericEnum.Short;
+			vertexInfo.weight = _state.NumericEnum.Void;
+			vertexInfo.index = _state.IndexEnum.Void;
+			vertexInfo.weightCount = 1;
+			vertexInfo.morphingVertexCount = 1;
+			vertexInfo.transform2D = true;
+			vertexInfo.textureComponentsCount = 2;
+            vertexInfo.updateSizeAndPositions();
 
-			var vertexReader = VertexReaderFactory.get(vertexState)
+			var vertexReader = VertexReaderFactory.get(vertexInfo)
 
             var vi2 = new ArrayBuffer(128);
             var vi8 = new Uint8Array(vi2);
@@ -40,7 +41,7 @@ describe('gpu', () => {
 
             //console.log(vertexReader.readCode);
 
-            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexState.hasIndex);
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, null, 2, vertexInfo.hasIndex);
 
             assert.equal(vertex1.px, 100);
             assert.equal(vertex1.py, 200);
