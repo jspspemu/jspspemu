@@ -520,12 +520,10 @@ class ArrayBufferUtils {
 		return to;
 	}
 
-	static cloneBytes(input: Uint8Array) {
-		var out = new Uint8Array(input.length);
-		out.set(input);
-		return out;
-	}
-
+	static cloneUint8Array(input: Uint8Array) { var out = new Uint8Array(input.length); out.set(input); return out; }
+	static cloneUint16Array(input: Uint16Array) { var out = new Uint16Array(input.length); out.set(input); return out; }
+	static cloneUint32Array(input: Uint16Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
+	
 	static concat(chunks: ArrayBuffer[]) {
 		var tmp = new Uint8Array(chunks.sum(chunk => chunk.byteLength));
 		var offset = 0;

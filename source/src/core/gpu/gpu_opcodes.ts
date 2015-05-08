@@ -65,4 +65,11 @@ export const enum GpuOpCodes {
 	Unknown0xF4 = 0xF4, Unknown0xF5 = 0xF5, Unknown0xF6 = 0xF6, Unknown0xF7 = 0xF7,
 	Unknown0xF8 = 0xF8, Unknown0xF9 = 0xF9, Unknown0xFA = 0xFA, Unknown0xFB = 0xFB,
 	Unknown0xFC = 0xFC, Unknown0xFD = 0xFD, Unknown0xFE = 0xFE, DUMMY = 0xFF,
+	
+	// Rest of the struct
+	MAT_TEXTURE = 256 + 16 * 1,
+	MAT_PROJ = 256 + 16 * 2,
+	MAT_VIEW = 256 + 16 * 3,
+	MAT_WORLD = 256 + 16 * 4,
+	MAT_BONES = 256 + 16 * 5,
 }

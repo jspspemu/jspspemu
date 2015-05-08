@@ -14,6 +14,28 @@ interface Math {
 	log10(x: number): number;
 }
 
+var MAT4_3_IDX = new Uint32Array([
+	0, 1, 2,
+	4, 5, 6,
+	8, 9, 10,
+	12, 13, 14
+]);
+class mat4x3 {
+	static create() {
+		return new Float32Array([
+			1,0,0,
+			0,1,0,
+			0,0,1,
+			0,0,0,
+		]);
+	}
+	static identity(data:Float32Array) {
+		data[0] = 1; data[1] = 0; data[2] = 0;
+		data[3] = 0; data[4] = 1; data[5] = 0;
+		data[6] = 0; data[7] = 0; data[8] = 1;
+		data[9] = 0; data[10] = 0; data[11] = 0;
+	}
+}
 class mat4 {
 	static create() {
 		return new Float32Array([
@@ -23,6 +45,17 @@ class mat4 {
 			0,0,0,1
 		]);
 	}
+	static from4x3(out:Float32Array, mat4x3:Float32Array) {
+		for (var n = 0; n < 12; n++) out[MAT4_3_IDX[n]] = mat4x3[n];
+		out[3] = 0.0;
+		out[7] = 0.0;
+		out[11] = 0.0;
+		out[15] = 1.0;
+	}
+	static from4x4(out:Float32Array, mat4x4:Float32Array) {
+		out.set(mat4x4);
+	}
+	
 	static identity(data:Float32Array) {
 		data[0] = 1; data[1] = 0; data[2] = 0; data[3] = 0;
 		data[4] = 0; data[5] = 1; data[6] = 0; data[7] = 0;

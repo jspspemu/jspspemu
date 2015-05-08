@@ -485,11 +485,9 @@ var ArrayBufferUtils = (function () {
             to[n] = from[n] | (from[n] << 8) | (from[n] << 16) | (from[n] << 24);
         return to;
     };
-    ArrayBufferUtils.cloneBytes = function (input) {
-        var out = new Uint8Array(input.length);
-        out.set(input);
-        return out;
-    };
+    ArrayBufferUtils.cloneUint8Array = function (input) { var out = new Uint8Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.cloneUint16Array = function (input) { var out = new Uint16Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.cloneUint32Array = function (input) { var out = new Uint32Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.concat = function (chunks) {
         var tmp = new Uint8Array(chunks.sum(function (chunk) { return chunk.byteLength; }));
         var offset = 0;
@@ -1580,6 +1578,39 @@ if (typeof global != 'undefined')
     window = global;
 if (typeof self != 'undefined')
     window = self;
+var MAT4_3_IDX = new Uint32Array([
+    0, 1, 2,
+    4, 5, 6,
+    8, 9, 10,
+    12, 13, 14
+]);
+var mat4x3 = (function () {
+    function mat4x3() {
+    }
+    mat4x3.create = function () {
+        return new Float32Array([
+            1, 0, 0,
+            0, 1, 0,
+            0, 0, 1,
+            0, 0, 0,
+        ]);
+    };
+    mat4x3.identity = function (data) {
+        data[0] = 1;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 1;
+        data[5] = 0;
+        data[6] = 0;
+        data[7] = 0;
+        data[8] = 1;
+        data[9] = 0;
+        data[10] = 0;
+        data[11] = 0;
+    };
+    return mat4x3;
+})();
 var mat4 = (function () {
     function mat4() {
     }
@@ -1590,6 +1621,17 @@ var mat4 = (function () {
             0, 0, 1, 0,
             0, 0, 0, 1
         ]);
+    };
+    mat4.from4x3 = function (out, mat4x3) {
+        for (var n = 0; n < 12; n++)
+            out[MAT4_3_IDX[n]] = mat4x3[n];
+        out[3] = 0.0;
+        out[7] = 0.0;
+        out[11] = 0.0;
+        out[15] = 1.0;
+    };
+    mat4.from4x4 = function (out, mat4x4) {
+        out.set(mat4x4);
     };
     mat4.identity = function (data) {
         data[0] = 1;
@@ -7962,44 +8004,25 @@ var PspGpuList = (function () {
                 case 14:
                     console.warn('Not implemented: GPU SIGNAL');
                     break;
-                case 62:
-                    state.projectionMatrix.reset(param24(p));
-                    this.finishPrimBatch();
-                    break;
                 case 63:
-                    state.projectionMatrix.put(float1(p));
-                    break;
-                case 60:
-                    state.viewMatrix.reset(param24(p));
-                    this.finishPrimBatch();
+                    state.writeFloat(62, 288, float1(p));
                     break;
                 case 61:
-                    state.viewMatrix.put(float1(p));
-                    break;
-                case 58:
-                    state.worldMatrix.reset(param24(p));
-                    this.finishPrimBatch();
+                    state.writeFloat(60, 304, float1(p));
                     break;
                 case 59:
-                    state.worldMatrix.put(float1(p));
-                    break;
-                case 42:
-                    state.skinning.setCurrentBoneIndex(param24(p));
-                    this.finishPrimBatch();
+                    state.writeFloat(58, 320, float1(p));
                     break;
                 case 43:
-                    state.skinning.write(float1(p));
-                    break;
-                case 64:
-                    state.texture.matrix.reset(param24(p));
-                    this.finishPrimBatch();
+                    state.writeFloat(42, 336, float1(p));
                     break;
                 case 65:
-                    state.texture.matrix.put(float1(p));
+                    state.writeFloat(64, 272, float1(p));
                     break;
                 case 16:
                 case 2:
                 case 1:
+                case 19:
                     break;
                 default:
                     if (state.data[op] != p)
@@ -8346,6 +8369,7 @@ exports.BaseDrawDriver = BaseDrawDriver;
 },
 "src/core/gpu/gpu_state": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+var _pixelformat = require('../pixelformat');
 function bool1(p) { return p != 0; }
 function parambool(p, offset) { return ((p >> offset) & 0x1) != 0; }
 function param1(p, offset) { return (p >> offset) & 0x1; }
@@ -8697,64 +8721,12 @@ var VertexState = (function () {
     return VertexState;
 })();
 exports.VertexState = VertexState;
-var Matrix4x4 = (function () {
-    function Matrix4x4() {
-        this.index = 0;
-        this.values = mat4.create();
-    }
-    Matrix4x4.prototype.check = function (value) {
-        var check = (this.values[this.index] == value);
-        if (check)
-            this.index++;
-        return check;
-    };
-    Matrix4x4.prototype.put = function (value) {
-        this.values[this.index++] = value;
-    };
-    Matrix4x4.prototype.getAt = function (index, value) {
-        return this.values[index];
-    };
-    Matrix4x4.prototype.putAt = function (index, value) {
-        this.values[index] = value;
-    };
-    Matrix4x4.prototype.reset = function (startIndex) {
-        this.index = startIndex;
-    };
-    return Matrix4x4;
-})();
-exports.Matrix4x4 = Matrix4x4;
-var Matrix4x3 = (function () {
-    function Matrix4x3() {
-        this.index = 0;
-        this.values = mat4.create();
-    }
-    Matrix4x3.prototype.check = function (value) {
-        var check = (this.values[Matrix4x3.indices[this.index]] == value);
-        if (check)
-            this.index++;
-        return check;
-    };
-    Matrix4x3.prototype.put = function (value) {
-        this.putAt(this.index++, value);
-    };
-    Matrix4x3.prototype.getAt = function (index) {
-        return this.values[Matrix4x3.indices[index]];
-    };
-    Matrix4x3.prototype.putAt = function (index, value) {
-        this.values[Matrix4x3.indices[index]] = value;
-    };
-    Matrix4x3.prototype.reset = function (startIndex) {
-        this.index = startIndex;
-    };
-    Matrix4x3.indices = new Int32Array([
-        0, 1, 2,
-        4, 5, 6,
-        8, 9, 10,
-        12, 13, 14
-    ]);
-    return Matrix4x3;
-})();
-exports.Matrix4x3 = Matrix4x3;
+function createMatrix4x4(data, offset) {
+    return new Float32Array(data.buffer).subarray(offset, offset + 16);
+}
+function createMatrix4x3(data, offset) {
+    return new Float32Array(data.buffer).subarray(offset, offset + 12);
+}
 var ViewPort = (function () {
     function ViewPort(data) {
         this.data = data;
@@ -8966,7 +8938,8 @@ var Lightning = (function () {
 })();
 exports.Lightning = Lightning;
 var MipmapState = (function () {
-    function MipmapState(data, index) {
+    function MipmapState(texture, data, index) {
+        this.texture = texture;
         this.data = data;
         this.index = index;
     }
@@ -8990,6 +8963,16 @@ var MipmapState = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(MipmapState.prototype, "size", {
+        get: function () { return this.bufferWidth * this.textureHeight; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(MipmapState.prototype, "sizeInBytes", {
+        get: function () { return _pixelformat.PixelConverter.getSizeInBytes(this.texture.pixelFormat, this.size); },
+        enumerable: true,
+        configurable: true
+    });
     return MipmapState;
 })();
 exports.MipmapState = MipmapState;
@@ -9001,6 +8984,16 @@ var ClutState = (function () {
         get: function () {
             return this.data[197] + (this.data[176] << 8) + (this.data[177] << 16);
         },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ClutState.prototype, "cmode", {
+        get: function () { return this.data[197]; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ClutState.prototype, "cload", {
+        get: function () { return this.data[196]; },
         enumerable: true,
         configurable: true
     });
@@ -9034,25 +9027,37 @@ var ClutState = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(ClutState.prototype, "sizeInBytes", {
+        get: function () { return _pixelformat.PixelConverter.getSizeInBytes(this.pixelFormat, this.numberOfColors); },
+        enumerable: true,
+        configurable: true
+    });
     return ClutState;
 })();
 exports.ClutState = ClutState;
 var TextureState = (function () {
     function TextureState(data) {
         this.data = data;
-        this.matrix = new Matrix4x4();
+        this.matrix = createMatrix4x4(this.data, 272);
         this.clut = new ClutState(this.data);
         this.mipmaps = [
-            new MipmapState(this.data, 0),
-            new MipmapState(this.data, 1),
-            new MipmapState(this.data, 2),
-            new MipmapState(this.data, 3),
-            new MipmapState(this.data, 4),
-            new MipmapState(this.data, 5),
-            new MipmapState(this.data, 6),
-            new MipmapState(this.data, 7)
+            new MipmapState(this, this.data, 0),
+            new MipmapState(this, this.data, 1),
+            new MipmapState(this, this.data, 2),
+            new MipmapState(this, this.data, 3),
+            new MipmapState(this, this.data, 4),
+            new MipmapState(this, this.data, 5),
+            new MipmapState(this, this.data, 6),
+            new MipmapState(this, this.data, 7)
         ];
     }
+    Object.defineProperty(TextureState.prototype, "hasClut", {
+        get: function () {
+            return _pixelformat.PixelFormatUtils.hasClut(this.pixelFormat);
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(TextureState.prototype, "wrapU", {
         get: function () { return param8(this.data[199], 0); },
         enumerable: true,
@@ -9173,6 +9178,14 @@ var TextureState = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(TextureState.prototype, "tmode", {
+        get: function () { return this.data[194]; },
+        enumerable: true,
+        configurable: true
+    });
+    TextureState.prototype.getPixelsSize = function (size) {
+        return _pixelformat.PixelConverter.getSizeInBytes(this.pixelFormat, size);
+    };
     Object.defineProperty(TextureState.prototype, "textureComponentsCount", {
         get: function () {
             switch (this.textureMapMode) {
@@ -9421,37 +9434,20 @@ var ClipPlane = (function () {
 })();
 exports.ClipPlane = ClipPlane;
 var SkinningState = (function () {
-    function SkinningState() {
-        this._currentBoneIndex = 0;
-        this.boneMatrices = [new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3()];
-        this.linear = new Float32Array(96);
-        this._currentBoneMatrix = 0;
-        this._currentBoneMatrixIndex = 0;
+    function SkinningState(data) {
+        this.data = data;
+        this.dataf = new Float32Array(this.data.buffer);
+        this.boneMatrices = [
+            createMatrix4x3(this.dataf, 336 + 12 * 0),
+            createMatrix4x3(this.dataf, 336 + 12 * 1),
+            createMatrix4x3(this.dataf, 336 + 12 * 2),
+            createMatrix4x3(this.dataf, 336 + 12 * 3),
+            createMatrix4x3(this.dataf, 336 + 12 * 4),
+            createMatrix4x3(this.dataf, 336 + 12 * 5),
+            createMatrix4x3(this.dataf, 336 + 12 * 6),
+            createMatrix4x3(this.dataf, 336 + 12 * 7)
+        ];
     }
-    SkinningState.prototype.setCurrentBoneIndex = function (index) {
-        this._currentBoneIndex = index;
-        this._currentBoneMatrix = ToInt32(this._currentBoneIndex / 12);
-        this._currentBoneMatrixIndex = ToInt32(this._currentBoneIndex % 12);
-    };
-    SkinningState.prototype._increment = function () {
-        this._currentBoneMatrixIndex++;
-        this._currentBoneIndex++;
-        if (this._currentBoneMatrixIndex >= 12) {
-            this._currentBoneMatrix++;
-            this._currentBoneMatrixIndex = 0;
-        }
-    };
-    SkinningState.prototype.check = function (value) {
-        var check = (this.linear[this._currentBoneIndex] == value);
-        if (check)
-            this._increment();
-        return check;
-    };
-    SkinningState.prototype.write = function (value) {
-        this.linear[this._currentBoneIndex] = value;
-        this.boneMatrices[this._currentBoneMatrix].putAt(this._currentBoneMatrixIndex, value);
-        this._increment();
-    };
     return SkinningState;
 })();
 exports.SkinningState = SkinningState;
@@ -9601,14 +9597,15 @@ var OffsetState = (function () {
 exports.OffsetState = OffsetState;
 var GpuState = (function () {
     function GpuState() {
-        this.data = new Uint32Array(256);
+        this.data = new Uint32Array(512);
+        this.dataf = new Float32Array(this.data.buffer);
         this.frameBuffer = new GpuFrameBufferState(this.data);
         this.vertex = new VertexState(this.data);
         this.stencil = new StencilState(this.data);
-        this.skinning = new SkinningState();
-        this.projectionMatrix = new Matrix4x4();
-        this.viewMatrix = new Matrix4x3();
-        this.worldMatrix = new Matrix4x3();
+        this.skinning = new SkinningState(this.data);
+        this.projectionMatrix = createMatrix4x4(this.dataf, 288);
+        this.viewMatrix = createMatrix4x3(this.dataf, 304);
+        this.worldMatrix = createMatrix4x3(this.dataf, 320);
         this.viewport = new ViewPort(this.data);
         this.region = new Region(this.data);
         this.offset = new OffsetState(this.data);
@@ -9628,6 +9625,7 @@ var GpuState = (function () {
         this.depthTest = new DepthTestState(this.data);
     }
     GpuState.prototype.writeData = function (data) { this.data.set(data); };
+    GpuState.prototype.readData = function () { return ArrayBufferUtils.cloneUint32Array(this.data); };
     Object.defineProperty(GpuState.prototype, "clearing", {
         get: function () { return param1(this.data[211], 0) != 0; },
         enumerable: true,
@@ -9678,6 +9676,9 @@ var GpuState = (function () {
         enumerable: true,
         configurable: true
     });
+    GpuState.prototype.writeFloat = function (index, offset, data) {
+        this.dataf[offset + this.data[index]++] = data;
+    };
     GpuState.prototype.getMorphWeight = function (index) { return float1(this.data[44 + index]); };
     GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) { return (this.baseAddress | relativeAddress); };
     GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) { return ((this.baseAddress | relativeAddress) + this.baseOffset); };
@@ -9963,6 +9964,9 @@ var WebGlPspDrawDriver = (function (_super) {
         this.canvas = canvas;
         this.baseShaderFragString = '';
         this.baseShaderVertString = '';
+        this.projectionMatrix = mat4.create();
+        this.viewMatrix = mat4.create();
+        this.worldMatrix = mat4.create();
         this.transformMatrix = mat4.create();
         this.transformMatrix2d = mat4.create();
         this.equationTranslate = [32774, 32778, 32779, 32774, 32774, 32774];
@@ -10048,13 +10052,13 @@ var WebGlPspDrawDriver = (function (_super) {
         this.textureHandler.end();
     };
     WebGlPspDrawDriver.prototype.setMatrices = function (projectionMatrix, viewMatrix, worldMatrix) {
-        this.projectionMatrix = projectionMatrix;
-        this.viewMatrix = viewMatrix;
-        this.worldMatrix = worldMatrix;
+        mat4.from4x4(this.projectionMatrix, projectionMatrix);
+        mat4.from4x3(this.viewMatrix, viewMatrix);
+        mat4.from4x3(this.worldMatrix, worldMatrix);
         mat4.identity(this.transformMatrix);
-        mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
-        mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
-        mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
+        mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix);
+        mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix);
+        mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix);
     };
     WebGlPspDrawDriver.prototype.enableDisable = function (type, enable) {
         if (enable)
@@ -10260,7 +10264,7 @@ var WebGlPspDrawDriver = (function (_super) {
                 this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
             }
             for (var n = 0; n < vs.realWeightCount; n++) {
-                program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+                program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
             }
         }
         if (!vs.hasColor) {
@@ -10439,7 +10443,7 @@ var WebGlPspDrawDriver = (function (_super) {
                 program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
             }
             for (var n = 0; n < vertexInfo.realWeightCount; n++) {
-                program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+                program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
             }
         }
         if (vertexInfo.hasColor) {
@@ -10923,7 +10927,6 @@ var convertWrapMode = [10497, 33071];
 },
 "src/core/gpu/webgl/webgl_utils": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-var mat4x3_indices = new Int32Array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]);
 var mat4x3 = mat4.create();
 var WrappedWebGLUniform = (function () {
     function WrappedWebGLUniform(gl, program, name) {
@@ -10935,11 +10938,9 @@ var WrappedWebGLUniform = (function () {
     WrappedWebGLUniform.prototype.setMat4 = function (data) {
         this.gl.uniformMatrix4fv(this.location, false, data);
     };
-    WrappedWebGLUniform.prototype.setMat4x3 = function (data, index) {
-        mat4.identity(mat4x3);
-        for (var n = 0; n < 12; n++)
-            mat4x3[mat4x3_indices[n]] = data[index + n];
-        this.gl.uniformMatrix4fv(this.location, false, data);
+    WrappedWebGLUniform.prototype.setMat4x3 = function (data) {
+        mat4.from4x3(mat4x3, data);
+        this.gl.uniformMatrix4fv(this.location, false, mat4x3);
     };
     WrappedWebGLUniform.prototype.set1i = function (x) { this.gl.uniform1i(this.location, x); };
     WrappedWebGLUniform.prototype.set1f = function (x) { this.gl.uniform1f(this.location, x); };
@@ -25487,6 +25488,36 @@ describe('utils', function () {
             assert.equal(-1, test.binarySearchIndex(function (b) { return compareNumbers(101, b); }));
             assert.equal(-1, test.binarySearchIndex(function (b) { return compareNumbers(111, b); }));
         });
+    });
+});
+
+},
+"test/utilstest": function(module, exports, require) {
+///<reference path="./global.d.ts" />
+function ref() { }
+exports.ref = ref;
+describe('ArrayBufferUtils', function () {
+    it('hash1', function () {
+        var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3]));
+        var hash2 = ArrayBufferUtils.hash(new Uint8Array([3, 2, 3]));
+        assert.notEqual(hash1, hash2);
+    });
+    it('hash2', function () {
+        var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4]));
+        var hash2 = ArrayBufferUtils.hash(new Uint8Array([3, 2, 3, 4]));
+        assert.notEqual(hash1, hash2);
+    });
+    it('hashUnaligned', function () {
+        for (var n = 1; n <= 3; n++) {
+            var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4, 5, 5, 5]).subarray(n));
+            var hash2 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 5, 5, 5, 5]).subarray(n));
+            assert.notEqual(hash1, hash2);
+        }
+        for (var n = 1; n <= 3; n++) {
+            var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 4, 5, 6, 3, 3, 3, 3, 3, 3, 3]).subarray(n, 12));
+            var hash2 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 4, 5, 6, 2, 2, 2, 2, 2, 2, 2]).subarray(n, 12));
+            assert.equal(hash1, hash2);
+        }
     });
 });
 

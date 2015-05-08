@@ -352,26 +352,19 @@ class PspGpuList {
 					break;
 				}
 				case Op.SIGNAL: console.warn('Not implemented: GPU SIGNAL'); break;
-
-				case Op.PROJMATRIXNUMBER: state.projectionMatrix.reset(param24(p)); this.finishPrimBatch(); break;
-				case Op.PROJMATRIXDATA: state.projectionMatrix.put(float1(p)); break;
-
-				case Op.VIEWMATRIXNUMBER: state.viewMatrix.reset(param24(p)); this.finishPrimBatch(); break;
-				case Op.VIEWMATRIXDATA: state.viewMatrix.put(float1(p)); break;
-
-				case Op.WORLDMATRIXNUMBER: state.worldMatrix.reset(param24(p)); this.finishPrimBatch(); break;
-				case Op.WORLDMATRIXDATA: state.worldMatrix.put(float1(p)); break;
-
-				case Op.BONEMATRIXNUMBER: state.skinning.setCurrentBoneIndex(param24(p)); this.finishPrimBatch(); break;
-				case Op.BONEMATRIXDATA: state.skinning.write(float1(p)); break;
-
-				case Op.TGENMATRIXNUMBER: state.texture.matrix.reset(param24(p)); this.finishPrimBatch(); break;
-				case Op.TGENMATRIXDATA: state.texture.matrix.put(float1(p)); break;
+				
+				//case Op.PROJMATRIXNUMBER: console.log(state.projectionMatrix); break;
+				case Op.PROJMATRIXDATA: state.writeFloat(Op.PROJMATRIXNUMBER, Op.MAT_PROJ, float1(p)); break;
+				case Op.VIEWMATRIXDATA: state.writeFloat(Op.VIEWMATRIXNUMBER, Op.MAT_VIEW, float1(p)); break;
+				case Op.WORLDMATRIXDATA: state.writeFloat(Op.WORLDMATRIXNUMBER, Op.MAT_WORLD, float1(p)); break;
+				case Op.BONEMATRIXDATA: state.writeFloat(Op.BONEMATRIXNUMBER, Op.MAT_BONES, float1(p)); break;
+				case Op.TGENMATRIXDATA: state.writeFloat(Op.TGENMATRIXNUMBER, Op.MAT_TEXTURE, float1(p)); break;
 				
 				// No invalidate prim
 				case Op.BASE:
 				case Op.IADDR:
 				case Op.VADDR:
+				case Op.OFFSETADDR:
 					break;
 
 				default: if (state.data[op] != p) this.finishPrimBatch(); break;
@@ -588,7 +581,7 @@ class PspGpuListRunner {
     private lists: PspGpuList[] = [];
     private freeLists: PspGpuList[] = [];
 	private runningLists: PspGpuList[] = [];
-	private state = new _state.GpuState()
+	private state = new _state.GpuState();
 
 	constructor(private memory: Memory, private drawDriver: IDrawDriver, private gpu: PspGpu, private callbackManager: CpuExecutor) {
         for (var n = 0; n < 32; n++) {

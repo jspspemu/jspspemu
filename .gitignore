@@ -188,3 +188,4 @@ node_modules
 *.iws
 *.ide
 out2.txt
+data/samples/PuzzleBobble.iso

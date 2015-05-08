@@ -300,68 +300,12 @@ export class VertexState {
 	get transform2D() { return parambool(this.data[Op.VERTEXTYPE], 23); }
 }
 
-export class Matrix4x4 {
-	index = 0;
-	values = mat4.create();
-
-	constructor() {
-		//for (var n = 0; n < 16; n++) this.values[n] = -1;
-	}
-
-	check(value: number) {
-		var check = (this.values[this.index] == value);
-		if (check) this.index++;
-		return check;
-	}
-
-	put(value: number) {
-		this.values[this.index++] = value;
-	}
-
-	getAt(index: number, value: number) {
-		return this.values[index];
-	}
-
-	putAt(index:number, value: number) {
-		this.values[index] = value;
-	}
-
-	reset(startIndex: number) {
-		this.index = startIndex;
-	}
+function createMatrix4x4(data:Uint32Array, offset:number) {
+    return new Float32Array(data.buffer).subarray(offset, offset + 16);
 }
 
-export class Matrix4x3 {
-	index = 0;
-	values = mat4.create();
-	static indices = new Int32Array([
-		0, 1, 2,
-		4, 5, 6,
-		8, 9, 10,
-		12, 13, 14
-	]);
-
-	check(value: number) {
-		var check = (this.values[Matrix4x3.indices[this.index]] == value);
-		if (check) this.index++;
-		return check;
-	}
-
-	put(value: number) {
-		this.putAt(this.index++, value);
-	}
-
-	getAt(index: number) {
-		return this.values[Matrix4x3.indices[index]];
-	}
-
-	putAt(index: number, value: number) {
-		this.values[Matrix4x3.indices[index]] = value;
-	}
-
-	reset(startIndex: number) {
-		this.index = startIndex;
-	}
+function createMatrix4x3(data:Uint32Array, offset:number) {
+    return new Float32Array(data.buffer).subarray(offset, offset + 12);
 }
 
 export class ViewPort {
@@ -458,12 +402,14 @@ export class Lightning {
 }
 
 export class MipmapState {
-	constructor(private data:Uint32Array, public index:number) { }
+	constructor(public texture:TextureState, private data:Uint32Array, public index:number) { }
 	
 	get bufferWidth() { return param16(this.data[Op.TEXBUFWIDTH0 + this.index], 0); }
 	get address() { return param24(this.data[Op.TEXADDR0 + this.index]) | ((param8(this.data[Op.TEXBUFWIDTH0 + this.index], 16) << 24)) }
 	get textureWidth() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 0); } 
 	get textureHeight() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 8); }
+	get size() { return this.bufferWidth * this.textureHeight; }
+	get sizeInBytes() { return _pixelformat.PixelConverter.getSizeInBytes(this.texture.pixelFormat, this.size); }
 }
 
 export class ClutState {
@@ -472,12 +418,16 @@ export class ClutState {
 	get hash() {
 		return this.data[Op.CMODE] + (this.data[Op.CLUTADDR] << 8) + (this.data[Op.CLUTADDRUPPER] << 16);
 	}
+	get cmode() { return this.data[Op.CMODE]; }
+	get cload() { return this.data[Op.CLOAD]; }
+
 	get address() { return param24(this.data[Op.CLUTADDR]) | ((this.data[Op.CLUTADDRUPPER] << 8) & 0xFF000000); }
 	get numberOfColors() { return this.data[Op.CLOAD] * 8; }
 	get pixelFormat() { return <PixelFormat>param2(this.data[Op.CMODE], 0); }
 	get shift() { return param5(this.data[Op.CMODE], 2); }
 	get mask() { return param8(this.data[Op.CMODE], 8); }
 	get start() { return param5(this.data[Op.CMODE], 16); }
+	get sizeInBytes() { return _pixelformat.PixelConverter.getSizeInBytes(this.pixelFormat, this.numberOfColors); }
 }
 
 export const enum TextureProjectionMapMode {
@@ -500,18 +450,23 @@ export class TextureState {
 	constructor(private data:Uint32Array) {
 	}
 	
-	matrix = new Matrix4x4();
+	matrix = createMatrix4x4(this.data, Op.MAT_TEXTURE);
 
 	clut = new ClutState(this.data);
+	
+	get hasClut() {
+		return _pixelformat.PixelFormatUtils.hasClut(this.pixelFormat);
+	}
+	
 	mipmaps = [
-		new MipmapState(this.data, 0),
-		new MipmapState(this.data, 1),
-		new MipmapState(this.data, 2),
-		new MipmapState(this.data, 3),
-		new MipmapState(this.data, 4),
-		new MipmapState(this.data, 5),
-		new MipmapState(this.data, 6),
-		new MipmapState(this.data, 7)
+		new MipmapState(this, this.data, 0),
+		new MipmapState(this, this.data, 1),
+		new MipmapState(this, this.data, 2),
+		new MipmapState(this, this.data, 3),
+		new MipmapState(this, this.data, 4),
+		new MipmapState(this, this.data, 5),
+		new MipmapState(this, this.data, 6),
+		new MipmapState(this, this.data, 7)
 	];
 
 	get wrapU() { return <WrapMode>param8(this.data[Op.TWRAP], 0); }	
@@ -548,6 +503,12 @@ export class TextureState {
 	
 	get textureMapMode() { return <TextureMapMode>param8(this.data[Op.TMAP], 0); }
 	get textureProjectionMapMode() { return <TextureProjectionMapMode>param8(this.data[Op.TMAP], 8); }
+
+	get tmode() { return this.data[Op.TMODE]; }
+	
+	getPixelsSize(size:number) {
+		return _pixelformat.PixelConverter.getSizeInBytes(this.pixelFormat, size);
+	}
 
 	get textureComponentsCount() {
 		switch (this.textureMapMode) {
@@ -710,39 +671,20 @@ export class ClipPlane {
 }
 
 export class SkinningState {
-	_currentBoneIndex = 0;
-	boneMatrices = [new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3(), new Matrix4x3()];
-	linear = new Float32Array(96);
+	constructor(private data:Uint32Array) { }
+	
+	dataf = new Float32Array(this.data.buffer);
 
-	_currentBoneMatrix = 0;
-	_currentBoneMatrixIndex = 0;
-
-	setCurrentBoneIndex(index: number) {
-		this._currentBoneIndex = index;
-		this._currentBoneMatrix = ToInt32(this._currentBoneIndex / 12);
-		this._currentBoneMatrixIndex = ToInt32(this._currentBoneIndex % 12);
-	}
-
-	_increment() {
-		this._currentBoneMatrixIndex++;
-		this._currentBoneIndex++;
-		if (this._currentBoneMatrixIndex >= 12) {
-			this._currentBoneMatrix++;
-			this._currentBoneMatrixIndex = 0;
-		}
-	}
-
-	check(value: number) {
-		var check = (this.linear[this._currentBoneIndex] == value);
-		if (check) this._increment();
-		return check;
-	}
-
-	write(value: number) {
-		this.linear[this._currentBoneIndex] = value;
-		this.boneMatrices[this._currentBoneMatrix].putAt(this._currentBoneMatrixIndex, value);
-		this._increment();
-	}
+	boneMatrices = [
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 0),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 1),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 2),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 3),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 4),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 5),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 6),
+		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 7)
+	];
 }
 
 export const enum StencilOperationEnum {
@@ -777,21 +719,10 @@ export class PatchState {
 export class Fog {
 	constructor(private data:Uint32Array) { }
 
-	/*
-	case Op.FCOL: var v = param24(p); if (state.fog._color != v) { this.invalidatePrim(); state.fog._color = v; state.fog.color.setRGB(p); } break;
-	*/
-	
 	get color() { return new Color().setRGB(this.data[Op.FCOL]); }
 	get far() { return float1(this.data[Op.FFAR]); }
 	get dist() { return float1(this.data[Op.FDIST]); }
 	get enabled() { return bool1(this.data[Op.FOGENABLE]); }
-
-	/*	
-	enabled = false;
-	far = 0;
-	dist = 1;
-	color = new Color();
-	*/
 }
 
 export class LogicOp {
@@ -818,16 +749,20 @@ export class OffsetState {
 }
 
 export class GpuState {
-	data = new Uint32Array(256);
+	data = new Uint32Array(512);
+	dataf = new Float32Array(this.data.buffer);
 	writeData(data:Uint32Array) { this.data.set(data); }
+	readData():Uint32Array { return ArrayBufferUtils.cloneUint32Array(this.data); }
 	
 	frameBuffer = new GpuFrameBufferState(this.data);
 	vertex = new VertexState(this.data);
 	stencil = new StencilState(this.data);
-	skinning = new SkinningState();
-	projectionMatrix = new Matrix4x4();
-	viewMatrix = new Matrix4x3();
-	worldMatrix = new Matrix4x3();
+	skinning = new SkinningState(this.data);
+	
+	projectionMatrix = createMatrix4x4(this.dataf, Op.MAT_PROJ);
+	viewMatrix = createMatrix4x3(this.dataf, Op.MAT_VIEW);
+	worldMatrix = createMatrix4x3(this.dataf, Op.MAT_WORLD);
+	
 	viewport = new ViewPort(this.data);
 	region = new Region(this.data);
 	offset = new OffsetState(this.data);
@@ -856,6 +791,10 @@ export class GpuState {
 	get diffuseModelColor() { return new Color().setRGB(this.data[Op.MATERIALDIFFUSE]); }
 	get specularModelColor() { return new Color().setRGB(this.data[Op.MATERIALSPECULAR]); }
 	get drawPixelFormat() { return <PixelFormat>param4(this.data[Op.PSM], 0); } 
+
+	writeFloat(index:number, offset:number, data:number) {
+		this.dataf[offset + this.data[index]++] = data;
+	}
 
 	getMorphWeight(index:number) { return float1(this.data[Op.MORPHWEIGHT0 + index]);  }
 	getAddressRelativeToBase(relativeAddress: number) { return (this.baseAddress | relativeAddress); }

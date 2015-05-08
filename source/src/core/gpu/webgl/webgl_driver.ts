@@ -16,8 +16,6 @@ import ShaderCache = _shader.ShaderCache;
 import Texture = _texture.Texture;
 import TextureHandler = _texture.TextureHandler;
 import Memory = _memory.Memory;
-import Matrix4x3 = _state.Matrix4x3;
-import Matrix4x4 = _state.Matrix4x4;
 import GpuState = _state.GpuState;
 import IPspDisplay = _display.IPspDisplay;
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
@@ -110,21 +108,21 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.textureHandler.end();
 	}
 
-	projectionMatrix: Matrix4x4;
-	viewMatrix: Matrix4x3;
-	worldMatrix: Matrix4x3;
+	projectionMatrix = mat4.create();
+	viewMatrix = mat4.create();
+	worldMatrix = mat4.create();
 	transformMatrix = mat4.create();
 	transformMatrix2d = mat4.create();
 
-	setMatrices(projectionMatrix: Matrix4x4, viewMatrix: Matrix4x3, worldMatrix: Matrix4x3) {
-		this.projectionMatrix = projectionMatrix;
-		this.viewMatrix = viewMatrix;
-		this.worldMatrix = worldMatrix;
-		//mat4.copy(this.transformMatrix, this.projectionMatrix.values);
+	setMatrices(projectionMatrix: Float32Array, viewMatrix: Float32Array, worldMatrix: Float32Array) {
+		mat4.from4x4(this.projectionMatrix, projectionMatrix);
+		mat4.from4x3(this.viewMatrix, viewMatrix);
+		mat4.from4x3(this.worldMatrix, worldMatrix);
+
 		mat4.identity(this.transformMatrix);
-		mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix.values);
-		mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix.values);
-		mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix.values);
+		mat4.multiply(this.transformMatrix, this.transformMatrix, this.projectionMatrix);
+		mat4.multiply(this.transformMatrix, this.transformMatrix, this.viewMatrix);
+		mat4.multiply(this.transformMatrix, this.transformMatrix, this.worldMatrix);
 	}
 
 	private enableDisable(type: number, enable: boolean) {
@@ -372,8 +370,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 				this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
 			}
 			for (var n = 0; n < vs.realWeightCount; n++) {
-				program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
-				//program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.linear, 12 * n);
+				program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
 			}
 		}
 
@@ -604,7 +601,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 				program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
 			}
 			for (var n = 0; n < vertexInfo.realWeightCount; n++) {
-				program.getUniform("matrixBone" + n).setMat4(this.state.skinning.boneMatrices[n].values);
+				program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
 				//program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.linear, 12 * n);
 			}
 		}
