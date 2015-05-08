@@ -889,6 +889,9 @@ function inflateRawAsync(data) {
         return new Uint8Array(args[0]);
     });
 }
+function numberToSeparator(value) {
+    return (+value).toLocaleString();
+}
 function numberToFileSize(value) {
     var KB = 1024;
     var MB = 1024 * KB;
@@ -7812,21 +7815,21 @@ var Overlay = (function () {
     return Overlay;
 })();
 var overlay = new Overlay();
-var overlayIndexCount = overlay.createCounter('indexCount', 0);
-var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0);
-var overlayVertexCount = overlay.createCounter('vertexCount', 0);
-var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0);
-var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0);
-var spritePrimCount = overlay.createCounter('spritePrimCount', 0);
-var otherPrimCount = overlay.createCounter('otherPrimCount', 0);
-var optimizedCount = overlay.createCounter('optimizedCount', 0);
-var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0);
-var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0);
+var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
+var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
+var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
+var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
+var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
+var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
+var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
+var optimizedCount = overlay.createCounter('optimizedCount', 0, numberToSeparator);
+var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0, numberToSeparator);
+var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
 var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
-var totalCommands = overlay.createCounter('totalCommands', 0);
-var totalStalls = overlay.createCounter('totalStalls', 0);
-var primCount = overlay.createCounter('primCount', 0);
-var batchCount = overlay.createCounter('batchCount', 0);
+var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
+var totalStalls = overlay.createCounter('totalStalls', 0, numberToSeparator);
+var primCount = overlay.createCounter('primCount', 0, numberToSeparator);
+var batchCount = overlay.createCounter('batchCount', 0, numberToSeparator);
 var timePerFrame = overlay.createCounter('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
 var globalDriver;
 var freezing = new WatchValue(false);
@@ -8049,12 +8052,32 @@ var PspGpuList = (function () {
         var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
         var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
         var hasIndices = (vertexInfo.index != 0);
+        if (hasIndices) {
+            overlayIndexCount.value++;
+        }
+        else {
+            overlayNonIndexCount.value++;
+        }
         this.primBatchPrimitiveType = primitiveType;
         if (!this.cachedVertexInput || !(vertexAddress >= this.cachedVertexLow && vertexAddress < this.cachedVertexHigh)) {
             var cacheAddress = (vertexAddress >= Memory.MAIN_OFFSET) ? Memory.MAIN_OFFSET : Memory.DEFAULT_FRAME_ADDRESS;
             this.cachedVertexInput = this.memory.getPointerU8Array(cacheAddress);
             this.cachedVertexLow = cacheAddress;
             this.cachedVertexHigh = cacheAddress + this.cachedVertexInput.length;
+        }
+        switch (primitiveType) {
+            case 3:
+                trianglePrimCount.value++;
+                break;
+            case 4:
+                triangleStripPrimCount.value++;
+                break;
+            case 6:
+                spritePrimCount.value++;
+                break;
+            default:
+                otherPrimCount.value++;
+                break;
         }
         var vertexInput = this.cachedVertexInput;
         var vertexInputOffset = vertexAddress - this.cachedVertexLow;
@@ -8114,6 +8137,7 @@ var PspGpuList = (function () {
             current4++;
             batchPrimCount++;
         }
+        overlayVertexCount.value += totalVertexCount;
         var totalVerticesSize = totalVertexCount * vertexSize;
         _optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
         vertexInfo.address += totalVerticesSize;
@@ -17413,7 +17437,7 @@ var IoFileMgrForUser = (function () {
     IoFileMgrForUser.prototype.sceIoWrite = function (fileId, input) {
         if (fileId < 3) {
             var str = input.readString(input.length);
-            log.log('STD[' + fileId + ']', str);
+            log.warn('STD[' + fileId + ']', str);
             this.context.onStdout.dispatch(str);
             return 0;
         }
@@ -23151,6 +23175,10 @@ var Vfs = (function () {
     Vfs.prototype.writeAllAsync = function (path, data) {
         return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).then(function (entry) { return entry.writeAllAsync(data); });
     };
+    Vfs.prototype.deleteAsync = function (path) {
+        throw (new Error("Must override openAsync : " + this));
+        return null;
+    };
     Vfs.prototype.openDirectoryAsync = function (path) {
         return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
     };
@@ -23186,6 +23214,11 @@ var ProxyVfs = (function (_super) {
     ProxyVfs.prototype.openAsync = function (path, flags, mode) {
         return this._callChainWhenError(function (vfs, e) {
             return vfs.openAsync(path, flags, mode);
+        });
+    };
+    ProxyVfs.prototype.deleteAsync = function (path) {
+        return this._callChainWhenError(function (vfs, e) {
+            return vfs.deleteAsync(path);
         });
     };
     ProxyVfs.prototype.openDirectoryAsync = function (path) {
@@ -23936,6 +23969,12 @@ var StorageVfs = (function (_super) {
         var _this = this;
         return this.initializeOnceAsync().then(function () {
             return StorageVfsEntry.fromNameAsync(_this.db, path, flags, mode);
+        });
+    };
+    StorageVfs.prototype.deleteAsync = function (path) {
+        var _this = this;
+        return this.initializeOnceAsync().then(function () {
+            return _this.db.deleteAsync(path);
         });
     };
     return StorageVfs;

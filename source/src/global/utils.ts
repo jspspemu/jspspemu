@@ -899,6 +899,10 @@ function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
 	});
 }
 
+function numberToSeparator(value: number) {
+	return (+value).toLocaleString();
+}
+
 function numberToFileSize(value: number) {
 	const KB = 1024;
 	const MB = 1024 * KB;

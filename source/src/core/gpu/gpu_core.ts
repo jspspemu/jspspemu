@@ -163,21 +163,21 @@ class Overlay {
 }
 
 var overlay = new Overlay();
-var overlayIndexCount = overlay.createCounter('indexCount', 0);
-var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0);
-var overlayVertexCount = overlay.createCounter('vertexCount', 0);
-var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0);
-var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0);
-var spritePrimCount = overlay.createCounter('spritePrimCount', 0);
-var otherPrimCount = overlay.createCounter('otherPrimCount', 0);
-var optimizedCount = overlay.createCounter('optimizedCount', 0);
-var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0);
-var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0);
+var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
+var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
+var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
+var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
+var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
+var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
+var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
+var optimizedCount = overlay.createCounter('optimizedCount', 0, numberToSeparator);
+var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0, numberToSeparator);
+var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
 var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
-var totalCommands = overlay.createCounter('totalCommands', 0);
-var totalStalls = overlay.createCounter('totalStalls', 0);
-var primCount = overlay.createCounter('primCount', 0);
-var batchCount = overlay.createCounter('batchCount', 0);
+var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
+var totalStalls = overlay.createCounter('totalStalls', 0, numberToSeparator);
+var primCount = overlay.createCounter('primCount', 0, numberToSeparator);
+var batchCount = overlay.createCounter('batchCount', 0, numberToSeparator);
 var timePerFrame = overlay.createCounter('time', 0, (v) => `${v.toFixed(0) } ms`);
 
 var globalDriver: IDrawDriver;
@@ -395,9 +395,14 @@ class PspGpuList {
 		var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
 		var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
 		var hasIndices = (vertexInfo.index != IndexEnum.Void);
+		
+		if (hasIndices) {
+			overlayIndexCount.value++;
+		} else {
+			overlayNonIndexCount.value++;
+		}
 
 		this.primBatchPrimitiveType = primitiveType;
-		//overlayVertexCount.value += vertexCount;
 		
 		//if (vertexState.realWeightCount > 0) debugger;
 		
@@ -409,14 +414,12 @@ class PspGpuList {
 			//console.log(addressToHex(this.cachedVertexLow), addressToHex(this.cachedVertexHigh));
 		}
 		
-		/*
 		switch (primitiveType) {
 			case PrimitiveType.Triangles: trianglePrimCount.value++; break;
 			case PrimitiveType.TriangleStrip: triangleStripPrimCount.value++; break;
 			case PrimitiveType.Sprites: spritePrimCount.value++; break;
 			default: otherPrimCount.value++; break;
 		}
-		*/
 
 		var vertexInput: Uint8Array = this.cachedVertexInput;
 		var vertexInputOffset = vertexAddress - this.cachedVertexLow;
@@ -425,9 +428,6 @@ class PspGpuList {
 
 		if (optimized) {
 			optimizedCount.value++;
-			//if (mustDegenerate) optimizedDrawBuffer.join(vertexSize);
-			//optimizedDrawBuffer.addVertices(vertexInput, vertexInputOffset, vertexCount, vertexSize);
-			
 			this.primOptimized(primitiveType, (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
 		} else {
 			var mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
@@ -478,6 +478,7 @@ class PspGpuList {
 			batchPrimCount++;
 		}
 
+		overlayVertexCount.value += totalVertexCount;
 		let totalVerticesSize = totalVertexCount * vertexSize;
 		_optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
 		vertexInfo.address += totalVerticesSize;

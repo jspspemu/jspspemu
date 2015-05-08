@@ -37,6 +37,12 @@ export class StorageVfs extends Vfs {
 			return StorageVfsEntry.fromNameAsync(this.db, path, flags, mode);
 		});
 	}
+	
+	deleteAsync(path:string):Promise2<void> {
+		return this.initializeOnceAsync().then(() => {
+			return this.db.deleteAsync(path);
+		});
+	}
 }
 
 interface File {

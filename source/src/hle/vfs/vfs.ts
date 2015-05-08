@@ -18,6 +18,11 @@
 	writeAllAsync(path: string, data: ArrayBuffer) {
 		return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).then(entry => entry.writeAllAsync(data));
 	}
+	
+	deleteAsync(path: string): Promise2<void> {
+		throw (new Error("Must override openAsync : " + this));
+		return null;
+	}
 
 	openDirectoryAsync(path: string) {
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
@@ -53,6 +58,11 @@ export class ProxyVfs extends Vfs {
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
 		return this._callChainWhenError<VfsEntry>((vfs, e) => {
 			return vfs.openAsync(path, flags, mode);
+		});
+	}
+	deleteAsync(path: string) {
+		return this._callChainWhenError<VfsEntry>((vfs, e) => {
+			return vfs.deleteAsync(path);
 		});
 	}
 	openDirectoryAsync(path: string) {

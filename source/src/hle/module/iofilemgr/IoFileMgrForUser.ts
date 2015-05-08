@@ -114,7 +114,7 @@ export class IoFileMgrForUser {
 		if (fileId < 3) {
 			// @TODO: Fixme! Create a proper file
 			var str = input.readString(input.length);
-			log.log('STD[' + fileId + ']', str);
+			log.warn('STD[' + fileId + ']', str);
 			this.context.onStdout.dispatch(str);
 			//return immediateAsync().then(() => 0);
 			return 0;
