@@ -228,17 +228,18 @@ export class TextureHandler {
 	constructor(private memory: Memory, private gl: WebGLRenderingContext) {
 		memory.invalidateDataRange.add((range) => this.invalidatedMemoryRange(range));
 		memory.invalidateDataAll.add(() => this.invalidatedMemoryAll());
+		this.invalidateWithGl(gl);
 	}
 
-	private texturesByHash2 = new Map<number, Texture>();
-	private texturesByHash1 = new Map<number, Texture>();
-	private texturesByAddress = new Map<number, Texture>();
-	private textures = <Texture[]>[];
+	private texturesByHash2:Map<number, Texture>;
+	private texturesByHash1:Map<number, Texture>;
+	private texturesByAddress:Map<number, Texture>;
+	private textures:Texture[];
 	
-	private clutsByHash2 = new Map<number, Clut>();
-	private clutsByHash1 = new Map<number, Clut>();
-	private clutsByAddress = new Map<number, Clut>();
-	private cluts = <Clut[]>[];
+	private clutsByHash2:Map<number, Clut>;
+	private clutsByHash1:Map<number, Clut>;
+	private clutsByAddress:Map<number, Clut>;
+	private cluts:Clut[];
 	
 	private recheckTimestamp: number = 0;
 	private lastTexture: Texture;
@@ -246,6 +247,24 @@ export class TextureHandler {
 	private invalidatedAll = false;
 
 	rehashSignal = new Signal<number>();
+	
+	invalidateWithGl(gl: WebGLRenderingContext) {
+		this.gl = gl;
+		
+		this.texturesByHash1 = new Map<number, Texture>();
+		this.texturesByHash2 = new Map<number, Texture>();
+		this.texturesByAddress = new Map<number, Texture>();
+		this.textures = [];
+
+		this.clutsByHash1 = new Map<number, Clut>();
+		this.clutsByHash2 = new Map<number, Clut>();
+		this.clutsByAddress = new Map<number, Clut>();
+		this.cluts = [];
+		
+		this.recheckTimestamp = 0;
+		this.invalidatedAll = false;
+		this.lastTexture = null;
+	}
 
 	flush() {
 		//console.log('flush!');

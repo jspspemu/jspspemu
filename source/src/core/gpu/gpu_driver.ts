@@ -6,6 +6,30 @@ import _vertex = require('./gpu_vertex');
 export class BaseDrawDriver {
 	rehashSignal = new Signal<number>();
 	enableColors: boolean = true;
+	enableTextures: boolean = true;
+	enableSkinning: boolean = true;
+	enableBilinear: boolean = true;
+	private _antialiasing: boolean;
+	
+	private frameBufferWidth = 480;
+	private frameBufferHeight = 272;
+	
+	setFramebufferSize(width:number, height:number) {
+		this.frameBufferWidth = width;
+		this.frameBufferHeight = height;
+	}
+
+	set antialiasing(value:boolean) {
+		this._antialiasing = value;
+	}
+	
+	get antialiasing() {
+		return this._antialiasing;
+	}
+
+	getFramebufferSize() {
+		return { width: this.frameBufferWidth, height: this.frameBufferHeight }
+	}
 	
 	end(): void {
 		

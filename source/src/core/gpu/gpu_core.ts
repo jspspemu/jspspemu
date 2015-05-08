@@ -86,7 +86,7 @@ class OverlayCounter<T> implements OverlaySection {
 		}
 	}
 	update() {
-		this.element.innerText = `${this.name}: ${this.representedValue}`;
+		this.element.innerHTML = `${this.name}: ${this.representedValue}`;
 	}
 	get representedValue() {
 		return this.representer ? this.representer(this.value) : this.value;
@@ -101,7 +101,7 @@ class OverlayIntent implements OverlaySection {
 	constructor(text:string, action: () => void) {
 		if (canDOMCreateElements) {
 			this.element = document.createElement('button');
-			this.element.innerText = text;
+			this.element.innerHTML = text;
 			this.element.onclick = e => action();
 		}
 	}
@@ -181,11 +181,46 @@ var batchCount = overlay.createCounter('batchCount', 0);
 var timePerFrame = overlay.createCounter('time', 0, (v) => `${v.toFixed(0) } ms`);
 
 var globalDriver: IDrawDriver;
+var freezing = new WatchValue(false);
 
 overlay.createIntent('toggle colors', () => {
-	if (globalDriver) {
-		globalDriver.enableColors = !globalDriver.enableColors; 
-	}
+	if (globalDriver) globalDriver.enableColors = !globalDriver.enableColors; 
+});
+
+overlay.createIntent('toggle antialiasing', () => {
+	if (globalDriver) globalDriver.antialiasing = !globalDriver.antialiasing; 
+});
+
+overlay.createIntent('toggle textures', () => {
+	if (globalDriver) globalDriver.enableTextures = !globalDriver.enableTextures; 
+});
+
+overlay.createIntent('toggle skinning', () => {
+	if (globalDriver) globalDriver.enableSkinning = !globalDriver.enableSkinning; 
+});
+
+overlay.createIntent('toggle bilinear', () => {
+	if (globalDriver) globalDriver.enableBilinear = !globalDriver.enableBilinear; 
+});
+
+overlay.createIntent('freeze', () => {
+	freezing.value = !freezing.value;
+});
+
+overlay.createIntent('x1', () => {
+	if (globalDriver) globalDriver.setFramebufferSize(480 * 1, 272 * 1);
+});
+
+overlay.createIntent('x2', () => {
+	if (globalDriver) globalDriver.setFramebufferSize(480 * 2, 272 * 2);
+});
+
+overlay.createIntent('x3', () => {
+	if (globalDriver) globalDriver.setFramebufferSize(480 * 3, 272 * 3);
+});
+
+overlay.createIntent('x4', () => {
+	if (globalDriver) globalDriver.setFramebufferSize(480 * 4, 272 * 4);
 });
 
 class PspGpuList {
@@ -664,6 +699,7 @@ export class PspGpu implements IPspGpu {
 			MathUtils.prevAligned
 			this.lastTime = end;
 			overlay.updateAndReset();
+			return freezing.waitUntilValueAsync(false);
 		});
 
 		switch (syncType) {

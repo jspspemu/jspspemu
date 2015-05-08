@@ -8,6 +8,8 @@ uniform mat4 u_modelViewProjMatrix;
 
 attribute vec4 vPosition;
 
+uniform int u_enableSkinning;
+
 #define TYPE_VOID 0
 #define TYPE_BYTE 1
 #define TYPE_SHORT 2
@@ -183,7 +185,9 @@ void main() {
 	#endif
 	
 	#if (VERTEX_SKINNING >= 1)
-		pos = performSkinning(pos);
+		if (u_enableSkinning != 0) {
+			pos = performSkinning(pos);
+		}
 	#endif
 
 	gl_Position = u_modelViewProjMatrix * pos;

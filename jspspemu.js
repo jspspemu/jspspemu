@@ -664,6 +664,39 @@ var SignalCancelable = (function () {
     };
     return SignalCancelable;
 })();
+var WatchValue = (function () {
+    function WatchValue(value) {
+        this.onChanged = new Signal();
+        this._value = value;
+    }
+    WatchValue.prototype.waitUntilValueAsync = function (expectedValue) {
+        var _this = this;
+        if (this.value == expectedValue)
+            return Promise2.resolve();
+        return new Promise2(function (resolve, reject) {
+            var cancelable = _this.onChanged.add(function (changed) {
+                if (changed == expectedValue) {
+                    cancelable.cancel();
+                    resolve();
+                }
+            });
+        });
+    };
+    Object.defineProperty(WatchValue.prototype, "value", {
+        get: function () {
+            return this._value;
+        },
+        set: function (value) {
+            if (this._value == value)
+                return;
+            this._value = value;
+            this.onChanged.dispatch(value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return WatchValue;
+})();
 var Signal = (function () {
     function Signal() {
         this.callbacks = [];
@@ -7658,7 +7691,7 @@ var OverlayCounter = (function () {
         }
     }
     OverlayCounter.prototype.update = function () {
-        this.element.innerText = this.name + ": " + this.representedValue;
+        this.element.innerHTML = this.name + ": " + this.representedValue;
     };
     Object.defineProperty(OverlayCounter.prototype, "representedValue", {
         get: function () {
@@ -7676,7 +7709,7 @@ var OverlayIntent = (function () {
     function OverlayIntent(text, action) {
         if (canDOMCreateElements) {
             this.element = document.createElement('button');
-            this.element.innerText = text;
+            this.element.innerHTML = text;
             this.element.onclick = function (e) { return action(); };
         }
     }
@@ -7753,10 +7786,45 @@ var primCount = overlay.createCounter('primCount', 0);
 var batchCount = overlay.createCounter('batchCount', 0);
 var timePerFrame = overlay.createCounter('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
 var globalDriver;
+var freezing = new WatchValue(false);
 overlay.createIntent('toggle colors', function () {
-    if (globalDriver) {
+    if (globalDriver)
         globalDriver.enableColors = !globalDriver.enableColors;
-    }
+});
+overlay.createIntent('toggle antialiasing', function () {
+    if (globalDriver)
+        globalDriver.antialiasing = !globalDriver.antialiasing;
+});
+overlay.createIntent('toggle textures', function () {
+    if (globalDriver)
+        globalDriver.enableTextures = !globalDriver.enableTextures;
+});
+overlay.createIntent('toggle skinning', function () {
+    if (globalDriver)
+        globalDriver.enableSkinning = !globalDriver.enableSkinning;
+});
+overlay.createIntent('toggle bilinear', function () {
+    if (globalDriver)
+        globalDriver.enableBilinear = !globalDriver.enableBilinear;
+});
+overlay.createIntent('freeze', function () {
+    freezing.value = !freezing.value;
+});
+overlay.createIntent('x1', function () {
+    if (globalDriver)
+        globalDriver.setFramebufferSize(480 * 1, 272 * 1);
+});
+overlay.createIntent('x2', function () {
+    if (globalDriver)
+        globalDriver.setFramebufferSize(480 * 2, 272 * 2);
+});
+overlay.createIntent('x3', function () {
+    if (globalDriver)
+        globalDriver.setFramebufferSize(480 * 3, 272 * 3);
+});
+overlay.createIntent('x4', function () {
+    if (globalDriver)
+        globalDriver.setFramebufferSize(480 * 4, 272 * 4);
 });
 var PspGpuList = (function () {
     function PspGpuList(id, memory, drawDriver, runner, gpu, cpuExecutor, state) {
@@ -8211,6 +8279,7 @@ var PspGpu = (function () {
             MathUtils.prevAligned;
             _this.lastTime = end;
             overlay.updateAndReset();
+            return freezing.waitUntilValueAsync(false);
         });
         switch (syncType) {
             case 1: return this.listRunner.peek();
@@ -8230,7 +8299,29 @@ var BaseDrawDriver = (function () {
     function BaseDrawDriver() {
         this.rehashSignal = new Signal();
         this.enableColors = true;
+        this.enableTextures = true;
+        this.enableSkinning = true;
+        this.enableBilinear = true;
+        this.frameBufferWidth = 480;
+        this.frameBufferHeight = 272;
     }
+    BaseDrawDriver.prototype.setFramebufferSize = function (width, height) {
+        this.frameBufferWidth = width;
+        this.frameBufferHeight = height;
+    };
+    Object.defineProperty(BaseDrawDriver.prototype, "antialiasing", {
+        get: function () {
+            return this._antialiasing;
+        },
+        set: function (value) {
+            this._antialiasing = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    BaseDrawDriver.prototype.getFramebufferSize = function () {
+        return { width: this.frameBufferWidth, height: this.frameBufferHeight };
+    };
     BaseDrawDriver.prototype.end = function () {
     };
     BaseDrawDriver.prototype.initAsync = function () {
@@ -9892,11 +9983,30 @@ var WebGlPspDrawDriver = (function (_super) {
         this.lastBaseAddress = 0;
         this.tempVec = new Float32Array([0, 0, 0]);
         this.texMat = mat4.create();
+        this.createCanvas(false);
+        this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
+    }
+    Object.defineProperty(WebGlPspDrawDriver.prototype, "antialiasing", {
+        get: function () {
+            return this.glAntialiasing;
+        },
+        set: function (value) {
+            if (this.glAntialiasing == value)
+                return;
+            this.glAntialiasing = value;
+            this.createCanvas(value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    WebGlPspDrawDriver.prototype.createCanvas = function (glAntialiasing) {
+        this.glAntialiasing = glAntialiasing;
         var webglOptions = {
             alpha: false,
             depth: true,
             stencil: true,
-            preserveDrawingBuffer: true,
+            antialias: glAntialiasing,
+            preserveDrawingBuffer: false,
         };
         this.gl = this.canvas.getContext('webgl', webglOptions);
         if (!this.gl)
@@ -9905,9 +10015,19 @@ var WebGlPspDrawDriver = (function (_super) {
             alert("Can't initialize WebGL!");
             throw (new Error("Can't initialize WebGL!"));
         }
+        if (this.cache)
+            this.cache.invalidateWithGl(this.gl);
+        if (this.textureHandler)
+            this.textureHandler.invalidateWithGl(this.gl);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
-    }
+    };
+    WebGlPspDrawDriver.prototype.setFramebufferSize = function (width, height) {
+        this.canvas.setAttribute('width', "" + width);
+        this.canvas.setAttribute('height', "" + height);
+    };
+    WebGlPspDrawDriver.prototype.getFramebufferSize = function () {
+        return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') };
+    };
     WebGlPspDrawDriver.prototype.initAsync = function () {
         var _this = this;
         return downloadFileAsync('data/shader.vert').then(function (shaderVert) {
@@ -10060,6 +10180,9 @@ var WebGlPspDrawDriver = (function (_super) {
     };
     WebGlPspDrawDriver.prototype.updateState = function (program, vertexInfo, primitiveType) {
         program.getUniform('u_enableColors').set1i(this.enableColors ? 1 : 0);
+        program.getUniform('u_enableTextures').set1i(this.enableTextures ? 1 : 0);
+        program.getUniform('u_enableSkinning').set1i(this.enableSkinning ? 1 : 0);
+        program.getUniform('u_enableBilinear').set1i(this.enableBilinear ? 1 : 0);
         if (this.state.clearing) {
             this.updateClearStateStart(program, vertexInfo, primitiveType);
         }
@@ -10369,6 +10492,10 @@ var ShaderCache = (function () {
         this.shaderFragString = shaderFragString;
         this.programs = {};
     }
+    ShaderCache.prototype.invalidateWithGl = function (gl) {
+        this.programs = {};
+        this.gl = gl;
+    };
     ShaderCache.prototype.getProgram = function (vertex, state, optimized) {
         var hash = vertex.hash;
         hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
@@ -10582,20 +10709,27 @@ var TextureHandler = (function () {
         var _this = this;
         this.memory = memory;
         this.gl = gl;
-        this.texturesByHash2 = new Map();
-        this.texturesByHash1 = new Map();
-        this.texturesByAddress = new Map();
-        this.textures = [];
-        this.clutsByHash2 = new Map();
-        this.clutsByHash1 = new Map();
-        this.clutsByAddress = new Map();
-        this.cluts = [];
         this.recheckTimestamp = 0;
         this.invalidatedAll = false;
         this.rehashSignal = new Signal();
         memory.invalidateDataRange.add(function (range) { return _this.invalidatedMemoryRange(range); });
         memory.invalidateDataAll.add(function () { return _this.invalidatedMemoryAll(); });
+        this.invalidateWithGl(gl);
     }
+    TextureHandler.prototype.invalidateWithGl = function (gl) {
+        this.gl = gl;
+        this.texturesByHash1 = new Map();
+        this.texturesByHash2 = new Map();
+        this.texturesByAddress = new Map();
+        this.textures = [];
+        this.clutsByHash1 = new Map();
+        this.clutsByHash2 = new Map();
+        this.clutsByAddress = new Map();
+        this.cluts = [];
+        this.recheckTimestamp = 0;
+        this.invalidatedAll = false;
+        this.lastTexture = null;
+    };
     TextureHandler.prototype.flush = function () {
         for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
             var texture = _a[_i];

@@ -6,6 +6,8 @@ precision mediump float;
 #define GU_TCC_RGBA      1
 
 uniform int u_enableColors;
+uniform int u_enableTextures;
+uniform int u_enableBilinear;
 
 #ifdef VERTEX_COLOR
 	varying vec4 v_Color;
@@ -53,11 +55,12 @@ vec4 bilinearInterpolate(in vec4 topLeft, in vec4 topRight, in vec4 bottomLeft, 
 }
 
 vec4 getInterpolatedClutColor(vec2 coords) {
-	vec2 delta = pixelSize;
-	vec4 topLeft = getClutColorAt(coords + vec2(0, 0));
-	vec4 topRight = getClutColorAt(coords + vec2(+delta.x, 0));
-	vec4 bottomLeft = getClutColorAt(coords + vec2(0, +delta.y));
-	vec4 bottomRight = getClutColorAt(coords + vec2(+delta.x, +delta.y));
+	vec2 centerCoords = floor(coords * textureSize) / textureSize;
+	vec4 topLeft = getClutColorAt(centerCoords + vec2(0, 0));
+	if (u_enableBilinear == 0) return topLeft;
+	vec4 topRight = getClutColorAt(centerCoords + vec2(+pixelSize.x, 0));
+	vec4 bottomLeft = getClutColorAt(centerCoords + vec2(0, +pixelSize.y));
+	vec4 bottomRight = getClutColorAt(centerCoords + vec2(+pixelSize.x, +pixelSize.y));
 	vec2 mixFactor = fract(coords * textureSize);
 	return bilinearInterpolate(topLeft, topRight, bottomLeft, bottomRight, mixFactor);
 }
@@ -79,11 +82,15 @@ void main() {
 		#endif
 
 		#ifdef VERTEX_TEXTURE
+			vec4 texColor;
 			#ifdef TEXTURE_CLUT
-				vec4 texColor = getInterpolatedClutColor(v_Texcoord.st);
+				texColor = getInterpolatedClutColor(v_Texcoord.st);
 			#else
-				vec4 texColor = texture2D(uSampler, vec2(v_Texcoord.s, v_Texcoord.t));
+				texColor = texture2D(uSampler, vec2(v_Texcoord.s, v_Texcoord.t));
 			#endif
+			if (u_enableTextures == 0) {
+				texColor.rgb = vec3(1.0, 1.0, 1.0);
+			}
 
 			#ifdef ALPHATEST
 				int alphaTestColor = int(texColor.a * 255.0);

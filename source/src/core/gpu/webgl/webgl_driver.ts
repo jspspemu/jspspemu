@@ -24,19 +24,36 @@ import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 
 class WebGlPspDrawDriver extends IDrawDriver {
 	private gl: WebGLRenderingContext;
+	
 	private cache: ShaderCache;
 	private textureHandler: TextureHandler;
+	private glAntialiasing:boolean;
 
 	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
 		super();
-		
+		this.createCanvas(false);
+		this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
+	}
+	
+	set antialiasing(value:boolean) {
+		if (this.glAntialiasing == value) return;
+		this.glAntialiasing = value;
+		this.createCanvas(value);
+	}
+	
+	get antialiasing() {
+		return this.glAntialiasing;
+	}
+
+	private createCanvas(glAntialiasing:boolean) {
+		this.glAntialiasing = glAntialiasing;
 		var webglOptions = {
 			alpha: false,
 			depth: true,
 			stencil: true,
-			//antialias: false,
+			antialias: glAntialiasing,
 			//premultipliedAlpha: false,
-			preserveDrawingBuffer: true,
+			preserveDrawingBuffer: false,
 			//preserveDrawingBuffer: false,
 			//preferLowPowerToHighPerformance: false,
 			//failIfMajorPerformanceCaveat: false,
@@ -50,11 +67,20 @@ class WebGlPspDrawDriver extends IDrawDriver {
 			throw (new Error("Can't initialize WebGL!"));
 		}
 
+		if (this.cache) this.cache.invalidateWithGl(this.gl);
+		if (this.textureHandler) this.textureHandler.invalidateWithGl(this.gl);
 		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-		this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
 	}
 
+	setFramebufferSize(width:number, height:number) {
+		this.canvas.setAttribute('width', `${width}`);
+		this.canvas.setAttribute('height', `${height}`);
+	}
+
+	getFramebufferSize() {
+		return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') }
+	}
+	
 	private baseShaderFragString = '';
 	private baseShaderVertString = '';
 
@@ -251,6 +277,10 @@ class WebGlPspDrawDriver extends IDrawDriver {
 
 	private updateState(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
 		program.getUniform('u_enableColors').set1i(this.enableColors ? 1 : 0);
+		program.getUniform('u_enableTextures').set1i(this.enableTextures ? 1 : 0);
+		program.getUniform('u_enableSkinning').set1i(this.enableSkinning ? 1 : 0);
+		program.getUniform('u_enableBilinear').set1i(this.enableBilinear ? 1 : 0);
+		
 		
 		if (this.state.clearing) {
 			this.updateClearStateStart(program, vertexInfo, primitiveType);

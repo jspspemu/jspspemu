@@ -711,6 +711,31 @@ class SignalCancelable<T> implements Cancelable {
 	}
 }
 
+class WatchValue<T> {
+	private _value:T;
+	onChanged:Signal<T> = new Signal<T>();
+	constructor(value?:T) { this._value = value; }
+	waitUntilValueAsync(expectedValue:T) {
+		if (this.value == expectedValue) return Promise2.resolve();
+		return new Promise2((resolve, reject) => {
+			let cancelable = this.onChanged.add(changed => {
+				if (changed == expectedValue) {
+					cancelable.cancel();
+					resolve();
+				}
+			});
+		});
+	}
+	set value(value:T) {
+		if (this._value == value) return;
+		this._value = value;
+		this.onChanged.dispatch(value);
+	}
+	get value():T {
+		return this._value;
+	}
+}
+
 class Signal<T> {
 	callbacks: ((value?: T) => void)[] = [];
 

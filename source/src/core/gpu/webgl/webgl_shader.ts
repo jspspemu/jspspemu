@@ -13,6 +13,11 @@ export class ShaderCache {
 
 	constructor(private gl: WebGLRenderingContext, private shaderVertString: string, private shaderFragString: string) {
 	}
+	
+	invalidateWithGl(gl: WebGLRenderingContext) {
+		this.programs = {};
+		this.gl = gl;
+	}
 
 	getProgram(vertex: _state.VertexInfo, state: _state.GpuState, optimized:boolean) {
 		var hash = vertex.hash;
