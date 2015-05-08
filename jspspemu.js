@@ -4523,6 +4523,7 @@ var __extends = this.__extends || function (d, b) {
     d.prototype = new __();
 };
 var _ast = require('./cpu_ast');
+var _cpu = require('./cpu_core');
 var ast = new _ast.MipsAstBuilder();
 function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
 function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
@@ -5240,14 +5241,75 @@ var InstructionAst = (function () {
     };
     InstructionAst.prototype.vcmovt = function (i) { return this._vcmovtf(i, true); };
     InstructionAst.prototype.vcmovf = function (i) { return this._vcmovtf(i, false); };
-    InstructionAst.prototype.vcmp = function (i) {
-        var result = call_stm('state.vcmp', [
-            imm32(i.IMM4),
-            ast.array(readVector_f(i.VS, i.ONE_TWO)),
-            ast.array(readVector_f(i.VT, i.ONE_TWO))
-        ]);
+    InstructionAst.prototype.vcmp = function (ins) {
+        var out = [];
+        var vectorSize = ins.ONE_TWO;
+        this._vset_readVS(out, ins, 'float', vectorSize);
+        this._vset_readVT(out, ins, 'float', vectorSize);
+        var conds = [];
+        for (var i = 0; i < vectorSize; i++) {
+            var c = false;
+            var cond = '';
+            switch (ins.IMM4) {
+                case 0:
+                    cond = "false";
+                    break;
+                case 1:
+                    cond = "s" + i + " == t" + i;
+                    break;
+                case 2:
+                    cond = "s" + i + " < t" + i;
+                    break;
+                case 3:
+                    cond = "s" + i + " <= t" + i;
+                    break;
+                case 4:
+                    cond = "true";
+                    break;
+                case 5:
+                    cond = "s" + i + " != t" + i;
+                    break;
+                case 6:
+                    cond = "s" + i + " >= t" + i;
+                    break;
+                case 7:
+                    cond = "s" + i + " > t" + i;
+                    break;
+                case 8:
+                    cond = "(s" + i + " == 0.0) || (s" + i + " == -0.0)";
+                    break;
+                case 9:
+                    cond = "MathFloat.isnan(s" + i + ")";
+                    break;
+                case 10:
+                    cond = "MathFloat.isinf(s" + i + ")";
+                    break;
+                case 11:
+                    cond = "MathFloat.isnanorinf(s" + i + ")";
+                    break;
+                case 12:
+                    cond = "s" + i + " != 0;";
+                    break;
+                case 13:
+                    cond = "!MathFloat.isnan(s" + i + ")";
+                    break;
+                case 14:
+                    cond = "!MathFloat.isinf(s" + i + ")";
+                    break;
+                case 15:
+                    cond = "!(MathFloat.isnanorinf(s" + i + "))";
+                    break;
+            }
+            conds.push("((" + cond + ") << " + i + ")");
+        }
+        var mask = (1 << vectorSize) - 1;
+        var inv_affected_bits = ~(mask | (1 << 4) | (1 << 5));
+        out.push(ast.raw_stm("var cc = " + conds.join(' | ') + ";"));
+        out.push(ast.raw_stm("cc |= ((cc & " + mask + ") != 0) << 4;"));
+        out.push(ast.raw_stm("cc |= ((cc & " + mask + ") == " + mask + ") << 5;"));
+        out.push(ast.raw_stm("state.vfprc[" + 3 + "] = (state.vfprc[" + 3 + "] & " + inv_affected_bits + ") | cc;"));
         this.eatPrefixes();
-        return result;
+        return ast.stms(out);
     };
     InstructionAst.prototype.vwbn = function (i) { return ast.stm(); };
     InstructionAst.prototype.vsbn = function (i) { return ast.stm(); };
@@ -5669,7 +5731,6 @@ var VfpuPrefixWrite = (function (_super) {
     };
     return VfpuPrefixWrite;
 })(VfpuPrefixBase);
-;
 var CpuState = (function () {
     function CpuState(memory, syscallManager) {
         this.memory = memory;
@@ -5738,77 +5799,6 @@ var CpuState = (function () {
     CpuState.prototype.vrndf2 = function () { return Math.random() * 4; };
     CpuState.prototype.getVfrCc = function (index) {
         return ((this.vfprc[3] & (1 << index)) != 0);
-    };
-    CpuState.prototype.vcmp = function (cond, vsValues, vtValues) {
-        var vectorSize = vsValues.length;
-        this.loadVs_prefixed(vsValues);
-        this.loadVt_prefixed(vtValues);
-        var s = this.vector_vs;
-        var t = this.vector_vt;
-        var cc = 0;
-        var or_val = 0;
-        var and_val = 1;
-        var affected_bits = (1 << 4) | (1 << 5);
-        for (var i = 0; i < vectorSize; i++) {
-            var c = false;
-            switch (cond) {
-                case 0:
-                    c = false;
-                    break;
-                case 1:
-                    c = s[i] == t[i];
-                    break;
-                case 2:
-                    c = s[i] < t[i];
-                    break;
-                case 3:
-                    c = s[i] <= t[i];
-                    break;
-                case 4:
-                    c = true;
-                    break;
-                case 5:
-                    c = s[i] != t[i];
-                    break;
-                case 6:
-                    c = s[i] >= t[i];
-                    break;
-                case 7:
-                    c = s[i] > t[i];
-                    break;
-                case 8:
-                    c = s[i] == 0.0 || s[i] == -0.0;
-                    break;
-                case 9:
-                    c = MathFloat.isnan(s[i]);
-                    break;
-                case 10:
-                    c = MathFloat.isinf(s[i]);
-                    break;
-                case 11:
-                    c = MathFloat.isnanorinf(s[i]);
-                    break;
-                case 12:
-                    c = s[i] != 0;
-                    break;
-                case 13:
-                    c = !MathFloat.isnan(s[i]);
-                    break;
-                case 14:
-                    c = !MathFloat.isinf(s[i]);
-                    break;
-                case 15:
-                    c = !(MathFloat.isnanorinf(s[i]));
-                    break;
-            }
-            var c_i = (c ? 1 : 0);
-            cc |= (c_i << i);
-            or_val |= c_i;
-            and_val &= c_i;
-            affected_bits |= 1 << i;
-        }
-        this.vfprc[3] = (this.vfprc[3] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
-        this.eatPrefixes();
     };
     CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
         var _this = this;
@@ -6395,6 +6385,7 @@ var FunctionGenerator = (function () {
         catch (e) {
             console.info('code:\n', code.code);
             console.info('args:\n', code.args);
+            console.error(e);
             throw (e);
         }
     };
@@ -17430,7 +17421,6 @@ var IoFileMgrForUser = (function () {
         var file = this.getFileById(fileId);
         if (file)
             file.close();
-        log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
         this.fileUids.remove(fileId);
         return 0;
     };

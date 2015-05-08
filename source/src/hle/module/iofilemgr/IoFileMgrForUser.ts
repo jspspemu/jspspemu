@@ -101,11 +101,7 @@ export class IoFileMgrForUser {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		if (file) file.close();
-
-		log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoClose(%d)', fileId));
-
 		this.fileUids.remove(fileId);
-
 		return 0;
 	}
 

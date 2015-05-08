@@ -2,6 +2,7 @@
 
 import instructions = require('./cpu_instructions');
 import _ast = require('./cpu_ast');
+import _cpu = require('./cpu_core');
 import Instruction = instructions.Instruction;
 
 var ast: _ast.MipsAstBuilder = new _ast.MipsAstBuilder();
@@ -114,6 +115,9 @@ function VVecReg(index: number, size:VectorSize) {
 
 export const enum VectorSize { Single = 1, Pair = 2, Triple = 3, Quad = 4 }
 export const enum MatrixSize { M_2x2 = 2, M_3x3 = 3, M_4x4 = 4 };
+
+//function getVectorRegsValues(vectorReg: number, N: VectorSize) {
+//}
 
 function getVectorRegs(vectorReg: number, N: VectorSize) {
 	var mtx = (vectorReg >>> 2) & 7;
@@ -772,14 +776,51 @@ export class InstructionAst {
 	vcmovt(i: Instruction) { return this._vcmovtf(i, true); }
 	vcmovf(i: Instruction) { return this._vcmovtf(i, false); }
 
-	vcmp(i: Instruction) {
-		var result= call_stm('state.vcmp', [
-			imm32(i.IMM4),
-			ast.array(readVector_f(i.VS, i.ONE_TWO)),
-			ast.array(readVector_f(i.VT, i.ONE_TWO))
-		]);
+	vcmp(ins: Instruction) {
+		var out:_ast.ANodeStm[] = [];
+		
+		var vectorSize = ins.ONE_TWO;
+
+		//out.push(ast.raw_stm(`debugger;`));
+		this._vset_readVS(out, ins, 'float', vectorSize);
+		this._vset_readVT(out, ins, 'float', vectorSize);
+		var conds:string[] = [];
+		for (var i = 0; i < vectorSize; i++) {
+			var c = false;
+			var cond = '';
+			switch (ins.IMM4) {
+				case VCondition.FL: cond = `false`; break;
+				case VCondition.EQ: cond = `s${i} == t${i}`; break;
+				case VCondition.LT: cond = `s${i} < t${i}`; break;
+				case VCondition.LE: cond = `s${i} <= t${i}`; break;
+
+				case VCondition.TR: cond = `true`; break;
+				case VCondition.NE: cond = `s${i} != t${i}`; break;
+				case VCondition.GE: cond = `s${i} >= t${i}`; break;
+				case VCondition.GT: cond = `s${i} > t${i}`; break;
+
+				case VCondition.EZ: cond = `(s${i} == 0.0) || (s${i} == -0.0)`; break;
+				case VCondition.EN: cond = `MathFloat.isnan(s${i})`; break;
+				case VCondition.EI: cond = `MathFloat.isinf(s${i})`; break;
+				case VCondition.ES: cond = `MathFloat.isnanorinf(s${i})`; break;   // Tekken Dark Resurrection
+					 
+				case VCondition.NZ: cond = `s${i} != 0;`; break;
+				case VCondition.NN: cond = `!MathFloat.isnan(s${i})`; break;
+				case VCondition.NI: cond = `!MathFloat.isinf(s${i})`; break;
+				case VCondition.NS: cond = `!(MathFloat.isnanorinf(s${i}))`; break;   // How about t[i] ?	
+			}
+			conds.push(`((${cond}) << ${i})`);
+		}
+		let mask = (1 << vectorSize) - 1;
+		let inv_affected_bits = ~(mask | (1 << 4) | (1 << 5));
+		//out.push(ast.raw_stm(`debugger;`));
+		out.push(ast.raw_stm(`var cc = ${conds.join(' | ')};`));
+		out.push(ast.raw_stm(`cc |= ((cc & ${mask}) != 0) << 4;`));
+		out.push(ast.raw_stm(`cc |= ((cc & ${mask}) == ${mask}) << 5;`));
+		out.push(ast.raw_stm(`state.vfprc[${_cpu.VFPU_CTRL.CC}] = (state.vfprc[${_cpu.VFPU_CTRL.CC}] & ${inv_affected_bits}) | cc;`));
 		this.eatPrefixes();
-		return result;
+
+		return ast.stms(out);
 	}
 
 	// @TODO:
@@ -1102,4 +1143,9 @@ export class InstructionAst {
 	"c.nge.s"(i: Instruction) { return this._comp(i, 5, 1); }
 	"c.le.s"(i: Instruction) { return this._comp(i, 6, 1); }
 	"c.ngt.s"(i: Instruction) { return this._comp(i, 7, 1); }
+}
+
+export const enum VCondition {
+	FL, EQ, LT, LE, TR, NE, GE, GT,
+	EZ, EN, EI, ES, NZ, NN, NI, NS
 }
