@@ -10,7 +10,7 @@ var memory = _memory.getInstance();
 export class VertexBuffer {
 	private batchOffsetLength = 0;
 	private offsetLength = 0;
-	private vertices: _state.Vertex[] = [];
+	vertices: _state.Vertex[] = [];
 	private triangleStripOffset = 0;
 
 	constructor() {
@@ -237,9 +237,9 @@ export class VertexReader {
 }
 
 export class OptimizedDrawBuffer {
-	private data = new Uint8Array(2 * 1024 * 1024);
+	data = new Uint8Array(2 * 1024 * 1024);
 	private dataOffset = 0;
-	private indices = new Uint16Array(512 * 1024);
+	indices = new Uint16Array(512 * 1024);
 	private indexOffset = 0;
 	private vertexIndex = 0;
 	private batchDataOffset: number = 0;
@@ -253,6 +253,9 @@ export class OptimizedDrawBuffer {
 		this.batchIndexOffset = 0;
 	}
 	
+	getData() { return this.data.subarray(0, this.dataOffset); }
+	getIndices() { return this.indices.subarray(0, this.indexOffset); }
+	
 	get hasElements() {
 		return this.dataOffset > this.batchDataOffset;
 	}
@@ -263,7 +266,8 @@ export class OptimizedDrawBuffer {
 			this.batchDataOffset, this.dataOffset,
 			this.batchIndexOffset, this.indexOffset
 		);
-		this.batchDataOffset = this.dataOffset;
+		this.dataOffset = this.batchDataOffset = (this.dataOffset + 15) & ~0xF;
+		//this.dataOffset = this.batchDataOffset = this.dataOffset;
 		this.batchIndexOffset = this.indexOffset;
 		this.vertexIndex = 0;
 		return data;

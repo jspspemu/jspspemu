@@ -9967,6 +9967,8 @@ var OptimizedDrawBuffer = (function () {
         this.batchDataOffset = 0;
         this.batchIndexOffset = 0;
     };
+    OptimizedDrawBuffer.prototype.getData = function () { return this.data.subarray(0, this.dataOffset); };
+    OptimizedDrawBuffer.prototype.getIndices = function () { return this.indices.subarray(0, this.indexOffset); };
     Object.defineProperty(OptimizedDrawBuffer.prototype, "hasElements", {
         get: function () {
             return this.dataOffset > this.batchDataOffset;
@@ -9976,7 +9978,7 @@ var OptimizedDrawBuffer = (function () {
     });
     OptimizedDrawBuffer.prototype.createBatch = function (state, primType, vertexInfo) {
         var data = new OptimizedBatch(state, this, primType, vertexInfo, this.batchDataOffset, this.dataOffset, this.batchIndexOffset, this.indexOffset);
-        this.batchDataOffset = this.dataOffset;
+        this.dataOffset = this.batchDataOffset = (this.dataOffset + 15) & ~0xF;
         this.batchIndexOffset = this.indexOffset;
         this.vertexIndex = 0;
         return data;
@@ -10339,6 +10341,19 @@ var WebGlPspDrawDriver = (function (_super) {
         gl.enableVertexAttribArray(attribPosition.location);
         gl.vertexAttribPointer(attribPosition.location, componentCount, componentType, false, vertexSize, offset);
     };
+    WebGlPspDrawDriver.prototype.setOptimizedDrawBuffer = function (optimizedDrawBuffer) {
+        var gl = this.gl;
+        if (!this.optimizedDataBuffer)
+            this.optimizedDataBuffer = gl.createBuffer();
+        if (!this.optimizedIndexBuffer)
+            this.optimizedIndexBuffer = gl.createBuffer();
+        var databuffer = this.optimizedDataBuffer;
+        var indexbuffer = this.optimizedIndexBuffer;
+        gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, optimizedDrawBuffer.getData(), gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, optimizedDrawBuffer.getIndices(), gl.DYNAMIC_DRAW);
+    };
     WebGlPspDrawDriver.prototype.drawOptimized = function (buffer) {
         this.state.writeData(buffer.stateData);
         this.beforeDraw(this.state);
@@ -10352,33 +10367,34 @@ var WebGlPspDrawDriver = (function (_super) {
         var indexbuffer = this.optimizedIndexBuffer;
         var vs = buffer.vertexInfo;
         var primType = buffer.primType;
+        var globalVertexOffset = buffer.dataLow;
+        var indexStart = buffer.indexLow * 2;
         gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, buffer.getData(), gl.DYNAMIC_DRAW);
         var program = this.cache.getProgram(vs, state, true);
         program.use();
         program.getUniform('time').set1f(performance.now() / 1000.0);
         program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
         if (vs.hasPosition) {
-            this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset);
+            this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset + globalVertexOffset);
         }
         if (vs.hasTexture) {
-            this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset);
+            this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset + globalVertexOffset);
         }
         if (vs.hasColor) {
             if (vs.color == 7) {
-                this.setAttribute(databuffer, program.vColor, vs.colorComponents, 5121, vs.size, vs.colorOffset);
+                this.setAttribute(databuffer, program.vColor, vs.colorComponents, 5121, vs.size, vs.colorOffset + globalVertexOffset);
             }
             else {
-                this.setAttribute(databuffer, program.vColor, 4, 5123, vs.size, vs.colorOffset);
+                this.setAttribute(databuffer, program.vColor, 4, 5123, vs.size, vs.colorOffset + globalVertexOffset);
             }
         }
         if (vs.hasNormal) {
-            this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset);
+            this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset + globalVertexOffset);
         }
         if (vs.realWeightCount > 0) {
-            this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0));
+            this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0) + globalVertexOffset);
             if (vs.realWeightCount > 4) {
-                this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
+                this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4) + globalVertexOffset);
             }
             for (var n = 0; n < vs.realWeightCount; n++) {
                 program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
@@ -10404,8 +10420,7 @@ var WebGlPspDrawDriver = (function (_super) {
             program.getUniform('u_texMatrix').setMat4(this.texMat);
         }
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, buffer.getIndices(), gl.DYNAMIC_DRAW);
-        gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, indexStart);
         if (vs.hasPosition)
             program.vPosition.disable();
         if (vs.hasColor)

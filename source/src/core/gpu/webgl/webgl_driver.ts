@@ -319,52 +319,74 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	private optimizedDataBuffer:WebGLBuffer = null;
 	private optimizedIndexBuffer:WebGLBuffer = null;
 	
+	protected setOptimizedDrawBuffer(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer) {
+		let gl = this.gl;
+		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
+		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
+		let databuffer = this.optimizedDataBuffer;
+		let indexbuffer = this.optimizedIndexBuffer;
+		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, optimizedDrawBuffer.getData(), gl.DYNAMIC_DRAW);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, optimizedDrawBuffer.getIndices(), gl.DYNAMIC_DRAW);
+	}
+	
 	drawOptimized(buffer:_vertex.OptimizedBatch):void {
 		this.state.writeData(buffer.stateData);
 		this.beforeDraw(this.state);
 		var state = this.state;
 		let gl = this.gl;
 		
+		
 		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
 		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
-		
 		let databuffer = this.optimizedDataBuffer;
 		let indexbuffer = this.optimizedIndexBuffer;
 		let vs = buffer.vertexInfo;
 		let primType = buffer.primType;
+		//let indexStart = buffer.indexLow;
 		
-		//console.log('data and indices', buffer.getData().length, buffer.getIndices().length);
+		/*
 		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, buffer.getData(), gl.DYNAMIC_DRAW);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, buffer.getIndices(), gl.DYNAMIC_DRAW);
+		*/
+		
+		//console.log('data and indices', buffer.getData().length, buffer.getIndices().length);
 
 		//private setAttribute(enabled:boolean, attribPosition:number, componentCount:number, componentType:number, offset:number, vertexSize:number) {
 		
+		//var globalVertexOffset = 0; let indexStart = 0;
+		var globalVertexOffset = buffer.dataLow; let indexStart = buffer.indexLow * 2; 
+		
+		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
 		var program = this.cache.getProgram(vs, state, true);
 		program.use();
 		program.getUniform('time').set1f(performance.now() / 1000.0);
 		program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
 		if (vs.hasPosition) {
-			this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset);	
+			this.setAttribute(databuffer, program.vPosition, vs.positionComponents, convertVertexNumericEnum[vs.position], vs.size, vs.positionOffset + globalVertexOffset);	
 		}
 		if (vs.hasTexture) {
-			this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset);
+			this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset + globalVertexOffset);
 		}
 		// @TODO: Just working for RGBA8888
 		if (vs.hasColor) {
 			if (vs.color == 7) {
-				this.setAttribute(databuffer, program.vColor, vs.colorComponents, GL.UNSIGNED_BYTE, vs.size, vs.colorOffset);
+				this.setAttribute(databuffer, program.vColor, vs.colorComponents, GL.UNSIGNED_BYTE, vs.size, vs.colorOffset + globalVertexOffset);
 			} else {
-				this.setAttribute(databuffer, program.vColor, 4, GL.UNSIGNED_SHORT, vs.size, vs.colorOffset);
+				this.setAttribute(databuffer, program.vColor, 4, GL.UNSIGNED_SHORT, vs.size, vs.colorOffset + globalVertexOffset);
 			}
 		}
 		if (vs.hasNormal) {
-			this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset);
+			this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset + globalVertexOffset);
 		}
 		
 		if (vs.realWeightCount > 0) {
-			this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0));
+			this.setAttribute(databuffer, program.vertexWeight1, Math.min(4, vs.realWeightCount), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(0) + globalVertexOffset);
 			if (vs.realWeightCount > 4) {
-				this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4));
+				this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4) + globalVertexOffset);
 			}
 			for (var n = 0; n < vs.realWeightCount; n++) {
 				program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
@@ -400,11 +422,10 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, buffer.getIndices(), gl.DYNAMIC_DRAW);
 		//console.log('vertex.size:', vs.size, ',buffer:', buffer.dataOffset, vs.positionOffset, vs.textureOffset, vs.size);
 		//console.log('vertex:', vs.toString());
 		//console.log(new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset));
-		gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, 0);
+		gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, indexStart);
 		//drawElements(mode: number, count: number, type: number, offset: number): void;
 		
 		if (vs.hasPosition) program.vPosition.disable();
