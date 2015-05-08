@@ -195,7 +195,12 @@ function readMatrix(vectorReg: number, N: MatrixSize) {
 }
 
 function setMemoryVector(offset: _ast.ANodeExpr, items: _ast.ANodeExpr[]) {
-	return call_stm('state.storeFloats', [offset, ast.array(items)]);
+	var out:_ast.ANodeExpr[] = [];
+	for (var n = 0; n < items.length; n++) {
+		var item = items[n];
+		out.push(ast.raw_stm(`memory.swc1(${offset.toJs()} + ${n * 4}, ${item.toJs()});`));
+	}
+	return ast.stms(out);
 }
 
 function memoryRef(type: string, address: _ast.ANodeExpr) {
@@ -449,6 +454,7 @@ export class InstructionAst {
 				ast.array(xrange(0, size).map(n => generate(n))),
 			]));
 		}
+		
 		st.push(call_stm('state.eatPrefixes', []));
 		//st.push(ast.debugger());
 		this.eatPrefixes();
@@ -1122,8 +1128,16 @@ export class InstructionAst {
 		var fc_equal = ((fc02 & 2) != 0);
 		var fc_less = ((fc02 & 4) != 0);
 		var fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
-
-		return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
+		
+		var s = fpr(i.fs).toJs();
+		var t = fpr(i.ft).toJs();
+		
+		var parts:string[] = [];
+		if (fc_equal) parts.push(`(${s} == ${t})`);
+		if (fc_less) parts.push(`(${s} < ${t})`);
+		if (parts.length == 0) parts = ['false'];
+		
+		return stm(ast.raw_stm(`state.fcr31_cc = (isNaN(${s}) || isNaN(${t})) ? ${fc_unordererd} : (${parts.join(' | ')})`));
     }
 
 	"c.f.s"(i: Instruction) { return this._comp(i, 0, 0); }

@@ -401,12 +401,6 @@ export class CpuState {
 		for (var n = 0; n < k; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
 	}
 
-	storeFloats(address: number, values: number[]) {
-		for (var n = 0; n < values.length; n++) {
-			this.memory.writeFloat32(address + n * 4, values[n]);
-		}
-	}
-
 	vfpuStore(indices: number[], values: number[]) { for (var n = 0; n < indices.length; n++) this.vfpr[indices[n]] = values[n]; }
 	vfpuStore_i(indices: number[], values: number[]) { for (var n = 0; n < indices.length; n++) this.vfpr_i[indices[n]] = values[n]; }
 

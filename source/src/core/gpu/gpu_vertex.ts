@@ -287,6 +287,20 @@ export class OptimizedDrawBuffer {
 		for (var n = 0; n < vertexCount; n++) this.indices[this.indexOffset++] = this.vertexIndex++;
 	}
 	
+	addVerticesIndicesList(indices:Uint8Array | Uint16Array) {
+		var max = 0;
+		var ioffset = this.indexOffset;
+		for (var n = 0; n < indices.length; n++) {
+			var v = indices[n];
+			this.indices[ioffset + n] = v;
+			max = Math.max(max, v);
+		}
+		max++;
+		this.vertexIndex = max;
+		this.indexOffset += indices.length;
+		return max;
+	}
+	
 	join(vertexSize:number) {
 		this.indices[this.indexOffset++] = this.vertexIndex - 1;
 		this.indices[this.indexOffset++] = this.vertexIndex;

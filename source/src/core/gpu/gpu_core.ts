@@ -307,7 +307,7 @@ class PspGpuList {
 					localPrimCount++;
 					let primitiveType = <PrimitiveType>param3(p, 16);
 					if (this.primBatchPrimitiveType != primitiveType) this.finishPrimBatch();
-					if (this.prim(param24(p))) {
+					if (this.prim(param24(p)) == PrimAction.FLUSH_PRIM) {
 						this.finishPrimBatch();
 					}
 					current4 = this.current4;
@@ -383,7 +383,7 @@ class PspGpuList {
 	private cachedVertexLow: number = 0;
 	private cachedVertexHigh: number = 0;
 
-	private prim(p: number) {
+	private prim(p: number):PrimAction {
 		var vertexCount = param16(p, 0);
 		var primitiveType = <PrimitiveType>param3(p, 16);
 		if (vertexCount <= 0) return;
@@ -424,11 +424,26 @@ class PspGpuList {
 		var vertexInput: Uint8Array = this.cachedVertexInput;
 		var vertexInputOffset = vertexAddress - this.cachedVertexLow;
 		var drawType = DRAW_TYPE_CONV[primitiveType];
-		var optimized = ((vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1));
+		var optimized = (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
+		//var optimized = (vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
 
 		if (optimized) {
 			optimizedCount.value++;
-			this.primOptimized(primitiveType, (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
+			switch (vertexInfo.index) {
+				case IndexEnum.Void:
+					this.primOptimizedNoIndex(primitiveType, (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
+				break;
+				case IndexEnum.Byte:
+				case IndexEnum.Short:
+					var totalVertices = 0; 
+					if (vertexInfo.index == IndexEnum.Byte) {
+						totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU8Array(indicesAddress, vertexCount));
+					} else {
+						totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU16Array(indicesAddress, vertexCount * 2));
+					}
+					optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset, totalVertices * vertexSize);
+					return PrimAction.FLUSH_PRIM;
+			}
 		} else {
 			var mustDegenerate = (this.batchPrimCount > 0) && (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE);
 			var indices8: Uint8Array = null;
@@ -454,10 +469,10 @@ class PspGpuList {
 			if (drawType != PrimDrawType.SINGLE_DRAW) this.batchPrimCount++;
 		}
 
-		return (drawType == PrimDrawType.SINGLE_DRAW);
+		return (drawType == PrimDrawType.SINGLE_DRAW) ? PrimAction.FLUSH_PRIM : PrimAction.NOTHING;
 	}
 
-	private primOptimized(primitiveType: number, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:_state.VertexInfo, vertexInput: Uint8Array, vertexInputOffset: number) {
+	private primOptimizedNoIndex(primitiveType: number, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:_state.VertexInfo, vertexInput: Uint8Array, vertexInputOffset: number) {
 		var current4 = (this.current4 - 1) | 0; 
 		var batchPrimCount = this.batchPrimCount | 0;
 		var _optimizedDrawBuffer = optimizedDrawBuffer;
@@ -530,7 +545,7 @@ class PspGpuList {
 		vertices2.push(controlPoints[ucount - 1][vcount - 1]);
 		vertices2.push(controlPoints[0][vcount - 1]);
 
-		this.drawDriver.drawElements(state, _state.PrimitiveType.Triangles, vertices2, vertices2.length, vertexInfo2);
+		this.drawDriver.queueBatch(new _vertex.UnoptimizedBatch(state, _state.PrimitiveType.Triangles, vertices2, vertexInfo2));
 	}
 
 	private runUntilStall() {
@@ -705,6 +720,11 @@ export class PspGpu implements IPspGpu {
 			default: throw (new Error("Not implemented SyncType." + syncType));
 		}
     }
+}
+
+const enum PrimAction {
+	NOTHING = 0,
+	FLUSH_PRIM = 1,
 }
 
 overlay.update();

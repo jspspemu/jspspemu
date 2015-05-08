@@ -4706,7 +4706,12 @@ function readMatrix(vectorReg, N) {
     return getMatrixRegs(vectorReg, N).map(function (index) { return vfpr(index); });
 }
 function setMemoryVector(offset, items) {
-    return call_stm('state.storeFloats', [offset, ast.array(items)]);
+    var out = [];
+    for (var n = 0; n < items.length; n++) {
+        var item = items[n];
+        out.push(ast.raw_stm("memory.swc1(" + offset.toJs() + " + " + n * 4 + ", " + item.toJs() + ");"));
+    }
+    return ast.stms(out);
 }
 function memoryRef(type, address) {
     switch (type) {
@@ -5549,7 +5554,16 @@ var InstructionAst = (function () {
         var fc_equal = ((fc02 & 2) != 0);
         var fc_less = ((fc02 & 4) != 0);
         var fc_inv_qnan = (fc3 != 0);
-        return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
+        var s = fpr(i.fs).toJs();
+        var t = fpr(i.ft).toJs();
+        var parts = [];
+        if (fc_equal)
+            parts.push("(" + s + " == " + t + ")");
+        if (fc_less)
+            parts.push("(" + s + " < " + t + ")");
+        if (parts.length == 0)
+            parts = ['false'];
+        return stm(ast.raw_stm("state.fcr31_cc = (isNaN(" + s + ") || isNaN(" + t + ")) ? " + fc_unordererd + " : (" + parts.join(' | ') + ")"));
     };
     InstructionAst.prototype["c.f.s"] = function (i) { return this._comp(i, 0, 0); };
     InstructionAst.prototype["c.un.s"] = function (i) { return this._comp(i, 1, 0); };
@@ -5972,11 +5986,6 @@ var CpuState = (function () {
         var k = (4 - ((address >>> 2) & 3));
         for (var n = 0; n < k; n++, address += 4)
             this.vfpr_i[r[n]] = this.memory.lw(address);
-    };
-    CpuState.prototype.storeFloats = function (address, values) {
-        for (var n = 0; n < values.length; n++) {
-            this.memory.writeFloat32(address + n * 4, values[n]);
-        }
     };
     CpuState.prototype.vfpuStore = function (indices, values) { for (var n = 0; n < indices.length; n++)
         this.vfpr[indices[n]] = values[n]; };
@@ -7946,7 +7955,7 @@ var PspGpuList = (function () {
                     var primitiveType = param3(p, 16);
                     if (this.primBatchPrimitiveType != primitiveType)
                         this.finishPrimBatch();
-                    if (this.prim(param24(p))) {
+                    if (this.prim(param24(p)) == 1) {
                         this.finishPrimBatch();
                     }
                     current4 = this.current4;
@@ -8073,10 +8082,25 @@ var PspGpuList = (function () {
         var vertexInput = this.cachedVertexInput;
         var vertexInputOffset = vertexAddress - this.cachedVertexLow;
         var drawType = DRAW_TYPE_CONV[primitiveType];
-        var optimized = ((vertexInfo.index == 0) && (primitiveType != 6) && (vertexInfo.realMorphingVertexCount == 1));
+        var optimized = (primitiveType != 6) && (vertexInfo.realMorphingVertexCount == 1);
         if (optimized) {
             optimizedCount.value++;
-            this.primOptimized(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
+            switch (vertexInfo.index) {
+                case 0:
+                    this.primOptimizedNoIndex(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
+                    break;
+                case 1:
+                case 2:
+                    var totalVertices = 0;
+                    if (vertexInfo.index == 1) {
+                        totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU8Array(indicesAddress, vertexCount));
+                    }
+                    else {
+                        totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU16Array(indicesAddress, vertexCount * 2));
+                    }
+                    optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset, totalVertices * vertexSize);
+                    return 1;
+            }
         }
         else {
             var mustDegenerate = (this.batchPrimCount > 0) && (drawType == 2);
@@ -8104,9 +8128,9 @@ var PspGpuList = (function () {
             if (drawType != 0)
                 this.batchPrimCount++;
         }
-        return (drawType == 0);
+        return (drawType == 0) ? 1 : 0;
     };
-    PspGpuList.prototype.primOptimized = function (primitiveType, drawTypeDegenerated, vertexSize, vertexInfo, vertexInput, vertexInputOffset) {
+    PspGpuList.prototype.primOptimizedNoIndex = function (primitiveType, drawTypeDegenerated, vertexSize, vertexInfo, vertexInput, vertexInputOffset) {
         var current4 = (this.current4 - 1) | 0;
         var batchPrimCount = this.batchPrimCount | 0;
         var _optimizedDrawBuffer = optimizedDrawBuffer;
@@ -8171,7 +8195,7 @@ var PspGpuList = (function () {
         vertices2.push(controlPoints[ucount - 1][0]);
         vertices2.push(controlPoints[ucount - 1][vcount - 1]);
         vertices2.push(controlPoints[0][vcount - 1]);
-        this.drawDriver.drawElements(state, 3, vertices2, vertices2.length, vertexInfo2);
+        this.drawDriver.queueBatch(new _vertex.UnoptimizedBatch(state, 3, vertices2, vertexInfo2));
     };
     PspGpuList.prototype.runUntilStall = function () {
         this.status = 2;
@@ -10009,6 +10033,19 @@ var OptimizedDrawBuffer = (function () {
     OptimizedDrawBuffer.prototype.addVerticesIndices = function (vertexCount) {
         for (var n = 0; n < vertexCount; n++)
             this.indices[this.indexOffset++] = this.vertexIndex++;
+    };
+    OptimizedDrawBuffer.prototype.addVerticesIndicesList = function (indices) {
+        var max = 0;
+        var ioffset = this.indexOffset;
+        for (var n = 0; n < indices.length; n++) {
+            var v = indices[n];
+            this.indices[ioffset + n] = v;
+            max = Math.max(max, v);
+        }
+        max++;
+        this.vertexIndex = max;
+        this.indexOffset += indices.length;
+        return max;
     };
     OptimizedDrawBuffer.prototype.join = function (vertexSize) {
         this.indices[this.indexOffset++] = this.vertexIndex - 1;
