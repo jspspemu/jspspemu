@@ -130,12 +130,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		return enable;
 	}
 
-	private state: GpuState;
-
-	setState(state: GpuState) {
-		this.state = state;
-	}
-
 	private equationTranslate: number[] = [GL.FUNC_ADD, GL.FUNC_SUBTRACT, GL.FUNC_REVERSE_SUBTRACT, GL.FUNC_ADD, GL.FUNC_ADD, GL.FUNC_ADD]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
 	private opsConvertTable: number[] = [GL.KEEP, GL.ZERO, GL.REPLACE, GL.INVERT, GL.INCR, GL.DECR];
 	private testConvertTable: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.LESS, GL.LEQUAL, GL.GREATER, GL.GEQUAL];
@@ -305,7 +299,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	}
 	
 	private beforeDraw(state: GpuState) {
-		this.setState(state);
+		this.state.copyFrom(state);
 		this.setClearMode(state.clearing, state.clearFlags);
 		this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
 		this.display.setEnabledDisplay(false);
@@ -324,8 +318,10 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	
 	private optimizedDataBuffer:WebGLBuffer = null;
 	private optimizedIndexBuffer:WebGLBuffer = null;
-	drawOptimized(state: GpuState, buffer:_vertex.OptimizedDrawBuffer):void {
-		this.beforeDraw(state);
+	
+	drawOptimized(buffer:_vertex.OptimizedBatch):void {
+		this.state.writeData(buffer.stateData);
+		this.beforeDraw(this.state);
 		var state = this.state;
 		let gl = this.gl;
 		
@@ -337,8 +333,9 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		let vs = buffer.vertexInfo;
 		let primType = buffer.primType;
 		
+		//console.log('data and indices', buffer.getData().length, buffer.getIndices().length);
 		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(buffer.data.buffer, 0, buffer.dataOffset + 120), gl.DYNAMIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, buffer.getData(), gl.DYNAMIC_DRAW);
 
 		//private setAttribute(enabled:boolean, attribPosition:number, componentCount:number, componentType:number, offset:number, vertexSize:number) {
 		
@@ -403,11 +400,11 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset), gl.DYNAMIC_DRAW);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, buffer.getIndices(), gl.DYNAMIC_DRAW);
 		//console.log('vertex.size:', vs.size, ',buffer:', buffer.dataOffset, vs.positionOffset, vs.textureOffset, vs.size);
 		//console.log('vertex:', vs.toString());
 		//console.log(new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset));
-		gl.drawElements(convertPrimitiveType[primType], buffer.indexOffset, gl.UNSIGNED_SHORT, 0);
+		gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, 0);
 		//drawElements(mode: number, count: number, type: number, offset: number): void;
 		
 		if (vs.hasPosition) program.vPosition.disable();

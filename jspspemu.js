@@ -7733,7 +7733,8 @@ var OverlayCounter = (function () {
         }
     }
     OverlayCounter.prototype.update = function () {
-        this.element.innerHTML = this.name + ": " + this.representedValue;
+        if (this.element)
+            this.element.innerHTML = this.name + ": " + this.representedValue;
     };
     Object.defineProperty(OverlayCounter.prototype, "representedValue", {
         get: function () {
@@ -7898,16 +7899,15 @@ var PspGpuList = (function () {
         this.promiseResolve(0);
     };
     PspGpuList.prototype.finishPrimBatch = function () {
-        if (optimizedDrawBuffer.dataOffset > 0) {
+        if (optimizedDrawBuffer.hasElements) {
             this.batchPrimCount = 0;
-            this.drawDriver.drawOptimized(this.state, optimizedDrawBuffer);
-            optimizedDrawBuffer.reset();
+            this.drawDriver.queueBatch(optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo));
             this.primBatchPrimitiveType = -1;
             batchCount.value++;
         }
-        if (vertexBuffer.offsetLength > 0) {
+        if (vertexBuffer.hasElements) {
             this.batchPrimCount = 0;
-            this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.vertexInfo);
+            this.drawDriver.queueBatch(vertexBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo));
             vertexBuffer.reset();
             this.primBatchPrimitiveType = -1;
             batchCount.value++;
@@ -8062,8 +8062,6 @@ var PspGpuList = (function () {
         var optimized = ((vertexInfo.index == 0) && (primitiveType != 6) && (vertexInfo.realMorphingVertexCount == 1));
         if (optimized) {
             optimizedCount.value++;
-            optimizedDrawBuffer.primType = primitiveType;
-            optimizedDrawBuffer.vertexInfo = vertexInfo;
             this.primOptimized(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
         }
         else {
@@ -8297,12 +8295,19 @@ var PspGpu = (function () {
     PspGpu.prototype.drawSync = function (syncType) {
         var _this = this;
         return this.listRunner.waitAsync().then(function () {
-            var end = performance.now();
-            timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - _this.lastTime, 0.5);
-            MathUtils.prevAligned;
-            _this.lastTime = end;
-            overlay.updateAndReset();
-            return freezing.waitUntilValueAsync(false);
+            try {
+                var end = performance.now();
+                timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - _this.lastTime, 0.5);
+                _this.lastTime = end;
+                overlay.updateAndReset();
+                _this.driver.drawAllQueuedBatches(vertexBuffer, optimizedDrawBuffer);
+                return freezing.waitUntilValueAsync(false);
+            }
+            catch (e) {
+                console.error(e);
+                alert(e['stack'] || e);
+                throw e;
+            }
         });
         switch (syncType) {
             case 1: return this.listRunner.peek();
@@ -8318,6 +8323,8 @@ overlay.update();
 },
 "src/core/gpu/gpu_driver": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+var _state = require('./gpu_state');
+var _vertex = require('./gpu_vertex');
 var BaseDrawDriver = (function () {
     function BaseDrawDriver() {
         this.rehashSignal = new Signal();
@@ -8327,6 +8334,8 @@ var BaseDrawDriver = (function () {
         this.enableBilinear = true;
         this.frameBufferWidth = 480;
         this.frameBufferHeight = 272;
+        this.state = new _state.GpuState();
+        this.batches = [];
     }
     BaseDrawDriver.prototype.setFramebufferSize = function (width, height) {
         this.frameBufferWidth = width;
@@ -8356,7 +8365,31 @@ var BaseDrawDriver = (function () {
     };
     BaseDrawDriver.prototype.drawElements = function (state, primitiveType, vertices, count, vertexInfo) {
     };
-    BaseDrawDriver.prototype.drawOptimized = function (state, buffer) {
+    BaseDrawDriver.prototype.drawUnoptimized = function (batch) {
+        this.state.writeData(batch.stateData);
+        this.drawElements(this.state, batch.primType, batch.vertices, batch.vertices.length, batch.vertexInfo);
+    };
+    BaseDrawDriver.prototype.drawOptimized = function (batch) {
+    };
+    BaseDrawDriver.prototype.setOptimizedDrawBuffer = function (optimizedDrawBuffer) {
+    };
+    BaseDrawDriver.prototype.queueBatch = function (batch) {
+        this.batches.push(batch);
+    };
+    BaseDrawDriver.prototype.drawAllQueuedBatches = function (vertexBuffer, optimizedDrawBuffer) {
+        this.setOptimizedDrawBuffer(optimizedDrawBuffer);
+        for (var _i = 0, _a = this.batches; _i < _a.length; _i++) {
+            var batch = _a[_i];
+            if (batch instanceof _vertex.UnoptimizedBatch) {
+                this.drawUnoptimized(batch);
+            }
+            else if (batch instanceof _vertex.OptimizedBatch) {
+                this.drawOptimized(batch);
+            }
+        }
+        optimizedDrawBuffer.reset();
+        vertexBuffer.reset();
+        this.batches = [];
     };
     return BaseDrawDriver;
 })();
@@ -9624,7 +9657,8 @@ var GpuState = (function () {
         this.colorTest = new ColorTestState(this.data);
         this.depthTest = new DepthTestState(this.data);
     }
-    GpuState.prototype.writeData = function (data) { this.data.set(data); };
+    GpuState.prototype.copyFrom = function (that) { return this.writeData(that.data); };
+    GpuState.prototype.writeData = function (data) { this.data.set(data); return this; };
     GpuState.prototype.readData = function () { return ArrayBufferUtils.cloneUint32Array(this.data); };
     Object.defineProperty(GpuState.prototype, "clearing", {
         get: function () { return param1(this.data[211], 0) != 0; },
@@ -9714,20 +9748,36 @@ exports.DitheringState = DitheringState;
 "src/core/gpu/gpu_vertex": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var _state = require('./gpu_state');
+var _memory = require('../memory');
 var _IndentStringGenerator = require('../../util/IndentStringGenerator');
+var memory = _memory.getInstance();
 var VertexBuffer = (function () {
     function VertexBuffer() {
+        this.batchOffsetLength = 0;
         this.offsetLength = 0;
         this.vertices = [];
         this.triangleStripOffset = 0;
     }
+    Object.defineProperty(VertexBuffer.prototype, "hasElements", {
+        get: function () {
+            return this.offsetLength > this.batchOffsetLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
     VertexBuffer.prototype.reset = function () {
         this.offsetLength = 0;
+        this.batchOffsetLength = 0;
     };
     VertexBuffer.prototype.take = function (count) {
         var result = this.offsetLength;
         this.offsetLength += count;
         return result;
+    };
+    VertexBuffer.prototype.createBatch = function (state, primType, vertexInfo) {
+        var batch = new UnoptimizedBatch(state, primType, this.vertices.slice(this.batchOffsetLength, this.offsetLength), vertexInfo);
+        this.batchOffsetLength = this.offsetLength;
+        return batch;
     };
     VertexBuffer.prototype.startDegenerateTriangleStrip = function () {
         this.triangleStripOffset = this.ensureAndTake(2);
@@ -9902,19 +9952,34 @@ var VertexReader = (function () {
 exports.VertexReader = VertexReader;
 var OptimizedDrawBuffer = (function () {
     function OptimizedDrawBuffer() {
-        this.data = new Uint8Array(512 * 1024);
-        this.data32 = new Uint32Array(this.data.buffer);
+        this.data = new Uint8Array(2 * 1024 * 1024);
         this.dataOffset = 0;
-        this.indices = new Uint16Array(64 * 1024);
+        this.indices = new Uint16Array(512 * 1024);
         this.indexOffset = 0;
         this.vertexIndex = 0;
+        this.batchDataOffset = 0;
+        this.batchIndexOffset = 0;
     }
     OptimizedDrawBuffer.prototype.reset = function () {
         this.dataOffset = 0;
         this.indexOffset = 0;
         this.vertexIndex = 0;
+        this.batchDataOffset = 0;
+        this.batchIndexOffset = 0;
     };
-    OptimizedDrawBuffer.prototype.addDataWithIndices8 = function (vertices, vertexSize, indices) {
+    Object.defineProperty(OptimizedDrawBuffer.prototype, "hasElements", {
+        get: function () {
+            return this.dataOffset > this.batchDataOffset;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    OptimizedDrawBuffer.prototype.createBatch = function (state, primType, vertexInfo) {
+        var data = new OptimizedBatch(state, this, primType, vertexInfo, this.batchDataOffset, this.dataOffset, this.batchIndexOffset, this.indexOffset);
+        this.batchDataOffset = this.dataOffset;
+        this.batchIndexOffset = this.indexOffset;
+        this.vertexIndex = 0;
+        return data;
     };
     OptimizedDrawBuffer.prototype.addVertices = function (vertices, inputOffset, vertexCount, verticesSize) {
         this.addVerticesData(vertices, inputOffset, verticesSize);
@@ -9935,6 +10000,60 @@ var OptimizedDrawBuffer = (function () {
     return OptimizedDrawBuffer;
 })();
 exports.OptimizedDrawBuffer = OptimizedDrawBuffer;
+var OptimizedBatch = (function () {
+    function OptimizedBatch(state, drawBuffer, primType, vertexInfo, dataLow, dataHigh, indexLow, indexHigh) {
+        this.drawBuffer = drawBuffer;
+        this.primType = primType;
+        this.vertexInfo = vertexInfo;
+        this.dataLow = dataLow;
+        this.dataHigh = dataHigh;
+        this.indexLow = indexLow;
+        this.indexHigh = indexHigh;
+        this.textureData = null;
+        this.clutData = null;
+        this.stateData = state.readData();
+        this.vertexInfo = this.vertexInfo.clone();
+        if (vertexInfo.hasTexture) {
+            var mipmap = state.texture.mipmaps[0];
+            this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes);
+            if (state.texture.hasClut) {
+                var clut = state.texture.clut;
+                this.clutData = memory.getPointerU8Array(clut.address, clut.sizeInBytes);
+            }
+        }
+    }
+    OptimizedBatch.prototype.getData = function () { return this.drawBuffer.data.subarray(this.dataLow, this.dataHigh); };
+    OptimizedBatch.prototype.getIndices = function () { return this.drawBuffer.indices.subarray(this.indexLow, this.indexHigh); };
+    Object.defineProperty(OptimizedBatch.prototype, "indexCount", {
+        get: function () { return this.indexHigh - this.indexLow; },
+        enumerable: true,
+        configurable: true
+    });
+    return OptimizedBatch;
+})();
+exports.OptimizedBatch = OptimizedBatch;
+var UnoptimizedBatch = (function () {
+    function UnoptimizedBatch(state, primType, vertices, vertexInfo) {
+        this.primType = primType;
+        this.vertices = vertices;
+        this.vertexInfo = vertexInfo;
+        this.textureData = null;
+        this.clutData = null;
+        this.stateData = state.readData();
+        this.vertices = this.vertices.slice();
+        this.vertexInfo = this.vertexInfo.clone();
+        if (vertexInfo.hasTexture) {
+            var mipmap = state.texture.mipmaps[0];
+            this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes);
+            if (state.texture.hasClut) {
+                var clut = state.texture.clut;
+                this.clutData = memory.getPointerU8Array(clut.address, clut.sizeInBytes);
+            }
+        }
+    }
+    return UnoptimizedBatch;
+})();
+exports.UnoptimizedBatch = UnoptimizedBatch;
 
 },
 "src/core/gpu/webgl/webgl_driver": function(module, exports, require) {
@@ -10066,9 +10185,6 @@ var WebGlPspDrawDriver = (function (_super) {
         else
             this.gl.disable(type);
         return enable;
-    };
-    WebGlPspDrawDriver.prototype.setState = function (state) {
-        this.state = state;
     };
     WebGlPspDrawDriver.prototype.updateNormalState = function (program, vertexInfo, primitiveType) {
         var state = this.state;
@@ -10210,7 +10326,7 @@ var WebGlPspDrawDriver = (function (_super) {
         }
     };
     WebGlPspDrawDriver.prototype.beforeDraw = function (state) {
-        this.setState(state);
+        this.state.copyFrom(state);
         this.setClearMode(state.clearing, state.clearFlags);
         this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
         this.display.setEnabledDisplay(false);
@@ -10223,8 +10339,9 @@ var WebGlPspDrawDriver = (function (_super) {
         gl.enableVertexAttribArray(attribPosition.location);
         gl.vertexAttribPointer(attribPosition.location, componentCount, componentType, false, vertexSize, offset);
     };
-    WebGlPspDrawDriver.prototype.drawOptimized = function (state, buffer) {
-        this.beforeDraw(state);
+    WebGlPspDrawDriver.prototype.drawOptimized = function (buffer) {
+        this.state.writeData(buffer.stateData);
+        this.beforeDraw(this.state);
         var state = this.state;
         var gl = this.gl;
         if (!this.optimizedDataBuffer)
@@ -10236,7 +10353,7 @@ var WebGlPspDrawDriver = (function (_super) {
         var vs = buffer.vertexInfo;
         var primType = buffer.primType;
         gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(buffer.data.buffer, 0, buffer.dataOffset + 120), gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, buffer.getData(), gl.DYNAMIC_DRAW);
         var program = this.cache.getProgram(vs, state, true);
         program.use();
         program.getUniform('time').set1f(performance.now() / 1000.0);
@@ -10287,8 +10404,8 @@ var WebGlPspDrawDriver = (function (_super) {
             program.getUniform('u_texMatrix').setMat4(this.texMat);
         }
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset), gl.DYNAMIC_DRAW);
-        gl.drawElements(convertPrimitiveType[primType], buffer.indexOffset, gl.UNSIGNED_SHORT, 0);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, buffer.getIndices(), gl.DYNAMIC_DRAW);
+        gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, 0);
         if (vs.hasPosition)
             program.vPosition.disable();
         if (vs.hasColor)
@@ -24955,8 +25072,8 @@ exports.ext = ext;
 var memory = _memory.getInstance();
 describe('memory', function () {
     it('memory_hash', function () {
-        for (var n = 0; n < 20; n++) {
-            memory.hash(0x08000000, 32 * 1024 * 1024);
+        for (var n = 0; n < 400; n++) {
+            memory.hash(0x08000000, 1 * 1024 * 1024);
         }
     });
 });

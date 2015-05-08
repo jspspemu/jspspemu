@@ -86,7 +86,7 @@ class OverlayCounter<T> implements OverlaySection {
 		}
 	}
 	update() {
-		this.element.innerHTML = `${this.name}: ${this.representedValue}`;
+		if (this.element) this.element.innerHTML = `${this.name}: ${this.representedValue}`;
 	}
 	get representedValue() {
 		return this.representer ? this.representer(this.value) : this.value;
@@ -250,16 +250,15 @@ class PspGpuList {
 	primBatchPrimitiveType: number = -1;
 
 	finishPrimBatch() {
-		if (optimizedDrawBuffer.dataOffset > 0) {
+		if (optimizedDrawBuffer.hasElements) {
 			this.batchPrimCount = 0;
-			this.drawDriver.drawOptimized(this.state, optimizedDrawBuffer);
-			optimizedDrawBuffer.reset();
+			this.drawDriver.queueBatch(optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo));
 			this.primBatchPrimitiveType = -1;
 			batchCount.value++;
 		}
-		if (vertexBuffer.offsetLength > 0) {
+		if (vertexBuffer.hasElements) {
 			this.batchPrimCount = 0;
-			this.drawDriver.drawElements(this.state, this.primBatchPrimitiveType, vertexBuffer.vertices, vertexBuffer.offsetLength, this.vertexInfo);
+			this.drawDriver.queueBatch(vertexBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo));
 			vertexBuffer.reset();
 			this.primBatchPrimitiveType = -1;
 			batchCount.value++;
@@ -426,8 +425,6 @@ class PspGpuList {
 
 		if (optimized) {
 			optimizedCount.value++;
-			optimizedDrawBuffer.primType = primitiveType;
-			optimizedDrawBuffer.vertexInfo = vertexInfo;
 			//if (mustDegenerate) optimizedDrawBuffer.join(vertexSize);
 			//optimizedDrawBuffer.addVertices(vertexInput, vertexInputOffset, vertexCount, vertexSize);
 			
@@ -687,12 +684,18 @@ export class PspGpu implements IPspGpu {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
 		return this.listRunner.waitAsync().then(() => {
-			var end = performance.now();
-			timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
-			MathUtils.prevAligned
-			this.lastTime = end;
-			overlay.updateAndReset();
-			return freezing.waitUntilValueAsync(false);
+			try {
+				var end = performance.now();
+				timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
+				this.lastTime = end;
+				overlay.updateAndReset();
+				this.driver.drawAllQueuedBatches(vertexBuffer, optimizedDrawBuffer);
+				return freezing.waitUntilValueAsync(false);
+			} catch (e) {
+				console.error(e);
+				alert(e['stack'] || e);
+				throw e;
+			}
 		});
 
 		switch (syncType) {

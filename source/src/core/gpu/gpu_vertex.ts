@@ -1,18 +1,28 @@
 ﻿///<reference path="../../global.d.ts" />
 
 import _state = require('./gpu_state');
+import _memory = require('../memory');
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 import ColorEnum = _state.ColorEnum;
 
+var memory = _memory.getInstance();
+
 export class VertexBuffer {
-	offsetLength = 0;
-	vertices: _state.Vertex[] = [];
+	private batchOffsetLength = 0;
+	private offsetLength = 0;
+	private vertices: _state.Vertex[] = [];
+	private triangleStripOffset = 0;
 
 	constructor() {
+	}
+	
+	get hasElements() {
+		return this.offsetLength > this.batchOffsetLength;
 	}
 
 	reset() {
 		this.offsetLength = 0;
+		this.batchOffsetLength = 0;
 	}
 
 	take(count: number) {
@@ -21,7 +31,15 @@ export class VertexBuffer {
 		return result;
 	}
 
-	private triangleStripOffset = 0;
+	createBatch(state: _state.GpuState, primType:_state.PrimitiveType, vertexInfo:_state.VertexInfo) {
+		var batch = new UnoptimizedBatch(
+			state, primType,
+			this.vertices.slice(this.batchOffsetLength, this.offsetLength),
+			vertexInfo
+		);
+		this.batchOffsetLength = this.offsetLength;
+		return batch;
+	}
 
 	startDegenerateTriangleStrip() {
 		this.triangleStripOffset = this.ensureAndTake(2);
@@ -219,23 +237,36 @@ export class VertexReader {
 }
 
 export class OptimizedDrawBuffer {
-	data = new Uint8Array(512 * 1024);
-	data32 = new Uint32Array(this.data.buffer);
-	dataOffset = 0;
-	indices = new Uint16Array(64 * 1024);
-	indexOffset = 0;
-	vertexIndex = 0;
-	primType:_state.PrimitiveType;
-	vertexInfo:_state.VertexInfo;
+	private data = new Uint8Array(2 * 1024 * 1024);
+	private dataOffset = 0;
+	private indices = new Uint16Array(512 * 1024);
+	private indexOffset = 0;
+	private vertexIndex = 0;
+	private batchDataOffset: number = 0;
+	private batchIndexOffset: number = 0;
 	
 	reset() {
 		this.dataOffset = 0;
 		this.indexOffset = 0;
 		this.vertexIndex = 0;
+		this.batchDataOffset = 0;
+		this.batchIndexOffset = 0;
 	}
 	
-	addDataWithIndices8(vertices:Uint8Array, vertexSize:number, indices:Uint8Array) {
-		//for (var n = 0; n < )
+	get hasElements() {
+		return this.dataOffset > this.batchDataOffset;
+	}
+	
+	createBatch(state: _state.GpuState, primType:_state.PrimitiveType, vertexInfo:_state.VertexInfo) {
+		var data = new OptimizedBatch(
+			state, this, primType, vertexInfo,
+			this.batchDataOffset, this.dataOffset,
+			this.batchIndexOffset, this.indexOffset
+		);
+		this.batchDataOffset = this.dataOffset;
+		this.batchIndexOffset = this.indexOffset;
+		this.vertexIndex = 0;
+		return data;
 	}
 
 	addVertices(vertices:Uint8Array, inputOffset:number, vertexCount:number, verticesSize:number) {
@@ -256,17 +287,58 @@ export class OptimizedDrawBuffer {
 		this.indices[this.indexOffset++] = this.vertexIndex - 1;
 		this.indices[this.indexOffset++] = this.vertexIndex;
 	}
+}
 
-	/*
-	startDegenerateTriangleStrip() {
-		this.triangleStripOffset = this.ensureAndTake(2);
+export class OptimizedBatch {
+	public stateData:Uint32Array;
+	public textureData:Uint8Array = null;
+	public clutData:Uint8Array = null;
+	
+	constructor(
+		state: _state.GpuState,
+		public drawBuffer: OptimizedDrawBuffer,
+		public primType:_state.PrimitiveType, public vertexInfo:_state.VertexInfo,
+		public dataLow: number, public dataHigh: number,
+		public indexLow: number, public indexHigh: number
+	) {
+		this.stateData = state.readData();
+		this.vertexInfo = this.vertexInfo.clone();
+		if (vertexInfo.hasTexture) {
+			var mipmap = state.texture.mipmaps[0];
+			this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes); 
+			if (state.texture.hasClut) {
+				var clut = state.texture.clut;
+				this.clutData = memory.getPointerU8Array(clut.address, clut.sizeInBytes);
+			}
+		}
 	}
+	
+	getData() { return this.drawBuffer.data.subarray(this.dataLow, this.dataHigh); }
+	getIndices() { return this.drawBuffer.indices.subarray(this.indexLow, this.indexHigh); }
+	
+	get indexCount() { return this.indexHigh - this.indexLow; }
+}
 
-	endDegenerateTriangleStrip() {
-		var offset = this.triangleStripOffset;
-		this.vertices[offset + 0].copyFrom(this.vertices[offset - 1]);
-		this.vertices[offset + 1].copyFrom(this.vertices[offset + 2]);
+export class UnoptimizedBatch {
+	public stateData:Uint32Array;
+	public textureData:Uint8Array = null;
+	public clutData:Uint8Array = null;
+	constructor(
+		state: _state.GpuState,
+		public primType:_state.PrimitiveType,
+		public vertices:_state.Vertex[],
+		public vertexInfo:_state.VertexInfo
+	) {
+		this.stateData = state.readData();
+		this.vertices = this.vertices.slice();
+		this.vertexInfo = this.vertexInfo.clone();
+		if (vertexInfo.hasTexture) {
+			var mipmap = state.texture.mipmaps[0];
+			this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes); 
+			if (state.texture.hasClut) {
+				var clut = state.texture.clut;
+				this.clutData = memory.getPointerU8Array(clut.address, clut.sizeInBytes);
+			}
+		}
 	}
-	*/
-
 }

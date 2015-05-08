@@ -13,6 +13,7 @@ export class BaseDrawDriver {
 	
 	private frameBufferWidth = 480;
 	private frameBufferHeight = 272;
+	protected state = new _state.GpuState();
 	
 	setFramebufferSize(width:number, height:number) {
 		this.frameBufferWidth = width;
@@ -56,10 +57,35 @@ export class BaseDrawDriver {
 	textureSync(state: _state.GpuState):void {
 		
 	}
-	drawElements(state: any, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo):void {
+	drawElements(state: _state.GpuState, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo):void {
 		
 	}
-	drawOptimized(state: any, buffer:_vertex.OptimizedDrawBuffer):void {
-		
+	drawUnoptimized(batch:_vertex.UnoptimizedBatch) {
+		this.state.writeData(batch.stateData);
+		this.drawElements(this.state, batch.primType, batch.vertices, batch.vertices.length, batch.vertexInfo);
+	}
+	drawOptimized(batch:_vertex.OptimizedBatch):void {
+	}
+	
+	protected setOptimizedDrawBuffer(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer) {
+	}
+	
+	private batches:any[] = [];
+	queueBatch(batch:_vertex.OptimizedBatch | _vertex.UnoptimizedBatch) {
+		this.batches.push(batch);
+	}
+	
+	drawAllQueuedBatches(vertexBuffer:_vertex.VertexBuffer, optimizedDrawBuffer:_vertex.OptimizedDrawBuffer) {
+		this.setOptimizedDrawBuffer(optimizedDrawBuffer);
+		for (let batch of this.batches) {
+			if (batch instanceof _vertex.UnoptimizedBatch) {
+				this.drawUnoptimized(batch);
+			} else if (batch instanceof _vertex.OptimizedBatch) {
+				this.drawOptimized(batch);
+			}
+		}
+		optimizedDrawBuffer.reset();
+		vertexBuffer.reset();
+		this.batches = [];
 	}
 }

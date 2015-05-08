@@ -751,7 +751,8 @@ export class OffsetState {
 export class GpuState {
 	data = new Uint32Array(512);
 	dataf = new Float32Array(this.data.buffer);
-	writeData(data:Uint32Array) { this.data.set(data); }
+	copyFrom(that:GpuState) { return this.writeData(that.data); }
+	writeData(data:Uint32Array) { this.data.set(data); return this; }
 	readData():Uint32Array { return ArrayBufferUtils.cloneUint32Array(this.data); }
 	
 	frameBuffer = new GpuFrameBufferState(this.data);
