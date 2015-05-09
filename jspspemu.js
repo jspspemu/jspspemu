@@ -443,6 +443,11 @@ if (!_self.requestAnimationFrame) {
 var ArrayBufferUtils = (function () {
     function ArrayBufferUtils() {
     }
+    ArrayBufferUtils.copyUint8ToArrayBuffer = function (input) {
+        var out = new ArrayBuffer(input.length);
+        new Uint8Array(out).set(input);
+        return out;
+    };
     ArrayBufferUtils.fromUInt8Array = function (input) {
         return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
     };
@@ -488,14 +493,14 @@ var ArrayBufferUtils = (function () {
     ArrayBufferUtils.cloneUint8Array = function (input) { var out = new Uint8Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.cloneUint16Array = function (input) { var out = new Uint16Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.cloneUint32Array = function (input) { var out = new Uint32Array(input.length); out.set(input); return out; };
-    ArrayBufferUtils.concat = function (chunks) {
-        var tmp = new Uint8Array(chunks.sum(function (chunk) { return chunk.byteLength; }));
+    ArrayBufferUtils.concatU8 = function (chunks) {
+        var out = new Uint8Array(chunks.sum(function (chunk) { return chunk.byteLength; }));
         var offset = 0;
         chunks.forEach(function (chunk) {
-            tmp.set(new Uint8Array(chunk), offset);
+            out.set(chunk, offset);
             offset += chunk.byteLength;
         });
-        return tmp.buffer;
+        return out;
     };
     return ArrayBufferUtils;
 })();
@@ -1149,11 +1154,15 @@ var DomHelp = (function () {
         this.removeClass(clazz); };
     return DomHelp;
 })();
+function throwEndCycles() {
+    throw new Error("CpuBreakException");
+}
 function throwWaitPromise(promise) {
     var error = new Error('WaitPromise');
     error.promise = promise;
     return error;
 }
+window.throwEndCycles = throwEndCycles;
 window.throwWaitPromise = throwWaitPromise;
 window.Promise2 = Promise2;
 window.DomHelp = DomHelp;
@@ -5757,6 +5766,7 @@ var CpuState = (function () {
         this.memory = memory;
         this.syscallManager = syscallManager;
         this.id = CpuState.lastId++;
+        this.insideInterrupt = false;
         this.gpr_Buffer = new ArrayBuffer(32 * 4);
         this.gpr = new Int32Array(this.gpr_Buffer);
         this.gpr_f = new Float32Array(this.gpr_Buffer);
@@ -5787,6 +5797,7 @@ var CpuState = (function () {
         this.fcr31_cc = false;
         this.fcr31_fs = false;
         this.fcr0 = 0x00003351;
+        this.cycles = 0;
         this.icache = new InstructionCache(memory, syscallManager);
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
@@ -6089,6 +6100,7 @@ var CpuState = (function () {
         this.IC = other.IC;
         this.LO = other.LO;
         this.HI = other.HI;
+        this.insideInterrupt = other.insideInterrupt;
         for (var n = 0; n < 32; n++)
             this.gpr[n] = other.gpr[n];
         for (var n = 0; n < 32; n++)
@@ -6294,6 +6306,8 @@ var CpuState = (function () {
     };
     CpuState.prototype.executeAtPC = function () {
         while (true) {
+            if (this.PC == 0x1234)
+                break;
             this.getFunction(this.PC).execute(this);
         }
     };
@@ -6306,7 +6320,19 @@ var CpuState = (function () {
                 throw e;
         }
     };
-    CpuState.prototype.break = function () { throw new Error('CpuBreakException'); };
+    CpuState.prototype.break = function () {
+        throwEndCycles();
+    };
+    CpuState.prototype.startThreadStep = function () {
+        this.cycles = 0;
+    };
+    CpuState.prototype.checkCycles = function (cycles) {
+        this.cycles += cycles;
+        if (this.cycles >= 1000000) {
+            if (!this.insideInterrupt)
+                throwEndCycles();
+        }
+    };
     CpuState.lastId = 0;
     CpuState._mult_temp = [0, 0];
     return CpuState;
@@ -6344,6 +6370,7 @@ var InvalidatableCpuFunction = (function () {
     InvalidatableCpuFunction.prototype.execute = function (state) {
         if (this.func == null)
             this.func = this.generator(this.PC);
+        state.checkCycles(0);
         this.func.func(state);
     };
     return InvalidatableCpuFunction;
@@ -6556,11 +6583,17 @@ var FunctionGenerator = (function () {
                 return new FunctionCode("\n\t\t\t\t\t/* " + this.syscallManager.getName(syscallId) + " at " + addressToHex(info.start) + " */\n\t\t\t\t\tstate.PC = state.RA; state.jumpCall = null;\n\t\t\t\t\tstate.syscall(" + syscallId + ");\n\t\t\t\t\treturn;\n\t\t\t\t\t", args);
             }
         }
+        var cycles = 0;
+        function createCycles(PC) {
+            return ast.raw("state.PC = " + addressToHex(PC) + "; state.checkCycles(" + cycles + ");");
+            cycles = 0;
+        }
         for (var PC = info.min; PC <= info.max; PC += 4) {
             var di = this.decodeInstruction(PC);
             var type = di.type;
             var ins = this.generatePspInstruction(di);
             var delayedSlotInstruction;
+            cycles++;
             if (labels[PC])
                 func.add(labels[PC]);
             if (type.name == 'syscall') {
@@ -6570,6 +6603,7 @@ var FunctionGenerator = (function () {
                 func.add(ins);
             }
             else {
+                func.add(createCycles(PC));
                 var di2 = this.decodeInstruction(PC + 4);
                 var delayedSlotInstruction = this.generatePspInstruction(di2);
                 var isLikely = di.type.isLikely;
@@ -6668,6 +6702,7 @@ var FunctionGenerator = (function () {
 })();
 exports.FunctionGenerator = FunctionGenerator;
 function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, that, internalFunc, options, classname, name) {
+    options = options || {};
     var code = '';
     var V0 = "state.gpr[2]";
     var V1 = "state.gpr[3]";
@@ -6744,13 +6779,16 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
                 }
         }
     });
+    if (options.disableInsideInterrupt) {
+        code += "if (state.insideInterrupt) return 0x80020064; \n";
+    }
     code += 'var error = false;\n';
     if (DEBUG_NATIVEFUNC) {
         code += "console.info(nativeFunction.name);";
     }
     code += 'var result = internalFunc(' + args.join(', ') + ');\n';
-    code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrow new Error(\"CpuBreakException\");\n\t\t\t//return state.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t}\n\n\t";
-    code += "\n\t\tif (result instanceof WaitingThreadInfo) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : '') + "\n\t\t\tif (result.promise instanceof Promise2) {\n\t\t\t\tstate.thread.suspendUntilDone(result);\n\t\t\t\tthrow new Error(\"CpuBreakException\"); }\n\t\t\telse {\n\t\t\t\tresult = result.promise;\n\t\t\t}\n\t\t}\n\n\t";
+    code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrowEndCycles();\n\t\t\t//return state.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t}\n\n\t";
+    code += "\n\t\tif (result instanceof WaitingThreadInfo) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : '') + "\n\t\t\tif (result.promise instanceof Promise2) {\n\t\t\t\tstate.thread.suspendUntilDone(result);\n\t\t\t\tthrowEndCycles();\n\t\t\t} else {\n\t\t\t\tresult = result.promise;\n\t\t\t}\n\t\t}\n\n\t";
     switch (retval) {
         case 'void': break;
         case 'uint':
@@ -7587,6 +7625,8 @@ var __extends = this.__extends || function (d, b) {
 };
 var memory = require('./memory');
 var pixelformat = require('./pixelformat');
+var _interrupt = require('./interrupt');
+var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
 var PixelConverter = pixelformat.PixelConverter;
 var BasePspDisplay = (function () {
@@ -7710,7 +7750,7 @@ var PspDisplay = (function (_super) {
             _this.vblankCount++;
             _this.update();
             _this.vblank.dispatch(_this.vblankCount);
-            _this.interruptManager.interrupt(30);
+            _this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
         }, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
         return Promise2.resolve();
     };
@@ -7900,8 +7940,6 @@ var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSe
 var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
 var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
 var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
-var optimizedCount = overlay.createCounter('optimizedCount', 0, numberToSeparator);
-var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0, numberToSeparator);
 var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
 var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
 var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
@@ -7969,9 +8007,6 @@ var PspGpuList = (function () {
         this.showOpcodes = false;
         this.opcodes = [];
         this.vertexInfo = new _state.VertexInfo();
-        this.cachedVertexInput = null;
-        this.cachedVertexLow = 0;
-        this.cachedVertexHigh = 0;
         this.vertexInfo2 = new _state.VertexInfo();
     }
     PspGpuList.prototype.complete = function () {
@@ -8130,12 +8165,6 @@ var PspGpuList = (function () {
             overlayNonIndexCount.value++;
         }
         this.primBatchPrimitiveType = primitiveType;
-        if (!this.cachedVertexInput || !(vertexAddress >= this.cachedVertexLow && vertexAddress < this.cachedVertexHigh)) {
-            var cacheAddress = (vertexAddress >= Memory.MAIN_OFFSET) ? Memory.MAIN_OFFSET : Memory.DEFAULT_FRAME_ADDRESS;
-            this.cachedVertexInput = this.memory.getPointerU8Array(cacheAddress);
-            this.cachedVertexLow = cacheAddress;
-            this.cachedVertexHigh = cacheAddress + this.cachedVertexInput.length;
-        }
         switch (primitiveType) {
             case 3:
                 trianglePrimCount.value++;
@@ -8150,17 +8179,15 @@ var PspGpuList = (function () {
                 otherPrimCount.value++;
                 break;
         }
-        var vertexInput = this.cachedVertexInput;
-        var vertexInputOffset = vertexAddress - this.cachedVertexLow;
+        var vertexInput = this.memory.getPointerU8Array(vertexAddress);
         var drawType = DRAW_TYPE_CONV[primitiveType];
         var optimized = (vertexInfo.realMorphingVertexCount == 1);
         if (vertexInfo.realMorphingVertexCount != 1) {
             debugger;
         }
-        optimizedCount.value++;
         switch (vertexInfo.index) {
             case 0:
-                this.primOptimizedNoIndex(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
+                this.primOptimizedNoIndex(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput);
                 break;
             case 1:
             case 2:
@@ -8174,12 +8201,12 @@ var PspGpuList = (function () {
                 else {
                     totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU16Array(indicesAddress, vertexCount * 2));
                 }
-                optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset, totalVertices * vertexSize);
+                optimizedDrawBuffer.addVerticesData(vertexInput, totalVertices * vertexSize);
                 return 1;
         }
         return (drawType == 0) ? 1 : 0;
     };
-    PspGpuList.prototype.primOptimizedNoIndex = function (primitiveType, drawTypeDegenerated, vertexSize, vertexInfo, vertexInput, vertexInputOffset) {
+    PspGpuList.prototype.primOptimizedNoIndex = function (primitiveType, drawTypeDegenerated, vertexSize, vertexInfo, vertexInput) {
         var current4 = (this.current4 - 1) | 0;
         var batchPrimCount = this.batchPrimCount | 0;
         var _optimizedDrawBuffer = optimizedDrawBuffer;
@@ -8210,10 +8237,10 @@ var PspGpuList = (function () {
         overlayVertexCount.value += totalVertexCount;
         var totalVerticesSize = totalVertexCount * vertexSize;
         if (isSprite) {
-            _optimizedDrawBuffer.addVerticesDataSprite(vertexInput, vertexInputOffset | 0, totalVerticesSize, totalVertexCount, vertexInfo);
+            _optimizedDrawBuffer.addVerticesDataSprite(vertexInput, totalVerticesSize, totalVertexCount, vertexInfo);
         }
         else {
-            _optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
+            _optimizedDrawBuffer.addVerticesData(vertexInput, totalVerticesSize);
         }
         vertexInfo.address += totalVerticesSize;
         this.state.vertex.address = vertexInfo.address;
@@ -9754,6 +9781,8 @@ var SpriteExpander = (function () {
     SpriteExpander.readAllCode = function (vi) {
         var code = "\"use strict\";";
         code += "var i8  = new Uint8Array(input.buffer, input.byteOffset);\n";
+        code += "var i16 = new Uint16Array(input.buffer, input.byteOffset);\n";
+        code += "var i32 = new Uint32Array(input.buffer, input.byteOffset);\n";
         code += "var o8  = new Uint8Array(output.buffer, output.byteOffset);\n";
         if (vi.align >= 2) {
             code += "var o16 = new Uint16Array(output.buffer, output.byteOffset);\n";
@@ -9794,10 +9823,8 @@ var SpriteExpander = (function () {
         function copyX(vidTo, vidFrom) { return copy_(vidTo, vidFrom, 0); }
         function copyY(vidTo, vidFrom) { return copy_(vidTo, vidFrom, 1); }
         function copyColor(vidTo, vidFrom) { return vi.hasColor ? getColor(vidTo) + " = " + getColor(vidFrom) + ";\n" : ''; }
-        for (var n = 0; n < vsize * 2; n++) {
-            code += "o8[o + " + (n + vsize * 0) + "] = i8[i + " + (n + (vsize * 0)) + "];\n";
-            code += "o8[o + " + (n + vsize * 2) + "] = i8[i + " + (n + (vsize * 1)) + "];\n";
-        }
+        code += "o8.subarray(o + " + vsize * 0 + ", o + " + vsize * 2 + ").set(i8.subarray(i, i + " + vsize * 2 + "));\n";
+        code += "o8.subarray(o + " + vsize * 2 + ", o + " + vsize * 4 + ").set(i8.subarray(i, i + " + vsize * 2 + "));\n";
         var TL = 0;
         var BR = 1;
         code += copyX(2, BR);
@@ -9847,12 +9874,12 @@ var OptimizedDrawBuffer = (function () {
         this.vertexIndex = 0;
         return data;
     };
-    OptimizedDrawBuffer.prototype.addVertices = function (vertices, inputOffset, vertexCount, verticesSize) {
-        this.addVerticesData(vertices, inputOffset, verticesSize);
+    OptimizedDrawBuffer.prototype.addVertices = function (vertices, vertexCount, verticesSize) {
+        this.addVerticesData(vertices, verticesSize);
         this.addVerticesIndices(vertexCount);
     };
-    OptimizedDrawBuffer.prototype.addVerticesData = function (vertices, inputOffset, verticesSize) {
-        ArrayBufferUtils.copy(vertices, inputOffset, this.data, this.dataOffset, verticesSize);
+    OptimizedDrawBuffer.prototype.addVerticesData = function (vertices, verticesSize) {
+        ArrayBufferUtils.copy(vertices, 0, this.data, this.dataOffset, verticesSize);
         this.dataOffset += verticesSize;
     };
     OptimizedDrawBuffer.prototype.addVerticesIndices = function (vertexCount) {
@@ -9870,11 +9897,9 @@ var OptimizedDrawBuffer = (function () {
             this.vertexIndex += 4;
         }
     };
-    OptimizedDrawBuffer.prototype.addVerticesDataSprite = function (vertices, inputOffset, verticesSize, count, vi) {
-        var i = vertices.subarray(inputOffset, inputOffset + verticesSize);
-        var o = this.data.subarray(this.dataOffset, this.dataOffset + verticesSize * 2);
-        SpriteExpander.forVertexInfo(vi)(i, o, count);
-        this.dataOffset += o.length;
+    OptimizedDrawBuffer.prototype.addVerticesDataSprite = function (vertices, verticesSize, count, vi) {
+        SpriteExpander.forVertexInfo(vi)(vertices, this.data.subarray(this.dataOffset), count / 2);
+        this.dataOffset += verticesSize * 2;
     };
     OptimizedDrawBuffer.prototype.addVerticesIndicesList = function (indices) {
         var max = 0;
@@ -10785,7 +10810,7 @@ var TextureHandler = (function () {
         var clutState = state.texture.clut;
         var hash1 = Clut.hashFast(state);
         _clut = this.clutsByHash1.get(hash1);
-        if (true) {
+        if (this.mustRecheckSlowHashClut(_clut)) {
             var hash2 = Clut.hashSlow(this.memory, state);
             this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
             _clut = this.clutsByHash2.get(hash2);
@@ -11027,9 +11052,12 @@ var InterruptManager = (function () {
             var item = this.queue.shift();
             var state = item.cpuState;
             state.preserveRegisters(function () {
+                state.RA = 0x1234;
                 state.gpr[4] = item.no;
                 state.gpr[5] = item.argument;
+                state.insideInterrupt = true;
                 state.PC = item.address;
+                state.startThreadStep();
                 state.executeAtPC();
             });
         }
@@ -11037,6 +11065,36 @@ var InterruptManager = (function () {
     return InterruptManager;
 })();
 exports.InterruptManager = InterruptManager;
+(function (PspInterrupts) {
+    PspInterrupts[PspInterrupts["PSP_GPIO_INT"] = 4] = "PSP_GPIO_INT";
+    PspInterrupts[PspInterrupts["PSP_ATA_INT"] = 5] = "PSP_ATA_INT";
+    PspInterrupts[PspInterrupts["PSP_UMD_INT"] = 6] = "PSP_UMD_INT";
+    PspInterrupts[PspInterrupts["PSP_MSCM0_INT"] = 7] = "PSP_MSCM0_INT";
+    PspInterrupts[PspInterrupts["PSP_WLAN_INT"] = 8] = "PSP_WLAN_INT";
+    PspInterrupts[PspInterrupts["PSP_AUDIO_INT"] = 10] = "PSP_AUDIO_INT";
+    PspInterrupts[PspInterrupts["PSP_I2C_INT"] = 12] = "PSP_I2C_INT";
+    PspInterrupts[PspInterrupts["PSP_SIRCS_INT"] = 14] = "PSP_SIRCS_INT";
+    PspInterrupts[PspInterrupts["PSP_SYSTIMER0_INT"] = 15] = "PSP_SYSTIMER0_INT";
+    PspInterrupts[PspInterrupts["PSP_SYSTIMER1_INT"] = 16] = "PSP_SYSTIMER1_INT";
+    PspInterrupts[PspInterrupts["PSP_SYSTIMER2_INT"] = 17] = "PSP_SYSTIMER2_INT";
+    PspInterrupts[PspInterrupts["PSP_SYSTIMER3_INT"] = 18] = "PSP_SYSTIMER3_INT";
+    PspInterrupts[PspInterrupts["PSP_THREAD0_INT"] = 19] = "PSP_THREAD0_INT";
+    PspInterrupts[PspInterrupts["PSP_NAND_INT"] = 20] = "PSP_NAND_INT";
+    PspInterrupts[PspInterrupts["PSP_DMACPLUS_INT"] = 21] = "PSP_DMACPLUS_INT";
+    PspInterrupts[PspInterrupts["PSP_DMA0_INT"] = 22] = "PSP_DMA0_INT";
+    PspInterrupts[PspInterrupts["PSP_DMA1_INT"] = 23] = "PSP_DMA1_INT";
+    PspInterrupts[PspInterrupts["PSP_MEMLMD_INT"] = 24] = "PSP_MEMLMD_INT";
+    PspInterrupts[PspInterrupts["PSP_GE_INT"] = 25] = "PSP_GE_INT";
+    PspInterrupts[PspInterrupts["PSP_VBLANK_INT"] = 30] = "PSP_VBLANK_INT";
+    PspInterrupts[PspInterrupts["PSP_MECODEC_INT"] = 31] = "PSP_MECODEC_INT";
+    PspInterrupts[PspInterrupts["PSP_HPREMOTE_INT"] = 36] = "PSP_HPREMOTE_INT";
+    PspInterrupts[PspInterrupts["PSP_MSCM1_INT"] = 60] = "PSP_MSCM1_INT";
+    PspInterrupts[PspInterrupts["PSP_MSCM2_INT"] = 61] = "PSP_MSCM2_INT";
+    PspInterrupts[PspInterrupts["PSP_THREAD1_INT"] = 65] = "PSP_THREAD1_INT";
+    PspInterrupts[PspInterrupts["PSP_INTERRUPT_INT"] = 66] = "PSP_INTERRUPT_INT";
+    PspInterrupts[PspInterrupts["PSP_NUMBER_INTERRUPTS"] = 67] = "PSP_NUMBER_INTERRUPTS";
+})(exports.PspInterrupts || (exports.PspInterrupts = {}));
+var PspInterrupts = exports.PspInterrupts;
 
 },
 "src/core/kirk": function(module, exports, require) {
@@ -12423,7 +12481,8 @@ var Header = (function () {
     return Header;
 })();
 var Block = (function () {
-    function Block(raw1, raw2) {
+    function Block(index, raw1, raw2) {
+        this.index = index;
         this._uncompressedData = null;
         this.compressed = (raw1 & 0x80000000) == 0;
         this.low = raw1 & 0x7FFFFFFF;
@@ -12452,7 +12511,9 @@ var Block = (function () {
         configurable: true
     });
     Block.getBlocksUncompressedData = function (blocks) {
-        return ArrayBufferUtils.concat(blocks.map(function (v) { return v.uncompresesdData; }));
+        return ArrayBufferUtils.concatU8(blocks.map(function (b) {
+            return b.uncompresesdData;
+        }));
     };
     return Block;
 })();
@@ -12461,7 +12522,7 @@ var Cso = (function () {
         this.date = new Date();
     }
     Cso.prototype.getBlockInfo = function (index) {
-        return new Block(this.offsets[index + 0], this.offsets[index + 1]);
+        return new Block(index, this.offsets[index + 0], this.offsets[index + 1]);
     };
     Cso.fromStreamAsync = function (stream) {
         return new Cso().loadAsync(stream);
@@ -12493,10 +12554,10 @@ var Cso = (function () {
     Cso.prototype.readChunkAsync = function (offset, count) {
         var blockIndexLow = Math.floor(offset / this.header.blockSize);
         var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
-        var blockCount = blockIndexHigh - blockIndexLow + 1;
+        var blockCount = blockIndexHigh - blockIndexLow + 2;
         var skip = offset % this.header.blockSize;
         return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(function (blocks) {
-            return Block.getBlocksUncompressedData(blocks).slice(skip);
+            return ArrayBufferUtils.copyUint8ToArrayBuffer(Block.getBlocksUncompressedData(blocks).subarray(skip, skip + count));
         });
     };
     Cso.prototype.loadAsync = function (stream) {
@@ -15639,7 +15700,8 @@ var Interop = (function () {
             for (var n = 0; n < gprArray.length; n++) {
                 state.gpr[4 + n] = gprArray[n];
             }
-            state.getFunction(address).execute(state);
+            state.PC = address;
+            state.executeAtPCAsync();
         });
     };
     return Interop;
@@ -16186,6 +16248,7 @@ var Thread = (function () {
     Thread.prototype.runStep = function () {
         this.manager.current = this;
         this.preemptionCount++;
+        this.state.startThreadStep();
         this.state.executeAtPC();
     };
     return Thread;
@@ -16390,6 +16453,8 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
     }
 };
 var _utils = require('../utils');
+var _interrupt = require('../../core/interrupt');
+var PspInterrupts = _interrupt.PspInterrupts;
 var nativeFunction = _utils.nativeFunction;
 var InterruptManager = (function () {
     function InterruptManager(context) {
@@ -16400,6 +16465,7 @@ var InterruptManager = (function () {
     InterruptManager.prototype.sceKernelRegisterSubIntrHandler = function (thread, interrupt, handlerIndex, callbackAddress, callbackArgument) {
         var interruptManager = this.context.interruptManager;
         var interruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+        console.info("sceKernelRegisterSubIntrHandler: " + PspInterrupts[interrupt] + ": " + handlerIndex + ": " + addressToHex(callbackAddress) + ": " + addressToHex(callbackArgument));
         interruptHandler.address = callbackAddress;
         interruptHandler.argument = callbackArgument;
         interruptHandler.cpuState = thread.state;
@@ -16407,7 +16473,7 @@ var InterruptManager = (function () {
     };
     InterruptManager.prototype.sceKernelEnableSubIntr = function (interrupt, handlerIndex) {
         var interruptManager = this.context.interruptManager;
-        if (interrupt >= 67)
+        if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
             return -1;
         if (!interruptManager.get(interrupt).has(handlerIndex))
             return -1;
@@ -16416,7 +16482,7 @@ var InterruptManager = (function () {
     };
     InterruptManager.prototype.sceKernelReleaseSubIntrHandler = function (pspInterrupt, handlerIndex) {
         var interruptManager = this.context.interruptManager;
-        if (pspInterrupt >= 67)
+        if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS)
             return -1;
         if (!interruptManager.get(pspInterrupt).has(handlerIndex))
             return -1;
@@ -16586,7 +16652,7 @@ var LoadExecForUser = (function () {
         console.info('sceKernelExitGame');
         thread.stop('sceKernelExitGame');
         this.context.threadManager.exitGame();
-        throw new Error('CpuBreakException');
+        throwEndCycles();
         return 0;
     };
     LoadExecForUser.prototype.sceKernelExitGame2 = function (thread) {
@@ -16595,7 +16661,7 @@ var LoadExecForUser = (function () {
         console.info('sceKernelExitGame2');
         this.context.threadManager.exitGame();
         thread.stop('sceKernelExitGame2');
-        throw new Error('CpuBreakException');
+        throwEndCycles();
     };
     LoadExecForUser.prototype.sceKernelRegisterExitCallback = function (callbackId) {
         return 0;
@@ -18371,19 +18437,19 @@ var sceDisplay = (function () {
         ], sceDisplay.prototype, "sceDisplayGetMode", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetMode")));
     Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblank",
         __decorate([
-            nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int')
+            nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', { disableInsideInterrupt: true })
         ], sceDisplay.prototype, "sceDisplayWaitVblank", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblank")));
     Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankCB",
         __decorate([
-            nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int')
+            nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', { disableInsideInterrupt: true })
         ], sceDisplay.prototype, "sceDisplayWaitVblankCB", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankCB")));
     Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankStart",
         __decorate([
-            nativeFunction(0x984C27E7, 150, 'uint', 'Thread')
+            nativeFunction(0x984C27E7, 150, 'uint', 'Thread', { disableInsideInterrupt: true })
         ], sceDisplay.prototype, "sceDisplayWaitVblankStart", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankStart")));
     Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankStartCB",
         __decorate([
-            nativeFunction(0x46F186C3, 150, 'uint', 'Thread')
+            nativeFunction(0x46F186C3, 150, 'uint', 'Thread', { disableInsideInterrupt: true })
         ], sceDisplay.prototype, "sceDisplayWaitVblankStartCB", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankStartCB")));
     Object.defineProperty(sceDisplay.prototype, "sceDisplayGetVcount",
         __decorate([
@@ -21631,7 +21697,7 @@ var ThreadManForUser = (function () {
         console.info(sprintf('sceKernelExitThread: %d', exitStatus));
         currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
         currentThread.stop('sceKernelExitThread');
-        throw new Error('CpuBreakException');
+        throwEndCycles();
     };
     ThreadManForUser.prototype.sceKernelGetThreadExitStatus = function (threadId) {
         if (!this.hasThreadById(threadId))
@@ -21665,7 +21731,7 @@ var ThreadManForUser = (function () {
     ThreadManForUser.prototype.sceKernelExitDeleteThread = function (currentThread, exitStatus) {
         currentThread.exitStatus = exitStatus;
         currentThread.stop('sceKernelExitDeleteThread');
-        throw new Error('CpuBreakException');
+        throwEndCycles();
     };
     ThreadManForUser.prototype.sceKernelTerminateDeleteThread = function (threadId) {
         this._sceKernelTerminateThread(threadId);
@@ -22115,7 +22181,7 @@ var EventFlag = (function () {
             var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, _this, function () {
                 _this.waitingThreads.delete(waitingSemaphoreThread);
                 resolve();
-                throw new Error('CpuBreakException');
+                throwEndCycles();
             });
             _this.waitingThreads.add(waitingSemaphoreThread);
         }).then(function () { return 0; });
@@ -22729,12 +22795,12 @@ exports.HleIoDirent = HleIoDirent;
 var _cpu = require('../core/cpu');
 exports.NativeFunction = _cpu.NativeFunction;
 var createNativeFunction = _cpu.createNativeFunction;
-function nativeFunction(exportId, firmwareVersion, argTypesString, args) {
+function nativeFunction(exportId, firmwareVersion, argTypesString, args, options) {
     return function (target, key, descriptor) {
         if (typeof target.natives == 'undefined')
             target.natives = [];
         target.natives.push(function (target) {
-            return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, {}, "" + target.constructor.name, key);
+            return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, options, "" + target.constructor.name, key);
         });
         return descriptor;
     };
@@ -25123,6 +25189,7 @@ function executeProgram(gprInitial, program) {
     state.PC = result.entrypoint;
     state.SP = 0x10000;
     try {
+        state.startThreadStep();
         state.executeAtPC();
     }
     catch (e) {

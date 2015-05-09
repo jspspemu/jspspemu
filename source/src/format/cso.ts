@@ -33,7 +33,7 @@ class Block {
 	public low: number;
 	public high: number;
 	
-	constructor(raw1:number, raw2:number) {
+	constructor(public index:number, raw1:number, raw2:number) {
 		this.compressed = (raw1 & 0x80000000) == 0;
 		this.low = raw1 & 0x7FFFFFFF;
 		this.high = raw2 & 0x7FFFFFFF;
@@ -54,8 +54,11 @@ class Block {
 		return this.high - this.low;
 	}
 	
-	static getBlocksUncompressedData(blocks: Block[]) {
-		return ArrayBufferUtils.concat(blocks.map(v => v.uncompresesdData));
+	static getBlocksUncompressedData(blocks: Block[]):Uint8Array {
+		return ArrayBufferUtils.concatU8(blocks.map(b => {
+			//console.log('block', b.index, b.low, b.compressed);
+			return b.uncompresesdData;
+		}));
 	}
 }
 
@@ -66,7 +69,7 @@ export class Cso implements AsyncStream {
 	private offsets: Uint32Array;
 	
 	private getBlockInfo(index:number) {
-		return new Block(this.offsets[index + 0], this.offsets[index + 1]);
+		return new Block(index, this.offsets[index + 0], this.offsets[index + 1]);
 	}
 
 	static fromStreamAsync(stream: AsyncStream) {
@@ -93,12 +96,14 @@ export class Cso implements AsyncStream {
 	readChunkAsync(offset: number, count: number): Promise2<ArrayBuffer> {
 		var blockIndexLow = Math.floor(offset / this.header.blockSize);
 		var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
-		var blockCount = blockIndexHigh - blockIndexLow + 1;
+		var blockCount = blockIndexHigh - blockIndexLow + 2;
 		//var skip = (this.header.blockSize - (offset % this.header.blockSize)) % this.header.blockSize;
 		var skip = offset % this.header.blockSize;
 		
+		//console.log('reading: ', offset, count, 'blocks:', blockIndexLow, blockIndexHigh, blockCount, 'skip:', skip);
+		
 		return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(blocks => {
-			return Block.getBlocksUncompressedData(blocks).slice(skip);
+			return ArrayBufferUtils.copyUint8ToArrayBuffer(Block.getBlocksUncompressedData(blocks).subarray(skip, skip + count));
 		});
     }
 

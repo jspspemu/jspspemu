@@ -474,6 +474,12 @@ if (!_self.requestAnimationFrame) {
 }
 
 class ArrayBufferUtils {
+	static copyUint8ToArrayBuffer(input:Uint8Array):ArrayBuffer {
+		var out = new ArrayBuffer(input.length);
+		new Uint8Array(out).set(input);
+		return out;
+	}
+	
 	static fromUInt8Array(input: Uint8Array) {
 		return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
 	}
@@ -524,14 +530,14 @@ class ArrayBufferUtils {
 	static cloneUint16Array(input: Uint16Array) { var out = new Uint16Array(input.length); out.set(input); return out; }
 	static cloneUint32Array(input: Uint16Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
 	
-	static concat(chunks: ArrayBuffer[]) {
-		var tmp = new Uint8Array(chunks.sum(chunk => chunk.byteLength));
+	static concatU8(chunks: Uint8Array[]):Uint8Array {
+		var out = new Uint8Array(chunks.sum(chunk => chunk.byteLength));
 		var offset = 0;
 		chunks.forEach(chunk => {
-			tmp.set(new Uint8Array(chunk), offset);
+			out.set(chunk, offset);
 			offset += chunk.byteLength;
 		});
-		return tmp.buffer;
+		return out;
 	}
 }
 
@@ -1129,6 +1135,10 @@ class DomHelp {
 	toggleClass(clazz:string, value:boolean) { if (value) this.addClass(clazz); else this.removeClass(clazz); }
 }
 
+function throwEndCycles() {
+	throw new Error("CpuBreakException");
+}
+
 function throwWaitPromise<T>(promise:Promise2<T>) {
 	var error:any = new Error('WaitPromise');
 	//var error:any = new Error('WaitPromise');
@@ -1136,6 +1146,7 @@ function throwWaitPromise<T>(promise:Promise2<T>) {
 	return error;
 }
 
+(<any>window).throwEndCycles = throwEndCycles;
 (<any>window).throwWaitPromise = throwWaitPromise;
 (<any>window).Promise2 = Promise2;
 (<any>window).DomHelp = DomHelp;

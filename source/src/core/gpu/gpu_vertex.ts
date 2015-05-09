@@ -35,8 +35,8 @@ class SpriteExpander {
 		var code = `"use strict";`;
 
 		code += `var i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
-		//code += `var i16 = new Uint16Array(input.buffer, input.byteOffset);\n`;
-		//code += `var i32 = new Uint32Array(input.buffer, input.byteOffset);\n`;
+		code += `var i16 = new Uint16Array(input.buffer, input.byteOffset);\n`;
+		code += `var i32 = new Uint32Array(input.buffer, input.byteOffset);\n`;
 		code += `var o8  = new Uint8Array(output.buffer, output.byteOffset);\n`;
 		if (vi.align >= 2) {
 			code += `var o16 = new Uint16Array(output.buffer, output.byteOffset);\n`;
@@ -82,26 +82,26 @@ class SpriteExpander {
 		function copyY(vidTo:SpriteVID, vidFrom:SpriteVID) { return copy_(vidTo, vidFrom, 1); }
 		function copyColor(vidTo:SpriteVID, vidFrom:SpriteVID) { return vi.hasColor ? `${getColor(vidTo)} = ${getColor(vidFrom)};\n` : ''; }
 		
-		/*if ((vsize % 4) == 0) {
+		/*
+		if ((vsize % 4) == 0) {
 			for (var n = 0; n < (vsize / 4) * 2; n++) {
-				code += `o32[(o >> 2) + ${n + vsize * 0}] = i32[(i >> 2) + ${n + (vsize * 0) / 4}];\n`;
-				code += `o32[(o >> 2) + ${n + vsize * 2}] = i32[(i >> 2) + ${n + (vsize * 1) / 4}];\n`;
+				code += `o32[(o >> 2) + ${n + vsize * 0}] = i32[(i >> 2) + ${n + (vsize * 0)}];\n`;
+				code += `o32[(o >> 2) + ${n + vsize * 2}] = i32[(i >> 2) + ${n + (vsize * 1)}];\n`;
 			}
 		} else if ((vsize % 2) == 0) {
 			for (var n = 0; n < (vsize / 2) * 2; n++) {
-				code += `o16[(o >> 1) + ${n + vsize * 0}] = i16[(i >> 1) + ${n + (vsize * 0) / 2}];\n`;
-				code += `o16[(o >> 1) + ${n + vsize * 2}] = i16[(i >> 1) + ${n + (vsize * 1) / 2}];\n`;
+				code += `o16[(o >> 1) + ${n + vsize * 0}] = i16[(i >> 1) + ${n + (vsize * 0)}];\n`;
+				code += `o16[(o >> 1) + ${n + vsize * 2}] = i16[(i >> 1) + ${n + (vsize * 1)}];\n`;
 			}
 		} else {
-		}*/
-		/*
-		*/
-		for (var n = 0; n < vsize * 2; n++) {
-			code += `o8[o + ${n + vsize * 0}] = i8[i + ${n + (vsize * 0)}];\n`;
-			code += `o8[o + ${n + vsize * 2}] = i8[i + ${n + (vsize * 1)}];\n`;
+			for (var n = 0; n < vsize * 2; n++) {
+				code += `o8[(o >> 0) + ${n + vsize * 0}] = i8[(i >> 0) + ${n + (vsize * 0)}];\n`;
+				code += `o8[(o >> 0) + ${n + vsize * 2}] = i8[(i >> 0) + ${n + (vsize * 1)}];\n`;
+			}
 		}
-		//code += `o8.subarray(o + ${vsize * 0}, o + ${vsize * 2}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
-		//code += `o8.subarray(o + ${vsize * 2}, o + ${vsize * 4}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
+		*/
+		code += `o8.subarray(o + ${vsize * 0}, o + ${vsize * 2}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
+		code += `o8.subarray(o + ${vsize * 2}, o + ${vsize * 4}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
 	
 		var TL = SpriteVID.TL;
 		var BR = SpriteVID.BR;
@@ -157,13 +157,13 @@ export class OptimizedDrawBuffer {
 		return data;
 	}
 
-	addVertices(vertices:Uint8Array, inputOffset:number, vertexCount:number, verticesSize:number) {
-		this.addVerticesData(vertices, inputOffset, verticesSize);
+	addVertices(vertices:Uint8Array, vertexCount:number, verticesSize:number) {
+		this.addVerticesData(vertices,  verticesSize);
 		this.addVerticesIndices(vertexCount);
 	}
 
-	addVerticesData(vertices:Uint8Array, inputOffset:number, verticesSize:number) {
-		ArrayBufferUtils.copy(vertices, inputOffset, this.data, this.dataOffset, verticesSize);
+	addVerticesData(vertices:Uint8Array, verticesSize:number) {
+		ArrayBufferUtils.copy(vertices, 0, this.data, this.dataOffset, verticesSize);
 		this.dataOffset += verticesSize;
 	}
 
@@ -183,11 +183,9 @@ export class OptimizedDrawBuffer {
 		}
 	}
 	
-	addVerticesDataSprite(vertices:Uint8Array, inputOffset:number, verticesSize:number, count:number, vi:_state.VertexInfo) {
-		var i = vertices.subarray(inputOffset, inputOffset + verticesSize);
-		var o = this.data.subarray(this.dataOffset, this.dataOffset + verticesSize * 2); 
-		SpriteExpander.forVertexInfo(vi)(i, o, count);
-		this.dataOffset += o.length;
+	addVerticesDataSprite(vertices:Uint8Array, verticesSize:number, count:number, vi:_state.VertexInfo) {
+		SpriteExpander.forVertexInfo(vi)(vertices, this.data.subarray(this.dataOffset), count / 2);
+		this.dataOffset += verticesSize * 2;
 	}
 	
 	addVerticesIndicesList(indices:Uint8Array | Uint16Array) {

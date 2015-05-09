@@ -5,6 +5,7 @@ import _cpu = require('../../core/cpu'); _cpu.CpuState;
 
 import CpuState = _cpu.CpuState;
 
+//export class Interop implements _cpu.ICpuExecutable {
 export class Interop {
 	execute(state: CpuState, address: number, gprArray: number[]) {
 		state.preserveRegisters(() => {
@@ -12,7 +13,12 @@ export class Interop {
 			for (var n = 0; n < gprArray.length; n++) {
 				state.gpr[4 + n] = gprArray[n];
 			}
-			state.getFunction(address).execute(state);
+
+			state.PC = address;			
+			state.executeAtPCAsync();			
+            
+			//state.PC = address;
+			//state.executeAtPC();
 		});
 	}
 } 

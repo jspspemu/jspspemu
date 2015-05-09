@@ -203,6 +203,7 @@ export class CpuState {
 
 	icache: InstructionCache;
 
+	insideInterrupt: boolean = false;
 	gpr_Buffer = new ArrayBuffer(32 * 4);
 	gpr = new Int32Array(this.gpr_Buffer);
 	gpr_f = new Float32Array(this.gpr_Buffer);
@@ -487,6 +488,7 @@ export class CpuState {
 		this.IC = other.IC;
 		this.LO = other.LO;
 		this.HI = other.HI;
+		this.insideInterrupt = other.insideInterrupt;
 		for (var n = 0; n < 32; n++) this.gpr[n] = other.gpr[n];
 		for (var n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
 		for (var n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
@@ -681,6 +683,7 @@ export class CpuState {
 		//var expectedRA = this.RA;
 		//while (this.PC != this.RA) {
 		while (true) {
+			if (this.PC == 0x1234) break;
 			this.getFunction(this.PC).execute(this);
 		}
 	}
@@ -693,7 +696,22 @@ export class CpuState {
 		}
 	}
 
-	break() { throw new Error('CpuBreakException'); }
+	break() {
+		throwEndCycles();
+	}
+	
+	private cycles: number = 0;
+	startThreadStep() {
+		//this.time = performance.now();
+		this.cycles = 0;
+	}
+	
+	checkCycles(cycles: number) {
+		this.cycles += cycles;
+		if (this.cycles >= 1000000) {
+			if (!this.insideInterrupt) throwEndCycles();
+		}
+	}
 }
 
 var ast = new _ast.MipsAstBuilder();
@@ -738,6 +756,7 @@ export class InvalidatableCpuFunction {
 	public invalidate() { this.func = null; }
 	public execute(state: CpuState): void {
 		if (this.func == null) this.func = this.generator(this.PC);
+		state.checkCycles(0);
 		this.func.func(state);
 	}
 }
@@ -993,12 +1012,23 @@ export class FunctionGenerator {
 				);
 			}
 		}
+		
+		let cycles = 0;
 
+		function createCycles(PC:number) {
+			return ast.raw(`state.PC = ${addressToHex(PC)}; state.checkCycles(${cycles});`);
+			cycles = 0;
+		}
+			
 		for (let PC = info.min; PC <= info.max; PC += 4) {
 			var di = this.decodeInstruction(PC);
 			var type = di.type;
 			var ins = this.generatePspInstruction(di);
 			var delayedSlotInstruction: PspInstructionStm;
+
+			// @TODO: we should check the cycles per instruction			
+			cycles++;
+			
 			if (labels[PC]) func.add(labels[PC]);
 			if (type.name == 'syscall') {
 				func.add(ast.raw(`state.PC = ${PC + 4};`));
@@ -1007,6 +1037,8 @@ export class FunctionGenerator {
 			if (!type.hasDelayedBranch) {
 				func.add(ins);
 			} else {
+				func.add(createCycles(PC));
+
 				var di2 = this.decodeInstruction(PC + 4);
 				var delayedSlotInstruction = this.generatePspInstruction(di2);
 				let isLikely = di.type.isLikely;
@@ -1123,10 +1155,11 @@ export class FunctionGenerator {
 import IndentStringGenerator = require('../../util/IndentStringGenerator');
 
 export interface CreateOptions {
-	tryCatch?: boolean;
+	disableInsideInterrupt?: boolean;
 }
 
 export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, that: any, internalFunc: Function, options?: CreateOptions, classname?:string, name?:string) {
+	options = options || {};
 	//var console = logger.named('createNativeFunction');
     var code = '';
 	//var code = 'debugger;';
@@ -1189,6 +1222,12 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
         }
     });
 
+	if (options.disableInsideInterrupt) {
+		// ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT
+		code += `if (state.insideInterrupt) return 0x80020064; \n`;
+	}
+	
+	
 	code += 'var error = false;\n';
 	if (DEBUG_NATIVEFUNC) {
 		code += `console.info(nativeFunction.name);`;
@@ -1212,7 +1251,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		if (result instanceof Promise2) {
 			${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
 			state.thread.suspendUntilPromiseDone(result, nativeFunction);
-			throw new Error("CpuBreakException");
+			throwEndCycles();
 			//return state.thread.suspendUntilPromiseDone(result, nativeFunction);
 		}\n
 	`;
@@ -1221,8 +1260,8 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 			${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
 			if (result.promise instanceof Promise2) {
 				state.thread.suspendUntilDone(result);
-				throw new Error("CpuBreakException"); }
-			else {
+				throwEndCycles();
+			} else {
 				result = result.promise;
 			}
 		}\n

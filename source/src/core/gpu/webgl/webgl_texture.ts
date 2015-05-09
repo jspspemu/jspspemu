@@ -348,6 +348,7 @@ export class TextureHandler {
 		var texture1 = texture;
 		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
 		if (this.mustRecheckSlowHashTexture(texture)) {
+		//if (true) {
 			var hash2 = Texture.hashSlow(this.memory, state);
 			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(textureState.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
 			//var hash2 = hash1;
@@ -440,8 +441,8 @@ export class TextureHandler {
 		var hash1 = Clut.hashFast(state);
 		_clut = this.clutsByHash1.get(hash1);
 		
-		//if (this.mustRecheckSlowHashClut(_clut)) {
-		if (true) {
+		if (this.mustRecheckSlowHashClut(_clut)) {
+		//if (true) {
 			var hash2 = Clut.hashSlow(this.memory, state);
 			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
 			

@@ -2,12 +2,17 @@
 
 export import NativeFunction = _cpu.NativeFunction;
 import createNativeFunction = _cpu.createNativeFunction;
+//export import CreateOptions = _cpu.CreateOptions;
 
-export function nativeFunction(exportId:number, firmwareVersion:number, argTypesString:string, args:string) {
+interface CreateOptions {
+	disableInsideInterrupt?: boolean;
+}
+
+export function nativeFunction(exportId:number, firmwareVersion:number, argTypesString:string, args:string, options?:CreateOptions) {
 	return (target: any, key: string, descriptor: TypedPropertyDescriptor<any>) => {
 		if (typeof target.natives == 'undefined') target.natives = [];
 		target.natives.push((target:any) => {
-			return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, {}, `${target.constructor.name}`, key)
+			return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, options, `${target.constructor.name}`, key)
 		});
 		return descriptor;
 	};

@@ -161,7 +161,7 @@ export class ThreadManForUser {
 
 		currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
 		currentThread.stop('sceKernelExitThread');
-		throw new Error('CpuBreakException');
+		throwEndCycles();
 	}
 
 	@nativeFunction(0x3B183E26, 150, 'int', 'int')
@@ -203,7 +203,7 @@ export class ThreadManForUser {
 	sceKernelExitDeleteThread(currentThread: Thread, exitStatus: number) {
 		currentThread.exitStatus = exitStatus;
 		currentThread.stop('sceKernelExitDeleteThread');
-		throw new Error('CpuBreakException');
+		throwEndCycles();
 	}
 
 	@nativeFunction(0x383F7BCC, 150, 'int', 'int')

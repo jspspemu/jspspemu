@@ -136,7 +136,7 @@ class EventFlag {
 			var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);
 				resolve();
-				throw new Error('CpuBreakException');
+				throwEndCycles();
 			});
 			this.waitingThreads.add(waitingSemaphoreThread);
 		}).then(() => 0);

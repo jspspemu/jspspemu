@@ -17,7 +17,7 @@ export class LoadExecForUser {
         console.info('sceKernelExitGame');
 		thread.stop('sceKernelExitGame');
 		this.context.threadManager.exitGame();
-        throw new Error('CpuBreakException');
+        throwEndCycles();
         return 0;
 	}
 
@@ -30,7 +30,7 @@ export class LoadExecForUser {
 		console.info('sceKernelExitGame2');
 		this.context.threadManager.exitGame();
 		thread.stop('sceKernelExitGame2');
-        throw new Error('CpuBreakException');
+        throwEndCycles();
     }
 
     @nativeFunction(0x4AC57943, 150, 'uint', 'int')

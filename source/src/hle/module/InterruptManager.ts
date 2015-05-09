@@ -22,6 +22,8 @@ export class InterruptManager {
 	sceKernelRegisterSubIntrHandler(thread:Thread, interrupt: PspInterrupts, handlerIndex: number, callbackAddress: number, callbackArgument: number) {
 		var interruptManager = this.context.interruptManager;
 		var interruptHandler: InterruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+		
+		console.info(`sceKernelRegisterSubIntrHandler: ${PspInterrupts[interrupt]}: ${handlerIndex}: ${addressToHex(callbackAddress)}: ${addressToHex(callbackArgument)}`);
 		interruptHandler.address = callbackAddress;
 		interruptHandler.argument = callbackArgument;
 		interruptHandler.cpuState = thread.state;

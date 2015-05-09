@@ -169,8 +169,6 @@ var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSe
 var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
 var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
 var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
-var optimizedCount = overlay.createCounter('optimizedCount', 0, numberToSeparator);
-var nonOptimizedCount = overlay.createCounter('nonOptimizedCount', 0, numberToSeparator);
 var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
 var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
 var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
@@ -371,9 +369,6 @@ class PspGpuList {
 	}
 
 	vertexInfo = new _state.VertexInfo();
-	private cachedVertexInput: Uint8Array = null;
-	private cachedVertexLow: number = 0;
-	private cachedVertexHigh: number = 0;
 
 	private prim(p: number):PrimAction {
 		var vertexCount = param16(p, 0);
@@ -398,14 +393,6 @@ class PspGpuList {
 		
 		//if (vertexState.realWeightCount > 0) debugger;
 		
-		if (!this.cachedVertexInput || !(vertexAddress >= this.cachedVertexLow && vertexAddress < this.cachedVertexHigh)) {
-			var cacheAddress = (vertexAddress >= Memory.MAIN_OFFSET) ? Memory.MAIN_OFFSET : Memory.DEFAULT_FRAME_ADDRESS;
-			this.cachedVertexInput = this.memory.getPointerU8Array(cacheAddress);
-			this.cachedVertexLow = cacheAddress;
-			this.cachedVertexHigh = cacheAddress + this.cachedVertexInput.length;
-			//console.log(addressToHex(this.cachedVertexLow), addressToHex(this.cachedVertexHigh));
-		}
-		
 		switch (primitiveType) {
 			case PrimitiveType.Triangles: trianglePrimCount.value++; break;
 			case PrimitiveType.TriangleStrip: triangleStripPrimCount.value++; break;
@@ -413,8 +400,7 @@ class PspGpuList {
 			default: otherPrimCount.value++; break;
 		}
 
-		var vertexInput: Uint8Array = this.cachedVertexInput;
-		var vertexInputOffset = vertexAddress - this.cachedVertexLow;
+		var vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress);
 		var drawType = DRAW_TYPE_CONV[primitiveType];
 		var optimized = (vertexInfo.realMorphingVertexCount == 1);
 		//var optimized = (vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
@@ -424,10 +410,9 @@ class PspGpuList {
 			debugger;
 		}
 
-		optimizedCount.value++;
 		switch (vertexInfo.index) {
 			case IndexEnum.Void:
-				this.primOptimizedNoIndex(primitiveType, (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE), vertexSize, vertexInfo, vertexInput, vertexInputOffset);
+				this.primOptimizedNoIndex(primitiveType, (drawType == PrimDrawType.BATCH_DRAW_DEGENERATE), vertexSize, vertexInfo, vertexInput);
 			break;
 			case IndexEnum.Byte:
 			case IndexEnum.Short:
@@ -442,14 +427,14 @@ class PspGpuList {
 				} else {
 					totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU16Array(indicesAddress, vertexCount * 2));
 				}
-				optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset, totalVertices * vertexSize);
+				optimizedDrawBuffer.addVerticesData(vertexInput, totalVertices * vertexSize);
 				return PrimAction.FLUSH_PRIM;
 		}
 
 		return (drawType == PrimDrawType.SINGLE_DRAW) ? PrimAction.FLUSH_PRIM : PrimAction.NOTHING;
 	}
 
-	private primOptimizedNoIndex(primitiveType: PrimitiveType, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:_state.VertexInfo, vertexInput: Uint8Array, vertexInputOffset: number) {
+	private primOptimizedNoIndex(primitiveType: PrimitiveType, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:_state.VertexInfo, vertexInput: Uint8Array) {
 		var current4 = (this.current4 - 1) | 0; 
 		var batchPrimCount = this.batchPrimCount | 0;
 		var _optimizedDrawBuffer = optimizedDrawBuffer;
@@ -478,9 +463,9 @@ class PspGpuList {
 		overlayVertexCount.value += totalVertexCount;
 		let totalVerticesSize = totalVertexCount * vertexSize;
 		if (isSprite) {
-			_optimizedDrawBuffer.addVerticesDataSprite(vertexInput, vertexInputOffset | 0, totalVerticesSize, totalVertexCount, vertexInfo);
+			_optimizedDrawBuffer.addVerticesDataSprite(vertexInput, totalVerticesSize, totalVertexCount, vertexInfo);
 		} else {
-			_optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
+			_optimizedDrawBuffer.addVerticesData(vertexInput, totalVerticesSize);
 		}
 		vertexInfo.address += totalVerticesSize;
 		this.state.vertex.address = vertexInfo.address; 

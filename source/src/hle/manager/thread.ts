@@ -231,6 +231,7 @@ export class Thread {
 
 		this.preemptionCount++;
 
+		this.state.startThreadStep();		
 		this.state.executeAtPC();
     }
 }

@@ -8,7 +8,6 @@ import SceKernelErrors = require('../SceKernelErrors');
 import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;
-import Interop = _manager.Interop;
 import Thread = _manager.Thread;
 
 export class sceNetAdhocctl {

@@ -39,6 +39,7 @@ function executeProgram(gprInitial: any, program: string[]) {
     state.SP = 0x10000;
    
     try {
+        state.startThreadStep();
         state.executeAtPC();
     } catch (e) {
         if (e.message != 'CpuBreakException') throw e;

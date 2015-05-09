@@ -49,22 +49,22 @@ export class sceDisplay {
 		return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread), acceptCallbacks);
 	}
 
-	@nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int')
+	@nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', {disableInsideInterrupt: true})
     sceDisplayWaitVblank(thread: Thread, cycleNum: number) {
 		return this._waitVblankAsync(thread, AcceptCallbacks.NO);
 	}
 
-	@nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int')
+	@nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', {disableInsideInterrupt: true})
 	sceDisplayWaitVblankCB(thread: Thread, cycleNum: number) {
 		return this._waitVblankAsync(thread, AcceptCallbacks.YES);
 	}
 
-	@nativeFunction(0x984C27E7, 150, 'uint', 'Thread')
+	@nativeFunction(0x984C27E7, 150, 'uint', 'Thread', {disableInsideInterrupt: true})
 	sceDisplayWaitVblankStart(thread: Thread) {
 		return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
 	}
 
-	@nativeFunction(0x46F186C3, 150, 'uint', 'Thread')
+	@nativeFunction(0x46F186C3, 150, 'uint', 'Thread', {disableInsideInterrupt: true})
 	sceDisplayWaitVblankStartCB(thread: Thread) {
 		return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
 	}

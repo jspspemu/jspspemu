@@ -77,9 +77,12 @@ export class InterruptManager {
 			var item = this.queue.shift();
 			var state = item.cpuState;
 			state.preserveRegisters(() => {
+				state.RA = 0x1234;
 				state.gpr[4] = item.no;
 				state.gpr[5] = item.argument;
+				state.insideInterrupt = true;
 				state.PC = item.address;
+				state.startThreadStep();
 				state.executeAtPC();
 				//var RA = state.RA;
 				//// @FIXME! @TODO: this is probably wrong, since the CpuBreakException means that a promise was yielded and we should not continue until it has been resolved!!!
@@ -96,7 +99,7 @@ export class InterruptManager {
 	}
 }
 
-export const enum PspInterrupts {
+export enum PspInterrupts {
 	PSP_GPIO_INT = 4,
 	PSP_ATA_INT = 5,
 	PSP_UMD_INT = 6,
@@ -116,7 +119,7 @@ export const enum PspInterrupts {
 	PSP_DMA1_INT = 23,
 	PSP_MEMLMD_INT = 24,
 	PSP_GE_INT = 25,
-	PSP_VBLANK_INT = 30,
+	PSP_VBLANK_INT = 30, // 0x1E
 	PSP_MECODEC_INT = 31,
 	PSP_HPREMOTE_INT = 36,
 	PSP_MSCM1_INT = 60,
