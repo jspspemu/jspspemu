@@ -827,73 +827,6 @@ var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
-if (typeof window.document != 'undefined') {
-    var workers = [];
-    var workersJobs = [];
-    var lastRequestId = 0;
-    var resolvers = {};
-    [0, 1].forEach(function (index) {
-        var ww = workers[index] = new Worker('jspspemu.js');
-        workersJobs[index] = 0;
-        console.log('created worker!');
-        ww.onmessage = function (event) {
-            var requestId = event.data.requestId;
-            workersJobs[index]--;
-            resolvers[requestId](event.data.args);
-            delete resolvers[requestId];
-        };
-    });
-    executeCommandAsync = function (code, args) {
-        return new Promise2(function (resolve, reject) {
-            var requestId = lastRequestId++;
-            resolvers[requestId] = resolve;
-            if (workersJobs[0] <= workersJobs[1]) {
-                workersJobs[0]++;
-                workers[0].postMessage({ code: code, args: args, requestId: requestId }, args);
-            }
-            else {
-                workersJobs[1]++;
-                workers[1].postMessage({ code: code, args: args, requestId: requestId }, args);
-            }
-        });
-    };
-}
-else {
-    this.onmessage = function (event) {
-        var requestId = event.data.requestId;
-        var args = event.data.args;
-        try {
-            eval(event.data.code);
-        }
-        catch (e) {
-            console.error(e);
-            args = [];
-        }
-        this.postMessage({ requestId: requestId, args: args }, args);
-    };
-    executeCommandAsync = function (code, args) {
-        return new Promise2(function (resolve, reject) {
-            try {
-                eval(code);
-            }
-            catch (e) {
-                console.error(e);
-                args = [];
-            }
-            resolve(args);
-        });
-    };
-}
-function inflateRawArrayBufferAsync(data) {
-    return inflateRawAsync(new Uint8Array(data)).then(function (data) { return data.buffer; });
-}
-function inflateRawAsync(data) {
-    return executeCommandAsync("\n\t\tvar zlib = require(\"src/format/zlib\");\n\t\targs[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));\n\t", [ArrayBufferUtils.fromUInt8Array(data)]).then(function (args) {
-        if (args.length == 0)
-            throw new Error("Can't decode");
-        return new Uint8Array(args[0]);
-    });
-}
 function numberToSeparator(value) {
     return (+value).toLocaleString();
 }
@@ -2863,6 +2796,25 @@ var StructClass = (function () {
             return result;
         }
     };
+    StructClass.prototype.createProxy = function (stream) {
+        var _this = this;
+        stream = stream.clone();
+        var object = {};
+        this.processedItems.forEach(function (item) {
+            var getOffset = function () { return _this.offsetOfField(item.name); };
+            if (item.type instanceof StructClass) {
+                object[item.name] = item.type.createProxy(stream.sliceFrom(getOffset()));
+            }
+            else {
+                Object.defineProperty(object, item.name, {
+                    enumerable: true,
+                    get: function () { return item.type.read(stream.sliceFrom(getOffset())); },
+                    set: function (value) { item.type.write(stream.sliceFrom(getOffset()), value); }
+                });
+            }
+        });
+        return object;
+    };
     StructClass.prototype.readWriteAsync = function (stream, callback, process) {
         var _this = this;
         var p = this.read(stream.clone());
@@ -2971,14 +2923,21 @@ var StructStringn = (function () {
     return StructStringn;
 })();
 var StructStringz = (function () {
-    function StructStringz(count) {
+    function StructStringz(count, readTransformer, writeTransformer) {
         this.count = count;
+        this.readTransformer = readTransformer;
+        this.writeTransformer = writeTransformer;
         this.stringn = new StructStringn(count);
     }
     StructStringz.prototype.read = function (stream) {
-        return this.stringn.read(stream).split(String.fromCharCode(0))[0];
+        var value = this.stringn.read(stream).split(String.fromCharCode(0))[0];
+        if (this.readTransformer)
+            value = this.readTransformer(value);
+        return value;
     };
     StructStringz.prototype.write = function (stream, value) {
+        if (this.writeTransformer)
+            value = this.writeTransformer(value);
         if (!value)
             value = '';
         var items = value.split('').map(function (char) { return char.charCodeAt(0); });
@@ -3086,6 +3045,7 @@ var UInt16_2lb = new UInt16_2lbStruct();
 var StringzVariable = new StructStringzVariable();
 function Stringn(count) { return new StructStringn(count); }
 function Stringz(count) { return new StructStringz(count); }
+function Utf8Stringz(count) { return new StructStringz(count, function (s) { return Utf8.decode(s); }, function (s) { return Utf8.encode(s); }); }
 function StringWithSize(callback) {
     return new StructStringWithSize(callback);
 }
@@ -5825,6 +5785,8 @@ var CpuState = (function () {
         this.fcr0 = 0x00003351;
         this.cycles = 0;
         this.cycles2 = 0;
+        this.syscallCount = 0;
+        this.lastSyscallCalled = '';
         this.icache = new InstructionCache(memory, syscallManager);
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
@@ -6275,7 +6237,7 @@ var CpuState = (function () {
     };
     CpuState.prototype.syscall = function (id) {
         this.syscallManager.call(this, id);
-        this.checkCyclesSyscall();
+        this.checkCyclesSyscall(id);
     };
     CpuState.prototype.min = function (a, b) { return ((a | 0) < (b | 0)) ? a : b; };
     CpuState.prototype.max = function (a, b) { return ((a | 0) > (b | 0)) ? a : b; };
@@ -6335,6 +6297,7 @@ var CpuState = (function () {
         return this.icache.getFunction(pc, 0);
     };
     CpuState.prototype.executeAtPC = function () {
+        this.startThreadStep();
         while (true) {
             if (this.PC == 0x1234)
                 break;
@@ -6342,6 +6305,7 @@ var CpuState = (function () {
         }
     };
     CpuState.prototype.executeAtPCAsync = function () {
+        this.startThreadStep();
         try {
             this.getFunction(this.PC).execute(this);
         }
@@ -6356,10 +6320,12 @@ var CpuState = (function () {
     CpuState.prototype.startThreadStep = function () {
         this.cycles = 0;
         this.cycles2 = 0;
+        this.syscallCount = 0;
+        this.lastSyscallCalled = '';
     };
     CpuState.prototype.checkCycles = function (cycles) {
     };
-    CpuState.prototype.checkCyclesSyscall = function () {
+    CpuState.prototype.checkCyclesSyscall = function (id) {
     };
     CpuState.lastId = 0;
     CpuState._mult_temp = [0, 0];
@@ -6814,7 +6780,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
     }
     code += 'var error = false;\n';
     if (DEBUG_NATIVEFUNC) {
-        code += "console.info(nativeFunction.name);";
+        code += "console.info(state.thread.name, nativeFunction.name);";
     }
     code += 'var result = internalFunc(' + args.join(', ') + ');\n';
     code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrowEndCycles();\n\t\t\t//return state.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t}\n\n\t";
@@ -8083,6 +8049,12 @@ var PspGpuList = (function () {
             var instruction = memory.lw_2(instructionPC4);
             var op = (instruction >> 24) & 0xFF;
             var p = instruction & 0xFFFFFF;
+            if (totalCommandsLocal >= 30000) {
+                console.error('GPU hang!');
+                debugger;
+                totalCommandsLocal = 0;
+                break;
+            }
             switch (op) {
                 case 4: {
                     var rprimCount = 0;
@@ -13785,6 +13757,7 @@ var VagState = (function () {
 },
 "src/format/zip": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+var zlib = require('./zlib');
 var ZipEntry = (function () {
     function ZipEntry(zip, name, parent) {
         this.zip = zip;
@@ -13867,7 +13840,7 @@ var ZipEntry = (function () {
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
                 case 8:
-                    return inflateRawAsync(data);
+                    return zlib.inflate_raw(data);
                 case 0:
                     return data;
                 default:
@@ -16249,8 +16222,15 @@ var Thread = (function () {
             _this.waitingName = null;
             _this.waitingObject = null;
             _this.acceptingCallbacks = false;
-            if (result !== undefined)
-                _this.state.V0 = result;
+            if (result !== undefined) {
+                if (result instanceof Integer64) {
+                    _this.state.V0 = result.low;
+                    _this.state.V1 = result.high;
+                }
+                else {
+                    _this.state.V0 = result;
+                }
+            }
             if (compensate == Compensate.YES) {
                 var endTime = performance.now();
                 _this.accumulatedMicroseconds += (endTime - startTime) * 1000;
@@ -16583,7 +16563,7 @@ var Kernel_Library = (function () {
         this.context = context;
     }
     Kernel_Library.prototype.sceKernelCpuSuspendIntr = function () {
-        return this.context.interruptManager.suspend();
+        return Promise2.resolve(this.context.interruptManager.suspend());
     };
     Kernel_Library.prototype.sceKernelCpuResumeIntr = function (thread, flags) {
         this.context.interruptManager.resume(flags);
@@ -16593,7 +16573,7 @@ var Kernel_Library = (function () {
             return Promise2.resolve(0);
         }
         else {
-            return 0;
+            return Promise2.resolve(0);
         }
     };
     Kernel_Library.prototype.sceKernelMemset = function (address, value, size) {
@@ -21054,7 +21034,8 @@ var sceUtility = (function () {
     sceUtility.prototype._sceUtilitySavedataInitStart = function (paramsPtr) {
         var _this = this;
         console.error('sceUtilitySavedataInitStart');
-        return SceUtilitySavedataParam.struct.readWriteAsync(paramsPtr, function (params) {
+        var params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
+        return Promise2.resolve(0).then(function () {
             var fileManager = _this.context.fileManager;
             var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
             var saveDataBin = savePathFolder + "/DATA.BIN";
@@ -21135,12 +21116,16 @@ var sceUtility = (function () {
                     }
                     break;
                 default:
-                    throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+                    console.error("Not implemented " + params.mode + ": " + PspUtilitySavedataMode[params.mode]);
+                    break;
             }
             return Promise2.resolve(0);
-        }, function (params, result) {
+        }).then(function (result) {
             console.error('result: ', result);
             params.base.result = result;
+            return 0;
+        }).catch(function (e) {
+            console.error(e);
             return 0;
         });
     };
@@ -21159,13 +21144,12 @@ var sceUtility = (function () {
     };
     sceUtility.prototype.sceUtilityMsgDialogInitStart = function (paramsPtr) {
         var _this = this;
-        return PspUtilityMsgDialogParams.struct.readWriteAsync(paramsPtr, function (params) {
-            console.warn('sceUtilityMsgDialogInitStart:', params.utf8Message);
-            return _emulator_ui.EmulatorUI.openMessageAsync(params.utf8Message).then(function () {
-                params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
-                _this.currentStep = DialogStepEnum.SUCCESS;
-                return 0;
-            });
+        var params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
+        console.warn('sceUtilityMsgDialogInitStart:', params.message);
+        return _emulator_ui.EmulatorUI.openMessageAsync(params.message).then(function () {
+            params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
+            _this.currentStep = DialogStepEnum.SUCCESS;
+            return 0;
         });
     };
     sceUtility.prototype.sceUtilityMsgDialogGetStatus = function () {
@@ -21585,19 +21569,12 @@ var SizeRequiredSpaceInfo = (function () {
 var PspUtilityMsgDialogParams = (function () {
     function PspUtilityMsgDialogParams() {
     }
-    Object.defineProperty(PspUtilityMsgDialogParams.prototype, "utf8Message", {
-        get: function () {
-            return Utf8.decode(this.message);
-        },
-        enumerable: true,
-        configurable: true
-    });
     PspUtilityMsgDialogParams.struct = StructClass.create(PspUtilityMsgDialogParams, [
         { base: PspUtilityDialogCommon.struct },
         { unknown: Int32 },
         { mnode: Int32 },
         { errorValue: Int32 },
-        { message: Stringz(512) },
+        { message: Utf8Stringz(512) },
         { options: Int32 },
         { buttonPressed: Int32 },
     ]);

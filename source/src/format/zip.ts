@@ -74,7 +74,7 @@ export class ZipEntry {
 		return this.readRawCompressedAsync().then((data:Uint8Array) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:
-					return inflateRawAsync(data);
+					return zlib.inflate_raw(data);
 				case ZipCompressionType.STORED:
 					return data;
 				default:

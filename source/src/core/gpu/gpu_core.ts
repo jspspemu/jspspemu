@@ -280,6 +280,7 @@ class PspGpuList {
 		let totalCommandsLocal = 0;
 		let current4 = this.current4;
 		let localPrimCount = 0;
+		//let startTime = 0;
 		if (stall4 == 0) stall4 = 0x7FFFFFFF;
 
 		loop: while (current4 < stall4) {
@@ -288,6 +289,13 @@ class PspGpuList {
 			let instruction = memory.lw_2(instructionPC4);
 			let op = (instruction >> 24) & 0xFF;
 			let p = instruction & 0xFFFFFF;
+			
+			if (totalCommandsLocal >= 30000) {
+				console.error('GPU hang!');
+				debugger;
+				totalCommandsLocal = 0;
+				break;
+			}
 
 			switch (op) {
 				case Op.PRIM: {

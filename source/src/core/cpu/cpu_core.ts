@@ -609,7 +609,7 @@ export class CpuState {
 	}
 	syscall(id: number) {
 		this.syscallManager.call(this, id);
-		this.checkCyclesSyscall();
+		this.checkCyclesSyscall(id);
 	}
 
 	min(a: number, b: number) { return ((a | 0) < (b | 0)) ? a : b; }
@@ -683,6 +683,7 @@ export class CpuState {
 	}
 
 	executeAtPC() {
+		this.startThreadStep();
 		//var expectedRA = this.RA;
 		//while (this.PC != this.RA) {
 		while (true) {
@@ -692,6 +693,7 @@ export class CpuState {
 	}
 	
 	executeAtPCAsync() {
+		this.startThreadStep();
 		try {
 			this.getFunction(this.PC).execute(this);
 		} catch (e) {
@@ -705,24 +707,36 @@ export class CpuState {
 	
 	private cycles: number = 0;
 	private cycles2: number = 0;
+	private syscallCount: number = 0;
+	private lastSyscallCalled: string = '';
 	startThreadStep() {
 		//this.time = performance.now();
 		this.cycles = 0;
 		this.cycles2 = 0;
+		this.syscallCount = 0;
+		this.lastSyscallCalled = '';
 	}
 	
 	checkCycles(cycles: number) {
 		/*
 		this.cycles += cycles;
 		if (this.cycles >= 1000000) {
-			if (!this.insideInterrupt) throwEndCycles();
+			console.info('syscallCount:', this.syscallCount);
+			console.info('last syscall called:', this.lastSyscallCalled);
+			this.startThreadStep();
+			debugger;
+			//if (!this.insideInterrupt) throwEndCycles();
 		}
 		*/
 	}
 	
-	checkCyclesSyscall() {
+	checkCyclesSyscall(id: number) {
 		/*
+		this.syscallCount++;
+		this.lastSyscallCalled = this.syscallManager.getName(id);
 		this.cycles2 += 1;
+		*/
+		/*
 		if (this.cycles2 >= 1000) {
 			this.cycles2 = 0;
 			if (!this.insideInterrupt) throwEndCycles();
@@ -1249,7 +1263,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	
 	code += 'var error = false;\n';
 	if (DEBUG_NATIVEFUNC) {
-		code += `console.info(nativeFunction.name);`;
+		code += `console.info(state.thread.name, nativeFunction.name);`;
 	}
 	code += 'var result = internalFunc(' + args.join(', ') + ');\n';
 

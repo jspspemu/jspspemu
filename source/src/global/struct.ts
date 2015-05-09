@@ -108,7 +108,7 @@ class StructClass<T> implements IType {
 		var p = this.read(stream.clone());
 		var result = callback(p);
 		if (result instanceof Promise2) {
-			return result.then((result:any) => {
+			return result.then((result: any) => {
 				this.write(stream.clone(), p);
 				return result;
 			});
@@ -117,8 +117,26 @@ class StructClass<T> implements IType {
 			return result;
 		}
 	}
-	
-	readWriteAsync<T2>(stream: Stream, callback: (p: T) => Promise2<T2>, process?: (p: T, v:T2) => T2) {
+
+	createProxy(stream: Stream): T {
+		stream = stream.clone();
+		var object:any = {};
+		this.processedItems.forEach(item => {
+			var getOffset = () => { return this.offsetOfField(item.name); };
+			if (item.type instanceof StructClass) {
+				object[item.name] = (<StructClass<any>><any>item.type).createProxy(stream.sliceFrom(getOffset())); 
+			} else {
+				Object.defineProperty(object, item.name, {
+					enumerable: true,
+					get: () => { return item.type.read(stream.sliceFrom(getOffset())); },
+					set: (value: any) => { item.type.write(stream.sliceFrom(getOffset()), value); }
+				});
+			}
+		})
+		return <T>object;
+	}
+
+	readWriteAsync<T2>(stream: Stream, callback: (p: T) => Promise2<T2>, process?: (p: T, v: T2) => T2) {
 		var p = this.read(stream.clone());
 		var result = callback(p);
 		return Promise2.resolve(result).then(v => {
@@ -172,7 +190,7 @@ class StructArrayClass<T> implements IType {
 	}
 
 	read(stream: Stream): T[] {
-		var out:any[] = [];
+		var out: any[] = [];
 		for (var n = 0; n < this.count; n++) {
 			out.push(this.elementType.read(stream, out));
 		}
@@ -212,14 +230,17 @@ class StructStringn {
 class StructStringz {
 	stringn: StructStringn;
 
-	constructor(private count: number) {
+	constructor(private count: number, private readTransformer?: (s:string) => string, private writeTransformer?: (s:string) => string) {
 		this.stringn = new StructStringn(count);
 	}
 
 	read(stream: Stream): string {
-		return this.stringn.read(stream).split(String.fromCharCode(0))[0];
+		var value = this.stringn.read(stream).split(String.fromCharCode(0))[0];
+		if (this.readTransformer) value = this.readTransformer(value);
+		return value;
 	}
 	write(stream: Stream, value: string): void {
+		if (this.writeTransformer) value = this.writeTransformer(value);
 		if (!value) value = '';
 		var items = value.split('').map(char => char.charCodeAt(0));
 		while (items.length < this.count) items.push(0);
@@ -306,6 +327,7 @@ var StringzVariable = new StructStringzVariable();
 
 function Stringn(count: number) { return new StructStringn(count); }
 function Stringz(count: number) { return new StructStringz(count); }
+function Utf8Stringz(count: number) { return new StructStringz(count, s => Utf8.decode(s), s => Utf8.encode(s)); }
 function StringWithSize(callback: (context: any) => number) {
 	return new StructStringWithSize(callback);
 }
@@ -341,7 +363,7 @@ class Pointer<T> {
 		this.stream = memory.getPointerStream(this.address);
 	}
 
-	readWrite(callback: (item:T) => void) {
+	readWrite(callback: (item: T) => void) {
 		var value = this.read();
 		try {
 			callback(value);

@@ -13,7 +13,7 @@ export class Kernel_Library {
 
 	@nativeFunction(0x092968F4, 150, 'uint', '')
 	sceKernelCpuSuspendIntr() {
-		return this.context.interruptManager.suspend();
+		return Promise2.resolve(this.context.interruptManager.suspend());
 	}
 
 	@nativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint')
@@ -29,7 +29,7 @@ export class Kernel_Library {
 			return Promise2.resolve(0);
 			//return thread.delayMicrosecondsAsync(1000);
 		} else {
-			return 0;
+			return Promise2.resolve(0);
 		}
 	}
 

@@ -821,6 +821,7 @@ var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
 
+/*
 declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => Promise2<ArrayBuffer[]>;
 
 if (typeof window.document != 'undefined') {
@@ -855,15 +856,6 @@ if (typeof window.document != 'undefined') {
 			}
 		});
 	};
-	
-	/*
-	executeCommandAsync(`
-		var zlib = require("src/format/zlib");
-		args[0] = zlib.inflate_raw_arraybuffer(args[0]);
-	`, [new Uint8Array([10, 11, 12]).buffer]).then(function(args:any[]) {
-		console.info(args);
-	});
-	*/
 } else {
 	//console.log('inside worker!');
 	this.onmessage = function(event: any) {
@@ -904,6 +896,7 @@ function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
 		return new Uint8Array(args[0]);
 	});
 }
+*/
 
 function numberToSeparator(value: number) {
 	return (+value).toLocaleString();

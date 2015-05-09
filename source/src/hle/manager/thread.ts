@@ -188,12 +188,19 @@ export class Thread {
 
 		//console.log(promise);
 
-		promise.then((result: number) => {
+		promise.then((result: any) => {
 			this.waitingPromise = null;
 			this.waitingName = null;
 			this.waitingObject = null;
 			this.acceptingCallbacks = false;
-			if (result !== undefined) this.state.V0 = result;
+			if (result !== undefined) {
+				if (result instanceof Integer64) {
+					this.state.V0 = result.low;
+					this.state.V1 = result.high;
+				} else {
+					this.state.V0 = result;
+				}
+			}
 
 			if (compensate == Compensate.YES) {
 				var endTime = performance.now();

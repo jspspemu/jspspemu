@@ -36,7 +36,9 @@ export class sceUtility {
 
 	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise2<number> {
 		console.error('sceUtilitySavedataInitStart');
-		return SceUtilitySavedataParam.struct.readWriteAsync(paramsPtr, params => {
+		var params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
+		
+		return Promise2.resolve(0).then(() => {
 			var fileManager = this.context.fileManager;
 			var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
 			var saveDataBin = savePathFolder + "/DATA.BIN";
@@ -141,12 +143,16 @@ export class sceUtility {
 					}
 					break;
 				default:
-					throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+					console.error(`Not implemented ${params.mode}: ${PspUtilitySavedataMode[params.mode]}`);
+					break;
 			}
 			return Promise2.resolve(0);
-		}, (params, result) => {
+		}).then(result => {
 			console.error('result: ', result);
 			params.base.result = result;
+			return 0;
+		}).catch(e => {
+			console.error(e);
 			return 0;
 		});
 	}
@@ -174,14 +180,13 @@ export class sceUtility {
 	sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
 		// @TODO: should not stop
 		//_emulator_ui.EmulatorUI.openMessageAsync().then();
-		return PspUtilityMsgDialogParams.struct.readWriteAsync(paramsPtr, params => {
-			console.warn('sceUtilityMsgDialogInitStart:', params.utf8Message);
-			return _emulator_ui.EmulatorUI.openMessageAsync(params.utf8Message).then(() => {
-				params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
-				this.currentStep = DialogStepEnum.SUCCESS;
-				return 0;
-			})
-		});
+		let params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
+		console.warn('sceUtilityMsgDialogInitStart:', params.message);
+		return _emulator_ui.EmulatorUI.openMessageAsync(params.message).then(() => {
+			params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
+			this.currentStep = DialogStepEnum.SUCCESS;
+			return 0;
+		})
 	}
 
 	@nativeFunction(0x9A1C91D7, 150, 'uint', '')
@@ -615,16 +620,12 @@ class PspUtilityMsgDialogParams {
 	options: PspUtilityMsgDialogOption;
 	buttonPressed: PspUtilityMsgDialogPressed;
 
-	get utf8Message() {
-		return Utf8.decode(this.message);
-	}
-
 	static struct = StructClass.create<PspUtilityMsgDialogParams>(PspUtilityMsgDialogParams, [
 		{ base: PspUtilityDialogCommon.struct },
 		{ unknown: Int32 },
 		{ mnode: Int32 },
 		{ errorValue: Int32 },
-		{ message: Stringz(512) },
+		{ message: Utf8Stringz(512) },
 		{ options: Int32 },
 		{ buttonPressed: Int32 },
 	]);
