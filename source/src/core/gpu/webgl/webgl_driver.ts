@@ -653,7 +653,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	}
 }
 
-var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, GL.TRIANGLES, GL.TRIANGLE_STRIP, GL.TRIANGLE_FAN]);
+var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, GL.TRIANGLES, GL.TRIANGLE_STRIP, GL.TRIANGLE_FAN, GL.TRIANGLES /*sprites*/]);
 var convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);
 

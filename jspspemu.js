@@ -8082,7 +8082,7 @@ var PspGpuList = (function () {
         var vertexInput = this.cachedVertexInput;
         var vertexInputOffset = vertexAddress - this.cachedVertexLow;
         var drawType = DRAW_TYPE_CONV[primitiveType];
-        var optimized = (primitiveType != 6) && (vertexInfo.realMorphingVertexCount == 1);
+        var optimized = (vertexInfo.realMorphingVertexCount == 1);
         if (optimized) {
             optimizedCount.value++;
             switch (vertexInfo.index) {
@@ -8091,6 +8091,9 @@ var PspGpuList = (function () {
                     break;
                 case 1:
                 case 2:
+                    if (primitiveType == 6) {
+                        debugger;
+                    }
                     var totalVertices = 0;
                     if (vertexInfo.index == 1) {
                         totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU8Array(indicesAddress, vertexCount));
@@ -8138,6 +8141,7 @@ var PspGpuList = (function () {
         var vertex2Count = 0;
         var memory = this.memory;
         var totalVertexCount = 0;
+        var isSprite = (primitiveType == 6);
         primitiveType |= 0;
         vertexSize |= 0;
         while (true) {
@@ -8146,15 +8150,25 @@ var PspGpuList = (function () {
                 break;
             vertex2Count = param16(p2, 0) | 0;
             totalVertexCount += vertex2Count;
-            if (drawTypeDegenerated && (batchPrimCount > 0))
-                _optimizedDrawBuffer.join(vertexSize);
-            _optimizedDrawBuffer.addVerticesIndices(vertex2Count);
+            if (isSprite) {
+                _optimizedDrawBuffer.addVerticesIndicesSprite(vertex2Count);
+            }
+            else {
+                if (drawTypeDegenerated && (batchPrimCount > 0))
+                    _optimizedDrawBuffer.join(vertexSize);
+                _optimizedDrawBuffer.addVerticesIndices(vertex2Count);
+            }
             current4++;
             batchPrimCount++;
         }
         overlayVertexCount.value += totalVertexCount;
         var totalVerticesSize = totalVertexCount * vertexSize;
-        _optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
+        if (isSprite) {
+            _optimizedDrawBuffer.addVerticesDataSprite(vertexInput, vertexInputOffset | 0, totalVerticesSize, totalVertexCount, vertexInfo);
+        }
+        else {
+            _optimizedDrawBuffer.addVerticesData(vertexInput, vertexInputOffset | 0, totalVerticesSize);
+        }
         vertexInfo.address += totalVerticesSize;
         this.state.vertex.address = vertexInfo.address;
         this.batchPrimCount = batchPrimCount;
@@ -8573,6 +8587,7 @@ var VertexInfo = (function () {
         this.textureSize = that.textureSize;
         this.positionSize = that.positionSize;
         this.normalSize = that.normalSize;
+        this.align = that.align;
         return this;
     };
     VertexInfo.prototype.setState = function (state) {
@@ -8617,8 +8632,8 @@ var VertexInfo = (function () {
         this.size = MathUtils.nextAligned(this.size, this.positionSize);
         this.positionOffset = this.size;
         this.size += 3 * this.positionSize;
-        var alignmentSize = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
-        this.size = MathUtils.nextAligned(this.size, alignmentSize);
+        this.align = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
+        this.size = MathUtils.nextAligned(this.size, this.align);
     };
     VertexInfo.prototype.oneWeightOffset = function (n) {
         return this.weightOffset + this.weightSize * n;
@@ -9913,7 +9928,7 @@ var VertexReader = (function () {
         this.createNumberJs([1, 1, 1, 1], true, indentStringGenerator, ['px', 'py', 'pz'], this.vertexInfo.position, normalize);
         return indentStringGenerator.output;
     };
-    VertexReader.prototype.readInt8 = function () { return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])'; };
+    VertexReader.prototype.readInt8 = function () { return '(s8[(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') >> 0])'; };
     VertexReader.prototype.readInt16 = function () { return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])'; };
     VertexReader.prototype.readInt32 = function () { return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; };
     VertexReader.prototype.readFloat32 = function () { return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; };
@@ -9989,6 +10004,79 @@ var VertexReader = (function () {
     return VertexReader;
 })();
 exports.VertexReader = VertexReader;
+var SpriteExpander = (function () {
+    function SpriteExpander() {
+    }
+    SpriteExpander.forVertexInfo = function (vi) {
+        var hash = vi.hash;
+        if (!this.cache.has(hash)) {
+            this.cache.set(hash, new Function('input', 'output', 'count', this.readAllCode(vi)));
+        }
+        return this.cache.get(hash);
+    };
+    SpriteExpander.readAllCode = function (vi) {
+        var code = "\"use strict\";";
+        code += "var i8  = new Uint8Array(input.buffer, input.byteOffset);\n";
+        code += "var o8  = new Uint8Array(output.buffer, output.byteOffset);\n";
+        if (vi.align >= 2) {
+            code += "var o16 = new Uint16Array(output.buffer, output.byteOffset);\n";
+            if (vi.align >= 4) {
+                code += "var o32 = new Uint32Array(output.buffer, output.byteOffset);\n";
+            }
+        }
+        code += "var i = 0, o = 0;\n";
+        code += "for (var n = 0; n < count; n++) {\n";
+        code += this.readOneCode(vi);
+        code += "}\n";
+        return code;
+    };
+    SpriteExpander.readOneCode = function (vi) {
+        var code = '';
+        var vsize = vi.size;
+        var CONVV = [null, 'o8', 'o16', 'o32'];
+        var CONVS = [0, 0, 1, 2];
+        var COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32'];
+        var COLS = [0, 0, 0, 0, 1, 1, 1, 2];
+        function _get(vid, type, offset, component) {
+            return CONVV[type] + "[((o + " + (offset + vsize * +vid) + ") >> " + CONVS[type] + ") + " + component + "]";
+        }
+        function getColor(vid) { return COLV[vi.color] + "[((o + " + (vi.colorOffset + vsize * +vid) + ") >> " + COLS[vi.color] + ")]"; }
+        function getP_(vid, n) { return _get(vid, vi.position, vi.positionOffset, n); }
+        function getN_(vid, n) { return _get(vid, vi.normal, vi.normalOffset, n); }
+        function getT_(vid, n) { return _get(vid, vi.texture, vi.textureOffset, n); }
+        function copy_(vidTo, vidFrom, n) {
+            var out = [];
+            if (vi.hasPosition)
+                out.push(getP_(vidTo, n) + " = " + getP_(vidFrom, n) + ";");
+            if (vi.hasNormal)
+                out.push(getN_(vidTo, n) + " = " + getN_(vidFrom, n) + ";");
+            if (vi.hasTexture)
+                out.push(getT_(vidTo, n) + " = " + getT_(vidFrom, n) + ";");
+            return out.join('\n');
+        }
+        function copyX(vidTo, vidFrom) { return copy_(vidTo, vidFrom, 0); }
+        function copyY(vidTo, vidFrom) { return copy_(vidTo, vidFrom, 1); }
+        function copyColor(vidTo, vidFrom) { return vi.hasColor ? getColor(vidTo) + " = " + getColor(vidFrom) + ";\n" : ''; }
+        for (var n = 0; n < vsize * 2; n++) {
+            code += "o8[o + " + (n + vsize * 0) + "] = i8[i + " + (n + (vsize * 0)) + "];\n";
+            code += "o8[o + " + (n + vsize * 2) + "] = i8[i + " + (n + (vsize * 1)) + "];\n";
+        }
+        var TL = 0;
+        var BR = 1;
+        code += copyX(2, BR);
+        code += copyY(2, TL);
+        code += copyX(3, TL);
+        code += copyY(3, BR);
+        code += copyColor(0, BR);
+        code += copyColor(2, BR);
+        code += copyColor(3, BR);
+        code += "i += " + vsize * 2 + ";\n";
+        code += "o += " + vsize * 4 + ";\n";
+        return code;
+    };
+    SpriteExpander.cache = new Map();
+    return SpriteExpander;
+})();
 var OptimizedDrawBuffer = (function () {
     function OptimizedDrawBuffer() {
         this.data = new Uint8Array(2 * 1024 * 1024);
@@ -10033,6 +10121,23 @@ var OptimizedDrawBuffer = (function () {
     OptimizedDrawBuffer.prototype.addVerticesIndices = function (vertexCount) {
         for (var n = 0; n < vertexCount; n++)
             this.indices[this.indexOffset++] = this.vertexIndex++;
+    };
+    OptimizedDrawBuffer.prototype.addVerticesIndicesSprite = function (vertexCount) {
+        for (var n = 0; n < vertexCount / 2; n++) {
+            this.indices[this.indexOffset++] = this.vertexIndex + 3;
+            this.indices[this.indexOffset++] = this.vertexIndex + 0;
+            this.indices[this.indexOffset++] = this.vertexIndex + 2;
+            this.indices[this.indexOffset++] = this.vertexIndex + 3;
+            this.indices[this.indexOffset++] = this.vertexIndex + 2;
+            this.indices[this.indexOffset++] = this.vertexIndex + 1;
+            this.vertexIndex += 4;
+        }
+    };
+    OptimizedDrawBuffer.prototype.addVerticesDataSprite = function (vertices, inputOffset, verticesSize, count, vi) {
+        var i = vertices.subarray(inputOffset, inputOffset + verticesSize);
+        var o = this.data.subarray(this.dataOffset, this.dataOffset + verticesSize * 2);
+        SpriteExpander.forVertexInfo(vi)(i, o, count);
+        this.dataOffset += o.length;
     };
     OptimizedDrawBuffer.prototype.addVerticesIndicesList = function (indices) {
         var max = 0;
@@ -10660,7 +10765,7 @@ var WebGlPspDrawDriver = (function (_super) {
     };
     return WebGlPspDrawDriver;
 })(IDrawDriver);
-var convertPrimitiveType = new Int32Array([0, 1, 3, 4, 5, 6]);
+var convertPrimitiveType = new Int32Array([0, 1, 3, 4, 5, 6, 4]);
 var convertVertexNumericEnum = new Int32Array([0, 5120, 5122, 5126]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, 5121, 5123, 5126]);
 module.exports = WebGlPspDrawDriver;

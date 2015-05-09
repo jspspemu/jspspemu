@@ -103,22 +103,30 @@ export class Vertex {
 }
 
 export class VertexInfo {
+	// Calculated
 	weightOffset:number = 0;
 	textureOffset:number = 0;
 	colorOffset:number = 0;
 	normalOffset:number = 0;
 	positionOffset:number = 0;
 	textureComponentsCount:number = 0;
-	value: number;
+	align: number;
 	size: number;
+
+	// Extra	
+	value: number;
 	reversedNormal: boolean;
 	address: number;
-	texture: number;
-	color: number;
-	normal: number;
-	position: number;
-	weight: number;
-	index: number;
+	
+	// Attributes
+	weight: NumericEnum;
+	texture: NumericEnum;
+	color: ColorEnum;
+	normal: NumericEnum;
+	position: NumericEnum;
+
+	// Vertex Type
+	index: IndexEnum;
 	weightCount: number;
 	morphingVertexCount: number;
 	transform2D: boolean;
@@ -157,6 +165,7 @@ export class VertexInfo {
 		this.textureSize = that.textureSize
 		this.positionSize = that.positionSize;
 		this.normalSize = that.normalSize;
+		this.align = that.align;
 		return this;
 	}
 
@@ -212,8 +221,8 @@ export class VertexInfo {
 		this.positionOffset = this.size;
 		this.size += 3 * this.positionSize;
 
-		var alignmentSize = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
-		this.size = MathUtils.nextAligned(this.size, alignmentSize);
+		this.align = Math.max(this.weightSize, this.colorSize, this.textureSize, this.positionSize, this.normalSize);
+		this.size = MathUtils.nextAligned(this.size, this.align);
 	}
 
 	oneWeightOffset(n:number) {

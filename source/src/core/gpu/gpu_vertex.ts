@@ -173,7 +173,7 @@ export class VertexReader {
 		return indentStringGenerator.output;
 	}
 
-	private readInt8() { return '(s8[inputOffset + ' + this.getOffsetAlignAndIncrement(1) + '])'; }
+	private readInt8() { return '(s8[(inputOffset + ' + this.getOffsetAlignAndIncrement(1) + ') >> 0])'; }
 	private readInt16() { return '(s16[(inputOffset + ' + this.getOffsetAlignAndIncrement(2) + ') >> 1])'; }
 	private readInt32() { return '(s32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; }
 	private readFloat32() { return '(f32[(inputOffset + ' + this.getOffsetAlignAndIncrement(4) + ') >> 2])'; }
@@ -236,6 +236,120 @@ export class VertexReader {
 	}
 }
 
+const enum SpriteVID {
+	TL = 0,
+	BR = 1,
+	TR = 2,
+	BL = 3,
+}
+
+// 0 - 2
+// | X |
+// 3 - 1
+
+type SpriteExpanderFunc = (input:Uint8Array, output:Uint8Array, count:number) => void;
+
+class SpriteExpander {
+	static cache = new Map<number, SpriteExpanderFunc>();
+	
+	static forVertexInfo(vi:_state.VertexInfo):SpriteExpanderFunc {
+		var hash = vi.hash;
+		if (!this.cache.has(hash)) {
+			this.cache.set(hash, <SpriteExpanderFunc>new Function('input', 'output', 'count', this.readAllCode(vi)));
+		}
+		return this.cache.get(hash);
+	}
+	
+	static readAllCode(vi:_state.VertexInfo) {
+		var code = `"use strict";`;
+
+		code += `var i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
+		//code += `var i16 = new Uint16Array(input.buffer, input.byteOffset);\n`;
+		//code += `var i32 = new Uint32Array(input.buffer, input.byteOffset);\n`;
+		code += `var o8  = new Uint8Array(output.buffer, output.byteOffset);\n`;
+		if (vi.align >= 2) {
+			code += `var o16 = new Uint16Array(output.buffer, output.byteOffset);\n`;
+			if (vi.align >= 4) {
+				code += `var o32 = new Uint32Array(output.buffer, output.byteOffset);\n`;
+			}
+		}
+		code += `var i = 0, o = 0;\n`;
+		code += `for (var n = 0; n < count; n++) {\n`;
+		code += this.readOneCode(vi);
+		code += `}\n`;
+		return code;
+	}
+	
+	private static readOneCode(vi:_state.VertexInfo) {
+		var code = '';
+		var vsize = vi.size;
+		
+		var CONVV = [null, 'o8', 'o16', 'o32'];
+		var CONVS = [0, 0, 1, 2];
+		
+		var COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32']; // ColorEnum
+		var COLS = [0, 0, 0, 0, 1, 1, 1, 2];
+		
+		function _get(vid:SpriteVID, type:_state.NumericEnum, offset:number, component:number) {
+			return `${CONVV[type]}[((o + ${offset + vsize * +vid}) >> ${CONVS[type]}) + ${component}]`;
+		}
+
+		function getColor(vid:SpriteVID) { return `${COLV[vi.color]}[((o + ${vi.colorOffset + vsize * +vid}) >> ${COLS[vi.color]})]`; }
+		function getP_(vid:SpriteVID, n:number) { return _get(vid, vi.position, vi.positionOffset, n); }
+		function getN_(vid:SpriteVID, n:number) { return _get(vid, vi.normal, vi.normalOffset, n); }
+		function getT_(vid:SpriteVID, n:number) { return _get(vid, vi.texture, vi.textureOffset, n); }
+
+		function copy_(vidTo:SpriteVID, vidFrom:SpriteVID, n:number) {
+			var out:string[] = [];
+			if (vi.hasPosition) out.push(`${getP_(vidTo, n)} = ${getP_(vidFrom, n)};`);
+			if (vi.hasNormal) out.push(`${getN_(vidTo, n)} = ${getN_(vidFrom, n)};`);
+			if (vi.hasTexture) out.push(`${getT_(vidTo, n)} = ${getT_(vidFrom, n)};`);
+			return out.join('\n');
+		}
+		
+		function copyX(vidTo:SpriteVID, vidFrom:SpriteVID) { return copy_(vidTo, vidFrom, 0); }
+		function copyY(vidTo:SpriteVID, vidFrom:SpriteVID) { return copy_(vidTo, vidFrom, 1); }
+		function copyColor(vidTo:SpriteVID, vidFrom:SpriteVID) { return vi.hasColor ? `${getColor(vidTo)} = ${getColor(vidFrom)};\n` : ''; }
+		
+		/*if ((vsize % 4) == 0) {
+			for (var n = 0; n < (vsize / 4) * 2; n++) {
+				code += `o32[(o >> 2) + ${n + vsize * 0}] = i32[(i >> 2) + ${n + (vsize * 0) / 4}];\n`;
+				code += `o32[(o >> 2) + ${n + vsize * 2}] = i32[(i >> 2) + ${n + (vsize * 1) / 4}];\n`;
+			}
+		} else if ((vsize % 2) == 0) {
+			for (var n = 0; n < (vsize / 2) * 2; n++) {
+				code += `o16[(o >> 1) + ${n + vsize * 0}] = i16[(i >> 1) + ${n + (vsize * 0) / 2}];\n`;
+				code += `o16[(o >> 1) + ${n + vsize * 2}] = i16[(i >> 1) + ${n + (vsize * 1) / 2}];\n`;
+			}
+		} else {
+		}*/
+		/*
+		*/
+		for (var n = 0; n < vsize * 2; n++) {
+			code += `o8[o + ${n + vsize * 0}] = i8[i + ${n + (vsize * 0)}];\n`;
+			code += `o8[o + ${n + vsize * 2}] = i8[i + ${n + (vsize * 1)}];\n`;
+		}
+		//code += `o8.subarray(o + ${vsize * 0}, o + ${vsize * 2}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
+		//code += `o8.subarray(o + ${vsize * 2}, o + ${vsize * 4}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
+	
+		var TL = SpriteVID.TL;
+		var BR = SpriteVID.BR;
+
+		code += copyX(SpriteVID.TR, BR);
+		code += copyY(SpriteVID.TR, TL);
+		code += copyX(SpriteVID.BL, TL);
+		code += copyY(SpriteVID.BL, BR);	
+		code += copyColor(SpriteVID.TL, BR);
+		code += copyColor(SpriteVID.TR, BR);
+		code += copyColor(SpriteVID.BL, BR);
+		
+		code += `i += ${vsize * 2};\n`;
+		code += `o += ${vsize * 4};\n`;
+		return code;
+		//vertexInfo.size
+	}
+}
+
 export class OptimizedDrawBuffer {
 	data = new Uint8Array(2 * 1024 * 1024);
 	private dataOffset = 0;
@@ -267,7 +381,6 @@ export class OptimizedDrawBuffer {
 			this.batchIndexOffset, this.indexOffset
 		);
 		this.dataOffset = this.batchDataOffset = (this.dataOffset + 15) & ~0xF;
-		//this.dataOffset = this.batchDataOffset = this.dataOffset;
 		this.batchIndexOffset = this.indexOffset;
 		this.vertexIndex = 0;
 		return data;
@@ -285,6 +398,25 @@ export class OptimizedDrawBuffer {
 
 	addVerticesIndices(vertexCount:number) {
 		for (var n = 0; n < vertexCount; n++) this.indices[this.indexOffset++] = this.vertexIndex++;
+	}
+
+	addVerticesIndicesSprite(vertexCount:number) {
+		for (var n = 0; n < vertexCount / 2; n++) {
+			this.indices[this.indexOffset++] = this.vertexIndex + 3;
+			this.indices[this.indexOffset++] = this.vertexIndex + 0;
+			this.indices[this.indexOffset++] = this.vertexIndex + 2;
+			this.indices[this.indexOffset++] = this.vertexIndex + 3;
+			this.indices[this.indexOffset++] = this.vertexIndex + 2;
+			this.indices[this.indexOffset++] = this.vertexIndex + 1;
+			this.vertexIndex += 4;
+		}
+	}
+	
+	addVerticesDataSprite(vertices:Uint8Array, inputOffset:number, verticesSize:number, count:number, vi:_state.VertexInfo) {
+		var i = vertices.subarray(inputOffset, inputOffset + verticesSize);
+		var o = this.data.subarray(this.dataOffset, this.dataOffset + verticesSize * 2); 
+		SpriteExpander.forVertexInfo(vi)(i, o, count);
+		this.dataOffset += o.length;
 	}
 	
 	addVerticesIndicesList(indices:Uint8Array | Uint16Array) {
