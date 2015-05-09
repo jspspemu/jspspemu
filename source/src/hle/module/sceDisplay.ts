@@ -61,12 +61,14 @@ export class sceDisplay {
 
 	@nativeFunction(0x984C27E7, 150, 'uint', 'Thread', {disableInsideInterrupt: true})
 	sceDisplayWaitVblankStart(thread: Thread) {
-		return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
+		return this._waitVblankAsync(thread, AcceptCallbacks.NO);
+		//return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
 	}
 
 	@nativeFunction(0x46F186C3, 150, 'uint', 'Thread', {disableInsideInterrupt: true})
 	sceDisplayWaitVblankStartCB(thread: Thread) {
-		return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
+		return this._waitVblankAsync(thread, AcceptCallbacks.YES);
+		//return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
 	}
 
 	@nativeFunction(0x9C6EAAD7, 150, 'int', '')

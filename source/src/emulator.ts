@@ -20,6 +20,7 @@ import _vfs = require('./hle/vfs');
 import _config = require('./hle/config');
 import _elf_psp = require('./hle/elf_psp');
 import _elf_crypted_prx = require('./hle/elf_crypted_prx');
+import _emulator_ui = require('./ui/emulator_ui');
 
 import _manager = require('./hle/manager');
 import _pspmodules = require('./hle/pspmodules');

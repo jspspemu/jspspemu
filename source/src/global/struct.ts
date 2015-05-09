@@ -104,6 +104,30 @@ class StructClass<T> implements IType {
 		return new StructClass<T>(_class, items);
 	}
 
+	readWrite(stream: Stream, callback: (p: T) => any) {
+		var p = this.read(stream.clone());
+		var result = callback(p);
+		if (result instanceof Promise2) {
+			return result.then((result:any) => {
+				this.write(stream.clone(), p);
+				return result;
+			});
+		} else {
+			this.write(stream.clone(), p);
+			return result;
+		}
+	}
+	
+	readWriteAsync<T2>(stream: Stream, callback: (p: T) => Promise2<T2>, process?: (p: T, v:T2) => T2) {
+		var p = this.read(stream.clone());
+		var result = callback(p);
+		return Promise2.resolve(result).then(v => {
+			if (process != null) process(p, v);
+			this.write(stream.clone(), p);
+			return v;
+		});
+	}
+
 	read(stream: Stream): T {
 		var _class = this._class;
 		var out: T = new _class();

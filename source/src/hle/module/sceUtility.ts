@@ -5,6 +5,7 @@ import _manager = require('../manager');
 import _vfs = require('../vfs');
 import _structs = require('../structs');
 import _context = require('../../context');
+import _emulator_ui = require('../../ui/emulator_ui');
 import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
 
@@ -34,122 +35,120 @@ export class sceUtility {
 	}
 
 	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise2<number> {
-		console.log('sceUtilitySavedataInitStart');
-		var params = SceUtilitySavedataParam.struct.read(paramsPtr);
+		console.error('sceUtilitySavedataInitStart');
+		return SceUtilitySavedataParam.struct.readWriteAsync(paramsPtr, params => {
+			var fileManager = this.context.fileManager;
+			var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
+			var saveDataBin = savePathFolder + "/DATA.BIN";
+			var saveIcon0 = savePathFolder + "/ICON0.PNG";
+			var savePic1 = savePathFolder + "/PIC1.PNG";
 
-		var fileManager = this.context.fileManager;
-		var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
-		var saveDataBin = savePathFolder + "/DATA.BIN";
-		var saveIcon0 = savePathFolder + "/ICON0.PNG";
-		var savePic1 = savePathFolder + "/PIC1.PNG";
+			this.currentStep = DialogStepEnum.SUCCESS;
 
-		this.currentStep = DialogStepEnum.SUCCESS;
-
-		//debugger;
-
-		params.base.result = 0;
-
-		switch (params.mode) {
-			case PspUtilitySavedataMode.Autoload:
-			case PspUtilitySavedataMode.Load:
-			case PspUtilitySavedataMode.ListLoad:
-				return fileManager
-					.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777'))
-					.then(file => file.entry.readAllAsync())
-					.then(data => {
+			//debugger;
+			console.info('mode:', PspUtilitySavedataMode[params.mode]);
+			switch (params.mode) {
+				case PspUtilitySavedataMode.Autoload:
+				case PspUtilitySavedataMode.Load:
+				case PspUtilitySavedataMode.ListLoad:
+					return fileManager.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777')).then(file => file.entry.readAllAsync()).then(data => {
+						console.info('readed:', data.byteLength);
+						params.dataSize = data.byteLength;
 						this.context.memory.writeBytes(params.dataBufPointer, data);
 						return 0;
-					})
-					.catch(error => {
+					}).catch(error => {
+						console.info("can't read file:", saveDataBin, error);
 						return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
-					})
-				;
-			case PspUtilitySavedataMode.Autosave:
-			case PspUtilitySavedataMode.Save:
-			case PspUtilitySavedataMode.ListSave:
-				var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+					});
+				case PspUtilitySavedataMode.Autosave:
+				case PspUtilitySavedataMode.Save:
+				case PspUtilitySavedataMode.ListSave:
+					var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
 
-				return fileManager
-					.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
-					.then(file => file.entry.writeAllAsync(data))
-					.then(written => {
+					return fileManager
+						.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
+						.then(file => file.entry.writeAllAsync(data))
+						.then(written => {
 						return 0;
-					})
-					.catch(error => {
+					}).catch(error => {
 						return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
-					})
-					;
-			case PspUtilitySavedataMode.Read:
-			case PspUtilitySavedataMode.ReadSecure:
-				{
-					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-					//return Promise2.resolve(-1);
-					return Promise2.resolve(0);
-				}
-				break;
-
-			case PspUtilitySavedataMode.Sizes:
-				{
-					var SceKernelError = SceKernelErrors.ERROR_OK;
-
-					//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
-
-					var SectorSize = 1024;
-					var FreeSize = 32 * 1024 * 1024; // 32 MB
-					var UsedSize = 0;
-
-					// MS free size.
-					// Gets the ammount of free space in the Memory Stick. If null,
-					// the size is ignored and no error is returned.
+					});
+				case PspUtilitySavedataMode.Read:
+				case PspUtilitySavedataMode.ReadSecure:
 					{
-						var sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr);
-						sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
-							sizeFreeInfo.sectorSize = SectorSize;
-							sizeFreeInfo.freeSectors = FreeSize / SectorSize;
-							sizeFreeInfo.freeKb = FreeSize / 1024;
-							sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
-						});
+						console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+						//return Promise2.resolve(-1);
+						return Promise2.resolve(0);
 					}
+					break;
 
-					// MS data size.
-					// Gets the size of the data already saved in the Memory Stick.
-					// If null, the size is ignored and no error is returned.
+				case PspUtilitySavedataMode.Sizes:
 					{
-						var sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
-					}
+						var SceKernelError = SceKernelErrors.ERROR_OK;
 
-					// Utility data size.
-					// Gets the size of the data to be saved in the Memory Stick.
-					// If null, the size is ignored and no error is returned.
-					{
-						var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+						//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
 
-						if (sizeRequiredSpaceInfoPtr != null) {
-							var RequiredSize = 0;
-							RequiredSize += params.icon0FileData.size;
-							RequiredSize += params.icon1FileData.size;
-							RequiredSize += params.pic1FileData.size;
-							RequiredSize += params.snd0FileData.size;
-							RequiredSize += params.dataSize;
+						var SectorSize = 1024;
+						var FreeSize = 32 * 1024 * 1024; // 32 MB
+						var UsedSize = 0;
 
-							sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
-								sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
-								sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
-								sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
-
-								sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
-								sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+						// MS free size.
+						// Gets the ammount of free space in the Memory Stick. If null,
+						// the size is ignored and no error is returned.
+						{
+							var sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr);
+							sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
+								sizeFreeInfo.sectorSize = SectorSize;
+								sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+								sizeFreeInfo.freeKb = FreeSize / 1024;
+								sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
 							});
 						}
-					}
 
-					if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise2.resolve(SceKernelError);
-				}
-				break;
-			default:
-				throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
-		}
-		return Promise2.resolve(0);
+						// MS data size.
+						// Gets the size of the data already saved in the Memory Stick.
+						// If null, the size is ignored and no error is returned.
+						{
+							var sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
+						}
+
+						// Utility data size.
+						// Gets the size of the data to be saved in the Memory Stick.
+						// If null, the size is ignored and no error is returned.
+						{
+							var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+
+							if (sizeRequiredSpaceInfoPtr != null) {
+								var RequiredSize = 0;
+								RequiredSize += params.icon0FileData.size;
+								RequiredSize += params.icon1FileData.size;
+								RequiredSize += params.pic1FileData.size;
+								RequiredSize += params.snd0FileData.size;
+								RequiredSize += params.dataSize;
+
+								sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
+									sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+									sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+									sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+
+									sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+									sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+								});
+							}
+						}
+
+						if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise2.resolve(SceKernelError);
+					}
+					break;
+				default:
+					throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+			}
+			return Promise2.resolve(0);
+		}, (params, result) => {
+			console.error('result: ', result);
+			params.base.result = result;
+			return 0;
+		});
 	}
 
 	@nativeFunction(0x9790B33C, 150, 'uint', '')
@@ -173,10 +172,16 @@ export class sceUtility {
 
 	@nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
 	sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
-		console.warn("Not implemented sceUtilityMsgDialogInitStart()");
-		this.currentStep = DialogStepEnum.PROCESSING;
-
-		return 0;
+		// @TODO: should not stop
+		//_emulator_ui.EmulatorUI.openMessageAsync().then();
+		return PspUtilityMsgDialogParams.struct.readWriteAsync(paramsPtr, params => {
+			console.warn('sceUtilityMsgDialogInitStart:', params.utf8Message);
+			return _emulator_ui.EmulatorUI.openMessageAsync(params.utf8Message).then(() => {
+				params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
+				this.currentStep = DialogStepEnum.SUCCESS;
+				return 0;
+			})
+		});
 	}
 
 	@nativeFunction(0x9A1C91D7, 150, 'uint', '')
@@ -366,6 +371,25 @@ enum PspModule {
 	PSP_MODULE_IRDA = 0x0600,
 }
 
+enum PspUtilityMsgDialogMode {
+	PSP_UTILITY_MSGDIALOG_MODE_ERROR = 0, // Error message
+	PSP_UTILITY_MSGDIALOG_MODE_TEXT = 1, // String message
+}
+
+enum PspUtilityMsgDialogOption {
+	PSP_UTILITY_MSGDIALOG_OPTION_ERROR = 0x00000000, // Error message (why two flags?)
+	PSP_UTILITY_MSGDIALOG_OPTION_TEXT = 0x00000001, // Text message (why two flags?)
+	PSP_UTILITY_MSGDIALOG_OPTION_YESNO_BUTTONS = 0x00000010, // Yes/No buttons instead of 'Cancel'
+	PSP_UTILITY_MSGDIALOG_OPTION_DEFAULT_NO = 0x00000100, // Default position 'No', if not set will default to 'Yes'
+}
+
+enum PspUtilityMsgDialogPressed {
+	PSP_UTILITY_MSGDIALOG_RESULT_UNKNOWN1 = 0,
+	PSP_UTILITY_MSGDIALOG_RESULT_YES = 1,
+	PSP_UTILITY_MSGDIALOG_RESULT_NO = 2,
+	PSP_UTILITY_MSGDIALOG_RESULT_BACK = 3,
+}
+
 class PspUtilityDialogCommon {
 	size = 0; // 0000 - Size of the structure
 	language = PspLanguages.SPANISH; // 0004 - Language
@@ -454,7 +478,7 @@ class PspUtilitySavedataSFOParam {
 	savedataTitle = ''; // 0080 -
 	detail = ''; // 0100 -
 	parentalLevel = 0; // 0500 -
-	unknown = [0,0,0]; // 0501 -
+	unknown = [0, 0, 0]; // 0501 -
 
 	static struct = StructClass.create<PspUtilitySavedataSFOParam>(PspUtilitySavedataSFOParam, [
 		{ title: Stringz(0x80) },
@@ -490,13 +514,13 @@ class SceUtilitySavedataParam {
 	utilityDataAddr = 0; // 05D8 -
 
 	//#if _PSP_FW_VERSION >= 200
-	key  =[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
+	key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
 	secureVersion = 0; // 05F0 -
 	multiStatus = 0; // 05F4 -
 	idListAddr = 0; // 05F8 -
 	fileListAddr = 0; // 05FC -
 	sizeAddr = 0; // 0600 -
-	unknown3 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]; // 0604 -unknown3: ?
+	unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 0604 -unknown3: ?
 	//#endif
 
 	static struct = StructClass.create<SceUtilitySavedataParam>(SceUtilitySavedataParam, [
@@ -579,5 +603,29 @@ class SizeRequiredSpaceInfo {
 		{ requiredSpaceString: Stringz(8) },
 		{ requiredSpace32KB: UInt32 },
 		{ requiredSpace32KBString: Stringz(8) },
+	]);
+}
+
+class PspUtilityMsgDialogParams {
+	base: PspUtilityDialogCommon;
+	unknown: number; // uint
+	mnode: PspUtilityMsgDialogMode; // uint
+	errorValue: number; // uint
+	message: string; // byte[512]
+	options: PspUtilityMsgDialogOption;
+	buttonPressed: PspUtilityMsgDialogPressed;
+
+	get utf8Message() {
+		return Utf8.decode(this.message);
+	}
+
+	static struct = StructClass.create<PspUtilityMsgDialogParams>(PspUtilityMsgDialogParams, [
+		{ base: PspUtilityDialogCommon.struct },
+		{ unknown: Int32 },
+		{ mnode: Int32 },
+		{ errorValue: Int32 },
+		{ message: Stringz(512) },
+		{ options: Int32 },
+		{ buttonPressed: Int32 },
 	]);
 }

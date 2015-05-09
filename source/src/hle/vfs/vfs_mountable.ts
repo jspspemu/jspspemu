@@ -68,6 +68,11 @@ export class MountableVfs extends Vfs {
 			return info.mount.vfs.getStatAsync(info.part);
 		}
 	}
+	
+	deleteAsync(path: string): Promise2<void> {
+		var info = this.transformPath(path);
+		return info.mount.vfs.deleteAsync(info.part);
+	}
 }
 
 class MountableEntry {

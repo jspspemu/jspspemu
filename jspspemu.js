@@ -2848,6 +2848,32 @@ var StructClass = (function () {
     StructClass.create = function (_class, items) {
         return new StructClass(_class, items);
     };
+    StructClass.prototype.readWrite = function (stream, callback) {
+        var _this = this;
+        var p = this.read(stream.clone());
+        var result = callback(p);
+        if (result instanceof Promise2) {
+            return result.then(function (result) {
+                _this.write(stream.clone(), p);
+                return result;
+            });
+        }
+        else {
+            this.write(stream.clone(), p);
+            return result;
+        }
+    };
+    StructClass.prototype.readWriteAsync = function (stream, callback, process) {
+        var _this = this;
+        var p = this.read(stream.clone());
+        var result = callback(p);
+        return Promise2.resolve(result).then(function (v) {
+            if (process != null)
+                process(p, v);
+            _this.write(stream.clone(), p);
+            return v;
+        });
+    };
     StructClass.prototype.read = function (stream) {
         var _class = this._class;
         var out = new _class();
@@ -5798,6 +5824,7 @@ var CpuState = (function () {
         this.fcr31_fs = false;
         this.fcr0 = 0x00003351;
         this.cycles = 0;
+        this.cycles2 = 0;
         this.icache = new InstructionCache(memory, syscallManager);
         this.fcr0 = 0x00003351;
         this.fcr31 = 0x00000e00;
@@ -6246,7 +6273,10 @@ var CpuState = (function () {
     };
     CpuState.prototype.cache = function (rs, type, offset) {
     };
-    CpuState.prototype.syscall = function (id) { this.syscallManager.call(this, id); };
+    CpuState.prototype.syscall = function (id) {
+        this.syscallManager.call(this, id);
+        this.checkCyclesSyscall();
+    };
     CpuState.prototype.min = function (a, b) { return ((a | 0) < (b | 0)) ? a : b; };
     CpuState.prototype.max = function (a, b) { return ((a | 0) > (b | 0)) ? a : b; };
     CpuState.prototype.slt = function (a, b) { return ((a | 0) < (b | 0)) ? 1 : 0; };
@@ -6325,13 +6355,11 @@ var CpuState = (function () {
     };
     CpuState.prototype.startThreadStep = function () {
         this.cycles = 0;
+        this.cycles2 = 0;
     };
     CpuState.prototype.checkCycles = function (cycles) {
-        this.cycles += cycles;
-        if (this.cycles >= 1000000) {
-            if (!this.insideInterrupt)
-                throwEndCycles();
-        }
+    };
+    CpuState.prototype.checkCyclesSyscall = function () {
     };
     CpuState.lastId = 0;
     CpuState._mult_temp = [0, 0];
@@ -6603,7 +6631,6 @@ var FunctionGenerator = (function () {
                 func.add(ins);
             }
             else {
-                func.add(createCycles(PC));
                 var di2 = this.decodeInstruction(PC + 4);
                 var delayedSlotInstruction = this.generatePspInstruction(di2);
                 var isLikely = di.type.isLikely;
@@ -6652,6 +6679,7 @@ var FunctionGenerator = (function () {
                     func.add(ast.raw('}'));
                 }
                 else if (type.isJumpNoLink) {
+                    func.add(createCycles(PC));
                     if (type.name == 'jr') {
                         func.add(delayedCode);
                         func.add(ast.raw("state.PC = state.gpr[" + di.instruction.rs + "];"));
@@ -6680,8 +6708,10 @@ var FunctionGenerator = (function () {
                             func.add(delayedCode);
                             func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
                         }
+                        func.add(createCycles(nextAddress));
                     }
                     else {
+                        func.add(createCycles(PC));
                         func.add(ins);
                         func.add(delayedCode);
                         func.add(ast.raw("if (BRANCHFLAG) {"));
@@ -18390,10 +18420,10 @@ var sceDisplay = (function () {
         return this._waitVblankAsync(thread, AcceptCallbacks.YES);
     };
     sceDisplay.prototype.sceDisplayWaitVblankStart = function (thread) {
-        return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
+        return this._waitVblankAsync(thread, AcceptCallbacks.NO);
     };
     sceDisplay.prototype.sceDisplayWaitVblankStartCB = function (thread) {
-        return this._waitVblankStartAsync(thread, AcceptCallbacks.YES);
+        return this._waitVblankAsync(thread, AcceptCallbacks.YES);
     };
     sceDisplay.prototype.sceDisplayGetVcount = function () {
         this.context.display.updateTime();
@@ -21001,6 +21031,7 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
 };
 var _utils = require('../utils');
 var _vfs = require('../vfs');
+var _emulator_ui = require('../../ui/emulator_ui');
 var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require('../SceKernelErrors');
 var FileOpenFlags = _vfs.FileOpenFlags;
@@ -21022,93 +21053,96 @@ var sceUtility = (function () {
     };
     sceUtility.prototype._sceUtilitySavedataInitStart = function (paramsPtr) {
         var _this = this;
-        console.log('sceUtilitySavedataInitStart');
-        var params = SceUtilitySavedataParam.struct.read(paramsPtr);
-        var fileManager = this.context.fileManager;
-        var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
-        var saveDataBin = savePathFolder + "/DATA.BIN";
-        var saveIcon0 = savePathFolder + "/ICON0.PNG";
-        var savePic1 = savePathFolder + "/PIC1.PNG";
-        this.currentStep = DialogStepEnum.SUCCESS;
-        params.base.result = 0;
-        switch (params.mode) {
-            case PspUtilitySavedataMode.Autoload:
-            case PspUtilitySavedataMode.Load:
-            case PspUtilitySavedataMode.ListLoad:
-                return fileManager
-                    .openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777'))
-                    .then(function (file) { return file.entry.readAllAsync(); })
-                    .then(function (data) {
-                    _this.context.memory.writeBytes(params.dataBufPointer, data);
-                    return 0;
-                })
-                    .catch(function (error) {
-                    return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
-                });
-            case PspUtilitySavedataMode.Autosave:
-            case PspUtilitySavedataMode.Save:
-            case PspUtilitySavedataMode.ListSave:
-                var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
-                return fileManager
-                    .openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
-                    .then(function (file) { return file.entry.writeAllAsync(data); })
-                    .then(function (written) {
-                    return 0;
-                })
-                    .catch(function (error) {
-                    return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
-                });
-            case PspUtilitySavedataMode.Read:
-            case PspUtilitySavedataMode.ReadSecure:
-                {
-                    console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-                    return Promise2.resolve(0);
-                }
-                break;
-            case PspUtilitySavedataMode.Sizes:
-                {
-                    var SceKernelError = SceKernelErrors.ERROR_OK;
-                    var SectorSize = 1024;
-                    var FreeSize = 32 * 1024 * 1024;
-                    var UsedSize = 0;
+        console.error('sceUtilitySavedataInitStart');
+        return SceUtilitySavedataParam.struct.readWriteAsync(paramsPtr, function (params) {
+            var fileManager = _this.context.fileManager;
+            var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
+            var saveDataBin = savePathFolder + "/DATA.BIN";
+            var saveIcon0 = savePathFolder + "/ICON0.PNG";
+            var savePic1 = savePathFolder + "/PIC1.PNG";
+            _this.currentStep = DialogStepEnum.SUCCESS;
+            console.info('mode:', PspUtilitySavedataMode[params.mode]);
+            switch (params.mode) {
+                case PspUtilitySavedataMode.Autoload:
+                case PspUtilitySavedataMode.Load:
+                case PspUtilitySavedataMode.ListLoad:
+                    return fileManager.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777')).then(function (file) { return file.entry.readAllAsync(); }).then(function (data) {
+                        console.info('readed:', data.byteLength);
+                        params.dataSize = data.byteLength;
+                        _this.context.memory.writeBytes(params.dataBufPointer, data);
+                        return 0;
+                    }).catch(function (error) {
+                        console.info("can't read file:", saveDataBin, error);
+                        return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
+                    });
+                case PspUtilitySavedataMode.Autosave:
+                case PspUtilitySavedataMode.Save:
+                case PspUtilitySavedataMode.ListSave:
+                    var data = _this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+                    return fileManager
+                        .openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
+                        .then(function (file) { return file.entry.writeAllAsync(data); })
+                        .then(function (written) {
+                        return 0;
+                    }).catch(function (error) {
+                        return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
+                    });
+                case PspUtilitySavedataMode.Read:
+                case PspUtilitySavedataMode.ReadSecure:
                     {
-                        var sizeFreeInfoPtr = this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
-                        sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
-                            sizeFreeInfo.sectorSize = SectorSize;
-                            sizeFreeInfo.freeSectors = FreeSize / SectorSize;
-                            sizeFreeInfo.freeKb = FreeSize / 1024;
-                            sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
-                        });
+                        console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+                        return Promise2.resolve(0);
                     }
+                    break;
+                case PspUtilitySavedataMode.Sizes:
                     {
-                        var sizeUsedInfoPtr = this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
-                    }
-                    {
-                        var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
-                        if (sizeRequiredSpaceInfoPtr != null) {
-                            var RequiredSize = 0;
-                            RequiredSize += params.icon0FileData.size;
-                            RequiredSize += params.icon1FileData.size;
-                            RequiredSize += params.pic1FileData.size;
-                            RequiredSize += params.snd0FileData.size;
-                            RequiredSize += params.dataSize;
-                            sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
-                                sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
-                                sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
-                                sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
-                                sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
-                                sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+                        var SceKernelError = SceKernelErrors.ERROR_OK;
+                        var SectorSize = 1024;
+                        var FreeSize = 32 * 1024 * 1024;
+                        var UsedSize = 0;
+                        {
+                            var sizeFreeInfoPtr = _this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
+                            sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
+                                sizeFreeInfo.sectorSize = SectorSize;
+                                sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+                                sizeFreeInfo.freeKb = FreeSize / 1024;
+                                sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
                             });
                         }
+                        {
+                            var sizeUsedInfoPtr = _this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
+                        }
+                        {
+                            var sizeRequiredSpaceInfoPtr = _this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+                            if (sizeRequiredSpaceInfoPtr != null) {
+                                var RequiredSize = 0;
+                                RequiredSize += params.icon0FileData.size;
+                                RequiredSize += params.icon1FileData.size;
+                                RequiredSize += params.pic1FileData.size;
+                                RequiredSize += params.snd0FileData.size;
+                                RequiredSize += params.dataSize;
+                                sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
+                                    sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+                                    sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+                                    sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+                                    sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+                                    sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+                                });
+                            }
+                        }
+                        if (SceKernelError != SceKernelErrors.ERROR_OK)
+                            return Promise2.resolve(SceKernelError);
                     }
-                    if (SceKernelError != SceKernelErrors.ERROR_OK)
-                        return Promise2.resolve(SceKernelError);
-                }
-                break;
-            default:
-                throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
-        }
-        return Promise2.resolve(0);
+                    break;
+                default:
+                    throw (new Error("Not implemented " + params.mode + ': ' + PspUtilitySavedataMode[params.mode]));
+            }
+            return Promise2.resolve(0);
+        }, function (params, result) {
+            console.error('result: ', result);
+            params.base.result = result;
+            return 0;
+        });
     };
     sceUtility.prototype.sceUtilitySavedataShutdownStart = function () {
         this.currentStep = DialogStepEnum.SHUTDOWN;
@@ -21124,9 +21158,15 @@ var sceUtility = (function () {
         }
     };
     sceUtility.prototype.sceUtilityMsgDialogInitStart = function (paramsPtr) {
-        console.warn("Not implemented sceUtilityMsgDialogInitStart()");
-        this.currentStep = DialogStepEnum.PROCESSING;
-        return 0;
+        var _this = this;
+        return PspUtilityMsgDialogParams.struct.readWriteAsync(paramsPtr, function (params) {
+            console.warn('sceUtilityMsgDialogInitStart:', params.utf8Message);
+            return _emulator_ui.EmulatorUI.openMessageAsync(params.utf8Message).then(function () {
+                params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
+                _this.currentStep = DialogStepEnum.SUCCESS;
+                return 0;
+            });
+        });
     };
     sceUtility.prototype.sceUtilityMsgDialogGetStatus = function () {
         try {
@@ -21315,6 +21355,25 @@ var PspModule;
     PspModule[PspModule["PSP_MODULE_NP_DRM"] = 1280] = "PSP_MODULE_NP_DRM";
     PspModule[PspModule["PSP_MODULE_IRDA"] = 1536] = "PSP_MODULE_IRDA";
 })(PspModule || (PspModule = {}));
+var PspUtilityMsgDialogMode;
+(function (PspUtilityMsgDialogMode) {
+    PspUtilityMsgDialogMode[PspUtilityMsgDialogMode["PSP_UTILITY_MSGDIALOG_MODE_ERROR"] = 0] = "PSP_UTILITY_MSGDIALOG_MODE_ERROR";
+    PspUtilityMsgDialogMode[PspUtilityMsgDialogMode["PSP_UTILITY_MSGDIALOG_MODE_TEXT"] = 1] = "PSP_UTILITY_MSGDIALOG_MODE_TEXT";
+})(PspUtilityMsgDialogMode || (PspUtilityMsgDialogMode = {}));
+var PspUtilityMsgDialogOption;
+(function (PspUtilityMsgDialogOption) {
+    PspUtilityMsgDialogOption[PspUtilityMsgDialogOption["PSP_UTILITY_MSGDIALOG_OPTION_ERROR"] = 0] = "PSP_UTILITY_MSGDIALOG_OPTION_ERROR";
+    PspUtilityMsgDialogOption[PspUtilityMsgDialogOption["PSP_UTILITY_MSGDIALOG_OPTION_TEXT"] = 1] = "PSP_UTILITY_MSGDIALOG_OPTION_TEXT";
+    PspUtilityMsgDialogOption[PspUtilityMsgDialogOption["PSP_UTILITY_MSGDIALOG_OPTION_YESNO_BUTTONS"] = 16] = "PSP_UTILITY_MSGDIALOG_OPTION_YESNO_BUTTONS";
+    PspUtilityMsgDialogOption[PspUtilityMsgDialogOption["PSP_UTILITY_MSGDIALOG_OPTION_DEFAULT_NO"] = 256] = "PSP_UTILITY_MSGDIALOG_OPTION_DEFAULT_NO";
+})(PspUtilityMsgDialogOption || (PspUtilityMsgDialogOption = {}));
+var PspUtilityMsgDialogPressed;
+(function (PspUtilityMsgDialogPressed) {
+    PspUtilityMsgDialogPressed[PspUtilityMsgDialogPressed["PSP_UTILITY_MSGDIALOG_RESULT_UNKNOWN1"] = 0] = "PSP_UTILITY_MSGDIALOG_RESULT_UNKNOWN1";
+    PspUtilityMsgDialogPressed[PspUtilityMsgDialogPressed["PSP_UTILITY_MSGDIALOG_RESULT_YES"] = 1] = "PSP_UTILITY_MSGDIALOG_RESULT_YES";
+    PspUtilityMsgDialogPressed[PspUtilityMsgDialogPressed["PSP_UTILITY_MSGDIALOG_RESULT_NO"] = 2] = "PSP_UTILITY_MSGDIALOG_RESULT_NO";
+    PspUtilityMsgDialogPressed[PspUtilityMsgDialogPressed["PSP_UTILITY_MSGDIALOG_RESULT_BACK"] = 3] = "PSP_UTILITY_MSGDIALOG_RESULT_BACK";
+})(PspUtilityMsgDialogPressed || (PspUtilityMsgDialogPressed = {}));
 var PspUtilityDialogCommon = (function () {
     function PspUtilityDialogCommon() {
         this.size = 0;
@@ -21522,6 +21581,27 @@ var SizeRequiredSpaceInfo = (function () {
         { requiredSpace32KBString: Stringz(8) },
     ]);
     return SizeRequiredSpaceInfo;
+})();
+var PspUtilityMsgDialogParams = (function () {
+    function PspUtilityMsgDialogParams() {
+    }
+    Object.defineProperty(PspUtilityMsgDialogParams.prototype, "utf8Message", {
+        get: function () {
+            return Utf8.decode(this.message);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    PspUtilityMsgDialogParams.struct = StructClass.create(PspUtilityMsgDialogParams, [
+        { base: PspUtilityDialogCommon.struct },
+        { unknown: Int32 },
+        { mnode: Int32 },
+        { errorValue: Int32 },
+        { message: Stringz(512) },
+        { options: Int32 },
+        { buttonPressed: Int32 },
+    ]);
+    return PspUtilityMsgDialogParams;
 })();
 
 },
@@ -23662,6 +23742,10 @@ var MountableVfs = (function (_super) {
             return info.mount.vfs.getStatAsync(info.part);
         }
     };
+    MountableVfs.prototype.deleteAsync = function (path) {
+        var info = this.transformPath(path);
+        return info.mount.vfs.deleteAsync(info.part);
+    };
     return MountableVfs;
 })(Vfs);
 exports.MountableVfs = MountableVfs;
@@ -23992,6 +24076,20 @@ var ZipVfsFile = (function (_super) {
     };
     return ZipVfsFile;
 })(VfsEntry);
+
+},
+"src/ui/emulator_ui": function(module, exports, require) {
+///<reference path="../global.d.ts" />
+var EmulatorUI = (function () {
+    function EmulatorUI() {
+    }
+    EmulatorUI.openMessageAsync = function (message) {
+        alert(message);
+        return Promise2.resolve(true);
+    };
+    return EmulatorUI;
+})();
+exports.EmulatorUI = EmulatorUI;
 
 },
 "src/util/IndentStringGenerator": function(module, exports, require) {

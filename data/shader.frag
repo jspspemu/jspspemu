@@ -41,7 +41,7 @@ uniform float time;
 
 #ifdef TEXTURE_CLUT
 vec4 getClutColor(float color) {
-	return texture2D(samplerClut, vec2(color, 0.0));
+	return texture2D(samplerClut, vec2(color, 0.0)) + samplerClutStart;
 }
 
 vec4 getClutColorAt(vec2 coords) {

@@ -607,7 +607,10 @@ export class CpuState {
 	cache(rs: number, type: number, offset: number) {
 		//if (DebugOnce('state.cache', 100)) console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
 	}
-	syscall(id: number) { this.syscallManager.call(this, id); }
+	syscall(id: number) {
+		this.syscallManager.call(this, id);
+		this.checkCyclesSyscall();
+	}
 
 	min(a: number, b: number) { return ((a | 0) < (b | 0)) ? a : b; }
 	max(a: number, b: number) { return ((a | 0) > (b | 0)) ? a : b; }
@@ -701,16 +704,30 @@ export class CpuState {
 	}
 	
 	private cycles: number = 0;
+	private cycles2: number = 0;
 	startThreadStep() {
 		//this.time = performance.now();
 		this.cycles = 0;
+		this.cycles2 = 0;
 	}
 	
 	checkCycles(cycles: number) {
+		/*
 		this.cycles += cycles;
 		if (this.cycles >= 1000000) {
 			if (!this.insideInterrupt) throwEndCycles();
 		}
+		*/
+	}
+	
+	checkCyclesSyscall() {
+		/*
+		this.cycles2 += 1;
+		if (this.cycles2 >= 1000) {
+			this.cycles2 = 0;
+			if (!this.insideInterrupt) throwEndCycles();
+		}
+		*/
 	}
 }
 
@@ -1037,8 +1054,6 @@ export class FunctionGenerator {
 			if (!type.hasDelayedBranch) {
 				func.add(ins);
 			} else {
-				func.add(createCycles(PC));
-
 				var di2 = this.decodeInstruction(PC + 4);
 				var delayedSlotInstruction = this.generatePspInstruction(di2);
 				let isLikely = di.type.isLikely;
@@ -1102,6 +1117,8 @@ export class FunctionGenerator {
 					func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
 					func.add(ast.raw('}'));
 				} else if (type.isJumpNoLink) {
+					func.add(createCycles(PC));
+					//func.add(createCycles(PC));
 					//func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
 					if (type.name == 'jr') {
 						func.add(delayedCode);
@@ -1130,7 +1147,9 @@ export class FunctionGenerator {
 							func.add(delayedCode);
 							func.add(ast.sjump(ast.raw('BRANCHFLAG'), targetAddress));
 						}
+						func.add(createCycles(nextAddress));
 					} else {
+						func.add(createCycles(PC));
 						func.add(ins);
 						func.add(delayedCode);
 						func.add(ast.raw(`if (BRANCHFLAG) {`));
