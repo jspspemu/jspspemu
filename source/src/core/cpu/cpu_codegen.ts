@@ -195,6 +195,7 @@ function readMatrix(vectorReg: number, N: MatrixSize) {
 }
 
 function setMemoryVector(offset: _ast.ANodeExpr, items: _ast.ANodeExpr[]) {
+    //return call_stm('state.storeFloats', [offset, ast.array(items)]);
 	var out:_ast.ANodeExpr[] = [];
 	for (var n = 0; n < items.length; n++) {
 		var item = items[n];
@@ -783,6 +784,14 @@ export class InstructionAst {
 	vcmovf(i: Instruction) { return this._vcmovtf(i, false); }
 
 	vcmp(ins: Instruction) {
+		/*
+        return call_stm('state.vcmp', [
+            imm32(ins.IMM4),
+            ast.array(readVector_f(ins.VS, ins.ONE_TWO)),
+            ast.array(readVector_f(ins.VT, ins.ONE_TWO))
+        ]);
+		*/
+
 		var out:_ast.ANodeStm[] = [];
 		
 		var vectorSize = ins.ONE_TWO;
@@ -1129,6 +1138,8 @@ export class InstructionAst {
 		var fc_less = ((fc02 & 4) != 0);
 		var fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
 		
+        //return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
+
 		var s = fpr(i.fs).toJs();
 		var t = fpr(i.ft).toJs();
 		

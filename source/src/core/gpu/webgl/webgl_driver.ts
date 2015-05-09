@@ -286,18 +286,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		return this.canvas.width / 480;
 	}
 
-	drawElements(state: GpuState, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo) {
-		if (count == 0) return;
-		
-		this.beforeDraw(state);
-
-		if (primitiveType == _state.PrimitiveType.Sprites) {
-			return this.drawSprites(vertices, count, vertexInfo);
-		} else {
-			return this.drawElementsInternal(primitiveType, primitiveType, vertices, count, vertexInfo);
-		}
-	}
-	
 	private beforeDraw(state: GpuState) {
 		this.state.copyFrom(state);
 		this.setClearMode(state.clearing, state.clearFlags);
@@ -449,48 +437,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.textureHandler.sync();
 	}
 
-	private vertexPool = <_state.Vertex[]>[];
-	private vertexPool2 = <_state.Vertex[]>[];
-
-	private drawSprites(vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo) {
-		var vertexPool = this.vertexPool;
-
-		while (vertexPool.length < count * 2) vertexPool.push(new _state.Vertex());
-
-		var inCount = 0;
-		//var vertices2 = [];
-		this.vertexPool2.length = Math.max(this.vertexPool2.length, count * 3);
-		var outCount = 0;
-
-		for (var n = 0; n < count; n += 2) {
-			var tl = vertexPool[inCount++].copyFromBasic(vertices[n + 0]);
-			var br = vertexPool[inCount++].copyFromBasic(vertices[n + 1]);
-
-			tl.r = br.r;
-			tl.g = br.g;
-			tl.b = br.b;
-			tl.a = br.a;
-
-			var vtr = vertexPool[inCount++].copyFromBasic(tl);
-			var vbl = vertexPool[inCount++].copyFromBasic(br);
-
-			vtr.px = br.px; vtr.py = tl.py;
-			vtr.tx = br.tx; vtr.ty = tl.ty;
-
-			vbl.px = tl.px; vbl.py = br.py;
-			vbl.tx = tl.tx; vbl.ty = br.ty;
-
-			this.vertexPool2[outCount++] = tl;
-			this.vertexPool2[outCount++] = vtr;
-			this.vertexPool2[outCount++] = vbl;
-
-			this.vertexPool2[outCount++] = vtr;
-			this.vertexPool2[outCount++] = br;
-			this.vertexPool2[outCount++] = vbl;
-		}
-		this.drawElementsInternal(_state.PrimitiveType.Sprites, _state.PrimitiveType.Triangles, this.vertexPool2, outCount, vertexInfo);
-	}
-
 	private testCount = 20;
 	private positionData = new FastFloat32Buffer();
 	private colorData = new FastFloat32Buffer();
@@ -500,41 +446,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	private vertexWeightData2 = new FastFloat32Buffer();
 
 	private lastBaseAddress = 0;
-
-	private demuxVertices(vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType, originalPrimitiveType: _state.PrimitiveType) {
-		var textureState = this.state.texture;
-		var weightCount = vertexInfo.realWeightCount;
-
-		this.positionData.restart();
-		this.colorData.restart();
-		this.textureData.restart();
-		this.normalData.restart();
-
-		this.vertexWeightData1.restart();
-		this.vertexWeightData2.restart();
-
-		var mipmap = this.state.texture.mipmaps[0];
-
-		//debugger;
-
-		//console.log('demuxVertices: ' + vertices.length + ', ' + count + ', ' + vertexInfo + ', PrimitiveType=' + primitiveType);
-		for (var n = 0; n < count; n++) {
-			var v = vertices[n];
-
-			this.positionData.push3(v.px, v.py, vertexInfo.transform2D ? 0.0 :  v.pz);
-
-			if (vertexInfo.hasColor) this.colorData.push4(v.r, v.g, v.b, v.a);
-			if (vertexInfo.hasTexture) this.textureData.push3(v.tx, v.ty, v.tz);
-			if (vertexInfo.hasNormal) this.normalData.push3(v.nx, v.ny, v.nz);
-
-			if (weightCount >= 1) {
-				this.vertexWeightData1.push4(v.w0, v.w1, v.w2, v.w3);
-				if (weightCount >= 4) {
-					this.vertexWeightData2.push4(v.w4, v.w5, v.w6, v.w7);
-				}
-			}
-		}
-	}
 
 	tempVec = new Float32Array([0, 0, 0])
 	texMat = mat4.create();
@@ -547,33 +458,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 	}
 
-	drawElementsInternal(originalPrimitiveType: _state.PrimitiveType, primitiveType: _state.PrimitiveType, vertices: _state.Vertex[], count: number, vertexInfo: _state.VertexInfo) {
-		var gl = this.gl;
-
-		//console.log(primitiveType);
-		var program = this.cache.getProgram(vertexInfo, this.state, false);
-		program.use();
-		program.getUniform('time').set1f(performance.now() / 1000.0);
-
-		this.demuxVertices(vertices, count, vertexInfo, primitiveType, originalPrimitiveType);
-		this.updateState(program, vertexInfo, originalPrimitiveType);
-		this.setProgramParameters(gl, program, vertexInfo);
-
-		if (this.clearing) {
-			this.textureHandler.unbindTexture(program, this.state);
-			//debugger;
-		} else {
-			this.prepareTexture(gl, program, vertexInfo);
-		}
-
-		this.drawArraysActual(gl, program, vertexInfo, primitiveType, count, vertices);
-		this.unsetProgramParameters(gl, program, vertexInfo);
-
-		if (this.state.clearing) {
-			this.updateClearStateEnd(program, vertexInfo, primitiveType);
-		}
-	}
-	
 	private calcTexMatrix(vertexInfo: _state.VertexInfo) {
 		var texture = this.state.texture;
 		var mipmap = texture.mipmaps[0];
@@ -645,11 +529,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		if (vertexInfo.hasColor) program.getAttrib("vColor").disable();
 		if (vertexInfo.realWeightCount >= 1) program.getAttrib('vertexWeight1').disable();
 		if (vertexInfo.realWeightCount >= 4) program.getAttrib('vertexWeight2').disable();
-	}
-
-	private drawArraysActual(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType, count: number, vertices: _state.Vertex[]) {
-		gl.drawArrays(convertPrimitiveType[primitiveType], 0, count);
-		//if (gl.getError() != gl.NO_ERROR) debugger;
 	}
 }
 

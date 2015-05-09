@@ -177,6 +177,12 @@ export const enum VFPU_CTRL {
 	RCX0, RCX1, RCX2, RCX3, RCX4, RCX5, RCX6, RCX7, MAX,
 }
 
+export const enum VCondition {
+	FL, EQ, LT, LE, TR, NE, GE, GT,
+	EZ, EN, EI, ES, NZ, NN, NI, NS
+}
+
+
 export class CpuState {
 	static lastId:number = 0;
 	id = CpuState.lastId++;
@@ -262,6 +268,12 @@ export class CpuState {
 		}
 		this.storeVdRegsWithPrefix(vdRegs);
 	}
+
+    storeFloats(address: number, values: number[]) {
+        for (var n = 0; n < values.length; n++) {
+            this.memory.writeFloat32(address + n * 4, values[n]);
+        }
+    }
 
 	private vpfxs = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.SPREFIX);
 	private vpfxt = new VfpuPrefixRead(this.vfprc, VFPU_CTRL.TPREFIX);
@@ -409,6 +421,52 @@ export class CpuState {
 		this.vfpr[0] = 0;
 		throw new Error("Not implemented vfpuSetMatrix!");
 	}
+	
+    vcmp(cond: VCondition, vsValues: number[], vtValues: number[]) {
+        var vectorSize = vsValues.length;
+        this.loadVs_prefixed(vsValues);
+        this.loadVt_prefixed(vtValues);
+        var s = this.vector_vs;
+        var t = this.vector_vt;
+
+        var cc = 0;
+        var or_val = 0;
+        var and_val = 1;
+        var affected_bits = (1 << 4) | (1 << 5);  // 4 and 5
+
+        for (var i = 0; i < vectorSize; i++) {
+            var c = false;
+            switch (cond) {
+                case VCondition.FL: c = false; break;
+                case VCondition.EQ: c = s[i] == t[i]; break;
+                case VCondition.LT: c = s[i] < t[i]; break;
+                case VCondition.LE: c = s[i] <= t[i]; break;
+
+                case VCondition.TR: c = true; break;
+                case VCondition.NE: c = s[i] != t[i]; break;
+                case VCondition.GE: c = s[i] >= t[i]; break;
+                case VCondition.GT: c = s[i] > t[i]; break;
+
+                case VCondition.EZ: c = s[i] == 0.0 || s[i] == -0.0; break;
+                case VCondition.EN: c = MathFloat.isnan(s[i]); break;
+                case VCondition.EI: c = MathFloat.isinf(s[i]); break;
+                case VCondition.ES: c = MathFloat.isnanorinf(s[i]); break;   // Tekken Dark Resurrection
+                     
+                case VCondition.NZ: c = s[i] != 0; break;
+                case VCondition.NN: c = !MathFloat.isnan(s[i]); break;
+                case VCondition.NI: c = !MathFloat.isinf(s[i]); break;
+                case VCondition.NS: c = !(MathFloat.isnanorinf(s[i])); break;   // How about t[i] ?    
+            }
+            var c_i = (c ? 1 : 0);
+            cc |= (c_i << i);
+            or_val |= c_i;
+            and_val &= c_i;
+            affected_bits |= 1 << i;
+        }
+
+        this.vfprc[VFPU_CTRL.CC] = (this.vfprc[VFPU_CTRL.CC] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.eatPrefixes();
+    }
 
 	PC: number = 0;
 	IC: number = 0;

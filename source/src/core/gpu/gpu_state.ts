@@ -72,36 +72,6 @@ export const enum ColorEnum {
 	Color8888 = 7,
 }
 
-export class Vertex {
-	px = 0.0; py = 0.0; pz = 0.0;
-	nx = 0.0; ny = 0.0; nz = 0.0;
-	tx = 0.0; ty = 0.0; tz = 0.0;
-	r = 0.0; g = 0.0; b = 0.0; a = 1.0;
-	w0 = 0.0; w1 = 0.0; w2 = 0.0; w3 = 0.0;
-	w4 = 0.0; w5 = 0.0; w6 = 0.0; w7 = 0.0;
-
-	copyFromBasic(that: Vertex) {
-		this.px = that.px; this.py = that.py; this.pz = that.pz;
-		this.tx = that.tx; this.ty = that.ty; this.tz = that.tz;
-		this.r = that.r; this.g = that.g; this.b = that.b; this.a = that.a;
-		return this;
-	}
-
-	copyFrom(that: Vertex) {
-		this.copyFromBasic(that);
-		this.nx = that.nx; this.ny = that.ny; this.nz = that.nz;
-		this.w0 = that.w0; this.w1 = that.w1; this.w2 = that.w2; this.w3 = that.w3;
-		this.w4 = that.w4; this.w5 = that.w5; this.w6 = that.w6; this.w7 = that.w7;
-		return this;
-	}
-
-	clone() {
-		var that = new Vertex();
-		that.copyFrom(this);
-		return that;
-	}
-}
-
 export class VertexInfo {
 	// Calculated
 	weightOffset:number = 0;
