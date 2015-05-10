@@ -14,7 +14,9 @@ export class sceAtrac3plus {
 
 	@nativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]')
 	sceAtracSetDataAndGetID(data: Stream) {
-		return this._atrac3Ids.allocate(Atrac3.fromStream(data));
+		return Atrac3.fromStreamAsync(data).then(at3 => {
+			return this._atrac3Ids.allocate(at3);
+		});
 	}
 
 	@nativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]')
@@ -231,11 +233,6 @@ export class sceAtrac3plus {
 	}
 }
 
-declare class WorkerTask {
-	static executeAsync<T>(callback: (...args: any[]) => T, args: any[]): Promise2<T>;
-	static executeAsync<T>(callback: (...args: any[]) => Promise2<T>, args: any[]): Promise2<T>;
-}
-
 class Atrac3 {
 	format = new At3FormatStruct();
 	fact = new FactStruct();
@@ -245,14 +242,12 @@ class Atrac3 {
 	numberOfLoops = 0;
 	currentSample = 0;
 	codecType = CodecType.PSP_MODE_AT_3_PLUS;
-	atrac3Decoder: MediaEngine.Atrac3Decoder;
-	firstDataChunk: Uint8Array;
+	private stream: MediaEngine.MeStream;
 
 	constructor(private id:number) {
 	}
 
 	setDataStream(data: Stream) {
-		this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
 		//debugger;
 
 		Riff.fromStreamWithHandlers(data, {
@@ -265,7 +260,7 @@ class Atrac3 {
 			'data': (stream: Stream) => { this.dataStream = stream; },
 		});
 
-		this.firstDataChunk = this.dataStream.readBytes(this.format.blockSize).subarray(0);
+		MediaEngine.MeStream.openData(data.readAllBytes());
 
 		//console.log(this.fmt);
 		//console.log(this.fact);
@@ -316,44 +311,32 @@ class Atrac3 {
 		if (this.dataStream.available < this.format.blockSize) return Promise2.resolve(0);
 		var blockData = this.dataStream.readBytes(this.format.blockSize);
 		this.currentSample++;
-
+		
 		var outPromise: Promise2<Uint16Array>;
-
-		if (Atrac3.useWorker) {
-			outPromise = WorkerTask.executeAsync((id, blockData, firstDataChunk) => {
-				self['window'] = self;
-				var _self:any = self;
-				if (!_self['MediaEngine']) {
-					importScripts('data/MediaEngine.js');
-					_self['MediaEngine'] = MediaEngine;
-				}
-
-				var atrac3Decoder = 'atrac3Decoder_' + id;
-				if (!_self[atrac3Decoder]) {
-					_self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
-					_self[atrac3Decoder].initWithHeader(firstDataChunk);
-				}
-				return _self[atrac3Decoder].decode(blockData);
-			}, [this.id, blockData, this.firstDataChunk]);
+		
+		var packet = this.stream.readPacket();
+		var data: Int16Array;
+		if (packet == null) {
+			return Promise2.resolve(0);
 		} else {
-			if (this.firstDataChunk) {
-				this.atrac3Decoder.initWithHeader(this.firstDataChunk);
-			}
-
-			outPromise = Promise2.resolve(this.atrac3Decoder.decode(blockData))
+			data = packet.decodeAudioAndFree(2, this.bitrate);
 		}
 
-		this.firstDataChunk = null;
-
-		return outPromise.then(out => {
+		return Promise2.resolve(data).then(out => {
 			for (var n = 0; n < out.length; n++) samplesOutPtr.writeInt16(out[n]);
 			return out.length;
 		});
 	}
 
 	static lastId = 0;
-	static fromStream(data: Stream) {
-		return new Atrac3(Atrac3.lastId++).setDataStream(data);
+	static fromStreamAsync(data: Stream):Promise2<Atrac3> {
+		if (typeof MediaEngine == 'undefined') {
+			return waitAsync(300).then(() => {
+				console.warn('MediaEngine not ready yet!');
+				return this.fromStreamAsync(data);
+			});
+		}
+		return Promise2.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
 	}
 }
 

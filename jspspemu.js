@@ -17601,7 +17601,10 @@ var sceAtrac3plus = (function () {
         this._atrac3Ids = new UidCollection();
     }
     sceAtrac3plus.prototype.sceAtracSetDataAndGetID = function (data) {
-        return this._atrac3Ids.allocate(Atrac3.fromStream(data));
+        var _this = this;
+        return Atrac3.fromStreamAsync(data).then(function (at3) {
+            return _this._atrac3Ids.allocate(at3);
+        });
     };
     sceAtrac3plus.prototype.sceAtracSetData = function (id, data) {
         if (!this.hasById(id))
@@ -17868,8 +17871,8 @@ var Atrac3 = (function () {
         this.codecType = CodecType.PSP_MODE_AT_3_PLUS;
     }
     Atrac3.prototype.setDataStream = function (data) {
+        //debugger;
         var _this = this;
-        this.atrac3Decoder = new MediaEngine.Atrac3Decoder();
         Riff.fromStreamWithHandlers(data, {
             'fmt ': function (stream) { _this.format = At3FormatStruct.struct.read(stream); },
             'fact': function (stream) { _this.fact = FactStruct.struct.read(stream); },
@@ -17879,7 +17882,7 @@ var Atrac3 = (function () {
             },
             'data': function (stream) { _this.dataStream = stream; },
         });
-        this.firstDataChunk = this.dataStream.readBytes(this.format.blockSize).subarray(0);
+        MediaEngine.MeStream.openData(data.readAllBytes());
         return this;
     };
     Object.defineProperty(Atrac3.prototype, "bitrate", {
@@ -17939,37 +17942,29 @@ var Atrac3 = (function () {
         var blockData = this.dataStream.readBytes(this.format.blockSize);
         this.currentSample++;
         var outPromise;
-        if (Atrac3.useWorker) {
-            outPromise = WorkerTask.executeAsync(function (id, blockData, firstDataChunk) {
-                self['window'] = self;
-                var _self = self;
-                if (!_self['MediaEngine']) {
-                    importScripts('data/MediaEngine.js');
-                    _self['MediaEngine'] = MediaEngine;
-                }
-                var atrac3Decoder = 'atrac3Decoder_' + id;
-                if (!_self[atrac3Decoder]) {
-                    _self[atrac3Decoder] = new MediaEngine.Atrac3Decoder();
-                    _self[atrac3Decoder].initWithHeader(firstDataChunk);
-                }
-                return _self[atrac3Decoder].decode(blockData);
-            }, [this.id, blockData, this.firstDataChunk]);
+        var packet = this.stream.readPacket();
+        var data;
+        if (packet == null) {
+            return Promise2.resolve(0);
         }
         else {
-            if (this.firstDataChunk) {
-                this.atrac3Decoder.initWithHeader(this.firstDataChunk);
-            }
-            outPromise = Promise2.resolve(this.atrac3Decoder.decode(blockData));
+            data = packet.decodeAudioAndFree(2, this.bitrate);
         }
-        this.firstDataChunk = null;
-        return outPromise.then(function (out) {
+        return Promise2.resolve(data).then(function (out) {
             for (var n = 0; n < out.length; n++)
                 samplesOutPtr.writeInt16(out[n]);
             return out.length;
         });
     };
-    Atrac3.fromStream = function (data) {
-        return new Atrac3(Atrac3.lastId++).setDataStream(data);
+    Atrac3.fromStreamAsync = function (data) {
+        var _this = this;
+        if (typeof MediaEngine == 'undefined') {
+            return waitAsync(300).then(function () {
+                console.warn('MediaEngine not ready yet!');
+                return _this.fromStreamAsync(data);
+            });
+        }
+        return Promise2.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
     };
     Atrac3.useWorker = true;
     Atrac3.lastId = 0;
