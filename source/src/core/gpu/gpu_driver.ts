@@ -68,9 +68,9 @@ export class BaseDrawDriver {
 		this.batches.push(batch);
 	}
 	
-	drawAllQueuedBatches(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer) {
+	drawAllQueuedBatches(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer, drawRatio:number = 1.0) {
 		this.setOptimizedDrawBuffer(optimizedDrawBuffer);
-		for (let batch of this.batches) this.drawOptimized(batch);
+		for (let batch of this.batches.slice(0, this.batches.length * drawRatio)) this.drawOptimized(batch);
 		optimizedDrawBuffer.reset();
 		this.batches = [];
 	}

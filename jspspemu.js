@@ -7879,6 +7879,52 @@ var OverlayIntent = (function () {
     };
     return OverlayIntent;
 })();
+var OverlaySlider = (function () {
+    function OverlaySlider(text, initialRatio, action) {
+        var _this = this;
+        if (canDOMCreateElements) {
+            this.element = document.createElement('input');
+            this.element.type = 'range';
+            this.element.min = "0";
+            this.element.max = "1000";
+            this.element.value = "" + initialRatio * 1000;
+            var lastReportedValue = NaN;
+            var report = function (e) {
+                if (_this.ratio == lastReportedValue)
+                    return;
+                lastReportedValue = _this.ratio;
+                action(_this.ratio);
+            };
+            this.element.onmousemove = report;
+            this.element.onchange = report;
+        }
+    }
+    Object.defineProperty(OverlaySlider.prototype, "ratio", {
+        get: function () {
+            return (this.value / 1000);
+        },
+        set: function (value) {
+            this.value = value * 1000;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(OverlaySlider.prototype, "value", {
+        get: function () {
+            return +this.element.value;
+        },
+        set: function (v) {
+            this.element.value = "" + v;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    OverlaySlider.prototype.update = function () {
+    };
+    OverlaySlider.prototype.reset = function () {
+    };
+    return OverlaySlider;
+})();
 var Overlay = (function () {
     function Overlay() {
         this.sections = [];
@@ -7910,6 +7956,9 @@ var Overlay = (function () {
     Overlay.prototype.createIntent = function (text, action) {
         return this.addElement(new OverlayIntent(text, action));
     };
+    Overlay.prototype.createSlider = function (text, initialRatio, action) {
+        return this.addElement(new OverlaySlider(text, initialRatio, action));
+    };
     Overlay.prototype.update = function () {
         for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
             var section = _a[_i];
@@ -7929,6 +7978,8 @@ var Overlay = (function () {
     return Overlay;
 })();
 var overlay = new Overlay();
+var overlayBatchSlider = overlay.createSlider('batch', 1.0, function (ratio) {
+});
 var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
 var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
 var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
@@ -8393,7 +8444,7 @@ var PspGpu = (function () {
                 timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - _this.lastTime, 0.5);
                 _this.lastTime = end;
                 overlay.updateAndReset();
-                _this.driver.drawAllQueuedBatches(optimizedDrawBuffer);
+                _this.driver.drawAllQueuedBatches(optimizedDrawBuffer, overlayBatchSlider.ratio);
                 return freezing.waitUntilValueAsync(false);
             }
             catch (e) {
@@ -8462,9 +8513,10 @@ var BaseDrawDriver = (function () {
     BaseDrawDriver.prototype.queueBatch = function (batch) {
         this.batches.push(batch);
     };
-    BaseDrawDriver.prototype.drawAllQueuedBatches = function (optimizedDrawBuffer) {
+    BaseDrawDriver.prototype.drawAllQueuedBatches = function (optimizedDrawBuffer, drawRatio) {
+        if (drawRatio === void 0) { drawRatio = 1.0; }
         this.setOptimizedDrawBuffer(optimizedDrawBuffer);
-        for (var _i = 0, _a = this.batches; _i < _a.length; _i++) {
+        for (var _i = 0, _a = this.batches.slice(0, this.batches.length * drawRatio); _i < _a.length; _i++) {
             var batch = _a[_i];
             this.drawOptimized(batch);
         }

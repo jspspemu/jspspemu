@@ -110,6 +110,44 @@ class OverlayIntent implements OverlaySection {
 	}
 }
 
+class OverlaySlider implements OverlaySection {
+	public element: HTMLInputElement;
+	constructor(text:string, initialRatio:number, action: (value:number) => void) {
+		if (canDOMCreateElements) {
+			this.element = document.createElement('input');
+			this.element.type = 'range';
+			this.element.min =`0`;
+			this.element.max = `1000`;
+			this.element.value = `${initialRatio * 1000}`;
+			//this.element.innerHTML = text;
+			var lastReportedValue = NaN;
+			var report = (e: any) => {
+				if (this.ratio == lastReportedValue) return;
+				lastReportedValue = this.ratio;
+				action(this.ratio);
+			};
+			this.element.onmousemove = report;
+			this.element.onchange = report;
+		}
+	}
+	set ratio(value:number) {
+		this.value = value * 1000;
+	}
+	get ratio() {
+		return (this.value / 1000);
+	}
+	set value(v:number) {
+		this.element.value = `${v}`;
+	}
+	get value() {
+		return +this.element.value;
+	}
+	update() {
+	}
+	reset() {
+	}
+}
+
 class Overlay {
 	private element: HTMLDivElement;
 	private sections: OverlaySection[] = [];
@@ -147,6 +185,10 @@ class Overlay {
 		return this.addElement(new OverlayIntent(text, action));
 	}
 
+	createSlider(text: string, initialRatio:number, action: (value:number) => void) {
+		return this.addElement(new OverlaySlider(text, initialRatio, action));
+	}
+	
 	update() {
 		for (let section of this.sections) section.update();
 	}
@@ -162,6 +204,9 @@ class Overlay {
 }
 
 var overlay = new Overlay();
+var overlayBatchSlider = overlay.createSlider('batch', 1.0, (ratio) => {
+	//console.log(ratio);
+});
 var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
 var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
 var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
@@ -685,7 +730,7 @@ export class PspGpu implements IPspGpu {
 				timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
 				this.lastTime = end;
 				overlay.updateAndReset();
-				this.driver.drawAllQueuedBatches(optimizedDrawBuffer);
+				this.driver.drawAllQueuedBatches(optimizedDrawBuffer, overlayBatchSlider.ratio);
 				return freezing.waitUntilValueAsync(false);
 			} catch (e) {
 				console.error(e);
