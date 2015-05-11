@@ -494,11 +494,20 @@ var ArrayBufferUtils = (function () {
     ArrayBufferUtils.cloneUint16Array = function (input) { var out = new Uint16Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.cloneUint32Array = function (input) { var out = new Uint32Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.concatU8 = function (chunks) {
-        var out = new Uint8Array(chunks.sum(function (chunk) { return chunk.byteLength; }));
+        var out = new Uint8Array(chunks.sum(function (chunk) { return chunk.length; }));
         var offset = 0;
         chunks.forEach(function (chunk) {
             out.set(chunk, offset);
-            offset += chunk.byteLength;
+            offset += chunk.length;
+        });
+        return out;
+    };
+    ArrayBufferUtils.concatI16 = function (chunks) {
+        var out = new Int16Array(chunks.sum(function (chunk) { return chunk.length; }));
+        var offset = 0;
+        chunks.forEach(function (chunk) {
+            out.set(chunk, offset);
+            offset += chunk.length;
         });
         return out;
     };
@@ -17677,6 +17686,8 @@ var sceAtrac3plus = (function () {
         return 0;
     };
     sceAtrac3plus.prototype.sceAtracReleaseAtracID = function (id) {
+        var atrac3 = this.getById(id);
+        atrac3.free();
         this._atrac3Ids.remove(id);
         return 0;
     };
@@ -17921,10 +17932,14 @@ var Atrac3 = (function () {
         this.numberOfLoops = 0;
         this.currentSample = 0;
         this.codecType = CodecType.PSP_MODE_AT_3_PLUS;
+        this.packet = null;
     }
+    Atrac3.prototype.free = function () {
+        this.stream.close();
+    };
     Atrac3.prototype.setDataStream = function (data) {
-        //debugger;
         var _this = this;
+        var dataBytes = data.clone().readAllBytes();
         Riff.fromStreamWithHandlers(data, {
             'fmt ': function (stream) { _this.format = At3FormatStruct.struct.read(stream); },
             'fact': function (stream) { _this.fact = FactStruct.struct.read(stream); },
@@ -17934,7 +17949,7 @@ var Atrac3 = (function () {
             },
             'data': function (stream) { _this.dataStream = stream; },
         });
-        MediaEngine.MeStream.openData(data.readAllBytes());
+        this.stream = MediaEngine.MeStream.openData(dataBytes);
         return this;
     };
     Object.defineProperty(Atrac3.prototype, "bitrate", {
@@ -17994,25 +18009,34 @@ var Atrac3 = (function () {
         var blockData = this.dataStream.readBytes(this.format.blockSize);
         this.currentSample++;
         var outPromise;
-        var packet = this.stream.readPacket();
-        var data;
-        if (packet == null) {
-            return Promise2.resolve(0);
+        try {
+            do {
+                if (this.packet == null) {
+                    this.packet = this.stream.readPacket();
+                    if (this.packet == null) {
+                        return Promise2.resolve(0);
+                    }
+                }
+                var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
+                if (data == null) {
+                    this.packet.free();
+                    this.packet = null;
+                }
+            } while (data == null);
+            for (var n = 0; n < data.length; n++)
+                samplesOutPtr.writeInt16(data[n]);
+            return Promise2.resolve(data.length);
         }
-        else {
-            data = packet.decodeAudioAndFree(2, this.bitrate);
+        catch (e) {
+            console.error(e.stack || e);
+            throw e;
         }
-        return Promise2.resolve(data).then(function (out) {
-            for (var n = 0; n < out.length; n++)
-                samplesOutPtr.writeInt16(out[n]);
-            return out.length;
-        });
     };
     Atrac3.fromStreamAsync = function (data) {
         var _this = this;
         if (typeof MediaEngine == 'undefined') {
             return waitAsync(300).then(function () {
-                console.warn('MediaEngine not ready yet!');
+                console.warn('MediaEngine not ready yet! Waiting 300ms to retry!');
                 return _this.fromStreamAsync(data);
             });
         }

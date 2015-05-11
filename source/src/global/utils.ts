@@ -314,27 +314,27 @@ class UidCollection<T>
     constructor(private lastId: number = 1) {
     }
 
-    allocate(item: T) {
+    allocate(item: T):number {
         var id = this.lastId++;
         this.items[id] = item;
         return id;
     }
 
-	has(id: number) {
+	has(id: number):boolean {
 		return (this.items[id] !== undefined);
 	}
 
-    get(id: number) {
+    get(id: number):T {
         return this.items[id];
 	}
 
-	list() {
+	list():T[] {
 		var out = <T[]>[];
 		for (var key in this.items) out.push(this.items[key]);
 		return out;
 	}
 
-    remove(id: number) {
+    remove(id: number):void {
         delete this.items[id];
     }
 }
@@ -531,11 +531,21 @@ class ArrayBufferUtils {
 	static cloneUint32Array(input: Uint16Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
 	
 	static concatU8(chunks: Uint8Array[]):Uint8Array {
-		var out = new Uint8Array(chunks.sum(chunk => chunk.byteLength));
+		var out = new Uint8Array(chunks.sum(chunk => chunk.length));
 		var offset = 0;
 		chunks.forEach(chunk => {
 			out.set(chunk, offset);
-			offset += chunk.byteLength;
+			offset += chunk.length;
+		});
+		return out;
+	}
+
+	static concatI16(chunks: Int16Array[]): Int16Array {
+		var out = new Int16Array(chunks.sum(chunk => chunk.length));
+		var offset = 0;
+		chunks.forEach(chunk => {
+			out.set(chunk, offset);
+			offset += chunk.length;
 		});
 		return out;
 	}

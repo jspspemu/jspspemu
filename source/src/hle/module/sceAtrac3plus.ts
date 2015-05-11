@@ -44,6 +44,8 @@ export class sceAtrac3plus {
 
 	@nativeFunction(0x61EB33F5, 150, 'uint', 'int')
 	sceAtracReleaseAtracID(id: number) {
+		var atrac3 = this.getById(id);
+		atrac3.free();
 		this._atrac3Ids.remove(id);
 		return 0;
 	}
@@ -143,7 +145,7 @@ export class sceAtrac3plus {
 	
 	private hasById(id: number) { return this._atrac3Ids.has(id); }
 
-	private getById(id: number) {
+	private getById(id: number):Atrac3 {
 		return this._atrac3Ids.get(id);
 	}
 
@@ -246,10 +248,14 @@ class Atrac3 {
 
 	constructor(private id:number) {
 	}
+	
+	free() {
+		this.stream.close();
+	}
 
 	setDataStream(data: Stream) {
-		//debugger;
-
+		var dataBytes = data.clone().readAllBytes();		
+		
 		Riff.fromStreamWithHandlers(data, {
 			'fmt ': (stream: Stream) => { this.format = At3FormatStruct.struct.read(stream); },
 			'fact': (stream: Stream) => { this.fact = FactStruct.struct.read(stream); },
@@ -260,7 +266,7 @@ class Atrac3 {
 			'data': (stream: Stream) => { this.dataStream = stream; },
 		});
 
-		MediaEngine.MeStream.openData(data.readAllBytes());
+		this.stream = MediaEngine.MeStream.openData(dataBytes);
 
 		//console.log(this.fmt);
 		//console.log(this.fact);
@@ -306,6 +312,7 @@ class Atrac3 {
 
 	//private static useWorker = false;
 	private static useWorker = true;
+	private packet: MediaEngine.MePacket = null;
 
 	decodeAsync(samplesOutPtr: Stream) {
 		if (this.dataStream.available < this.format.blockSize) return Promise2.resolve(0);
@@ -314,25 +321,36 @@ class Atrac3 {
 		
 		var outPromise: Promise2<Uint16Array>;
 		
-		var packet = this.stream.readPacket();
-		var data: Int16Array;
-		if (packet == null) {
-			return Promise2.resolve(0);
-		} else {
-			data = packet.decodeAudioAndFree(2, this.bitrate);
-		}
+		try {
+			do {
+				if (this.packet == null) {
+					this.packet = this.stream.readPacket();
+					if (this.packet == null) {
+						return Promise2.resolve(0);
+					}
+				}
+				var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
+				if (data == null) {
+					this.packet.free();
+					this.packet = null;
+				}
+			} while (data == null);
+			
+			//console.log(data);
 
-		return Promise2.resolve(data).then(out => {
-			for (var n = 0; n < out.length; n++) samplesOutPtr.writeInt16(out[n]);
-			return out.length;
-		});
+			for (var n = 0; n < data.length; n++) samplesOutPtr.writeInt16(data[n]);
+			return Promise2.resolve(data.length);
+		} catch (e) {
+			console.error(e.stack || e);
+			throw e;
+		}
 	}
 
 	static lastId = 0;
 	static fromStreamAsync(data: Stream):Promise2<Atrac3> {
 		if (typeof MediaEngine == 'undefined') {
 			return waitAsync(300).then(() => {
-				console.warn('MediaEngine not ready yet!');
+				console.warn('MediaEngine not ready yet! Waiting 300ms to retry!');
 				return this.fromStreamAsync(data);
 			});
 		}
