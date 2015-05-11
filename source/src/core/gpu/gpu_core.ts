@@ -249,6 +249,12 @@ overlay.createIntent('freeze', () => {
 	freezing.value = !freezing.value;
 });
 
+var dumpFrameCommands = false;
+var dumpFrameCommandsList:string[] = [];
+overlay.createIntent('dump frame commands', () => {
+	dumpFrameCommands = true;
+});
+
 overlay.createIntent('x1', () => {
 	if (globalDriver) globalDriver.setFramebufferSize(480 * 1, 272 * 1);
 });
@@ -294,7 +300,9 @@ class PspGpuList {
 	finishPrimBatch() {
 		if (optimizedDrawBuffer.hasElements) {
 			this.batchPrimCount = 0;
-			this.drawDriver.queueBatch(optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo));
+			var batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
+			this.drawDriver.queueBatch(batch);
+			if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
 			this.primBatchPrimitiveType = -1;
 			batchCount.value++;
 		}
@@ -316,6 +324,11 @@ class PspGpuList {
 		return !this.completed && !this.isStalled;
 		//return !this.completed && ((this.stall == 0) || (this.current < this.stall));
 	}
+	
+	private gpuHang() {
+		console.error('GPU hang!');
+		debugger;
+	}
 
 	private runUntilStallInner() {
 		let memory = this.memory;
@@ -336,10 +349,13 @@ class PspGpuList {
 			let p = instruction & 0xFFFFFF;
 			
 			if (totalCommandsLocal >= 30000) {
-				console.error('GPU hang!');
-				debugger;
+				this.gpuHang();
 				totalCommandsLocal = 0;
 				break;
+			}
+			
+			if (dumpFrameCommands) {
+				dumpFrameCommandsList.push(`${Op[op]}:${addressToHex(p)}`);
 			}
 
 			switch (op) {
@@ -459,8 +475,7 @@ class PspGpuList {
 		//var optimized = (vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
 		
 		if (vertexInfo.realMorphingVertexCount != 1) {
-			// @TODO: Morphing not implemented!
-			debugger;
+			throw new Error('@TODO: Morphing not implemented!');
 		}
 
 		switch (vertexInfo.index) {
@@ -470,8 +485,7 @@ class PspGpuList {
 			case IndexEnum.Byte:
 			case IndexEnum.Short:
 				if (primitiveType == PrimitiveType.Sprites) {
-					// @TODO: Sprites with indices not implemented!!!
-					debugger;
+					throw new Error('@TODO: Sprites with indices not implemented!');
 				}
 				
 				var totalVertices = 0; 
@@ -719,12 +733,36 @@ export class PspGpu implements IPspGpu {
         this.listRunner.getById(displayListId).updateStall(stall);
         return 0;
     }
+	
+	private flushCommands() {
+		if (!dumpFrameCommands || dumpFrameCommandsList.length == 0) return;
+		console.info('-----------------------------------------------');
+		dumpFrameCommands = false;
+		var list:string[] = [];
+		function flushBuffer() {
+			if (list.length == 0) return;
+			console.log(list.join(', '));
+			list.length = 0;
+		}
+		for (let item of dumpFrameCommandsList) {
+			if (item.startsWith('<BATCH')) {
+				flushBuffer();
+				console.warn(item);
+			} else {
+				list.push(item);
+				if (item.startsWith('PRIM')) flushBuffer();
+			}
+		}
+		flushBuffer();
+		dumpFrameCommandsList.length = 0;
+	} 
 
 	private lastTime = 0;
 	drawSync(syncType: _state.SyncType): any {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
 		return this.listRunner.waitAsync().then(() => {
+			this.flushCommands()
 			try {
 				var end = performance.now();
 				timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);

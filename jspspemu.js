@@ -914,6 +914,11 @@ var Promise2 = (function () {
             }
         });
     };
+    Promise2.fromThenable = function (thenable) {
+        return new Promise2(function (resolve, reject) {
+            thenable.then(function (v) { return resolve(v); }, function (error) { return reject(error); });
+        });
+    };
     Promise2.prototype._resolve = function (value) {
         if (this._solved)
             return;
@@ -2677,11 +2682,11 @@ var Int64Type = (function () {
             var high = stream.readUInt32(this.endian);
             var low = stream.readUInt32(this.endian);
         }
-        return high * Math.pow(2, 32) + low;
+        return new Integer64(low, high);
     };
     Int64Type.prototype.write = function (stream, value) {
-        var low = Math.floor(value % Math.pow(2, 32));
-        var high = Math.floor(value / Math.pow(2, 32));
+        var low = value.low;
+        var high = value.high;
         if (this.endian == Endian.LITTLE) {
             stream.writeInt32(low, this.endian);
             stream.writeInt32(high, this.endian);
@@ -2808,15 +2813,18 @@ var StructClass = (function () {
     StructClass.prototype.createProxy = function (stream) {
         var _this = this;
         stream = stream.clone();
-        var object = {};
+        var objectf = function (stream) {
+        };
+        var object = new objectf(stream);
         this.processedItems.forEach(function (item) {
             var getOffset = function () { return _this.offsetOfField(item.name); };
             if (item.type instanceof StructClass) {
                 object[item.name] = item.type.createProxy(stream.sliceFrom(getOffset()));
             }
             else {
-                Object.defineProperty(object, item.name, {
+                Object.defineProperty(objectf.prototype, item.name, {
                     enumerable: true,
+                    configurable: true,
                     get: function () { return item.type.read(stream.sliceFrom(getOffset())); },
                     set: function (value) { item.type.write(stream.sliceFrom(getOffset()), value); }
                 });
@@ -3044,9 +3052,19 @@ var Int16 = new Int16Type(Endian.LITTLE);
 var Int32 = new Int32Type(Endian.LITTLE);
 var Int64 = new Int64Type(Endian.LITTLE);
 var Int8 = new Int8Type(Endian.LITTLE);
+var Int16_l = new Int16Type(Endian.LITTLE);
+var Int32_l = new Int32Type(Endian.LITTLE);
+var Int64_l = new Int64Type(Endian.LITTLE);
+var Int8_l = new Int8Type(Endian.LITTLE);
+var Int16_b = new Int16Type(Endian.BIG);
+var Int32_b = new Int32Type(Endian.BIG);
+var Int64_b = new Int64Type(Endian.BIG);
+var Int8_b = new Int8Type(Endian.BIG);
+var UInt8 = new UInt8Type(Endian.LITTLE);
 var UInt16 = new UInt16Type(Endian.LITTLE);
 var UInt32 = new UInt32Type(Endian.LITTLE);
-var UInt8 = new UInt8Type(Endian.LITTLE);
+var UInt16_l = new UInt16Type(Endian.LITTLE);
+var UInt32_l = new UInt32Type(Endian.LITTLE);
 var UInt16_b = new UInt16Type(Endian.BIG);
 var UInt32_b = new UInt32Type(Endian.BIG);
 var UInt32_2lb = new UInt32_2lbStruct();
@@ -7633,12 +7651,13 @@ var pixelformat = require('./pixelformat');
 var _interrupt = require('./interrupt');
 var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
+var PixelFormat = pixelformat.PixelFormat;
 var PixelConverter = pixelformat.PixelConverter;
 var BasePspDisplay = (function () {
     function BasePspDisplay() {
         this.address = Memory.DEFAULT_FRAME_ADDRESS;
         this.bufferWidth = 512;
-        this.pixelFormat = 3;
+        this.pixelFormat = PixelFormat.RGBA_8888;
         this.sync = 1;
     }
     return BasePspDisplay;
@@ -7818,6 +7837,7 @@ exports.VertexState = _state.VertexState;
 "src/core/gpu/gpu_core": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var _memory = require('../memory');
+var _opcodes = require('./gpu_opcodes');
 var _state = require('./gpu_state');
 var _driver = require('./gpu_driver');
 var _vertex = require('./gpu_vertex');
@@ -7825,6 +7845,7 @@ var _cpu = require('../cpu');
 _cpu.CpuState;
 var Memory = _memory.Memory;
 var WebGlPspDrawDriver = require('./webgl/webgl_driver');
+var Op = _opcodes.GpuOpCodes;
 var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
 var singleCallTest = false;
 var DRAW_TYPE_CONV = [
@@ -8028,6 +8049,11 @@ overlay.createIntent('toggle bilinear', function () {
 overlay.createIntent('freeze', function () {
     freezing.value = !freezing.value;
 });
+var dumpFrameCommands = false;
+var dumpFrameCommandsList = [];
+overlay.createIntent('dump frame commands', function () {
+    dumpFrameCommands = true;
+});
 overlay.createIntent('x1', function () {
     if (globalDriver)
         globalDriver.setFramebufferSize(480 * 1, 272 * 1);
@@ -8073,7 +8099,10 @@ var PspGpuList = (function () {
     PspGpuList.prototype.finishPrimBatch = function () {
         if (optimizedDrawBuffer.hasElements) {
             this.batchPrimCount = 0;
-            this.drawDriver.queueBatch(optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo));
+            var batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
+            this.drawDriver.queueBatch(batch);
+            if (dumpFrameCommands)
+                dumpFrameCommandsList.push("<BATCH:" + batch.indexCount + ">");
             this.primBatchPrimitiveType = -1;
             batchCount.value++;
         }
@@ -8094,6 +8123,10 @@ var PspGpuList = (function () {
         enumerable: true,
         configurable: true
     });
+    PspGpuList.prototype.gpuHang = function () {
+        console.error('GPU hang!');
+        debugger;
+    };
     PspGpuList.prototype.runUntilStallInner = function () {
         var memory = this.memory;
         var stall4 = this.stall4;
@@ -8110,13 +8143,15 @@ var PspGpuList = (function () {
             var op = (instruction >> 24) & 0xFF;
             var p = instruction & 0xFFFFFF;
             if (totalCommandsLocal >= 30000) {
-                console.error('GPU hang!');
-                debugger;
+                this.gpuHang();
                 totalCommandsLocal = 0;
                 break;
             }
+            if (dumpFrameCommands) {
+                dumpFrameCommandsList.push(Op[op] + ":" + addressToHex(p));
+            }
             switch (op) {
-                case 4: {
+                case Op.PRIM: {
                     var rprimCount = 0;
                     this.current4 = current4;
                     localPrimCount++;
@@ -8129,33 +8164,33 @@ var PspGpuList = (function () {
                     current4 = this.current4;
                     break;
                 }
-                case 5:
+                case Op.BEZIER:
                     this.finishPrimBatch();
                     this.bezier(param24(p));
                     break;
-                case 12:
+                case Op.END:
                     this.finishPrimBatch();
                     this.gpu.driver.end();
                     this.complete();
                     break loop;
-                case 203:
+                case Op.TFLUSH:
                     this.drawDriver.textureFlush(state);
                     this.finishPrimBatch();
                     break;
-                case 204:
+                case Op.TSYNC:
                     this.drawDriver.textureSync(state);
                     break;
-                case 0: break;
-                case 255: break;
-                case 8:
-                case 10:
-                    if (op == 10) {
+                case Op.NOP: break;
+                case Op.DUMMY: break;
+                case Op.JUMP:
+                case Op.CALL:
+                    if (op == Op.CALL) {
                         this.callstack[this.callstackIndex++] = ((instructionPC4 << 2) + 4);
                         this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & Memory.MASK));
                     }
                     current4 = (((this.state.baseAddress + (param24(p) & ~3))) >> 2) & Memory.MASK;
                     break;
-                case 11:
+                case Op.RET:
                     if (this.callstackIndex > 0 && this.callstackIndex < 1024) {
                         state.baseOffset = this.callstack[--this.callstackIndex];
                         current4 = ((this.callstack[--this.callstackIndex] >>> 2) & Memory.MASK);
@@ -8164,7 +8199,7 @@ var PspGpuList = (function () {
                         console.info('gpu callstack empty or overflow');
                     }
                     break;
-                case 15: {
+                case Op.FINISH: {
                     this.finish();
                     var callback = this.gpu.callbacks.get(this.callbackId);
                     if (callback && callback.cpuState && callback.finishFunction) {
@@ -8172,28 +8207,28 @@ var PspGpuList = (function () {
                     }
                     break;
                 }
-                case 14:
+                case Op.SIGNAL:
                     console.warn('Not implemented: GPU SIGNAL');
                     break;
-                case 63:
-                    state.writeFloat(62, 288, float1(p));
+                case Op.PROJMATRIXDATA:
+                    state.writeFloat(Op.PROJMATRIXNUMBER, Op.MAT_PROJ, float1(p));
                     break;
-                case 61:
-                    state.writeFloat(60, 304, float1(p));
+                case Op.VIEWMATRIXDATA:
+                    state.writeFloat(Op.VIEWMATRIXNUMBER, Op.MAT_VIEW, float1(p));
                     break;
-                case 59:
-                    state.writeFloat(58, 320, float1(p));
+                case Op.WORLDMATRIXDATA:
+                    state.writeFloat(Op.WORLDMATRIXNUMBER, Op.MAT_WORLD, float1(p));
                     break;
-                case 43:
-                    state.writeFloat(42, 336, float1(p));
+                case Op.BONEMATRIXDATA:
+                    state.writeFloat(Op.BONEMATRIXNUMBER, Op.MAT_BONES, float1(p));
                     break;
-                case 65:
-                    state.writeFloat(64, 272, float1(p));
+                case Op.TGENMATRIXDATA:
+                    state.writeFloat(Op.TGENMATRIXNUMBER, Op.MAT_TEXTURE, float1(p));
                     break;
-                case 16:
-                case 2:
-                case 1:
-                case 19:
+                case Op.BASE:
+                case Op.IADDR:
+                case Op.VADDR:
+                case Op.OFFSETADDR:
                     break;
                 default:
                     if (state.data[op] != p)
@@ -8245,7 +8280,7 @@ var PspGpuList = (function () {
         var drawType = DRAW_TYPE_CONV[primitiveType];
         var optimized = (vertexInfo.realMorphingVertexCount == 1);
         if (vertexInfo.realMorphingVertexCount != 1) {
-            debugger;
+            throw new Error('@TODO: Morphing not implemented!');
         }
         switch (vertexInfo.index) {
             case 0:
@@ -8254,7 +8289,7 @@ var PspGpuList = (function () {
             case 1:
             case 2:
                 if (primitiveType == 6) {
-                    debugger;
+                    throw new Error('@TODO: Sprites with indices not implemented!');
                 }
                 var totalVertices = 0;
                 if (vertexInfo.index == 1) {
@@ -8281,7 +8316,7 @@ var PspGpuList = (function () {
         vertexSize |= 0;
         while (true) {
             p2 = memory.lw_2(current4) | 0;
-            if ((((p2 >> 24) & 0xFF) != 4) || (param3(p2, 16) != primitiveType))
+            if ((((p2 >> 24) & 0xFF) != Op.PRIM) || (param3(p2, 16) != primitiveType))
                 break;
             vertex2Count = param16(p2, 0) | 0;
             totalVertexCount += vertex2Count;
@@ -8445,9 +8480,37 @@ var PspGpu = (function () {
         this.listRunner.getById(displayListId).updateStall(stall);
         return 0;
     };
+    PspGpu.prototype.flushCommands = function () {
+        if (!dumpFrameCommands || dumpFrameCommandsList.length == 0)
+            return;
+        console.info('-----------------------------------------------');
+        dumpFrameCommands = false;
+        var list = [];
+        function flushBuffer() {
+            if (list.length == 0)
+                return;
+            console.log(list.join(', '));
+            list.length = 0;
+        }
+        for (var _i = 0; _i < dumpFrameCommandsList.length; _i++) {
+            var item = dumpFrameCommandsList[_i];
+            if (item.startsWith('<BATCH')) {
+                flushBuffer();
+                console.warn(item);
+            }
+            else {
+                list.push(item);
+                if (item.startsWith('PRIM'))
+                    flushBuffer();
+            }
+        }
+        flushBuffer();
+        dumpFrameCommandsList.length = 0;
+    };
     PspGpu.prototype.drawSync = function (syncType) {
         var _this = this;
         return this.listRunner.waitAsync().then(function () {
+            _this.flushCommands();
             try {
                 var end = performance.now();
                 timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - _this.lastTime, 0.5);
@@ -8539,11 +8602,277 @@ exports.BaseDrawDriver = BaseDrawDriver;
 },
 "src/core/gpu/gpu_opcodes": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+(function (GpuOpCodes) {
+    GpuOpCodes[GpuOpCodes["NOP"] = 0] = "NOP";
+    GpuOpCodes[GpuOpCodes["VADDR"] = 1] = "VADDR";
+    GpuOpCodes[GpuOpCodes["IADDR"] = 2] = "IADDR";
+    GpuOpCodes[GpuOpCodes["Unknown0x03"] = 3] = "Unknown0x03";
+    GpuOpCodes[GpuOpCodes["PRIM"] = 4] = "PRIM";
+    GpuOpCodes[GpuOpCodes["BEZIER"] = 5] = "BEZIER";
+    GpuOpCodes[GpuOpCodes["SPLINE"] = 6] = "SPLINE";
+    GpuOpCodes[GpuOpCodes["BOUNDINGBOX"] = 7] = "BOUNDINGBOX";
+    GpuOpCodes[GpuOpCodes["JUMP"] = 8] = "JUMP";
+    GpuOpCodes[GpuOpCodes["BJUMP"] = 9] = "BJUMP";
+    GpuOpCodes[GpuOpCodes["CALL"] = 10] = "CALL";
+    GpuOpCodes[GpuOpCodes["RET"] = 11] = "RET";
+    GpuOpCodes[GpuOpCodes["END"] = 12] = "END";
+    GpuOpCodes[GpuOpCodes["Unknown0x0D"] = 13] = "Unknown0x0D";
+    GpuOpCodes[GpuOpCodes["SIGNAL"] = 14] = "SIGNAL";
+    GpuOpCodes[GpuOpCodes["FINISH"] = 15] = "FINISH";
+    GpuOpCodes[GpuOpCodes["BASE"] = 16] = "BASE";
+    GpuOpCodes[GpuOpCodes["Unknown0x11"] = 17] = "Unknown0x11";
+    GpuOpCodes[GpuOpCodes["VERTEXTYPE"] = 18] = "VERTEXTYPE";
+    GpuOpCodes[GpuOpCodes["OFFSETADDR"] = 19] = "OFFSETADDR";
+    GpuOpCodes[GpuOpCodes["ORIGIN"] = 20] = "ORIGIN";
+    GpuOpCodes[GpuOpCodes["REGION1"] = 21] = "REGION1";
+    GpuOpCodes[GpuOpCodes["REGION2"] = 22] = "REGION2";
+    GpuOpCodes[GpuOpCodes["LIGHTINGENABLE"] = 23] = "LIGHTINGENABLE";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE0"] = 24] = "LIGHTENABLE0";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE1"] = 25] = "LIGHTENABLE1";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE2"] = 26] = "LIGHTENABLE2";
+    GpuOpCodes[GpuOpCodes["LIGHTENABLE3"] = 27] = "LIGHTENABLE3";
+    GpuOpCodes[GpuOpCodes["CLIPENABLE"] = 28] = "CLIPENABLE";
+    GpuOpCodes[GpuOpCodes["CULLFACEENABLE"] = 29] = "CULLFACEENABLE";
+    GpuOpCodes[GpuOpCodes["TEXTUREMAPENABLE"] = 30] = "TEXTUREMAPENABLE";
+    GpuOpCodes[GpuOpCodes["FOGENABLE"] = 31] = "FOGENABLE";
+    GpuOpCodes[GpuOpCodes["DITHERENABLE"] = 32] = "DITHERENABLE";
+    GpuOpCodes[GpuOpCodes["ALPHABLENDENABLE"] = 33] = "ALPHABLENDENABLE";
+    GpuOpCodes[GpuOpCodes["ALPHATESTENABLE"] = 34] = "ALPHATESTENABLE";
+    GpuOpCodes[GpuOpCodes["ZTESTENABLE"] = 35] = "ZTESTENABLE";
+    GpuOpCodes[GpuOpCodes["STENCILTESTENABLE"] = 36] = "STENCILTESTENABLE";
+    GpuOpCodes[GpuOpCodes["ANTIALIASENABLE"] = 37] = "ANTIALIASENABLE";
+    GpuOpCodes[GpuOpCodes["PATCHCULLENABLE"] = 38] = "PATCHCULLENABLE";
+    GpuOpCodes[GpuOpCodes["COLORTESTENABLE"] = 39] = "COLORTESTENABLE";
+    GpuOpCodes[GpuOpCodes["LOGICOPENABLE"] = 40] = "LOGICOPENABLE";
+    GpuOpCodes[GpuOpCodes["Unknown0x29"] = 41] = "Unknown0x29";
+    GpuOpCodes[GpuOpCodes["BONEMATRIXNUMBER"] = 42] = "BONEMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["BONEMATRIXDATA"] = 43] = "BONEMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT0"] = 44] = "MORPHWEIGHT0";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT1"] = 45] = "MORPHWEIGHT1";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT2"] = 46] = "MORPHWEIGHT2";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT3"] = 47] = "MORPHWEIGHT3";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT4"] = 48] = "MORPHWEIGHT4";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT5"] = 49] = "MORPHWEIGHT5";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT6"] = 50] = "MORPHWEIGHT6";
+    GpuOpCodes[GpuOpCodes["MORPHWEIGHT7"] = 51] = "MORPHWEIGHT7";
+    GpuOpCodes[GpuOpCodes["Unknown0x34"] = 52] = "Unknown0x34";
+    GpuOpCodes[GpuOpCodes["Unknown0x35"] = 53] = "Unknown0x35";
+    GpuOpCodes[GpuOpCodes["PATCHDIVISION"] = 54] = "PATCHDIVISION";
+    GpuOpCodes[GpuOpCodes["PATCHPRIMITIVE"] = 55] = "PATCHPRIMITIVE";
+    GpuOpCodes[GpuOpCodes["PATCHFACING"] = 56] = "PATCHFACING";
+    GpuOpCodes[GpuOpCodes["Unknown0x39"] = 57] = "Unknown0x39";
+    GpuOpCodes[GpuOpCodes["WORLDMATRIXNUMBER"] = 58] = "WORLDMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["WORLDMATRIXDATA"] = 59] = "WORLDMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["VIEWMATRIXNUMBER"] = 60] = "VIEWMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["VIEWMATRIXDATA"] = 61] = "VIEWMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["PROJMATRIXNUMBER"] = 62] = "PROJMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["PROJMATRIXDATA"] = 63] = "PROJMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["TGENMATRIXNUMBER"] = 64] = "TGENMATRIXNUMBER";
+    GpuOpCodes[GpuOpCodes["TGENMATRIXDATA"] = 65] = "TGENMATRIXDATA";
+    GpuOpCodes[GpuOpCodes["VIEWPORTX1"] = 66] = "VIEWPORTX1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTY1"] = 67] = "VIEWPORTY1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTZ1"] = 68] = "VIEWPORTZ1";
+    GpuOpCodes[GpuOpCodes["VIEWPORTX2"] = 69] = "VIEWPORTX2";
+    GpuOpCodes[GpuOpCodes["VIEWPORTY2"] = 70] = "VIEWPORTY2";
+    GpuOpCodes[GpuOpCodes["VIEWPORTZ2"] = 71] = "VIEWPORTZ2";
+    GpuOpCodes[GpuOpCodes["TEXSCALEU"] = 72] = "TEXSCALEU";
+    GpuOpCodes[GpuOpCodes["TEXSCALEV"] = 73] = "TEXSCALEV";
+    GpuOpCodes[GpuOpCodes["TEXOFFSETU"] = 74] = "TEXOFFSETU";
+    GpuOpCodes[GpuOpCodes["TEXOFFSETV"] = 75] = "TEXOFFSETV";
+    GpuOpCodes[GpuOpCodes["OFFSETX"] = 76] = "OFFSETX";
+    GpuOpCodes[GpuOpCodes["OFFSETY"] = 77] = "OFFSETY";
+    GpuOpCodes[GpuOpCodes["Unknown0x4E"] = 78] = "Unknown0x4E";
+    GpuOpCodes[GpuOpCodes["Unknown0x4F"] = 79] = "Unknown0x4F";
+    GpuOpCodes[GpuOpCodes["SHADEMODE"] = 80] = "SHADEMODE";
+    GpuOpCodes[GpuOpCodes["REVERSENORMAL"] = 81] = "REVERSENORMAL";
+    GpuOpCodes[GpuOpCodes["Unknown0x52"] = 82] = "Unknown0x52";
+    GpuOpCodes[GpuOpCodes["MATERIALUPDATE"] = 83] = "MATERIALUPDATE";
+    GpuOpCodes[GpuOpCodes["MATERIALEMISSIVE"] = 84] = "MATERIALEMISSIVE";
+    GpuOpCodes[GpuOpCodes["MATERIALAMBIENT"] = 85] = "MATERIALAMBIENT";
+    GpuOpCodes[GpuOpCodes["MATERIALDIFFUSE"] = 86] = "MATERIALDIFFUSE";
+    GpuOpCodes[GpuOpCodes["MATERIALSPECULAR"] = 87] = "MATERIALSPECULAR";
+    GpuOpCodes[GpuOpCodes["MATERIALALPHA"] = 88] = "MATERIALALPHA";
+    GpuOpCodes[GpuOpCodes["Unknown0x59"] = 89] = "Unknown0x59";
+    GpuOpCodes[GpuOpCodes["Unknown0x5A"] = 90] = "Unknown0x5A";
+    GpuOpCodes[GpuOpCodes["MATERIALSPECULARCOEF"] = 91] = "MATERIALSPECULARCOEF";
+    GpuOpCodes[GpuOpCodes["AMBIENTCOLOR"] = 92] = "AMBIENTCOLOR";
+    GpuOpCodes[GpuOpCodes["AMBIENTALPHA"] = 93] = "AMBIENTALPHA";
+    GpuOpCodes[GpuOpCodes["LIGHTMODE"] = 94] = "LIGHTMODE";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE0"] = 95] = "LIGHTTYPE0";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE1"] = 96] = "LIGHTTYPE1";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE2"] = 97] = "LIGHTTYPE2";
+    GpuOpCodes[GpuOpCodes["LIGHTTYPE3"] = 98] = "LIGHTTYPE3";
+    GpuOpCodes[GpuOpCodes["LXP0"] = 99] = "LXP0";
+    GpuOpCodes[GpuOpCodes["LYP0"] = 100] = "LYP0";
+    GpuOpCodes[GpuOpCodes["LZP0"] = 101] = "LZP0";
+    GpuOpCodes[GpuOpCodes["LXP1"] = 102] = "LXP1";
+    GpuOpCodes[GpuOpCodes["LYP1"] = 103] = "LYP1";
+    GpuOpCodes[GpuOpCodes["LZP1"] = 104] = "LZP1";
+    GpuOpCodes[GpuOpCodes["LXP2"] = 105] = "LXP2";
+    GpuOpCodes[GpuOpCodes["LYP2"] = 106] = "LYP2";
+    GpuOpCodes[GpuOpCodes["LZP2"] = 107] = "LZP2";
+    GpuOpCodes[GpuOpCodes["LXP3"] = 108] = "LXP3";
+    GpuOpCodes[GpuOpCodes["LYP3"] = 109] = "LYP3";
+    GpuOpCodes[GpuOpCodes["LZP3"] = 110] = "LZP3";
+    GpuOpCodes[GpuOpCodes["LXD0"] = 111] = "LXD0";
+    GpuOpCodes[GpuOpCodes["LYD0"] = 112] = "LYD0";
+    GpuOpCodes[GpuOpCodes["LZD0"] = 113] = "LZD0";
+    GpuOpCodes[GpuOpCodes["LXD1"] = 114] = "LXD1";
+    GpuOpCodes[GpuOpCodes["LYD1"] = 115] = "LYD1";
+    GpuOpCodes[GpuOpCodes["LZD1"] = 116] = "LZD1";
+    GpuOpCodes[GpuOpCodes["LXD2"] = 117] = "LXD2";
+    GpuOpCodes[GpuOpCodes["LYD2"] = 118] = "LYD2";
+    GpuOpCodes[GpuOpCodes["LZD2"] = 119] = "LZD2";
+    GpuOpCodes[GpuOpCodes["LXD3"] = 120] = "LXD3";
+    GpuOpCodes[GpuOpCodes["LYD3"] = 121] = "LYD3";
+    GpuOpCodes[GpuOpCodes["LZD3"] = 122] = "LZD3";
+    GpuOpCodes[GpuOpCodes["LCA0"] = 123] = "LCA0";
+    GpuOpCodes[GpuOpCodes["LLA0"] = 124] = "LLA0";
+    GpuOpCodes[GpuOpCodes["LQA0"] = 125] = "LQA0";
+    GpuOpCodes[GpuOpCodes["LCA1"] = 126] = "LCA1";
+    GpuOpCodes[GpuOpCodes["LLA1"] = 127] = "LLA1";
+    GpuOpCodes[GpuOpCodes["LQA1"] = 128] = "LQA1";
+    GpuOpCodes[GpuOpCodes["LCA2"] = 129] = "LCA2";
+    GpuOpCodes[GpuOpCodes["LLA2"] = 130] = "LLA2";
+    GpuOpCodes[GpuOpCodes["LQA2"] = 131] = "LQA2";
+    GpuOpCodes[GpuOpCodes["LCA3"] = 132] = "LCA3";
+    GpuOpCodes[GpuOpCodes["LLA3"] = 133] = "LLA3";
+    GpuOpCodes[GpuOpCodes["LQA3"] = 134] = "LQA3";
+    GpuOpCodes[GpuOpCodes["SPOTEXP0"] = 135] = "SPOTEXP0";
+    GpuOpCodes[GpuOpCodes["SPOTEXP1"] = 136] = "SPOTEXP1";
+    GpuOpCodes[GpuOpCodes["SPOTEXP2"] = 137] = "SPOTEXP2";
+    GpuOpCodes[GpuOpCodes["SPOTEXP3"] = 138] = "SPOTEXP3";
+    GpuOpCodes[GpuOpCodes["SPOTCUT0"] = 139] = "SPOTCUT0";
+    GpuOpCodes[GpuOpCodes["SPOTCUT1"] = 140] = "SPOTCUT1";
+    GpuOpCodes[GpuOpCodes["SPOTCUT2"] = 141] = "SPOTCUT2";
+    GpuOpCodes[GpuOpCodes["SPOTCUT3"] = 142] = "SPOTCUT3";
+    GpuOpCodes[GpuOpCodes["ALC0"] = 143] = "ALC0";
+    GpuOpCodes[GpuOpCodes["DLC0"] = 144] = "DLC0";
+    GpuOpCodes[GpuOpCodes["SLC0"] = 145] = "SLC0";
+    GpuOpCodes[GpuOpCodes["ALC1"] = 146] = "ALC1";
+    GpuOpCodes[GpuOpCodes["DLC1"] = 147] = "DLC1";
+    GpuOpCodes[GpuOpCodes["SLC1"] = 148] = "SLC1";
+    GpuOpCodes[GpuOpCodes["ALC2"] = 149] = "ALC2";
+    GpuOpCodes[GpuOpCodes["DLC2"] = 150] = "DLC2";
+    GpuOpCodes[GpuOpCodes["SLC2"] = 151] = "SLC2";
+    GpuOpCodes[GpuOpCodes["ALC3"] = 152] = "ALC3";
+    GpuOpCodes[GpuOpCodes["DLC3"] = 153] = "DLC3";
+    GpuOpCodes[GpuOpCodes["SLC3"] = 154] = "SLC3";
+    GpuOpCodes[GpuOpCodes["CULL"] = 155] = "CULL";
+    GpuOpCodes[GpuOpCodes["FRAMEBUFPTR"] = 156] = "FRAMEBUFPTR";
+    GpuOpCodes[GpuOpCodes["FRAMEBUFWIDTH"] = 157] = "FRAMEBUFWIDTH";
+    GpuOpCodes[GpuOpCodes["ZBUFPTR"] = 158] = "ZBUFPTR";
+    GpuOpCodes[GpuOpCodes["ZBUFWIDTH"] = 159] = "ZBUFWIDTH";
+    GpuOpCodes[GpuOpCodes["TEXADDR0"] = 160] = "TEXADDR0";
+    GpuOpCodes[GpuOpCodes["TEXADDR1"] = 161] = "TEXADDR1";
+    GpuOpCodes[GpuOpCodes["TEXADDR2"] = 162] = "TEXADDR2";
+    GpuOpCodes[GpuOpCodes["TEXADDR3"] = 163] = "TEXADDR3";
+    GpuOpCodes[GpuOpCodes["TEXADDR4"] = 164] = "TEXADDR4";
+    GpuOpCodes[GpuOpCodes["TEXADDR5"] = 165] = "TEXADDR5";
+    GpuOpCodes[GpuOpCodes["TEXADDR6"] = 166] = "TEXADDR6";
+    GpuOpCodes[GpuOpCodes["TEXADDR7"] = 167] = "TEXADDR7";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH0"] = 168] = "TEXBUFWIDTH0";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH1"] = 169] = "TEXBUFWIDTH1";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH2"] = 170] = "TEXBUFWIDTH2";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH3"] = 171] = "TEXBUFWIDTH3";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH4"] = 172] = "TEXBUFWIDTH4";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH5"] = 173] = "TEXBUFWIDTH5";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH6"] = 174] = "TEXBUFWIDTH6";
+    GpuOpCodes[GpuOpCodes["TEXBUFWIDTH7"] = 175] = "TEXBUFWIDTH7";
+    GpuOpCodes[GpuOpCodes["CLUTADDR"] = 176] = "CLUTADDR";
+    GpuOpCodes[GpuOpCodes["CLUTADDRUPPER"] = 177] = "CLUTADDRUPPER";
+    GpuOpCodes[GpuOpCodes["TRXSBP"] = 178] = "TRXSBP";
+    GpuOpCodes[GpuOpCodes["TRXSBW"] = 179] = "TRXSBW";
+    GpuOpCodes[GpuOpCodes["TRXDBP"] = 180] = "TRXDBP";
+    GpuOpCodes[GpuOpCodes["TRXDBW"] = 181] = "TRXDBW";
+    GpuOpCodes[GpuOpCodes["Unknown0xB6"] = 182] = "Unknown0xB6";
+    GpuOpCodes[GpuOpCodes["Unknown0xB7"] = 183] = "Unknown0xB7";
+    GpuOpCodes[GpuOpCodes["TSIZE0"] = 184] = "TSIZE0";
+    GpuOpCodes[GpuOpCodes["TSIZE1"] = 185] = "TSIZE1";
+    GpuOpCodes[GpuOpCodes["TSIZE2"] = 186] = "TSIZE2";
+    GpuOpCodes[GpuOpCodes["TSIZE3"] = 187] = "TSIZE3";
+    GpuOpCodes[GpuOpCodes["TSIZE4"] = 188] = "TSIZE4";
+    GpuOpCodes[GpuOpCodes["TSIZE5"] = 189] = "TSIZE5";
+    GpuOpCodes[GpuOpCodes["TSIZE6"] = 190] = "TSIZE6";
+    GpuOpCodes[GpuOpCodes["TSIZE7"] = 191] = "TSIZE7";
+    GpuOpCodes[GpuOpCodes["TMAP"] = 192] = "TMAP";
+    GpuOpCodes[GpuOpCodes["TEXTURE_ENV_MAP_MATRIX"] = 193] = "TEXTURE_ENV_MAP_MATRIX";
+    GpuOpCodes[GpuOpCodes["TMODE"] = 194] = "TMODE";
+    GpuOpCodes[GpuOpCodes["TPSM"] = 195] = "TPSM";
+    GpuOpCodes[GpuOpCodes["CLOAD"] = 196] = "CLOAD";
+    GpuOpCodes[GpuOpCodes["CMODE"] = 197] = "CMODE";
+    GpuOpCodes[GpuOpCodes["TFLT"] = 198] = "TFLT";
+    GpuOpCodes[GpuOpCodes["TWRAP"] = 199] = "TWRAP";
+    GpuOpCodes[GpuOpCodes["TBIAS"] = 200] = "TBIAS";
+    GpuOpCodes[GpuOpCodes["TFUNC"] = 201] = "TFUNC";
+    GpuOpCodes[GpuOpCodes["TEC"] = 202] = "TEC";
+    GpuOpCodes[GpuOpCodes["TFLUSH"] = 203] = "TFLUSH";
+    GpuOpCodes[GpuOpCodes["TSYNC"] = 204] = "TSYNC";
+    GpuOpCodes[GpuOpCodes["FFAR"] = 205] = "FFAR";
+    GpuOpCodes[GpuOpCodes["FDIST"] = 206] = "FDIST";
+    GpuOpCodes[GpuOpCodes["FCOL"] = 207] = "FCOL";
+    GpuOpCodes[GpuOpCodes["TSLOPE"] = 208] = "TSLOPE";
+    GpuOpCodes[GpuOpCodes["Unknown0xD1"] = 209] = "Unknown0xD1";
+    GpuOpCodes[GpuOpCodes["PSM"] = 210] = "PSM";
+    GpuOpCodes[GpuOpCodes["CLEAR"] = 211] = "CLEAR";
+    GpuOpCodes[GpuOpCodes["SCISSOR1"] = 212] = "SCISSOR1";
+    GpuOpCodes[GpuOpCodes["SCISSOR2"] = 213] = "SCISSOR2";
+    GpuOpCodes[GpuOpCodes["MINZ"] = 214] = "MINZ";
+    GpuOpCodes[GpuOpCodes["MAXZ"] = 215] = "MAXZ";
+    GpuOpCodes[GpuOpCodes["CTST"] = 216] = "CTST";
+    GpuOpCodes[GpuOpCodes["CREF"] = 217] = "CREF";
+    GpuOpCodes[GpuOpCodes["CMSK"] = 218] = "CMSK";
+    GpuOpCodes[GpuOpCodes["ATST"] = 219] = "ATST";
+    GpuOpCodes[GpuOpCodes["STST"] = 220] = "STST";
+    GpuOpCodes[GpuOpCodes["SOP"] = 221] = "SOP";
+    GpuOpCodes[GpuOpCodes["ZTST"] = 222] = "ZTST";
+    GpuOpCodes[GpuOpCodes["ALPHA"] = 223] = "ALPHA";
+    GpuOpCodes[GpuOpCodes["SFIX"] = 224] = "SFIX";
+    GpuOpCodes[GpuOpCodes["DFIX"] = 225] = "DFIX";
+    GpuOpCodes[GpuOpCodes["DTH0"] = 226] = "DTH0";
+    GpuOpCodes[GpuOpCodes["DTH1"] = 227] = "DTH1";
+    GpuOpCodes[GpuOpCodes["DTH2"] = 228] = "DTH2";
+    GpuOpCodes[GpuOpCodes["DTH3"] = 229] = "DTH3";
+    GpuOpCodes[GpuOpCodes["LOP"] = 230] = "LOP";
+    GpuOpCodes[GpuOpCodes["ZMSK"] = 231] = "ZMSK";
+    GpuOpCodes[GpuOpCodes["PMSKC"] = 232] = "PMSKC";
+    GpuOpCodes[GpuOpCodes["PMSKA"] = 233] = "PMSKA";
+    GpuOpCodes[GpuOpCodes["TRXKICK"] = 234] = "TRXKICK";
+    GpuOpCodes[GpuOpCodes["TRXSPOS"] = 235] = "TRXSPOS";
+    GpuOpCodes[GpuOpCodes["TRXDPOS"] = 236] = "TRXDPOS";
+    GpuOpCodes[GpuOpCodes["Unknown0xED"] = 237] = "Unknown0xED";
+    GpuOpCodes[GpuOpCodes["TRXSIZE"] = 238] = "TRXSIZE";
+    GpuOpCodes[GpuOpCodes["Unknown0xEF"] = 239] = "Unknown0xEF";
+    GpuOpCodes[GpuOpCodes["Unknown0xF0"] = 240] = "Unknown0xF0";
+    GpuOpCodes[GpuOpCodes["Unknown0xF1"] = 241] = "Unknown0xF1";
+    GpuOpCodes[GpuOpCodes["Unknown0xF2"] = 242] = "Unknown0xF2";
+    GpuOpCodes[GpuOpCodes["Unknown0xF3"] = 243] = "Unknown0xF3";
+    GpuOpCodes[GpuOpCodes["Unknown0xF4"] = 244] = "Unknown0xF4";
+    GpuOpCodes[GpuOpCodes["Unknown0xF5"] = 245] = "Unknown0xF5";
+    GpuOpCodes[GpuOpCodes["Unknown0xF6"] = 246] = "Unknown0xF6";
+    GpuOpCodes[GpuOpCodes["Unknown0xF7"] = 247] = "Unknown0xF7";
+    GpuOpCodes[GpuOpCodes["Unknown0xF8"] = 248] = "Unknown0xF8";
+    GpuOpCodes[GpuOpCodes["Unknown0xF9"] = 249] = "Unknown0xF9";
+    GpuOpCodes[GpuOpCodes["Unknown0xFA"] = 250] = "Unknown0xFA";
+    GpuOpCodes[GpuOpCodes["Unknown0xFB"] = 251] = "Unknown0xFB";
+    GpuOpCodes[GpuOpCodes["Unknown0xFC"] = 252] = "Unknown0xFC";
+    GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 253] = "Unknown0xFD";
+    GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 254] = "Unknown0xFE";
+    GpuOpCodes[GpuOpCodes["DUMMY"] = 255] = "DUMMY";
+    GpuOpCodes[GpuOpCodes["MAT_TEXTURE"] = 272] = "MAT_TEXTURE";
+    GpuOpCodes[GpuOpCodes["MAT_PROJ"] = 288] = "MAT_PROJ";
+    GpuOpCodes[GpuOpCodes["MAT_VIEW"] = 304] = "MAT_VIEW";
+    GpuOpCodes[GpuOpCodes["MAT_WORLD"] = 320] = "MAT_WORLD";
+    GpuOpCodes[GpuOpCodes["MAT_BONES"] = 336] = "MAT_BONES";
+})(exports.GpuOpCodes || (exports.GpuOpCodes = {}));
+var GpuOpCodes = exports.GpuOpCodes;
 
 },
 "src/core/gpu/gpu_state": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 var _pixelformat = require('../pixelformat');
+var _opcodes = require('./gpu_opcodes');
+var Op = _opcodes.GpuOpCodes;
 function bool1(p) { return p != 0; }
 function parambool(p, offset) { return ((p >> offset) & 0x1) != 0; }
 function param1(p, offset) { return (p >> offset) & 0x1; }
@@ -8561,17 +8890,17 @@ var GpuFrameBufferState = (function () {
         this.data = data;
     }
     Object.defineProperty(GpuFrameBufferState.prototype, "width", {
-        get: function () { return param16(this.data[157], 0); },
+        get: function () { return param16(this.data[Op.FRAMEBUFWIDTH], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuFrameBufferState.prototype, "highAddress", {
-        get: function () { return param8(this.data[157], 16); },
+        get: function () { return param8(this.data[Op.FRAMEBUFWIDTH], 16); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuFrameBufferState.prototype, "lowAddress", {
-        get: function () { return param24(this.data[156]); },
+        get: function () { return param24(this.data[Op.FRAMEBUFPTR]); },
         enumerable: true,
         configurable: true
     });
@@ -8773,63 +9102,63 @@ var VertexState = (function () {
         this.data = data;
     }
     Object.defineProperty(VertexState.prototype, "value", {
-        get: function () { return param24(this.data[18]); },
+        get: function () { return param24(this.data[Op.VERTEXTYPE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "reversedNormal", {
-        get: function () { return bool1(this.data[81]); },
+        get: function () { return bool1(this.data[Op.REVERSENORMAL]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "address", {
-        get: function () { return param24(this.data[1]); },
-        set: function (value) { this.data[1] = value | (1 << 24); },
+        get: function () { return param24(this.data[Op.VADDR]); },
+        set: function (value) { this.data[Op.VADDR] = value | (Op.VADDR << 24); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "texture", {
-        get: function () { return param2(this.data[18], 0); },
+        get: function () { return param2(this.data[Op.VERTEXTYPE], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "color", {
-        get: function () { return param3(this.data[18], 2); },
+        get: function () { return param3(this.data[Op.VERTEXTYPE], 2); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "normal", {
-        get: function () { return param2(this.data[18], 5); },
+        get: function () { return param2(this.data[Op.VERTEXTYPE], 5); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "position", {
-        get: function () { return param2(this.data[18], 7); },
+        get: function () { return param2(this.data[Op.VERTEXTYPE], 7); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weight", {
-        get: function () { return param2(this.data[18], 9); },
+        get: function () { return param2(this.data[Op.VERTEXTYPE], 9); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "index", {
-        get: function () { return param2(this.data[18], 11); },
+        get: function () { return param2(this.data[Op.VERTEXTYPE], 11); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "weightCount", {
-        get: function () { return param3(this.data[18], 14); },
+        get: function () { return param3(this.data[Op.VERTEXTYPE], 14); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "morphingVertexCount", {
-        get: function () { return param2(this.data[18], 18); },
+        get: function () { return param2(this.data[Op.VERTEXTYPE], 18); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexState.prototype, "transform2D", {
-        get: function () { return parambool(this.data[18], 23); },
+        get: function () { return parambool(this.data[Op.VERTEXTYPE], 23); },
         enumerable: true,
         configurable: true
     });
@@ -8847,32 +9176,32 @@ var ViewPort = (function () {
         this.data = data;
     }
     Object.defineProperty(ViewPort.prototype, "x", {
-        get: function () { return float1(this.data[69]); },
+        get: function () { return float1(this.data[Op.VIEWPORTX2]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ViewPort.prototype, "y", {
-        get: function () { return float1(this.data[70]); },
+        get: function () { return float1(this.data[Op.VIEWPORTY2]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ViewPort.prototype, "z", {
-        get: function () { return float1(this.data[71]); },
+        get: function () { return float1(this.data[Op.VIEWPORTZ2]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ViewPort.prototype, "width", {
-        get: function () { return float1(this.data[66]); },
+        get: function () { return float1(this.data[Op.VIEWPORTX1]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ViewPort.prototype, "height", {
-        get: function () { return float1(this.data[67]); },
+        get: function () { return float1(this.data[Op.VIEWPORTY1]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ViewPort.prototype, "depth", {
-        get: function () { return float1(this.data[68]); },
+        get: function () { return float1(this.data[Op.VIEWPORTZ1]); },
         enumerable: true,
         configurable: true
     });
@@ -8884,22 +9213,22 @@ var Region = (function () {
         this.data = data;
     }
     Object.defineProperty(Region.prototype, "x1", {
-        get: function () { return param10(this.data[21], 0); },
+        get: function () { return param10(this.data[Op.REGION1], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Region.prototype, "y1", {
-        get: function () { return param10(this.data[21], 10); },
+        get: function () { return param10(this.data[Op.REGION1], 10); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Region.prototype, "x2", {
-        get: function () { return param10(this.data[22], 0); },
+        get: function () { return param10(this.data[Op.REGION2], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Region.prototype, "y2", {
-        get: function () { return param10(this.data[22], 10); },
+        get: function () { return param10(this.data[Op.REGION2], 10); },
         enumerable: true,
         configurable: true
     });
@@ -8912,7 +9241,7 @@ var Light = (function () {
         this.index = index;
     }
     Object.defineProperty(Light.prototype, "enabled", {
-        get: function () { return bool1(this.data[24 + this.index]); },
+        get: function () { return bool1(this.data[Op.LIGHTENABLE0 + this.index]); },
         enumerable: true,
         configurable: true
     });
@@ -9001,21 +9330,21 @@ var Light = (function () {
         enumerable: true,
         configurable: true
     });
-    Light.REG_TYPES = [95, 96, 97, 98];
-    Light.REG_LCA = [123, 126, 129, 132];
-    Light.REG_LLA = [124, 127, 130, 133];
-    Light.REG_LQA = [125, 128, 131, 134];
-    Light.REG_SPOTEXP = [135, 136, 137, 138];
-    Light.REG_SPOTCUT = [139, 140, 141, 142];
-    Light.LXP = [99, 102, 105, 108];
-    Light.LYP = [100, 103, 106, 109];
-    Light.LZP = [101, 104, 107, 110];
-    Light.LXD = [111, 114, 117, 120];
-    Light.LYD = [112, 115, 118, 121];
-    Light.LZD = [113, 116, 119, 122];
-    Light.ALC = [143, 146, 149, 152];
-    Light.DLC = [144, 147, 150, 153];
-    Light.SLC = [145, 148, 151, 154];
+    Light.REG_TYPES = [Op.LIGHTTYPE0, Op.LIGHTTYPE1, Op.LIGHTTYPE2, Op.LIGHTTYPE3];
+    Light.REG_LCA = [Op.LCA0, Op.LCA1, Op.LCA2, Op.LCA3];
+    Light.REG_LLA = [Op.LLA0, Op.LLA1, Op.LLA2, Op.LLA3];
+    Light.REG_LQA = [Op.LQA0, Op.LQA1, Op.LQA2, Op.LQA3];
+    Light.REG_SPOTEXP = [Op.SPOTEXP0, Op.SPOTEXP1, Op.SPOTEXP2, Op.SPOTEXP3];
+    Light.REG_SPOTCUT = [Op.SPOTCUT0, Op.SPOTCUT1, Op.SPOTCUT2, Op.SPOTCUT3];
+    Light.LXP = [Op.LXP0, Op.LXP1, Op.LXP2, Op.LXP3];
+    Light.LYP = [Op.LYP0, Op.LYP1, Op.LYP2, Op.LYP3];
+    Light.LZP = [Op.LZP0, Op.LZP1, Op.LZP2, Op.LZP3];
+    Light.LXD = [Op.LXD0, Op.LXD1, Op.LXD2, Op.LXD3];
+    Light.LYD = [Op.LYD0, Op.LYD1, Op.LYD2, Op.LYD3];
+    Light.LZD = [Op.LZD0, Op.LZD1, Op.LZD2, Op.LZD3];
+    Light.ALC = [Op.ALC0, Op.ALC1, Op.ALC2, Op.ALC3];
+    Light.DLC = [Op.DLC0, Op.DLC1, Op.DLC2, Op.DLC3];
+    Light.SLC = [Op.SLC0, Op.SLC1, Op.SLC2, Op.SLC3];
     return Light;
 })();
 exports.Light = Light;
@@ -9030,22 +9359,22 @@ var Lightning = (function () {
         ];
     }
     Object.defineProperty(Lightning.prototype, "lightModel", {
-        get: function () { return param8(this.data[94], 0); },
+        get: function () { return param8(this.data[Op.LIGHTMODE], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Lightning.prototype, "specularPower", {
-        get: function () { return float1(this.data[91]); },
+        get: function () { return float1(this.data[Op.MATERIALSPECULARCOEF]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Lightning.prototype, "ambientLightColor", {
-        get: function () { return new Color().setRGB_A(this.data[92], this.data[93]); },
+        get: function () { return new Color().setRGB_A(this.data[Op.AMBIENTCOLOR], this.data[Op.AMBIENTALPHA]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Lightning.prototype, "enabled", {
-        get: function () { return bool1(this.data[23]); },
+        get: function () { return bool1(this.data[Op.LIGHTINGENABLE]); },
         enumerable: true,
         configurable: true
     });
@@ -9059,22 +9388,27 @@ var MipmapState = (function () {
         this.index = index;
     }
     Object.defineProperty(MipmapState.prototype, "bufferWidth", {
-        get: function () { return param16(this.data[168 + this.index], 0); },
+        get: function () { return param16(this.data[Op.TEXBUFWIDTH0 + this.index], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(MipmapState.prototype, "address", {
-        get: function () { return param24(this.data[160 + this.index]) | ((param8(this.data[168 + this.index], 16) << 24)); },
+        get: function () { return param24(this.data[Op.TEXADDR0 + this.index]) | ((param8(this.data[Op.TEXBUFWIDTH0 + this.index], 16) << 24)); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(MipmapState.prototype, "addressEnd", {
+        get: function () { return this.address + this.sizeInBytes; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(MipmapState.prototype, "textureWidth", {
-        get: function () { return 1 << param4(this.data[184 + this.index], 0); },
+        get: function () { return 1 << param4(this.data[Op.TSIZE0 + this.index], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(MipmapState.prototype, "textureHeight", {
-        get: function () { return 1 << param4(this.data[184 + this.index], 8); },
+        get: function () { return 1 << param4(this.data[Op.TSIZE0 + this.index], 8); },
         enumerable: true,
         configurable: true
     });
@@ -9095,50 +9429,54 @@ var ClutState = (function () {
     function ClutState(data) {
         this.data = data;
     }
-    Object.defineProperty(ClutState.prototype, "hash", {
-        get: function () {
-            return this.data[197] + (this.data[176] << 8) + (this.data[177] << 16);
-        },
-        enumerable: true,
-        configurable: true
-    });
+    ClutState.prototype.getHashFast = function () {
+        return (this.data[Op.CMODE] << 0) + (this.data[Op.CLOAD] << 8) + (this.data[Op.CLUTADDR] << 16) + (this.data[Op.CLUTADDRUPPER] << 24);
+    };
+    ClutState.prototype.getHashSlow = function (memory) {
+        return memory.hash(this.address, this.sizeInBytes);
+    };
     Object.defineProperty(ClutState.prototype, "cmode", {
-        get: function () { return this.data[197]; },
+        get: function () { return this.data[Op.CMODE]; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "cload", {
-        get: function () { return this.data[196]; },
+        get: function () { return this.data[Op.CLOAD]; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "address", {
-        get: function () { return param24(this.data[176]) | ((this.data[177] << 8) & 0xFF000000); },
+        get: function () { return param24(this.data[Op.CLUTADDR]) | ((this.data[Op.CLUTADDRUPPER] << 8) & 0xFF000000); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ClutState.prototype, "addressEnd", {
+        get: function () { return this.address + this.sizeInBytes; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "numberOfColors", {
-        get: function () { return this.data[196] * 8; },
+        get: function () { return this.data[Op.CLOAD] * 8; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "pixelFormat", {
-        get: function () { return param2(this.data[197], 0); },
+        get: function () { return param2(this.data[Op.CMODE], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "shift", {
-        get: function () { return param5(this.data[197], 2); },
+        get: function () { return param5(this.data[Op.CMODE], 2); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "mask", {
-        get: function () { return param8(this.data[197], 8); },
+        get: function () { return param8(this.data[Op.CMODE], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClutState.prototype, "start", {
-        get: function () { return param5(this.data[197], 16); },
+        get: function () { return param5(this.data[Op.CMODE], 16); },
         enumerable: true,
         configurable: true
     });
@@ -9153,7 +9491,7 @@ exports.ClutState = ClutState;
 var TextureState = (function () {
     function TextureState(data) {
         this.data = data;
-        this.matrix = createMatrix4x4(this.data, 272);
+        this.matrix = createMatrix4x4(this.data, Op.MAT_TEXTURE);
         this.clut = new ClutState(this.data);
         this.mipmaps = [
             new MipmapState(this, this.data, 0),
@@ -9173,128 +9511,153 @@ var TextureState = (function () {
         enumerable: true,
         configurable: true
     });
+    TextureState.prototype.getHashSlow = function (memory) {
+        var hash = [];
+        hash.push(memory.hash(this.mipmap.address, this.mipmap.sizeInBytes));
+        hash.push(this.mipmap.address);
+        hash.push(this.mipmap.textureWidth);
+        hash.push(this.colorComponent);
+        hash.push(this.mipmap.textureHeight);
+        hash.push(+this.swizzled);
+        hash.push(+this.pixelFormat);
+        if (this.hasClut) {
+            hash.push(this.clut.getHashFast());
+            hash.push(this.clut.getHashSlow(memory));
+        }
+        return hash.join('_');
+    };
+    Object.defineProperty(TextureState.prototype, "mipmap", {
+        get: function () { return this.mipmaps[0]; },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(TextureState.prototype, "wrapU", {
-        get: function () { return param8(this.data[199], 0); },
+        get: function () { return param8(this.data[Op.TWRAP], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "wrapV", {
-        get: function () { return param8(this.data[199], 8); },
+        get: function () { return param8(this.data[Op.TWRAP], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "levelMode", {
-        get: function () { return param8(this.data[200], 0); },
+        get: function () { return param8(this.data[Op.TBIAS], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "mipmapBias", {
-        get: function () { return param8(this.data[200], 16) / 16; },
+        get: function () { return param8(this.data[Op.TBIAS], 16) / 16; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "offsetU", {
-        get: function () { return float1(this.data[74]); },
+        get: function () { return float1(this.data[Op.TEXOFFSETU]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "offsetV", {
-        get: function () { return float1(this.data[75]); },
+        get: function () { return float1(this.data[Op.TEXOFFSETV]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "scaleU", {
-        get: function () { return float1(this.data[72]); },
+        get: function () { return float1(this.data[Op.TEXSCALEU]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "scaleV", {
-        get: function () { return float1(this.data[73]); },
+        get: function () { return float1(this.data[Op.TEXSCALEV]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "shadeU", {
-        get: function () { return param2(this.data[193], 0); },
+        get: function () { return param2(this.data[Op.TEXTURE_ENV_MAP_MATRIX], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "shadeV", {
-        get: function () { return param2(this.data[193], 8); },
+        get: function () { return param2(this.data[Op.TEXTURE_ENV_MAP_MATRIX], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "effect", {
-        get: function () { return param8(this.data[201], 0); },
+        get: function () { return param8(this.data[Op.TFUNC], 0); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TextureState.prototype, "hasAlpha", {
+        get: function () { return this.colorComponent == 1; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "colorComponent", {
-        get: function () { return param8(this.data[201], 8); },
+        get: function () { return param8(this.data[Op.TFUNC], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "fragment2X", {
-        get: function () { return param8(this.data[201], 16) != 0; },
+        get: function () { return param8(this.data[Op.TFUNC], 16) != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "envColor", {
-        get: function () { return new Color().setRGB(param24(this.data[202])); },
+        get: function () { return new Color().setRGB(param24(this.data[Op.TEC])); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "pixelFormat", {
-        get: function () { return param4(this.data[195], 0); },
+        get: function () { return param4(this.data[Op.TPSM], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "slopeLevel", {
-        get: function () { return float1(this.data[208]); },
+        get: function () { return float1(this.data[Op.TSLOPE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "swizzled", {
-        get: function () { return param8(this.data[194], 0) != 0; },
+        get: function () { return param8(this.data[Op.TMODE], 0) != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "mipmapShareClut", {
-        get: function () { return param8(this.data[194], 8) != 0; },
+        get: function () { return param8(this.data[Op.TMODE], 8) != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "mipmapMaxLevel", {
-        get: function () { return param8(this.data[194], 16) != 0; },
+        get: function () { return param8(this.data[Op.TMODE], 16) != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "filterMinification", {
-        get: function () { return param8(this.data[198], 0); },
+        get: function () { return param8(this.data[Op.TFLT], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "filterMagnification", {
-        get: function () { return param8(this.data[198], 8); },
+        get: function () { return param8(this.data[Op.TFLT], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "enabled", {
-        get: function () { return bool1(this.data[30]); },
+        get: function () { return bool1(this.data[Op.TEXTUREMAPENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "textureMapMode", {
-        get: function () { return param8(this.data[192], 0); },
+        get: function () { return param8(this.data[Op.TMAP], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "textureProjectionMapMode", {
-        get: function () { return param8(this.data[192], 8); },
+        get: function () { return param8(this.data[Op.TMAP], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "tmode", {
-        get: function () { return this.data[194]; },
+        get: function () { return this.data[Op.TMODE]; },
         enumerable: true,
         configurable: true
     });
@@ -9329,12 +9692,12 @@ var CullingState = (function () {
         this.data = data;
     }
     Object.defineProperty(CullingState.prototype, "enabled", {
-        get: function () { return bool1(this.data[29]); },
+        get: function () { return bool1(this.data[Op.CULLFACEENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(CullingState.prototype, "direction", {
-        get: function () { return param24(this.data[155]); },
+        get: function () { return param24(this.data[Op.CULL]); },
         enumerable: true,
         configurable: true
     });
@@ -9346,27 +9709,27 @@ var DepthTestState = (function () {
         this.data = data;
     }
     Object.defineProperty(DepthTestState.prototype, "enabled", {
-        get: function () { return bool1(this.data[35]); },
+        get: function () { return bool1(this.data[Op.ZTESTENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(DepthTestState.prototype, "func", {
-        get: function () { return param8(this.data[222], 0); },
+        get: function () { return param8(this.data[Op.ZTST], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(DepthTestState.prototype, "mask", {
-        get: function () { return param16(this.data[231], 0); },
+        get: function () { return param16(this.data[Op.ZMSK], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(DepthTestState.prototype, "rangeNear", {
-        get: function () { return (this.data[215] & 0xFFFF) / 65536; },
+        get: function () { return (this.data[Op.MAXZ] & 0xFFFF) / 65536; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(DepthTestState.prototype, "rangeFar", {
-        get: function () { return (this.data[214] & 0xFFFF) / 65536; },
+        get: function () { return (this.data[Op.MINZ] & 0xFFFF) / 65536; },
         enumerable: true,
         configurable: true
     });
@@ -9425,38 +9788,38 @@ var Blending = (function () {
         this.data = data;
     }
     Object.defineProperty(Blending.prototype, "fixColorSource", {
-        get: function () { return new Color().setRGB(param24(this.data[224])); },
+        get: function () { return new Color().setRGB(param24(this.data[Op.SFIX])); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Blending.prototype, "fixColorDestination", {
-        get: function () { return new Color().setRGB(param24(this.data[225])); },
+        get: function () { return new Color().setRGB(param24(this.data[Op.DFIX])); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Blending.prototype, "enabled", {
-        get: function () { return bool1(this.data[33]); },
+        get: function () { return bool1(this.data[Op.ALPHABLENDENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Blending.prototype, "functionSource", {
-        get: function () { return param4(this.data[223], 0); },
+        get: function () { return param4(this.data[Op.ALPHA], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Blending.prototype, "functionDestination", {
-        get: function () { return param4(this.data[223], 4); },
+        get: function () { return param4(this.data[Op.ALPHA], 4); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Blending.prototype, "equation", {
-        get: function () { return param4(this.data[223], 8); },
+        get: function () { return param4(this.data[Op.ALPHA], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Blending.prototype, "colorMask", {
         get: function () {
-            return new Color().setRGB_A(param24(this.data[232]), param8(this.data[233], 0));
+            return new Color().setRGB_A(param24(this.data[Op.PMSKC]), param8(this.data[Op.PMSKA], 0));
         },
         enumerable: true,
         configurable: true
@@ -9469,22 +9832,22 @@ var AlphaTest = (function () {
         this.data = data;
     }
     Object.defineProperty(AlphaTest.prototype, "enabled", {
-        get: function () { return bool1(this.data[34]); },
+        get: function () { return bool1(this.data[Op.ALPHATESTENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(AlphaTest.prototype, "func", {
-        get: function () { return param8(this.data[219], 0); },
+        get: function () { return param8(this.data[Op.ATST], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(AlphaTest.prototype, "value", {
-        get: function () { return param8(this.data[219], 8); },
+        get: function () { return param8(this.data[Op.ATST], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(AlphaTest.prototype, "mask", {
-        get: function () { return param8(this.data[219], 16); },
+        get: function () { return param8(this.data[Op.ATST], 16); },
         enumerable: true,
         configurable: true
     });
@@ -9516,7 +9879,7 @@ var ClipPlane = (function () {
         this.data = data;
     }
     Object.defineProperty(ClipPlane.prototype, "enabled", {
-        get: function () { return bool1(this.data[28]); },
+        get: function () { return bool1(this.data[Op.CLIPENABLE]); },
         enumerable: true,
         configurable: true
     });
@@ -9526,22 +9889,22 @@ var ClipPlane = (function () {
         configurable: true
     });
     Object.defineProperty(ClipPlane.prototype, "left", {
-        get: function () { return param10(this.data[212], 0); },
+        get: function () { return param10(this.data[Op.SCISSOR1], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClipPlane.prototype, "top", {
-        get: function () { return param10(this.data[212], 10); },
+        get: function () { return param10(this.data[Op.SCISSOR1], 10); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClipPlane.prototype, "right", {
-        get: function () { return param10(this.data[213], 0); },
+        get: function () { return param10(this.data[Op.SCISSOR2], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ClipPlane.prototype, "bottom", {
-        get: function () { return param10(this.data[213], 10); },
+        get: function () { return param10(this.data[Op.SCISSOR2], 10); },
         enumerable: true,
         configurable: true
     });
@@ -9553,14 +9916,14 @@ var SkinningState = (function () {
         this.data = data;
         this.dataf = new Float32Array(this.data.buffer);
         this.boneMatrices = [
-            createMatrix4x3(this.dataf, 336 + 12 * 0),
-            createMatrix4x3(this.dataf, 336 + 12 * 1),
-            createMatrix4x3(this.dataf, 336 + 12 * 2),
-            createMatrix4x3(this.dataf, 336 + 12 * 3),
-            createMatrix4x3(this.dataf, 336 + 12 * 4),
-            createMatrix4x3(this.dataf, 336 + 12 * 5),
-            createMatrix4x3(this.dataf, 336 + 12 * 6),
-            createMatrix4x3(this.dataf, 336 + 12 * 7)
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 0),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 1),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 2),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 3),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 4),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 5),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 6),
+            createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 7)
         ];
     }
     return SkinningState;
@@ -9571,37 +9934,37 @@ var StencilState = (function () {
         this.data = data;
     }
     Object.defineProperty(StencilState.prototype, "enabled", {
-        get: function () { return bool1(this.data[36]); },
+        get: function () { return bool1(this.data[Op.STENCILTESTENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(StencilState.prototype, "fail", {
-        get: function () { return param8(this.data[221], 0); },
+        get: function () { return param8(this.data[Op.SOP], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(StencilState.prototype, "zfail", {
-        get: function () { return param8(this.data[221], 8); },
+        get: function () { return param8(this.data[Op.SOP], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(StencilState.prototype, "zpass", {
-        get: function () { return param8(this.data[221], 16); },
+        get: function () { return param8(this.data[Op.SOP], 16); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(StencilState.prototype, "func", {
-        get: function () { return param8(this.data[220], 0); },
+        get: function () { return param8(this.data[Op.STST], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(StencilState.prototype, "funcRef", {
-        get: function () { return param8(this.data[220], 8); },
+        get: function () { return param8(this.data[Op.STST], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(StencilState.prototype, "funcMask", {
-        get: function () { return param8(this.data[220], 16); },
+        get: function () { return param8(this.data[Op.STST], 16); },
         enumerable: true,
         configurable: true
     });
@@ -9613,12 +9976,12 @@ var PatchState = (function () {
         this.data = data;
     }
     Object.defineProperty(PatchState.prototype, "divs", {
-        get: function () { return param8(this.data[54], 0); },
+        get: function () { return param8(this.data[Op.PATCHDIVISION], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(PatchState.prototype, "divt", {
-        get: function () { return param8(this.data[54], 8); },
+        get: function () { return param8(this.data[Op.PATCHDIVISION], 8); },
         enumerable: true,
         configurable: true
     });
@@ -9630,22 +9993,22 @@ var Fog = (function () {
         this.data = data;
     }
     Object.defineProperty(Fog.prototype, "color", {
-        get: function () { return new Color().setRGB(this.data[207]); },
+        get: function () { return new Color().setRGB(this.data[Op.FCOL]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Fog.prototype, "far", {
-        get: function () { return float1(this.data[205]); },
+        get: function () { return float1(this.data[Op.FFAR]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Fog.prototype, "dist", {
-        get: function () { return float1(this.data[206]); },
+        get: function () { return float1(this.data[Op.FDIST]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Fog.prototype, "enabled", {
-        get: function () { return bool1(this.data[31]); },
+        get: function () { return bool1(this.data[Op.FOGENABLE]); },
         enumerable: true,
         configurable: true
     });
@@ -9657,7 +10020,7 @@ var LogicOp = (function () {
         this.data = data;
     }
     Object.defineProperty(LogicOp.prototype, "enabled", {
-        get: function () { return this.data[40]; },
+        get: function () { return this.data[Op.LOGICOPENABLE]; },
         enumerable: true,
         configurable: true
     });
@@ -9669,7 +10032,7 @@ var LineSmoothState = (function () {
         this.data = data;
     }
     Object.defineProperty(LineSmoothState.prototype, "enabled", {
-        get: function () { return bool1(this.data[37]); },
+        get: function () { return bool1(this.data[Op.ANTIALIASENABLE]); },
         enumerable: true,
         configurable: true
     });
@@ -9681,12 +10044,12 @@ var PatchCullingState = (function () {
         this.data = data;
     }
     Object.defineProperty(PatchCullingState.prototype, "enabled", {
-        get: function () { return bool1(this.data[38]); },
+        get: function () { return bool1(this.data[Op.PATCHCULLENABLE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(PatchCullingState.prototype, "faceFlag", {
-        get: function () { return bool1(this.data[56]); },
+        get: function () { return bool1(this.data[Op.PATCHFACING]); },
         enumerable: true,
         configurable: true
     });
@@ -9698,12 +10061,12 @@ var OffsetState = (function () {
         this.data = data;
     }
     Object.defineProperty(OffsetState.prototype, "x", {
-        get: function () { return param4(this.data[76], 0); },
+        get: function () { return param4(this.data[Op.OFFSETX], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(OffsetState.prototype, "y", {
-        get: function () { return param4(this.data[77], 0); },
+        get: function () { return param4(this.data[Op.OFFSETY], 0); },
         enumerable: true,
         configurable: true
     });
@@ -9718,9 +10081,9 @@ var GpuState = (function () {
         this.vertex = new VertexState(this.data);
         this.stencil = new StencilState(this.data);
         this.skinning = new SkinningState(this.data);
-        this.projectionMatrix = createMatrix4x4(this.dataf, 288);
-        this.viewMatrix = createMatrix4x3(this.dataf, 304);
-        this.worldMatrix = createMatrix4x3(this.dataf, 320);
+        this.projectionMatrix = createMatrix4x4(this.dataf, Op.MAT_PROJ);
+        this.viewMatrix = createMatrix4x3(this.dataf, Op.MAT_VIEW);
+        this.worldMatrix = createMatrix4x3(this.dataf, Op.MAT_WORLD);
         this.viewport = new ViewPort(this.data);
         this.region = new Region(this.data);
         this.offset = new OffsetState(this.data);
@@ -9743,59 +10106,59 @@ var GpuState = (function () {
     GpuState.prototype.writeData = function (data) { this.data.set(data); return this; };
     GpuState.prototype.readData = function () { return ArrayBufferUtils.cloneUint32Array(this.data); };
     Object.defineProperty(GpuState.prototype, "clearing", {
-        get: function () { return param1(this.data[211], 0) != 0; },
+        get: function () { return param1(this.data[Op.CLEAR], 0) != 0; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "clearFlags", {
-        get: function () { return param8(this.data[211], 8); },
+        get: function () { return param8(this.data[Op.CLEAR], 8); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "baseAddress", {
-        get: function () { return ((param24(this.data[16]) << 8) & 0xff000000); },
+        get: function () { return ((param24(this.data[Op.BASE]) << 8) & 0xff000000); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "baseOffset", {
-        get: function () { return param24(this.data[19]) << 8; },
+        get: function () { return param24(this.data[Op.OFFSETADDR]) << 8; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "indexAddress", {
-        get: function () { return param24(this.data[2]); },
+        get: function () { return param24(this.data[Op.IADDR]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "shadeModel", {
-        get: function () { return param16(this.data[80], 0); },
+        get: function () { return param16(this.data[Op.SHADEMODE], 0); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "ambientModelColor", {
-        get: function () { return new Color().setRGB_A(this.data[85], this.data[88]); },
+        get: function () { return new Color().setRGB_A(this.data[Op.MATERIALAMBIENT], this.data[Op.MATERIALALPHA]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "diffuseModelColor", {
-        get: function () { return new Color().setRGB(this.data[86]); },
+        get: function () { return new Color().setRGB(this.data[Op.MATERIALDIFFUSE]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "specularModelColor", {
-        get: function () { return new Color().setRGB(this.data[87]); },
+        get: function () { return new Color().setRGB(this.data[Op.MATERIALSPECULAR]); },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(GpuState.prototype, "drawPixelFormat", {
-        get: function () { return param4(this.data[210], 0); },
+        get: function () { return param4(this.data[Op.PSM], 0); },
         enumerable: true,
         configurable: true
     });
     GpuState.prototype.writeFloat = function (index, offset, data) {
         this.dataf[offset + this.data[index]++] = data;
     };
-    GpuState.prototype.getMorphWeight = function (index) { return float1(this.data[44 + index]); };
+    GpuState.prototype.getMorphWeight = function (index) { return float1(this.data[Op.MORPHWEIGHT0 + index]); };
     GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) { return (this.baseAddress | relativeAddress); };
     GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) { return ((this.baseAddress | relativeAddress) + this.baseOffset); };
     return GpuState;
@@ -9806,7 +10169,7 @@ var ColorTestState = (function () {
         this.data = data;
     }
     Object.defineProperty(ColorTestState.prototype, "enabled", {
-        get: function () { return bool1(this.data[39]); },
+        get: function () { return bool1(this.data[Op.COLORTESTENABLE]); },
         enumerable: true,
         configurable: true
     });
@@ -9818,7 +10181,7 @@ var DitheringState = (function () {
         this.data = data;
     }
     Object.defineProperty(DitheringState.prototype, "enabled", {
-        get: function () { return bool1(this.data[32]); },
+        get: function () { return bool1(this.data[Op.DITHERENABLE]); },
         enumerable: true,
         configurable: true
     });
@@ -10027,15 +10390,11 @@ var __extends = this.__extends || function (d, b) {
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var _driver = require('../gpu_driver');
-var _state = require('../gpu_state');
-var _shader = require('./webgl_shader');
-var _texture = require('./webgl_texture');
-var _utils = require('./webgl_utils');
-var FastFloat32Buffer = _utils.FastFloat32Buffer;
-var IDrawDriver = _driver.BaseDrawDriver;
-var ShaderCache = _shader.ShaderCache;
-var TextureHandler = _texture.TextureHandler;
+var gpu_driver_1 = require('../gpu_driver');
+var gpu_state_1 = require('../gpu_state');
+var webgl_shader_1 = require('./webgl_shader');
+var webgl_texture_1 = require('./webgl_texture');
+var webgl_utils_1 = require('./webgl_utils');
 var WebGlPspDrawDriver = (function (_super) {
     __extends(WebGlPspDrawDriver, _super);
     function WebGlPspDrawDriver(memory, display, canvas) {
@@ -10057,12 +10416,12 @@ var WebGlPspDrawDriver = (function (_super) {
         this.optimizedDataBuffer = null;
         this.optimizedIndexBuffer = null;
         this.testCount = 20;
-        this.positionData = new FastFloat32Buffer();
-        this.colorData = new FastFloat32Buffer();
-        this.textureData = new FastFloat32Buffer();
-        this.normalData = new FastFloat32Buffer();
-        this.vertexWeightData1 = new FastFloat32Buffer();
-        this.vertexWeightData2 = new FastFloat32Buffer();
+        this.positionData = new webgl_utils_1.FastFloat32Buffer();
+        this.colorData = new webgl_utils_1.FastFloat32Buffer();
+        this.textureData = new webgl_utils_1.FastFloat32Buffer();
+        this.normalData = new webgl_utils_1.FastFloat32Buffer();
+        this.vertexWeightData1 = new webgl_utils_1.FastFloat32Buffer();
+        this.vertexWeightData2 = new webgl_utils_1.FastFloat32Buffer();
         this.lastBaseAddress = 0;
         this.tempVec = new Float32Array([0, 0, 0]);
         this.texMat = mat4.create();
@@ -10117,8 +10476,8 @@ var WebGlPspDrawDriver = (function (_super) {
             return downloadFileAsync('data/shader.frag').then(function (shaderFrag) {
                 var shaderVertString = Stream.fromArrayBuffer(shaderVert).readUtf8String(shaderVert.byteLength);
                 var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
-                _this.cache = new ShaderCache(_this.gl, shaderVertString, shaderFragString);
-                _this.textureHandler = new TextureHandler(_this.memory, _this.gl);
+                _this.cache = new webgl_shader_1.ShaderCache(_this.gl, shaderVertString, shaderFragString);
+                _this.textureHandler = new webgl_texture_1.TextureHandler(_this.memory, _this.gl);
                 _this.textureHandler.rehashSignal.pipeTo(_this.rehashSignal);
             });
         });
@@ -10172,7 +10531,7 @@ var WebGlPspDrawDriver = (function (_super) {
                 sfactor = getBlendFix(blending.fixColorSource);
             }
             if (blending.functionDestination == 10) {
-                if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
+                if ((sfactor == gl.CONSTANT_COLOR) && ((gpu_state_1.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
                     dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
                 }
                 else {
@@ -10390,8 +10749,8 @@ var WebGlPspDrawDriver = (function (_super) {
         this.textureHandler.sync();
     };
     WebGlPspDrawDriver.prototype.prepareTexture = function (gl, program, vertexInfo) {
-        if (vertexInfo.hasTexture) {
-            this.textureHandler.bindTexture(program, this.state);
+        if (vertexInfo.hasTexture && this.enableTextures) {
+            this.textureHandler.bindTexture(program, this.state, this.enableBilinear);
         }
         else {
             this.textureHandler.unbindTexture(program, this.state);
@@ -10471,7 +10830,7 @@ var WebGlPspDrawDriver = (function (_super) {
             program.getAttrib('vertexWeight2').disable();
     };
     return WebGlPspDrawDriver;
-})(IDrawDriver);
+})(gpu_driver_1.BaseDrawDriver);
 var convertPrimitiveType = new Int32Array([0, 1, 3, 4, 5, 6, 4]);
 var convertVertexNumericEnum = new Int32Array([0, 5120, 5122, 5126]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, 5121, 5123, 5126]);
@@ -10562,77 +10921,71 @@ var _state = require('../gpu_state');
 var _pixelformat = require('../../pixelformat');
 var PixelFormatUtils = _pixelformat.PixelFormatUtils;
 var PixelConverter = _pixelformat.PixelConverter;
-var Clut = (function () {
-    function Clut(gl) {
-        this.gl = gl;
-        this.valid = true;
-        this.validHint = true;
-        this.hash1 = -1;
-        this.hash2 = -1;
-        this.texture = gl.createTexture();
-    }
-    Clut.prototype.setInfo = function (clut) {
-        this.clutFormat = clut.pixelFormat;
-        this.clut_start = clut.address;
-        this.clut_end = clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors);
-    };
-    Clut.prototype._create = function (callbackTex2D) {
-        var gl = this.gl;
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        callbackTex2D();
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    };
-    Clut.prototype.fromBytesRGBA = function (data, numberOfColors) {
-        var gl = this.gl;
-        this.numberOfColors = numberOfColors;
-        this._create(function () {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, numberOfColors, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
-        });
-    };
-    Clut.prototype.bind = function (textureUnit) {
-        var gl = this.gl;
-        gl.activeTexture(gl.TEXTURE0 + textureUnit);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    };
-    Clut.hashFast = function (state) {
-        return state.texture.clut.hash;
-    };
-    Clut.hashSlow = function (memory, state) {
-        var clut = state.texture.clut;
-        var hash_number = 0;
-        hash_number += memory.hash(clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors), PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)) * Math.pow(2, 30);
-        hash_number += clut.hash * Math.pow(2, 16);
-        return hash_number;
-    };
-    return Clut;
-})();
-exports.Clut = Clut;
 var Texture = (function () {
     function Texture(gl) {
         this.gl = gl;
-        this.recheckTimestamp = 0;
-        this.valid = true;
-        this.validHint = true;
-        this.swizzled = false;
-        this.hash1 = -1;
-        this.hash2 = -1;
+        this.valid = false;
+        this.hash = '';
         this.recheckCount = 0;
         this.framesEqual = 0;
         this.texture = gl.createTexture();
+        this.state = new _state.GpuState();
     }
-    Texture.prototype.setInfo = function (state) {
-        var texture = state.texture;
-        var mipmap = texture.mipmaps[0];
-        this.swizzled = texture.swizzled;
-        this.address_start = mipmap.address;
-        this.address_end = mipmap.address + PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.bufferWidth * mipmap.textureHeight);
-        this.pixelFormat = texture.pixelFormat;
+    Object.defineProperty(Texture.prototype, "textureState", {
+        get: function () { return this.state.texture; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "mipmap", {
+        get: function () { return this.textureState.mipmaps[0]; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "width", {
+        get: function () { return this.mipmap.textureWidth; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "height", {
+        get: function () { return this.mipmap.textureHeight; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "swizzled", {
+        get: function () { return this.textureState.swizzled; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "addressStart", {
+        get: function () { return this.mipmap.address; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "addressEnd", {
+        get: function () { return this.mipmap.addressEnd; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Texture.prototype, "pixelFormat", {
+        get: function () { return this.textureState.pixelFormat; },
+        enumerable: true,
+        configurable: true
+    });
+    Texture.prototype.updateFromState = function (state, memory) {
+        this.state.copyFrom(state);
+        var textureState = state.texture;
+        var clutState = state.texture.clut;
+        var mipmap = textureState.mipmaps[0];
+        var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+        var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
+        data.set(memory.getPointerU8Array(mipmap.address, data.length));
+        if (state.texture.swizzled)
+            PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
+        var clut = null;
+        if (textureState.hasClut) {
+            clut = PixelConverter.decode(clutState.pixelFormat, memory.getPointerU8Array(clutState.address), new Uint32Array(256), textureState.hasAlpha, null);
+        }
+        this.fromBytesRGBA(PixelConverter.decode(textureState.pixelFormat, data, new Uint32Array(w2 * h), textureState.hasAlpha, clut, clutState.start, clutState.shift, clutState.mask), w2, h);
     };
     Texture.prototype._create = function (callbackTex2D) {
         var gl = this.gl;
@@ -10648,14 +11001,6 @@ var Texture = (function () {
         this.height = height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
-        });
-    };
-    Texture.prototype.fromBytesIndex = function (data, width, height) {
-        var gl = this.gl;
-        this.width = width;
-        this.height = height;
-        this._create(function () {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width, height, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, data);
         });
     };
     Texture.prototype.fromCanvas = function (canvas) {
@@ -10678,28 +11023,10 @@ var Texture = (function () {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wraps);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
     };
-    Texture.hashFast = function (state) {
-        var result = state.texture.mipmaps[0].address;
-        result += (state.texture.swizzled ? 1 : 0) * Math.pow(2, 13);
-        return result;
-    };
-    Texture.hashSlow = function (memory, state) {
-        var texture = state.texture;
-        var mipmap = texture.mipmaps[0];
-        var clut = texture.clut;
-        var hash_number = 0;
-        hash_number += (texture.swizzled ? 1 : 0) * Math.pow(2, 0);
-        hash_number += (texture.pixelFormat) * Math.pow(2, 1);
-        hash_number += (mipmap.bufferWidth) * Math.pow(2, 3);
-        hash_number += (mipmap.textureWidth) * Math.pow(2, 6);
-        hash_number += (mipmap.textureHeight) * Math.pow(2, 8);
-        hash_number += memory.hash(mipmap.address, PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)) * Math.pow(2, 12);
-        return hash_number;
-    };
     Texture.createCanvas = function () {
     };
     Texture.prototype.toString = function () {
-        return "Texture(address = " + this.address_start + ", hash1 = " + this.hash1 + ", hash2 = " + this.hash2 + ", pixelFormat = " + this.pixelFormat + ", swizzled = " + this.swizzled;
+        return "Texture(address = " + this.addressStart + ", hash = " + this.hash + ", pixelFormat = " + this.pixelFormat + ", swizzled = " + this.swizzled;
     };
     return Texture;
 })();
@@ -10718,32 +11045,16 @@ var TextureHandler = (function () {
     }
     TextureHandler.prototype.invalidateWithGl = function (gl) {
         this.gl = gl;
-        this.texturesByHash1 = new Map();
-        this.texturesByHash2 = new Map();
+        this.texturesByHash = new Map();
         this.texturesByAddress = new Map();
         this.textures = [];
-        this.clutsByHash1 = new Map();
-        this.clutsByHash2 = new Map();
-        this.clutsByAddress = new Map();
-        this.cluts = [];
         this.recheckTimestamp = 0;
         this.invalidatedAll = false;
-        this.lastTexture = null;
     };
     TextureHandler.prototype.flush = function () {
         for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
             var texture = _a[_i];
-            if (!texture.validHint) {
-                texture.valid = false;
-                texture.validHint = true;
-            }
-        }
-        for (var _b = 0, _c = this.cluts; _b < _c.length; _b++) {
-            var clut = _c[_b];
-            if (!clut.validHint) {
-                clut.valid = false;
-                clut.validHint = true;
-            }
+            texture.valid = false;
         }
     };
     TextureHandler.prototype.sync = function () {
@@ -10754,11 +11065,7 @@ var TextureHandler = (function () {
         this.invalidatedAll = false;
         for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
             var texture = _a[_i];
-            texture.validHint = false;
-        }
-        for (var _b = 0, _c = this.cluts; _b < _c.length; _b++) {
-            var clut = _c[_b];
-            clut.validHint = false;
+            texture.valid = false;
         }
     };
     TextureHandler.prototype.invalidatedMemoryAll = function () {
@@ -10767,39 +11074,13 @@ var TextureHandler = (function () {
     TextureHandler.prototype.invalidatedMemoryRange = function (range) {
         for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
             var texture = _a[_i];
-            if (texture.address_start >= range.start && texture.address_end <= range.end)
-                texture.validHint = false;
-        }
-        for (var _b = 0, _c = this.cluts; _b < _c.length; _b++) {
-            var clut = _c[_b];
-            if (clut.clut_start >= range.start && clut.clut_end <= range.end)
-                clut.validHint = false;
+            if (texture.addressStart >= range.start && texture.addressEnd <= range.end)
+                texture.valid = false;
         }
     };
-    TextureHandler.prototype.mustRecheckSlowHashTexture = function (texture) {
-        if (!texture)
-            return true;
-        if (texture.recheckCount++ >= texture.framesEqual) {
-            return !texture.valid;
-        }
-        else {
-            texture.recheckCount = 0;
-            return false;
-        }
-    };
-    TextureHandler.prototype.mustRecheckSlowHashClut = function (clut) {
-        return !clut || !clut.valid;
-    };
-    TextureHandler.prototype.bindTexture = function (prog, state) {
+    TextureHandler.prototype.bindTexture = function (prog, state, enableBilinear) {
         var gl = this.gl;
         gl.activeTexture(gl.TEXTURE0);
-        this._bindTexture(prog, state);
-        gl.activeTexture(gl.TEXTURE1);
-        this._bindClut(prog, state);
-        gl.activeTexture(gl.TEXTURE0);
-    };
-    TextureHandler.prototype._bindTexture = function (prog, state) {
-        var gl = this.gl;
         var mipmap = state.texture.mipmaps[0];
         if (mipmap.bufferWidth == 0)
             return;
@@ -10808,110 +11089,36 @@ var TextureHandler = (function () {
         if (mipmap.textureHeight == 0)
             return;
         var hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
+        var clutState = state.texture.clut;
         var textureState = state.texture;
-        var hash1 = Texture.hashFast(state);
-        var texture = this.texturesByHash1.get(hash1);
-        var texture1 = texture;
-        if (this.mustRecheckSlowHashTexture(texture)) {
-            var hash2 = Texture.hashSlow(this.memory, state);
-            this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(textureState.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
-            texture = this.texturesByHash2.get(hash2);
-            if (texture) {
-                if (texture1 == texture) {
-                    texture.framesEqual++;
-                }
-                else {
-                    texture.framesEqual = 0;
-                }
+        var texture;
+        if (!this.texturesByAddress.get(mipmap.address)) {
+            texture = new Texture(gl);
+            this.texturesByAddress.set(mipmap.address, texture);
+            this.textures.push(texture);
+        }
+        texture = this.texturesByAddress.get(mipmap.address);
+        if (!texture.valid) {
+            var hash = textureState.getHashSlow(this.memory);
+            this.rehashSignal.dispatch(mipmap.sizeInBytes);
+            if (this.texturesByHash.has(hash)) {
+                texture = this.texturesByHash.get(hash);
             }
-            if (!texture) {
-                if (!this.texturesByAddress.get(mipmap.address)) {
-                    texture = new Texture(gl);
-                    this.texturesByAddress.set(mipmap.address, texture);
-                    this.textures.push(texture);
-                    console.warn('New texture allocated!', mipmap, state.texture);
-                }
-                texture = this.texturesByAddress.get(mipmap.address);
-            }
-            if (texture.hash2 != hash2) {
-                this.texturesByHash1.delete(texture.hash1);
-                this.texturesByHash2.delete(texture.hash2);
-                texture.setInfo(state);
-                texture.hash1 = hash1;
-                texture.hash2 = hash2;
+            else if (texture.hash != hash) {
+                this.texturesByHash.delete(texture.hash);
+                texture.hash = hash;
                 texture.valid = true;
-                texture.validHint = true;
-                this.texturesByHash1.set(hash1, texture);
-                this.texturesByHash2.set(hash2, texture);
-                texture.recheckTimestamp = this.recheckTimestamp;
-                var mipmap = state.texture.mipmaps[0];
-                var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
-                var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
-                data.set(this.memory.getPointerU8Array(mipmap.address, data.length));
-                if (state.texture.swizzled)
-                    PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
-                if (hasClut) {
-                    texture.fromBytesIndex(PixelConverter.decodeIndex(state.texture.pixelFormat, data, new Uint8Array(w2 * h)), w2, h);
-                }
-                else {
-                    texture.fromBytesRGBA(PixelConverter.decode(state.texture.pixelFormat, data, new Uint32Array(w2 * h), true), w2, h);
-                }
+                this.texturesByHash.set(hash, texture);
+                texture.updateFromState(state, this.memory);
             }
         }
-        this.lastTexture = texture;
-        texture.bind(0, (!hasClut && state.texture.filterMinification == 1) ? gl.LINEAR : gl.NEAREST, (!hasClut && state.texture.filterMagnification == 1) ? gl.LINEAR : gl.NEAREST, convertWrapMode[state.texture.wrapU], convertWrapMode[state.texture.wrapV]);
+        texture.bind(0, (enableBilinear && state.texture.filterMinification == 1) ? gl.LINEAR : gl.NEAREST, (enableBilinear && state.texture.filterMagnification == 1) ? gl.LINEAR : gl.NEAREST, convertWrapMode[state.texture.wrapU], convertWrapMode[state.texture.wrapV]);
         prog.getUniform('textureSize').set2f(texture.width, texture.height);
         prog.getUniform('pixelSize').set2f(1.0 / texture.width, 1.0 / texture.height);
         prog.getUniform('uSampler').set1i(0);
     };
-    TextureHandler.prototype._bindClut = function (prog, state) {
-        var gl = this.gl;
-        var hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
-        if (!hasClut)
-            return;
-        var _clut = null;
-        var clutState = state.texture.clut;
-        var hash1 = Clut.hashFast(state);
-        _clut = this.clutsByHash1.get(hash1);
-        if (this.mustRecheckSlowHashClut(_clut)) {
-            var hash2 = Clut.hashSlow(this.memory, state);
-            this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
-            _clut = this.clutsByHash2.get(hash2);
-            if (!_clut) {
-                if (!this.clutsByAddress.get(clutState.address)) {
-                    _clut = new Clut(gl);
-                    this.clutsByAddress.set(clutState.address, _clut);
-                    this.cluts.push(_clut);
-                    console.warn('New clut allocated!', clutState);
-                }
-                _clut = this.clutsByAddress.get(clutState.address);
-            }
-            if (_clut.hash2 != hash2) {
-                this.clutsByHash1.delete(_clut.hash1);
-                this.clutsByHash2.delete(_clut.hash2);
-                _clut.setInfo(clutState);
-                _clut.hash1 = hash1;
-                _clut.hash2 = hash2;
-                _clut.valid = true;
-                _clut.validHint = true;
-                this.clutsByHash1.set(hash1, _clut);
-                this.clutsByHash2.set(hash2, _clut);
-                _clut.numberOfColors = Math.max(clutState.numberOfColors, clutState.mask + 1);
-                var palette = new Uint32Array(256);
-                PixelConverter.decode(clutState.pixelFormat, this.memory.getPointerU8Array(clutState.address), palette.subarray(0, _clut.numberOfColors), true);
-                _clut.fromBytesRGBA(palette, 256);
-            }
-        }
-        _clut.bind(1);
-        prog.getUniform('samplerClut').set1i(1);
-        prog.getUniform('samplerClutStart').set1f(clutState.start);
-        prog.getUniform('samplerClutShift').set1f(clutState.shift);
-        prog.getUniform('samplerClutMask').set1f(clutState.mask);
-    };
     TextureHandler.prototype.unbindTexture = function (program, state) {
         var gl = this.gl;
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, null);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, null);
     };
@@ -11814,8 +12021,8 @@ var Memory = (function () {
         var count = (_count >>> 2) | 0;
         var result = 0;
         for (var n = 0; n < count; n++) {
-            var v = this.lw_2(addressAligned + n) | 0;
-            result = (result + v ^ n) | 0;
+            var v = this.lw_2(addressAligned + n);
+            result = (result + v ^ n);
         }
         return result;
     };
@@ -12004,23 +12211,38 @@ var PixelFormatUtils = (function () {
     function PixelFormatUtils() {
     }
     PixelFormatUtils.hasClut = function (pixelFormat) {
-        return ((pixelFormat >= 4) && (pixelFormat <= 7));
+        return ((pixelFormat >= PixelFormat.PALETTE_T4) && (pixelFormat <= PixelFormat.PALETTE_T32));
     };
     return PixelFormatUtils;
 })();
 exports.PixelFormatUtils = PixelFormatUtils;
+(function (PixelFormat) {
+    PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
+    PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
+    PixelFormat[PixelFormat["RGBA_5551"] = 1] = "RGBA_5551";
+    PixelFormat[PixelFormat["RGBA_4444"] = 2] = "RGBA_4444";
+    PixelFormat[PixelFormat["RGBA_8888"] = 3] = "RGBA_8888";
+    PixelFormat[PixelFormat["PALETTE_T4"] = 4] = "PALETTE_T4";
+    PixelFormat[PixelFormat["PALETTE_T8"] = 5] = "PALETTE_T8";
+    PixelFormat[PixelFormat["PALETTE_T16"] = 6] = "PALETTE_T16";
+    PixelFormat[PixelFormat["PALETTE_T32"] = 7] = "PALETTE_T32";
+    PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
+    PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
+    PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
+})(exports.PixelFormat || (exports.PixelFormat = {}));
+var PixelFormat = exports.PixelFormat;
 var sizes = new Float32Array(16);
-sizes[8] = 0.5;
-sizes[9] = 1;
-sizes[10] = 1;
-sizes[6] = 2;
-sizes[7] = 4;
-sizes[5] = 1;
-sizes[4] = 0.5;
-sizes[2] = 2;
-sizes[1] = 2;
-sizes[0] = 2;
-sizes[3] = 4;
+sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
+sizes[PixelFormat.COMPRESSED_DXT3] = 1;
+sizes[PixelFormat.COMPRESSED_DXT5] = 1;
+sizes[PixelFormat.PALETTE_T16] = 2;
+sizes[PixelFormat.PALETTE_T32] = 4;
+sizes[PixelFormat.PALETTE_T8] = 1;
+sizes[PixelFormat.PALETTE_T4] = 0.5;
+sizes[PixelFormat.RGBA_4444] = 2;
+sizes[PixelFormat.RGBA_5551] = 2;
+sizes[PixelFormat.RGBA_5650] = 2;
+sizes[PixelFormat.RGBA_8888] = 4;
 var PixelConverter = (function () {
     function PixelConverter() {
     }
@@ -12057,7 +12279,7 @@ var PixelConverter = (function () {
     };
     PixelConverter.decodeIndex = function (format, from, to) {
         switch (format) {
-            case 4:
+            case PixelFormat.PALETTE_T4:
                 var m = 0;
                 for (var n = 0; n < from.length; n++) {
                     var value = from[n];
@@ -12065,7 +12287,7 @@ var PixelConverter = (function () {
                     to[m++] = (value >> 4) & 0xF;
                 }
                 return to;
-            case 5:
+            case PixelFormat.PALETTE_T8:
                 to.set(from);
                 return to;
             default: throw new Error("Unsupported pixel format " + format);
@@ -12078,12 +12300,12 @@ var PixelConverter = (function () {
         if (clutShift === void 0) { clutShift = 0; }
         if (clutMask === void 0) { clutMask = 0; }
         switch (format) {
-            case 3: return PixelConverter.decode8888(from, to, useAlpha);
-            case 1: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
-            case 0: return PixelConverter.update5650(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
-            case 2: return PixelConverter.update4444(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
-            case 5: return PixelConverter.updateT8(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
-            case 4: return PixelConverter.updateT4(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
+            case PixelFormat.RGBA_8888: return PixelConverter.decode8888(from, to, useAlpha);
+            case PixelFormat.RGBA_5551: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case PixelFormat.RGBA_5650: return PixelConverter.update5650(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case PixelFormat.RGBA_4444: return PixelConverter.update4444(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case PixelFormat.PALETTE_T8: return PixelConverter.updateT8(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
+            case PixelFormat.PALETTE_T4: return PixelConverter.updateT4(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
             default: throw new Error("Unsupported pixel format " + format);
         }
     };
@@ -12098,7 +12320,7 @@ var PixelConverter = (function () {
         clutStart |= 0;
         clutShift |= 0;
         clutMask &= 0xF;
-        var updateT4Translate = PixelConverter.updateT4Translate;
+        var updateT4Translate = PixelConverter.updateTranslate;
         for (var m = 0; m < 16; m++)
             updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
         for (var n = 0, m = 0; n < count; n++) {
@@ -12118,7 +12340,7 @@ var PixelConverter = (function () {
         var count = to.length;
         clutMask &= 0xFF;
         if (count > 1024) {
-            var updateT8Translate = PixelConverter.updateT8Translate;
+            var updateT8Translate = PixelConverter.updateTranslate;
             for (var m = 0; m < 256; m++)
                 updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
             for (var m = 0; m < count; m++)
@@ -12179,11 +12401,11 @@ var PixelConverter = (function () {
         }
         return to;
     };
-    PixelConverter.updateT4Translate = new Uint32Array(16);
-    PixelConverter.updateT8Translate = new Uint32Array(256);
+    PixelConverter.updateTranslate = new Uint32Array(256);
     return PixelConverter;
 })();
 exports.PixelConverter = PixelConverter;
+exports.default = { PixelFormat: PixelFormat };
 
 },
 "src/core/rtc": function(module, exports, require) {
@@ -12528,7 +12750,7 @@ var Header = (function () {
     function Header() {
     }
     Object.defineProperty(Header.prototype, "numberOfBlocks", {
-        get: function () { return Math.floor(this.totalBytes / this.blockSize); },
+        get: function () { return Math.floor(this.totalBytes.number / this.blockSize); },
         enumerable: true,
         configurable: true
     });
@@ -12596,7 +12818,7 @@ var Cso = (function () {
         configurable: true
     });
     Object.defineProperty(Cso.prototype, "size", {
-        get: function () { return this.header.totalBytes; },
+        get: function () { return this.header.totalBytes.number; },
         enumerable: true,
         configurable: true
     });
@@ -15452,6 +15674,8 @@ var PspElfLoader = (function () {
                 nfunc.firmwareVersion = 150;
                 nfunc.nativeCall = function () {
                     console.info(_module);
+                    console.error("updateModuleFunctions: Not implemented '" + nfunc.name + "'");
+                    debugger;
                     throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
                 };
                 nfunc.call = function (context, state) {
@@ -16443,11 +16667,12 @@ var ThreadManager = (function () {
             } while (!this.interruptManager.enabled);
         }
         catch (e) {
-            if (e.message = 'CpuBreakException')
+            if (e.message == 'CpuBreakException')
                 return;
-            console.error(e);
-            console.error(e['stack']);
-            thread.stop('error:' + e);
+            var estack = e['stack'] || e;
+            console.error(estack);
+            alert(estack);
+            thread.stop('error:' + estack);
             throw (e);
         }
     };
@@ -17404,14 +17629,10 @@ var IoFileMgrForUser = (function () {
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         if (file.asyncResult) {
-            if (DebugOnce('sceIoPollAsync', 100))
-                log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
             resultPointer.writeInt64(file.asyncResult);
             return 0;
         }
         else {
-            if (DebugOnce('sceIoPollAsync', 100))
-                log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
             resultPointer.writeInt64(Integer64.fromInt(0));
             return 1;
         }
@@ -18787,16 +19008,28 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
         case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
     }
 };
-var _utils = require('../utils');
-var nativeFunction = _utils.nativeFunction;
+var utils_1 = require('../utils');
+var scePower_1 = require('./scePower');
 var sceImpose = (function () {
     function sceImpose(context) {
         this.context = context;
     }
     sceImpose.prototype.sceImposeGetBatteryIconStatus = function (isChargingPointer, iconStatusPointer) {
-        isChargingPointer.writeInt32(ChargingEnum.NotCharging);
-        iconStatusPointer.writeInt32(BatteryStatusEnum.FullyFilled);
-        return 0;
+        return scePower_1.Battery.getAsync().then(function (b) {
+            var charging = b.charging ? ChargingEnum.Charging : ChargingEnum.NotCharging;
+            var status = BatteryStatusEnum.FullyFilled;
+            if (b.level < 0.15)
+                status = BatteryStatusEnum.VeryLow;
+            if (b.level < 0.30)
+                status = BatteryStatusEnum.Low;
+            else if (b.level < 0.80)
+                status = BatteryStatusEnum.PartiallyFilled;
+            else
+                status = BatteryStatusEnum.FullyFilled;
+            isChargingPointer.writeInt32(charging);
+            iconStatusPointer.writeInt32(status);
+            return 0;
+        });
     };
     sceImpose.prototype.sceImposeSetLanguageMode = function (language, buttonPreference) {
         this.context.config.language = language;
@@ -18810,15 +19043,15 @@ var sceImpose = (function () {
     };
     Object.defineProperty(sceImpose.prototype, "sceImposeGetBatteryIconStatus",
         __decorate([
-            nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
+            utils_1.nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
         ], sceImpose.prototype, "sceImposeGetBatteryIconStatus", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeGetBatteryIconStatus")));
     Object.defineProperty(sceImpose.prototype, "sceImposeSetLanguageMode",
         __decorate([
-            nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')
+            utils_1.nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')
         ], sceImpose.prototype, "sceImposeSetLanguageMode", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeSetLanguageMode")));
     Object.defineProperty(sceImpose.prototype, "sceImposeGetLanguageMode",
         __decorate([
-            nativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*')
+            utils_1.nativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*')
         ], sceImpose.prototype, "sceImposeGetLanguageMode", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeGetLanguageMode")));
     return sceImpose;
 })();
@@ -18930,21 +19163,120 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
         case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
     }
 };
-var _utils = require('../utils');
-var nativeFunction = _utils.nativeFunction;
+var utils_1 = require('../utils');
+var pixelformat_1 = require('../../core/pixelformat');
 var SceKernelErrors = require('../SceKernelErrors');
+var ENABLE = false;
 var sceMpeg = (function () {
     function sceMpeg(context) {
         this.context = context;
+        this.pixelformat = pixelformat_1.PixelFormat.RGBA_8888;
+        this.mpegs = new Map();
     }
     sceMpeg.prototype.sceMpegInit = function () {
-        return -1;
+        return ENABLE ? 0 : -1;
     };
-    sceMpeg.prototype.sceMpegRingbufferQueryMemSize = function (numberOfPackets) {
-        return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
+    sceMpeg.prototype.sceMpegFinish = function () {
+        return 0;
+    };
+    sceMpeg.prototype._sceMpegReadField = function (name, bufferAddr, output, readField) {
+        var buffer = this.context.memory.getPointerStream(bufferAddr);
+        console.log(name + ": " + addressToHex(bufferAddr));
+        var pmf = PmfStruct.struct.createProxy(buffer);
+        if (pmf.magic != 'PSMF') {
+            debugger;
+            return SceKernelErrors.ERROR_MPEG_INVALID_VALUE;
+        }
+        var result = readField(pmf);
+        output.writeInt32(result);
+        console.log("--> " + result);
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegQueryStreamOffset = function (mpegAddr, bufferAddr, output) {
+        if (!this.isValidMpeg(mpegAddr))
+            return -1;
+        return this._sceMpegReadField('sceMpegQueryStreamOffset', bufferAddr, output, function (p) { return p.offset; });
+    };
+    sceMpeg.prototype.sceMpegQueryStreamSize = function (bufferAddr, output) {
+        return this._sceMpegReadField('sceMpegQueryStreamSize', bufferAddr, output, function (p) { return p.size; });
+    };
+    ;
+    sceMpeg.prototype.sceMpegAvcDecodeMode = function (mpegAddr, modeAddr) {
+        if (!this.isValidMpeg(mpegAddr))
+            return -1;
+        var mode = SceMpegAvcMode.struct.createProxy(modeAddr);
+        this.mode = mode.mode;
+        if ((mode.pixelformat >= pixelformat_1.PixelFormat.RGBA_5650) && (mode.pixelformat <= pixelformat_1.PixelFormat.RGBA_8888)) {
+            this.pixelformat = mode.pixelformat;
+        }
+        else {
+            console.warn("sceMpegAvcDecodeMode(" + mode.mode + ", " + mode.pixelformat + ") invalid pixelformat");
+        }
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegMallocAvcEsBuf = function (mpegAddr) {
+        if (!this.isValidMpeg(mpegAddr))
+            return -1;
+        var mpeg = this.mpegs.get(mpegAddr);
+        return mpeg.allocAvcEsBuf();
+    };
+    sceMpeg.prototype.sceMpegInitAu = function (mpegAddr, bufferAddr, auPointer) {
+        var au = SceMpegAu.struct.createProxy(auPointer);
+        au.esBuffer = bufferAddr;
+        au.esSize = 2112;
+        au.pts = Integer64.fromNumber(0);
+        au.dts = Integer64.fromNumber(0);
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegQueryAtracEsSize = function (mpegAddr, esSizeAddr, outSizeAddr) {
+        esSizeAddr.writeInt32(2112);
+        outSizeAddr.writeInt32(8192);
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegRegistStream = function (mpegAddr, streamType, streamNum) {
+        if (!this.isValidMpeg(mpegAddr))
+            return -1;
+        var mpeg = this.mpegs.get(mpegAddr);
+        return mpeg.registerStream(streamType, streamNum);
     };
     sceMpeg.prototype.sceMpegQueryMemSize = function (mode) {
         return sceMpeg.MPEG_MEMSIZE;
+    };
+    sceMpeg.prototype.isValidMpeg = function (mpegAddr) {
+        return this.mpegs.has(mpegAddr);
+    };
+    sceMpeg.prototype.sceMpegCreate = function (mpegAddr, dataPtr, size, ringbufferAddr, mode, ddrTop) {
+        if (!this.context.memory.isValidAddress(mpegAddr))
+            return -1;
+        if (size < sceMpeg.MPEG_MEMSIZE)
+            return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
+        if (ringbufferAddr == Stream.INVALID) {
+            var ringBuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
+            if (ringBuffer.packetSize == 0) {
+                ringBuffer.packetsAvail = 0;
+            }
+            else {
+                ringBuffer.packetsAvail = (ringBuffer.dataUpperBound - ringBuffer.data) / ringBuffer.packetSize;
+            }
+            ringBuffer.mpeg = mpegAddr;
+        }
+        var mpeg = this.context.memory.getPointerStream(mpegAddr);
+        mpeg.writeInt32(dataPtr + 0x30);
+        var mpegHandle = this.context.memory.getPointerStream(dataPtr + 0x30);
+        mpegHandle.writeString("LIBMPEG\0" + "001\0");
+        mpegHandle.writeInt32(-1);
+        this.mpegs.set(mpegAddr, this.mpeg = new Mpeg());
+    };
+    sceMpeg.prototype.sceMpegDelete = function (sceMpegPointer) {
+        //this.getMpeg(sceMpegPointer).delete();
+        return 0;
+    };
+    sceMpeg.prototype.sceMpegRingbufferAvailableSize = function (rinbuggerAddr) {
+        var ringbuffer = RingBuffer.struct.createProxy(rinbuggerAddr);
+        return ringbuffer.packets - ringbuffer.packetsAvail;
+    };
+    sceMpeg.prototype.sceMpegRingbufferQueryMemSize = function (numberOfPackets) {
+        return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
     };
     sceMpeg.prototype.sceMpegRingbufferConstruct = function (ringbufferAddr, numPackets, data, size, callbackAddr, callbackArg) {
         if (ringbufferAddr == Stream.INVALID)
@@ -18958,11 +19290,11 @@ var sceMpeg = (function () {
             else {
             }
         }
-        var buf = new RingBuffer();
+        var buf = RingBuffer.struct.createProxy(ringbufferAddr);
         buf.packets = numPackets;
         buf.packetsRead = 0;
         buf.packetsWritten = 0;
-        buf.packetsFree = 0;
+        buf.packetsAvail = 0;
         buf.packetSize = 2048;
         buf.data = data;
         buf.callback_addr = callbackAddr;
@@ -18970,38 +19302,34 @@ var sceMpeg = (function () {
         buf.dataUpperBound = data + numPackets * 2048;
         buf.semaID = 0;
         buf.mpeg = 0;
-        RingBuffer.struct.write(ringbufferAddr, buf);
-    };
-    sceMpeg.prototype.sceMpegCreate = function (mpegAddr, dataPtr, size, ringbufferAddr, mode, ddrTop) {
-        if (!this.context.memory.isValidAddress(mpegAddr))
-            return -1;
-        if (size < sceMpeg.MPEG_MEMSIZE)
-            return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
-        if (ringbufferAddr == Stream.INVALID) {
-            var ringBuffer = RingBuffer.struct.read(ringbufferAddr.clone());
-            if (ringBuffer.packetSize == 0) {
-                ringBuffer.packetsFree = 0;
-            }
-            else {
-                ringBuffer.packetsFree = (ringBuffer.dataUpperBound - ringBuffer.data) / ringBuffer.packetSize;
-            }
-            ringBuffer.mpeg = mpegAddr;
-        }
-        var mpeg = this.context.memory.getPointerStream(mpegAddr);
-        mpeg.writeInt32(dataPtr + 0x30);
-        var mpegHandle = this.context.memory.getPointerStream(dataPtr + 0x30);
-        mpegHandle.writeString("LIBMPEG\0" + "001\0");
-        mpegHandle.writeInt32(-1);
-    };
-    sceMpeg.prototype.sceMpegDelete = function (sceMpegPointer) {
-        //this.getMpeg(sceMpegPointer).delete();
-        return 0;
-    };
-    sceMpeg.prototype.sceMpegFinish = function () {
-        return 0;
     };
     sceMpeg.prototype.sceMpegRingbufferDestruct = function (ringBufferPointer) {
         return 0;
+    };
+    sceMpeg.prototype._mpegRingbufferRead = function () {
+    };
+    sceMpeg.prototype.sceMpegRingbufferPut = function (ringbufferAddr, numPackets, available) {
+        var state = this.context.currentState;
+        this._mpegRingbufferRead();
+        numPackets = Math.min(numPackets, available);
+        if (numPackets <= 0) {
+            debugger;
+            return 0;
+        }
+        var ringbuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
+        if (ringbuffer.callback_addr != 0) {
+            var packetsThisRound = Math.min(numPackets, ringbuffer.packets);
+            this.context.interop.execute(state, ringbuffer.callback_addr, [
+                ringbuffer.data, packetsThisRound, ringbuffer.callback_args
+            ]);
+            console.log(state.V0);
+        }
+        else {
+            console.warn("sceMpegRingbufferPut: callback_addr zero");
+            debugger;
+        }
+        this.mpeg.addData(this.context.memory.getPointerU8Array(ringbuffer.data, ringbuffer.packetSize));
+        return state.V0;
     };
     sceMpeg.prototype.__mpegRingbufferQueryMemSize = function (packets) {
         return packets * (104 + 2048);
@@ -19010,55 +19338,149 @@ var sceMpeg = (function () {
     sceMpeg.MPEG_MEMSIZE = 64 * 1024;
     Object.defineProperty(sceMpeg.prototype, "sceMpegInit",
         __decorate([
-            nativeFunction(0x682A619B, 150, 'uint', '')
+            utils_1.nativeFunction(0x682A619B, 150, 'uint', '')
         ], sceMpeg.prototype, "sceMpegInit", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegInit")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize",
+    Object.defineProperty(sceMpeg.prototype, "sceMpegFinish",
         __decorate([
-            nativeFunction(0xD7A29F46, 150, 'uint', 'int')
-        ], sceMpeg.prototype, "sceMpegRingbufferQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize")));
+            utils_1.nativeFunction(0x874624D6, 150, 'uint', '')
+        ], sceMpeg.prototype, "sceMpegFinish", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegFinish")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryStreamOffset",
+        __decorate([
+            utils_1.nativeFunction(0x21FF80E4, 150, 'uint', 'uint/uint/void*')
+        ], sceMpeg.prototype, "sceMpegQueryStreamOffset", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryStreamOffset")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryStreamSize",
+        __decorate([
+            utils_1.nativeFunction(0x611E9E11, 150, 'uint', 'uint/void*')
+        ], sceMpeg.prototype, "sceMpegQueryStreamSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryStreamSize")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegAvcDecodeMode",
+        __decorate([
+            utils_1.nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
+        ], sceMpeg.prototype, "sceMpegAvcDecodeMode", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegAvcDecodeMode")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegMallocAvcEsBuf",
+        __decorate([
+            utils_1.nativeFunction(0xA780CF7E, 150, 'uint', 'uint')
+        ], sceMpeg.prototype, "sceMpegMallocAvcEsBuf", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegMallocAvcEsBuf")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegInitAu",
+        __decorate([
+            utils_1.nativeFunction(0x167AFD9E, 150, 'uint', 'uint/uint/void*')
+        ], sceMpeg.prototype, "sceMpegInitAu", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegInitAu")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryAtracEsSize",
+        __decorate([
+            utils_1.nativeFunction(0xF8DCB679, 150, 'uint', 'uint/void*/void*')
+        ], sceMpeg.prototype, "sceMpegQueryAtracEsSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryAtracEsSize")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRegistStream",
+        __decorate([
+            utils_1.nativeFunction(0x42560F23, 150, 'uint', 'uint/uint/uint')
+        ], sceMpeg.prototype, "sceMpegRegistStream", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRegistStream")));
     Object.defineProperty(sceMpeg.prototype, "sceMpegQueryMemSize",
         __decorate([
-            nativeFunction(0xC132E22F, 150, 'uint', 'int')
+            utils_1.nativeFunction(0xC132E22F, 150, 'uint', 'int')
         ], sceMpeg.prototype, "sceMpegQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryMemSize")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferConstruct",
-        __decorate([
-            nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
-        ], sceMpeg.prototype, "sceMpegRingbufferConstruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferConstruct")));
     Object.defineProperty(sceMpeg.prototype, "sceMpegCreate",
         __decorate([
-            nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
+            utils_1.nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
         ], sceMpeg.prototype, "sceMpegCreate", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegCreate")));
     Object.defineProperty(sceMpeg.prototype, "sceMpegDelete",
         __decorate([
-            nativeFunction(0x606A4649, 150, 'uint', 'int')
+            utils_1.nativeFunction(0x606A4649, 150, 'uint', 'int')
         ], sceMpeg.prototype, "sceMpegDelete", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegDelete")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegFinish",
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferAvailableSize",
         __decorate([
-            nativeFunction(0x874624D6, 150, 'uint', '')
-        ], sceMpeg.prototype, "sceMpegFinish", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegFinish")));
+            utils_1.nativeFunction(0xB5F6DC87, 150, 'uint', 'void*')
+        ], sceMpeg.prototype, "sceMpegRingbufferAvailableSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferAvailableSize")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize",
+        __decorate([
+            utils_1.nativeFunction(0xD7A29F46, 150, 'uint', 'int')
+        ], sceMpeg.prototype, "sceMpegRingbufferQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferConstruct",
+        __decorate([
+            utils_1.nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
+        ], sceMpeg.prototype, "sceMpegRingbufferConstruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferConstruct")));
     Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferDestruct",
         __decorate([
-            nativeFunction(0x13407F13, 150, 'uint', 'int')
+            utils_1.nativeFunction(0x13407F13, 150, 'uint', 'int')
         ], sceMpeg.prototype, "sceMpegRingbufferDestruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferDestruct")));
+    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferPut",
+        __decorate([
+            utils_1.nativeFunction(0xB240A59E, 150, 'uint', 'void*/uint/uint')
+        ], sceMpeg.prototype, "sceMpegRingbufferPut", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferPut")));
     return sceMpeg;
 })();
 exports.sceMpeg = sceMpeg;
+var StreamType;
+(function (StreamType) {
+    StreamType[StreamType["Avc"] = 0] = "Avc";
+    StreamType[StreamType["Atrac"] = 1] = "Atrac";
+    StreamType[StreamType["Pcm"] = 2] = "Pcm";
+    StreamType[StreamType["Data"] = 3] = "Data";
+    StreamType[StreamType["Audio"] = 15] = "Audio";
+})(StreamType || (StreamType = {}));
+var Mpeg = (function () {
+    function Mpeg() {
+        this.streamIdGen = 1;
+        this.avcEsBuf = 1;
+        MediaEngine.MeStream.openData(new Uint8Array(1024));
+    }
+    Mpeg.prototype.addData = function (data) {
+    };
+    Mpeg.prototype.registerStream = function (type, num) {
+        return this.streamIdGen++;
+    };
+    Mpeg.prototype.allocAvcEsBuf = function () {
+        return this.avcEsBuf++;
+    };
+    return Mpeg;
+})();
+var SceMpegAvcMode = (function () {
+    function SceMpegAvcMode() {
+    }
+    SceMpegAvcMode.struct = StructClass.create(SceMpegAvcMode, [
+        { mode: Int32 },
+        { pixelformat: Int32 },
+    ]);
+    return SceMpegAvcMode;
+})();
+var SceMpegAu = (function () {
+    function SceMpegAu() {
+    }
+    SceMpegAu.struct = StructClass.create(SceMpegAu, [
+        { pts: Int64 },
+        { dts: Int64 },
+        { esBuffer: UInt32 },
+        { esSize: UInt32 },
+    ]);
+    return SceMpegAu;
+})();
+var PmfStruct = (function () {
+    function PmfStruct() {
+    }
+    PmfStruct.struct = StructClass.create(PmfStruct, [
+        { magic: Stringn(4) },
+        { version: UInt32 },
+        { offset: UInt32 },
+        { size: UInt32 },
+        { _unknown: Stringn(0x44) },
+        { firstTimestampOffset: Stringn(6) },
+        { lastTimestampOffset: Stringn(6) },
+    ]);
+    return PmfStruct;
+})();
 var RingBuffer = (function () {
     function RingBuffer() {
     }
     RingBuffer.struct = StructClass.create(RingBuffer, [
-        { packets: Int32 },
-        { packetsRead: Int32 },
-        { packetsWritten: Int32 },
-        { packetsFree: Int32 },
-        { packetSize: Int32 },
-        { data: UInt32 },
-        { callback_addr: UInt32 },
-        { callback_args: Int32 },
-        { dataUpperBound: Int32 },
-        { semaID: Int32 },
-        { mpeg: UInt32 },
-        { gp: UInt32 },
+        { packets: Int32_l },
+        { packetsRead: Int32_l },
+        { packetsWritten: Int32_l },
+        { packetsAvail: Int32_l },
+        { packetSize: Int32_l },
+        { data: UInt32_l },
+        { callback_addr: UInt32_l },
+        { callback_args: Int32_l },
+        { dataUpperBound: Int32_l },
+        { semaID: Int32_l },
+        { mpeg: UInt32_l },
+        { gp: UInt32_l },
     ]);
     return RingBuffer;
 })();
@@ -20015,12 +20437,12 @@ var scePower = (function () {
         this._setCpuFreq(cpuFreq);
         return 0;
     };
-    scePower.prototype.scePowerGetBatteryLifePercent = function () { return 100; };
-    scePower.prototype.scePowerIsPowerOnline = function () { return 1; };
+    scePower.prototype.scePowerGetBatteryLifePercent = function () { return Battery.getAsync().then(function (b) { return (b.level * 100) | 0; }); };
+    scePower.prototype.scePowerIsPowerOnline = function () { return Battery.getAsync().then(function (b) { return +b.charging; }); };
     scePower.prototype.scePowerIsBatteryExist = function () { return 1; };
-    scePower.prototype.scePowerIsLowBattery = function () { return 0; };
-    scePower.prototype.scePowerIsBatteryCharging = function () { return 1; };
-    scePower.prototype.scePowerGetBatteryLifeTime = function () { return 3 * 60; };
+    scePower.prototype.scePowerIsLowBattery = function () { return Battery.getAsync().then(function (b) { return +b.isBatteryLow; }); };
+    scePower.prototype.scePowerIsBatteryCharging = function () { return Battery.getAsync().then(function (b) { return +b.charging; }); };
+    scePower.prototype.scePowerGetBatteryLifeTime = function () { return Battery.getAsync().then(function (b) { return (b.lifetime / 60) | 0; }); };
     scePower.prototype.scePowerGetBatteryVolt = function () { return 4135; };
     scePower.prototype.scePowerGetBatteryTemp = function () { return 28; };
     scePower.prototype.scePowerLock = function (unknown) { return 0; };
@@ -20144,6 +20566,64 @@ var scePower = (function () {
     return scePower;
 })();
 exports.scePower = scePower;
+var Battery = (function () {
+    function Battery(manager) {
+        this.manager = manager;
+        Battery.instance = this;
+    }
+    Object.defineProperty(Battery.prototype, "lifetime", {
+        get: function () {
+            if (this.manager != null)
+                return Math.min(10 * 3600, this.manager.dischargingTime);
+            return 3 * 3600;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "charging", {
+        get: function () {
+            if (this.manager != null)
+                return this.manager.charging;
+            return true;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "level", {
+        get: function () {
+            if (this.manager != null)
+                return this.manager.level;
+            return 1.0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "isBatteryLow", {
+        get: function () {
+            return this.level < 0.25;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Battery.getAsync = function () {
+        if (this.instance)
+            return Promise2.resolve(this.instance);
+        if (this.promise)
+            return this.promise;
+        if (navigator.battery)
+            return Promise2.resolve(new Battery(navigator.battery));
+        if (navigator.getBattery) {
+            return this.promise = Promise2.fromThenable(navigator.getBattery()).then(function (v) {
+                return new Battery(v);
+            });
+        }
+        return Promise2.resolve(new Battery(null));
+    };
+    Battery.instance = null;
+    Battery.promise = null;
+    return Battery;
+})();
+exports.Battery = Battery;
 var CallbackStatus;
 (function (CallbackStatus) {
     CallbackStatus[CallbackStatus["AC_POWER"] = 4096] = "AC_POWER";
@@ -22923,12 +23403,12 @@ exports.HleIoDirent = HleIoDirent;
 var _cpu = require('../core/cpu');
 exports.NativeFunction = _cpu.NativeFunction;
 var createNativeFunction = _cpu.createNativeFunction;
-function nativeFunction(exportId, firmwareVersion, argTypesString, args, options) {
+function nativeFunction(exportId, firmwareVersion, retval, args, options) {
     return function (target, key, descriptor) {
         if (typeof target.natives == 'undefined')
             target.natives = [];
         target.natives.push(function (target) {
-            return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, options, "" + target.constructor.name, key);
+            return createNativeFunction(exportId, firmwareVersion, retval, args, target, descriptor.value, options, "" + target.constructor.name, key);
         });
         return descriptor;
     };

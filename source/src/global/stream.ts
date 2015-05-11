@@ -275,7 +275,7 @@ class Stream {
 	readUInt16(endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.getUint16(this.offset, (endian == Endian.LITTLE))); }
 	readUInt32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getUint32(this.offset, (endian == Endian.LITTLE))); }
 
-	readStruct<T>(struct: IType) {
+	readStruct<T>(struct: IType<T>) {
 		return <T><any>struct.read(this);
 	}
 
@@ -306,7 +306,7 @@ class Stream {
 		return this;
 	}
 
-	writeStruct<T>(struct: IType, value: T) {
+	writeStruct<T>(struct: IType<T>, value: T) {
 		struct.write(this, value);
 	}
 

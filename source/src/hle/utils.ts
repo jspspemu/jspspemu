@@ -8,11 +8,11 @@ interface CreateOptions {
 	disableInsideInterrupt?: boolean;
 }
 
-export function nativeFunction(exportId:number, firmwareVersion:number, argTypesString:string, args:string, options?:CreateOptions) {
+export function nativeFunction(exportId:number, firmwareVersion:number, retval:string, args:string, options?:CreateOptions) {
 	return (target: any, key: string, descriptor: TypedPropertyDescriptor<any>) => {
 		if (typeof target.natives == 'undefined') target.natives = [];
 		target.natives.push((target:any) => {
-			return createNativeFunction(exportId, firmwareVersion, argTypesString, args, target, descriptor.value, options, `${target.constructor.name}`, key)
+			return createNativeFunction(exportId, firmwareVersion, retval, args, target, descriptor.value, options, `${target.constructor.name}`, key)
 		});
 		return descriptor;
 	};

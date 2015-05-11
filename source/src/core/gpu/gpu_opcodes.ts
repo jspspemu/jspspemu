@@ -1,6 +1,6 @@
 ﻿///<reference path="../../global.d.ts" />
 
-export const enum GpuOpCodes {
+export enum GpuOpCodes {
 	NOP = 0x00, VADDR = 0x01, IADDR = 0x02, Unknown0x03 = 0x03,
 	PRIM = 0x04, BEZIER = 0x05, SPLINE = 0x06, BOUNDINGBOX = 0x07,
 	JUMP = 0x08, BJUMP = 0x09, CALL = 0x0A, RET = 0x0B,

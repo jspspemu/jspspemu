@@ -1,24 +1,18 @@
 ﻿///<reference path="../../../global.d.ts" />
 ///<reference path="./webgl_enums.d.ts" />
 
-import _driver = require('../gpu_driver');
-import _state = require('../gpu_state');
+import { BaseDrawDriver as IDrawDriver } from '../gpu_driver';
+import {
+GpuState, Color, VertexInfo, PrimitiveType,
+CullingDirection, GuBlendingEquation, TextureMapMode,
+GuBlendingFactor
+} from '../gpu_state';
 import _vertex = require('../gpu_vertex');
-import _memory = require('../../memory');
-import _display = require('../../display');
-import _shader = require('./webgl_shader');
-import _texture = require('./webgl_texture');
-import _utils = require('./webgl_utils');
-
-import FastFloat32Buffer = _utils.FastFloat32Buffer;
-import IDrawDriver = _driver.BaseDrawDriver;
-import ShaderCache = _shader.ShaderCache;
-import Texture = _texture.Texture;
-import TextureHandler = _texture.TextureHandler;
-import Memory = _memory.Memory;
-import GpuState = _state.GpuState;
-import IPspDisplay = _display.IPspDisplay;
-import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
+import { Memory } from '../../memory';
+import { IPspDisplay } from '../../display';
+import { ShaderCache } from './webgl_shader';
+import { Texture, TextureHandler } from './webgl_texture';
+import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';
 
 class WebGlPspDrawDriver extends IDrawDriver {
 	private gl: WebGLRenderingContext;
@@ -134,12 +128,12 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	private opsConvertTable: number[] = [GL.KEEP, GL.ZERO, GL.REPLACE, GL.INVERT, GL.INCR, GL.DECR];
 	private testConvertTable: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.LESS, GL.LEQUAL, GL.GREATER, GL.GEQUAL];
 	private testConvertTable_inv: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.GREATER, GL.GEQUAL, GL.LESS, GL.LEQUAL];
-	private updateNormalState(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
+	private updateNormalState(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
 
-		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != _state.PrimitiveType.Sprites))) {
-			gl.cullFace((state.culling.direction == _state.CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
+		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != PrimitiveType.Sprites))) {
+			gl.cullFace((state.culling.direction == CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 		}
 
 		if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
@@ -150,7 +144,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 
 		var blending = state.blending;
 		if (this.enableDisable(gl.BLEND, blending.enabled)) {
-			var getBlendFix = (color: _state.Color) => {
+			var getBlendFix = (color: Color) => {
 				if (color.equals(0, 0, 0, 1)) return gl.ZERO;
 				if (color.equals(1, 1, 1, 1)) return gl.ONE;
 				return gl.CONSTANT_COLOR;
@@ -159,12 +153,12 @@ class WebGlPspDrawDriver extends IDrawDriver {
 			var sfactor = gl.SRC_COLOR + blending.functionSource;
 			var dfactor = gl.SRC_COLOR + blending.functionDestination;
 
-			if (blending.functionSource == _state.GuBlendingFactor.GU_FIX) {
+			if (blending.functionSource == GuBlendingFactor.GU_FIX) {
 				sfactor = getBlendFix(blending.fixColorSource);
 			}
 
-			if (blending.functionDestination == _state.GuBlendingFactor.GU_FIX) {
-				if ((sfactor == gl.CONSTANT_COLOR) && ((_state.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
+			if (blending.functionDestination == GuBlendingFactor.GU_FIX) {
+				if ((sfactor == gl.CONSTANT_COLOR) && ((Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
 					dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
 				} else {
 					dfactor = getBlendFix(blending.fixColorDestination);
@@ -175,12 +169,12 @@ class WebGlPspDrawDriver extends IDrawDriver {
 			gl.blendEquation(this.equationTranslate[blending.equation]);
 			gl.blendFunc(sfactor, dfactor);
 			switch (blending.equation) {
-				case _state.GuBlendingEquation.Abs:
-				case _state.GuBlendingEquation.Max:
-				case _state.GuBlendingEquation.Min:
-				case _state.GuBlendingEquation.Add: gl.blendEquation(gl.FUNC_ADD); break;
-				case _state.GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
-				case _state.GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
+				case GuBlendingEquation.Abs:
+				case GuBlendingEquation.Max:
+				case GuBlendingEquation.Min:
+				case GuBlendingEquation.Add: gl.blendEquation(gl.FUNC_ADD); break;
+				case GuBlendingEquation.Substract: gl.blendEquation(gl.FUNC_SUBTRACT); break;
+				case GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
 			}
 
 			var blendColor = blending.fixColorDestination;
@@ -210,12 +204,12 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 	}
 
-	private updateClearStateEnd(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
+	private updateClearStateEnd(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
 		var gl = this.gl;
 		gl.colorMask(true, true, true, true);
 	}
 
-	private updateClearStateStart(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
+	private updateClearStateStart(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
 		var state = this.state;
 		var gl = this.gl;
 		var ccolorMask = false, calphaMask = false;
@@ -251,7 +245,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		gl.colorMask(ccolorMask, ccolorMask, ccolorMask, calphaMask);
 	}
 
-	private updateCommonState(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
+	private updateCommonState(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
 		var viewport = this.state.viewport;
 		//var region = this.state.region;
 
@@ -267,7 +261,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		//this.gl.viewport(0, 0, 1440, 816);
 	}
 
-	private updateState(program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo, primitiveType: _state.PrimitiveType) {
+	private updateState(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
 		program.getUniform('u_enableColors').set1i(this.enableColors ? 1 : 0);
 		program.getUniform('u_enableTextures').set1i(this.enableTextures ? 1 : 0);
 		program.getUniform('u_enableSkinning').set1i(this.enableSkinning ? 1 : 0);
@@ -293,7 +287,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.display.setEnabledDisplay(false);
 	}
 	
-	private setAttribute(databuffer:WebGLBuffer, attribPosition:_utils.WrappedWebGLAttrib, componentCount:number, componentType:number, vertexSize:number, offset:number) {
+	private setAttribute(databuffer:WebGLBuffer, attribPosition:WrappedWebGLAttrib, componentCount:number, componentType:number, vertexSize:number, offset:number) {
 		if (attribPosition.location < 0) return;
 		var gl = this.gl;
 
@@ -317,6 +311,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		gl.bufferData(gl.ARRAY_BUFFER, optimizedDrawBuffer.getData(), gl.DYNAMIC_DRAW);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, optimizedDrawBuffer.getIndices(), gl.DYNAMIC_DRAW);
+		//gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 	}
 	
 	drawOptimized(buffer:_vertex.OptimizedBatch):void {
@@ -450,15 +445,15 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	tempVec = new Float32Array([0, 0, 0])
 	texMat = mat4.create();
 
-	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo) {
-		if (vertexInfo.hasTexture) {
-			this.textureHandler.bindTexture(program, this.state);
+	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo) {
+		if (vertexInfo.hasTexture && this.enableTextures) {
+			this.textureHandler.bindTexture(program, this.state, this.enableBilinear);
 		} else {
 			this.textureHandler.unbindTexture(program, this.state);
 		}
 	}
 
-	private calcTexMatrix(vertexInfo: _state.VertexInfo) {
+	private calcTexMatrix(vertexInfo: VertexInfo) {
 		var texture = this.state.texture;
 		var mipmap = texture.mipmaps[0];
 		mat4.identity(this.texMat);
@@ -467,7 +462,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 			t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
 		} else {
 			switch (texture.textureMapMode) {
-				case _state.TextureMapMode.GU_TEXTURE_COORDS:
+				case TextureMapMode.GU_TEXTURE_COORDS:
 					t[0] = texture.offsetU; t[1] = texture.offsetV; t[2] = 0.0; mat4.translate(this.texMat, this.texMat, t);
 					t[0] = texture.scaleU; t[1] = texture.scaleV; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
 
@@ -482,7 +477,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 	}
 
-	private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo) {
+	private setProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo) {
 		program.getUniform('u_modelViewProjMatrix').setMat4(vertexInfo.transform2D ? this.transformMatrix2d : this.transformMatrix);
 
 		program.getAttrib("vPosition").setFloats(3, this.positionData.slice());
@@ -522,7 +517,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 	}
 
-	private unsetProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: _state.VertexInfo) {
+	private unsetProgramParameters(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo) {
 		program.getAttrib("vPosition").disable();
 		if (vertexInfo.hasTexture) program.getAttrib("vTexcoord").disable();
 		if (vertexInfo.hasNormal) program.getAttrib("vNormal").disable();

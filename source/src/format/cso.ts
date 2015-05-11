@@ -7,13 +7,13 @@ var CSO_MAGIC = 'CISO';
 class Header {
     magic: string;
     headerSize: number;
-    totalBytes: number;
+    totalBytes: Integer64;
     blockSize: number;
     version: number;
     alignment: number;
     reserved: number;
 
-    get numberOfBlocks() { return Math.floor(this.totalBytes / this.blockSize); }
+    get numberOfBlocks() { return Math.floor(this.totalBytes.number / this.blockSize); }
 
     static struct = StructClass.create<Header>(Header, [
 		{ magic: Stringz(4) },
@@ -77,7 +77,7 @@ export class Cso implements AsyncStream {
     }
 
 	get name() { return this.stream.name; }
-    get size() { return this.header.totalBytes; }
+    get size() { return this.header.totalBytes.number; }
 	
 	private readUncachedBlocksAsync(index: number, count:number):Promise2<Block[]> {
 		var low = this.getBlockInfo(index).low;

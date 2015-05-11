@@ -12,107 +12,64 @@ import PixelConverter = _pixelformat.PixelConverter;
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 import Memory = _memory.Memory;
 
-export class Clut {
-	private texture: WebGLTexture;
-	numberOfColors: number;
-	clut_start: number;
-	clut_end: number
-	clutFormat: PixelFormat;
-	valid: boolean = true;
-	validHint: boolean = true;
-	hash1: number = -1;
-	hash2: number = -1;
-
-	constructor(private gl: WebGLRenderingContext) {
-		this.texture = gl.createTexture();
-	}
-
-	setInfo(clut: _state.ClutState) {
-		this.clutFormat = clut.pixelFormat;
-		this.clut_start = clut.address;
-		this.clut_end = clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors);
-	}
-
-	private _create(callbackTex2D: () => void) {
-		var gl = this.gl;
-
-		gl.bindTexture(gl.TEXTURE_2D, this.texture);
-		callbackTex2D();
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.bindTexture(gl.TEXTURE_2D, null);
-	}
-
-	fromBytesRGBA(data: Uint32Array, numberOfColors: number) {
-		var gl = this.gl;
-
-		this.numberOfColors = numberOfColors;
-		this._create(() => {
-			// @TODO: not detected signature
-			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, numberOfColors, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
-			//gl.generateMipmap(gl.TEXTURE_2D);
-		});
-	}
-
-	bind(textureUnit: number) {
-		var gl = this.gl;
-		gl.activeTexture(gl.TEXTURE0 + textureUnit);
-		gl.bindTexture(gl.TEXTURE_2D, this.texture);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	}
-
-	static hashFast(state: _state.GpuState) {
-		return state.texture.clut.hash;
-	}
-
-	static hashSlow(memory: Memory, state: _state.GpuState) {
-		var clut = state.texture.clut;
-
-		var hash_number = 0;
-		hash_number += memory.hash(
-			clut.address + PixelConverter.getSizeInBytes(clut.pixelFormat, clut.start + clut.shift * clut.numberOfColors),
-			PixelConverter.getSizeInBytes(clut.pixelFormat, clut.numberOfColors)
-		) * Math.pow(2, 30);
-		hash_number += clut.hash * Math.pow(2, 16);
-
-		return hash_number;
-	}
-}
-
 export class Texture {
 	private texture: WebGLTexture;
-	recheckTimestamp: number = 0;
-	valid = true;
-	validHint = true;
-	swizzled = false;
-	hash1: number = -1;
-	hash2: number = -1;
-
-	address_start: number;
-	address_end: number
-
-	pixelFormat: PixelFormat;
-	width: number;
-	height: number;
+	valid = false;
+	hash: string = '';
 
 	recheckCount = 0;
 	framesEqual = 0;
+	
+	private state: _state.GpuState;
 
 	constructor(private gl: WebGLRenderingContext) {
 		this.texture = gl.createTexture();
+		this.state = new _state.GpuState();
 	}
+	
+	get textureState() { return this.state.texture; }
+	get mipmap() { return this.textureState.mipmaps[0]; }
+	
+	get width() { return this.mipmap.textureWidth; }
+	get height() { return this.mipmap.textureHeight; }
+	get swizzled() { return this.textureState.swizzled; }
+	get addressStart() { return this.mipmap.address; }
+	get addressEnd() { return this.mipmap.addressEnd; }
+	get pixelFormat() { return this.textureState.pixelFormat; }
 
-	setInfo(state: _state.GpuState) {
-		var texture = state.texture;
-		var mipmap = texture.mipmaps[0];
+	updateFromState(state: _state.GpuState, memory: _memory.Memory) {
+		this.state.copyFrom(state);
+		
+		//this.updatedTextures.add(texture);
 
-		this.swizzled = texture.swizzled;
-		this.address_start = mipmap.address;
-		this.address_end = mipmap.address + PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.bufferWidth * mipmap.textureHeight);
-		this.pixelFormat = texture.pixelFormat;
+		var textureState = state.texture;
+		var clutState = state.texture.clut;
+		var mipmap = textureState.mipmaps[0];
+
+		var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+
+		var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
+		data.set(memory.getPointerU8Array(mipmap.address, data.length));
+		//data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
+
+		if (state.texture.swizzled) PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
+		
+		var clut: Uint32Array = null;
+		if (textureState.hasClut) {
+			clut = PixelConverter.decode(
+				clutState.pixelFormat,
+				memory.getPointerU8Array(clutState.address),
+				new Uint32Array(256), textureState.hasAlpha, null
+			);
+		}
+		
+		this.fromBytesRGBA(PixelConverter.decode(
+			textureState.pixelFormat, data, new Uint32Array(w2 * h),
+			textureState.hasAlpha,
+			clut, clutState.start, clutState.shift, clutState.mask 
+		), w2, h);
+		
+		//console.log('texture updated!');
 	}
 
 	private _create(callbackTex2D: () => void) {
@@ -131,15 +88,6 @@ export class Texture {
 		this.height = height;
 		this._create(() => {
 			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
-		});
-	}
-
-	fromBytesIndex(data: Uint8Array, width: number, height: number) {
-		var gl = this.gl;
-		this.width = width;
-		this.height = height;
-		this._create(() => {
-			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width, height, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, data);
 		});
 	}
 
@@ -168,32 +116,6 @@ export class Texture {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
 	}
 
-	static hashFast(state: _state.GpuState) {
-		var result = state.texture.mipmaps[0].address;
-		result += (state.texture.swizzled ? 1 : 0) * Math.pow(2, 13);
-		return result;
-	}
-
-	static hashSlow(memory: Memory, state: _state.GpuState) {
-		var texture = state.texture;
-		var mipmap = texture.mipmaps[0];
-		var clut = texture.clut;
-
-		var hash_number = 0;
-
-		hash_number += (texture.swizzled ? 1 : 0) * Math.pow(2, 0);
-		hash_number += (texture.pixelFormat) * Math.pow(2, 1);
-		hash_number += (mipmap.bufferWidth) * Math.pow(2, 3);
-		hash_number += (mipmap.textureWidth) * Math.pow(2, 6);
-		hash_number += (mipmap.textureHeight) * Math.pow(2, 8);
-		hash_number += memory.hash(
-			mipmap.address,
-			PixelConverter.getSizeInBytes(texture.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth)
-		) * Math.pow(2, 12);
-
-		return hash_number;
-	}
-
 	static createCanvas() {
 		/*
 		var canvas:HTMLCanvasElement = document.createElement('canvas');
@@ -220,7 +142,7 @@ export class Texture {
 	}
 
 	toString() {
-		return `Texture(address = ${this.address_start}, hash1 = ${this.hash1}, hash2 = ${this.hash2}, pixelFormat = ${this.pixelFormat}, swizzled = ${this.swizzled}`;
+		return `Texture(address = ${this.addressStart}, hash = ${this.hash}, pixelFormat = ${this.pixelFormat}, swizzled = ${this.swizzled}`;
 	}
 }
 
@@ -231,18 +153,11 @@ export class TextureHandler {
 		this.invalidateWithGl(gl);
 	}
 
-	private texturesByHash2:Map<number, Texture>;
-	private texturesByHash1:Map<number, Texture>;
+	private texturesByHash:Map<string, Texture>;
 	private texturesByAddress:Map<number, Texture>;
 	private textures:Texture[];
 	
-	private clutsByHash2:Map<number, Clut>;
-	private clutsByHash1:Map<number, Clut>;
-	private clutsByAddress:Map<number, Clut>;
-	private cluts:Clut[];
-	
 	private recheckTimestamp: number = 0;
-	private lastTexture: Texture;
 	//private updatedTextures = new SortedSet<Texture>();
 	private invalidatedAll = false;
 
@@ -251,35 +166,17 @@ export class TextureHandler {
 	invalidateWithGl(gl: WebGLRenderingContext) {
 		this.gl = gl;
 		
-		this.texturesByHash1 = new Map<number, Texture>();
-		this.texturesByHash2 = new Map<number, Texture>();
+		this.texturesByHash = new Map<string, Texture>();
 		this.texturesByAddress = new Map<number, Texture>();
 		this.textures = [];
-
-		this.clutsByHash1 = new Map<number, Clut>();
-		this.clutsByHash2 = new Map<number, Clut>();
-		this.clutsByAddress = new Map<number, Clut>();
-		this.cluts = [];
 		
 		this.recheckTimestamp = 0;
 		this.invalidatedAll = false;
-		this.lastTexture = null;
 	}
 
 	flush() {
 		//console.log('flush!');
-		for (let texture of this.textures) {
-			if (!texture.validHint) {
-				texture.valid = false;
-				texture.validHint = true;
-			}
-		}
-		for (let clut of this.cluts) {
-			if (!clut.validHint) {
-				clut.valid = false;
-				clut.validHint = true;
-			}
-		}
+		for (let texture of this.textures) texture.valid = false;
 	}
 
 	sync() {
@@ -288,8 +185,7 @@ export class TextureHandler {
 	end() {
 		if (!this.invalidatedAll) return;
 		this.invalidatedAll = false;
-		for (let texture of this.textures) texture.validHint = false;
-		for (let clut of this.cluts) clut.validHint = false;
+		for (let texture of this.textures) texture.valid = false;
 	}
 
 	private invalidatedMemoryAll() {
@@ -298,41 +194,13 @@ export class TextureHandler {
 
 	private invalidatedMemoryRange(range: NumericRange) {
 		for (let texture of this.textures) {
-			if (texture.address_start >= range.start && texture.address_end <= range.end) texture.validHint = false;
-		}
-		for (let clut of this.cluts) {
-			if (clut.clut_start >= range.start && clut.clut_end <= range.end) clut.validHint = false;
+			if (texture.addressStart >= range.start && texture.addressEnd <= range.end) texture.valid = false;
 		}
 	}
 
-	private mustRecheckSlowHashTexture(texture: Texture) {
-		//return !texture || !texture.valid || this.recheckTimestamp >= texture.recheckTimestamp;
-		if (!texture) return true;
-		if (texture.recheckCount++ >= texture.framesEqual) {
-			return !texture.valid;
-			//return false;
-		} else {
-			texture.recheckCount = 0;
-			return false;
-		}
-		//return !texture;
-	}
-
-	private mustRecheckSlowHashClut(clut: Clut) {
-		return !clut || !clut.valid;
-	}
-	
-	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState) {
+	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState, enableBilinear:boolean) {
 		var gl = this.gl;
 		gl.activeTexture(gl.TEXTURE0);
-		this._bindTexture(prog, state);
-		gl.activeTexture(gl.TEXTURE1);
-		this._bindClut(prog, state);
-		gl.activeTexture(gl.TEXTURE0);
-	}
-
-	_bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState) {
-		var gl = this.gl;
 
 		var mipmap = state.texture.mipmaps[0];
 
@@ -341,87 +209,42 @@ export class TextureHandler {
 		if (mipmap.textureHeight == 0) return;
 
 		let hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
+		let clutState = state.texture.clut;
 		let textureState = state.texture;
 
-		var hash1 = Texture.hashFast(state);
-		var texture = this.texturesByHash1.get(hash1);
-		var texture1 = texture;
-		//if (texture && texture.valid && this.recheckTimestamp < texture.recheckTimestamp) return texture;
-		if (this.mustRecheckSlowHashTexture(texture)) {
+		var texture: Texture;		
+		if (!this.texturesByAddress.get(mipmap.address)) {
+			texture = new Texture(gl);
+			this.texturesByAddress.set(mipmap.address, texture);
+			this.textures.push(texture);
+			//console.warn('New texture allocated!', mipmap, state.texture);
+		}
+
+		texture = this.texturesByAddress.get(mipmap.address);
+		
 		//if (true) {
-			var hash2 = Texture.hashSlow(this.memory, state);
-			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(textureState.pixelFormat, mipmap.textureHeight * mipmap.bufferWidth));
-			//var hash2 = hash1;
-
-			//console.log(hash);
-
-			texture = this.texturesByHash2.get(hash2);
-
-			if (texture) {
-				if (texture1 == texture) {
-					texture.framesEqual++;
-				} else {
-					texture.framesEqual = 0;
-				}
-			}
-
-			//if (!texture || !texture.valid) {
-			if (!texture) {
-				if (!this.texturesByAddress.get(mipmap.address)) {
-					texture = new Texture(gl);
-					this.texturesByAddress.set(mipmap.address, texture);
-					this.textures.push(texture);
-					console.warn('New texture allocated!', mipmap, state.texture);
-				}
-
-				texture = this.texturesByAddress.get(mipmap.address);
-			}
+		if (!texture.valid) {
+			var hash = textureState.getHashSlow(this.memory);
+			this.rehashSignal.dispatch(mipmap.sizeInBytes);
 			
-			if (texture.hash2 != hash2) {
-				this.texturesByHash1.delete(texture.hash1);
-				this.texturesByHash2.delete(texture.hash2);
+			if (this.texturesByHash.has(hash)) {
+				texture = this.texturesByHash.get(hash);
+			} else if (texture.hash != hash) {
+				this.texturesByHash.delete(texture.hash);
 
-				texture.setInfo(state);
-				texture.hash1 = hash1;
-				texture.hash2 = hash2;
+				texture.hash = hash;
 				texture.valid = true;
-				texture.validHint = true;
 
-				this.texturesByHash1.set(hash1, texture);
-				this.texturesByHash2.set(hash2, texture); 
+				this.texturesByHash.set(hash, texture);
 
-				//this.updatedTextures.add(texture);
-
-				texture.recheckTimestamp = this.recheckTimestamp;
-
-				var mipmap = state.texture.mipmaps[0];
-
-				var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
-
-				var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
-				data.set(this.memory.getPointerU8Array(mipmap.address, data.length));
-				//data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
-
-				if (state.texture.swizzled) PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
-
-				if (hasClut) {
-					//console.log('clut start, shift, mask', state.texture.clut.start, state.texture.clut.shift, state.texture.clut.mask);
-					texture.fromBytesIndex(PixelConverter.decodeIndex(state.texture.pixelFormat, data, new Uint8Array(w2 * h)), w2, h);
-					//texture.fromBytesRGBA(ArrayBufferUtils.copyUint8ToUint32_rep(PixelConverter.decodeIndex(state.texture.pixelFormat, data, new Uint8Array(w2 * h))), w2, h);
-				} else {
-					texture.fromBytesRGBA(PixelConverter.decode(state.texture.pixelFormat, data, new Uint32Array(w2 * h), true), w2, h);
-				}
-				
-				//console.log('texture updated!');
+				texture.updateFromState(state, this.memory);
 			}
 		}
 
-		this.lastTexture = texture;
-
 		texture.bind(
 			0,
-			(!hasClut && state.texture.filterMinification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
-			(!hasClut && state.texture.filterMagnification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
+			(enableBilinear && state.texture.filterMinification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
+			(enableBilinear && state.texture.filterMagnification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
 			convertWrapMode[state.texture.wrapU],
 			convertWrapMode[state.texture.wrapV]
 		);
@@ -432,70 +255,10 @@ export class TextureHandler {
 		prog.getUniform('uSampler').set1i(0);
 	}
 	
-	_bindClut(prog: WrappedWebGLProgram, state: _state.GpuState) {
-		let gl = this.gl;
-		let hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
-		if (!hasClut) return;
-		var _clut: Clut = null;
-		var clutState = state.texture.clut;
-		var hash1 = Clut.hashFast(state);
-		_clut = this.clutsByHash1.get(hash1);
-		
-		if (this.mustRecheckSlowHashClut(_clut)) {
-		//if (true) {
-			var hash2 = Clut.hashSlow(this.memory, state);
-			this.rehashSignal.dispatch(PixelConverter.getSizeInBytes(clutState.pixelFormat, clutState.numberOfColors));
-			
-			_clut = this.clutsByHash2.get(hash2);
-			
-			//console.log('rechecked clut!', hash2);
-			
-			if (!_clut) {
-				if (!this.clutsByAddress.get(clutState.address)) {
-					_clut = new Clut(gl);
-					this.clutsByAddress.set(clutState.address, _clut);
-					this.cluts.push(_clut);
-					console.warn('New clut allocated!', clutState);
-				}
-				_clut = this.clutsByAddress.get(clutState.address);
-				//console.log('changed clut!');
-			}
-			
-			if (_clut.hash2 != hash2) {
-				this.clutsByHash1.delete(_clut.hash1);
-				this.clutsByHash2.delete(_clut.hash2);
-				
-				_clut.setInfo(clutState);
-				_clut.hash1 = hash1;
-				_clut.hash2 = hash2;
-				_clut.valid = true;
-				_clut.validHint = true;
-				this.clutsByHash1.set(hash1, _clut);
-				this.clutsByHash2.set(hash2, _clut);
-	
-				_clut.numberOfColors = Math.max(clutState.numberOfColors, clutState.mask + 1);
-				var palette = new Uint32Array(256);
-				PixelConverter.decode(clutState.pixelFormat, this.memory.getPointerU8Array(clutState.address), palette.subarray(0, _clut.numberOfColors), true);
-				_clut.fromBytesRGBA(palette, 256);
-				
-				//console.log('clut updated!');
-			}
-		}
-		
-		_clut.bind(1)
-		prog.getUniform('samplerClut').set1i(1);
-		prog.getUniform('samplerClutStart').set1f(clutState.start);
-		prog.getUniform('samplerClutShift').set1f(clutState.shift);
-		prog.getUniform('samplerClutMask').set1f(clutState.mask);
-		
-		//console.log(clutState.start, clutState.shift, clutState.mask);
-		//((clutStart + m) >>> clutShift) & clutMask
-	}
-
 	unbindTexture(program: WrappedWebGLProgram, state: _state.GpuState) {
 		var gl = this.gl;
-		gl.activeTexture(gl.TEXTURE1);
-		gl.bindTexture(gl.TEXTURE_2D, null);
+		//gl.activeTexture(gl.TEXTURE1);
+		//gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}

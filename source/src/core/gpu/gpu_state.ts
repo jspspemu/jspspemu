@@ -385,6 +385,7 @@ export class MipmapState {
 	
 	get bufferWidth() { return param16(this.data[Op.TEXBUFWIDTH0 + this.index], 0); }
 	get address() { return param24(this.data[Op.TEXADDR0 + this.index]) | ((param8(this.data[Op.TEXBUFWIDTH0 + this.index], 16) << 24)) }
+	get addressEnd() { return this.address + this.sizeInBytes; }
 	get textureWidth() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 0); } 
 	get textureHeight() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 8); }
 	get size() { return this.bufferWidth * this.textureHeight; }
@@ -394,13 +395,17 @@ export class MipmapState {
 export class ClutState {
 	constructor(private data:Uint32Array) { }
 	
-	get hash() {
-		return this.data[Op.CMODE] + (this.data[Op.CLUTADDR] << 8) + (this.data[Op.CLUTADDRUPPER] << 16);
+	getHashFast() {
+		return (this.data[Op.CMODE] << 0) + (this.data[Op.CLOAD] << 8) + (this.data[Op.CLUTADDR] << 16) + (this.data[Op.CLUTADDRUPPER] << 24);
+	}
+	getHashSlow(memory: _memory.Memory) {
+		return memory.hash(this.address, this.sizeInBytes);
 	}
 	get cmode() { return this.data[Op.CMODE]; }
 	get cload() { return this.data[Op.CLOAD]; }
 
 	get address() { return param24(this.data[Op.CLUTADDR]) | ((this.data[Op.CLUTADDRUPPER] << 8) & 0xFF000000); }
+	get addressEnd() { return this.address + this.sizeInBytes; }
 	get numberOfColors() { return this.data[Op.CLOAD] * 8; }
 	get pixelFormat() { return <PixelFormat>param2(this.data[Op.CMODE], 0); }
 	get shift() { return param5(this.data[Op.CMODE], 2); }
@@ -437,6 +442,25 @@ export class TextureState {
 		return _pixelformat.PixelFormatUtils.hasClut(this.pixelFormat);
 	}
 	
+	getHashSlow(memory: _memory.Memory) {
+		var hash: number[] = [];
+		hash.push(memory.hash(this.mipmap.address, this.mipmap.sizeInBytes));
+		hash.push(this.mipmap.address);
+		hash.push(this.mipmap.textureWidth);
+		hash.push(this.colorComponent);
+		hash.push(this.mipmap.textureHeight);
+		hash.push(+this.swizzled);
+		hash.push(+this.pixelFormat);
+		if (this.hasClut) {
+			hash.push(this.clut.getHashFast());
+			hash.push(this.clut.getHashSlow(memory));
+		}
+		//value += this.clut.getHashFast();
+		return hash.join('_');
+	}
+	
+	get mipmap() { return this.mipmaps[0]; }
+	
 	mipmaps = [
 		new MipmapState(this, this.data, 0),
 		new MipmapState(this, this.data, 1),
@@ -464,6 +488,7 @@ export class TextureState {
 	get shadeV() { return param2(this.data[Op.TEXTURE_ENV_MAP_MATRIX], 8); }
 				
 	get effect() { return <TextureEffect>param8(this.data[Op.TFUNC], 0); }
+	get hasAlpha() { return this.colorComponent == TextureColorComponent.Rgba; }
 	get colorComponent() { return <TextureColorComponent>param8(this.data[Op.TFUNC], 8); }
 	get fragment2X() { return param8(this.data[Op.TFUNC], 16) != 0; }
 	get envColor() { return new Color().setRGB(param24(this.data[Op.TEC])); }

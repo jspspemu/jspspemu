@@ -62,6 +62,12 @@ export class ModuleManager {
 			this.add(key, _class);
 		}
 	}
+	
+	/*
+	getByClass<T>(clazz: Class<T>):T {
+		return null;
+	}
+	*/
 
     getByName(name: string): ModuleWrapper {
         var _moduleWrapper = this.moduleWrappers[name];

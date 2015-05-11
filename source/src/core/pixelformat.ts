@@ -9,7 +9,7 @@ export class PixelFormatUtils {
 	}
 }
 
-export const enum PixelFormat {
+export enum PixelFormat {
 	NONE = -1,
 	RGBA_5650 = 0,
 	RGBA_5551 = 1,
@@ -104,20 +104,19 @@ export class PixelConverter {
 		}
 	}
 
-	private static updateT4Translate = new Uint32Array(16);
-	private static updateT8Translate = new Uint32Array(256);
+	private static updateTranslate = new Uint32Array(256);
 	private static updateT4(from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		const orValue = useAlpha ? 0 : 0xFF000000;
-		const count = to.length;
+		var orValue = useAlpha ? 0 : 0xFF000000;
+		var count = to.length;
 		clutStart |= 0;
 		clutShift |= 0;
 		clutMask &= 0xF;
 
-		const updateT4Translate = PixelConverter.updateT4Translate;
-		for (let m = 0; m < 16; m++) updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
+		var updateT4Translate = PixelConverter.updateTranslate;
+		for (var m = 0; m < 16; m++) updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
 
-		for (let n = 0, m = 0; n < count; n++) {
-			const char = from[n];
+		for (var n = 0, m = 0; n < count; n++) {
+			var char = from[n];
 			to[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
 			to[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
 		}
@@ -125,16 +124,16 @@ export class PixelConverter {
 	}
 
 	private static updateT8(from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		const orValue = useAlpha ? 0 : 0xFF000000;
-		const count = to.length;
+		var orValue = useAlpha ? 0 : 0xFF000000;
+		var count = to.length;
 		clutMask &= 0xFF;
 		// Big enough to be worth the translate construction
 		if (count > 1024) {
-			const updateT8Translate = PixelConverter.updateT8Translate;
-			for (let m = 0; m < 256; m++) updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
-			for (let m = 0; m < count; m++) to[m] = updateT8Translate[from[m]] | orValue;
+			var updateT8Translate = PixelConverter.updateTranslate;
+			for (var m = 0; m < 256; m++) updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
+			for (var m = 0; m < count; m++) to[m] = updateT8Translate[from[m]] | orValue;
 		} else {
-			for (let m = 0; m < count; m++) to[m] = palette[clutStart + ((from[m] & clutMask) << clutShift)] | orValue;
+			for (var m = 0; m < count; m++) to[m] = palette[clutStart + ((from[m] & clutMask) << clutShift)] | orValue;
 		}
 		return to;
 	}
@@ -188,3 +187,5 @@ export class PixelConverter {
 		return to;
 	}
 }
+
+export default { PixelFormat };

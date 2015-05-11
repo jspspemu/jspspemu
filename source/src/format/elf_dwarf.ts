@@ -6,7 +6,7 @@ var console = logger.named('elf.dwarf');
 
 // https://github.com/soywiz/pspemu/blob/master/src/pspemu/hle/elf/ElfDwarf.d
 
-class Uleb128Class implements IType {
+class Uleb128Class implements IType<number> {
 	read(stream: Stream): number {
 		var val = 0;
 		var b = 0x80;

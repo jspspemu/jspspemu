@@ -348,6 +348,7 @@ export class PspElfLoader {
         var registerN = (nid: number, n: number) => {
             var nfunc: NativeFunction;
 			nfunc = _module.getByNid(nid);
+			
 			if (!nfunc) {
 				unknownFunctions.push(sprintf("'%s':0x%08X", _module.moduleName, nid));
 
@@ -357,6 +358,8 @@ export class PspElfLoader {
 				nfunc.firmwareVersion = 150;
 				nfunc.nativeCall = () => {
 					console.info(_module);
+					console.error("updateModuleFunctions: Not implemented '" + nfunc.name + "'");
+					debugger;
 					throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
 				};
 				nfunc.call = (context, state) => {

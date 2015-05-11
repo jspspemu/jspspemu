@@ -1,19 +1,29 @@
 ﻿///<reference path="../../global.d.ts" />
 
-import _utils = require('../utils');
+import { nativeFunction } from '../utils';
 import _context = require('../../context');
 import _structs = require('../structs');
-import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+import { Battery } from './scePower';
 
 export class sceImpose {
 	constructor(private context: _context.EmulatorContext) { }
 
 	@nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
 	sceImposeGetBatteryIconStatus(isChargingPointer: Stream, iconStatusPointer: Stream) {
-		isChargingPointer.writeInt32(ChargingEnum.NotCharging);
-		iconStatusPointer.writeInt32(BatteryStatusEnum.FullyFilled);
-		return 0;
+		return Battery.getAsync().then(b => {
+			var charging = b.charging ? ChargingEnum.Charging : ChargingEnum.NotCharging;
+			var status = BatteryStatusEnum.FullyFilled;
+			
+			if (b.level < 0.15) status = BatteryStatusEnum.VeryLow;
+			if (b.level < 0.30) status = BatteryStatusEnum.Low;
+			else if (b.level < 0.80) status = BatteryStatusEnum.PartiallyFilled;
+			else status = BatteryStatusEnum.FullyFilled;
+
+			isChargingPointer.writeInt32(charging);
+			iconStatusPointer.writeInt32(status);
+			return 0;
+		});
 	}
 
 	@nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')

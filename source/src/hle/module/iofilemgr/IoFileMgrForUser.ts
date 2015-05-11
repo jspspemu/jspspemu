@@ -206,11 +206,11 @@ export class IoFileMgrForUser {
 
 		if (file.asyncResult) {
 			//return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
-			if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
+			//if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
 			resultPointer.writeInt64(file.asyncResult);
 			return 0;
 		} else {
-			if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+			//if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
 
 			//log.log('not resolved');
 			resultPointer.writeInt64(Integer64.fromInt(0));

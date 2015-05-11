@@ -103,7 +103,7 @@ export class Memory {
 		//this._updateWriteFunctions();
 	}
 
-	getPointerPointer<T>(type: IType, address: number) {
+	getPointerPointer<T>(type: IType<T>, address: number) {
 		if (address == 0) return null;
 		return new Pointer<T>(type, this, address);
 	}
@@ -308,8 +308,8 @@ export class Memory {
 
 		var result = 0;
 		for (var n = 0; n < count; n++) {
-			var v = this.lw_2(addressAligned + n) | 0;
-			result = (result + v ^ n) | 0;
+			var v = this.lw_2(addressAligned + n);
+			result = (result + v ^ n);
 		}
 		return result;
 	}

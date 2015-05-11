@@ -979,6 +979,12 @@ class Promise2<T> implements Thenable<T> {
 			}
 		});
 	}
+	
+	static fromThenable<T>(thenable:Thenable<T>):Promise2<T> {
+		return new Promise2<T>((resolve, reject) => {
+			thenable.then(v => resolve(v), error => reject(error));
+		});
+	}
 
 	constructor(callback: (resolve: (value?: T) => void, reject: (error: Error) => void) => void) {
 		callback(this._resolve.bind(this), this._reject.bind(this));

@@ -376,10 +376,11 @@ export class ThreadManager {
 			//console.log(e);
 			//console.log(e['stack']);
 			//debugger;
-			if (e.message = 'CpuBreakException') return;
-			console.error(e);
-			console.error(e['stack']);
-			thread.stop('error:' + e);
+			if (e.message == 'CpuBreakException') return;
+			var estack = e['stack'] || e;
+			console.error(estack);
+			alert(estack);
+			thread.stop('error:' + estack);
 			throw (e);
 		}
 	}
