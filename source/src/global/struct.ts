@@ -11,7 +11,34 @@ interface StructEntry {
 	[name: string]: IType<any>;
 }
 
-class Int64Type implements IType<Integer64> {
+class Int64Type implements IType<number> {
+	constructor(public endian: Endian) { }
+
+	read(stream: Stream): number {
+		if (this.endian == Endian.LITTLE) {
+			var low = stream.readUInt32(this.endian);
+			var high = stream.readUInt32(this.endian);
+		} else {
+			var high = stream.readUInt32(this.endian);
+			var low = stream.readUInt32(this.endian);
+		}
+		return high * Math.pow(2, 32) + low;
+	}
+	write(stream: Stream, value: number): void {
+		var low = Math.floor(value % Math.pow(2, 32));
+		var high = Math.floor(value / Math.pow(2, 32));
+		if (this.endian == Endian.LITTLE) {
+			stream.writeInt32(low, this.endian);
+			stream.writeInt32(high, this.endian);
+		} else {
+			stream.writeInt32(high, this.endian);
+			stream.writeInt32(low, this.endian);
+		}
+	}
+	get length() { return 8; }
+}
+
+class Integer64Type implements IType<Integer64> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): Integer64 {
@@ -342,6 +369,9 @@ var UInt32_b = new UInt32Type(Endian.BIG);
 
 var UInt32_2lb = new UInt32_2lbStruct();
 var UInt16_2lb = new UInt16_2lbStruct();
+
+var Integer64_l = new Integer64Type(Endian.LITTLE);
+var Integer64_b = new Integer64Type(Endian.BIG);
 
 var StringzVariable = new StructStringzVariable();
 

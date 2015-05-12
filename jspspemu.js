@@ -2682,11 +2682,11 @@ var Int64Type = (function () {
             var high = stream.readUInt32(this.endian);
             var low = stream.readUInt32(this.endian);
         }
-        return new Integer64(low, high);
+        return high * Math.pow(2, 32) + low;
     };
     Int64Type.prototype.write = function (stream, value) {
-        var low = value.low;
-        var high = value.high;
+        var low = Math.floor(value % Math.pow(2, 32));
+        var high = Math.floor(value / Math.pow(2, 32));
         if (this.endian == Endian.LITTLE) {
             stream.writeInt32(low, this.endian);
             stream.writeInt32(high, this.endian);
@@ -2702,6 +2702,40 @@ var Int64Type = (function () {
         configurable: true
     });
     return Int64Type;
+})();
+var Integer64Type = (function () {
+    function Integer64Type(endian) {
+        this.endian = endian;
+    }
+    Integer64Type.prototype.read = function (stream) {
+        if (this.endian == Endian.LITTLE) {
+            var low = stream.readUInt32(this.endian);
+            var high = stream.readUInt32(this.endian);
+        }
+        else {
+            var high = stream.readUInt32(this.endian);
+            var low = stream.readUInt32(this.endian);
+        }
+        return new Integer64(low, high);
+    };
+    Integer64Type.prototype.write = function (stream, value) {
+        var low = value.low;
+        var high = value.high;
+        if (this.endian == Endian.LITTLE) {
+            stream.writeInt32(low, this.endian);
+            stream.writeInt32(high, this.endian);
+        }
+        else {
+            stream.writeInt32(high, this.endian);
+            stream.writeInt32(low, this.endian);
+        }
+    };
+    Object.defineProperty(Integer64Type.prototype, "length", {
+        get: function () { return 8; },
+        enumerable: true,
+        configurable: true
+    });
+    return Integer64Type;
 })();
 var Int32Type = (function () {
     function Int32Type(endian) {
@@ -3069,6 +3103,8 @@ var UInt16_b = new UInt16Type(Endian.BIG);
 var UInt32_b = new UInt32Type(Endian.BIG);
 var UInt32_2lb = new UInt32_2lbStruct();
 var UInt16_2lb = new UInt16_2lbStruct();
+var Integer64_l = new Integer64Type(Endian.LITTLE);
+var Integer64_b = new Integer64Type(Endian.BIG);
 var StringzVariable = new StructStringzVariable();
 function Stringn(count) { return new StructStringn(count); }
 function Stringz(count) { return new StructStringz(count); }
@@ -12757,7 +12793,7 @@ var Header = (function () {
     Header.struct = StructClass.create(Header, [
         { magic: Stringz(4) },
         { headerSize: UInt32 },
-        { totalBytes: Int64 },
+        { totalBytes: Integer64_l },
         { blockSize: UInt32 },
         { version: UInt8 },
         { alignment: UInt8 },

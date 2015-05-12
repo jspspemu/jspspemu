@@ -18,7 +18,7 @@ class Header {
     static struct = StructClass.create<Header>(Header, [
 		{ magic: Stringz(4) },
 		{ headerSize: UInt32 },
-		{ totalBytes: Int64 },
+		{ totalBytes: Integer64_l },
 		{ blockSize: UInt32 },
 		{ version: UInt8 },
 		{ alignment: UInt8 },
