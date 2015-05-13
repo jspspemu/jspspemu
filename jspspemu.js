@@ -519,6 +519,7 @@ var ArrayBufferUtils = (function () {
     };
     ArrayBufferUtils.cloneUint8Array = function (input) { var out = new Uint8Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.cloneUint16Array = function (input) { var out = new Uint16Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.cloneInt16Array = function (input) { var out = new Int16Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.cloneUint32Array = function (input) { var out = new Uint32Array(input.length); out.set(input); return out; };
     ArrayBufferUtils.concatU8 = function (chunks) {
         var out = new Uint8Array(chunks.sum(function (chunk) { return chunk.length; }));
@@ -12885,7 +12886,6 @@ var Audio2Channel = (function () {
         }
     };
     Audio2Channel.prototype.playDataAsync = function (channels, data) {
-        console.log(channels, data);
         return this.playAsync(Audio2Channel.convertS16ToF32(channels, data));
     };
     return Audio2Channel;
@@ -13230,7 +13230,7 @@ emulator.memory.invalidateDataAll.add(function () {
 emulator.memory.invalidateDataRange.add(function (low, high) {
 });
 emulator.audio.onPlayDataAsync.add(function (id, channels, data) {
-    var data2 = ArrayBufferUtils.cloneUint16Array(data);
+    var data2 = ArrayBufferUtils.cloneInt16Array(data);
     return postActionWaitAsync('audio.data', { id: id, channels: channels, data: data2 }, [data2.buffer]);
 });
 emulator.audio.onStart.add(function (id) {

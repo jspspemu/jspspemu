@@ -54,7 +54,7 @@ emulator.memory.invalidateDataRange.add((low, high) => {
 });
 
 emulator.audio.onPlayDataAsync.add((id: number, channels:number, data: Int16Array) => {
-	var data2 = ArrayBufferUtils.cloneUint16Array(data);
+	var data2 = ArrayBufferUtils.cloneInt16Array(data);
 	return postActionWaitAsync('audio.data', {id: id, channels: channels, data: data2}, [data2.buffer]);
 });
 emulator.audio.onStart.add((id: number) => {

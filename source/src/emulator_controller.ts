@@ -257,7 +257,7 @@ class Audio2Channel {
 	}
 
 	playDataAsync(channels: number, data: Int16Array): Promise2<any> {
-		console.log(channels, data);
+		//console.log(channels, data);
 		return this.playAsync(Audio2Channel.convertS16ToF32(channels, data));
 	}
 }

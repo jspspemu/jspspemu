@@ -558,6 +558,7 @@ class ArrayBufferUtils {
 
 	static cloneUint8Array(input: Uint8Array) { var out = new Uint8Array(input.length); out.set(input); return out; }
 	static cloneUint16Array(input: Uint16Array) { var out = new Uint16Array(input.length); out.set(input); return out; }
+	static cloneInt16Array(input: Int16Array) { var out = new Int16Array(input.length); out.set(input); return out; }
 	static cloneUint32Array(input: Uint16Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
 	
 	static concatU8(chunks: Uint8Array[]):Uint8Array {
