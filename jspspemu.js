@@ -2815,6 +2815,22 @@ var UInt8Type = (function () {
     });
     return UInt8Type;
 })();
+var UIntReference = (function () {
+    function UIntReference(stream) {
+        this.stream = stream;
+    }
+    Object.defineProperty(UIntReference.prototype, "value", {
+        get: function () {
+            return this.stream.clone().readUInt32();
+        },
+        set: function (value) {
+            this.stream.clone().writeUInt32(value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UIntReference;
+})();
 var StructClass = (function () {
     function StructClass(_class, items) {
         this._class = _class;
@@ -10600,7 +10616,7 @@ var WebGlPspDrawDriver = (function (_super) {
         }
         gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
         gl.depthMask(state.depthTest.mask == 0);
-        if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
+        if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled && !state.vertex.transform2D)) {
             gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
         }
         var alphaTest = state.alphaTest;
@@ -17952,30 +17968,24 @@ var sceAtrac3plus = (function () {
         if (!this.hasById(id))
             return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
         var atrac3 = this.getById(id);
+        var reachedEnd = new UIntReference(reachedEndPtr);
+        var decodedSamplesCount = new UIntReference(decodedSamplesCountPtr);
+        var remainingFramesToDecode = new UIntReference(remainingFramesToDecodePtr);
         return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
-            var reachedEnd = 0;
-            var remainingFramesToDecode = atrac3.remainingFrames;
-            function outputPointers() {
-                if (reachedEndPtr)
-                    reachedEndPtr.writeInt32(reachedEnd);
-                if (decodedSamplesCountPtr)
-                    decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.format.atracChannels);
-                if (remainingFramesToDecodePtr)
-                    remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
-            }
+            reachedEnd.value = 0;
+            remainingFramesToDecode.value = atrac3.remainingFrames;
+            decodedSamplesCount.value = decodedSamples / atrac3.format.atracChannels;
             if (atrac3.decodingReachedEnd) {
                 if (atrac3.numberOfLoops == 0) {
-                    decodedSamples = 0;
-                    reachedEnd = 1;
-                    remainingFramesToDecode = 0;
-                    outputPointers();
+                    decodedSamplesCount.value = 0;
+                    reachedEnd.value = 1;
+                    remainingFramesToDecode.value = 0;
                     return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
                 }
                 if (atrac3.numberOfLoops > 0)
                     atrac3.numberOfLoops--;
-                atrac3.currentSample = (atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0;
+                atrac3.seekToSample((atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0);
             }
-            outputPointers();
             return 0;
         });
     };
@@ -18047,7 +18057,7 @@ var sceAtrac3plus = (function () {
         if (atrac3.decodingReachedEnd)
             return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
         if (samplePositionPtr)
-            samplePositionPtr.writeInt32(atrac3.currentSample);
+            samplePositionPtr.writeInt32(atrac3.currentFrame);
         return 0;
     };
     sceAtrac3plus.prototype.sceAtracGetSoundSample = function (id, endSamplePtr, loopStartSamplePtr, loopEndSamplePtr) {
@@ -18187,12 +18197,16 @@ var Atrac3 = (function () {
         this.loopInfoList = [];
         this.dataStream = Stream.fromArray([]);
         this.numberOfLoops = 0;
-        this.currentSample = 0;
+        this.currentFrame = 0;
         this.codecType = CodecType.PSP_MODE_AT_3_PLUS;
         this.packet = null;
     }
     Atrac3.prototype.free = function () {
-        this.stream.close();
+        this.flushPacket();
+        if (this.stream) {
+            this.stream.close();
+            this.stream = null;
+        }
     };
     Atrac3.prototype.setDataStream = function (data) {
         var _this = this;
@@ -18206,7 +18220,7 @@ var Atrac3 = (function () {
             },
             'data': function (stream) { _this.dataStream = stream; },
         });
-        this.stream = MediaEngine.MeStream.openData(dataBytes);
+        this.stream = MediaEngine.MeStream.open(new MediaEngine.MemoryCustomStream(dataBytes));
         return this;
     };
     Object.defineProperty(Atrac3.prototype, "bitrate", {
@@ -18224,7 +18238,6 @@ var Atrac3 = (function () {
     });
     Object.defineProperty(Atrac3.prototype, "maximumSamples", {
         get: function () {
-            this.format.compressionCode;
             switch (this.codecType) {
                 case CodecType.PSP_MODE_AT_3_PLUS: return 0x800;
                 case CodecType.PSP_MODE_AT_3: return 0x400;
@@ -18242,13 +18255,18 @@ var Atrac3 = (function () {
         configurable: true
     });
     Atrac3.prototype.getNumberOfSamplesInNextFrame = function () {
-        return Math.min(this.maximumSamples, this.endSample - this.currentSample);
+        return Math.min(this.maximumSamples, this.endSample - this.currentFrame);
     };
+    Object.defineProperty(Atrac3.prototype, "totalFrames", {
+        get: function () {
+            return Math.floor(this.dataStream.length / this.format.blockSize);
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(Atrac3.prototype, "remainingFrames", {
         get: function () {
-            if (this.format.blockSize == 0)
-                return -1;
-            return (this.dataStream.available / this.format.blockSize);
+            return this.totalFrames - this.currentFrame;
         },
         enumerable: true,
         configurable: true
@@ -18260,26 +18278,51 @@ var Atrac3 = (function () {
         enumerable: true,
         configurable: true
     });
-    Atrac3.prototype.decodeAsync = function (samplesOutPtr) {
-        if (this.dataStream.available < this.format.blockSize)
-            return Promise2.resolve(0);
-        var blockData = this.dataStream.readBytes(this.format.blockSize);
-        this.currentSample++;
-        var outPromise;
-        try {
-            do {
+    Atrac3.prototype.seekToSample = function (sample) {
+        this.seekToFrame(Math.floor(sample / this.maximumSamples));
+    };
+    Atrac3.prototype.seekToFrame = function (frame) {
+        if (frame >= this.totalFrames)
+            frame = 0;
+        this.flushPacket();
+        this.stream.seek(0);
+        while (this.currentFrame < frame) {
+            var data = this.decodeOne();
+            if (data == null)
+                return;
+        }
+    };
+    Atrac3.prototype.flushPacket = function () {
+        this.currentFrame = 0;
+        if (this.packet) {
+            this.packet.free();
+            this.packet = null;
+        }
+    };
+    Atrac3.prototype.decodeOne = function () {
+        this.currentFrame++;
+        do {
+            if (this.packet == null) {
+                this.packet = this.stream.readPacket();
                 if (this.packet == null) {
-                    this.packet = this.stream.readPacket();
-                    if (this.packet == null) {
-                        return Promise2.resolve(0);
-                    }
+                    return null;
                 }
-                var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
-                if (data == null) {
-                    this.packet.free();
-                    this.packet = null;
-                }
-            } while (data == null);
+            }
+            var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
+            if (data == null) {
+                this.packet.free();
+                this.packet = null;
+            }
+        } while (data == null);
+        return data;
+    };
+    Atrac3.prototype.decodeAsync = function (samplesOutPtr) {
+        if (this.totalFrames <= 0)
+            return Promise2.resolve(0);
+        try {
+            var data = this.decodeOne();
+            if (data == null)
+                return Promise2.resolve(0);
             for (var n = 0; n < data.length; n++)
                 samplesOutPtr.writeInt16(data[n]);
             return Promise2.resolve(data.length);

@@ -41,20 +41,61 @@ export  class MePacket {
     packet: ME_Packet;
     constructor(stream: MeStream, packet: ME_Packet);
     type: ME_MediaType;
+    pts: number;
+    dts: number;
+    pos: number;
+    duration: number;
     decodeAudioFramesAndFree(channels: number, rate: number): Int16Array[];
     decodeAudio(channels: number, rate: number): Int16Array;
     decodeAudioAndFree(channels: number, rate: number): Int16Array;
     free(): void;
 }
+export  enum SeekType {
+    Set = 0,
+    Cur = 1,
+    End = 2,
+    Tell = 65536,
+}
+export  class CustomStream {
+    name: string;
+    static items: {
+        [key: number]: CustomStream;
+    };
+    static lastId: number;
+    static alloc(stream: CustomStream): number;
+    static free(id: number): void;
+    constructor(name?: string);
+    read(buf: Uint8Array): number;
+    write(buf: Uint8Array): number;
+    private _position;
+    length: number;
+    available: number;
+    position: number;
+    _read(buf: Uint8Array): number;
+    _write(buf: Uint8Array): number;
+    _seek(offset: number, whence: SeekType): number;
+    close(): void;
+}
+export  class MemoryCustomStream extends CustomStream {
+    data: Uint8Array;
+    constructor(data: Uint8Array);
+    length: number;
+    read(buf: Uint8Array): number;
+    write(buf: Uint8Array): number;
+    close(): void;
+}
 export  class MeStream {
+    customStream: CustomStream;
     state: ME_DecodeState;
     onclose: (stream: MeStream) => void;
-    constructor(state: ME_DecodeState, onclose?: (stream: MeStream) => void);
+    constructor(customStream: CustomStream, state: ME_DecodeState, onclose?: (stream: MeStream) => void);
     close(): void;
     readPacket(): MePacket;
-    static open(name: string, onclose?: (stream: MeStream) => void): MeStream;
-    private static index;
-    static openData(data: Uint8Array, onclose?: (stream: MeStream) => void): MeStream;
+    seek(timestamp: number): void;
+    position: number;
+    length: number;
+    static open(customStream: CustomStream): MeStream;
+    static openData(data: Uint8Array): MeStream;
 }
 
 }

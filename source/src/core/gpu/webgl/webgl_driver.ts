@@ -190,7 +190,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
 		//gl.depthRange(0, 1);
 		gl.depthMask(state.depthTest.mask == 0);
-		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled)) {
+		if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled && !state.vertex.transform2D)) {
 			gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
 		}
 

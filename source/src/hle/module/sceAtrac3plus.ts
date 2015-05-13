@@ -54,35 +54,33 @@ export class sceAtrac3plus {
 	sceAtracDecodeData(id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) {
 		if (!this.hasById(id)) return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
 		var atrac3 = this.getById(id);
+		
+		var reachedEnd = new UIntReference(reachedEndPtr);
+		var decodedSamplesCount = new UIntReference(decodedSamplesCountPtr);
+		var remainingFramesToDecode = new UIntReference(remainingFramesToDecodePtr);
 
+		//console.log(`${atrac3.decodingReachedEnd}, ${atrac3.currentFrame}-${atrac3.totalFrames} ${atrac3.remainingFrames}. ${atrac3.getNumberOfSamplesInNextFrame()}, ${atrac3.packet ? atrac3.packet.pos : -1}/${atrac3.stream.length}`);		
 		return atrac3.decodeAsync(samplesOutPtr).then((decodedSamples) => {
-			var reachedEnd = 0;
-			var remainingFramesToDecode = atrac3.remainingFrames;
-
-			function outputPointers() {
-				if (reachedEndPtr) reachedEndPtr.writeInt32(reachedEnd);
-				if (decodedSamplesCountPtr) decodedSamplesCountPtr.writeInt32(decodedSamples / atrac3.format.atracChannels);
-				if (remainingFramesToDecodePtr) remainingFramesToDecodePtr.writeInt32(remainingFramesToDecode);
-			}
+			reachedEnd.value = 0;
+			remainingFramesToDecode.value = atrac3.remainingFrames;
+			decodedSamplesCount.value = decodedSamples / atrac3.format.atracChannels;
 
 			//Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
 
 			if (atrac3.decodingReachedEnd) {
 				if (atrac3.numberOfLoops == 0) {
 				//if (true) {
-					decodedSamples = 0;
-					reachedEnd = 1;
-					remainingFramesToDecode = 0;
-					outputPointers();
+					decodedSamplesCount.value = 0;
+					reachedEnd.value = 1;
+					remainingFramesToDecode.value = 0;
 					return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
 				}
 				if (atrac3.numberOfLoops > 0) atrac3.numberOfLoops--;
 
-				atrac3.currentSample = (atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0;
+				atrac3.seekToSample((atrac3.loopInfoList.length > 0) ? atrac3.loopInfoList[0].startSample : 0);
+				//atrac3.seekToSample(0);
 			}
 
-			//return Atrac.GetUidIndex(InjectContext);
-			outputPointers();
 			return 0;
 		});
 	}
@@ -181,7 +179,7 @@ export class sceAtrac3plus {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
 		var atrac3 = this.getById(id);
 		if (atrac3.decodingReachedEnd) return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
-		if (samplePositionPtr) samplePositionPtr.writeInt32(atrac3.currentSample);
+		if (samplePositionPtr) samplePositionPtr.writeInt32(atrac3.currentFrame);
 		return 0;
 	}
 
@@ -242,15 +240,19 @@ class Atrac3 {
 	loopInfoList = <LoopInfoStruct[]>[];
 	dataStream = Stream.fromArray([]);
 	numberOfLoops = 0;
-	currentSample = 0;
+	currentFrame = 0;
 	codecType = CodecType.PSP_MODE_AT_3_PLUS;
-	private stream: MediaEngine.MeStream;
+	public stream: MediaEngine.MeStream;
 
 	constructor(private id:number) {
 	}
 	
 	free() {
-		this.stream.close();
+		this.flushPacket();
+		if (this.stream) {
+			this.stream.close();
+			this.stream = null;
+		}
 	}
 
 	setDataStream(data: Stream) {
@@ -266,8 +268,8 @@ class Atrac3 {
 			'data': (stream: Stream) => { this.dataStream = stream; },
 		});
 
-		this.stream = MediaEngine.MeStream.openData(dataBytes);
-
+		this.stream = MediaEngine.MeStream.open(new MediaEngine.MemoryCustomStream(dataBytes));
+		
 		//console.log(this.fmt);
 		//console.log(this.fact);
 
@@ -285,7 +287,6 @@ class Atrac3 {
 	}
 
 	get maximumSamples() {
-		this.format.compressionCode
 		switch (this.codecType) {
 			case CodecType.PSP_MODE_AT_3_PLUS: return 0x800;
 			case CodecType.PSP_MODE_AT_3: return 0x400;
@@ -298,12 +299,15 @@ class Atrac3 {
 	}
 
 	getNumberOfSamplesInNextFrame() {
-		return Math.min(this.maximumSamples, this.endSample - this.currentSample);
+		return Math.min(this.maximumSamples, this.endSample - this.currentFrame);
+	}
+	
+	get totalFrames() {
+		return Math.floor(this.dataStream.length / this.format.blockSize);
 	}
 
 	get remainingFrames() {
-		if (this.format.blockSize == 0) return -1;
-		return (this.dataStream.available / this.format.blockSize);
+		return this.totalFrames - this.currentFrame;
 	}
 
 	get decodingReachedEnd() {
@@ -312,31 +316,60 @@ class Atrac3 {
 
 	//private static useWorker = false;
 	private static useWorker = true;
-	private packet: MediaEngine.MePacket = null;
+	public packet: MediaEngine.MePacket = null;
+	
+	seekToSample(sample: number): void {
+		this.seekToFrame(Math.floor(sample / this.maximumSamples));
+	}
+	
+	seekToFrame(frame: number): void {
+		if (frame >= this.totalFrames) frame = 0;
+		this.flushPacket();
+		this.stream.seek(0);
+		// @TODO: Fix seek times! We could detect timestamps while decoding to do a faster seek
+		// later on loops.
+		while (this.currentFrame < frame) {
+			var data = this.decodeOne();
+			if (data == null) return;
+		}
+	}
+	
+	private flushPacket() {
+		this.currentFrame = 0;
+		if (this.packet) {
+			this.packet.free();
+			this.packet = null;
+		}
+	}
+	
+	private decodeOne() {
+		this.currentFrame++;
+		do {
+			if (this.packet == null) {
+				this.packet = this.stream.readPacket();
+				//console.warn('readPacket', this.packet != null);
+				if (this.packet == null) {
+					return null;
+				}
+			}
+			var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
+			//console.log('decodeAudio', data != null);
+			if (data == null) {
+				this.packet.free();
+				this.packet = null;
+			}
+		} while (data == null);
+		return data;
+	}
 
 	decodeAsync(samplesOutPtr: Stream) {
-		if (this.dataStream.available < this.format.blockSize) return Promise2.resolve(0);
-		var blockData = this.dataStream.readBytes(this.format.blockSize);
-		this.currentSample++;
-		
-		var outPromise: Promise2<Uint16Array>;
-		
+		if (this.totalFrames <= 0) return Promise2.resolve(0);
+		//var blockData = this.dataStream.readBytes(this.format.blockSize);
 		try {
-			do {
-				if (this.packet == null) {
-					this.packet = this.stream.readPacket();
-					if (this.packet == null) {
-						return Promise2.resolve(0);
-					}
-				}
-				var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
-				if (data == null) {
-					this.packet.free();
-					this.packet = null;
-				}
-			} while (data == null);
 			
 			//console.log(data);
+			var data = this.decodeOne();
+			if (data == null) return Promise2.resolve(0);
 
 			for (var n = 0; n < data.length; n++) samplesOutPtr.writeInt16(data[n]);
 			return Promise2.resolve(data.length);
@@ -430,3 +463,35 @@ enum CodecType {
 	PSP_MODE_AT_3_PLUS = 0x00001000,
 	PSP_MODE_AT_3 = 0x00001001,
 }
+
+/*
+class MyMemoryCustomStream extends MediaEngine.CustomStream {
+	constructor(public data:Uint8Array) {
+		super();
+	}
+	get length() { return this.data.length; }
+	
+	public read(buf:Uint8Array):number {
+		var readlen = Math.min(buf.length, this.available);
+		console.log('read', this.position, buf.length, readlen);
+		buf.subarray(0, readlen).set(this.data.subarray(this.position, this.position + readlen));
+		return readlen;
+	}
+	public write(buf:Uint8Array):number {
+		throw new Error("Must override CustomStream.write()");
+	}
+	public close():void {
+	}
+	
+	public _seek(offset: number, whence: MediaEngine.SeekType) {
+		console.info('seek', offset, whence);
+		switch (whence) {
+			case MediaEngine.SeekType.Set: this.position = 0 + offset; break;
+			case MediaEngine.SeekType.Cur: this.position = this.position + offset; break;
+			case MediaEngine.SeekType.End: this.position = this.length + offset; break;
+			case MediaEngine.SeekType.Tell: return this.position;
+		}
+		return this.position;
+	}
+}
+*/

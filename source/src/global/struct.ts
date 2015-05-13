@@ -117,7 +117,19 @@ interface StructEntryProcessed<T> {
 	type: IType<T>;
 }
 
-interface Class<T> { new(...args:any[]):T; }
+interface Class<T> { new (...args: any[]): T; }
+
+class UIntReference {
+	constructor(private stream: Stream) {
+	}
+	
+	get value(): number {
+		return this.stream.clone().readUInt32();
+	}
+	set value(value:number) {
+		this.stream.clone().writeUInt32(value);
+	}
+}
 
 class StructClass<T> implements IType<T> {
 	processedItems: StructEntryProcessed<T>[] = [];
