@@ -4,6 +4,7 @@ import _context = require('./context');
 import _cpu = require('./core/cpu');
 import _gpu = require('./core/gpu');
 import _rtc = require('./core/rtc');
+import { Battery } from './core/battery';
 import _controller = require('./core/controller');
 import _stream = require('./core/stream'); _stream;
 import _display = require('./core/display');
@@ -72,12 +73,13 @@ export class Emulator {
 	private rtc: PspRtc;
 	private interruptManager: InterruptManager;
 	fileManager: FileManager;
-	private audio: PspAudio;
+	audio: PspAudio = new PspAudio();
 	private canvas: HTMLCanvasElement;
 	private webgl_canvas: HTMLCanvasElement;
 	private display: PspDisplay;
 	public gpu: PspGpu;
-	public controller: PspController;
+	public battery = new Battery();
+	public controller: PspController = new PspController();
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
 	private netManager: NetManager;
@@ -114,8 +116,6 @@ export class Emulator {
 			this.context = new EmulatorContext();
 			this.memoryManager = new MemoryManager();
 			this.interruptManager = new InterruptManager();
-			this.audio = new PspAudio();
-			this.controller = new PspController();
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
 			this.interop = new Interop();
@@ -154,7 +154,7 @@ export class Emulator {
 
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
+			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery);
 			
 			return Promise2.all([
 				this.display.startAsync().then(() => { console.info('display initialized'); }),

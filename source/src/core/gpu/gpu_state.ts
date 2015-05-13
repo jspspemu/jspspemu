@@ -84,7 +84,7 @@ export class VertexInfo {
 	size: number;
 
 	// Extra	
-	value: number;
+	value: number = -1;
 	reversedNormal: boolean;
 	address: number;
 	

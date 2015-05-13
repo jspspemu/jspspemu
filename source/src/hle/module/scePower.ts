@@ -122,23 +122,23 @@ export class scePower {
 	}
 
 	@nativeFunction(0x2085D15D, 150, 'int', '')
-	scePowerGetBatteryLifePercent() { return Battery.getAsync().then(b => (b.level * 100) | 0); }
+	scePowerGetBatteryLifePercent() { return (this.context.battery.level * 100) | 0; }
 	
 	@nativeFunction(0x87440F5E, 150, 'int', '')
-	scePowerIsPowerOnline() { return Battery.getAsync().then(b => +b.charging); }
+	scePowerIsPowerOnline() { return +this.context.battery.charging; }
 	
 	@nativeFunction(0x0AFD0D8B, 150, 'int', '')
 	scePowerIsBatteryExist() { return 1; }
 	
 	@nativeFunction(0xD3075926, 150, 'int', '')
-	scePowerIsLowBattery() { return Battery.getAsync().then(b => +b.isBatteryLow); }
+	scePowerIsLowBattery() { return +this.context.battery.isLowBattery; }
 	
 	@nativeFunction(0x1E490401, 150, 'int', '')
-	scePowerIsBatteryCharging() { return Battery.getAsync().then(b => +b.charging); }
+	scePowerIsBatteryCharging() { return +this.context.battery.charging; }
 	
 	// in minutes
 	@nativeFunction(0x8EFB3FA2, 150, 'int', '')
-	scePowerGetBatteryLifeTime() { return Battery.getAsync().then(b => (b.lifetime / 60) | 0); }
+	scePowerGetBatteryLifeTime() { return (this.context.battery.lifetime / 60) | 0; }
 	
 	@nativeFunction(0x483CE86B, 150, 'int', '')
 	scePowerGetBatteryVolt() { return 4135; }
@@ -157,58 +157,6 @@ export class scePower {
 	}
 }
 
-interface BatteryManager {
-	charging: boolean;
-	chargingTime: number;
-	dischargingTime: number;
-	level: number;
-	//onchargingchange: any;
-	//onchargingtimechange: any;
-	//ondischargingtimechange: any;
-	//onlevelchange: any;
-}
-
-export class Battery {
-	static instance: Battery = null;
-	private static promise: Promise2<Battery> = null;
-	
-	constructor(private manager: BatteryManager) {
-		Battery.instance = this;
-	}
-	
-	get lifetime() {
-		// Up to 10 hours, to avoid too high/infinite values
-		if (this.manager != null) return Math.min(10 * 3600, this.manager.dischargingTime);
-		return 3 * 3600;
-	}
-	
-	get charging() {
-		if (this.manager != null) return this.manager.charging;
-		return true;
-	}
-	
-	get level(): number {
-		if (this.manager != null) return this.manager.level;
-		return 1.0;
-	}
-	
-	get isBatteryLow() {
-		return this.level < 0.25;
-	}
-	
-	static getAsync():Promise2<Battery> {
-		if (this.instance) return Promise2.resolve(this.instance);
-		if (this.promise) return this.promise;
-		if ((<any>navigator).battery) return Promise2.resolve(new Battery((<any>navigator).battery));
-		if ((<any>navigator).getBattery) {
-			
-			return this.promise = Promise2.fromThenable<BatteryManager>((<any>navigator).getBattery()).then(v => {
-				return new Battery(v);
-			});
-		}
-		return Promise2.resolve(new Battery(null));
-	}
-}
 
 enum CallbackStatus {
 	AC_POWER = 0x00001000,

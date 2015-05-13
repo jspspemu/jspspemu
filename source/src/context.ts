@@ -11,6 +11,7 @@ import _audio = require('./core/audio');
 import _memory = require('./core/memory');
 import _interrupt = require('./core/interrupt');
 import _config = require('./hle/config');
+import { Battery } from './core/battery';
 
 export interface ISymbol {
 	address: number;
@@ -39,6 +40,7 @@ export class EmulatorContext {
 	interruptManager: _interrupt.InterruptManager;
 	symbolLookup: ISymbolLookup;
 	interop: _manager.Interop;
+	battery: Battery;
 	onStdout = new Signal1<string>();
 	onStderr = new Signal1<string>();
 
@@ -53,7 +55,7 @@ export class EmulatorContext {
 	get currentState() { return this.currentThread.state; }
 	get currentInstructionCache() { return this.currentState.icache; }
 
-	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager: _manager.ModuleManager, config: _config.Config, interop: _manager.Interop, netManager: _manager.NetManager) {
+	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager: _manager.ModuleManager, config: _config.Config, interop: _manager.Interop, netManager: _manager.NetManager, battery: Battery) {
 		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;
@@ -69,5 +71,6 @@ export class EmulatorContext {
 		this.config = config;
 		this.interop = interop;
 		this.netManager = netManager;
+		this.battery = battery;
 	}
 }

@@ -873,6 +873,29 @@ var Signal2 = (function () {
     };
     return Signal2;
 })();
+var SignalPromise = (function () {
+    function SignalPromise() {
+        this.callbacks = [];
+    }
+    Object.defineProperty(SignalPromise.prototype, "length", {
+        get: function () { return this.callbacks.length; },
+        enumerable: true,
+        configurable: true
+    });
+    SignalPromise.prototype.clear = function () { this.callbacks = []; };
+    SignalPromise.prototype.add = function (callback) {
+        this.callbacks.push(callback);
+        return this;
+    };
+    SignalPromise.prototype.dispatchAsync = function (v1, v2, v3, v4) {
+        var promises = [];
+        this.callbacks.forEach(function (callback) {
+            promises.push(callback(v1, v2, v3, v4));
+        });
+        return Promise2.all(promises);
+    };
+    return SignalPromise;
+})();
 var Logger = (function () {
     function Logger(policy, console, name) {
         this.policy = policy;
@@ -3349,9 +3372,7 @@ function requireModules(moduleFiles) {
 "src/app": function(module, exports, require) {
 ///<reference path="global.d.ts" />
 ///<reference path="emulator_worker.ts" />
-var _emulator = require('./emulator');
 var emulator_controller_1 = require('./emulator_controller');
-var Emulator = _emulator.Emulator;
 var demos = [
     "-CPU",
     "data/benchmark/benchmark.prx",
@@ -3419,20 +3440,7 @@ var demos = [
 ];
 DomHelp.fromId('demo_list').html = '';
 DomHelp.fromId('files').html = '';
-var selectedItem = document.location.hash.substr(1);
-function selectFile(file) {
-    console.clear();
-    document.location.hash = file;
-    document.location.reload();
-}
 demos.forEach(function (fileName) {
-});
-DomHelp.fromId('files').on('change', function () {
-    selectFile(DomHelp.fromId('files').val());
-});
-new DomHelp(window).on('hashchange', function () {
-    console.clear();
-    emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
 });
 var FillScreenPlugin = (function () {
     function FillScreenPlugin() {
@@ -3488,26 +3496,32 @@ function requestFullScreen() {
     }
 }
 window.addEventListener('load', function () {
-    var emulator = new Emulator();
     var _window = window;
-    _window['emulator'] = emulator;
     var sampleDemo = undefined;
     if (document.location.hash) {
         sampleDemo = document.location.hash.substr(1);
-        if (sampleDemo.startsWith('samples/')) {
-            sampleDemo = 'data/' + sampleDemo;
-        }
     }
     if (sampleDemo) {
         emulator_controller_1.EmulatorController.executeUrl(sampleDemo);
     }
-    emulator.checkPlugins();
+    var selectedItem = document.location.hash.substr(1);
+    function selectFile(file) {
+        console.clear();
+        document.location.hash = file;
+        document.location.reload();
+    }
+    DomHelp.fromId('files').on('change', function () {
+        selectFile(DomHelp.fromId('files').val());
+    });
+    new DomHelp(window).on('hashchange', function () {
+        console.clear();
+    });
     FillScreenPlugin.use();
     DomHelp.fromId('load_file').on('change', function (e) {
         var target = e.target;
         if (target.files && target.files.length > 0) {
             console.clear();
-            emulator.executeFileAsync(target.files[0]);
+            emulator_controller_1.EmulatorController.executeFile(target.files[0]);
         }
     });
     DomHelp.fromId('body').removeClass('unready');
@@ -3689,7 +3703,7 @@ var EmulatorContext = (function () {
         enumerable: true,
         configurable: true
     });
-    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, fileManager, rtc, callbackManager, moduleManager, config, interop, netManager) {
+    EmulatorContext.prototype.init = function (interruptManager, display, controller, gpu, memoryManager, threadManager, audio, memory, fileManager, rtc, callbackManager, moduleManager, config, interop, netManager, battery) {
         this.interruptManager = interruptManager;
         this.display = display;
         this.controller = controller;
@@ -3705,6 +3719,7 @@ var EmulatorContext = (function () {
         this.config = config;
         this.interop = interop;
         this.netManager = netManager;
+        this.battery = battery;
     };
     return EmulatorContext;
 })();
@@ -3713,36 +3728,6 @@ exports.EmulatorContext = EmulatorContext;
 },
 "src/core/audio": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var PspAudioBuffer = (function () {
-    function PspAudioBuffer(readedCallback, data) {
-        this.readedCallback = readedCallback;
-        this.data = data;
-        this.offset = 0;
-    }
-    PspAudioBuffer.prototype.resolve = function () {
-        if (this.readedCallback)
-            this.readedCallback();
-        this.readedCallback = null;
-    };
-    Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
-        get: function () { return this.offset < this.length; },
-        enumerable: true,
-        configurable: true
-    });
-    PspAudioBuffer.prototype.read = function () { return this.data[this.offset++]; };
-    Object.defineProperty(PspAudioBuffer.prototype, "available", {
-        get: function () { return this.length - this.offset; },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(PspAudioBuffer.prototype, "length", {
-        get: function () { return this.data.length; },
-        enumerable: true,
-        configurable: true
-    });
-    return PspAudioBuffer;
-})();
-exports.PspAudioBuffer = PspAudioBuffer;
 var Sample = (function () {
     function Sample(left, right) {
         this.left = left;
@@ -3767,111 +3752,96 @@ var Sample = (function () {
 })();
 exports.Sample = Sample;
 var PspAudioChannel = (function () {
-    function PspAudioChannel(audio, context) {
-        var _this = this;
+    function PspAudioChannel(id, audio) {
+        this.id = id;
         this.audio = audio;
-        this.context = context;
-        this.buffers = [];
-        if (this.context) {
-            this.node = this.context.createScriptProcessor(1024, 2, 2);
-            this.node.onaudioprocess = function (e) { _this.process(e); };
-        }
     }
     PspAudioChannel.prototype.start = function () {
-        if (this.node)
-            this.node.connect(this.context.destination);
-        this.audio.playingChannels.add(this);
+        this.audio.onStart.dispatch(this.id);
     };
     PspAudioChannel.prototype.stop = function () {
-        if (this.node)
-            this.node.disconnect();
-        this.audio.playingChannels.delete(this);
+        this.audio.onStop.dispatch(this.id);
     };
-    PspAudioChannel.prototype.process = function (e) {
-        var left = e.outputBuffer.getChannelData(0);
-        var right = e.outputBuffer.getChannelData(1);
-        var sampleCount = left.length;
-        var hidden = document.hidden;
-        for (var n = 0; n < sampleCount; n++) {
-            if (!this.currentBuffer) {
-                if (this.buffers.length == 0)
-                    break;
-                for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
-                    this.buffers[m].resolve();
-                }
-                this.currentBuffer = this.buffers.shift();
-                this.currentBuffer.resolve();
-            }
-            if (this.currentBuffer.available >= 2) {
-                left[n] = this.currentBuffer.read();
-                right[n] = this.currentBuffer.read();
-            }
-            else {
-                this.currentBuffer = null;
-                n--;
-            }
-            if (hidden)
-                left[n] = right[n] = 0;
-        }
-    };
-    PspAudioChannel.prototype.playAsync = function (data) {
-        var _this = this;
-        if (!this.node)
-            return waitAsync(10).then(function () { return 0; });
-        if (this.buffers.length < 8) {
-            this.buffers.push(new PspAudioBuffer(null, data));
-            return 0;
-        }
-        else {
-            return new Promise2(function (resolved, rejected) {
-                _this.buffers.push(new PspAudioBuffer(resolved, data));
-                return 0;
-            });
-        }
+    PspAudioChannel.prototype.playAsync = function (channels, data) {
+        return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data);
     };
     return PspAudioChannel;
 })();
 exports.PspAudioChannel = PspAudioChannel;
 var PspAudio = (function () {
     function PspAudio() {
-        this.context = null;
+        this.lastId = 0;
         this.playingChannels = new SortedSet();
-        try {
-            this.context = new AudioContext();
-        }
-        catch (e) {
-        }
+        this.onPlayDataAsync = new SignalPromise();
+        this.onStart = new Signal1();
+        this.onStop = new Signal1();
     }
     PspAudio.prototype.createChannel = function () {
-        return new PspAudioChannel(this, this.context);
-    };
-    PspAudio.convertS16ToF32 = function (channels, input) {
-        var output = new Float32Array(input.length * 2 / channels);
-        switch (channels) {
-            case 2:
-                for (var n = 0; n < output.length; n++)
-                    output[n] = input[n] / 32767.0;
-                break;
-            case 1:
-                for (var n = 0, m = 0; n < input.length; n++) {
-                    output[m++] = output[m++] = (input[n] / 32767.0);
-                }
-                break;
-        }
-        return output;
+        return new PspAudioChannel(this.lastId++, this);
     };
     PspAudio.prototype.startAsync = function () {
+        this.lastId = 0;
         return Promise2.resolve();
     };
     PspAudio.prototype.stopAsync = function () {
         this.playingChannels.forEach(function (channel) {
             channel.stop();
         });
+        this.lastId = 0;
         return Promise2.resolve();
     };
     return PspAudio;
 })();
 exports.PspAudio = PspAudio;
+
+},
+"src/core/battery": function(module, exports, require) {
+var Battery = (function () {
+    function Battery() {
+    }
+    Object.defineProperty(Battery.prototype, "isLowBattery", {
+        get: function () {
+            return this.level < 0.22;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "chargingType", {
+        get: function () {
+            return (+this.charging);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "iconStatus", {
+        get: function () {
+            var level = this.level;
+            if (level < 0.15)
+                return BatteryStatusEnum.VeryLow;
+            if (level < 0.30)
+                return BatteryStatusEnum.Low;
+            if (level < 0.80)
+                return BatteryStatusEnum.PartiallyFilled;
+            return BatteryStatusEnum.FullyFilled;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Battery;
+})();
+exports.Battery = Battery;
+(function (ChargingEnum) {
+    ChargingEnum[ChargingEnum["NotCharging"] = 0] = "NotCharging";
+    ChargingEnum[ChargingEnum["Charging"] = 1] = "Charging";
+})(exports.ChargingEnum || (exports.ChargingEnum = {}));
+var ChargingEnum = exports.ChargingEnum;
+(function (BatteryStatusEnum) {
+    BatteryStatusEnum[BatteryStatusEnum["VeryLow"] = 0] = "VeryLow";
+    BatteryStatusEnum[BatteryStatusEnum["Low"] = 1] = "Low";
+    BatteryStatusEnum[BatteryStatusEnum["PartiallyFilled"] = 2] = "PartiallyFilled";
+    BatteryStatusEnum[BatteryStatusEnum["FullyFilled"] = 3] = "FullyFilled";
+})(exports.BatteryStatusEnum || (exports.BatteryStatusEnum = {}));
+var BatteryStatusEnum = exports.BatteryStatusEnum;
 
 },
 "src/core/controller": function(module, exports, require) {
@@ -8003,6 +7973,8 @@ function param10(p, offset) { return (p >> offset) & 0x3FF; }
 function param16(p, offset) { return (p >> offset) & 0xFFFF; }
 function param24(p) { return p & 0xFFFFFF; }
 function float1(p) { return MathFloat.reinterpretIntAsFloat(p << 8); }
+var dumpFrameCommands = false;
+var dumpFrameCommandsList = [];
 var PspGpuList = (function () {
     function PspGpuList(id, memory, runner, gpu, cpuExecutor, state) {
         this.id = id;
@@ -8033,6 +8005,8 @@ var PspGpuList = (function () {
             this.batchPrimCount = 0;
             var batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
             this.gpu.queueBatch(batch);
+            if (dumpFrameCommands)
+                dumpFrameCommandsList.push("<BATCH:" + batch.indexCount + ">");
             this.primBatchPrimitiveType = -1;
         }
     };
@@ -8075,6 +8049,9 @@ var PspGpuList = (function () {
                 this.gpuHang();
                 totalCommandsLocal = 0;
                 break;
+            }
+            if (dumpFrameCommands) {
+                dumpFrameCommandsList.push(Op[op] + ":" + addressToHex(p));
             }
             switch (op) {
                 case Op.PRIM: {
@@ -8346,9 +8323,14 @@ var PspGpu = (function () {
         this.callbacks = new UidCollection(1);
         this.batches = [];
         this.onDrawBatches = new Signal2();
+        this.wv = new WatchValue(false);
+        this.freezing = new WatchValue(false);
         this.lastTime = 0;
         this.listRunner = new PspGpuListRunner(memory, this, this.cpuExecutor);
     }
+    PspGpu.prototype.dumpCommands = function () {
+        dumpFrameCommands = true;
+    };
     PspGpu.prototype.startAsync = function () {
         return Promise2.resolve();
     };
@@ -8382,6 +8364,34 @@ var PspGpu = (function () {
         this.batches.push(batch);
     };
     PspGpu.prototype.flushCommands = function () {
+        if (!dumpFrameCommands || dumpFrameCommandsList.length == 0)
+            return;
+        console.info('-----------------------------------------------');
+        dumpFrameCommands = false;
+        var list = [];
+        function flushBuffer() {
+            if (list.length == 0)
+                return;
+            console.log(list.join(', '));
+            list.length = 0;
+        }
+        for (var _i = 0; _i < dumpFrameCommandsList.length; _i++) {
+            var item = dumpFrameCommandsList[_i];
+            if (item.startsWith('<BATCH')) {
+                flushBuffer();
+                console.warn(item);
+            }
+            else {
+                list.push(item);
+                if (item.startsWith('PRIM'))
+                    flushBuffer();
+            }
+        }
+        flushBuffer();
+        dumpFrameCommandsList.length = 0;
+    };
+    PspGpu.prototype.sync = function () {
+        this.wv.value = true;
     };
     PspGpu.prototype.drawSync = function (syncType) {
         var _this = this;
@@ -8390,10 +8400,13 @@ var PspGpu = (function () {
             try {
                 var end = performance.now();
                 _this.lastTime = end;
+                _this.wv.value = false;
                 _this.onDrawBatches.dispatch(optimizedDrawBuffer, _this.batches);
                 optimizedDrawBuffer.reset();
                 _this.batches = [];
-                return 0;
+                return _this.wv.waitUntilValueAsync(true).then(function () {
+                    return _this.freezing.waitUntilValueAsync(false);
+                });
             }
             catch (e) {
                 console.error(e['stack'] || e);
@@ -8783,6 +8796,7 @@ var VertexInfo = (function () {
         this.normalOffset = 0;
         this.positionOffset = 0;
         this.textureComponentsCount = 0;
+        this.value = -1;
     }
     VertexInfo.prototype.clone = function () {
         return new VertexInfo().copyFrom(this);
@@ -10301,6 +10315,7 @@ var gpu_state_1 = require('../gpu_state');
 var webgl_shader_1 = require('./webgl_shader');
 var webgl_texture_1 = require('./webgl_texture');
 var webgl_utils_1 = require('./webgl_utils');
+var globalDriver = null;
 var WebGlPspDrawDriver = (function () {
     function WebGlPspDrawDriver(canvas) {
         this.canvas = canvas;
@@ -10325,6 +10340,8 @@ var WebGlPspDrawDriver = (function () {
         this.frameBufferWidth = 480;
         this.frameBufferHeight = 272;
         this.state = new gpu_state_1.GpuState();
+        this.drawRatio = 1.0;
+        this.lastTransfer = null;
         this.vs = new gpu_state_1.VertexInfo();
         this.testCount = 20;
         this.positionData = new webgl_utils_1.FastFloat32Buffer();
@@ -10336,6 +10353,7 @@ var WebGlPspDrawDriver = (function () {
         this.lastBaseAddress = 0;
         this.tempVec = new Float32Array([0, 0, 0]);
         this.texMat = mat4.create();
+        globalDriver = this;
         this.createCanvas(false);
         this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
     }
@@ -10560,7 +10578,12 @@ var WebGlPspDrawDriver = (function () {
     WebGlPspDrawDriver.prototype.getFramebufferSize = function () {
         return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') };
     };
+    WebGlPspDrawDriver.prototype.redrawLastTransfer = function () {
+        if (this.lastTransfer != null)
+            this.drawBatchesTransfer(this.lastTransfer);
+    };
     WebGlPspDrawDriver.prototype.drawBatchesTransfer = function (transfer) {
+        this.lastTransfer = transfer;
         var buffer = transfer.buffer;
         var verticesData = new Uint8Array(buffer, transfer.data.data, transfer.data.datasize);
         var indicesData = new Uint16Array(buffer, transfer.data.indices, transfer.data.indicesCount);
@@ -10575,10 +10598,12 @@ var WebGlPspDrawDriver = (function () {
         gl.bufferData(gl.ARRAY_BUFFER, verticesData, gl.DYNAMIC_DRAW);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesData, gl.DYNAMIC_DRAW);
-        for (var _i = 0, _a = transfer.batches; _i < _a.length; _i++) {
+        this.textureHandler.startFrame();
+        for (var _i = 0, _a = transfer.batches.slice(0, this.drawRatio * transfer.batches.length); _i < _a.length; _i++) {
             var batch = _a[_i];
             this.drawOptimized(buffer, batch);
         }
+        this.textureHandler.endFrame();
     };
     WebGlPspDrawDriver.prototype.drawOptimized = function (data, batch) {
         this.state.writeData(new Uint32Array(data, batch.stateOffset, 512));
@@ -10609,10 +10634,10 @@ var WebGlPspDrawDriver = (function () {
         }
         if (vs.hasColor) {
             if (vs.color == 7) {
-                this.setAttribute(databuffer, program.vColor, vs.colorComponents, 5121, vs.size, vs.colorOffset + globalVertexOffset);
+                this.setAttribute(databuffer, program.vColor, 4, 5121, vs.size, vs.colorOffset + globalVertexOffset);
             }
             else {
-                this.setAttribute(databuffer, program.vColor, 4, 5123, vs.size, vs.colorOffset + globalVertexOffset);
+                this.setAttribute(databuffer, program.vColor, 1, 5123, vs.size, vs.colorOffset + globalVertexOffset);
             }
         }
         if (vs.hasNormal) {
@@ -10971,9 +10996,13 @@ var TextureHandler = (function () {
                 texture.valid = false;
         }
     };
+    TextureHandler.prototype.startFrame = function () {
+    };
+    TextureHandler.prototype.endFrame = function () {
+    };
     TextureHandler.prototype.bindTexture = function (prog, state, enableBilinear, buffer, batch) {
         var gl = this.gl;
-        gl.activeTexture(gl.TEXTURE0);
+        var textureId = batch.textureLow + batch.clutLow * Math.pow(2, 24);
         var textureData = (batch.textureLow > 0) ? new Uint8Array(buffer, batch.textureLow, batch.textureHigh - batch.textureLow) : null;
         var clutData = (batch.clutLow > 0) ? new Uint8Array(buffer, batch.clutLow, batch.clutHigh - batch.clutLow) : null;
         var mipmap = state.texture.mipmaps[0];
@@ -10988,7 +11017,7 @@ var TextureHandler = (function () {
         var textureState = state.texture;
         var clutAddress = hasClut ? clutState.address : 0;
         var texture;
-        var fastHash = [mipmap.address, clutAddress, textureState.colorComponent].join('_');
+        var fastHash = mipmap.address + clutAddress * Math.pow(2, 24) + textureState.colorComponent * Math.pow(2, 18);
         if (!this.texturesByAddress.get(fastHash)) {
             texture = new Texture(gl);
             this.texturesByAddress.set(fastHash, texture);
@@ -12330,6 +12359,7 @@ var _context = require('./context');
 var _cpu = require('./core/cpu');
 var _gpu = require('./core/gpu');
 var _rtc = require('./core/rtc');
+var battery_1 = require('./core/battery');
 var _controller = require('./core/controller');
 var _stream = require('./core/stream');
 _stream;
@@ -12379,6 +12409,9 @@ var Interop = _manager.Interop;
 var console = logger.named('emulator');
 var Emulator = (function () {
     function Emulator(memory) {
+        this.audio = new PspAudio();
+        this.battery = new battery_1.Battery();
+        this.controller = new PspController();
         this.config = new _config.Config();
         this.gameTitle = '';
         this.onPic0 = new Signal1();
@@ -12406,8 +12439,6 @@ var Emulator = (function () {
             _this.context = new EmulatorContext();
             _this.memoryManager = new MemoryManager();
             _this.interruptManager = new InterruptManager();
-            _this.audio = new PspAudio();
-            _this.controller = new PspController();
             _this.syscallManager = new SyscallManager(_this.context);
             _this.fileManager = new FileManager();
             _this.interop = new Interop();
@@ -12432,7 +12463,7 @@ var Emulator = (function () {
             _this.fileManager.mount('kemulator', _this.emulatorVfs);
             _this.ms0Vfs.mountVfs('/', new MemoryVfs());
             _pspmodules.registerModulesAndSyscalls(_this.syscallManager, _this.moduleManager);
-            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop, _this.netManager);
+            _this.context.init(_this.interruptManager, _this.display, _this.controller, _this.gpu, _this.memoryManager, _this.threadManager, _this.audio, _this.memory, _this.fileManager, _this.rtc, _this.callbackManager, _this.moduleManager, _this.config, _this.interop, _this.netManager, _this.battery);
             return Promise2.all([
                 _this.display.startAsync().then(function () { console.info('display initialized'); }),
                 _this.controller.startAsync().then(function () { console.info('controller initialized'); }),
@@ -12613,6 +12644,7 @@ exports.Emulator = Emulator;
 
 },
 "src/emulator_controller": function(module, exports, require) {
+///<reference path="./emulator_bridge.d.ts" />
 var webgl_driver_1 = require('./core/gpu/webgl/webgl_driver');
 var _config = require('./hle/config');
 var canvas = (document.getElementById('canvas'));
@@ -12655,17 +12687,236 @@ emulatorWorker.onmessage = function (e) {
             document.body.style.backgroundPosition = 'center center';
             document.body.style.backgroundImage = 'url("' + Stream.fromUint8Array(payload).toImageUrl() + '")';
             break;
-        case 'drawBatches':
+        case 'audio.start':
+            audio.startChannel(payload.id);
+            break;
+        case 'audio.stop':
+            audio.stopChannel(payload.id);
+            break;
+        case 'audio.data':
+            audio.playDataAsync(payload.id, payload.channels, payload.data).then(function () {
+                completeAction(e);
+            });
+            break;
+        case 'gpu.draw':
             webglDriver.invalidatedMemoryAll();
+            overlay.updateAndReset();
             webglDriver.drawBatchesTransfer(payload);
+            freezing.waitUntilValueAsync(false).then(function () {
+                postAction('gpu.sync', {});
+            });
             break;
         default:
             console.error('unknown UI action', action, payload);
             break;
     }
+    Microtask.execute();
 };
+var Battery = (function () {
+    function Battery(manager) {
+        this.manager = manager;
+        Battery.instance = this;
+    }
+    Object.defineProperty(Battery.prototype, "lifetime", {
+        get: function () {
+            if (this.manager != null)
+                return Math.min(10 * 3600, this.manager.dischargingTime);
+            return 3 * 3600;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "charging", {
+        get: function () {
+            if (this.manager != null)
+                return this.manager.charging;
+            return true;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Battery.prototype, "level", {
+        get: function () {
+            if (this.manager != null)
+                return this.manager.level;
+            return 1.0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Battery.getAsync = function () {
+        if (this.instance)
+            return Promise2.resolve(this.instance);
+        if (this.promise)
+            return this.promise;
+        if (navigator.battery)
+            return Promise2.resolve(new Battery(navigator.battery));
+        if (navigator.getBattery) {
+            return this.promise = Promise2.fromThenable(navigator.getBattery()).then(function (v) {
+                return new Battery(v);
+            });
+        }
+        return Promise2.resolve(new Battery(null));
+    };
+    Battery.instance = null;
+    Battery.promise = null;
+    return Battery;
+})();
+exports.Battery = Battery;
+setTimeout(function () {
+    Battery.getAsync().then(function (battery) {
+        function sendData() {
+            postAction('battery.info', {
+                charging: battery.charging,
+                level: battery.level,
+                lifetime: battery.lifetime,
+            });
+        }
+        setInterval(function () {
+            sendData();
+        }, 300);
+        sendData();
+    });
+}, 0);
+var PspAudioBuffer = (function () {
+    function PspAudioBuffer(readedCallback, data) {
+        this.readedCallback = readedCallback;
+        this.data = data;
+        this.offset = 0;
+    }
+    PspAudioBuffer.prototype.resolve = function () {
+        if (this.readedCallback)
+            this.readedCallback();
+        this.readedCallback = null;
+    };
+    Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
+        get: function () { return this.offset < this.length; },
+        enumerable: true,
+        configurable: true
+    });
+    PspAudioBuffer.prototype.read = function () { return this.data[this.offset++]; };
+    Object.defineProperty(PspAudioBuffer.prototype, "available", {
+        get: function () { return this.length - this.offset; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(PspAudioBuffer.prototype, "length", {
+        get: function () { return this.data.length; },
+        enumerable: true,
+        configurable: true
+    });
+    return PspAudioBuffer;
+})();
+exports.PspAudioBuffer = PspAudioBuffer;
+var Audio2Channel = (function () {
+    function Audio2Channel(id, context) {
+        var _this = this;
+        this.id = id;
+        this.context = context;
+        this.buffers = [];
+        if (this.context) {
+            this.node = this.context.createScriptProcessor(1024, 2, 2);
+            this.node.onaudioprocess = function (e) { _this.process(e); };
+        }
+    }
+    Audio2Channel.convertS16ToF32 = function (channels, input) {
+        var output = new Float32Array(input.length * 2 / channels);
+        switch (channels) {
+            case 2:
+                for (var n = 0; n < output.length; n++)
+                    output[n] = input[n] / 32767.0;
+                break;
+            case 1:
+                for (var n = 0, m = 0; n < input.length; n++) {
+                    output[m++] = output[m++] = (input[n] / 32767.0);
+                }
+                break;
+        }
+        return output;
+    };
+    Audio2Channel.prototype.start = function () {
+        if (this.node)
+            this.node.connect(this.context.destination);
+    };
+    Audio2Channel.prototype.stop = function () {
+        if (this.node)
+            this.node.disconnect();
+    };
+    Audio2Channel.prototype.process = function (e) {
+        var left = e.outputBuffer.getChannelData(0);
+        var right = e.outputBuffer.getChannelData(1);
+        var sampleCount = left.length;
+        var hidden = document.hidden;
+        for (var n = 0; n < sampleCount; n++) {
+            if (!this.currentBuffer) {
+                if (this.buffers.length == 0)
+                    break;
+                for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
+                    this.buffers[m].resolve();
+                }
+                this.currentBuffer = this.buffers.shift();
+                this.currentBuffer.resolve();
+            }
+            if (this.currentBuffer.available >= 2) {
+                left[n] = this.currentBuffer.read();
+                right[n] = this.currentBuffer.read();
+            }
+            else {
+                this.currentBuffer = null;
+                n--;
+            }
+            if (hidden)
+                left[n] = right[n] = 0;
+        }
+    };
+    Audio2Channel.prototype.playAsync = function (data) {
+        var _this = this;
+        if (!this.node)
+            return waitAsync(10).then(function () { return 0; });
+        if (this.buffers.length < 8) {
+            this.buffers.push(new PspAudioBuffer(null, data));
+            return Promise2.resolve(0);
+        }
+        else {
+            return new Promise2(function (resolved, rejected) {
+                _this.buffers.push(new PspAudioBuffer(resolved, data));
+                return 0;
+            });
+        }
+    };
+    Audio2Channel.prototype.playDataAsync = function (channels, data) {
+        console.log(channels, data);
+        return this.playAsync(Audio2Channel.convertS16ToF32(channels, data));
+    };
+    return Audio2Channel;
+})();
+var Audio2 = (function () {
+    function Audio2() {
+        this.channels = new Map();
+        this.context = new AudioContext();
+    }
+    Audio2.prototype.getChannel = function (id) {
+        if (!this.channels.has(id))
+            this.channels.set(id, new Audio2Channel(id, this.context));
+        return this.channels.get(id);
+    };
+    Audio2.prototype.startChannel = function (id) {
+        return this.getChannel(id).start();
+    };
+    Audio2.prototype.stopChannel = function (id) {
+        return this.getChannel(id).stop();
+    };
+    Audio2.prototype.playDataAsync = function (id, channels, data) {
+        return this.getChannel(id).playDataAsync(channels, data);
+    };
+    return Audio2;
+})();
+var audio = new Audio2();
 function postAction(type, payload) {
     emulatorWorker.postMessage({ action: type, payload: payload });
+}
+function completeAction(e) {
+    postAction('$complete', e.data.packetId);
 }
 document.addEventListener('keydown', function (e) {
     postAction('keyDown', e.keyCode);
@@ -12724,22 +12975,238 @@ var EmulatorController = (function () {
     EmulatorController.executeUrl = function (url) {
         postAction('executeUrl', url);
     };
+    EmulatorController.executeFile = function (file) {
+        postAction('executeFile', file);
+    };
     return EmulatorController;
 })();
 exports.EmulatorController = EmulatorController;
 postAction('config.language', _config.Config.detectLanguage());
+var canDOMCreateElements = (typeof document != 'undefined');
+var OverlayCounter = (function () {
+    function OverlayCounter(name, resetValue, representer) {
+        this.name = name;
+        this.resetValue = resetValue;
+        this.representer = representer;
+        this.reset();
+        if (canDOMCreateElements) {
+            this.element = document.createElement('div');
+        }
+    }
+    OverlayCounter.prototype.update = function () {
+        if (this.element)
+            this.element.innerHTML = this.name + ": " + this.representedValue;
+    };
+    Object.defineProperty(OverlayCounter.prototype, "representedValue", {
+        get: function () {
+            return this.representer ? this.representer(this.value) : this.value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    OverlayCounter.prototype.reset = function () {
+        this.value = this.resetValue;
+    };
+    return OverlayCounter;
+})();
+var OverlayIntent = (function () {
+    function OverlayIntent(text, action) {
+        if (canDOMCreateElements) {
+            this.element = document.createElement('button');
+            this.element.innerHTML = text;
+            this.element.onclick = function (e) { return action(); };
+        }
+    }
+    OverlayIntent.prototype.update = function () {
+    };
+    OverlayIntent.prototype.reset = function () {
+    };
+    return OverlayIntent;
+})();
+var OverlaySlider = (function () {
+    function OverlaySlider(text, initialRatio, action) {
+        var _this = this;
+        if (canDOMCreateElements) {
+            this.element = document.createElement('input');
+            this.element.type = 'range';
+            this.element.min = "0";
+            this.element.max = "1000";
+            this.element.value = "" + initialRatio * 1000;
+            var lastReportedValue = NaN;
+            var report = function (e) {
+                if (_this.ratio == lastReportedValue)
+                    return;
+                lastReportedValue = _this.ratio;
+                action(_this.ratio);
+            };
+            this.element.onmousemove = report;
+            this.element.onchange = report;
+        }
+    }
+    Object.defineProperty(OverlaySlider.prototype, "ratio", {
+        get: function () {
+            return (this.value / 1000);
+        },
+        set: function (value) {
+            this.value = value * 1000;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(OverlaySlider.prototype, "value", {
+        get: function () {
+            return +this.element.value;
+        },
+        set: function (v) {
+            this.element.value = "" + v;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    OverlaySlider.prototype.update = function () {
+    };
+    OverlaySlider.prototype.reset = function () {
+    };
+    return OverlaySlider;
+})();
+var Overlay = (function () {
+    function Overlay() {
+        this.sections = [];
+        var element = this.element = canDOMCreateElements ? document.createElement('div') : null;
+        if (element) {
+            element.style.position = 'absolute';
+            element.style.zIndex = '10000';
+            element.style.top = '0';
+            element.style.right = '0';
+            element.style.background = 'rgba(0, 0, 0, 0.3)';
+            element.style.font = '12px Arial';
+            element.style.width = '200px';
+            element.style.height = 'auto';
+            element.style.padding = '4px';
+            element.style.color = 'white';
+            document.body.appendChild(element);
+        }
+    }
+    Overlay.prototype.addElement = function (element) {
+        this.sections.push(element);
+        if (this.element) {
+            this.element.appendChild(element.element);
+        }
+        return element;
+    };
+    Overlay.prototype.createCounter = function (name, resetValue, representer) {
+        return this.addElement(new OverlayCounter(name, resetValue, representer));
+    };
+    Overlay.prototype.createIntent = function (text, action) {
+        return this.addElement(new OverlayIntent(text, action));
+    };
+    Overlay.prototype.createSlider = function (text, initialRatio, action) {
+        return this.addElement(new OverlaySlider(text, initialRatio, action));
+    };
+    Overlay.prototype.update = function () {
+        for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
+            var section = _a[_i];
+            section.update();
+        }
+    };
+    Overlay.prototype.reset = function () {
+        for (var _i = 0, _a = this.sections; _i < _a.length; _i++) {
+            var s = _a[_i];
+            s.reset();
+        }
+    };
+    Overlay.prototype.updateAndReset = function () {
+        this.update();
+        this.reset();
+    };
+    return Overlay;
+})();
+var overlay = new Overlay();
+var overlayBatchSlider = overlay.createSlider('batch', 1.0, function (ratio) {
+    webglDriver.drawRatio = ratio;
+    webglDriver.redrawLastTransfer();
+});
+var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
+var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
+var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
+var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
+var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
+var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
+var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
+var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
+var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
+var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
+var totalStalls = overlay.createCounter('totalStalls', 0, numberToSeparator);
+var primCount = overlay.createCounter('primCount', 0, numberToSeparator);
+var batchCount = overlay.createCounter('batchCount', 0, numberToSeparator);
+var timePerFrame = overlay.createCounter('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
+var freezing = new WatchValue(false);
+overlay.createIntent('toggle colors', function () {
+    webglDriver.enableColors = !webglDriver.enableColors;
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('toggle antialiasing', function () {
+    webglDriver.antialiasing = !webglDriver.antialiasing;
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('toggle textures', function () {
+    webglDriver.enableTextures = !webglDriver.enableTextures;
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('skinning', function () {
+    webglDriver.enableSkinning = !webglDriver.enableSkinning;
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('bilinear', function () {
+    webglDriver.enableBilinear = !webglDriver.enableBilinear;
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('freeze', function () {
+    freezing.value = !freezing.value;
+    postAction('gpu.freezing', freezing.value);
+});
+var dumpFrameCommandsList = [];
+overlay.createIntent('dump frame commands', function () {
+    postAction('gpu.dumpcommands', {});
+});
+overlay.createIntent('x1', function () {
+    webglDriver.setFramebufferSize(480 * 1, 272 * 1);
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('x2', function () {
+    webglDriver.setFramebufferSize(480 * 2, 272 * 2);
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('x3', function () {
+    webglDriver.setFramebufferSize(480 * 3, 272 * 3);
+    webglDriver.redrawLastTransfer();
+});
+overlay.createIntent('x4', function () {
+    webglDriver.setFramebufferSize(480 * 4, 272 * 4);
+    webglDriver.redrawLastTransfer();
+});
+overlay.updateAndReset();
 
 },
 "src/emulator_worker": function(module, exports, require) {
+///<reference path="./emulator_bridge.d.ts" />
 var emulator_1 = require('./emulator');
 var _vertex = require('./core/gpu/gpu_vertex');
+var lastPacketId = 0;
 function postAction(type, payload, transferables) {
-    if (transferables) {
-        postMessage({ action: type, payload: payload }, transferables);
-    }
-    else {
-        postMessage({ action: type, payload: payload });
-    }
+    var packetId = lastPacketId++;
+    postMessage({ packetId: packetId, action: type, payload: payload }, transferables);
+}
+var waiters = new Map();
+function postActionWaitAsync(type, payload, transferables) {
+    var packetId = lastPacketId++;
+    postMessage({ packetId: packetId, action: type, payload: payload }, transferables);
+    return new Promise2(function (resolve, reject) {
+        waiters.set(packetId, function () {
+            waiters.delete(packetId);
+            resolve();
+        });
+    });
 }
 var emulator = new emulator_1.Emulator();
 self.emulator = emulator;
@@ -12756,23 +13223,62 @@ emulator.startAsync().then(function () {
 });
 emulator.onDrawBatches.add(function (drawBufferData, batches) {
     var transferData = _vertex.OptimizedDrawBufferTransfer.build(drawBufferData, batches);
-    postAction('drawBatches', transferData, [transferData.buffer]);
+    postAction('gpu.draw', transferData, [transferData.buffer]);
 });
 emulator.memory.invalidateDataAll.add(function () {
 });
 emulator.memory.invalidateDataRange.add(function (low, high) {
 });
+emulator.audio.onPlayDataAsync.add(function (id, channels, data) {
+    var data2 = ArrayBufferUtils.cloneUint16Array(data);
+    return postActionWaitAsync('audio.data', { id: id, channels: channels, data: data2 }, [data2.buffer]);
+});
+emulator.audio.onStart.add(function (id) {
+    postAction('audio.start', { id: id });
+});
+emulator.audio.onStop.add(function (id) {
+    postAction('audio.stop', { id: id });
+});
 onmessage = function (e) {
     var action = e.data.action;
     var payload = e.data.payload;
     switch (action) {
+        case '$complete':
+            waiters.get(payload)();
+            break;
         case 'executeUrl':
-            var url = documentLocation + "/" + payload;
+            var url;
+            if (payload.match(/^https?:\/\//)) {
+                url = payload;
+            }
+            else {
+                url = documentLocation + "/" + payload;
+            }
             console.info('executeUrl:', url);
             emulator.downloadAndExecuteAsync(url);
             break;
+        case 'executeFile':
+            var file = payload;
+            console.info('executeFile:', file);
+            emulator.executeFileAsync(file);
+            break;
         case 'config.language':
             emulator.config.language = payload;
+            break;
+        case 'gpu.dumpcommands':
+            emulator.gpu.dumpCommands();
+            break;
+        case 'gpu.freezing':
+            emulator.gpu.freezing.value = payload;
+            break;
+        case 'gpu.sync':
+            emulator.gpu.sync();
+            break;
+        case 'battery.info':
+            var binfo = payload;
+            emulator.battery.charging = binfo.charging;
+            emulator.battery.level = binfo.level;
+            emulator.battery.lifetime = binfo.lifetime;
             break;
         case 'keyDown':
             emulator.controller.setKeyDown(payload);
@@ -12787,6 +13293,7 @@ onmessage = function (e) {
             console.error('unknown worker action', action, payload);
             break;
     }
+    Microtask.execute();
 };
 
 },
@@ -18436,7 +18943,6 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
 };
 var _utils = require('../utils');
 var SceKernelErrors = require('../SceKernelErrors');
-var _audio = require('../../core/audio');
 var nativeFunction = _utils.nativeFunction;
 var sceAudio = (function () {
     function sceAudio(context) {
@@ -18507,7 +19013,7 @@ var sceAudio = (function () {
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         var channel = this.getChannelById(channelId);
-        var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
         if (!(result instanceof Promise2))
             return result;
         return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
@@ -18518,21 +19024,21 @@ var sceAudio = (function () {
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         var channel = this.getChannelById(channelId);
-        var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
         return result;
     };
     sceAudio.prototype.sceAudioOutput = function (channelId, volume, buffer) {
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         var channel = this.getChannelById(channelId);
-        channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
         return 0;
     };
     sceAudio.prototype.sceAudioOutputPanned = function (channelId, leftVolume, rightVolume, buffer) {
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         var channel = this.getChannelById(channelId);
-        channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+        channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
         return 0;
     };
     sceAudio.prototype.sceAudioChangeChannelVolume = function (channelId, volumeLeft, volumeRight) {
@@ -19084,27 +19590,14 @@ if (typeof __decorate !== "function") __decorate = function (decorators, target,
     }
 };
 var utils_1 = require('../utils');
-var scePower_1 = require('./scePower');
 var sceImpose = (function () {
     function sceImpose(context) {
         this.context = context;
     }
     sceImpose.prototype.sceImposeGetBatteryIconStatus = function (isChargingPointer, iconStatusPointer) {
-        return scePower_1.Battery.getAsync().then(function (b) {
-            var charging = b.charging ? ChargingEnum.Charging : ChargingEnum.NotCharging;
-            var status = BatteryStatusEnum.FullyFilled;
-            if (b.level < 0.15)
-                status = BatteryStatusEnum.VeryLow;
-            if (b.level < 0.30)
-                status = BatteryStatusEnum.Low;
-            else if (b.level < 0.80)
-                status = BatteryStatusEnum.PartiallyFilled;
-            else
-                status = BatteryStatusEnum.FullyFilled;
-            isChargingPointer.writeInt32(charging);
-            iconStatusPointer.writeInt32(status);
-            return 0;
-        });
+        isChargingPointer.writeInt32(this.context.battery.chargingType);
+        iconStatusPointer.writeInt32(this.context.battery.iconStatus);
+        return 0;
     };
     sceImpose.prototype.sceImposeSetLanguageMode = function (language, buttonPreference) {
         this.context.config.language = language;
@@ -19131,18 +19624,6 @@ var sceImpose = (function () {
     return sceImpose;
 })();
 exports.sceImpose = sceImpose;
-var ChargingEnum;
-(function (ChargingEnum) {
-    ChargingEnum[ChargingEnum["NotCharging"] = 0] = "NotCharging";
-    ChargingEnum[ChargingEnum["Charging"] = 1] = "Charging";
-})(ChargingEnum || (ChargingEnum = {}));
-var BatteryStatusEnum;
-(function (BatteryStatusEnum) {
-    BatteryStatusEnum[BatteryStatusEnum["VeryLow"] = 0] = "VeryLow";
-    BatteryStatusEnum[BatteryStatusEnum["Low"] = 1] = "Low";
-    BatteryStatusEnum[BatteryStatusEnum["PartiallyFilled"] = 2] = "PartiallyFilled";
-    BatteryStatusEnum[BatteryStatusEnum["FullyFilled"] = 3] = "FullyFilled";
-})(BatteryStatusEnum || (BatteryStatusEnum = {}));
 
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
@@ -20512,12 +20993,12 @@ var scePower = (function () {
         this._setCpuFreq(cpuFreq);
         return 0;
     };
-    scePower.prototype.scePowerGetBatteryLifePercent = function () { return Battery.getAsync().then(function (b) { return (b.level * 100) | 0; }); };
-    scePower.prototype.scePowerIsPowerOnline = function () { return Battery.getAsync().then(function (b) { return +b.charging; }); };
+    scePower.prototype.scePowerGetBatteryLifePercent = function () { return (this.context.battery.level * 100) | 0; };
+    scePower.prototype.scePowerIsPowerOnline = function () { return +this.context.battery.charging; };
     scePower.prototype.scePowerIsBatteryExist = function () { return 1; };
-    scePower.prototype.scePowerIsLowBattery = function () { return Battery.getAsync().then(function (b) { return +b.isBatteryLow; }); };
-    scePower.prototype.scePowerIsBatteryCharging = function () { return Battery.getAsync().then(function (b) { return +b.charging; }); };
-    scePower.prototype.scePowerGetBatteryLifeTime = function () { return Battery.getAsync().then(function (b) { return (b.lifetime / 60) | 0; }); };
+    scePower.prototype.scePowerIsLowBattery = function () { return +this.context.battery.isLowBattery; };
+    scePower.prototype.scePowerIsBatteryCharging = function () { return +this.context.battery.charging; };
+    scePower.prototype.scePowerGetBatteryLifeTime = function () { return (this.context.battery.lifetime / 60) | 0; };
     scePower.prototype.scePowerGetBatteryVolt = function () { return 4135; };
     scePower.prototype.scePowerGetBatteryTemp = function () { return 28; };
     scePower.prototype.scePowerLock = function (unknown) { return 0; };
@@ -20641,64 +21122,6 @@ var scePower = (function () {
     return scePower;
 })();
 exports.scePower = scePower;
-var Battery = (function () {
-    function Battery(manager) {
-        this.manager = manager;
-        Battery.instance = this;
-    }
-    Object.defineProperty(Battery.prototype, "lifetime", {
-        get: function () {
-            if (this.manager != null)
-                return Math.min(10 * 3600, this.manager.dischargingTime);
-            return 3 * 3600;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Battery.prototype, "charging", {
-        get: function () {
-            if (this.manager != null)
-                return this.manager.charging;
-            return true;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Battery.prototype, "level", {
-        get: function () {
-            if (this.manager != null)
-                return this.manager.level;
-            return 1.0;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Battery.prototype, "isBatteryLow", {
-        get: function () {
-            return this.level < 0.25;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Battery.getAsync = function () {
-        if (this.instance)
-            return Promise2.resolve(this.instance);
-        if (this.promise)
-            return this.promise;
-        if (navigator.battery)
-            return Promise2.resolve(new Battery(navigator.battery));
-        if (navigator.getBattery) {
-            return this.promise = Promise2.fromThenable(navigator.getBattery()).then(function (v) {
-                return new Battery(v);
-            });
-        }
-        return Promise2.resolve(new Battery(null));
-    };
-    Battery.instance = null;
-    Battery.promise = null;
-    return Battery;
-})();
-exports.Battery = Battery;
 var CallbackStatus;
 (function (CallbackStatus) {
     CallbackStatus[CallbackStatus["AC_POWER"] = 4096] = "AC_POWER";
@@ -25379,7 +25802,7 @@ describe('elf', function () {
         var context = new EmulatorContext();
         var moduleManager = new ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
-        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null);
+        context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null, null);
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
     });

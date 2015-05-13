@@ -912,6 +912,26 @@ class Signal2<T1, T2> {
 	}
 }
 
+class SignalPromise<T1, T2, T3, T4> {
+	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4) => Promise2<any>)[] = [];
+
+	get length() { return this.callbacks.length; }
+	clear() { this.callbacks = []; }
+
+	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4) => Promise2<any>) {
+		this.callbacks.push(callback);
+		return this;
+	}
+
+	dispatchAsync(v1?: T1, v2?: T2, v3?: T3, v4?: T4) {
+		var promises:Promise2<any>[] = [];
+		this.callbacks.forEach((callback) => {
+			promises.push(callback(v1, v2, v3, v4));
+		});
+		return Promise2.all(promises)
+	}
+}
+
 class Logger {
 	constructor(private policy: LoggerPolicies, private console: any, private name: string) {
 	}

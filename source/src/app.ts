@@ -2,11 +2,9 @@
 ///<reference path="emulator_worker.ts" />
 
 import _controller = require('./core/controller');
-import _emulator = require('./emulator');
 import { EmulatorController } from './emulator_controller';
 
 import PspCtrlButtons = _controller.PspCtrlButtons;
-import Emulator = _emulator.Emulator;
 
 interface Touch {
 	identifier: number;
@@ -27,7 +25,6 @@ interface Rect {
 	button: number;
 }
 
-declare var emulator: Emulator;
 
 /*
 var touch_overlay = document.getElementById('touch_overlay');
@@ -254,13 +251,6 @@ var demos = [
 
 DomHelp.fromId('demo_list').html = '';
 DomHelp.fromId('files').html = '';
-var selectedItem = document.location.hash.substr(1);
-
-function selectFile(file: any) {
-	console.clear();
-	document.location.hash = file;
-	document.location.reload();
-}
 
 //$('#files').append('<option value="">-- DEMOS --</option>');
 demos.forEach(function(fileName) {
@@ -283,15 +273,7 @@ demos.forEach(function(fileName) {
 	}
 	*/
 });
-DomHelp.fromId('files').on('change', () => {
-	selectFile(DomHelp.fromId('files').val());
-});
 
-
-new DomHelp(window).on('hashchange', function() {
-	console.clear();
-	emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
-});
 //$(document.body).click(function (e) { e.preventDefault() });
 //$(document.body).mousedown(function (e) { e.preventDefault() });
 //$(document.body).mouseup(function (e) { e.preventDefault() });
@@ -371,17 +353,11 @@ interface Window {
 
 
 window.addEventListener('load', () => {
-	
-	var emulator = new Emulator();
 	var _window: any = window;
-	_window['emulator'] = emulator;
 	var sampleDemo: string = undefined;
 
 	if (document.location.hash) {
 		sampleDemo = document.location.hash.substr(1);
-		if (sampleDemo.startsWith('samples/')) {
-			sampleDemo = 'data/' + sampleDemo;
-		}
 	}
 
 	if (sampleDemo) {
@@ -389,8 +365,24 @@ window.addEventListener('load', () => {
 		EmulatorController.executeUrl(sampleDemo);
 	}
 
-	emulator.checkPlugins();
-
+	var selectedItem = document.location.hash.substr(1);
+	
+	function selectFile(file: any) {
+		console.clear();
+		document.location.hash = file;
+		document.location.reload();
+	}
+	
+	DomHelp.fromId('files').on('change', () => {
+		selectFile(DomHelp.fromId('files').val());
+	});
+	
+	
+	new DomHelp(window).on('hashchange', function() {
+		console.clear();
+		//emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
+	});
+	
 	//ControllerPlugin.use();
 	FillScreenPlugin.use();
 	
@@ -398,7 +390,7 @@ window.addEventListener('load', () => {
 		var target: any = e.target;
 		if (target.files && target.files.length > 0) {
 			console.clear();
-			emulator.executeFileAsync(target.files[0]);
+			EmulatorController.executeFile(target.files[0]);
 		}
 	});
 	

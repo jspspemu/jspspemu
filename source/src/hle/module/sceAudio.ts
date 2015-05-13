@@ -85,7 +85,7 @@ export class sceAudio {
 		if (!buffer) return -1;
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
-		var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+		var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
 		if (!(result instanceof Promise2)) return result;
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
 	}
@@ -95,7 +95,7 @@ export class sceAudio {
 		if (!buffer) return -1;
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
-		var result = channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+		var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
 		return result;
 		//debugger;
 		//return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
@@ -105,7 +105,7 @@ export class sceAudio {
 	sceAudioOutput(channelId: number, volume: number, buffer: Stream): any {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
-		channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+		channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
 		return 0;
 	}
 
@@ -113,7 +113,7 @@ export class sceAudio {
 	sceAudioOutputPanned(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		var channel = this.getChannelById(channelId);
-		channel.channel.playAsync(_audio.PspAudio.convertS16ToF32(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount)));
+		channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
 		return 0;
 	}
 

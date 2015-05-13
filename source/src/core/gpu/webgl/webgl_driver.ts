@@ -2,15 +2,17 @@
 ///<reference path="./webgl_enums.d.ts" />
 
 import {
-GpuState, Color, VertexInfo, PrimitiveType,
+GpuState, Color, ColorEnum, VertexInfo, PrimitiveType,
 CullingDirection, GuBlendingEquation, TextureMapMode,
 GuBlendingFactor
 } from '../gpu_state';
 import _vertex = require('../gpu_vertex');
+import _pixelformat = require('../../pixelformat');
 import { ShaderCache } from './webgl_shader';
 import { Texture, TextureHandler } from './webgl_texture';
 import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';
 
+var globalDriver: WebGlPspDrawDriver = null;
 export class WebGlPspDrawDriver {
 	private gl: WebGLRenderingContext;
 	
@@ -19,6 +21,7 @@ export class WebGlPspDrawDriver {
 	private glAntialiasing:boolean;
 
 	constructor(private canvas: HTMLCanvasElement) {
+		globalDriver = this;
 		this.createCanvas(false);
 		this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
 	}
@@ -258,7 +261,6 @@ export class WebGlPspDrawDriver {
 		program.getUniform('u_enableSkinning').set1i(this.enableSkinning ? 1 : 0);
 		program.getUniform('u_enableBilinear').set1i(this.enableBilinear ? 1 : 0);
 		
-		
 		if (this.state.clearing) {
 			this.updateClearStateStart(program, vertexInfo, primitiveType);
 		} else {
@@ -311,7 +313,15 @@ export class WebGlPspDrawDriver {
 		return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') }
 	}
 	
+	public drawRatio: number = 1.0;
+	private lastTransfer: _vertex.BatchesTransfer = null;
+	
+	redrawLastTransfer(): void {
+		if (this.lastTransfer != null) this.drawBatchesTransfer(this.lastTransfer);
+	}
+	
 	drawBatchesTransfer(transfer: _vertex.BatchesTransfer) {
+		this.lastTransfer = transfer;
 		var buffer = transfer.buffer;
 		var verticesData = new Uint8Array(buffer, transfer.data.data, transfer.data.datasize);
 		var indicesData = new Uint16Array(buffer, transfer.data.indices, transfer.data.indicesCount);
@@ -325,9 +335,11 @@ export class WebGlPspDrawDriver {
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesData, gl.DYNAMIC_DRAW);
 		
-		for (let batch of transfer.batches) {
+		this.textureHandler.startFrame();
+		for (let batch of transfer.batches.slice(0, this.drawRatio * transfer.batches.length)) {
 			this.drawOptimized(buffer, batch);
 		}
+		this.textureHandler.endFrame();
 	}
 
 	private vs = new VertexInfo();	
@@ -359,14 +371,15 @@ export class WebGlPspDrawDriver {
 		if (vs.hasTexture) {
 			this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset + globalVertexOffset);
 		}
-		// @TODO: Just working for RGBA8888
+
 		if (vs.hasColor) {
-			if (vs.color == 7) {
-				this.setAttribute(databuffer, program.vColor, vs.colorComponents, GL.UNSIGNED_BYTE, vs.size, vs.colorOffset + globalVertexOffset);
+			if (vs.color == ColorEnum.Color8888) {
+				this.setAttribute(databuffer, program.vColor, 4, GL.UNSIGNED_BYTE, vs.size, vs.colorOffset + globalVertexOffset);
 			} else {
-				this.setAttribute(databuffer, program.vColor, 4, GL.UNSIGNED_SHORT, vs.size, vs.colorOffset + globalVertexOffset);
+				this.setAttribute(databuffer, program.vColor, 1, GL.UNSIGNED_SHORT, vs.size, vs.colorOffset + globalVertexOffset);
 			}
 		}
+
 		if (vs.hasNormal) {
 			this.setAttribute(databuffer, program.vNormal, vs.normalComponents, convertVertexNumericEnum[vs.normal], vs.size, vs.normalOffset + globalVertexOffset);
 		}
@@ -523,4 +536,3 @@ export class WebGlPspDrawDriver {
 var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, GL.TRIANGLES, GL.TRIANGLE_STRIP, GL.TRIANGLE_FAN, GL.TRIANGLES /*sprites*/]);
 var convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);
-

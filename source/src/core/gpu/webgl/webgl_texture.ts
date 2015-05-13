@@ -151,7 +151,7 @@ export class TextureHandler {
 	}
 
 	private texturesByHash:Map<string, Texture>;
-	private texturesByAddress:Map<string, Texture>;
+	private texturesByAddress:Map<number, Texture>;
 	private textures:Texture[];
 	
 	rehashSignal = new Signal1<number>();
@@ -160,7 +160,7 @@ export class TextureHandler {
 		this.gl = gl;
 		
 		this.texturesByHash = new Map<string, Texture>();
-		this.texturesByAddress = new Map<string, Texture>();
+		this.texturesByAddress = new Map<number, Texture>();
 		this.textures = [];
 	}
 
@@ -174,10 +174,17 @@ export class TextureHandler {
 			if (texture.addressStart >= low && texture.addressEnd <= high) texture.valid = false;
 		}
 	}
+	
+	startFrame() {
+	}
+	
+	endFrame() {
+	}
 
 	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState, enableBilinear:boolean, buffer:ArrayBuffer, batch: _vertex.OptimizedBatchTransfer) {
 		var gl = this.gl;
-		gl.activeTexture(gl.TEXTURE0);
+		
+		var textureId = batch.textureLow + batch.clutLow * Math.pow(2, 24);
 		
 		var textureData = (batch.textureLow > 0) ? new Uint8Array(buffer, batch.textureLow, batch.textureHigh - batch.textureLow) : null;
 		var clutData = (batch.clutLow > 0) ? new Uint8Array(buffer, batch.clutLow, batch.clutHigh - batch.clutLow) : null;
@@ -195,7 +202,7 @@ export class TextureHandler {
 
 		var texture: Texture;
 		
-		var fastHash = [mipmap.address, clutAddress, textureState.colorComponent].join('_');
+		var fastHash = mipmap.address + clutAddress * Math.pow(2, 24) + textureState.colorComponent * Math.pow(2, 18);
 		
 		if (!this.texturesByAddress.get(fastHash)) {
 			texture = new Texture(gl);

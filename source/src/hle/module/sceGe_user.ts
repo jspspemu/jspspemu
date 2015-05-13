@@ -57,6 +57,7 @@ export class sceGe_user {
 	sceGeDrawSync(syncType: _gpu.SyncType): any {
 		var result = this.context.gpu.drawSync(syncType);
 		if (result instanceof Promise2) {
+			//result = Promise2.all([result, waitAsync(10)]);
 			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <Promise2<any>>result.then(() => {
 			}), AcceptCallbacks.NO, Compensate.YES);
 		} else {

@@ -55,210 +55,8 @@ function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
 function param24(p: number) { return p & 0xFFFFFF; }
 function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
-/*
-var canDOMCreateElements = (typeof document != 'undefined');
-
-interface OverlaySection {
-	element:HTMLElement;
-	update():void;
-	reset():void;
-}
-
-class OverlayCounter<T> implements OverlaySection {
-	public value: T;
-	public element:HTMLElement;
-	constructor(public name: string, private resetValue: T, private representer?: (v: T) => any) {
-		this.reset();
-		if (canDOMCreateElements) {
-			this.element = document.createElement('div');
-		}
-	}
-	update() {
-		if (this.element) this.element.innerHTML = `${this.name}: ${this.representedValue}`;
-	}
-	get representedValue() {
-		return this.representer ? this.representer(this.value) : this.value;
-	}
-	reset() {
-		this.value = this.resetValue;
-	}
-}
-
-class OverlayIntent implements OverlaySection {
-	public element:HTMLButtonElement;
-	constructor(text:string, action: () => void) {
-		if (canDOMCreateElements) {
-			this.element = document.createElement('button');
-			this.element.innerHTML = text;
-			this.element.onclick = e => action();
-		}
-	}
-	update() {
-	}
-	reset() {
-	}
-}
-
-class OverlaySlider implements OverlaySection {
-	public element: HTMLInputElement;
-	constructor(text:string, initialRatio:number, action: (value:number) => void) {
-		if (canDOMCreateElements) {
-			this.element = document.createElement('input');
-			this.element.type = 'range';
-			this.element.min =`0`;
-			this.element.max = `1000`;
-			this.element.value = `${initialRatio * 1000}`;
-			//this.element.innerHTML = text;
-			var lastReportedValue = NaN;
-			var report = (e: any) => {
-				if (this.ratio == lastReportedValue) return;
-				lastReportedValue = this.ratio;
-				action(this.ratio);
-			};
-			this.element.onmousemove = report;
-			this.element.onchange = report;
-		}
-	}
-	set ratio(value:number) {
-		this.value = value * 1000;
-	}
-	get ratio() {
-		return (this.value / 1000);
-	}
-	set value(v:number) {
-		this.element.value = `${v}`;
-	}
-	get value() {
-		return +this.element.value;
-	}
-	update() {
-	}
-	reset() {
-	}
-}
-
-class Overlay {
-	private element: HTMLDivElement;
-	private sections: OverlaySection[] = [];
-
-	constructor() {
-		var element = this.element = canDOMCreateElements ? document.createElement('div') : null;
-		if (element) {
-			element.style.position = 'absolute';
-			element.style.zIndex = '10000';
-			element.style.top = '0';
-			element.style.right = '0';
-			element.style.background = 'rgba(0, 0, 0, 0.3)';
-			element.style.font = '12px Arial';
-			element.style.width = '200px';
-			element.style.height = 'auto';
-			element.style.padding = '4px';
-			element.style.color = 'white';
-			document.body.appendChild(element);
-		}
-	}
-	
-	private addElement<T extends OverlaySection>(element:T):T {
-		this.sections.push(element);
-		if (this.element) {
-			this.element.appendChild(element.element);
-		}
-		return element;
-	}
-
-	createCounter<T>(name: string, resetValue: T, representer?: (v: T) => any): OverlayCounter<T> {
-		return this.addElement(new OverlayCounter(name, resetValue, representer));
-	}
-	
-	createIntent(text: string, action: () => void) {
-		return this.addElement(new OverlayIntent(text, action));
-	}
-
-	createSlider(text: string, initialRatio:number, action: (value:number) => void) {
-		return this.addElement(new OverlaySlider(text, initialRatio, action));
-	}
-	
-	update() {
-		for (let section of this.sections) section.update();
-	}
-
-	private reset() {
-		for (let s of this.sections) s.reset();
-	}
-
-	updateAndReset() {
-		this.update();
-		this.reset();
-	}
-}
-
-var overlay = new Overlay();
-var overlayBatchSlider = overlay.createSlider('batch', 1.0, (ratio) => {
-	//console.log(ratio);
-});
-var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
-var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
-var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
-var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
-var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
-var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
-var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
-var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
-var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
-var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
-var totalStalls = overlay.createCounter('totalStalls', 0, numberToSeparator);
-var primCount = overlay.createCounter('primCount', 0, numberToSeparator);
-var batchCount = overlay.createCounter('batchCount', 0, numberToSeparator);
-var timePerFrame = overlay.createCounter('time', 0, (v) => `${v.toFixed(0) } ms`);
-
-var freezing = new WatchValue(false);
-
-overlay.createIntent('toggle colors', () => {
-	if (globalDriver) globalDriver.enableColors = !globalDriver.enableColors; 
-});
-
-overlay.createIntent('toggle antialiasing', () => {
-	if (globalDriver) globalDriver.antialiasing = !globalDriver.antialiasing; 
-});
-
-overlay.createIntent('toggle textures', () => {
-	if (globalDriver) globalDriver.enableTextures = !globalDriver.enableTextures; 
-});
-
-overlay.createIntent('toggle skinning', () => {
-	if (globalDriver) globalDriver.enableSkinning = !globalDriver.enableSkinning; 
-});
-
-overlay.createIntent('toggle bilinear', () => {
-	if (globalDriver) globalDriver.enableBilinear = !globalDriver.enableBilinear; 
-});
-
-overlay.createIntent('freeze', () => {
-	freezing.value = !freezing.value;
-});
-
 var dumpFrameCommands = false;
-var dumpFrameCommandsList:string[] = [];
-overlay.createIntent('dump frame commands', () => {
-	dumpFrameCommands = true;
-});
-
-overlay.createIntent('x1', () => {
-	if (globalDriver) globalDriver.setFramebufferSize(480 * 1, 272 * 1);
-});
-
-overlay.createIntent('x2', () => {
-	if (globalDriver) globalDriver.setFramebufferSize(480 * 2, 272 * 2);
-});
-
-overlay.createIntent('x3', () => {
-	if (globalDriver) globalDriver.setFramebufferSize(480 * 3, 272 * 3);
-});
-
-overlay.createIntent('x4', () => {
-	if (globalDriver) globalDriver.setFramebufferSize(480 * 4, 272 * 4);
-});
-*/
+var dumpFrameCommandsList: string[] = [];
 
 class PspGpuList {
     current4: number;
@@ -291,7 +89,7 @@ class PspGpuList {
 			this.batchPrimCount = 0;
 			var batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
 			this.gpu.queueBatch(batch);
-			//if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
+			if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
 			this.primBatchPrimitiveType = -1;
 			//batchCount.value++;
 		}
@@ -343,11 +141,9 @@ class PspGpuList {
 				break;
 			}
 			
-			/*
 			if (dumpFrameCommands) {
 				dumpFrameCommandsList.push(`${Op[op]}:${addressToHex(p)}`);
 			}
-			*/
 
 			switch (op) {
 				case Op.PRIM: {
@@ -701,6 +497,10 @@ export class PspGpu {
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
 		this.listRunner = new PspGpuListRunner(memory, this, this.cpuExecutor);
     }
+	
+	dumpCommands() {
+		dumpFrameCommands = true;
+	}
 
 	startAsync() {
 		//return this.driver.initAsync();
@@ -749,7 +549,6 @@ export class PspGpu {
 	}
 
 	private flushCommands() {
-		/*
 		if (!dumpFrameCommands || dumpFrameCommandsList.length == 0) return;
 		console.info('-----------------------------------------------');
 		dumpFrameCommands = false;
@@ -770,10 +569,16 @@ export class PspGpu {
 		}
 		flushBuffer();
 		dumpFrameCommandsList.length = 0;
-		*/
 	}
 	
 	public onDrawBatches = new Signal2<_vertex.OptimizedDrawBuffer, _vertex.OptimizedBatch[]>();
+	
+	private wv = new WatchValue(false);
+	sync() {
+		this.wv.value = true;
+	}
+	
+	public freezing = new WatchValue(false);
 
 	private lastTime = 0;
 	drawSync(syncType: _state.SyncType): any {
@@ -788,12 +593,16 @@ export class PspGpu {
 				//overlay.updateAndReset();
 				//this.onDrawBatches.dispatch(optimizedDrawBuffer, this.batches.slice(0, overlayBatchSlider.ratio));
 				//console.info('onDrawBatches:', this.batches.length);
+				this.wv.value = false;
 				this.onDrawBatches.dispatch(optimizedDrawBuffer, this.batches);
 				//this.driver.drawBatches(optimizedDrawBuffer, );
 				optimizedDrawBuffer.reset();
 				this.batches = [];
 				//return freezing.waitUntilValueAsync(false);
-				return 0;
+				return this.wv.waitUntilValueAsync(true).then(() => {
+					return this.freezing.waitUntilValueAsync(false);
+				});
+				//return this.freezing.waitUntilValueAsync(false);
 			} catch (e) {
 				console.error(e['stack'] || e);
 				alert(e['stack'] || e);
