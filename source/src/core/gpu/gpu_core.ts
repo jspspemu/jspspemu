@@ -5,7 +5,6 @@ import _display = require('../display');
 import _pixelformat = require('../pixelformat');
 import _opcodes = require('./gpu_opcodes');
 import _state = require('./gpu_state');
-import _driver = require('./gpu_driver');
 import _vertex = require('./gpu_vertex');
 import _cpu = require('../cpu'); _cpu.CpuState;
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
@@ -15,25 +14,14 @@ import CpuState = _cpu.CpuState;
 import PixelFormat = _pixelformat.PixelFormat;
 import IPspDisplay = _display.IPspDisplay;
 import Memory = _memory.Memory;
-import IDrawDriver = _driver.BaseDrawDriver;
 import ColorEnum = _state.ColorEnum;
-import WebGlPspDrawDriver = require('./webgl/webgl_driver');
+//import WebGlPspDrawDriver = require('./webgl/webgl_driver');
 import Op = _opcodes.GpuOpCodes;
 import PrimitiveType = _state.PrimitiveType;
 import IndexEnum = _state.IndexEnum;
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;
-}
-
-export interface IPspGpu {
-    startAsync(): Promise2<void>;
-    stopAsync(): Promise2<void>;
-
-    listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream): void;
-	listSync(displayListId: number, syncType: _state.SyncType): void;
-    updateStallAddr(displayListId: number, stall: number): void;
-	drawSync(syncType: _state.SyncType): void;
 }
 
 var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
@@ -67,6 +55,7 @@ function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
 function param24(p: number) { return p & 0xFFFFFF; }
 function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
+/*
 var canDOMCreateElements = (typeof document != 'undefined');
 
 interface OverlaySection {
@@ -222,7 +211,6 @@ var primCount = overlay.createCounter('primCount', 0, numberToSeparator);
 var batchCount = overlay.createCounter('batchCount', 0, numberToSeparator);
 var timePerFrame = overlay.createCounter('time', 0, (v) => `${v.toFixed(0) } ms`);
 
-var globalDriver: IDrawDriver;
 var freezing = new WatchValue(false);
 
 overlay.createIntent('toggle colors', () => {
@@ -270,6 +258,7 @@ overlay.createIntent('x3', () => {
 overlay.createIntent('x4', () => {
 	if (globalDriver) globalDriver.setFramebufferSize(480 * 4, 272 * 4);
 });
+*/
 
 class PspGpuList {
     current4: number;
@@ -283,7 +272,7 @@ class PspGpuList {
 	private promiseReject: Function;
 	errorCount: number = 0;
 
-	constructor(public id: number, public memory: Memory, public drawDriver: IDrawDriver, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
+	constructor(public id: number, public memory: Memory, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
     }
 
     complete() {
@@ -301,10 +290,10 @@ class PspGpuList {
 		if (optimizedDrawBuffer.hasElements) {
 			this.batchPrimCount = 0;
 			var batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
-			this.drawDriver.queueBatch(batch);
-			if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
+			this.gpu.queueBatch(batch);
+			//if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
 			this.primBatchPrimitiveType = -1;
-			batchCount.value++;
+			//batchCount.value++;
 		}
 	}
 
@@ -354,9 +343,11 @@ class PspGpuList {
 				break;
 			}
 			
+			/*
 			if (dumpFrameCommands) {
 				dumpFrameCommandsList.push(`${Op[op]}:${addressToHex(p)}`);
 			}
+			*/
 
 			switch (op) {
 				case Op.PRIM: {
@@ -378,11 +369,11 @@ class PspGpuList {
 					break;
 				case Op.END:
 					this.finishPrimBatch();
-					this.gpu.driver.end();
+					this.gpu.end();
 					this.complete();
 					break loop;
-				case Op.TFLUSH: this.drawDriver.textureFlush(state); this.finishPrimBatch(); break;
-				case Op.TSYNC: this.drawDriver.textureSync(state); break;
+				case Op.TFLUSH: this.gpu.textureFlush(state); this.finishPrimBatch(); break;
+				case Op.TSYNC: this.gpu.textureSync(state); break;
 				case Op.NOP: break;
 				case Op.DUMMY: break;
 				case Op.JUMP:
@@ -431,9 +422,11 @@ class PspGpuList {
 		}
 
 		this.current4 = current4;
+		/*
 		totalStalls.value++;
 		primCount.value += localPrimCount;
 		totalCommands.value += totalCommandsLocal;
+		*/
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}
 
@@ -452,22 +445,26 @@ class PspGpuList {
 		var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
 		var hasIndices = (vertexInfo.index != IndexEnum.Void);
 		
+		/*
 		if (hasIndices) {
 			overlayIndexCount.value++;
 		} else {
 			overlayNonIndexCount.value++;
 		}
+		*/
 
 		this.primBatchPrimitiveType = primitiveType;
 		
 		//if (vertexState.realWeightCount > 0) debugger;
 		
+		/*
 		switch (primitiveType) {
 			case PrimitiveType.Triangles: trianglePrimCount.value++; break;
 			case PrimitiveType.TriangleStrip: triangleStripPrimCount.value++; break;
 			case PrimitiveType.Sprites: spritePrimCount.value++; break;
 			default: otherPrimCount.value++; break;
 		}
+		*/
 
 		var vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress);
 		var drawType = DRAW_TYPE_CONV[primitiveType];
@@ -527,7 +524,7 @@ class PspGpuList {
 			batchPrimCount++;
 		}
 
-		overlayVertexCount.value += totalVertexCount;
+		//overlayVertexCount.value += totalVertexCount;
 		let totalVerticesSize = totalVertexCount * vertexSize;
 		if (isSprite) {
 			_optimizedDrawBuffer.addVerticesDataSprite(vertexInput, totalVerticesSize, totalVertexCount, vertexInfo);
@@ -635,14 +632,14 @@ class PspGpuListRunner {
 	private runningLists: PspGpuList[] = [];
 	private state = new _state.GpuState();
 
-	constructor(private memory: Memory, private drawDriver: IDrawDriver, private gpu: PspGpu, private callbackManager: CpuExecutor) {
+	constructor(private memory: Memory, private gpu: PspGpu, private callbackManager: CpuExecutor) {
         for (var n = 0; n < 32; n++) {
-			var list = new PspGpuList(n, memory, drawDriver, this, gpu, callbackManager, this.state);
+			var list = new PspGpuList(n, memory, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }
     }
-
+	
     allocate() {
         if (!this.freeLists.length) throw new Error('Out of gpu free lists');
         var list = this.freeLists.pop();
@@ -683,13 +680,13 @@ export class PspGpuCallback {
 	}
 }
 
-export class PspGpu implements IPspGpu {
+export class PspGpu {
     //private gl: WebGLRenderingContext;
 	private listRunner: PspGpuListRunner;
-	driver: IDrawDriver;
 	callbacks = new UidCollection<PspGpuCallback>(1);
 
-	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement, private cpuExecutor: CpuExecutor) {
+	constructor(private memory: Memory, private display: IPspDisplay, private cpuExecutor: CpuExecutor) {
+		/*
 		try {
 			this.driver = new WebGlPspDrawDriver(memory, display, canvas);
 		} catch (e) {
@@ -700,15 +697,18 @@ export class PspGpu implements IPspGpu {
 			hashMemoryCount.value++;
 			hashMemorySize.value += size;
 		});
+		*/
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
-		this.listRunner = new PspGpuListRunner(memory, this.driver, this, this.cpuExecutor);
+		this.listRunner = new PspGpuListRunner(memory, this, this.cpuExecutor);
     }
 
 	startAsync() {
-		return this.driver.initAsync();
+		//return this.driver.initAsync();
+		return Promise2.resolve();
     }
 
 	stopAsync() {
+		this.onDrawBatches.clear();
 		return Promise2.resolve();
     }
 
@@ -734,7 +734,22 @@ export class PspGpu implements IPspGpu {
         return 0;
     }
 	
+	end() {
+	}
+
+	textureFlush(state:_state.GpuState) {
+	}
+	
+	textureSync(state:_state.GpuState) {
+	}
+	
+	private batches: _vertex.OptimizedBatch[] = [];
+	queueBatch(batch:_vertex.OptimizedBatch) {
+		this.batches.push(batch);
+	}
+
 	private flushCommands() {
+		/*
 		if (!dumpFrameCommands || dumpFrameCommandsList.length == 0) return;
 		console.info('-----------------------------------------------');
 		dumpFrameCommands = false;
@@ -755,7 +770,10 @@ export class PspGpu implements IPspGpu {
 		}
 		flushBuffer();
 		dumpFrameCommandsList.length = 0;
-	} 
+		*/
+	}
+	
+	public onDrawBatches = new Signal2<_vertex.OptimizedDrawBuffer, _vertex.OptimizedBatch[]>();
 
 	private lastTime = 0;
 	drawSync(syncType: _state.SyncType): any {
@@ -765,13 +783,19 @@ export class PspGpu implements IPspGpu {
 			this.flushCommands()
 			try {
 				var end = performance.now();
-				timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
+				//timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
 				this.lastTime = end;
-				overlay.updateAndReset();
-				this.driver.drawAllQueuedBatches(optimizedDrawBuffer, overlayBatchSlider.ratio);
-				return freezing.waitUntilValueAsync(false);
+				//overlay.updateAndReset();
+				//this.onDrawBatches.dispatch(optimizedDrawBuffer, this.batches.slice(0, overlayBatchSlider.ratio));
+				//console.info('onDrawBatches:', this.batches.length);
+				this.onDrawBatches.dispatch(optimizedDrawBuffer, this.batches);
+				//this.driver.drawBatches(optimizedDrawBuffer, );
+				optimizedDrawBuffer.reset();
+				this.batches = [];
+				//return freezing.waitUntilValueAsync(false);
+				return 0;
 			} catch (e) {
-				console.error(e);
+				console.error(e['stack'] || e);
 				alert(e['stack'] || e);
 				throw e;
 			}
@@ -790,4 +814,4 @@ const enum PrimAction {
 	FLUSH_PRIM = 1,
 }
 
-overlay.update();
+//overlay.update();

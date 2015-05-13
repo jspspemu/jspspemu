@@ -9,7 +9,7 @@ export class sceUmdUser {
 	constructor(private context: _context.EmulatorContext) { }
 
 	callbackIds = <number[]>[];
-	signal = new Signal<number>();
+	signal = new Signal1<number>();
 
 	@nativeFunction(0xAEE7404D, 150, 'uint', 'int')
 	sceUmdRegisterUMDCallBack(callbackId: number) {

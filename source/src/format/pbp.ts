@@ -49,12 +49,12 @@ export class Pbp {
 		this.header.offsets.push(stream.length);
 	}
 
-	get(name: string) {
+	get(name: string):Stream {
 		var index = Pbp.names.indexOf(name);
 		return this.getByIndex(index);
 	}
 
-	getByIndex(index: number) {
+	getByIndex(index: number):Stream {
 		var offsets = this.header.offsets;
 		return this.stream.sliceWithLowHigh(offsets[index + 0], offsets[index + 1]);
 	}

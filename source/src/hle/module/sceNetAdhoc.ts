@@ -235,7 +235,7 @@ export class Pdp {
 	id: number;
 	onMessageCancel: Cancelable;
 	chunks = <_manager.NetPacket[]>[];
-	onChunkRecv = new Signal();
+	onChunkRecv = new Signal0();
 
 	constructor(private context: EmulatorContext, public mac: Uint8Array, public port: number, public bufsize: number) {
 		this.onMessageCancel = this.context.netManager.onmessage(port).add(packet => {

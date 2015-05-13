@@ -121,6 +121,93 @@ class SpriteExpander {
 	}
 }
 
+export interface OptimizedDrawBufferDataTransfer {
+	data: number;
+	datasize: number;
+	indices: number;
+	indicesCount: number;
+}
+
+export interface OptimizedBatchTransfer {
+	stateOffset: number;
+	primType: _state.PrimitiveType;
+	dataLow: number, dataHigh: number,
+	indexLow: number, indexHigh: number,
+	indexCount: number,
+	textureLow: number, textureHigh: number,
+	clutLow: number, clutHigh: number
+}
+
+export interface BatchesTransfer {
+	buffer: ArrayBuffer;
+	data: OptimizedDrawBufferDataTransfer;
+	batches: OptimizedBatchTransfer[];
+}
+
+export class OptimizedDrawBufferTransfer {
+	static build(odb:OptimizedDrawBuffer, batches2:OptimizedBatch[]):BatchesTransfer {
+		var chunks: { offset: number, size: number, data: ArrayBufferView }[] = [];
+		var offset = 0;
+		var batches:OptimizedBatchTransfer[] = [];
+		
+		function alloc(size: number) {
+			var address = offset;
+			offset += MathUtils.nextAligned(size, 16);
+			return address;
+		}
+		
+		function allocData(data: ArrayBufferView) {
+			chunks.push({ offset: offset, size: data.byteLength, data: data });
+			return alloc(data.byteLength);
+		}
+		
+		var odbData = odb.getData();
+		var odbIndices = odb.getIndices();
+		var data:OptimizedDrawBufferDataTransfer = {
+			data: allocData(odbData), datasize: odbData.length,
+			indices: allocData(odbIndices), indicesCount: odbIndices.length,
+		}
+		
+		var memorySegments = new Map<number, number>();
+		function allocMemoryData(data: Uint8Array) {
+			if (data == null) return 0;
+			if (!memorySegments.has(data.byteOffset)) memorySegments.set(data.byteOffset, allocData(data));
+			return memorySegments.get(data.byteOffset);
+		}
+		
+		for (let batch of batches2) {
+			let btl = allocMemoryData(batch.textureData);
+			let bcl = allocMemoryData(batch.clutData);
+			batches.push({
+				stateOffset: allocData(batch.stateData),
+				primType: batch.primType,
+				dataLow: batch.dataLow,
+				dataHigh: batch.dataHigh,
+				indexLow: batch.indexLow,
+				indexHigh: batch.indexHigh,
+				indexCount: batch.indexCount,
+				textureLow: btl,
+				textureHigh: btl + (batch.textureData ? batch.textureData.length : 0),
+				clutLow: bcl,
+				clutHigh: bcl + (batch.clutData ? batch.clutData.length : 0),
+			});
+		}
+		
+		var buffer = new ArrayBuffer(offset);
+		for (let chunk of chunks) {
+			new Uint8Array(buffer, chunk.offset, chunk.size).set(
+				new Uint8Array(chunk.data.buffer, chunk.data.byteOffset, chunk.size)
+			);
+		}
+		
+		return {
+			buffer: buffer,
+			data: data,
+			batches: batches,
+		}
+	}
+}
+
 export class OptimizedDrawBuffer {
 	data = new Uint8Array(2 * 1024 * 1024);
 	private dataOffset = 0;
@@ -211,17 +298,18 @@ export class OptimizedDrawBuffer {
 export class OptimizedBatch {
 	public stateData:Uint32Array;
 	public textureData:Uint8Array = null;
-	public clutData:Uint8Array = null;
+	public clutData: Uint8Array = null;
+	public indexCount: number;
 	
 	constructor(
 		state: _state.GpuState,
 		public drawBuffer: OptimizedDrawBuffer,
-		public primType:_state.PrimitiveType, public vertexInfo:_state.VertexInfo,
+		public primType:_state.PrimitiveType, vertexInfo:_state.VertexInfo,
 		public dataLow: number, public dataHigh: number,
 		public indexLow: number, public indexHigh: number
 	) {
 		this.stateData = state.readData();
-		this.vertexInfo = this.vertexInfo.clone();
+		this.indexCount = this.indexHigh - this.indexLow;
 		if (vertexInfo.hasTexture) {
 			var mipmap = state.texture.mipmaps[0];
 			this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes); 
@@ -232,8 +320,8 @@ export class OptimizedBatch {
 		}
 	}
 	
-	getData() { return this.drawBuffer.data.subarray(this.dataLow, this.dataHigh); }
-	getIndices() { return this.drawBuffer.indices.subarray(this.indexLow, this.indexHigh); }
+	//getData() { return this.drawBuffer.data.subarray(this.dataLow, this.dataHigh); }
+	//getIndices() { return this.drawBuffer.indices.subarray(this.indexLow, this.indexHigh); }
 	
-	get indexCount() { return this.indexHigh - this.indexLow; }
+	//get indexCount() { return this.indexHigh - this.indexLow; }
 }

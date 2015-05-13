@@ -39,8 +39,8 @@ export class EmulatorContext {
 	interruptManager: _interrupt.InterruptManager;
 	symbolLookup: ISymbolLookup;
 	interop: _manager.Interop;
-	onStdout = new Signal<string>();
-	onStderr = new Signal<string>();
+	onStdout = new Signal1<string>();
+	onStderr = new Signal1<string>();
 
 	container: any = {};
 	gameTitle = 'unknown';

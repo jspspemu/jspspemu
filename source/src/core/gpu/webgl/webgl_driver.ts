@@ -1,28 +1,24 @@
 ﻿///<reference path="../../../global.d.ts" />
 ///<reference path="./webgl_enums.d.ts" />
 
-import { BaseDrawDriver as IDrawDriver } from '../gpu_driver';
 import {
 GpuState, Color, VertexInfo, PrimitiveType,
 CullingDirection, GuBlendingEquation, TextureMapMode,
 GuBlendingFactor
 } from '../gpu_state';
 import _vertex = require('../gpu_vertex');
-import { Memory } from '../../memory';
-import { IPspDisplay } from '../../display';
 import { ShaderCache } from './webgl_shader';
 import { Texture, TextureHandler } from './webgl_texture';
 import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';
 
-class WebGlPspDrawDriver extends IDrawDriver {
+export class WebGlPspDrawDriver {
 	private gl: WebGLRenderingContext;
 	
 	private cache: ShaderCache;
 	private textureHandler: TextureHandler;
 	private glAntialiasing:boolean;
 
-	constructor(private memory: Memory, private display: IPspDisplay, private canvas: HTMLCanvasElement) {
-		super();
+	constructor(private canvas: HTMLCanvasElement) {
 		this.createCanvas(false);
 		this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
 	}
@@ -64,18 +60,17 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	}
 
-	setFramebufferSize(width:number, height:number) {
-		this.canvas.setAttribute('width', `${width}`);
-		this.canvas.setAttribute('height', `${height}`);
-	}
-
-	getFramebufferSize() {
-		return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') }
-	}
-	
 	private baseShaderFragString = '';
 	private baseShaderVertString = '';
 
+	invalidatedMemoryAll() {
+		this.textureHandler.invalidatedMemoryAll();
+	}
+
+	invalidatedMemoryRange(low: number, high: number) {
+		this.textureHandler.invalidatedMemoryRange(low, high);
+	}
+	
 	initAsync() {
 		return downloadFileAsync('data/shader.vert').then((shaderVert) => {
 			return downloadFileAsync('data/shader.frag').then((shaderFrag) => {
@@ -83,7 +78,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 				var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
 
 				this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);
-				this.textureHandler = new TextureHandler(this.memory, this.gl);
+				this.textureHandler = new TextureHandler(this.gl);
 				this.textureHandler.rehashSignal.pipeTo(this.rehashSignal);
 			});
 		});
@@ -96,10 +91,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.clearing = clearing;
 		this.clearingFlags = <ClearBufferSet>flags;
 		//console.log('clearing: ' + clearing + '; ' + flags);
-	}
-
-	end() {
-		this.textureHandler.end();
 	}
 
 	projectionMatrix = mat4.create();
@@ -284,7 +275,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		this.state.copyFrom(state);
 		this.setClearMode(state.clearing, state.clearFlags);
 		this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
-		this.display.setEnabledDisplay(false);
+		//this.display.setEnabledDisplay(false);
 	}
 	
 	private setAttribute(databuffer:WebGLBuffer, attribPosition:WrappedWebGLAttrib, componentCount:number, componentType:number, vertexSize:number, offset:number) {
@@ -301,21 +292,47 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	private optimizedDataBuffer:WebGLBuffer = null;
 	private optimizedIndexBuffer:WebGLBuffer = null;
 	
-	protected setOptimizedDrawBuffer(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer) {
+	rehashSignal = new Signal1<number>();
+	enableColors: boolean = true;
+	enableTextures: boolean = true;
+	enableSkinning: boolean = true;
+	enableBilinear: boolean = true;
+	
+	private frameBufferWidth = 480;
+	private frameBufferHeight = 272;
+	protected state = new GpuState();
+	
+	setFramebufferSize(width:number, height:number) {
+		this.canvas.setAttribute('width', `${width}`);
+		this.canvas.setAttribute('height', `${height}`);
+	}
+
+	getFramebufferSize() {
+		return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') }
+	}
+	
+	drawBatchesTransfer(transfer: _vertex.BatchesTransfer) {
+		var buffer = transfer.buffer;
+		var verticesData = new Uint8Array(buffer, transfer.data.data, transfer.data.datasize);
+		var indicesData = new Uint16Array(buffer, transfer.data.indices, transfer.data.indicesCount);
 		let gl = this.gl;
 		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
 		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
 		let databuffer = this.optimizedDataBuffer;
 		let indexbuffer = this.optimizedIndexBuffer;
 		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, optimizedDrawBuffer.getData(), gl.DYNAMIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, verticesData, gl.DYNAMIC_DRAW);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, optimizedDrawBuffer.getIndices(), gl.DYNAMIC_DRAW);
-		//gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesData, gl.DYNAMIC_DRAW);
+		
+		for (let batch of transfer.batches) {
+			this.drawOptimized(buffer, batch);
+		}
 	}
-	
-	drawOptimized(buffer:_vertex.OptimizedBatch):void {
-		this.state.writeData(buffer.stateData);
+
+	private vs = new VertexInfo();	
+	drawOptimized(data: ArrayBuffer, batch: _vertex.OptimizedBatchTransfer): void {
+		this.state.writeData(new Uint32Array(data, batch.stateOffset, 512));
 		this.beforeDraw(this.state);
 		var state = this.state;
 		let gl = this.gl;
@@ -325,23 +342,11 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
 		let databuffer = this.optimizedDataBuffer;
 		let indexbuffer = this.optimizedIndexBuffer;
-		let vs = buffer.vertexInfo;
-		let primType = buffer.primType;
-		//let indexStart = buffer.indexLow;
-		
-		/*
-		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, buffer.getData(), gl.DYNAMIC_DRAW);
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, buffer.getIndices(), gl.DYNAMIC_DRAW);
-		*/
-		
-		//console.log('data and indices', buffer.getData().length, buffer.getIndices().length);
+		let vs = this.vs; // required after serializing
+		vs.setState(this.state);
+		let primType = batch.primType;
 
-		//private setAttribute(enabled:boolean, attribPosition:number, componentCount:number, componentType:number, offset:number, vertexSize:number) {
-		
-		//var globalVertexOffset = 0; let indexStart = 0;
-		var globalVertexOffset = buffer.dataLow; let indexStart = buffer.indexLow * 2; 
+		var globalVertexOffset = batch.dataLow; let indexStart = batch.indexLow * 2; 
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
 		var program = this.cache.getProgram(vs, state, true);
@@ -388,7 +393,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 			program.getUniform('tcc').set1i(state.texture.colorComponent);
 		}
 
-		this.updateState(program, vs, buffer.primType);
+		this.updateState(program, vs, batch.primType);
 		//this.setProgramParameters(gl, program, vs);
 
 		// vertex: VertexState({"address":5833460,"texture":2,"color":7,"normal":0,"position":3,"weight":0,"index":0,"realWeightCount":0,"morphingVertexCount":0,"transform2D":true})
@@ -396,7 +401,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		if (this.clearing) {
 			this.textureHandler.unbindTexture(program, state);
 		} else {
-			this.prepareTexture(gl, program, vs);
+			this.prepareTexture(gl, program, vs, data, batch);
 		}
 		
 		if (vs.hasTexture) {
@@ -405,11 +410,7 @@ class WebGlPspDrawDriver extends IDrawDriver {
 		}
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexbuffer);
-		//console.log('vertex.size:', vs.size, ',buffer:', buffer.dataOffset, vs.positionOffset, vs.textureOffset, vs.size);
-		//console.log('vertex:', vs.toString());
-		//console.log(new Uint16Array(buffer.indices.buffer, 0, buffer.indexOffset));
-		gl.drawElements(convertPrimitiveType[primType], buffer.indexCount, gl.UNSIGNED_SHORT, indexStart);
-		//drawElements(mode: number, count: number, type: number, offset: number): void;
+		gl.drawElements(convertPrimitiveType[primType], batch.indexCount, gl.UNSIGNED_SHORT, indexStart);
 		
 		if (vs.hasPosition) program.vPosition.disable();
 		if (vs.hasColor) program.vColor.disable();
@@ -422,14 +423,6 @@ class WebGlPspDrawDriver extends IDrawDriver {
 				program.vertexWeight2.disable();
 			}
 		}
-	}
-
-	textureFlush(state: GpuState) {
-		this.textureHandler.flush();
-	}
-
-	textureSync(state: GpuState) {
-		this.textureHandler.sync();
 	}
 
 	private testCount = 20;
@@ -445,9 +438,9 @@ class WebGlPspDrawDriver extends IDrawDriver {
 	tempVec = new Float32Array([0, 0, 0])
 	texMat = mat4.create();
 
-	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo) {
+	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo, buffer:ArrayBuffer, batch: _vertex.OptimizedBatchTransfer) {
 		if (vertexInfo.hasTexture && this.enableTextures) {
-			this.textureHandler.bindTexture(program, this.state, this.enableBilinear);
+			this.textureHandler.bindTexture(program, this.state, this.enableBilinear, buffer, batch);
 		} else {
 			this.textureHandler.unbindTexture(program, this.state);
 		}
@@ -531,4 +524,3 @@ var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, G
 var convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
 var convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);
 
-export = WebGlPspDrawDriver;

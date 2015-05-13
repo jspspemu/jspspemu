@@ -659,8 +659,7 @@ class MathUtils {
 
 	static nextAligned(value: number, alignment: number) {
 		if (alignment <= 1) return value;
-		if ((value % alignment) == 0) return value;
-		return value + (alignment - (value % alignment));
+		return value + ((alignment - (value % alignment)) % alignment);
 	}
 
 	static clamp(v: number, min: number, max: number) {

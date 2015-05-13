@@ -29,7 +29,7 @@ export interface IPspDisplay {
 	hcountTotal: number;
 	secondsLeftForVblank: number;
 	secondsLeftForVblankStart: number;
-	vblank: Signal<number>;
+	vblank: Signal1<number>;
 }
 
 export class BasePspDisplay {
@@ -44,7 +44,7 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	hcountTotal = 0;
 	secondsLeftForVblank = 0.1;
 	secondsLeftForVblankStart = 0.1;
-	vblank = new Signal();
+	vblank = new Signal1<number>();
 
 	constructor() {
 		super();
@@ -75,7 +75,7 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 
 export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	private context: CanvasRenderingContext2D;
-	vblank = new Signal<number>();
+	vblank = new Signal1<number>();
 	private imageData: ImageData;
 	private interval: number = -1;
 	private enabled: boolean = true;

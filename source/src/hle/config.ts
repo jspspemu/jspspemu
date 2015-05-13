@@ -10,10 +10,10 @@ export class Config {
 	buttonPreference = ButtonPreference.NA;
 
 	constructor() {
-		this.language = this.detectLanguage();
+		this.language = Config.detectLanguage();
 	}
 
-	private detectLanguage() {
+	static detectLanguage() {
 		if (typeof navigator == 'undefined') return PspLanguages.ENGLISH;
 		if (!navigator.language) return PspLanguages.ENGLISH;
 		// en_US

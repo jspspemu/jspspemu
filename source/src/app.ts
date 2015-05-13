@@ -1,8 +1,9 @@
 ﻿///<reference path="global.d.ts" />
+///<reference path="emulator_worker.ts" />
 
-import _relooper = require('./codegen/relooper');
 import _controller = require('./core/controller');
 import _emulator = require('./emulator');
+import { EmulatorController } from './emulator_controller';
 
 import PspCtrlButtons = _controller.PspCtrlButtons;
 import Emulator = _emulator.Emulator;
@@ -362,7 +363,15 @@ function requestFullScreen() {
 	}
 }
 
+/*
+interface Window {  
+	URL: any;
+}
+*/
+
+
 window.addEventListener('load', () => {
+	
 	var emulator = new Emulator();
 	var _window: any = window;
 	_window['emulator'] = emulator;
@@ -376,7 +385,8 @@ window.addEventListener('load', () => {
 	}
 
 	if (sampleDemo) {
-		emulator.downloadAndExecuteAsync(sampleDemo);
+		//emulator.downloadAndExecuteAsync(sampleDemo);
+		EmulatorController.executeUrl(sampleDemo);
 	}
 
 	emulator.checkPlugins();

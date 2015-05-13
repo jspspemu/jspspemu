@@ -11,7 +11,7 @@ import Interop = _interop.Interop;
 export class CallbackManager {
 	private uids = new UidCollection<Callback>(1);
 	private notifications = <CallbackNotification[]>[];
-	public onAdded = new Signal<number>();
+	public onAdded = new Signal1<number>();
 
 	constructor(private interop:Interop) {
 	}

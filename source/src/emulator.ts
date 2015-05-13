@@ -67,7 +67,7 @@ var console = logger.named('emulator');
 
 export class Emulator {
 	public context: EmulatorContext;
-	private memory: Memory;
+	public memory: Memory;
 	private memoryManager: MemoryManager;
 	private rtc: PspRtc;
 	private interruptManager: InterruptManager;
@@ -76,7 +76,7 @@ export class Emulator {
 	private canvas: HTMLCanvasElement;
 	private webgl_canvas: HTMLCanvasElement;
 	private display: PspDisplay;
-	private gpu: PspGpu;
+	public gpu: PspGpu;
 	public controller: PspController;
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
@@ -87,7 +87,7 @@ export class Emulator {
 	private interop: Interop;
 	private storageVfs: StorageVfs;
 	//private dropboxVfs: DropboxVfs;
-	private config: Config;
+	public config: Config = new _config.Config();
 	//private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
 
@@ -115,22 +115,20 @@ export class Emulator {
 			this.memoryManager = new MemoryManager();
 			this.interruptManager = new InterruptManager();
 			this.audio = new PspAudio();
-			if (typeof document != 'undefined') {
-				this.canvas = <HTMLCanvasElement>(document.getElementById('canvas'));
-				this.webgl_canvas = <HTMLCanvasElement>(document.getElementById('webgl_canvas'));
-			} else {
-				this.canvas = null;
-				this.webgl_canvas = null;
-			}
 			this.controller = new PspController();
 			this.syscallManager = new SyscallManager(this.context);
 			this.fileManager = new FileManager();
 			this.interop = new Interop();
-			this.config = new Config();
 			this.callbackManager = new CallbackManager(this.interop);
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
-			this.gpu = new PspGpu(this.memory, this.display, this.webgl_canvas, this.interop);
+ 			this.gpu = new PspGpu(this.memory, this.display, this.interop);
+			/*
+			this.gpu.onDrawBatches.add(() => {
+				console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+			});
+			*/
+			this.gpu.onDrawBatches.pipeTo(this.onDrawBatches);
 			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager);
 			this.moduleManager = new ModuleManager(this.context);
 			this.netManager = new NetManager();
@@ -157,13 +155,13 @@ export class Emulator {
 			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
 			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager);
-
+			
 			return Promise2.all([
-				this.display.startAsync(),
-				this.controller.startAsync(),
-				this.gpu.startAsync(),
-				this.audio.startAsync(),
-				this.threadManager.startAsync(),
+				this.display.startAsync().then(() => { console.info('display initialized'); }),
+				this.controller.startAsync().then(() => { console.info('controller initialized'); }),
+				this.gpu.startAsync().then(() => { console.info('gpu initialized'); }),
+				this.audio.startAsync().then(() => { console.info('audio initialized'); }),
+				this.threadManager.startAsync().then(() => { console.info('threadManager initialized'); }),
 			]);
 		});
 	}
@@ -175,40 +173,15 @@ export class Emulator {
 		console.log(psf.entriesByName);
 	}
 
-	private changeFavicon(src:string) {
-		if (typeof document == 'undefined') return;
-		var link = document.createElement('link'),
-			oldLink = document.getElementById('dynamic-favicon');
-		link.id = 'dynamic-favicon';
-		link.rel = 'shortcut icon';
-		link.href = src;
-		if (oldLink) {
-			document.head.removeChild(oldLink);
-		}
-		document.head.appendChild(link);
-	}
-
+	public onPic0 = new Signal1<Uint8Array>();
+	public onPic1 = new Signal1<Uint8Array>();
+	
 	private loadIcon0(data: Stream) {
-		//console.log('loadIcon0---------');
-		//console.log(data);
-		if (data.length == 0) {
-			this.changeFavicon('icon.png');
-		} else {
-			this.changeFavicon(data.toImageUrl());
-		}
-		//var item = document.head.querySelector('link[rel="shortcut icon"]');
-		//item['href'] = ;
+		this.onPic0.dispatch(data.toUInt8Array());
 	}
-
+	
 	private loadPic1(data: Stream) {
-		if (typeof document == 'undefined') return;
-
-		//console.log('loadPic1---------');
-		//console.log(data);
-		document.body.style.backgroundRepeat = 'no-repeat';
-		document.body.style.backgroundSize = 'cover';
-		document.body.style.backgroundPosition = 'center center';
-		document.body.style.backgroundImage = 'url("' + data.toImageUrl() + '")';
+		this.onPic1.dispatch(data.toUInt8Array());
 	}
 
 	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string) {
@@ -386,6 +359,8 @@ export class Emulator {
 	static disableLog() {
 		global.loggerPolicies.disableAll = true;
 	}
+	
+	onDrawBatches = new Signal2<_gpu._gpu_vertex.OptimizedDrawBuffer, _gpu._gpu_vertex.OptimizedBatch[]>();
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
 		if (typeof document != 'undefined') DomHelp.fromId('game_menu').hide();

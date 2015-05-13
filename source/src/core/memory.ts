@@ -96,8 +96,8 @@ export class Memory {
 		return false;
 	}
 
-	invalidateDataRange = new Signal<NumericRange>();
-	invalidateDataAll = new Signal();
+	invalidateDataRange = new Signal2<number, number>();
+	invalidateDataAll = new Signal0();
 
 	constructor() {
 		//this._updateWriteFunctions();

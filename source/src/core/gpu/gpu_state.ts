@@ -202,13 +202,19 @@ export class VertexInfo {
 	private static NumericEnumSizes = [0, 1, 2, 4];
 	private static ColorEnumSizes = [0, 0, 0, 0, 2, 2, 2, 4];
 
-	get realWeightCount() {
-		return this.hasWeight ? (this.weightCount + 1) : 0;
-	}
-
-	get realMorphingVertexCount() {
-		return this.morphingVertexCount + 1;
-	}
+	get realWeightCount() { return this.hasWeight ? (this.weightCount + 1) : 0; }
+	get realMorphingVertexCount() { return this.morphingVertexCount + 1; }
+	get hasTexture() { return this.texture != NumericEnum.Void; }
+	get hasColor() { return this.color != ColorEnum.Void; }
+	get hasNormal() { return this.normal != NumericEnum.Void; }
+	get hasPosition() { return this.position != NumericEnum.Void; }
+	get hasWeight() { return this.weight != NumericEnum.Void; }
+	get hasIndex() { return this.index != IndexEnum.Void; }
+	get positionComponents() { return 3; }
+	get normalComponents() { return 3; }
+	get colorComponents() { return 4; }
+	get textureComponents() { return this.textureComponentsCount; }
+	get hash() { return this.value + (this.textureComponentsCount * Math.pow(2, 24)); }
 
 	read(memory: Memory, count: number) {
 		//console.log('read vertices ' + count);
@@ -225,22 +231,6 @@ export class VertexInfo {
 		this.address += this.size;
 
 		return vertex;
-	}
-	
-	get hasTexture() { return this.texture != NumericEnum.Void; }
-	get hasColor() { return this.color != ColorEnum.Void; }
-	get hasNormal() { return this.normal != NumericEnum.Void; }
-	get hasPosition() { return this.position != NumericEnum.Void; }
-	get hasWeight() { return this.weight != NumericEnum.Void; }
-	get hasIndex() { return this.index != IndexEnum.Void; }
-	
-	get positionComponents() { return 3; }
-	get normalComponents() { return 3; }
-	get colorComponents() { return 4; }
-	get textureComponents() { return this.textureComponentsCount; }
-
-	get hash() {
-		return this.value + (this.textureComponentsCount * Math.pow(2, 24));
 	}
 	
 	toString() {
@@ -398,9 +388,6 @@ export class ClutState {
 	getHashFast() {
 		return (this.data[Op.CMODE] << 0) + (this.data[Op.CLOAD] << 8) + (this.data[Op.CLUTADDR] << 16) + (this.data[Op.CLUTADDRUPPER] << 24);
 	}
-	getHashSlow(memory: _memory.Memory) {
-		return memory.hash(this.address, this.sizeInBytes);
-	}
 	get cmode() { return this.data[Op.CMODE]; }
 	get cload() { return this.data[Op.CLOAD]; }
 
@@ -442,9 +429,9 @@ export class TextureState {
 		return _pixelformat.PixelFormatUtils.hasClut(this.pixelFormat);
 	}
 	
-	getHashSlow(memory: _memory.Memory) {
+	getHashSlow(textureData:Uint8Array, clutData:Uint8Array) {
 		var hash: number[] = [];
-		hash.push(memory.hash(this.mipmap.address, this.mipmap.sizeInBytes));
+		hash.push(ArrayBufferUtils.hashFast(textureData));
 		hash.push(this.mipmap.address);
 		hash.push(this.mipmap.textureWidth);
 		hash.push(this.colorComponent);
@@ -453,7 +440,7 @@ export class TextureState {
 		hash.push(+this.pixelFormat);
 		if (this.hasClut) {
 			hash.push(this.clut.getHashFast());
-			hash.push(this.clut.getHashSlow(memory));
+			hash.push(ArrayBufferUtils.hashFast(clutData));
 		}
 		//value += this.clut.getHashFast();
 		return hash.join('_');

@@ -2,15 +2,14 @@
 ///<reference path="./webgl_enums.d.ts" />
 
 import _state = require('../gpu_state');
+import _vertex = require('../gpu_vertex');
 import _utils = require('./webgl_utils');
 import _pixelformat = require('../../pixelformat');
-import _memory = require('../../memory');
 
 import PixelFormat = _pixelformat.PixelFormat;
 import PixelFormatUtils = _pixelformat.PixelFormatUtils;
 import PixelConverter = _pixelformat.PixelConverter;
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
-import Memory = _memory.Memory;
 
 export class Texture {
 	private texture: WebGLTexture;
@@ -37,7 +36,7 @@ export class Texture {
 	get addressEnd() { return this.mipmap.addressEnd; }
 	get pixelFormat() { return this.textureState.pixelFormat; }
 
-	updateFromState(state: _state.GpuState, memory: _memory.Memory) {
+	updateFromState(state: _state.GpuState, textureData:Uint8Array, clutData:Uint8Array) {
 		this.state.copyFrom(state);
 		
 		//this.updatedTextures.add(texture);
@@ -49,7 +48,7 @@ export class Texture {
 		var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
 
 		var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
-		data.set(memory.getPointerU8Array(mipmap.address, data.length));
+		data.set(textureData);
 		//data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
 
 		if (state.texture.swizzled) PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
@@ -58,7 +57,7 @@ export class Texture {
 		if (textureState.hasClut) {
 			clut = PixelConverter.decode(
 				clutState.pixelFormat,
-				memory.getPointerU8Array(clutState.address),
+				clutData,
 				new Uint32Array(256), textureState.hasAlpha, null
 			);
 		}
@@ -147,60 +146,41 @@ export class Texture {
 }
 
 export class TextureHandler {
-	constructor(private memory: Memory, private gl: WebGLRenderingContext) {
-		memory.invalidateDataRange.add((range) => this.invalidatedMemoryRange(range));
-		memory.invalidateDataAll.add(() => this.invalidatedMemoryAll());
+	constructor(private gl: WebGLRenderingContext) {
 		this.invalidateWithGl(gl);
 	}
 
 	private texturesByHash:Map<string, Texture>;
-	private texturesByAddress:Map<number, Texture>;
+	private texturesByAddress:Map<string, Texture>;
 	private textures:Texture[];
 	
-	private recheckTimestamp: number = 0;
-	//private updatedTextures = new SortedSet<Texture>();
-	private invalidatedAll = false;
-
-	rehashSignal = new Signal<number>();
+	rehashSignal = new Signal1<number>();
 	
 	invalidateWithGl(gl: WebGLRenderingContext) {
 		this.gl = gl;
 		
 		this.texturesByHash = new Map<string, Texture>();
-		this.texturesByAddress = new Map<number, Texture>();
+		this.texturesByAddress = new Map<string, Texture>();
 		this.textures = [];
-		
-		this.recheckTimestamp = 0;
-		this.invalidatedAll = false;
 	}
 
-	flush() {
-		//console.log('flush!');
+	invalidatedMemoryAll() {
 		for (let texture of this.textures) texture.valid = false;
 	}
 
-	sync() {
-	}
-
-	end() {
-		if (!this.invalidatedAll) return;
-		this.invalidatedAll = false;
-		for (let texture of this.textures) texture.valid = false;
-	}
-
-	private invalidatedMemoryAll() {
-		this.invalidatedAll = true;
-	}
-
-	private invalidatedMemoryRange(range: NumericRange) {
+	invalidatedMemoryRange(low: number, high: number) {
+		//console.log('texture: invalidatedMemoryRange', low, high)
 		for (let texture of this.textures) {
-			if (texture.addressStart >= range.start && texture.addressEnd <= range.end) texture.valid = false;
+			if (texture.addressStart >= low && texture.addressEnd <= high) texture.valid = false;
 		}
 	}
 
-	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState, enableBilinear:boolean) {
+	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState, enableBilinear:boolean, buffer:ArrayBuffer, batch: _vertex.OptimizedBatchTransfer) {
 		var gl = this.gl;
 		gl.activeTexture(gl.TEXTURE0);
+		
+		var textureData = (batch.textureLow > 0) ? new Uint8Array(buffer, batch.textureLow, batch.textureHigh - batch.textureLow) : null;
+		var clutData = (batch.clutLow > 0) ? new Uint8Array(buffer, batch.clutLow, batch.clutHigh - batch.clutLow) : null;
 
 		var mipmap = state.texture.mipmaps[0];
 
@@ -211,20 +191,24 @@ export class TextureHandler {
 		let hasClut = PixelFormatUtils.hasClut(state.texture.pixelFormat);
 		let clutState = state.texture.clut;
 		let textureState = state.texture;
+		let clutAddress = hasClut ? clutState.address : 0;
 
-		var texture: Texture;		
-		if (!this.texturesByAddress.get(mipmap.address)) {
+		var texture: Texture;
+		
+		var fastHash = [mipmap.address, clutAddress, textureState.colorComponent].join('_');
+		
+		if (!this.texturesByAddress.get(fastHash)) {
 			texture = new Texture(gl);
-			this.texturesByAddress.set(mipmap.address, texture);
+			this.texturesByAddress.set(fastHash, texture);
 			this.textures.push(texture);
 			//console.warn('New texture allocated!', mipmap, state.texture);
 		}
 
-		texture = this.texturesByAddress.get(mipmap.address);
+		texture = this.texturesByAddress.get(fastHash);
 		
 		//if (true) {
 		if (!texture.valid) {
-			var hash = textureState.getHashSlow(this.memory);
+			var hash = textureState.getHashSlow(textureData, clutData);
 			this.rehashSignal.dispatch(mipmap.sizeInBytes);
 			
 			if (this.texturesByHash.has(hash)) {
@@ -237,7 +221,7 @@ export class TextureHandler {
 
 				this.texturesByHash.set(hash, texture);
 
-				texture.updateFromState(state, this.memory);
+				texture.updateFromState(state, textureData, clutData);
 			}
 		}
 

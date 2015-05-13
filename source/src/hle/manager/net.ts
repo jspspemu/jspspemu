@@ -10,13 +10,13 @@ export interface NetPacket {
 export class NetManager {
 	connected = false;
 	private ws: WebSocket = null;
-	private _onmessageSignals = <NumberDictionary<Signal<NetPacket>>>{};
-	onopen = new Signal();
-	onclose = new Signal();
+	private _onmessageSignals = <NumberDictionary<Signal1<NetPacket>>>{};
+	onopen = new Signal0();
+	onclose = new Signal0();
 	mac = new Uint8Array(6);
 
 	onmessage(port: number) {
-		if (!this._onmessageSignals[port]) this._onmessageSignals[port] = new Signal<NetPacket>();
+		if (!this._onmessageSignals[port]) this._onmessageSignals[port] = new Signal1<NetPacket>();
 		return this._onmessageSignals[port];
 	}
 

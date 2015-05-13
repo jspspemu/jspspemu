@@ -480,6 +480,36 @@ class ArrayBufferUtils {
 		return out;
 	}
 	
+	static hashWordCount(data:Uint32Array) {
+		let count = data.length, result = 0;
+		for (var n = 0; n < count; n++) result = (result + data[n] ^ n) | 0;
+		return result;
+	}
+	
+	static hashFast(data: Uint8Array) {
+		return this.hashWordCount(new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4));
+	}
+
+	static hash(data:Uint8Array) {
+		var result = 0;
+		var address = 0;
+		var count = data.length;
+		
+		
+		while (((address + data.byteOffset) & 3) != 0) { result += data[address++]; count--; }
+
+		var count2 = MathUtils.prevAligned(count, 4);
+
+		result += this.hashWordCount(new Uint32Array(data.buffer, data.byteOffset + address, count2 / 4));
+
+		address += count2;
+		count -= count2;
+
+		while (((address + data.byteOffset) & 3) != 0) { result += data[address++] * 7; count--; }
+
+		return result;
+	}
+	
 	static fromUInt8Array(input: Uint8Array) {
 		return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
 	}
@@ -716,8 +746,26 @@ interface Cancelable {
 	cancel(): void;
 }
 
-class SignalCancelable<T> implements Cancelable {
-	constructor(private signal: Signal<T>, private callback: (value?: T) => void) {
+class Signal0Cancelable implements Cancelable {
+	constructor(private signal: Signal0, private callback: () => void) {
+	}
+
+	cancel() {
+		this.signal.remove(this.callback);
+	}
+}
+
+class Signal1Cancelable<T> implements Cancelable {
+	constructor(private signal: Signal1<T>, private callback: (value?: T) => void) {
+	}
+
+	cancel() {
+		this.signal.remove(this.callback);
+	}
+}
+
+class Signal2Cancelable<T1, T2> implements Cancelable {
+	constructor(private signal: Signal2<T1, T2>, private callback: (v1: T1, v2: T2) => void) {
 	}
 
 	cancel() {
@@ -727,7 +775,7 @@ class SignalCancelable<T> implements Cancelable {
 
 class WatchValue<T> {
 	private _value:T;
-	onChanged:Signal<T> = new Signal<T>();
+	onChanged:Signal1<T> = new Signal1<T>();
 	constructor(value?:T) { this._value = value; }
 	waitUntilValueAsync(expectedValue:T) {
 		if (this.value == expectedValue) return Promise2.resolve();
@@ -750,41 +798,116 @@ class WatchValue<T> {
 	}
 }
 
-class Signal<T> {
-	callbacks: ((value?: T) => void)[] = [];
+class Signal0 {
+	callbacks: (() => void)[] = [];
 
-	get length() {
-		return this.callbacks.length;
+	get length() { return this.callbacks.length; }
+	clear() { this.callbacks = []; }
+
+	pipeTo(other:Signal0) {
+		return this.add(() => other.dispatch());
 	}
 
-	pipeTo(other:Signal<T>) {
-		return this.add(v => other.dispatch(v));
-	}
-
-	add(callback: (value?: T) => void) {
+	add(callback: () => void) {
 		this.callbacks.push(callback);
-		return new SignalCancelable(this, callback);
+		return new Signal0Cancelable(this, callback);
 	}
 
-	remove(callback: (value?: T) => void) {
+	remove(callback: () => void) {
 		var index = this.callbacks.indexOf(callback);
 		if (index >= 0) {
 			this.callbacks.splice(index, 1);
 		}
 	}
 
-	once(callback: (value?: T) => void) {
+	once(callback: () => void) {
 		var once = () => {
 			this.remove(once);
 			callback();
 		};
 		this.add(once);
-		return new SignalCancelable(this, once);
+		return new Signal0Cancelable(this, once);
 	}
 
-	dispatch(value?: T) {
+	dispatch() {
 		this.callbacks.forEach((callback) => {
-			callback(value);
+			callback();
+		});
+	}
+}
+
+class Signal1<T1> {
+	callbacks: ((value: T1) => void)[] = [];
+
+	get length() { return this.callbacks.length; }
+	clear() { this.callbacks = []; }
+
+	pipeTo(other:Signal1<T1>) {
+		return this.add(v => other.dispatch(v));
+	}
+
+	add(callback: (v1: T1) => void) {
+		this.callbacks.push(callback);
+		return new Signal1Cancelable(this, callback);
+	}
+
+	remove(callback: (v1: T1) => void) {
+		var index = this.callbacks.indexOf(callback);
+		if (index >= 0) {
+			this.callbacks.splice(index, 1);
+		}
+	}
+
+	once(callback: (v1: T1) => void) {
+		var once = (v1: T1) => {
+			this.remove(once);
+			callback(v1);
+		};
+		this.add(once);
+		return new Signal1Cancelable(this, once);
+	}
+
+	dispatch(v1: T1) {
+		this.callbacks.forEach((callback) => {
+			callback(v1);
+		});
+	}
+}
+
+class Signal2<T1, T2> {
+	callbacks: ((v1: T1, v2: T2) => void)[] = [];
+
+	get length() { return this.callbacks.length; }
+	clear() { this.callbacks = []; }
+
+	pipeTo(other:Signal2<T1, T2>) {
+		return this.add((v1, v2) => other.dispatch(v1, v2));
+	}
+
+	add(callback: (v1: T1, v2: T2) => void) {
+		this.callbacks.push(callback);
+		return new Signal2Cancelable(this, callback);
+	}
+
+	remove(callback: (v1: T1, v2: T2) => void) {
+		var index = this.callbacks.indexOf(callback);
+		if (index >= 0) {
+			this.callbacks.splice(index, 1);
+		}
+	}
+
+	once(callback: (v1: T1, v2: T2) => void) {
+		var once = (v1: T1, v2: T2) => {
+			this.remove(once);
+			callback(v1, v2);
+		};
+		this.add(once);
+		return new Signal2Cancelable(this, once);
+	}
+
+	dispatch(v1: T1, v2: T2) {
+		this.callbacks.forEach((callback) => {
+			callback(v1, v2);
 		});
 	}
 }
@@ -1153,6 +1276,10 @@ function throwWaitPromise<T>(promise:Promise2<T>) {
 	//var error:any = new Error('WaitPromise');
 	error.promise = promise;
 	return error;
+}
+
+function isInsideWorker() {
+	return typeof (<any>window).document == 'undefined';
 }
 
 (<any>window).throwEndCycles = throwEndCycles;

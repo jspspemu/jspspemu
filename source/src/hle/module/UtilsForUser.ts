@@ -67,7 +67,7 @@ export class UtilsForUser {
 		//console.log('sceKernelDcacheWritebackInvalidateRange');
 		if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 		if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
-		this.context.memory.invalidateDataRange.dispatch({ start: pointer, end : pointer + size });
+		this.context.memory.invalidateDataRange.dispatch(pointer, pointer + size);
 		return 0;
 	}
 
@@ -76,7 +76,7 @@ export class UtilsForUser {
 		//console.log('sceKernelDcacheWritebackRange');
 		if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 		if (pointer >= 0x80000000) return SceKernelErrors.ERROR_INVALID_POINTER;
-		this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
+		this.context.memory.invalidateDataRange.dispatch(pointer, pointer + size);
 		return 0;
 	}
 
@@ -95,7 +95,7 @@ export class UtilsForUser {
 		if (size > 0x7FFFFFFF) return SceKernelErrors.ERROR_INVALID_SIZE;
 		if (pointer >= 0x80000000) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
 		if (!MathUtils.isAlignedTo(pointer, 4)) return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
-		this.context.memory.invalidateDataRange.dispatch({ start: pointer, end: pointer + size });
+		this.context.memory.invalidateDataRange.dispatch(pointer, pointer + size);
 		return 0;
 	}
 		

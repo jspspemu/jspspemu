@@ -39,7 +39,7 @@ export class InterruptManager {
 	enabled: boolean = true;
 	flags: number = 0xFFFFFFFF;
 	interruptHandlers: NumberDictionary<InterruptHandlers> = {};
-	event = new Signal<void>();
+	event = new Signal0();
 	queue = <InterruptHandler[]>[];
 
 	suspend() {

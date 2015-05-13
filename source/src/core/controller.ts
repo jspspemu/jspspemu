@@ -1,6 +1,5 @@
 ﻿///<reference path="../global.d.ts" />
 
-if (typeof navigator == 'undefined') navigator = <any>{};
 
 export interface IPspController {
 	startAsync():Promise2<void>;
@@ -36,9 +35,6 @@ export class SceCtrlData {
 	]);
 }
 
-
-var navigator = (typeof window != 'undefined') ? window.navigator : null;
-var getGamepads = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
 
 export class PspController {
 	data: SceCtrlData = new SceCtrlData();
@@ -76,22 +72,36 @@ export class PspController {
 		this.fieldMapping[HtmlKeyCodes.j] = 'analogLeft';
 		this.fieldMapping[HtmlKeyCodes.l] = 'analogRight';
 	}
-
-	private keyDown(e: KeyboardEvent) {
-		//console.log(e.keyCode);
-		var button = this.buttonMapping[e.keyCode];
+	
+	setKeyDown(keyCode: number) {
+		var button = this.buttonMapping[keyCode];
 		if (button !== undefined) this.data.buttons |= button;
 
-		var field = this.fieldMapping[e.keyCode];
+		var field = this.fieldMapping[keyCode];
 		if (field !== undefined) (<any>this)[field] =true;
 	}
-
-	private keyUp(e: KeyboardEvent) {
-		var button = this.buttonMapping[e.keyCode];
+	
+	setKeyUp(keyCode: number) {
+		var button = this.buttonMapping[keyCode];
 		if (button !== undefined) this.data.buttons &= ~button;
-
-		var field = this.fieldMapping[e.keyCode];
+		
+		var field = this.fieldMapping[keyCode];
 		if (field !== undefined) (<any>this)[field] = false;
+	}
+	
+	addX: number = 0;
+	addY: number = 0;
+	
+	setGamepadFrame(x: number, y: number, buttons: Uint8Array) {
+		this.addX = x;
+		this.addY = y;
+		for (var n = 0; n < 16; n++) {
+			if (buttons[n]) {
+				this.simulateButtonDown(n);
+			} else {
+				this.simulateButtonUp(n);
+			}
+		}
 	}
 
 	simulateButtonDown(button: number) {
@@ -111,11 +121,7 @@ export class PspController {
 
 	_keyDown:any;
 	_keyUp:any;
-	startAsync() {
-		if (typeof document != 'undefined') {
-			document.addEventListener('keydown', this._keyDown = (e:any) => this.keyDown(e));
-			document.addEventListener('keyup', this._keyUp = (e:any) => this.keyUp(e));
-		}
+	startAsync() {	
 		this.frame(0);
 		return Promise2.resolve();
 	}
@@ -137,66 +143,13 @@ export class PspController {
 		this.data.x = this.analogAddX;
 		this.data.y = this.analogAddY;
 
-		//console.log('zzzzzzzzz');
-		if (getGamepads) {
-			//console.log('bbbbbbbbb');
-			var gamepads = getGamepads();
-			if (gamepads[0]) {
-				//console.log('aaaaaaaa');
-				var buttonMapping = [
-					PspCtrlButtons.cross, // 0
-					PspCtrlButtons.circle, // 1
-					PspCtrlButtons.square, // 2
-					PspCtrlButtons.triangle, // 3
-					PspCtrlButtons.leftTrigger, // 4
-					PspCtrlButtons.rightTrigger, // 5
-					PspCtrlButtons.volumeUp, // 6
-					PspCtrlButtons.volumeDown, // 7
-					PspCtrlButtons.select, // 8
-					PspCtrlButtons.start, // 9
-					PspCtrlButtons.home, // 10 - L3
-					PspCtrlButtons.note, // 11 - L3
-					PspCtrlButtons.up, // 12
-					PspCtrlButtons.down, // 13
-					PspCtrlButtons.left, // 14
-					PspCtrlButtons.right, // 15
-				];
-
-				var gamepad = gamepads[0];
-				var buttons = gamepad['buttons'];
-				var axes = gamepad['axes'];
-				this.data.x += axes[0];
-				this.data.y += axes[1];
-
-				function checkButton(button:any) {
-					if (typeof button == 'number') {
-						return button != 0;
-					} else {
-						return button ? !!(button.pressed) : false;
-					}
-				}
-
-				for (var n = 0; n < 16; n++) {
-					if (checkButton(buttons[n])) {
-						this.simulateButtonDown(buttonMapping[n]);
-					} else {
-						this.simulateButtonUp(buttonMapping[n]);
-					}
-				}
-			}
-		}
-
-		this.data.x = MathUtils.clamp(this.data.x, -1, +1);
-		this.data.y = MathUtils.clamp(this.data.y, -1, +1);
+		this.data.x = MathUtils.clamp(this.data.x + this.addX, -1, +1);
+		this.data.y = MathUtils.clamp(this.data.y + this.addY, -1, +1);
 
 		this.animationTimeId = requestAnimationFrame((timestamp: number) => this.frame(timestamp));
 	}
 
 	stopAsync() {
-		if (typeof document != 'undefined') {
-			document.removeEventListener('keydown', this._keyDown);
-			document.removeEventListener('keyup', this._keyUp);
-		}
 		cancelAnimationFrame(this.animationTimeId);
 		return Promise2.resolve();
 	}
