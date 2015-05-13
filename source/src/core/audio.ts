@@ -36,8 +36,8 @@ export class PspAudioChannel {
 		this.audio.onStop.dispatch(this.id);
 	}
 
-	playAsync(channels: number, data: Int16Array): Promise2<any> {
-		return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data);
+	playAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): Promise2<any> {
+		return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data, leftVolume, rightVolume);
 	}
 }
 
@@ -70,7 +70,7 @@ export class PspAudio {
 	}
 	*/
 	
-	onPlayDataAsync = new SignalPromise<number, number, Int16Array, void>();
+	onPlayDataAsync = new SignalPromise<number, number, Int16Array, number, number>();
 	onStart = new Signal1<number>();
 	onStop = new Signal1<number>();
 	

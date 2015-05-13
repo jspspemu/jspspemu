@@ -53,9 +53,12 @@ emulator.memory.invalidateDataRange.add((low, high) => {
 	//postAction('memory.invalidateDataRange', {low: low, high: high});
 });
 
-emulator.audio.onPlayDataAsync.add((id: number, channels:number, data: Int16Array) => {
-	var data2 = ArrayBufferUtils.cloneInt16Array(data);
-	return postActionWaitAsync('audio.data', {id: id, channels: channels, data: data2}, [data2.buffer]);
+emulator.audio.onPlayDataAsync.add((id: number, channels:number, data: Int16Array, leftvolume:number, rightvolume:number) => {
+	var clonedData = ArrayBufferUtils.cloneInt16Array(data);
+	return postActionWaitAsync('audio.data', {
+		id: id, channels: channels, data: clonedData,
+		leftvolume: leftvolume, rightvolume: rightvolume,
+	}, [clonedData.buffer]);
 });
 emulator.audio.onStart.add((id: number) => {
 	postAction('audio.start', {id: id});

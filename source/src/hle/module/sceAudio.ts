@@ -20,6 +20,7 @@ export class sceAudio {
 	@nativeFunction(0x01562BA3, 150, 'uint', 'int')
 	sceAudioOutput2Reserve(sampleCount: number) {
 		console.warn('sceAudioOutput2Reserve not implemented!');
+		debugger;
 		return 0;
 	}
 
@@ -79,23 +80,25 @@ export class sceAudio {
 		channel.sampleCount = sampleCount;
 		return 0;
 	}
+	
+	_sceAudioOutput(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
+		if (!buffer) return -1;
+		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+		//console.log(leftVolume, rightVolume);
+		var channel = this.getChannelById(channelId);
+		return channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount), MathUtils.clamp(leftVolume / 32768), MathUtils.clamp(rightVolume / 32768));
+	}
 
 	@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
 	sceAudioOutputPannedBlocking(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
-		if (!buffer) return -1;
-		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-		var channel = this.getChannelById(channelId);
-		var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+		var result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
 		if (!(result instanceof Promise2)) return result;
-		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
+		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channelId, result, AcceptCallbacks.NO);
 	}
 
 	@nativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*')
 	sceAudioOutputBlocking(channelId: number, volume: number, buffer: Stream): any {
-		if (!buffer) return -1;
-		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-		var channel = this.getChannelById(channelId);
-		var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+		var result = this._sceAudioOutput(channelId, volume, volume, buffer);
 		return result;
 		//debugger;
 		//return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
@@ -103,17 +106,13 @@ export class sceAudio {
 
 	@nativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*')
 	sceAudioOutput(channelId: number, volume: number, buffer: Stream): any {
-		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-		var channel = this.getChannelById(channelId);
-		channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+		var result = this._sceAudioOutput(channelId, volume, volume, buffer);
 		return 0;
 	}
 
 	@nativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*')
 	sceAudioOutputPanned(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
-		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-		var channel = this.getChannelById(channelId);
-		channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+		var result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
 		return 0;
 	}
 

@@ -62,7 +62,7 @@ emulatorWorker.onmessage = (e:MessageEvent) => {
 		case 'audio.start': audio.startChannel(payload.id); break;	
 		case 'audio.stop': audio.stopChannel(payload.id); break;	
 		case 'audio.data':
-			audio.playDataAsync(payload.id, payload.channels, payload.data).then(() => {
+			audio.playDataAsync(payload.id, payload.channels, payload.data, payload.leftvolume, payload.rightvolume).then(() => {
 				completeAction(e);
 			});
 			break;
@@ -180,15 +180,31 @@ class Audio2Channel {
 	private node: ScriptProcessorNode;
 	currentBuffer: PspAudioBuffer;
 
-	static convertS16ToF32(channels: number, input: Int16Array) {
+	static convertS16ToF32(channels: number, input: Int16Array, leftVolume: number, rightVolume: number) {
 		var output = new Float32Array(input.length * 2 / channels);
+		var optimized = leftVolume == 1.0 && rightVolume == 1.0;
 		switch (channels) {
 			case 2:
-				for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
+				if (optimized) {
+					for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;	
+				} else {
+					for (var n = 0; n < output.length; n += 2) {
+						output[n + 0] = (input[n + 0] / 32767.0) * leftVolume;
+						output[n + 1] = (input[n + 1] / 32767.0) * rightVolume;
+					}
+				}	
 				break;
 			case 1:
-				for (var n = 0, m = 0; n < input.length; n++) {
-					output[m++] = output[m++] = (input[n] / 32767.0);
+				if (optimized) {
+					for (var n = 0, m = 0; n < input.length; n++) {
+						output[m++] = output[m++] = (input[n] / 32767.0);
+					}
+				} else {
+					for (var n = 0, m = 0; n < input.length; n++) {
+						var sample = (input[n] / 32767.0);
+						output[m++] = sample * leftVolume;
+						output[m++] = sample * rightVolume;
+					}
 				}
 				break;
 		}
@@ -244,6 +260,7 @@ class Audio2Channel {
 		if (!this.node) return waitAsync(10).then(() => 0);
 
 		if (this.buffers.length < 8) {
+		//if (this.buffers.length < 16) {
 			//(data.length / 2)
 			this.buffers.push(new PspAudioBuffer(null, data));
 			//return 0;
@@ -256,9 +273,9 @@ class Audio2Channel {
 		}
 	}
 
-	playDataAsync(channels: number, data: Int16Array): Promise2<any> {
+	playDataAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): Promise2<any> {
 		//console.log(channels, data);
-		return this.playAsync(Audio2Channel.convertS16ToF32(channels, data));
+		return this.playAsync(Audio2Channel.convertS16ToF32(channels, data, leftVolume, rightVolume));
 	}
 }
 
@@ -283,8 +300,8 @@ class Audio2 {
 		return this.getChannel(id).stop();
 	}
 	
-	playDataAsync(id:number, channels:number, data:Int16Array) {
-		return this.getChannel(id).playDataAsync(channels, data);
+	playDataAsync(id:number, channels:number, data:Int16Array, leftVolume: number, rightVolume: number) {
+		return this.getChannel(id).playDataAsync(channels, data, leftVolume, rightVolume);
 	}
 }
 

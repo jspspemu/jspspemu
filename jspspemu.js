@@ -888,10 +888,10 @@ var SignalPromise = (function () {
         this.callbacks.push(callback);
         return this;
     };
-    SignalPromise.prototype.dispatchAsync = function (v1, v2, v3, v4) {
+    SignalPromise.prototype.dispatchAsync = function (v1, v2, v3, v4, v5) {
         var promises = [];
         this.callbacks.forEach(function (callback) {
-            promises.push(callback(v1, v2, v3, v4));
+            promises.push(callback(v1, v2, v3, v4, v5));
         });
         return Promise2.all(promises);
     };
@@ -2299,6 +2299,13 @@ var MathUtils = (function () {
         if (alignment <= 1)
             return value;
         return value + ((alignment - (value % alignment)) % alignment);
+    };
+    MathUtils.clamp01 = function (v) {
+        if (v < 0.0)
+            return 0.0;
+        if (v > 1.0)
+            return 1.0;
+        return v;
     };
     MathUtils.clamp = function (v, min, max) {
         if (v < min)
@@ -3763,8 +3770,8 @@ var PspAudioChannel = (function () {
     PspAudioChannel.prototype.stop = function () {
         this.audio.onStop.dispatch(this.id);
     };
-    PspAudioChannel.prototype.playAsync = function (channels, data) {
-        return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data);
+    PspAudioChannel.prototype.playAsync = function (channels, data, leftVolume, rightVolume) {
+        return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data, leftVolume, rightVolume);
     };
     return PspAudioChannel;
 })();
@@ -12695,7 +12702,7 @@ emulatorWorker.onmessage = function (e) {
             audio.stopChannel(payload.id);
             break;
         case 'audio.data':
-            audio.playDataAsync(payload.id, payload.channels, payload.data).then(function () {
+            audio.playDataAsync(payload.id, payload.channels, payload.data, payload.leftvolume, payload.rightvolume).then(function () {
                 completeAction(e);
             });
             break;
@@ -12820,16 +12827,34 @@ var Audio2Channel = (function () {
             this.node.onaudioprocess = function (e) { _this.process(e); };
         }
     }
-    Audio2Channel.convertS16ToF32 = function (channels, input) {
+    Audio2Channel.convertS16ToF32 = function (channels, input, leftVolume, rightVolume) {
         var output = new Float32Array(input.length * 2 / channels);
+        var optimized = leftVolume == 1.0 && rightVolume == 1.0;
         switch (channels) {
             case 2:
-                for (var n = 0; n < output.length; n++)
-                    output[n] = input[n] / 32767.0;
+                if (optimized) {
+                    for (var n = 0; n < output.length; n++)
+                        output[n] = input[n] / 32767.0;
+                }
+                else {
+                    for (var n = 0; n < output.length; n += 2) {
+                        output[n + 0] = (input[n + 0] / 32767.0) * leftVolume;
+                        output[n + 1] = (input[n + 1] / 32767.0) * rightVolume;
+                    }
+                }
                 break;
             case 1:
-                for (var n = 0, m = 0; n < input.length; n++) {
-                    output[m++] = output[m++] = (input[n] / 32767.0);
+                if (optimized) {
+                    for (var n = 0, m = 0; n < input.length; n++) {
+                        output[m++] = output[m++] = (input[n] / 32767.0);
+                    }
+                }
+                else {
+                    for (var n = 0, m = 0; n < input.length; n++) {
+                        var sample = (input[n] / 32767.0);
+                        output[m++] = sample * leftVolume;
+                        output[m++] = sample * rightVolume;
+                    }
                 }
                 break;
         }
@@ -12885,8 +12910,8 @@ var Audio2Channel = (function () {
             });
         }
     };
-    Audio2Channel.prototype.playDataAsync = function (channels, data) {
-        return this.playAsync(Audio2Channel.convertS16ToF32(channels, data));
+    Audio2Channel.prototype.playDataAsync = function (channels, data, leftVolume, rightVolume) {
+        return this.playAsync(Audio2Channel.convertS16ToF32(channels, data, leftVolume, rightVolume));
     };
     return Audio2Channel;
 })();
@@ -12906,8 +12931,8 @@ var Audio2 = (function () {
     Audio2.prototype.stopChannel = function (id) {
         return this.getChannel(id).stop();
     };
-    Audio2.prototype.playDataAsync = function (id, channels, data) {
-        return this.getChannel(id).playDataAsync(channels, data);
+    Audio2.prototype.playDataAsync = function (id, channels, data, leftVolume, rightVolume) {
+        return this.getChannel(id).playDataAsync(channels, data, leftVolume, rightVolume);
     };
     return Audio2;
 })();
@@ -13229,9 +13254,12 @@ emulator.memory.invalidateDataAll.add(function () {
 });
 emulator.memory.invalidateDataRange.add(function (low, high) {
 });
-emulator.audio.onPlayDataAsync.add(function (id, channels, data) {
-    var data2 = ArrayBufferUtils.cloneInt16Array(data);
-    return postActionWaitAsync('audio.data', { id: id, channels: channels, data: data2 }, [data2.buffer]);
+emulator.audio.onPlayDataAsync.add(function (id, channels, data, leftvolume, rightvolume) {
+    var clonedData = ArrayBufferUtils.cloneInt16Array(data);
+    return postActionWaitAsync('audio.data', {
+        id: id, channels: channels, data: clonedData,
+        leftvolume: leftvolume, rightvolume: rightvolume,
+    }, [clonedData.buffer]);
 });
 emulator.audio.onStart.add(function (id) {
     postAction('audio.start', { id: id });
@@ -18956,6 +18984,7 @@ var sceAudio = (function () {
     };
     sceAudio.prototype.sceAudioOutput2Reserve = function (sampleCount) {
         console.warn('sceAudioOutput2Reserve not implemented!');
+        debugger;
         return 0;
     };
     sceAudio.prototype.sceAudioOutput2OutputBlocking = function (volume, buffer) {
@@ -19007,38 +19036,30 @@ var sceAudio = (function () {
         channel.sampleCount = sampleCount;
         return 0;
     };
-    sceAudio.prototype.sceAudioOutputPannedBlocking = function (channelId, leftVolume, rightVolume, buffer) {
+    sceAudio.prototype._sceAudioOutput = function (channelId, leftVolume, rightVolume, buffer) {
         if (!buffer)
             return -1;
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         var channel = this.getChannelById(channelId);
-        var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+        return channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount), MathUtils.clamp(leftVolume / 32768), MathUtils.clamp(rightVolume / 32768));
+    };
+    sceAudio.prototype.sceAudioOutputPannedBlocking = function (channelId, leftVolume, rightVolume, buffer) {
+        var result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
         if (!(result instanceof Promise2))
             return result;
-        return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channel, result, AcceptCallbacks.NO);
+        return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channelId, result, AcceptCallbacks.NO);
     };
     sceAudio.prototype.sceAudioOutputBlocking = function (channelId, volume, buffer) {
-        if (!buffer)
-            return -1;
-        if (!this.isValidChannel(channelId))
-            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-        var channel = this.getChannelById(channelId);
-        var result = channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+        var result = this._sceAudioOutput(channelId, volume, volume, buffer);
         return result;
     };
     sceAudio.prototype.sceAudioOutput = function (channelId, volume, buffer) {
-        if (!this.isValidChannel(channelId))
-            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-        var channel = this.getChannelById(channelId);
-        channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+        var result = this._sceAudioOutput(channelId, volume, volume, buffer);
         return 0;
     };
     sceAudio.prototype.sceAudioOutputPanned = function (channelId, leftVolume, rightVolume, buffer) {
-        if (!this.isValidChannel(channelId))
-            return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
-        var channel = this.getChannelById(channelId);
-        channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount));
+        var result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
         return 0;
     };
     sceAudio.prototype.sceAudioChangeChannelVolume = function (channelId, volumeLeft, volumeRight) {

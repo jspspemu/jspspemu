@@ -661,6 +661,12 @@ class MathUtils {
 		if (alignment <= 1) return value;
 		return value + ((alignment - (value % alignment)) % alignment);
 	}
+	
+	static clamp01(v: number) {
+		if (v < 0.0) return 0.0;
+		if (v > 1.0) return 1.0;
+		return v;
+	}
 
 	static clamp(v: number, min: number, max: number) {
 		if (v < min) return min;

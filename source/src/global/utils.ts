@@ -913,21 +913,21 @@ class Signal2<T1, T2> {
 	}
 }
 
-class SignalPromise<T1, T2, T3, T4> {
-	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4) => Promise2<any>)[] = [];
+class SignalPromise<T1, T2, T3, T4, T5> {
+	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise2<any>)[] = [];
 
 	get length() { return this.callbacks.length; }
 	clear() { this.callbacks = []; }
 
-	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4) => Promise2<any>) {
+	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise2<any>) {
 		this.callbacks.push(callback);
 		return this;
 	}
 
-	dispatchAsync(v1?: T1, v2?: T2, v3?: T3, v4?: T4) {
+	dispatchAsync(v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) {
 		var promises:Promise2<any>[] = [];
 		this.callbacks.forEach((callback) => {
-			promises.push(callback(v1, v2, v3, v4));
+			promises.push(callback(v1, v2, v3, v4, v5));
 		});
 		return Promise2.all(promises)
 	}
