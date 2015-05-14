@@ -86,7 +86,12 @@ export class sceAudio {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
 		//console.log(leftVolume, rightVolume);
 		var channel = this.getChannelById(channelId);
-		return channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount), MathUtils.clamp(leftVolume / 32768), MathUtils.clamp(rightVolume / 32768));
+		return channel.channel.playAsync(
+			channel.numberOfChannels,
+			buffer.readInt16Array(channel.totalSampleCount),
+			MathUtils.clamp01(leftVolume / 32768),
+			MathUtils.clamp01(rightVolume / 32768)
+		);
 	}
 
 	@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')

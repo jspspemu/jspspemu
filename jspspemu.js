@@ -8433,62 +8433,6 @@ var PspGpu = (function () {
 exports.PspGpu = PspGpu;
 
 },
-"src/core/gpu/gpu_driver": function(module, exports, require) {
-///<reference path="../../global.d.ts" />
-var _state = require('./gpu_state');
-var BaseDrawDriver = (function () {
-    function BaseDrawDriver() {
-        this.rehashSignal = new Signal1();
-        this.enableColors = true;
-        this.enableTextures = true;
-        this.enableSkinning = true;
-        this.enableBilinear = true;
-        this.frameBufferWidth = 480;
-        this.frameBufferHeight = 272;
-        this.state = new _state.GpuState();
-    }
-    BaseDrawDriver.prototype.setFramebufferSize = function (width, height) {
-        this.frameBufferWidth = width;
-        this.frameBufferHeight = height;
-    };
-    Object.defineProperty(BaseDrawDriver.prototype, "antialiasing", {
-        get: function () {
-            return this._antialiasing;
-        },
-        set: function (value) {
-            this._antialiasing = value;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    BaseDrawDriver.prototype.getFramebufferSize = function () {
-        return { width: this.frameBufferWidth, height: this.frameBufferHeight };
-    };
-    BaseDrawDriver.prototype.end = function () {
-    };
-    BaseDrawDriver.prototype.initAsync = function () {
-        return Promise2.resolve();
-    };
-    BaseDrawDriver.prototype.textureFlush = function (state) {
-    };
-    BaseDrawDriver.prototype.textureSync = function (state) {
-    };
-    BaseDrawDriver.prototype.drawOptimized = function (batch) {
-    };
-    BaseDrawDriver.prototype.setOptimizedDrawBuffer = function (optimizedDrawBufferData) {
-    };
-    BaseDrawDriver.prototype.drawBatches = function (optimizedDrawBufferData, batches) {
-        this.setOptimizedDrawBuffer(optimizedDrawBufferData);
-        for (var _i = 0; _i < batches.length; _i++) {
-            var batch = batches[_i];
-            this.drawOptimized(batch);
-        }
-    };
-    return BaseDrawDriver;
-})();
-exports.BaseDrawDriver = BaseDrawDriver;
-
-},
 "src/core/gpu/gpu_opcodes": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
 (function (GpuOpCodes) {
@@ -19042,7 +18986,7 @@ var sceAudio = (function () {
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         var channel = this.getChannelById(channelId);
-        return channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount), MathUtils.clamp(leftVolume / 32768), MathUtils.clamp(rightVolume / 32768));
+        return channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount), MathUtils.clamp01(leftVolume / 32768), MathUtils.clamp01(rightVolume / 32768));
     };
     sceAudio.prototype.sceAudioOutputPannedBlocking = function (channelId, leftVolume, rightVolume, buffer) {
         var result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
@@ -26587,36 +26531,6 @@ describe('utils', function () {
             assert.equal(-1, test.binarySearchIndex(function (b) { return compareNumbers(101, b); }));
             assert.equal(-1, test.binarySearchIndex(function (b) { return compareNumbers(111, b); }));
         });
-    });
-});
-
-},
-"test/utilstest": function(module, exports, require) {
-///<reference path="./global.d.ts" />
-function ref() { }
-exports.ref = ref;
-describe('ArrayBufferUtils', function () {
-    it('hash1', function () {
-        var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3]));
-        var hash2 = ArrayBufferUtils.hash(new Uint8Array([3, 2, 3]));
-        assert.notEqual(hash1, hash2);
-    });
-    it('hash2', function () {
-        var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4]));
-        var hash2 = ArrayBufferUtils.hash(new Uint8Array([3, 2, 3, 4]));
-        assert.notEqual(hash1, hash2);
-    });
-    it('hashUnaligned', function () {
-        for (var n = 1; n <= 3; n++) {
-            var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4, 5, 5, 5]).subarray(n));
-            var hash2 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 5, 5, 5, 5]).subarray(n));
-            assert.notEqual(hash1, hash2);
-        }
-        for (var n = 1; n <= 3; n++) {
-            var hash1 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 4, 5, 6, 3, 3, 3, 3, 3, 3, 3]).subarray(n, 12));
-            var hash2 = ArrayBufferUtils.hash(new Uint8Array([1, 2, 3, 4, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 4, 5, 6, 2, 2, 2, 2, 2, 2, 2]).subarray(n, 12));
-            assert.equal(hash1, hash2);
-        }
     });
 });
 
