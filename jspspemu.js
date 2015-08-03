@@ -1,6 +1,6 @@
 ///<reference path="./array.ts" />
 ///<reference path="./math.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -2378,7 +2378,7 @@ undefined
 ///<reference path="./int64.ts" />
 ///<reference path="./async.ts" />
 ///<reference path="./struct.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -4200,7 +4200,7 @@ exports.MipsDisassembler = MipsDisassembler;
 },
 "src/core/cpu/cpu_ast": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -4652,7 +4652,7 @@ exports.MipsAstBuilder = MipsAstBuilder;
 },
 "src/core/cpu/cpu_codegen": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -5731,7 +5731,7 @@ exports.InstructionAst = InstructionAst;
 },
 "src/core/cpu/cpu_core": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -7754,7 +7754,7 @@ exports.DecodedInstruction = DecodedInstruction;
 },
 "src/core/display": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -11674,7 +11674,7 @@ exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 },
 "src/core/memory": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -17239,7 +17239,7 @@ exports.ThreadManager = ThreadManager;
 },
 "src/hle/module/ExceptionManagerForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17267,7 +17267,7 @@ exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17331,7 +17331,7 @@ exports.InterruptManager = InterruptManager;
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17359,7 +17359,7 @@ exports.KDebugForKernel = KDebugForKernel;
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17420,7 +17420,7 @@ exports.Kernel_Library = Kernel_Library;
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17456,7 +17456,7 @@ exports.LoadCoreForKernel = LoadCoreForKernel;
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17508,7 +17508,7 @@ exports.LoadExecForUser = LoadExecForUser;
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17602,7 +17602,7 @@ exports.ModuleMgrForUser = ModuleMgrForUser;
 },
 "src/hle/module/StdioForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17638,7 +17638,7 @@ exports.StdioForUser = StdioForUser;
 },
 "src/hle/module/SysMemUserForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17811,7 +17811,7 @@ exports.SysMemUserForUser = SysMemUserForUser;
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17839,7 +17839,7 @@ exports.UtilsForKernel = UtilsForKernel;
 },
 "src/hle/module/UtilsForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -17986,7 +17986,7 @@ exports.UtilsForUser = UtilsForUser;
 },
 "src/hle/module/iofilemgr/IoFileMgrForUser": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -18390,7 +18390,7 @@ exports.IoFileMgrForUser = IoFileMgrForUser;
 },
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -18905,7 +18905,7 @@ var CodecType;
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19097,7 +19097,7 @@ var Channel = (function () {
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19186,7 +19186,7 @@ exports.sceCtrl = sceCtrl;
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19330,7 +19330,7 @@ exports.sceDisplay = sceDisplay;
 },
 "src/hle/module/sceDmac": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19378,7 +19378,7 @@ exports.sceDmac = sceDmac;
 },
 "src/hle/module/sceGe_user": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19506,7 +19506,7 @@ var CallbackData = (function () {
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19546,7 +19546,7 @@ exports.sceHttp = sceHttp;
 },
 "src/hle/module/sceImpose": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19593,7 +19593,7 @@ exports.sceImpose = sceImpose;
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -19676,7 +19676,7 @@ exports.sceMp3 = sceMp3;
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -20009,7 +20009,7 @@ var RingBuffer = (function () {
 },
 "src/hle/module/sceNet": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -20094,7 +20094,7 @@ exports.sceNet = sceNet;
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -20395,7 +20395,7 @@ var PdpStatStruct = (function () {
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -20626,7 +20626,7 @@ var Event = exports.Event;
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -20864,7 +20864,7 @@ exports.sceParseUri = sceParseUri;
 },
 "src/hle/module/scePower": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -21121,7 +21121,7 @@ exports.scePspNpDrm_user = scePspNpDrm_user;
 },
 "src/hle/module/sceReg": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -21220,7 +21220,7 @@ var RegParam = (function () {
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -21307,7 +21307,7 @@ exports.sceRtc = sceRtc;
 },
 "src/hle/module/sceSasCore": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -21841,7 +21841,7 @@ exports.sceSsl = sceSsl;
 },
 "src/hle/module/sceSuspendForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -21888,7 +21888,7 @@ exports.sceSuspendForUser = sceSuspendForUser;
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -22015,7 +22015,7 @@ var PspUmdState;
 },
 "src/hle/module/sceUtility": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -22609,7 +22609,7 @@ exports.sceVaudio = sceVaudio;
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -22637,7 +22637,7 @@ exports.sceWlanDrv = sceWlanDrv;
 },
 "src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -23033,7 +23033,7 @@ var SceKernelThreadInfo = (function () {
 },
 "src/hle/module/threadman/ThreadManForUser_callbacks": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -23085,7 +23085,7 @@ exports.ThreadManForUser = ThreadManForUser;
 },
 "src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -23326,7 +23326,7 @@ var EventFlagWaitTypeSet;
 },
 "src/hle/module/threadman/ThreadManForUser_mutex": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -23361,7 +23361,7 @@ exports.ThreadManForUser = ThreadManForUser;
 },
 "src/hle/module/threadman/ThreadManForUser_sema": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -23580,7 +23580,7 @@ var SemaphoreAttribute;
 },
 "src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
-if (typeof __decorate !== "function") __decorate = function (decorators, target, key, desc) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
     switch (arguments.length) {
         case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
@@ -24038,7 +24038,7 @@ exports.openAsync = openAsync;
 
 },
 "src/hle/vfs/vfs": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24194,7 +24194,7 @@ var FileOpenFlags = exports.FileOpenFlags;
 
 },
 "src/hle/vfs/vfs_dropbox": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24474,7 +24474,7 @@ exports.DropboxVfsEntry = DropboxVfsEntry;
 
 },
 "src/hle/vfs/vfs_emulator": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24518,7 +24518,7 @@ exports.EmulatorVfs = EmulatorVfs;
 
 },
 "src/hle/vfs/vfs_iso": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24584,7 +24584,7 @@ var IsoVfsFile = (function (_super) {
 
 },
 "src/hle/vfs/vfs_memory": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24669,7 +24669,7 @@ exports.MemoryVfsEntry = MemoryVfsEntry;
 
 },
 "src/hle/vfs/vfs_mountable": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24751,7 +24751,7 @@ var MountableEntry = (function () {
 
 },
 "src/hle/vfs/vfs_ms": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24829,7 +24829,7 @@ var SizeInfoStruct = (function () {
 
 },
 "src/hle/vfs/vfs_storage": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -24950,7 +24950,7 @@ var StorageVfsEntry = (function (_super) {
 
 },
 "src/hle/vfs/vfs_uri": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -25004,7 +25004,7 @@ function statUrlAsync(url) {
 
 },
 "src/hle/vfs/vfs_zip": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
@@ -26238,7 +26238,7 @@ describe('pspautotests', function () {
 
 },
 "test/testasm": function(module, exports, require) {
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;

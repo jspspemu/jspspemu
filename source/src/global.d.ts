@@ -7,6 +7,7 @@
 ///<reference path="global/stream.ts" />
 ///<reference path="global/struct.ts" />
 
+/*
 declare class DataView {
 	constructor(ab:ArrayBuffer, index?:number, length?:number);
 	buffer: ArrayBuffer;
@@ -31,3 +32,4 @@ declare class DataView {
 	setFloat32(byteOffset:number, value:number, littleEndian?:boolean):number;
 	setFloat64(byteOffset:number, value:number, littleEndian?:boolean):number;
 }
+*/

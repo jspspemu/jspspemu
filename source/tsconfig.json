@@ -4,6 +4,7 @@
         "target": "es5",
         "noImplicitAny": true,
         "removeComments": true,
+        "experimentalDecorators": true,
         "outDir": "../js"
     },
  
