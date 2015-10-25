@@ -388,16 +388,11 @@ class BitUtils {
 	}
 
 	static seb(x: number) {
-		x = x & 0xFF;
-		if ((x & 0x80) != 0) x = 0xFFFFFF00 | x;
-		return x;
+		return (x << 24) >> 24;
 	}
 
 	static seh(x: number) {
-		//x = x & 0xFFFF;
-		//if (x & 0x8000) x = 0xFFFF0000 | x;
-		//return x;
-		return (((x & 0xFFFF) << 16) >> 16);
+		return (x << 16) >> 16;
 	}
 
 	static wsbh(v: number) {
