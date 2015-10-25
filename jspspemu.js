@@ -3,8 +3,7 @@
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 if (typeof global != 'undefined')
     window = global;
@@ -2053,13 +2052,10 @@ var BitUtils = (function () {
         return Math['clz32'](x);
     };
     BitUtils.seb = function (x) {
-        x = x & 0xFF;
-        if ((x & 0x80) != 0)
-            x = 0xFFFFFF00 | x;
-        return x;
+        return (x << 24) >> 24;
     };
     BitUtils.seh = function (x) {
-        return (((x & 0xFFFF) << 16) >> 16);
+        return (x << 16) >> 16;
     };
     BitUtils.wsbh = function (v) {
         return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
@@ -2381,8 +2377,7 @@ undefined
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var ProxyAsyncStream = (function () {
     function ProxyAsyncStream(stream) {
@@ -4203,8 +4198,7 @@ exports.MipsDisassembler = MipsDisassembler;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var relooper = require('../../codegen/relooper');
 var ANode = (function () {
@@ -4655,8 +4649,7 @@ exports.MipsAstBuilder = MipsAstBuilder;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _ast = require('./cpu_ast');
 var _cpu = require('./cpu_core');
@@ -5734,8 +5727,7 @@ exports.InstructionAst = InstructionAst;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _memory = require('../memory');
 var _ast = require('./cpu_ast');
@@ -7757,8 +7749,7 @@ exports.DecodedInstruction = DecodedInstruction;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var memory = require('./memory');
 var pixelformat = require('./pixelformat');
@@ -11677,8 +11668,7 @@ exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var MASK = 0x0FFFFFFF;
 var LWR_MASK = new Uint32Array([0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00]);
@@ -12283,6 +12273,7 @@ var PixelConverter = (function () {
     return PixelConverter;
 })();
 exports.PixelConverter = PixelConverter;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = { PixelFormat: PixelFormat };
 
 },
@@ -24041,8 +24032,7 @@ exports.openAsync = openAsync;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var Vfs = (function () {
     function Vfs() {
@@ -24197,8 +24187,7 @@ var FileOpenFlags = exports.FileOpenFlags;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var Vfs = _vfs.Vfs;
@@ -24477,8 +24466,7 @@ exports.DropboxVfsEntry = DropboxVfsEntry;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 _vfs.Vfs;
@@ -24521,8 +24509,7 @@ exports.EmulatorVfs = EmulatorVfs;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var Vfs = _vfs.Vfs;
@@ -24587,8 +24574,7 @@ var IsoVfsFile = (function (_super) {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var Vfs = _vfs.Vfs;
@@ -24672,8 +24658,7 @@ exports.MemoryVfsEntry = MemoryVfsEntry;
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var _vfs_memory = require('./vfs_memory');
@@ -24754,8 +24739,7 @@ var MountableEntry = (function () {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var _manager = require('../manager');
@@ -24832,8 +24816,7 @@ var SizeInfoStruct = (function () {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var Vfs = _vfs.Vfs;
@@ -24953,8 +24936,7 @@ var StorageVfsEntry = (function (_super) {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var _vfs_memory = require('./vfs_memory');
@@ -25007,8 +24989,7 @@ function statUrlAsync(url) {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var _vfs = require('./vfs');
 var Vfs = _vfs.Vfs;
@@ -26241,8 +26222,7 @@ describe('pspautotests', function () {
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 ///<reference path="./global.d.ts" />
 function ref() { }

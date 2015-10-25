@@ -184,7 +184,7 @@ export class Emulator {
 		this.onPic1.dispatch(data.toUInt8Array());
 	}
 
-	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string) {
+	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string):Promise2<any> {
 		return _format.detectFormatAsync(asyncStream).then((fileFormat):any => {
 			console.info(`File:: size: ${asyncStream.size}, format: "${fileFormat}", name: "${asyncStream.name}"`);
 			switch (fileFormat) {
