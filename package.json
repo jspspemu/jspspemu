@@ -18,8 +18,8 @@
     "url": "git://github.com/jspspemu/jspspemu.git"
   },
   "scripts": {
-	"start": "node --harmony source/utils/http_server.js",
-    "setup": "npm install; npm -g install typescript@2.0.6; npm -g install mocha",
+    "start": "node --harmony source/utils/http_server.js",
+    "setup": "npm install; npm -g install typescript@2.0.6; npm -g install mocha; git subtree add --prefix data/pspautotests https://github.com/hrydgard/pspautotests.git master --squash",
     "build": "node --harmony source/utils/build_singleton.js",
     "benchmark": "node jspspemu_headless.js data/benchmark/benchmark.prx",
     "test": "mocha jspspemu_tests.js"
