@@ -123,11 +123,11 @@ export class ThreadManForUser {
 
 		if (userDataPointer != null) {
 			memory.copy(userDataPointer, copiedDataAddress, userDataLength);
-			newState.gpr[4] = userDataLength;
-			newState.gpr[5] = copiedDataAddress;
+			newState.setGPR(4, userDataLength);
+			newState.setGPR(5, copiedDataAddress);
 		} else {
-			newState.gpr[4] = 0;
-			newState.gpr[5] = 0;
+			newState.setGPR(4, 0);
+			newState.setGPR(5, 0);
 		}
 		
 		newState.SP = copiedDataAddress;

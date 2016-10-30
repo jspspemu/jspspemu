@@ -121,18 +121,18 @@ export class SysMemUserForUser {
 	sceKernelPrintf(thread: Thread, format: string) {
 		var gprIndex = 5;
 		var memory = this.context.memory;
-		var gpr = thread.state.gpr;
+		let state = thread.state;
 
 		var readParam = (type:string) => {
 			switch (type) {
-				case '%s': return memory.readStringz(gpr[gprIndex++]);
-				case '%d': return String(gpr[gprIndex++]);
+				case '%s': return memory.readStringz(state.getGPR(gprIndex++));
+				case '%d': return String(state.getGPR(gprIndex++));
 			}
 			return '??[' + type + ']??';
 		};
 		console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, (data) => {
 			return readParam(data);
 		}));
-		//console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
+		//console.warn(this.context.memory.readStringz(thread.state.GPR5));
 	}
 }

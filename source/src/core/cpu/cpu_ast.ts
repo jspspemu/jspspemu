@@ -1,6 +1,7 @@
 ﻿///<reference path="../../global.d.ts" />
 
 import relooper = require('../../codegen/relooper');
+import { CpuState } from './cpu_core';
 
 export class ANode {
 	index:number;
@@ -279,7 +280,7 @@ export class MipsAstBuilder extends AstBuilder {
 
 	gpr(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
-		return new ANodeExprLValueVar('gpr[' + index + ']');
+		return new ANodeExprLValueVar(CpuState.GPR_access('state', index));
 	}
 
 	gpr_f(index: number): ANodeExprLValueVar {
@@ -304,13 +305,14 @@ export class MipsAstBuilder extends AstBuilder {
 	VCC(index: number) {
 		return new ANodeExprLValueSetGet('state.setVfrCc($0, #)', 'state.getVfrCc($0)', [this.imm32(index)]);
 	}
-	ra() { return new ANodeExprLValueVar('state.gpr[31]'); }
+	ra() { return new ANodeExprLValueVar(CpuState.GPR_access('state', 31)); }
 	branchflag() { return new ANodeExprLValueVar('BRANCHFLAG'); }
 	branchpc() { return new ANodeExprLValueVar('BRANCHPC'); }
 
 	assignGpr(index: number, expr: ANodeStm) {
 		if (index == 0) return this.stm();
-		return this.stm(this.assign(this.gpr(index), expr));
+		//return this.stm(this.assign(this.gpr(index), expr));
+		return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
 	}
 
 	assignIC(expr: ANodeStm) { return this.stm(this.assign(this.ic(), expr)); }

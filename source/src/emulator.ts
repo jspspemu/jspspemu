@@ -291,8 +291,8 @@ export class Emulator {
 						// "ms0:/PSP/GAME/virtual/EBOOT.PBP"
 						var thread = this.threadManager.create('main', moduleInfo.pc, 10);
 							thread.state.GP = moduleInfo.gp;
-							thread.state.gpr[4] = argument.length;
-							thread.state.gpr[5] = argumentsPartition.low;
+							thread.state.setGPR(4, argument.length);
+							thread.state.setGPR(5, argumentsPartition.low);
 							thread.start();
 						});
 

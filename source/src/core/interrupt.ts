@@ -78,8 +78,8 @@ export class InterruptManager {
 			var state = item.cpuState;
 			state.preserveRegisters(() => {
 				state.RA = 0x1234;
-				state.gpr[4] = item.no;
-				state.gpr[5] = item.argument;
+				state.setGPR(4, item.no);
+				state.setGPR(5, item.argument);
 				state.insideInterrupt = true;
 				state.PC = item.address;
 				state.startThreadStep();

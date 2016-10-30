@@ -29,7 +29,7 @@ function executeProgram(gprInitial: any, program: string[]) {
 
 	for (var key in gprInitial) {
 		if (key.substr(0, 1) == '$') {
-			state.gpr[parseInt(key.substr(1))] = gprInitial[key];
+			state.setGPR(parseInt(key.substr(1)), gprInitial[key]);
 		} else {
 			(<any>state)[key] = gprInitial[key];
 		}
@@ -59,7 +59,7 @@ function generateGpr3Matrix(op: string, vector: number[]) {
         }
         var state = executeProgram(gprInitial, program);
         var outputVector:string[] = [];
-        for (var m = 0; m < vector.length; m++) outputVector.push(addressToHex2(state.gpr[1 + m]).toUpperCase());
+        for (var m = 0; m < vector.length; m++) outputVector.push(addressToHex2(state.getGPR(1 + m)).toUpperCase());
         outputMatrix.push(outputVector);
         //console.log(state);
     }
@@ -72,7 +72,7 @@ function assertProgram(description:string, gprInitial: any, program: string[], g
 	for (var key in gprAssertions) {
 		var value: number = 0;
 		if (key.substr(0, 1) == '$') {
-			value = state.gpr[parseInt(key.substr(1))];
+			value = state.getGPR(parseInt(key.substr(1)));
 		} else {
 			value = (<any>state)[key];
 		}

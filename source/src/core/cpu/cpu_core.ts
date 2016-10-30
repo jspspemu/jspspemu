@@ -205,7 +205,6 @@ export class CpuState {
 
 	insideInterrupt: boolean = false;
 	gpr_Buffer = new ArrayBuffer(32 * 4);
-	gpr = new Int32Array(this.gpr_Buffer);
 	gpr_f = new Float32Array(this.gpr_Buffer);
 
 	jumpCall: InvalidatableCpuFunction = null
@@ -489,20 +488,154 @@ export class CpuState {
 		this.LO = other.LO;
 		this.HI = other.HI;
 		this.insideInterrupt = other.insideInterrupt;
-		for (var n = 0; n < 32; n++) this.gpr[n] = other.gpr[n];
+		for (var n = 0; n < 32; n++) {
+			this.setGPR(n, other.getGPR(n));
+		}
 		for (var n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
 		for (var n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
 		for (var n = 0; n < 8; n++) this.vfprc[n] = other.vfprc[n];
 	}
 
-	get V0(): number { return this.gpr[2]; } set V0(value: number) { this.gpr[2] = value; }
-	get V1(): number { return this.gpr[3]; } set V1(value: number) { this.gpr[3] = value; }
-	get K0(): number { return this.gpr[26]; } set K0(value: number) { this.gpr[26] = value; }
-	get GP(): number { return this.gpr[28]; } set GP(value: number) { this.gpr[28] = value; }
-	get SP(): number { return this.gpr[29]; } set SP(value: number) { this.gpr[29] = value; }
-	get FP(): number { return this.gpr[30]; } set FP(value: number) { this.gpr[30] = value; }
-	get RA(): number { return this.gpr[31]; } set RA(value: number) { this.gpr[31] = value; }
-	getRA(): number { return this.gpr[31]; } setRA(value: number) { this.gpr[31] = value; }
+	private gpr = new Int32Array(this.gpr_Buffer);
+
+	setGPR(n: number, value: number) {
+		if (n != 0) this.gpr[n] = value;
+	}
+
+	getGPR(n: number) {
+		return this.gpr[n];
+	}
+
+	static GPR_access(base: string, n: number) {
+		if (base == null) return `gpr[${n}]`;
+		return base + `.gpr[${n}]`;
+	}
+
+	/*
+	gpr1 = 0;
+	gpr2 = 0;
+	gpr3 = 0;
+	gpr4 = 0;
+	gpr5 = 0;
+	gpr6 = 0;
+	gpr7 = 0;
+	gpr8 = 0;
+	gpr9 = 0;
+	gpr10 = 0;
+	gpr11 = 0;
+	gpr12 = 0;
+	gpr13 = 0;
+	gpr14 = 0;
+	gpr15 = 0;
+	gpr16 = 0;
+	gpr17 = 0;
+	gpr18 = 0;
+	gpr19 = 0;
+	gpr20 = 0;
+	gpr21 = 0;
+	gpr22 = 0;
+	gpr23 = 0;
+	gpr24 = 0;
+	gpr25 = 0;
+	gpr26 = 0;
+	gpr27 = 0;
+	gpr28 = 0;
+	gpr29 = 0;
+	gpr30 = 0;
+	gpr31 = 0;
+
+	setGPR(n: number, value: number) {
+		switch (n) {
+			case 0: return;
+			case 1: this.gpr1 = value; return;
+			case 2: this.gpr2 = value; return;
+			case 3: this.gpr3 = value; return;
+			case 4: this.gpr4 = value; return;
+			case 5: this.gpr5 = value; return;
+			case 6: this.gpr6 = value; return;
+			case 7: this.gpr7 = value; return;
+			case 8: this.gpr8 = value; return;
+			case 9: this.gpr9 = value; return;
+			case 10: this.gpr10 = value; return;
+			case 11: this.gpr11 = value; return;
+			case 12: this.gpr12 = value; return;
+			case 13: this.gpr13 = value; return;
+			case 14: this.gpr14 = value; return;
+			case 15: this.gpr15 = value; return;
+			case 16: this.gpr16 = value; return;
+			case 17: this.gpr17 = value; return;
+			case 18: this.gpr18 = value; return;
+			case 19: this.gpr19 = value; return;
+			case 20: this.gpr20 = value; return;
+			case 21: this.gpr21 = value; return;
+			case 22: this.gpr22 = value; return;
+			case 23: this.gpr23 = value; return;
+			case 24: this.gpr24 = value; return;
+			case 25: this.gpr25 = value; return;
+			case 26: this.gpr26 = value; return;
+			case 27: this.gpr27 = value; return;
+			case 28: this.gpr28 = value; return;
+			case 29: this.gpr29 = value; return;
+			case 30: this.gpr30 = value; return;
+			case 31: this.gpr31 = value; return;
+		}
+		return;
+	}
+
+	getGPR(n: number) {
+		switch (n) {
+			case 0: return 0;
+			case 1: return this.gpr1;
+			case 2: return this.gpr2;
+			case 3: return this.gpr3;
+			case 4: return this.gpr4;
+			case 5: return this.gpr5;
+			case 6: return this.gpr6;
+			case 7: return this.gpr7;
+			case 8: return this.gpr8;
+			case 9: return this.gpr9;
+			case 10: return this.gpr10;
+			case 11: return this.gpr11;
+			case 12: return this.gpr12;
+			case 13: return this.gpr13;
+			case 14: return this.gpr14;
+			case 15: return this.gpr15;
+			case 16: return this.gpr16;
+			case 17: return this.gpr17;
+			case 18: return this.gpr18;
+			case 19: return this.gpr19;
+			case 20: return this.gpr20;
+			case 21: return this.gpr21;
+			case 22: return this.gpr22;
+			case 23: return this.gpr23;
+			case 24: return this.gpr24;
+			case 25: return this.gpr25;
+			case 26: return this.gpr26;
+			case 27: return this.gpr27;
+			case 28: return this.gpr28;
+			case 29: return this.gpr29;
+			case 30: return this.gpr30;
+			case 31: return this.gpr31;
+		}
+		return 0;
+	}
+
+	static GPR_access(base: string, n: number) {
+		//if (base == null) return `gpr[${n}]`;
+		//return base + `.gpr[${n}]`;
+		if (base == null) return `gpr${n}`;
+		return `${base}.gpr${n}`;
+	}
+	*/
+
+	get V0(): number { return this.getGPR(2); } set V0(value: number) { this.setGPR(2, value); }
+	get V1(): number { return this.getGPR(3); } set V1(value: number) { this.setGPR(3, value); }
+	get K0(): number { return this.getGPR(26); } set K0(value: number) { this.setGPR(26, value); }
+	get GP(): number { return this.getGPR(28); } set GP(value: number) { this.setGPR(28, value); }
+	get SP(): number { return this.getGPR(29); } set SP(value: number) { this.setGPR(29, value); }
+	get FP(): number { return this.getGPR(30); } set FP(value: number) { this.setGPR(30, value); }
+	get RA(): number { return this.getGPR(31); } set RA(value: number) { this.setGPR(31, value); }
+	getRA(): number { return this.getGPR(31); } setRA(value: number) { this.setGPR(31, value); }
 
 	private callstack: number[] = [];
 
@@ -563,9 +696,9 @@ export class CpuState {
 
 	_cfc1_impl(d: number, t: number) {
 		switch (d) {
-			case 0: this.gpr[t] = this.fcr0; break;
-			case 31: this.gpr[t] = this.fcr31; break;
-			default: this.gpr[t] = 0; break;
+			case 0: this.setGPR(t, this.fcr0); break;
+			case 31: this.setGPR(t, this.fcr31); break;
+			default: this.setGPR(t, 0); break;
 		}
 	}
 
@@ -1137,7 +1270,8 @@ export class FunctionGenerator {
 					//func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
 					if (type.name == 'jr') {
 						func.add(delayedCode);
-						func.add(ast.raw(`state.PC = state.gpr[${di.instruction.rs}];`));
+						
+						func.add(ast.raw(`state.PC = ${CpuState.GPR_access('state', di.instruction.rs)};`));
 						func.add(ast.raw('state.jumpCall = null;'));
 						func.add(ast.raw('return;'));
 					} else if (type.name == 'j') {
@@ -1198,8 +1332,8 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
     var code = '';
 	//var code = 'debugger;';
 
-	let V0 = `state.gpr[2]`;
-	let V1 = `state.gpr[3]`;
+	let V0 = CpuState.GPR_access('state', 2);
+	let V1 = CpuState.GPR_access('state', 3);
 
 	var args:string[] = [];
 	var maxGprIndex = 12;
@@ -1211,9 +1345,10 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		if (gprindex >= maxGprIndex) {
 			//return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
 
-			return 'memory.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
+			let gpr_29 = CpuState.GPR_access('state', 29);
+			return `memory.lw(${gpr_29} + ` + ((maxGprIndex - gprindex++) * 4) + ')';
 		} else {
-			return 'state.gpr[' + (gprindex++) + ']';
+			return CpuState.GPR_access('state', gprindex++);
 		}
 	}
 
