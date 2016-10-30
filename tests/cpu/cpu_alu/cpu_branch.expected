@@ -1,0 +1,9 @@
+jal: ra order: 00000002
+jalr: ra order: 00000002
+jalr: non-ra: 08804420
+jalr: non-ra order: 00000001
+jalr: rs/rd match: 00000002
+bltzal: ra order: 00000002
+bltzall: ra order: 00000002
+bgezal: ra order: 00000002
+bgezall: ra order: 00000002

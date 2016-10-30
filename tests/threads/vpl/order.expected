@@ -1,0 +1,210 @@
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000000
+VPL bottom block: at 00000018, next->000000f8, 000000e0
+VPL block: at 00000018, next->000000f8, 000000e0 (next free)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000E0,wait=0)
+[x] alloc 0
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000018
+VPL bottom block: at 00000018, next->000000f8, 000000c8
+VPL block: at 00000018, next->000000f8, 000000c8 (free)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000C8,wait=0)
+[x] alloc 1
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000030
+VPL bottom block: at 00000018, next->000000f8, 000000b0
+VPL block: at 00000018, next->000000f8, 000000b0 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000B0,wait=0)
+[x] alloc 2
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000048
+VPL bottom block: at 00000018, next->000000f8, 00000098
+VPL block: at 00000018, next->000000f8, 00000098 (free)
+VPL block: at 000000b0, next->00000008, 00000018 (alloc)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000098,wait=0)
+[x] free 1: 00000000
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000030
+VPL bottom block: at 00000018, next->000000c8, 00000098
+VPL block: at 00000018, next->000000c8, 00000098 (next free)
+VPL block: at 000000b0, next->00000008, 00000018 (alloc)
+VPL block: at 000000c8, next->000000f8, 00000018 (free)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000B0,wait=0)
+[x] free 0: 00000000
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000018
+VPL bottom block: at 00000018, next->000000c8, 00000098
+VPL block: at 00000018, next->000000c8, 00000098 (free)
+VPL block: at 000000b0, next->00000008, 00000018 (alloc)
+VPL block: at 000000c8, next->000000f8, 00000030 (next free)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000C8,wait=0)
+[x] free 2: 00000000
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000000
+VPL bottom block: at 00000018, next->000000f8, 000000e0
+VPL block: at 00000018, next->000000f8, 000000e0 (next free)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000E0,wait=0)
+[x] alloc 0
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000018
+VPL bottom block: at 00000018, next->000000f8, 000000c8
+VPL block: at 00000018, next->000000f8, 000000c8 (free)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000C8,wait=0)
+[x] alloc 1
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000030
+VPL bottom block: at 00000018, next->000000f8, 000000b0
+VPL block: at 00000018, next->000000f8, 000000b0 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000B0,wait=0)
+[x] free 1: 00000000
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000018
+VPL bottom block: at 00000018, next->000000f8, 000000c8
+VPL block: at 00000018, next->000000f8, 000000c8 (next free)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000C8,wait=0)
+[x] free 0: 00000000
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000000
+VPL bottom block: at 00000018, next->000000f8, 000000e0
+VPL block: at 00000018, next->000000f8, 000000e0 (next free)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000E0,wait=0)
+VPL acct: totalSizeMinus8: 000000f8, allocated=000000e0
+VPL bottom block: at 00000018, next->00000008, 00000020
+VPL block: at 00000018, next->00000008, 00000020 (alloc)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000008, 00000018 (alloc)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->00000008, 00000018 (alloc)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->00000008, 00000018 (alloc)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->000000f8, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000000,wait=0)
+[x] free 4: 00000000
+VPL acct: totalSizeMinus8: 000000f8, allocated=000000c8
+VPL bottom block: at 00000018, next->00000008, 00000020
+VPL block: at 00000018, next->00000008, 00000020 (alloc)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000008, 00000018 (alloc)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000f8, 00000018 (free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->00000008, 00000018 (alloc)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000080, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000018,wait=0)
+[x] free 0
+VPL acct: totalSizeMinus8: 000000f8, allocated=000000b0
+VPL bottom block: at 00000018, next->00000008, 00000020
+VPL block: at 00000018, next->00000008, 00000020 (alloc)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000008, 00000018 (alloc)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000e0, 00000018 (next free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->00000008, 00000018 (alloc)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->000000f8, 00000018 (free)
+VPL block: at 000000f8, next->00000080, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000030,wait=0)
+[x] free 2
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000098
+VPL bottom block: at 00000018, next->00000008, 00000020
+VPL block: at 00000018, next->00000008, 00000020 (alloc)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000008, 00000018 (alloc)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000b0, 00000018 (next free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->000000e0, 00000018 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->000000f8, 00000018 (free)
+VPL block: at 000000f8, next->00000080, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000048,wait=0)
+[x] free 4
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000098
+VPL bottom block: at 00000018, next->00000008, 00000020
+VPL block: at 00000018, next->00000008, 00000020 (alloc)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000008, 00000018 (alloc)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000b0, 00000018 (next free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->000000e0, 00000018 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->000000f8, 00000018 (free)
+VPL block: at 000000f8, next->00000080, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000048,wait=0)
+[x] free 6
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000080
+VPL bottom block: at 00000018, next->00000008, 00000020
+VPL block: at 00000018, next->00000008, 00000020 (alloc)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000080, 00000018 (free)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000b0, 00000018 (free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->000000e0, 00000018 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->000000f8, 00000018 (free)
+VPL block: at 000000f8, next->00000050, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000060,wait=0)
+[x] free 8
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000060
+VPL bottom block: at 00000018, next->00000050, 00000020
+VPL block: at 00000018, next->00000050, 00000020 (free)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000080, 00000018 (free)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000b0, 00000018 (free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->000000e0, 00000018 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->000000f8, 00000018 (free)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000080,wait=0)
+[x] free every other
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000060
+VPL bottom block: at 00000018, next->00000050, 00000020
+VPL block: at 00000018, next->00000050, 00000020 (free)
+VPL block: at 00000038, next->00000008, 00000018 (alloc)
+VPL block: at 00000050, next->00000080, 00000018 (free)
+VPL block: at 00000068, next->00000008, 00000018 (alloc)
+VPL block: at 00000080, next->000000b0, 00000018 (free)
+VPL block: at 00000098, next->00000008, 00000018 (alloc)
+VPL block: at 000000b0, next->000000e0, 00000018 (free)
+VPL block: at 000000c8, next->00000008, 00000018 (alloc)
+VPL block: at 000000e0, next->000000f8, 00000018 (free)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=00000080,wait=0)
+[x] free all
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000000
+VPL bottom block: at 00000018, next->000000f8, 000000e0
+VPL block: at 00000018, next->000000f8, 000000e0 (next free)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000E0,wait=0)
+[x] alloc 1
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000018
+VPL bottom block: at 00000018, next->000000f8, 000000c8
+VPL block: at 00000018, next->000000f8, 000000c8 (free)
+VPL block: at 000000e0, next->00000008, 00000018 (alloc)
+VPL block: at 000000f8, next->00000018, 00000000 (next free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000C8,wait=0)
+[x] free 1
+VPL acct: totalSizeMinus8: 000000f8, allocated=00000000
+VPL bottom block: at 00000018, next->000000f8, 000000e0
+VPL block: at 00000018, next->000000f8, 000000e0 (next free)
+VPL block: at 000000f8, next->00000018, 00000000 (free)
+VPL: OK (size=52,name=middle,attr=00004300,poolSize=000000E0,freeSize=000000E0,wait=0)

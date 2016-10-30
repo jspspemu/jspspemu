@@ -1,0 +1,275 @@
+beq:
+  beq 0, 0: followed, ignored ra, ran delay slot, used delay ra
+  beq 0, 1: skipped, ignored ra, ran delay slot, used delay ra
+  beq 1, 1: followed, ignored ra, ran delay slot, used delay ra
+  beq 1, 0: skipped, ignored ra, ran delay slot, used delay ra
+  beq 2, 2: followed, ignored ra, ran delay slot, used delay ra
+  beq -1, 1: skipped, ignored ra, ran delay slot, used delay ra
+  beq -1, -1: followed, ignored ra, ran delay slot, used delay ra
+  beq C_ZERO, C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  beq C_ZERO, C_ONE: skipped, ignored ra, ran delay slot, used delay ra
+  beq C_ONE, C_ZERO: skipped, ignored ra, ran delay slot, used delay ra
+  beq C_ONE, C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  beq C_ONE, C_NEGONE: skipped, ignored ra, ran delay slot, used delay ra
+  beq C_S16_MAX, C_S16_MAX: followed, ignored ra, ran delay slot, used delay ra
+  beq C_S16_MIN, C_S16_MIN: followed, ignored ra, ran delay slot, used delay ra
+  beq C_S32_MAX, C_S32_MAX: followed, ignored ra, ran delay slot, used delay ra
+  beq C_S32_MIN, C_S32_MIN: followed, ignored ra, ran delay slot, used delay ra
+  beq C_GARBAGE1, C_GARBAGE2: skipped, ignored ra, ran delay slot, used delay ra
+
+beql:
+  beql 0, 0: followed, ignored ra, ran delay slot, used delay ra
+  beql 0, 1: skipped, ignored ra, skipped delay slot, used link ra
+  beql 1, 1: followed, ignored ra, ran delay slot, used delay ra
+  beql 1, 0: skipped, ignored ra, skipped delay slot, used link ra
+  beql 2, 2: followed, ignored ra, ran delay slot, used delay ra
+  beql -1, 1: skipped, ignored ra, skipped delay slot, used link ra
+  beql -1, -1: followed, ignored ra, ran delay slot, used delay ra
+  beql C_ZERO, C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  beql C_ZERO, C_ONE: skipped, ignored ra, skipped delay slot, used link ra
+  beql C_ONE, C_ZERO: skipped, ignored ra, skipped delay slot, used link ra
+  beql C_ONE, C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  beql C_ONE, C_NEGONE: skipped, ignored ra, skipped delay slot, used link ra
+  beql C_S16_MAX, C_S16_MAX: followed, ignored ra, ran delay slot, used delay ra
+  beql C_S16_MIN, C_S16_MIN: followed, ignored ra, ran delay slot, used delay ra
+  beql C_S32_MAX, C_S32_MAX: followed, ignored ra, ran delay slot, used delay ra
+  beql C_S32_MIN, C_S32_MIN: followed, ignored ra, ran delay slot, used delay ra
+  beql C_GARBAGE1, C_GARBAGE2: skipped, ignored ra, skipped delay slot, used link ra
+
+bgez:
+  bgez 0: followed, ignored ra, ran delay slot, used delay ra
+  bgez 1: followed, ignored ra, ran delay slot, used delay ra
+  bgez 2: followed, ignored ra, ran delay slot, used delay ra
+  bgez -1: skipped, ignored ra, ran delay slot, used delay ra
+  bgez 2147483647: followed, ignored ra, ran delay slot, used delay ra
+  bgez -2147483648: skipped, ignored ra, ran delay slot, used delay ra
+  bgez C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  bgez C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  bgez C_NEGONE: skipped, ignored ra, ran delay slot, used delay ra
+  bgez C_S16_MAX: followed, ignored ra, ran delay slot, used delay ra
+  bgez C_S16_MIN: skipped, ignored ra, ran delay slot, used delay ra
+  bgez C_S32_MAX: followed, ignored ra, ran delay slot, used delay ra
+  bgez C_S32_MIN: skipped, ignored ra, ran delay slot, used delay ra
+  bgez C_GARBAGE1: followed, ignored ra, ran delay slot, used delay ra
+  bgez C_GARBAGE2: skipped, ignored ra, ran delay slot, used delay ra
+
+bgezal:
+  bgezal 0: followed, set ra, ran delay slot, used delay ra
+  bgezal 1: followed, set ra, ran delay slot, used delay ra
+  bgezal 2: followed, set ra, ran delay slot, used delay ra
+  bgezal -1: skipped, set ra, ran delay slot, used delay ra
+  bgezal 2147483647: followed, set ra, ran delay slot, used delay ra
+  bgezal -2147483648: skipped, set ra, ran delay slot, used delay ra
+  bgezal C_ZERO: followed, set ra, ran delay slot, used delay ra
+  bgezal C_ONE: followed, set ra, ran delay slot, used delay ra
+  bgezal C_NEGONE: skipped, set ra, ran delay slot, used delay ra
+  bgezal C_S16_MAX: followed, set ra, ran delay slot, used delay ra
+  bgezal C_S16_MIN: skipped, set ra, ran delay slot, used delay ra
+  bgezal C_S32_MAX: followed, set ra, ran delay slot, used delay ra
+  bgezal C_S32_MIN: skipped, set ra, ran delay slot, used delay ra
+  bgezal C_GARBAGE1: followed, set ra, ran delay slot, used delay ra
+  bgezal C_GARBAGE2: skipped, set ra, ran delay slot, used delay ra
+
+bgezall:
+  bgezall 0: followed, set ra, ran delay slot, used delay ra
+  bgezall 1: followed, set ra, ran delay slot, used delay ra
+  bgezall 2: followed, set ra, ran delay slot, used delay ra
+  bgezall -1: skipped, set ra, skipped delay slot, used link ra
+  bgezall 2147483647: followed, set ra, ran delay slot, used delay ra
+  bgezall -2147483648: skipped, set ra, skipped delay slot, used link ra
+  bgezall C_ZERO: followed, set ra, ran delay slot, used delay ra
+  bgezall C_ONE: followed, set ra, ran delay slot, used delay ra
+  bgezall C_NEGONE: skipped, set ra, skipped delay slot, used link ra
+  bgezall C_S16_MAX: followed, set ra, ran delay slot, used delay ra
+  bgezall C_S16_MIN: skipped, set ra, skipped delay slot, used link ra
+  bgezall C_S32_MAX: followed, set ra, ran delay slot, used delay ra
+  bgezall C_S32_MIN: skipped, set ra, skipped delay slot, used link ra
+  bgezall C_GARBAGE1: followed, set ra, ran delay slot, used delay ra
+  bgezall C_GARBAGE2: skipped, set ra, skipped delay slot, used link ra
+
+bgtz:
+  bgtz 0: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz 1: followed, ignored ra, ran delay slot, used delay ra
+  bgtz 2: followed, ignored ra, ran delay slot, used delay ra
+  bgtz -1: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz 2147483647: followed, ignored ra, ran delay slot, used delay ra
+  bgtz -2147483648: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz C_ZERO: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  bgtz C_NEGONE: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz C_S16_MAX: followed, ignored ra, ran delay slot, used delay ra
+  bgtz C_S16_MIN: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz C_S32_MAX: followed, ignored ra, ran delay slot, used delay ra
+  bgtz C_S32_MIN: skipped, ignored ra, ran delay slot, used delay ra
+  bgtz C_GARBAGE1: followed, ignored ra, ran delay slot, used delay ra
+  bgtz C_GARBAGE2: skipped, ignored ra, ran delay slot, used delay ra
+
+bgtzl:
+  bgtzl 0: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl 1: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl 2: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl -1: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl 2147483647: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl -2147483648: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl C_ZERO: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl C_NEGONE: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl C_S16_MAX: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl C_S16_MIN: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl C_S32_MAX: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl C_S32_MIN: skipped, ignored ra, skipped delay slot, used link ra
+  bgtzl C_GARBAGE1: followed, ignored ra, ran delay slot, used delay ra
+  bgtzl C_GARBAGE2: skipped, ignored ra, skipped delay slot, used link ra
+
+blez:
+  blez 0: followed, ignored ra, ran delay slot, used delay ra
+  blez 1: skipped, ignored ra, ran delay slot, used delay ra
+  blez 2: skipped, ignored ra, ran delay slot, used delay ra
+  blez -1: followed, ignored ra, ran delay slot, used delay ra
+  blez 2147483647: skipped, ignored ra, ran delay slot, used delay ra
+  blez -2147483648: followed, ignored ra, ran delay slot, used delay ra
+  blez C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  blez C_ONE: skipped, ignored ra, ran delay slot, used delay ra
+  blez C_NEGONE: followed, ignored ra, ran delay slot, used delay ra
+  blez C_S16_MAX: skipped, ignored ra, ran delay slot, used delay ra
+  blez C_S16_MIN: followed, ignored ra, ran delay slot, used delay ra
+  blez C_S32_MAX: skipped, ignored ra, ran delay slot, used delay ra
+  blez C_S32_MIN: followed, ignored ra, ran delay slot, used delay ra
+  blez C_GARBAGE1: skipped, ignored ra, ran delay slot, used delay ra
+  blez C_GARBAGE2: followed, ignored ra, ran delay slot, used delay ra
+
+blezl:
+  blezl 0: followed, ignored ra, ran delay slot, used delay ra
+  blezl 1: skipped, ignored ra, skipped delay slot, used link ra
+  blezl 2: skipped, ignored ra, skipped delay slot, used link ra
+  blezl -1: followed, ignored ra, ran delay slot, used delay ra
+  blezl 2147483647: skipped, ignored ra, skipped delay slot, used link ra
+  blezl -2147483648: followed, ignored ra, ran delay slot, used delay ra
+  blezl C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  blezl C_ONE: skipped, ignored ra, skipped delay slot, used link ra
+  blezl C_NEGONE: followed, ignored ra, ran delay slot, used delay ra
+  blezl C_S16_MAX: skipped, ignored ra, skipped delay slot, used link ra
+  blezl C_S16_MIN: followed, ignored ra, ran delay slot, used delay ra
+  blezl C_S32_MAX: skipped, ignored ra, skipped delay slot, used link ra
+  blezl C_S32_MIN: followed, ignored ra, ran delay slot, used delay ra
+  blezl C_GARBAGE1: skipped, ignored ra, skipped delay slot, used link ra
+  blezl C_GARBAGE2: followed, ignored ra, ran delay slot, used delay ra
+
+bltz:
+  bltz 0: skipped, ignored ra, ran delay slot, used delay ra
+  bltz 1: skipped, ignored ra, ran delay slot, used delay ra
+  bltz 2: skipped, ignored ra, ran delay slot, used delay ra
+  bltz -1: followed, ignored ra, ran delay slot, used delay ra
+  bltz 2147483647: skipped, ignored ra, ran delay slot, used delay ra
+  bltz -2147483648: followed, ignored ra, ran delay slot, used delay ra
+  bltz C_ZERO: skipped, ignored ra, ran delay slot, used delay ra
+  bltz C_ONE: skipped, ignored ra, ran delay slot, used delay ra
+  bltz C_NEGONE: followed, ignored ra, ran delay slot, used delay ra
+  bltz C_S16_MAX: skipped, ignored ra, ran delay slot, used delay ra
+  bltz C_S16_MIN: followed, ignored ra, ran delay slot, used delay ra
+  bltz C_S32_MAX: skipped, ignored ra, ran delay slot, used delay ra
+  bltz C_S32_MIN: followed, ignored ra, ran delay slot, used delay ra
+  bltz C_GARBAGE1: skipped, ignored ra, ran delay slot, used delay ra
+  bltz C_GARBAGE2: followed, ignored ra, ran delay slot, used delay ra
+
+bltzl:
+  bltzl 0: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl 1: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl 2: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl -1: followed, ignored ra, ran delay slot, used delay ra
+  bltzl 2147483647: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl -2147483648: followed, ignored ra, ran delay slot, used delay ra
+  bltzl C_ZERO: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl C_ONE: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl C_NEGONE: followed, ignored ra, ran delay slot, used delay ra
+  bltzl C_S16_MAX: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl C_S16_MIN: followed, ignored ra, ran delay slot, used delay ra
+  bltzl C_S32_MAX: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl C_S32_MIN: followed, ignored ra, ran delay slot, used delay ra
+  bltzl C_GARBAGE1: skipped, ignored ra, skipped delay slot, used link ra
+  bltzl C_GARBAGE2: followed, ignored ra, ran delay slot, used delay ra
+
+bltzal:
+  bltzal 0: skipped, set ra, ran delay slot, used delay ra
+  bltzal 1: skipped, set ra, ran delay slot, used delay ra
+  bltzal 2: skipped, set ra, ran delay slot, used delay ra
+  bltzal -1: followed, set ra, ran delay slot, used delay ra
+  bltzal 2147483647: skipped, set ra, ran delay slot, used delay ra
+  bltzal -2147483648: followed, set ra, ran delay slot, used delay ra
+  bltzal C_ZERO: skipped, set ra, ran delay slot, used delay ra
+  bltzal C_ONE: skipped, set ra, ran delay slot, used delay ra
+  bltzal C_NEGONE: followed, set ra, ran delay slot, used delay ra
+  bltzal C_S16_MAX: skipped, set ra, ran delay slot, used delay ra
+  bltzal C_S16_MIN: followed, set ra, ran delay slot, used delay ra
+  bltzal C_S32_MAX: skipped, set ra, ran delay slot, used delay ra
+  bltzal C_S32_MIN: followed, set ra, ran delay slot, used delay ra
+  bltzal C_GARBAGE1: skipped, set ra, ran delay slot, used delay ra
+  bltzal C_GARBAGE2: followed, set ra, ran delay slot, used delay ra
+
+bltzall:
+  bltzall 0: skipped, set ra, skipped delay slot, used link ra
+  bltzall 1: skipped, set ra, skipped delay slot, used link ra
+  bltzall 2: skipped, set ra, skipped delay slot, used link ra
+  bltzall -1: followed, set ra, ran delay slot, used delay ra
+  bltzall 2147483647: skipped, set ra, skipped delay slot, used link ra
+  bltzall -2147483648: followed, set ra, ran delay slot, used delay ra
+  bltzall C_ZERO: skipped, set ra, skipped delay slot, used link ra
+  bltzall C_ONE: skipped, set ra, skipped delay slot, used link ra
+  bltzall C_NEGONE: followed, set ra, ran delay slot, used delay ra
+  bltzall C_S16_MAX: skipped, set ra, skipped delay slot, used link ra
+  bltzall C_S16_MIN: followed, set ra, ran delay slot, used delay ra
+  bltzall C_S32_MAX: skipped, set ra, skipped delay slot, used link ra
+  bltzall C_S32_MIN: followed, set ra, ran delay slot, used delay ra
+  bltzall C_GARBAGE1: skipped, set ra, skipped delay slot, used link ra
+  bltzall C_GARBAGE2: followed, set ra, ran delay slot, used delay ra
+
+bne:
+  bne 0, 0: skipped, ignored ra, ran delay slot, used delay ra
+  bne 0, 1: followed, ignored ra, ran delay slot, used delay ra
+  bne 1, 1: skipped, ignored ra, ran delay slot, used delay ra
+  bne 1, 0: followed, ignored ra, ran delay slot, used delay ra
+  bne 2, 2: skipped, ignored ra, ran delay slot, used delay ra
+  bne -1, 1: followed, ignored ra, ran delay slot, used delay ra
+  bne -1, -1: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_ZERO, C_ZERO: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_ZERO, C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  bne C_ONE, C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  bne C_ONE, C_ONE: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_ONE, C_NEGONE: followed, ignored ra, ran delay slot, used delay ra
+  bne C_S16_MAX, C_S16_MAX: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_S16_MIN, C_S16_MIN: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_S32_MAX, C_S32_MAX: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_S32_MIN, C_S32_MIN: skipped, ignored ra, ran delay slot, used delay ra
+  bne C_GARBAGE1, C_GARBAGE2: followed, ignored ra, ran delay slot, used delay ra
+
+bnel:
+  bnel 0, 0: skipped, ignored ra, skipped delay slot, used link ra
+  bnel 0, 1: followed, ignored ra, ran delay slot, used delay ra
+  bnel 1, 1: skipped, ignored ra, skipped delay slot, used link ra
+  bnel 1, 0: followed, ignored ra, ran delay slot, used delay ra
+  bnel 2, 2: skipped, ignored ra, skipped delay slot, used link ra
+  bnel -1, 1: followed, ignored ra, ran delay slot, used delay ra
+  bnel -1, -1: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_ZERO, C_ZERO: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_ZERO, C_ONE: followed, ignored ra, ran delay slot, used delay ra
+  bnel C_ONE, C_ZERO: followed, ignored ra, ran delay slot, used delay ra
+  bnel C_ONE, C_ONE: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_ONE, C_NEGONE: followed, ignored ra, ran delay slot, used delay ra
+  bnel C_S16_MAX, C_S16_MAX: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_S16_MIN, C_S16_MIN: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_S32_MAX, C_S32_MAX: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_S32_MIN, C_S32_MIN: skipped, ignored ra, skipped delay slot, used link ra
+  bnel C_GARBAGE1, C_GARBAGE2: followed, ignored ra, ran delay slot, used delay ra
+
+j:
+  j: followed, ignored ra, ran delay slot, used delay ra
+
+jal:
+  jal: followed, set ra, ran delay slot, used delay ra
+
+jalr:
+  jalr: followed, set ra, ran delay slot, used delay ra
+
+jr:
+  jr: followed, ignored ra, ran delay slot, used delay ra
+

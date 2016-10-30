@@ -1,0 +1,12 @@
+[x] Init
+
+[x] Fonts:
+[x]   Normal: OK Font Info: maxGlyphWidthI: 1455, maxGlyphHeightI: 1222, maxGlyphAscenderI: 863, maxGlyphDescenderI: -196, maxGlyphLeftXI: 195, maxGlyphBaseYI: 1202, minGlyphCenterXI: -727, maxGlyphTopYI: 18, maxGlyphAdvanceXI: 1585, maxGlyphAdvanceYI: 1094, maxGlyphWidthF: 22.734375, maxGlyphHeightF: 19.093750, maxGlyphAscenderF: 13.484375, maxGlyphDescenderF: -3.062500, maxGlyphLeftXF: 3.046875, maxGlyphBaseYF: 18.781250, minGlyphCenterXF: -11.359375, maxGlyphTopYF: 0.281250, maxGlyphAdvanceXF: 24.765625, maxGlyphAdvanceYF: 17.093750, maxGlyphWidth: 23, maxGlyphHeight: 20, charMapLength: 324, shadowMapLength: 0, pad0=dd, pad1=dd, pad2=dd, BPP: 4
+Font Style: h=10.125000 (128.000000), v=10.125000 (128.000000), w=0.000000, family=0, style=0 / 0, lang=0, reg=0, country=0, name=, file=, attr=00000000, exp=0
+[x]   NULL: Failed (80460003)
+[x]   Closed: OK Font Info: maxGlyphWidthI: 1455, maxGlyphHeightI: 1222, maxGlyphAscenderI: 863, maxGlyphDescenderI: -196, maxGlyphLeftXI: 195, maxGlyphBaseYI: 1202, minGlyphCenterXI: -727, maxGlyphTopYI: 18, maxGlyphAdvanceXI: 1585, maxGlyphAdvanceYI: 1094, maxGlyphWidthF: 22.734375, maxGlyphHeightF: 19.093750, maxGlyphAscenderF: 13.484375, maxGlyphDescenderF: -3.062500, maxGlyphLeftXF: 3.046875, maxGlyphBaseYF: 18.781250, minGlyphCenterXF: -11.359375, maxGlyphTopYF: 0.281250, maxGlyphAdvanceXF: 24.765625, maxGlyphAdvanceYF: 17.093750, maxGlyphWidth: 23, maxGlyphHeight: 20, charMapLength: 324, shadowMapLength: 0, pad0=dd, pad1=dd, pad2=dd, BPP: 4
+Font Style: h=10.125000 (128.000000), v=10.125000 (128.000000), w=0.000000, family=0, style=0 / 0, lang=0, reg=0, country=0, name=, file=, attr=00000000, exp=0
+
+[x] Info:
+[x]   Missing: Failed (80460003)
+[x]   Data size: dddddd04 dddddddd dddddddd dddddddd

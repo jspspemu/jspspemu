@@ -1,0 +1,161 @@
+[x] Init:
+[x] sceCtrlSetSamplingCycle: 00000000
+
+[x] Vblanks:
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +18747ms, behind: 2083ms
+[-]   Vblank: 0 (inside: 0), inside vsync: 0
+[-]   Hcount: 143 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +18747ms, behind: 16664ms
+[-]   Vblank: 1 (inside: 1), inside vsync: 0
+[-]   Hcount: 286 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +35411ms, behind: 2083ms
+[-]   Vblank: 1 (inside: 0), inside vsync: 0
+[-]   Hcount: 429 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +35411ms, behind: 16664ms
+[-]   Vblank: 2 (inside: 1), inside vsync: 0
+[-]   Hcount: 572 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +52075ms, behind: 2083ms
+[-]   Vblank: 2 (inside: 0), inside vsync: 0
+[-]   Hcount: 715 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +52075ms, behind: 16664ms
+[-]   Vblank: 3 (inside: 1), inside vsync: 0
+[-]   Hcount: 858 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +68739ms, behind: 2083ms
+[-]   Vblank: 3 (inside: 0), inside vsync: 0
+[-]   Hcount: 1001 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +68739ms, behind: 16664ms
+[-]   Vblank: 4 (inside: 1), inside vsync: 0
+[-]   Hcount: 1144 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +85403ms, behind: 2083ms
+[-]   Vblank: 4 (inside: 0), inside vsync: 0
+[-]   Hcount: 1287 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +85403ms, behind: 16664ms
+[-]   Vblank: 5 (inside: 1), inside vsync: 0
+[-]   Hcount: 1430 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +102067ms, behind: 2083ms
+[-]   Vblank: 5 (inside: 0), inside vsync: 0
+[-]   Hcount: 1573 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +102067ms, behind: 16664ms
+[-]   Vblank: 6 (inside: 1), inside vsync: 0
+[-]   Hcount: 1716 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +118731ms, behind: 2083ms
+[-]   Vblank: 6 (inside: 0), inside vsync: 0
+[-]   Hcount: 1859 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +118731ms, behind: 16664ms
+[-]   Vblank: 7 (inside: 1), inside vsync: 0
+[-]   Hcount: 2002 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +135395ms, behind: 2083ms
+[-]   Vblank: 7 (inside: 0), inside vsync: 0
+[-]   Hcount: 2145 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +135395ms, behind: 16664ms
+[-]   Vblank: 8 (inside: 1), inside vsync: 0
+[-]   Hcount: 2288 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +152059ms, behind: 2083ms
+[-]   Vblank: 8 (inside: 0), inside vsync: 0
+[-]   Hcount: 2431 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +152059ms, behind: 16664ms
+[-]   Vblank: 9 (inside: 1), inside vsync: 0
+[-]   Hcount: 2574 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +168723ms, behind: 2083ms
+[-]   Vblank: 9 (inside: 0), inside vsync: 0
+[-]   Hcount: 2717 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +168723ms, behind: 16664ms
+[-]   Vblank: 10 (inside: 1), inside vsync: 0
+[-]   Hcount: 2860 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +185387ms, behind: 2083ms
+[-]   Vblank: 10 (inside: 0), inside vsync: 0
+[-]   Hcount: 3003 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +185387ms, behind: 16664ms
+[-]   Vblank: 11 (inside: 1), inside vsync: 0
+[-]   Hcount: 3146 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +202051ms, behind: 2083ms
+[-]   Vblank: 11 (inside: 0), inside vsync: 0
+[-]   Hcount: 3289 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +202051ms, behind: 16664ms
+[-]   Vblank: 12 (inside: 1), inside vsync: 0
+[-]   Hcount: 3432 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +218715ms, behind: 2083ms
+[-]   Vblank: 12 (inside: 0), inside vsync: 0
+[-]   Hcount: 3575 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +218715ms, behind: 16664ms
+[-]   Vblank: 13 (inside: 1), inside vsync: 0
+[-]   Hcount: 3718 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +235379ms, behind: 2083ms
+[-]   Vblank: 13 (inside: 0), inside vsync: 0
+[-]   Hcount: 3861 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +235379ms, behind: 16664ms
+[-]   Vblank: 14 (inside: 1), inside vsync: 0
+[-]   Hcount: 4004 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +252043ms, behind: 2083ms
+[-]   Vblank: 14 (inside: 0), inside vsync: 0
+[-]   Hcount: 4147 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +252043ms, behind: 16664ms
+[-]   Vblank: 15 (inside: 1), inside vsync: 0
+[-]   Hcount: 4290 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +268707ms, behind: 2083ms
+[-]   Vblank: 15 (inside: 0), inside vsync: 0
+[-]   Hcount: 4433 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +268707ms, behind: 16664ms
+[-]   Vblank: 16 (inside: 1), inside vsync: 0
+[-]   Hcount: 4576 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +285371ms, behind: 2083ms
+[-]   Vblank: 16 (inside: 0), inside vsync: 0
+[-]   Hcount: 4719 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +285371ms, behind: 16664ms
+[-]   Vblank: 17 (inside: 1), inside vsync: 0
+[-]   Hcount: 4862 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +302035ms, behind: 2083ms
+[-]   Vblank: 17 (inside: 0), inside vsync: 0
+[-]   Hcount: 5005 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +302035ms, behind: 16664ms
+[-]   Vblank: 18 (inside: 1), inside vsync: 0
+[-]   Hcount: 5148 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +318699ms, behind: 2083ms
+[-]   Vblank: 18 (inside: 0), inside vsync: 0
+[-]   Hcount: 5291 (+15)
+[-] Peek inside interrupt: 00000040
+[-]   Latest sample at: +318699ms, behind: 16664ms
+[-]   Vblank: 19 (inside: 1), inside vsync: 0
+[-]   Hcount: 5434 (+5)
+[r] Read outside interrupt: 00000001
+[-]   Latest sample at: +335363ms, behind: 2083ms
+[-]   Vblank: 19 (inside: 0), inside vsync: 0
+[-]   Hcount: 5577 (+15)
+[r] Possible: 28

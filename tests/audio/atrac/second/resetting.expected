@@ -1,0 +1,83 @@
+[x] Reset info without second buffer:
+[x]   Reset to start: 80630012
+   #1: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+   #2: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+[x]   Reset before loop: 80630012
+   #1: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+   #2: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+[x]   Reset to loop: 80630012
+   #1: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+   #2: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+[x]   Reset end of loop frame: 80630012
+   #1: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+   #2: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+[x]   Reset after loop: 80630012
+   #1: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+   #2: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+[x]   Reset to end: 80630012
+   #1: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+   #2: write=0xcccccccc, writable=cccccccc, min=cccccccc, file=cccccccc
+
+[x] Reset pos without second buffer:
+[x]   Play at start: 80630012
+[x]   Play before loop: 80630012
+[x]   Play at loop: 80630012
+[x]   Play at end of loop frame: 80630012
+[x]   Play after loop: 80630012
+[x]   Play at end: 80630012
+
+[x] Reset info with partial second buffer:
+[x]   Reset to start: 00000000
+   #1: write=p+0x0, writable=00005998, min=000002f0, file=000000a4
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset before loop: 00000000
+   #1: write=p+0x0, writable=000008d0, min=000002f0, file=000087c4
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset to loop: 00000000
+   #1: write=p+0x0, writable=00000178, min=00000178, file=00008f1c
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset end of loop frame: 00000000
+   #1: write=p+0x0, writable=00000178, min=00000178, file=00008f1c
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset after loop: 00000000
+   #1: write=p+0x0, writable=00001ed8, min=00000000, file=00009674
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset to end: 00000000
+   #1: write=p+0x0, writable=00000468, min=00000468, file=0000b0e4
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+
+[x] Reset pos with partial second buffer:
+[r]   Play at start: 00000000
+[r]   Play before loop: 00000000
+[r]   Play at loop: 00000000
+[r]   Play at end of loop frame: 00000000
+[r]   Play after loop: 00000000
+[r]   Play at end: 00000000
+
+[x] Reset info with full second buffer:
+[x]   Reset to start: 00000000
+   #1: write=p+0x0, writable=00005998, min=000002f0, file=000000a4
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset before loop: 00000000
+   #1: write=p+0x0, writable=000008d0, min=000002f0, file=000087c4
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset to loop: 00000000
+   #1: write=p+0x0, writable=00000178, min=00000178, file=00008f1c
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset end of loop frame: 00000000
+   #1: write=p+0x0, writable=00000178, min=00000178, file=00008f1c
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset after loop: 00000000
+   #1: write=p+0x0, writable=00000000, min=00000000, file=00000000
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+[x]   Reset to end: 00000000
+   #1: write=p+0x0, writable=00000000, min=00000000, file=00000000
+   #2: write=p+0x0, writable=00000000, min=00000000, file=00000000
+
+[x] Reset pos with full second buffer:
+[r]   Play at start: 00000000
+[r]   Play before loop: 00000000
+[r]   Play at loop: 00000000
+[r]   Play at end of loop frame: 00000000
+[r]   Play after loop: 00000000
+[r]   Play at end: 00000000

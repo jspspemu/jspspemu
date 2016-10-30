@@ -1,0 +1,8 @@
+[x] starting
+[x] waiting
+[r] thread1 start
+[r] thread2 start
+[r] thread1 end: 800201a8
+[r] thread2 end: 00000000
+[r] deleting
+[x] done, waiting

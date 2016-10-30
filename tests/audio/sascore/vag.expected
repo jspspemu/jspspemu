@@ -1,0 +1,320 @@
+[x] Voices:
+[x]   Normal: OK (00000000)
+[x]   Voice -1: Failed (80420010)
+[x]   Voice 32: Failed (80420010)
+
+[x] Addresses:
+[x] Zero: OK (00000000)
+[x] Valid: OK (00000000)
+
+[x] Sizes:
+[x]   Size fff85ee0: OK (00000000)
+[x]   Size ffffffc0: OK (00000000)
+[x]   Size ffffffd0: OK (00000000)
+[x]   Size ffffffd1: Failed (80420014)
+[x]   Size ffffffff: Failed (80420014)
+[x]   Size 0: Failed (80420014)
+[x]   Size 1: Failed (80420014)
+[x]   Size 2: Failed (80420014)
+[x]   Size 3: Failed (80420014)
+[x]   Size 4: Failed (80420014)
+[x]   Size 5: Failed (80420014)
+[x]   Size 8: Failed (80420014)
+[x]   Size c: Failed (80420014)
+[x]   Size f: Failed (80420014)
+[x]   Size 10: OK (00000000)
+[x]   Size 20: OK (00000000)
+[x]   Size 30: OK (00000000)
+[x]   Size 40: OK (00000000)
+[x]   Size 80: OK (00000000)
+[x]   Size ff: Failed (80420014)
+[x]   Size 100: OK (00000000)
+[x]   Size 101: Failed (80420014)
+[x]   Size 400: OK (00000000)
+[x]   Size 401: Failed (80420014)
+[x]   Size 10000: OK (00000000)
+[x]   Size 10001: Failed (80420014)
+[x]   Size 20000: OK (00000000)
+[x]   Size 10000000: OK (00000000)
+[x]   Size 80000000: OK (00000000)
+
+[x] Loop start pos:
+[x]   Loop pos -1 / 256: Failed (80420015)
+[x]   Loop pos 0 / 256: OK (00000000)
+[x]   Loop pos 1 / 256: OK (00000000)
+[x]   Loop pos 2 / 256: Failed (80420015)
+[x]   Loop pos 3 / 256: Failed (80420015)
+[x]   Loop pos 4 / 256: Failed (80420015)
+[x]   Loop pos 5 / 256: Failed (80420015)
+[x]   Loop pos 6 / 256: Failed (80420015)
+[x]   Loop pos 7 / 256: Failed (80420015)
+[x]   Loop pos 8 / 256: Failed (80420015)
+[x]   Loop pos 255 / 256: Failed (80420015)
+[x]   Loop pos 256 / 256: Failed (80420015)
+[x]   Loop pos 257 / 256: Failed (80420015)
+[x]   Loop pos 65536 / 256: Failed (80420015)
+[x]   Loop pos 65537 / 256: Failed (80420015)
+[x]   Loop pos 268435456 / 256: Failed (80420015)
+[x]   Loop pos 1073741825 / 256: Failed (80420015)
+[x]   Loop pos -2147483647 / 256: Failed (80420015)
+[x]   Loop pos 1 / 1: Failed (80420014)
+[x]   Loop pos 2 / 1: Failed (80420014)
+[x]   Loop pos 0xFFFF / 0x10000: Failed (80420015)
+[x]   Loop pos 0x10000 / 0x10000: Failed (80420015)
+
+[x] After voice setup:
+[x]   Normal: OK (00000000)
+[x]   While paused: OK (00000000)
+[x]   Still paused: ffffffff
+
+[x] With core:
+[x]   Key on: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[x]   After processing: OK (00000000)
+[x]   Still playing: fffffffe
+
+[x] Output with loop 0000:
+  [020] 0000 0000
+  [11e] 2d4b 2d4b
+  [120] 2cb4 2cb4
+[r]   Ended: fffffffe
+
+[x] Output with loop 0001:
+  [020] 0000 0000
+  [11e] 2d4b 2d4b
+  [120] 2cb4 2cb4
+[r]   Ended: fffffffe
+
+[x] VAG data (predict_nr=0, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=1, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 4d00 4d00
+  [023] 7830 7830
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=2, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 7640 7640
+  [023] 7fff 7fff
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=3, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 6980 6980
+  [023] 7fff 7fff
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=4, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 7b80 7b80
+  [023] 7fff 7fff
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=5, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=6, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=7, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 4700 4700
+  [023] 69b0 69b0
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=8, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 4940 4940
+  [023] 6d73 6d73
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=9, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 4d00 4d00
+  [023] 1a70 1a70
+  [024] b265 b265
+  [025] b39b b39b
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=a, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=b, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] ebc0 ebc0
+  [024] 0280 0280
+  [025] 4ccb 4ccb
+  [026] 3c72 3c72
+  [027] c2cf c2cf
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=c, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=d, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2180 2180
+  [023] 8f0c 8f0c
+  [024] bb68 bb68
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 8000 8000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=e, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 7dc0 7dc0
+  [023] 7fff 7fff
+  [024] 7fff 7fff
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 7fff 7fff
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=f, flagsAfter0=00):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] bec0 bec0
+  [024] e480 e480
+  [025] 7fff 7fff
+  [026] 7fff 7fff
+  [027] 8000 8000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=0, flagsAfter0=03):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: fffffffe
+
+[x] VAG data (predict_nr=0, flagsAfter0=07):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=0, flagsAfter0=41):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=0, flagsAfter0=01):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff
+
+[x] VAG data (predict_nr=0, flagsAfter0=87):
+  [020] 0000 0000
+  [021] 3000 3000
+  [022] 2000 2000
+  [023] 3000 3000
+  [024] 3000 3000
+  [025] 3000 3000
+  [026] 4000 4000
+  [027] 3000 3000
+[r]   Ended: ffffffff

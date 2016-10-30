@@ -1,0 +1,1648 @@
+[x] Init
+
+[x] Setup psmfplayer:
+[r]   scePsmfPlayerCreate: 00000000 (psmf=09dd11b0 *psmf=09dd0fa0, **psmf=00000000)
+[x]   scePsmfPlayerSetTempBuf: 00000000
+[x]   scePsmfPlayerGetAudioOutSize: 00002000
+[x]   scePsmfPlayerGetCurrentStatus: 00000001
+[r]   scePsmfPlayerSetPsmfCB: 00000000
+[x]   scePsmfPlayerGetPsmfInfo: 00000000 (info: 0008a90f 00000001 00000000 00000000 00000001)
+[x]   scePsmfPlayerStart: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+[x]   scePsmfPlayerGetCurrentPts: 8061600c, -1
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetVideoData: 8061600c (00000200, 08900050/08900050, 0)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetVideoData: 8061600c (00000200, 08900050/08900050, 0)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 0)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 3003)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 6006)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 9009)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 12012)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 15015)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 18018)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 21021)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 24024)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 27027)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 30030)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 33033)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 36036)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 39039)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 42042)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 45045)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 48048)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 51051)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 54054)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 57057)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 60060)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 63063)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 66066)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 69069)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 72072)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 75075)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 78078)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 81081)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 84084)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 87087)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 90090)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 93093)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 96096)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 99099)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 102102)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 105105)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 108108)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 111111)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 114114)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 117117)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 120120)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 123123)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 126126)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 129129)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 132132)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 135135)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 138138)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 141141)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 144144)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 147147)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 150150)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 153153)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 156156)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 159159)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 162162)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 165165)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 168168)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 171171)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 174174)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 177177)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 180180)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 183183)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 186186)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 189189)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 192192)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 195195)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 198198)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 201201)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 204204)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 207207)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 210210)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 213213)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 216216)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 219219)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 222222)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 225225)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 228228)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 231231)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 234234)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 237237)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 240240)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 243243)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 246246)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 249249)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 252252)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 255255)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 258258)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 261261)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 264264)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 267267)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 270270)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 273273)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 276276)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 279279)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 282282)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 285285)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 288288)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 291291)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 294294)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 297297)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 300300)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 303303)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 306306)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 309309)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 312312)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 315315)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 318318)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 321321)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 324324)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 327327)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 330330)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 333333)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 336336)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 339339)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 342342)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 345345)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 348348)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 351351)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 354354)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 357357)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 360360)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 363363)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 366366)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 369369)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 372372)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 375375)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 378378)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 381381)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 384384)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 387387)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 390390)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 393393)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 396396)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 399399)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 402402)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 405405)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 408408)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 411411)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 414414)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 417417)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 420420)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 423423)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 426426)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 429429)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 432432)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 435435)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 438438)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 441441)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 444444)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 447447)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 450450)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 453453)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 456456)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 459459)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 462462)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 465465)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 468468)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 471471)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 474474)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 477477)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 480480)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 483483)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 486486)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 489489)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 492492)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 495495)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 498498)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 501501)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 504504)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 507507)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 510510)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 513513)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 516516)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 519519)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 522522)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 525525)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 528528)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] Next frame
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerUpdate: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[r]   scePsmfPlayerGetVideoData: 00000000 (00000200, 08900050/08900050, 531531)
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerGetAudioData: 8061600c
+
+[x] End state checks:
+[x]   scePsmfPlayerGetCurrentStatus: 00000004
+[x]   scePsmfPlayerStop: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000002
+[x]   scePsmfPlayerGetCurrentStatus: 00000002
+[x]   scePsmfPlayerBreak: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000002
+[x]   scePsmfPlayerGetCurrentStatus: 00000002
+[r]   scePsmfPlayerReleasePsmf: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 00000001
+[r]   scePsmfPlayerDelete: 00000000
+[x]   scePsmfPlayerGetCurrentStatus: 80616001

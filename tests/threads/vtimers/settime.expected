@@ -1,0 +1,29 @@
+[x] Objects
+[x]   Normal: OK 0000000000000000 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   NULL: Failed (800201be) 0000000000001337 VTimer: Invalid (800201be)
+[x]   Invalid: Failed (800201be) 0000000000001337 VTimer: Failed (deadbeef)
+[x]   Deleted: Failed (800201be) 0000000000001337 VTimer: Invalid (800201be)
+
+[x] Values
+[x]   1: OK 0000000000000000 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   0x1234567890123: OK 0000000000000001 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   -1: OK 0000000067890123 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   0: OK 00000000ffffffff VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+
+[x] Objects (wide)
+[x]   Normal: 0000000000000000 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   NULL: ffffffffffffffff VTimer: Invalid (800201be)
+[x]   Invalid: ffffffffffffffff VTimer: Failed (deadbeef)
+[x]   Deleted: ffffffffffffffff VTimer: Invalid (800201be)
+
+[x] Values (wide)
+[x]   1: 0000000000000000 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   0x1234567890123: 0000000000000001 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   -1: 0001234567890123 VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=N,schedule=0)
+[x]   0: ffffffffffffffff VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+
+[x] While scheduled
+[r]   After start: 0
+[x]   After set: 0
+[r]   After set and delay: 1
+[x] 120000

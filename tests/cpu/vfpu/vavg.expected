@@ -1,0 +1,24 @@
+vavg.p: Negative zero: 0.000000,nan,nan,nan
+vavg.t: Negative zero: 0.000000,nan,nan,nan
+vavg.q: Negative zero: 0.000000,nan,nan,nan
+vfad.p: Negative zero: 0.000000,nan,nan,nan
+vfad.t: Negative zero: 0.000000,nan,nan,nan
+vfad.q: Negative zero: 0.000000,nan,nan,nan
+vavg.p: Single NAN: nan,nan,nan,nan
+vavg.t: Single NAN: nan,nan,nan,nan
+vavg.q: Single NAN: nan,nan,nan,nan
+vfad.p: Single NAN: nan,nan,nan,nan
+vfad.t: Single NAN: nan,nan,nan,nan
+vfad.q: Single NAN: nan,nan,nan,nan
+vavg.p: Single -INFINITY: -inf,nan,nan,nan
+vavg.t: Single -INFINITY: -inf,nan,nan,nan
+vavg.q: Single -INFINITY: -inf,nan,nan,nan
+vfad.p: Single -INFINITY: -inf,nan,nan,nan
+vfad.t: Single -INFINITY: -inf,nan,nan,nan
+vfad.q: Single -INFINITY: -inf,nan,nan,nan
+vavg.p: Sign near zero: 0.000000,nan,nan,nan
+vavg.t: Sign near zero: -0.333333,nan,nan,nan
+vavg.q: Sign near zero: 0.000000,nan,nan,nan
+vfad.p: Sign near zero: 0.000000,nan,nan,nan
+vfad.t: Sign near zero: -1.000000,nan,nan,nan
+vfad.q: Sign near zero: 0.000000,nan,nan,nan

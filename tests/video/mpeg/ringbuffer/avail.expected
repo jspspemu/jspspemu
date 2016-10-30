@@ -1,0 +1,21 @@
+[x] createTestMpeg:
+[x]   sceMpegRingbufferQueryMemSize: 0010d000
+[x]   sceMpegQueryMemSize: 00010000
+[x]   sceMpegRingbufferConstruct: 00000000
+[r]   sceMpegCreate: 00000000
+[x]   MPEG: LIBMPEG
+
+[x] States:
+[x]   Initial: 00000200
+[r]   Deleted mpeg: 80618009
+
+[x] createTestMpeg:
+[x]   sceMpegRingbufferQueryMemSize: 0010d000
+[x]   sceMpegQueryMemSize: 00010000
+[x]   sceMpegRingbufferConstruct: 00000000
+[r]   sceMpegCreate: 00000000
+[x]   MPEG: LIBMPEG
+
+[x] Packet values:
+[x]   Avail = Total: 00000000
+[x]   Avail = 1: 000001ff

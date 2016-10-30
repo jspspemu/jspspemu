@@ -1,0 +1,83 @@
+[x] Voices:
+[x] Normal: OK (00000000)
+[x] Voice -1: Failed (80420010)
+[x] Voice 32: Failed (80420010)
+
+[x] Addresses:
+[x] Zero: OK (00000000)
+[x] Valid: OK (00000000)
+
+[x] Sizes:
+[x]   Size -1: Failed (8042001a)
+[x]   Size 0: Failed (8042001a)
+[x]   Size 1: OK (00000000)
+[x]   Size 2: OK (00000000)
+[x]   Size 3: OK (00000000)
+[x]   Size 4: OK (00000000)
+[x]   Size 5: OK (00000000)
+[x]   Size 6: OK (00000000)
+[x]   Size 7: OK (00000000)
+[x]   Size 8: OK (00000000)
+[x]   Size 255: OK (00000000)
+[x]   Size 256: OK (00000000)
+[x]   Size 257: OK (00000000)
+[x]   Size 65536: OK (00000000)
+[x]   Size 65537: Failed (8042001a)
+[x]   Size 131072: Failed (8042001a)
+[x]   Size 262144: Failed (8042001a)
+
+[x] Loop start pos:
+[x]   Loop pos -1 / 256: OK (00000000)
+[x]   Loop pos 0 / 256: OK (00000000)
+[x]   Loop pos 1 / 256: OK (00000000)
+[x]   Loop pos 2 / 256: OK (00000000)
+[x]   Loop pos 3 / 256: OK (00000000)
+[x]   Loop pos 4 / 256: OK (00000000)
+[x]   Loop pos 5 / 256: OK (00000000)
+[x]   Loop pos 6 / 256: OK (00000000)
+[x]   Loop pos 7 / 256: OK (00000000)
+[x]   Loop pos 8 / 256: OK (00000000)
+[x]   Loop pos 255 / 256: OK (00000000)
+[x]   Loop pos 256 / 256: Failed (80420015)
+[x]   Loop pos 257 / 256: Failed (80420015)
+[x]   Loop pos 65536 / 256: Failed (80420015)
+[x]   Loop pos 65537 / 256: Failed (80420015)
+[x]   Loop pos 268435456 / 256: Failed (80420015)
+[x]   Loop pos 1073741825 / 256: Failed (80420015)
+[x]   Loop pos -2147483647 / 256: OK (00000000)
+[x]   Loop pos 1 / 1: Failed (80420015)
+[x]   Loop pos 2 / 1: Failed (80420015)
+[x]   Loop pos 0xFFFF / 0x10000: OK (00000000)
+[x]   Loop pos 0x10000 / 0x10000: Failed (80420015)
+
+[x] After voice setup:
+[x]   Normal: OK (00000000)
+[x]   While paused: OK (00000000)
+[x]   Still paused: ffffffff
+
+[x] With core:
+[x]   Key on: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[x]   After processing: OK (00000000)
+[x]   Still playing: fffffffe
+
+[x] Output with loop at 0:
+  [020] 0000 0000
+  [11e] ff01 ff01
+  [120] ffff ffff
+[r]   Ended: fffffffe
+
+[x] Output with loop at 254:
+  [020] 0000 0000
+  [11e] ff01 ff01
+  [120] ff01 ff01
+[r]   Ended: fffffffe
+
+[x] Output with loop at -1:
+  [020] 0000 0000
+  [11e] ff01 ff01
+  [120] 0000 0000
+[r]   Ended: ffffffff

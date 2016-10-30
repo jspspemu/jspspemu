@@ -1,0 +1,13 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: Failed: 80616001 / 1337133713371337
+[r]   Standby: Failed: 8061600c / 1337133713371337
+[r]   Deleted: Failed: 80616001 / 1337133713371337
+[r]   Playing: Failed: 8061600c / 1337133713371337
+[r]   Twice: OK (status=4)  pts=1337133700000000
+[x]   Copy: OK (status=4)  pts=1337133700000000
+[r]   Finished: OK (status=200)  pts=133713370008a90f
+
+[x] Pts ptrs:
+[r]   NULL ptr (standby): Failed: 8061600c / 1337133713371337

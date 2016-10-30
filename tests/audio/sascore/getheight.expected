@@ -1,0 +1,19 @@
+[x] After init:
+[x] Normal: OK (00000000)
+[x] Voice -1: Failed (80420010)
+[x] Voice 32: Failed (80420010)
+
+[x] After voice setup:
+[x] Normal: OK (00000000)
+[x] While paused: OK (00000000)
+
+[x] With core:
+[x] Key on: 00000000
+[r] Core: 00000000
+[r] Core: 00000000
+[r] Core: 00000000
+[r] Core: 00000000
+[x] After processing: OK (001e0000)
+
+[x] All heights:
+[x] Normal: OK (001e0000, 00000000, cccccccc)

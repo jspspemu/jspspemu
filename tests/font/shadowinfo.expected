@@ -1,0 +1,18 @@
+[x] Init
+
+[x] Fonts:
+[x]   Normal: OK Font Char: bitmap 16x16, from -4,12, metrics: 0x0, asc=-137, desc=-137, bearH=-44x-137, bearV=-204x17, advanceH=1138, advanceV=1094, shadowFlags=0051, shadowId=33
+[x]   NULL: Failed (80460003)
+[x]   Closed: OK Font Char: bitmap 16x16, from -4,12, metrics: 0x0, asc=-137, desc=-137, bearH=-44x-137, bearV=-204x17, advanceH=1138, advanceV=1094, shadowFlags=0051, shadowId=33
+
+[x] Characters:
+[x]   NUL: OK Font Char: bitmap 0x0, from 0,0, metrics: 0x0, asc=0, desc=0, bearH=0x0, bearV=0x0, advanceH=0, advanceV=0, shadowFlags=0000, shadowId=0
+[x]   SOH: OK Font Char: bitmap 0x0, from 0,0, metrics: 0x0, asc=0, desc=0, bearH=0x0, bearV=0x0, advanceH=0, advanceV=0, shadowFlags=0000, shadowId=0
+[x]   BEL: OK Font Char: bitmap 0x0, from 0,0, metrics: 0x0, asc=0, desc=0, bearH=0x0, bearV=0x0, advanceH=0, advanceV=0, shadowFlags=0000, shadowId=0
+[x]   0xD7FF: OK Font Char: bitmap 15x9, from -4,3, metrics: 0x0, asc=-137, desc=-137, bearH=-44x-137, bearV=-204x17, advanceH=993, advanceV=1094, shadowFlags=004e, shadowId=63
+[x]   0xFFFE: OK Font Char: bitmap 15x9, from -4,3, metrics: 0x0, asc=-137, desc=-137, bearH=-44x-137, bearV=-204x17, advanceH=993, advanceV=1094, shadowFlags=004e, shadowId=63
+[x]   0xFFFF: OK Font Char: bitmap 15x9, from -4,3, metrics: 0x0, asc=-137, desc=-137, bearH=-44x-137, bearV=-204x17, advanceH=993, advanceV=1094, shadowFlags=004e, shadowId=63
+
+[x] Info:
+[x]   Missing: Failed (80460003)
+[x]   Data size: 00210051 dddddddd dddddddd dddddddd

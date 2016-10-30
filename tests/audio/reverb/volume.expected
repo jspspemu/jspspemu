@@ -1,0 +1,71 @@
+[x] Deltas at full vol
+[r]   OFF: root mean is near 2x input
+[r]   ROOM: root mean is not near 1x or 2x input
+[r]   UNK1: root mean is not near 1x or 2x input
+[r]   UNK2: root mean is not near 1x or 2x input
+[r]   UNK3: root mean is not near 1x or 2x input
+[r]   HALL: root mean is not near 1x or 2x input
+[r]   SPACE: root mean is near 1x input
+[r]   ECHO: root mean is not near 1x or 2x input
+[r]   DELAY: root mean is not near 1x or 2x input
+[r]   PIPE: root mean is not near 1x or 2x input
+
+[x] Deltas with dry=0
+[r]   OFF: root mean is near 1x input
+[r]   ROOM: root mean is not near 1x or 2x input
+[r]   UNK1: root mean is not near 1x or 2x input
+[r]   UNK2: root mean is not near 1x or 2x input
+[r]   UNK3: root mean is not near 1x or 2x input
+[r]   HALL: root mean is not near 1x or 2x input
+[r]   SPACE: root mean is not near 1x or 2x input
+[r]   ECHO: root mean is not near 1x or 2x input
+[r]   DELAY: root mean is not near 1x or 2x input
+[r]   PIPE: root mean is not near 1x or 2x input
+
+[x] Deltas with mainVol=0
+[r]   OFF: root mean is near 1x input
+[r]   ROOM: root mean is not near 1x or 2x input
+[r]   UNK1: root mean is not near 1x or 2x input
+[r]   UNK2: root mean is not near 1x or 2x input
+[r]   UNK3: root mean is not near 1x or 2x input
+[r]   HALL: root mean is not near 1x or 2x input
+[r]   SPACE: root mean is not near 1x or 2x input
+[r]   ECHO: root mean is not near 1x or 2x input
+[r]   DELAY: root mean is not near 1x or 2x input
+[r]   PIPE: root mean is not near 1x or 2x input
+
+[x] Deltas with wet=0
+[r]   OFF: root mean is near 1x input
+[r]   ROOM: root mean is near 1x input
+[r]   UNK1: root mean is near 1x input
+[r]   UNK2: root mean is near 1x input
+[r]   UNK3: root mean is near 1x input
+[r]   HALL: root mean is near 1x input
+[r]   SPACE: root mean is near 1x input
+[r]   ECHO: root mean is near 1x input
+[r]   DELAY: root mean is near 1x input
+[r]   PIPE: root mean is near 1x input
+
+[x] Deltas with effectVol=0
+[r]   OFF: root mean is near 1x input
+[r]   ROOM: root mean is near 1x input
+[r]   UNK1: root mean is near 1x input
+[r]   UNK2: root mean is near 1x input
+[r]   UNK3: root mean is near 1x input
+[r]   HALL: root mean is near 1x input
+[r]   SPACE: root mean is near 1x input
+[r]   ECHO: root mean is near 1x input
+[r]   DELAY: root mean is near 1x input
+[r]   PIPE: root mean is near 1x input
+
+[x] Deltas with reverbVol=0
+[r]   OFF: root mean is near 1x input
+[r]   ROOM: root mean is near 1x input
+[r]   UNK1: root mean is near 1x input
+[r]   UNK2: root mean is near 1x input
+[r]   UNK3: root mean is near 1x input
+[r]   HALL: root mean is near 1x input
+[r]   SPACE: root mean is near 1x input
+[r]   ECHO: root mean is near 1x input
+[r]   DELAY: root mean is near 1x input
+[r]   PIPE: root mean is near 1x input

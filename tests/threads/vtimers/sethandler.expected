@@ -1,0 +1,75 @@
+[x] sceKernelSetVTimerHandler:
+
+[x] UIDs:
+[x]   Normal: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Twice: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   NULL: 800201bf - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Invalid: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Deleted: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   -1: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Thread ID: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+
+[x] Times:
+[x]   Zero: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Now - 1: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=N)
+[x]   Now: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=N)
+[x]   Now + 1: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=N)
+
+[x] Handlers:
+[x]   Normal: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   NULL: 00000000 - VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+
+[x] Common:
+[x]   With handler: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=deadbeef,base=0,current=0,schedule=0)
+[x]   Without handler: 00000000 - VTimer: (size=72,name=test,active=0,handler=0,common=deadbeef,base=0,current=0,schedule=0)
+[x] Result t = 0
+
+[x] While started:
+[x]   With handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=+400)
+[r] ** normalHandler: 00001337, 400, +0ms, deadc0de
+[x]   With handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=+400)
+[r] ** normalHandler: 00001337, 400, +0ms, deadc0de
+[x]   Without handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=0,common=deadc0de,base=N,current=N,schedule=+1400)
+[r]   With handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=0)
+[r] ** normalHandler: 00001337, 0, +0ms, deadc0de
+[x] ** normalHandler: 00001337, 1000, +0ms, deadc0de
+[x]   Passed handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=+9000)
+[r] After passed: 3 hits
+
+[x] sceKernelSetVTimerHandlerWide:
+
+[x] UIDs:
+[x]   Normal: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Twice: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   NULL: 800201bf - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Invalid: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Deleted: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   -1: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Thread ID: 800201be - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+
+[x] Times:
+[x]   Zero: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   Now - 1: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=N)
+[x]   Now: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=N)
+[x]   Now + 1: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=N)
+
+[x] Handlers:
+[x]   Normal: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=00000000,base=0,current=0,schedule=0)
+[x]   NULL: 00000000 - VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+
+[x] Common:
+[x]   With handler: 00000000 - VTimer: (size=72,name=test,active=0,handler=1,common=deadbeef,base=0,current=0,schedule=0)
+[x]   Without handler: 00000000 - VTimer: (size=72,name=test,active=0,handler=0,common=deadbeef,base=0,current=0,schedule=0)
+[x] Result t = 0
+
+[x] While started:
+[x]   With handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=+400)
+[r] ** normalHandler: 00001337, 400, +0ms, deadc0de
+[x]   With handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=+400)
+[r] ** normalHandler: 00001337, 400, +0ms, deadc0de
+[x]   Without handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=0,common=deadc0de,base=N,current=N,schedule=+1400)
+[r]   With handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=0)
+[r] ** normalHandler: 00001337, 0, +0ms, deadc0de
+[x] ** normalHandler: 00001337, 1000, +0ms, deadc0de
+[x]   Passed handler: 00000000 - VTimer: (size=72,name=test,active=1,handler=1,common=deadc0de,base=N,current=N,schedule=+9000)
+[r] After passed: 6 hits

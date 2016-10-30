@@ -1,0 +1,15 @@
+[x] After init:
+[x] Key on without type: OK
+[x] Key on twice: Failed (80420016)
+[x] Voice -1: Failed (80420010)
+[x] Voice 32: Failed (80420010)
+
+[x] After voice setup:
+[x] Key on: OK
+[x] Key on twice: Failed (80420016)
+[x] While paused: Failed (80420016)
+
+[x] After core:
+[x] Key on: OK
+[r] Core: 00000000
+[x] Height change: 00000000 -> 00060000

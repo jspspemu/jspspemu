@@ -1,0 +1,10 @@
+[x] Objects
+[x]   Normal: 00000000
+[x]   Twice: 00000000
+[x]   NULL: 800201bf
+[x]   Invalid: 800201be
+[x]   Deleted: 800201be
+
+[x] Resetting
+[r]   Start/Stop 3 times: 3ms
+[x]   Base: 0

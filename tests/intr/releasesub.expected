@@ -1,0 +1,153 @@
+[x] sceKernelReleaseSubIntrHandler interrupts:
+[x]   Interrupt -2: 80020065
+[x]   Interrupt -1: 80020065
+[x]   Interrupt 0: 80020068
+[x]   Interrupt 1: 80020068
+[x]   Interrupt 2: 80020068
+[x]   Interrupt 3: 80020068
+[x]   Interrupt 4: 80020068
+[x]   Interrupt 5: 80020068
+[x]   Interrupt 6: 80020068
+[x]   Interrupt 7: 80020065
+[x]   Interrupt 8: 80020068
+[x]   Interrupt 9: 80020068
+[x]   Interrupt 10: 80020065
+[x]   Interrupt 11: 80020068
+[x]   Interrupt 12: 80020065
+[x]   Interrupt 13: 80020068
+[x]   Interrupt 14: 80020068
+[x]   Interrupt 15: 80020065
+[x]   Interrupt 16: 80020065
+[x]   Interrupt 17: 80020065
+[x]   Interrupt 18: 80020065
+[x]   Interrupt 19: 80020065
+[x]   Interrupt 20: 80020065
+[x]   Interrupt 21: 80020068
+[x]   Interrupt 22: 80020065
+[x]   Interrupt 23: 80020065
+[x]   Interrupt 24: 80020065
+[x]   Interrupt 25: 00000000
+[x]   Interrupt 26: 80020065
+[x]   Interrupt 27: 80020068
+[x]   Interrupt 28: 80020068
+[x]   Interrupt 29: 80020068
+[x]   Interrupt 30: 00000000
+[x]   Interrupt 31: 80020065
+[x]   Interrupt 32: 80020068
+[x]   Interrupt 33: 80020068
+[x]   Interrupt 34: 80020068
+[x]   Interrupt 35: 80020068
+[x]   Interrupt 36: 80020065
+[x]   Interrupt 37: 80020068
+[x]   Interrupt 38: 80020068
+[x]   Interrupt 39: 80020068
+[x]   Interrupt 40: 80020068
+[x]   Interrupt 41: 80020068
+[x]   Interrupt 42: 80020068
+[x]   Interrupt 43: 80020068
+[x]   Interrupt 44: 80020068
+[x]   Interrupt 45: 80020068
+[x]   Interrupt 46: 80020068
+[x]   Interrupt 47: 80020068
+[x]   Interrupt 48: 80020068
+[x]   Interrupt 49: 80020068
+[x]   Interrupt 50: 80020065
+[x]   Interrupt 51: 80020068
+[x]   Interrupt 52: 80020068
+[x]   Interrupt 53: 80020068
+[x]   Interrupt 54: 80020068
+[x]   Interrupt 55: 80020068
+[x]   Interrupt 56: 80020065
+[x]   Interrupt 57: 80020065
+[x]   Interrupt 58: 80020065
+[x]   Interrupt 59: 80020065
+[x]   Interrupt 60: 80020065
+[x]   Interrupt 61: 80020065
+[x]   Interrupt 62: 80020068
+[x]   Interrupt 63: 80020068
+[x]   Interrupt 64: 80020068
+[x]   Interrupt 65: 80020065
+[x]   Interrupt 66: 80020068
+[x]   Interrupt 67: 80020065
+[x]   Interrupt 68: 80020065
+[x]   Interrupt 69: 80020065
+
+[x] sceKernelReleaseSubIntrHandler sub interrupts:
+[x]   Sub interrupt -2: 80020065
+[x]   Sub interrupt -1: 80020065
+[x]   Sub interrupt 0: 00000000
+[x]   Sub interrupt 1: 00000000
+[x]   Sub interrupt 2: 00000000
+[x]   Sub interrupt 3: 00000000
+[x]   Sub interrupt 4: 00000000
+[x]   Sub interrupt 5: 00000000
+[x]   Sub interrupt 6: 00000000
+[x]   Sub interrupt 7: 00000000
+[x]   Sub interrupt 8: 00000000
+[x]   Sub interrupt 9: 00000000
+[x]   Sub interrupt 10: 00000000
+[x]   Sub interrupt 11: 00000000
+[x]   Sub interrupt 12: 00000000
+[x]   Sub interrupt 13: 00000000
+[x]   Sub interrupt 14: 00000000
+[x]   Sub interrupt 15: 00000000
+[x]   Sub interrupt 16: 80020068
+[x]   Sub interrupt 17: 80020068
+[x]   Sub interrupt 18: 80020068
+[x]   Sub interrupt 19: 80020068
+[x]   Sub interrupt 20: 80020068
+[x]   Sub interrupt 21: 80020068
+[x]   Sub interrupt 22: 80020068
+[x]   Sub interrupt 23: 80020068
+[x]   Sub interrupt 24: 80020068
+[x]   Sub interrupt 25: 80020068
+[x]   Sub interrupt 26: 80020068
+[x]   Sub interrupt 27: 80020068
+[x]   Sub interrupt 28: 80020068
+[x]   Sub interrupt 29: 80020068
+[x]   Sub interrupt 30: 80020068
+[x]   Sub interrupt 31: 80020068
+[x]   Sub interrupt 32: 80020065
+[x]   Sub interrupt 33: 80020065
+[x]   Sub interrupt 34: 80020065
+[x]   Sub interrupt 35: 80020065
+[x]   Sub interrupt 36: 80020065
+[x]   Sub interrupt 37: 80020065
+[x]   Sub interrupt 38: 80020065
+[x]   Sub interrupt 39: 80020065
+[x]   Sub interrupt 40: 80020065
+[x]   Sub interrupt 41: 80020065
+[x]   Sub interrupt 42: 80020065
+[x]   Sub interrupt 43: 80020065
+[x]   Sub interrupt 44: 80020065
+[x]   Sub interrupt 45: 80020065
+[x]   Sub interrupt 46: 80020065
+[x]   Sub interrupt 47: 80020065
+[x]   Sub interrupt 48: 80020065
+[x]   Sub interrupt 49: 80020065
+[x]   Sub interrupt 50: 80020065
+[x]   Sub interrupt 51: 80020065
+[x]   Sub interrupt 52: 80020065
+[x]   Sub interrupt 53: 80020065
+[x]   Sub interrupt 54: 80020065
+[x]   Sub interrupt 55: 80020065
+[x]   Sub interrupt 56: 80020065
+[x]   Sub interrupt 57: 80020065
+[x]   Sub interrupt 58: 80020065
+[x]   Sub interrupt 59: 80020065
+[x]   Sub interrupt 60: 80020065
+[x]   Sub interrupt 61: 80020065
+[x]   Sub interrupt 62: 80020065
+[x]   Sub interrupt 63: 80020065
+[x]   Sub interrupt 64: 80020065
+[x]   Sub interrupt 65: 80020065
+[x]   Sub interrupt 66: 80020065
+[x]   Sub interrupt 67: 80020065
+[x]   Sub interrupt 68: 80020065
+[x]   Sub interrupt 69: 80020065
+
+[x] sceKernelReleaseSubIntrHandler handlers:
+[x]   NULL handler: 80020068
+[x]   Twice NULL: 80020068
+[x]   Not NULL: 00000000
+[x]   Twice not NULL: 80020068

@@ -1,0 +1,76 @@
+[x] Init
+
+[x] Players (loop):
+[r]   Initial: OK (status=1)
+[r]   Standby: OK (status=2)
+[x]   Twice: OK (status=2)
+[x]   Copy: OK (status=2)
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=4)
+[r]   Finished: OK (status=200)
+
+[x] Players (pixel type):
+[r]   Initial: OK (status=1)
+[r]   Standby: OK (status=2)
+[x]   Twice: OK (status=2)
+[x]   Copy: OK (status=2)
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=4)
+[r]   Finished: OK (status=200)
+
+[x] Keys:
+[r]   Key ffffffff: Failed: 80616006
+[x]   Key 00000000: OK (status=1)
+[x]   Key 00000001: OK (status=1)
+[x]   Key 00000002: Failed: 80616006
+[x]   Key 00000003: Failed: 80616006
+[x]   Key 00000004: Failed: 80616006
+[x]   Key 00000005: Failed: 80616006
+[x]   Key 00000006: Failed: 80616006
+[x]   Key 00000008: Failed: 80616006
+[x]   Key 0000000c: Failed: 80616006
+[x]   Key 00000010: Failed: 80616006
+[x]   Key 00001001: Failed: 80616006
+[x]   Key 80000000: Failed: 80616006
+
+[x] Values (loop):
+[x]   Loop ffffffff: Failed: 80616008
+[x]   Loop 00000000: OK (status=1)
+[x]   Loop 00000001: OK (status=1)
+[x]   Loop 00000002: Failed: 80616008
+[x]   Loop 00000003: Failed: 80616008
+[x]   Loop 00000004: Failed: 80616008
+[x]   Loop 00000005: Failed: 80616008
+[x]   Loop 00000006: Failed: 80616008
+[x]   Loop 00000008: Failed: 80616008
+[x]   Loop 0000000c: Failed: 80616008
+[x]   Loop 00000010: Failed: 80616008
+[x]   Loop 00001001: Failed: 80616008
+[x]   Loop 80000000: Failed: 80616008
+
+[x] Values (pixel mode):
+[x]   Mode fffffffe: Failed: 80616008
+[x]   Mode ffffffff: OK (status=1)
+[x]   Mode 00000000: OK (status=1)
+[x]   Mode 00000001: OK (status=1)
+[x]   Mode 00000002: OK (status=1)
+[x]   Mode 00000003: OK (status=1)
+[x]   Mode 00000004: Failed: 80616008
+[x]   Mode 00000005: Failed: 80616008
+[x]   Mode 00000006: Failed: 80616008
+[x]   Mode 00000008: Failed: 80616008
+[x]   Mode 0000000c: Failed: 80616008
+[x]   Mode 00000010: Failed: 80616008
+[x]   Mode 00001001: Failed: 80616008
+[x]   Mode 80000000: Failed: 80616008
+
+[x] Loop behavior:
+[r]   Loop 0: OK (status=4, pts=24024)
+[r]   Loop 1: OK (status=200, pts=567567)
+
+[x] Pixel mode behavior:
+[r]   Pixel mode -1: OK (status=200), got 3
+[r]   Pixel mode 0: OK (status=200), got 0
+[r]   Pixel mode 1: OK (status=200), got 1
+[r]   Pixel mode 2: OK (status=200), got 2
+[r]   Pixel mode 3: OK (status=200), got 3

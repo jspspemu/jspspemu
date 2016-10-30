@@ -1,0 +1,24 @@
+[x] Init
+
+[x] Basic usage:
+[r]   Normal: OK (status=1)
+[r]   Same duplicate: Failed: 00000000, 80618005 (status=1)
+[r]   Different second: Failed: 00000000, 80618005 (status=1)
+
+[x] Buffer sizes:
+[x]   0: Failed: 80616005 (id=00000000)
+[x]   0x002857FF: Failed: 80616005 (id=00000000)
+[r]   0x00285800: OK (status=1)
+[r]   0x002FFFFF: OK (status=1)
+[r]   0x00300000: OK (status=1)
+[r]   0x80000000: OK (status=1)
+[r]   -1: OK (status=1)
+
+[x] Thread priorities:
+[x]   0: Failed: 80616008 (id=00000000)
+[x]   1: Failed: 80616008 (id=00000000)
+[x]   15: Failed: 80616008 (id=00000000)
+[r]   16: OK (status=1)
+[r]   109: OK (status=1)
+[r]   110: Failed: 80616008 (id=00000000)
+[x]   0x80000010: Failed: 80616008 (id=00000000)

@@ -1,0 +1,20 @@
+[x] Index shifts 8888:
+[r]   Index mask 00: 000000
+[r]   Index mask 01: 010101
+[r]   Index mask 02: 020202
+[r]   Index mask 0f: 0f0f0f
+[r]   Index mask f0: f0f0f0
+[r]   Index mask 77: 777777
+[r]   Index mask 80: 808080
+[r]   Index mask 55: 555555
+
+
+[x] Index shifts 4444:
+[r]   Index mask 00: 000000
+[r]   Index mask 01: 000000
+[r]   Index mask 02: 110011
+[r]   Index mask 0f: 770077
+[r]   Index mask f0: 887788
+[r]   Index mask 77: bb33bb
+[r]   Index mask 80: 004400
+[r]   Index mask 55: aa22aa

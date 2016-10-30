@@ -1,0 +1,59 @@
+[x] Through mode:
+[r]   TL BR: 0100ff 02ff00
+             03ff00 0400ff
+[r]   TR BL: 03ff00 0100ff
+             0400ff 02ff00
+[r]   BL TR: 02ff00 0400ff
+             0100ff 03ff00
+[r]   BR TL: 0400ff 03ff00
+             02ff00 0100ff
+
+[x] Full transform:
+[r]   TL BR: 0100ff 02ff00
+             03ff00 0400ff
+[r]   TR BL: 03ff00 0100ff
+             0400ff 02ff00
+[r]   BL TR: 02ff00 0400ff
+             0100ff 03ff00
+[r]   BR TL: 0400ff 03ff00
+             02ff00 0100ff
+
+[x] Full transform (flipped model):
+[r]   TL BR: 0100ff 02ff00
+             03ff00 0400ff
+[r]   TR BL: 03ff00 0100ff
+             0400ff 02ff00
+[r]   BL TR: 02ff00 0400ff
+             0100ff 03ff00
+[r]   BR TL: 0400ff 03ff00
+             02ff00 0100ff
+
+[x] Full transform (flipped view):
+[r]   TL BR: 0100ff 02ff00
+             03ff00 0400ff
+[r]   TR BL: 03ff00 0100ff
+             0400ff 02ff00
+[r]   BL TR: 02ff00 0400ff
+             0100ff 03ff00
+[r]   BR TL: 0400ff 03ff00
+             02ff00 0100ff
+
+[x] Full transform (flipped proj):
+[r]   TL BR: 0100ff 02ff00
+             03ff00 0400ff
+[r]   TR BL: 03ff00 0100ff
+             0400ff 02ff00
+[r]   BL TR: 02ff00 0400ff
+             0100ff 03ff00
+[r]   BR TL: 0400ff 03ff00
+             02ff00 0100ff
+
+[x] Full transform (flipped viewport):
+[r]   TL BR: 0100ff 02ff00
+             03ff00 0400ff
+[r]   TR BL: 03ff00 0100ff
+             0400ff 02ff00
+[r]   BL TR: 02ff00 0400ff
+             0100ff 03ff00
+[r]   BR TL: 0400ff 03ff00
+             02ff00 0100ff

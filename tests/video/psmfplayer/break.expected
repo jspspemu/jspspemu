@@ -1,0 +1,18 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: OK (status=1)
+[r]   Standby: OK (status=2)
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=4)
+[x]   Twice: OK (status=4)
+[r]   Copy: OK (status=4)
+[r]   Finished: OK (status=200)
+
+[x] Pts:
+[r]   Warm: OK (status=4)
+[x]    -> pts=0
+[r]   Into video a bit: OK (status=4)
+[x]    -> pts=15015
+[r]   Into video a bit: OK (status=4)
+[x]    -> pts=30030

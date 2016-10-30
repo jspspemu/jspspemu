@@ -1,0 +1,26 @@
+[x] Atrac IDs:
+[x]   Normal: OK (00000000), remainFrame=-1
+[x]   Invalid ID: Invalid (ffffffff, 80630005), remainFrame=-1337
+[x]   Unused ID: Failed (80630005), remainFrame=-1337
+
+[x] Other states:
+[x]   No data: Failed (80630010), remainFrame=-1337
+[x]   State 8: Failed (80630031), remainFrame=-1337
+[x]   State 16: Failed (80630040), remainFrame=-1337
+
+[x] Buffers:
+[r]   Full buffer: OK (00000000), remainFrame=-1
+[r]   Half buffer size = 472: OK (00000000), remainFrame=0
+[r]   Half buffer size = 473: OK (00000000), remainFrame=0
+[r]   Half buffer size = 847: OK (00000000), remainFrame=0
+[r]   Half buffer size = 848: OK (00000000), remainFrame=1
+[r]   Half buffer size = 1975: OK (00000000), remainFrame=3
+[r]   Half buffer size = 1976: OK (00000000), remainFrame=4
+[r]   Streaming buffer: OK (00000000), remainFrame=60
+[r]   Streaming buffer after seek + min: OK (00000000), remainFrame=1
+
+[x] Drained remain values:
+[r]   Full buffer: OK (00000000), remainFrame=-1
+[r]   Half buffer: OK (00000000), remainFrame=-1
+[r]   Streamed without loop: OK (00000000), remainFrame=-2
+[r]   Streamed with loop: OK (00000000), remainFrame=-3

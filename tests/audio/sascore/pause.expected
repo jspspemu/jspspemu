@@ -1,0 +1,26 @@
+[x] After init:
+[x] Pause without type: OK -> 00000001
+[x] Pause twice: OK -> 00000001
+[x] Resume without type: OK -> 00000000
+[x] Resume twice: OK -> 00000000
+[x] Pause 2: OK -> 00000001
+[x] Pause -1: OK -> 00000001
+[x] Pause 0x80000000: OK -> 00000001
+
+[x] After voice setup:
+[x] Pause: OK -> 00000001
+[x] Resume: OK -> 00000000
+
+[x] After key on:
+[x] Pause: OK -> 00000001
+[x] Resume: OK -> 00000000
+
+[x] After key off:
+[x] Pause: OK -> 00000001
+[x] Resume: OK -> 00000000
+
+[x] After key on and core:
+[x] Pause: OK -> 00000001
+[r] Core while paused: 00000000
+[x] Height change: 00000000
+[x] Resume: OK -> 00000000

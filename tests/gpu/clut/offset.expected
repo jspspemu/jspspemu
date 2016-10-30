@@ -1,0 +1,206 @@
+[x] Index offsets 8888:
+[r]   Index offset 0 (0): 000000
+[r]   Index offset 0 (1): 010101
+[r]   Index offset 0 (15): 0f0f0f
+[r]   Index offset 0 (16): 101010
+[r]   Index offset 0 (255): ffffff
+
+[r]   Index offset 1 (0): 101010
+[r]   Index offset 1 (1): 111111
+[r]   Index offset 1 (15): 1f1f1f
+[r]   Index offset 1 (16): 101010
+[r]   Index offset 1 (255): ffffff
+
+[r]   Index offset 2 (0): 202020
+[r]   Index offset 2 (1): 212121
+[r]   Index offset 2 (15): 2f2f2f
+[r]   Index offset 2 (16): 303030
+[r]   Index offset 2 (255): ffffff
+
+[r]   Index offset 3 (0): 303030
+[r]   Index offset 3 (1): 313131
+[r]   Index offset 3 (15): 3f3f3f
+[r]   Index offset 3 (16): 303030
+[r]   Index offset 3 (255): ffffff
+
+[r]   Index offset 4 (0): 404040
+[r]   Index offset 4 (1): 414141
+[r]   Index offset 4 (15): 4f4f4f
+[r]   Index offset 4 (16): 505050
+[r]   Index offset 4 (255): ffffff
+
+[r]   Index offset 5 (0): 505050
+[r]   Index offset 5 (1): 515151
+[r]   Index offset 5 (15): 5f5f5f
+[r]   Index offset 5 (16): 505050
+[r]   Index offset 5 (255): ffffff
+
+[r]   Index offset 6 (0): 606060
+[r]   Index offset 6 (1): 616161
+[r]   Index offset 6 (15): 6f6f6f
+[r]   Index offset 6 (16): 707070
+[r]   Index offset 6 (255): ffffff
+
+[r]   Index offset 7 (0): 707070
+[r]   Index offset 7 (1): 717171
+[r]   Index offset 7 (15): 7f7f7f
+[r]   Index offset 7 (16): 707070
+[r]   Index offset 7 (255): ffffff
+
+[r]   Index offset 8 (0): 808080
+[r]   Index offset 8 (1): 818181
+[r]   Index offset 8 (15): 8f8f8f
+[r]   Index offset 8 (16): 909090
+[r]   Index offset 8 (255): ffffff
+
+[r]   Index offset 9 (0): 909090
+[r]   Index offset 9 (1): 919191
+[r]   Index offset 9 (15): 9f9f9f
+[r]   Index offset 9 (16): 909090
+[r]   Index offset 9 (255): ffffff
+
+[r]   Index offset 12 (0): c0c0c0
+[r]   Index offset 12 (1): c1c1c1
+[r]   Index offset 12 (15): cfcfcf
+[r]   Index offset 12 (16): d0d0d0
+[r]   Index offset 12 (255): ffffff
+
+[r]   Index offset 15 (0): f0f0f0
+[r]   Index offset 15 (1): f1f1f1
+[r]   Index offset 15 (15): ffffff
+[r]   Index offset 15 (16): f0f0f0
+[r]   Index offset 15 (255): ffffff
+
+[r]   Index offset 16 (0): 000000
+[r]   Index offset 16 (1): 010101
+[r]   Index offset 16 (15): 0f0f0f
+[r]   Index offset 16 (16): 101010
+[r]   Index offset 16 (255): ffffff
+
+[r]   Index offset 17 (0): 101010
+[r]   Index offset 17 (1): 111111
+[r]   Index offset 17 (15): 1f1f1f
+[r]   Index offset 17 (16): 101010
+[r]   Index offset 17 (255): ffffff
+
+[r]   Index offset 21 (0): 505050
+[r]   Index offset 21 (1): 515151
+[r]   Index offset 21 (15): 5f5f5f
+[r]   Index offset 21 (16): 505050
+[r]   Index offset 21 (255): ffffff
+
+[r]   Index offset 30 (0): e0e0e0
+[r]   Index offset 30 (1): e1e1e1
+[r]   Index offset 30 (15): efefef
+[r]   Index offset 30 (16): f0f0f0
+[r]   Index offset 30 (255): ffffff
+
+[r]   Index offset 31 (0): f0f0f0
+[r]   Index offset 31 (1): f1f1f1
+[r]   Index offset 31 (15): ffffff
+[r]   Index offset 31 (16): f0f0f0
+[r]   Index offset 31 (255): ffffff
+
+
+[x] Index offsets 4444:
+[r]   Index offset 0 (0): 000000
+[r]   Index offset 0 (1): 000000
+[r]   Index offset 0 (15): 770077
+[r]   Index offset 0 (16): 880088
+[r]   Index offset 0 (255): ff77ff
+
+[r]   Index offset 1 (0): 880088
+[r]   Index offset 1 (1): 880088
+[r]   Index offset 1 (15): ff00ff
+[r]   Index offset 1 (16): 880088
+[r]   Index offset 1 (255): ff77ff
+
+[r]   Index offset 2 (0): 001100
+[r]   Index offset 2 (1): 001100
+[r]   Index offset 2 (15): 771177
+[r]   Index offset 2 (16): 881188
+[r]   Index offset 2 (255): ff77ff
+
+[r]   Index offset 3 (0): 881188
+[r]   Index offset 3 (1): 881188
+[r]   Index offset 3 (15): ff11ff
+[r]   Index offset 3 (16): 881188
+[r]   Index offset 3 (255): ff77ff
+
+[r]   Index offset 4 (0): 002200
+[r]   Index offset 4 (1): 002200
+[r]   Index offset 4 (15): 772277
+[r]   Index offset 4 (16): 882288
+[r]   Index offset 4 (255): ff77ff
+
+[r]   Index offset 5 (0): 882288
+[r]   Index offset 5 (1): 882288
+[r]   Index offset 5 (15): ff22ff
+[r]   Index offset 5 (16): 882288
+[r]   Index offset 5 (255): ff77ff
+
+[r]   Index offset 6 (0): 003300
+[r]   Index offset 6 (1): 003300
+[r]   Index offset 6 (15): 773377
+[r]   Index offset 6 (16): 883388
+[r]   Index offset 6 (255): ff77ff
+
+[r]   Index offset 7 (0): 883388
+[r]   Index offset 7 (1): 883388
+[r]   Index offset 7 (15): ff33ff
+[r]   Index offset 7 (16): 883388
+[r]   Index offset 7 (255): ff77ff
+
+[r]   Index offset 8 (0): 004400
+[r]   Index offset 8 (1): 004400
+[r]   Index offset 8 (15): 774477
+[r]   Index offset 8 (16): 884488
+[r]   Index offset 8 (255): ff77ff
+
+[r]   Index offset 9 (0): 884488
+[r]   Index offset 9 (1): 884488
+[r]   Index offset 9 (15): ff44ff
+[r]   Index offset 9 (16): 884488
+[r]   Index offset 9 (255): ff77ff
+
+[r]   Index offset 12 (0): 006600
+[r]   Index offset 12 (1): 006600
+[r]   Index offset 12 (15): 776677
+[r]   Index offset 12 (16): 886688
+[r]   Index offset 12 (255): ff77ff
+
+[r]   Index offset 15 (0): 887788
+[r]   Index offset 15 (1): 887788
+[r]   Index offset 15 (15): ff77ff
+[r]   Index offset 15 (16): 887788
+[r]   Index offset 15 (255): ff77ff
+
+[r]   Index offset 16 (0): 008800
+[r]   Index offset 16 (1): 008800
+[r]   Index offset 16 (15): 778877
+[r]   Index offset 16 (16): 888888
+[r]   Index offset 16 (255): ffffff
+
+[r]   Index offset 17 (0): 888888
+[r]   Index offset 17 (1): 888888
+[r]   Index offset 17 (15): ff88ff
+[r]   Index offset 17 (16): 888888
+[r]   Index offset 17 (255): ffffff
+
+[r]   Index offset 21 (0): 88aa88
+[r]   Index offset 21 (1): 88aa88
+[r]   Index offset 21 (15): ffaaff
+[r]   Index offset 21 (16): 88aa88
+[r]   Index offset 21 (255): ffffff
+
+[r]   Index offset 30 (0): 00ff00
+[r]   Index offset 30 (1): 00ff00
+[r]   Index offset 30 (15): 77ff77
+[r]   Index offset 30 (16): 88ff88
+[r]   Index offset 30 (255): ffffff
+
+[r]   Index offset 31 (0): 88ff88
+[r]   Index offset 31 (1): 88ff88
+[r]   Index offset 31 (15): ffffff
+[r]   Index offset 31 (16): 88ff88
+[r]   Index offset 31 (255): ffffff

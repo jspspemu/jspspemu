@@ -1,0 +1,10 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: OK: 8192
+[r]   Standby: OK: 8192
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK: 8192
+[x]   Twice: OK: 8192
+[r]   Copy: OK: 8192
+[r]   Finished: OK: 8192

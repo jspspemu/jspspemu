@@ -1,0 +1,85 @@
+[x] Modes:
+[x]   -1: Failed (80420003)
+[x]   0: OK (00000000)
+[x]   1: OK (00000001)
+[x]   2: Failed (80420003)
+[x]   3: Failed (80420003)
+[x]   -2147483648: Failed (80420003)
+
+[x] After voice setup:
+[x]   Normal: OK (00000000)
+[x]   While paused: OK (00000000)
+[x]   Still paused: ffffffff
+
+[x] With core:
+[x]   Key on: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[x]   After processing: OK (00000000)
+[x]   Still playing: fffffffe
+
+[x] Output with mode 0:
+[r] Core: 00000000
+  [020] 0000 0000
+  [021] fffe fffe
+  [022] fffd fffd
+  [120] ffff ffff
+  [121] fffe fffe
+  [122] fffd fffd
+  [220] dddd dddd
+  [221] dddd dddd
+  [222] dddd dddd
+  [320] dddd dddd
+  [321] dddd dddd
+  [322] dddd dddd
+[x]   Ended: fffffffe
+
+[x] Output with mode 1:
+[r] Core: 00000000
+  [020] ffdf ffde
+  [021] ffdd ffdc
+  [022] ffdb ffda
+  [120] ffe7 ffe6
+  [121] ffe5 ffe5
+  [122] ffe4 ffe3
+  [220] ffef ffef
+  [221] ffee ffee
+  [222] ffed ffed
+  [320] fff7 fff7
+  [321] fff7 fff7
+  [322] fff6 fff6
+[x]   Ended: fffffffe
+
+[x] Output with mode 0 and mix:
+[r] Core: 00000000
+  [020] 0000 0000
+  [021] fffe fffe
+  [022] fffd fffd
+  [120] ffff ffff
+  [121] fffe fffe
+  [122] fffd fffd
+  [220] dddd dddd
+  [221] dddd dddd
+  [222] dddd dddd
+  [320] dddd dddd
+  [321] dddd dddd
+  [322] dddd dddd
+[x]   Ended: fffffffe
+
+[x] Output with mode 1 and mix:
+[x] Core: 80000004
+  [020] dddd dddd
+  [021] dddd dddd
+  [022] dddd dddd
+  [120] dddd dddd
+  [121] dddd dddd
+  [122] dddd dddd
+  [220] dddd dddd
+  [221] dddd dddd
+  [222] dddd dddd
+  [320] dddd dddd
+  [321] dddd dddd
+  [322] dddd dddd
+[x]   Ended: fffffffe

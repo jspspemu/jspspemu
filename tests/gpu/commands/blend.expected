@@ -1,0 +1,85 @@
+[x] Initial: COLOR=44444444
+framebuf: 00000000
+dispmode: 00000000
+
+[x] Common:
+[r]   One + Zero: COLOR=aaddccbb
+[r]   Zero + One: COLOR=aa444444
+[r]   Alpha + Inverse alpha: COLOR=aad2c2b2
+
+[x] Doubling:
+[r]   Double source alpha + Zero 0x80808080: COLOR=aa808080
+[r]   Double source alpha + Zero 0x80909090: COLOR=aa909090
+[r]   Double source alpha + Zero 0x90808080: COLOR=aa909090
+[r]   Double source alpha + Zero 0xFF707070: COLOR=aae0e0e0
+[r]   Double source alpha + Zero 0xFF909090: COLOR=aaffffff
+[r]   Double source alpha + Zero 0x7FFFFFFF: COLOR=aafefefe
+[r]   Double source alpha + Zero 0xFF7F7F7F: COLOR=aafefefe
+[r]   Inverse double source alpha + Zero 0x80808080: COLOR=aa000000
+[r]   Inverse double source alpha + Zero 0x80909090: COLOR=aa000000
+[r]   Inverse double source alpha + Zero 0x90808080: COLOR=aa000000
+[r]   Inverse double source alpha + Zero 0x40808080: COLOR=aa3f3f3f
+[r]   Inverse double source alpha + Zero 0xFF1188FF: COLOR=aa000000
+[r]   Inverse double source alpha + Zero 0x7FFFFFFF: COLOR=aa010101
+[r]   Inverse double source alpha + Zero 0xFF7F7F7F: COLOR=aa000000
+[r]   Double dest alpha + Zero 0x40 + 0x80808080: COLOR=aa404040
+[r]   Double dest alpha + Zero 0x90 + 0x80808080: COLOR=aa909090
+[r]   Double dest alpha + Zero 0x40 + 0x80909090: COLOR=aa484848
+[r]   Double dest alpha + Zero 0xFF + 0x70707070: COLOR=aae0e0e0
+[r]   Double dest alpha + Zero 0xFF + 0x90909090: COLOR=aaffffff
+[r]   Double dest alpha + Zero 0x7F + 0xFFFFFFFF: COLOR=aafefefe
+[r]   Double dest alpha + Zero 0xFF + 0x7F7F7F7F: COLOR=aafefefe
+[r]   Inverse double dest alpha + Zero 0x40 + 0x80808080: COLOR=aa3f3f3f
+[r]   Inverse double dest alpha + Zero 0x90 + 0x80909090: COLOR=aa000000
+[r]   Inverse double dest alpha + Zero 0x40 + 0x80808080: COLOR=aa3f3f3f
+[r]   Inverse double dest alpha + Zero 0xFF + 0x80808080: COLOR=aa000000
+[r]   Inverse double dest alpha + Zero 0xFF + 0xFF1188FF: COLOR=aa000000
+[r]   Inverse double dest alpha + Zero 0x7F + 0xFFFFFFFF: COLOR=aa010101
+[r]   Inverse double dest alpha + Zero 0xFF + 0x7F7F7F7F: COLOR=aa000000
+
+[x] Factors:
+[r]   Dest color + Zero: COLOR=aa202020
+[r]   Inverse dest color + Zero: COLOR=aa606060
+[r]   Src alpha + Zero: COLOR=aa484848
+[r]   Inverse src alpha + Zero: COLOR=aa373737
+[r]   Dest alpha + Zero: COLOR=aa282828
+[r]   Inverse dest alpha + Zero: COLOR=aa585858
+[r]   Double src alpha + Zero: COLOR=aa909090
+[r]   Inverse double src alpha + Zero: COLOR=aa000000
+[r]   Double dest alpha + Zero: COLOR=aa505050
+[r]   Inverse double dest alpha + Zero: COLOR=aa2f2f2f
+[r]   Fix + Zero: COLOR=aa404040
+[r]   Zero + Src color: COLOR=aa202020
+[r]   Zero + Inverse dest color: COLOR=aa202020
+[r]   Zero + Src alpha: COLOR=aa242424
+[r]   Zero + Inverse src alpha: COLOR=aa1c1c1c
+[r]   Zero + Dest alpha: COLOR=aa141414
+[r]   Zero + Inverse dest alpha: COLOR=aa2c2c2c
+[r]   Zero + Double src alpha: COLOR=aa484848
+[r]   Zero + Inverse double src alpha: COLOR=aa000000
+[r]   Zero + Double dest alpha: COLOR=aa282828
+[r]   Zero + Inverse double dest alpha: COLOR=aa181818
+
+[x] Add:
+[r]   F0 + 0F: COLOR=aaffffff
+[r]   0F + F0: COLOR=aaffffff
+
+[x] Subtract:
+[r]   F0 - 0F: COLOR=aae1e1e1
+[r]   0F - F0: COLOR=aa000000
+
+[x] Reverse subtract:
+[r]   Reverse F0 - 0F: COLOR=aa000000
+[r]   Reverse 0F - F0: COLOR=aae1e1e1
+
+[x] Min:
+[r]   Min 0F, F0: COLOR=aa0f0f0f
+[r]   Min F0, 0F: COLOR=aa0f0f0f
+
+[x] Max:
+[r]   Max 0F, F0: COLOR=aaf0f0f0
+[r]   Max F0, 0F: COLOR=aaf0f0f0
+
+[x] Absolute difference:
+[r]   Abs 0F - F0: COLOR=aae1e1e1
+[r]   Abs F0 - 0F: COLOR=aae1e1e1

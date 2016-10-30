@@ -1,0 +1,40 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: Failed: 80616001
+[r]   Deleted: Failed: 80616001
+[r]   Playing: Failed: 8061600c
+[r]   Twice: Failed: 8061600c
+[r]   Copy: Failed: 8061600c
+[r]   Finished: Failed: 8061600c
+
+[x] Params:
+
+[x] Frame write
+[x]   Paused 1: Failed: 8061600c
+[x]    -> Audio data blank start=0, end=-1
+[r]   Paused 2: Failed: 8061600c
+[x]    -> Audio data blank start=0, end=-1
+[r]   Finished: Failed: 8061600c
+[x]    -> Audio data blank start=0, end=-1
+
+[x] Video sync better priority:
+[r]   Last frame is 567567
+[r]   * At last frame? (status=4)  pts=3003
+[r]   Read audio 1: Failed: 8061600c
+[x]   * Read frame 1 (status=4)  pts=6006
+[r]   Read audio  2: Failed: 8061600c
+[x]   * Read frame 2 (status=4)  pts=6006
+[r]   Read audio 3: Failed: 8061600c
+[x]   * Read frame 3 (status=4)  pts=9009
+
+[x] Video sync worse priority:
+[r]   Last frame is 567567
+[r]   * At last frame? (status=4)  pts=3003
+[r]   Read audio 1: Failed: 8061600c
+[x]   * Read frame 1 (status=4)  pts=6006
+[r]   Read audio  2: Failed: 8061600c
+[x]   * Read frame 2 (status=4)  pts=6006
+[r]   Read audio 3: Failed: 8061600c
+[x]   * Read frame 3 (status=4)  pts=9009

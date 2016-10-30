@@ -1,0 +1,41 @@
+[x] sceUmdRegisterUMDCallBack:
+[x]   Invalid: 80010016
+[x]   Zero: 80010016
+[x]   Valid: 00000000
+[x]   Twice: 00000000
+[x]   Zero: 80010016
+
+[x] sceUmdUnRegisterUMDCallBack:
+[x]   Invalid: 80010016
+[x]   Zero: 80010016
+[x]   Valid: same as param
+[x]   Twice: 80010016
+[x]   Zero: same as param
+
+[x] sceUmdRegisterUMDCallBack 0x3000000:
+[x]   Invalid: 80010016
+[x]   Zero: 80010016
+[x]   Valid: 00000000
+[x]   Twice: 00000000
+[x]   Zero: 80010016
+
+[x] sceUmdUnRegisterUMDCallBack 0x3000000:
+[x]   Invalid: 80010016
+[x]   Zero: 80010016
+[x]   Valid: same as param
+[x]   Twice: 80010016
+[x]   Zero: same as param
+
+[x] sceUmdRegisterUMDCallBack 0x3000001:
+[x]   Invalid: 80010016
+[x]   Zero: 80010016
+[x]   Valid: 00000000
+[x]   Twice: 00000000
+[x]   Zero: 80010016
+
+[x] sceUmdUnRegisterUMDCallBack 0x3000001:
+[x]   Invalid: 80010016
+[x]   Zero: 80010016
+[x]   Valid: 00000000
+[x]   Twice: 80010016
+[x]   Zero: same as param

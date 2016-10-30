@@ -1,0 +1,28 @@
+[x] Block transfers - 16 bit:
+[r] 0 stride: 2048
+[r] 0x100 stride: 3584
+[r] 0x3F8 stride: 8144
+[r] 0x400 stride: 8192
+[r] 0x407 stride: 8192
+[r] 0x408 stride: 2048
+[r] 0x7FF stride: 2048
+[r] 0xFC00 stride: 8192
+
+[x] Block transfers - 32 bit:
+[r] 0 stride: 4096
+[r] 0x100 stride: 7168
+[r] 0x3F8 stride: 16288
+[r] 0x400 stride: 16384
+[r] 0x407 stride: 16384
+[r] 0x408 stride: 4096
+[r] 0x7FF stride: 4096
+[r] 0xFC00 stride: 16384
+
+[x] Sizes:
+[r] 1024x512: 525312
+[r] 1024x256: 263168
+[r] 1024x128: 132096
+[r] 1024x64: 66560
+[r] 1024x4: 5120
+[r] 1024x1: 2048
+[x] 1x1: 2

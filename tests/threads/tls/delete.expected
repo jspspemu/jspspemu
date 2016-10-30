@@ -1,0 +1,36 @@
+[x] Normal: OK
+[x] NULL: Failed (800201d0)
+[x] Invalid: Failed (800201d0)
+[x] Deleted: Failed (800201d0)
+
+[x] Waits (1 slot):
+[r]   ** started waiting thread 1
+[r]   ** started waiting thread 2
+[x]   With waiting threads (1 slot): 00000000
+[r]   ** waiting thread 1 got result: 00000000, received = NULL
+[r]   ** waiting thread 2 got result: 00000000, received = NULL
+[r]   ** stopped waiting thread 2
+
+[x] Waits (2 slots):
+[r]   ** waiting thread 1 got result: 09d35704, received = ptr
+[r]   ** started waiting thread 1
+[r]   ** waiting thread 1 delayed: 00000000
+[r]   ** waiting thread 1 freed: 8002019d
+[r]   ** waiting thread 2 got result: 09d35704, received = ptr
+[r]   ** started waiting thread 2
+[x]   With waiting threads (2 slots): 800201d2
+[r]   ** waiting thread 2 delayed: 00000000
+[r]   ** waiting thread 2 freed: 8002019d
+[r]   ** stopped waiting thread 2
+
+[x] Waits (3 slots):
+[r]   ** waiting thread 1 got result: 09d35804, received = ptr
+[r]   ** started waiting thread 1
+[r]   ** waiting thread 1 delayed: 00000000
+[r]   ** waiting thread 1 freed: 8002019d
+[r]   ** waiting thread 2 got result: 09d35808, received = ptr
+[r]   ** started waiting thread 2
+[x]   With waiting threads (3 slots): 800201d2
+[r]   ** waiting thread 2 delayed: 00000000
+[r]   ** waiting thread 2 freed: 8002019d
+[r]   ** stopped waiting thread 2

@@ -1,0 +1,20 @@
+[x] Names:
+[x]   NULL: Failed (80020001)
+[x]   Blank: VTimer: (size=72,name=,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   Long: VTimer: (size=72,name=1234567890123456789012345678901,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   Two with same name: OK
+
+[x] Option sizes:
+[x]   -1: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   0: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   1: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   4: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   7: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   8: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   12: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   4096: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+[x]   2147483647: VTimer: (size=72,name=test,active=0,handler=0,common=00000000,base=0,current=0,schedule=0)
+
+[x] Create 1024
+[x]   OK
+

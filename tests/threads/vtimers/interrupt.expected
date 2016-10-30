@@ -1,0 +1,31 @@
+[x] Inside interrupt:
+[x] sceKernelRegisterSubIntrHandler 1: 00000000
+[x] sceKernelEnableSubIntr: 00000000
+[r]   ** Inside interrupt
+[x] sceKernelCreateVTimer: 80020064
+[x] sceKernelSetVTimerTimeWide: ffffffffffffffff
+[x] sceKernelGetVTimerBaseWide: 0000000000000000
+[x] sceKernelGetVTimerTimeWide: 0000000000000000
+[x] sceKernelStartVTimer: 00000000
+[x] sceKernelStopVTimer: 00000001
+[x] sceKernelSetVTimerHandler: 00000000
+[x] sceKernelCancelVTimerHandler: 00000000
+[x] sceKernelReferVTimerStatus: 00000000
+[x] sceKernelDeleteVTimer 0: 80020064
+[x] sceKernelDeleteVTimer: 80020064
+[x] sceKernelDelayThread: 00000000
+[x] sceKernelDisableSubIntr: 00000000
+[x] sceKernelReleaseSubIntrHandler: 00000000
+
+[x] Interrupts disabled:
+[x] sceKernelCreateVTimer: 00001337
+[x] sceKernelSetVTimerTimeWide: 0000000000000000
+[x] sceKernelGetVTimerBaseWide: 0000000000000000
+[x] sceKernelGetVTimerTimeWide: 0000000000000000
+[x] sceKernelStartVTimer: 00000000
+[x] sceKernelStopVTimer: 00000001
+[x] sceKernelSetVTimerHandler: 00000000
+[x] sceKernelCancelVTimerHandler: 00000000
+[x] sceKernelReferVTimerStatus: 00000000
+[x] sceKernelDeleteVTimer 0: 800201be
+[x] sceKernelDeleteVTimer: 00000000

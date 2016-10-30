@@ -1,0 +1,26 @@
+[x] Normal: Tlspl: OK (size=60,name=refer,attr=00000000,index=0,blockSize=00000100,totalBlocks=00000010,freeBlocks=00000010,wait=0)
+
+[x] Sizes:
+[x]   00000000 => 00000000 (result=00000000)
+[x]   00000001 => 0000003c (result=00000000)
+[x]   00000002 => 0000003c (result=00000000)
+[x]   00000004 => 0000003c (result=00000000)
+[x]   00000008 => 0000003c (result=00000000)
+[x]   0000002c => 0000003c (result=00000000)
+[x]   00000030 => 0000003c (result=00000000)
+[x]   00000034 => 0000003c (result=00000000)
+[x]   00000038 => 0000003c (result=00000000)
+[x]   00000040 => 0000003c (result=00000000)
+[x]   00000080 => 0000003c (result=00000000)
+[x]   00000100 => 0000003c (result=00000000)
+[x]   00000400 => 0000003c (result=00000000)
+[x]   0000ff00 => 0000003c (result=00000000)
+[x]   00ff0000 => 0000003c (result=00000000)
+[x]   80000001 => 0000003c (result=00000000)
+[x]   cccccccc => 0000003c (result=00000000)
+[x]   ffffffff => 0000003c (result=00000000)
+
+[x] Objects:
+[x] NULL: Failed (800201d0)
+[x] Invalid: Failed (800201d0)
+[x] Deleted: Failed (800201d0)

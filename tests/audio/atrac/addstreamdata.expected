@@ -1,0 +1,12 @@
+[x] Atrac IDs:
+[x]   Invalid: 80630005
+[x]   Empty: 80630005
+[x]   Fully buffered: 80630009
+[x]   Half buffered: 00000000
+
+[x] Bytes:
+[x]   Zero: 00000000
+[x]   One: 00000000
+[x]   Size: 80630018
+[x]   Remaining: 00000000
+[x]   Zero after remaining: 80630009

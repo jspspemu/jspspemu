@@ -1,0 +1,24 @@
+[x] Atrac IDs:
+[x]   Normal: Failed (80630022) pos=00000000, size=00000000
+[x]   Invalid ID: Invalid (ffffffff, 80630005) pos=fffffac7, size=fffffac7
+[x]   Unused ID: Failed (80630005) pos=fffffac7, size=fffffac7
+
+[x] Other states:
+[x]   No data: Failed (80630010) pos=fffffac7, size=fffffac7
+[x]   State 8: Failed (80630031) pos=fffffac7, size=fffffac7
+[x]   State 16: Failed (80630040) pos=fffffac7, size=fffffac7
+
+[x] Stream types:
+[r]   Halfway: Failed (80630022) pos=00000000, size=00000000
+[r]   No loop: Failed (80630022) pos=00000000, size=00000000
+[r]   End loop: Failed (80630022) pos=00000000, size=00000000
+[r]   Middle loop: OK (00000000) pos=00009094, size=000024b8
+[r]   Late loop: Failed (80630022) pos=00000000, size=00000000
+
+[x] Loop end cutoff:
+[r]   200335: OK (00000000) pos=00009094, size=000024b8
+[r]   200336: OK (00000000) pos=0000920c, size=00002340
+
+[x] With second buffer:
+[r]   Set buffer: 00000000
+[x]   With second buffer: OK (00000000) pos=00009094, size=000024b8

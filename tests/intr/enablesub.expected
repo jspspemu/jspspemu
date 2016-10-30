@@ -1,0 +1,21 @@
+[x] sceKernelEnableSubIntr:
+[x]   Invalid intr: 80020065
+[x]   Invalid subintr: 80020065
+[x]   Registered: 00000000
+[x]   Twice: 00000000
+[x]   Unregistered: 00000000
+
+[x] Interrupts run when enabled:
+[x]   With handler first:
+[r] * handler(00000001, deadbeef)
+[x]   With handler after:
+[r] * handler(00000002, deadbeef)
+[x]   Without handler:
+[r]   Released while enabled:
+
+[x] sceKernelDisableSubIntr:
+[x]   Invalid intr: 80020065
+[x]   Invalid subintr: 80020065
+[x]   Registered: 00000000
+[x]   Twice: 00000000
+[x]   Unregistered: 00000000

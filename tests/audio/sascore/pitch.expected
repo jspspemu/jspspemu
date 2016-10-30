@@ -1,0 +1,37 @@
+[x] Voices:
+[x]   Normal: OK (00000000)
+[x]   Voice -1: Failed (80420010)
+[x]   Voice 32: Failed (80420010)
+
+[x] Pitches:
+[x]   Pitch ffffffff: Failed (80420012)
+[x]   Pitch 0: OK (00000000)
+[x]   Pitch 1: OK (00000000)
+[x]   Pitch 2: OK (00000000)
+[x]   Pitch 3: OK (00000000)
+[x]   Pitch 4: OK (00000000)
+[x]   Pitch 5: OK (00000000)
+[x]   Pitch 6: OK (00000000)
+[x]   Pitch 7: OK (00000000)
+[x]   Pitch 8: OK (00000000)
+[x]   Pitch 100: OK (00000000)
+[x]   Pitch 800: OK (00000000)
+[x]   Pitch 3fff: OK (00000000)
+[x]   Pitch 4000: OK (00000000)
+[x]   Pitch 4001: Failed (80420012)
+[x]   Pitch 8000: Failed (80420012)
+[x]   Pitch 80000001: Failed (80420012)
+
+[x] After voice setup:
+[x]   Normal: OK (00000000)
+[x]   While paused: OK (00000000)
+[x]   Still paused: ffffffff
+
+[x] With core:
+[x]   Key on: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[r]   Core: 00000000
+[x]   After processing: OK (00000000)
+[x]   Still playing: fffffffe

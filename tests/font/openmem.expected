@@ -1,0 +1,26 @@
+[x] Init
+
+[x] sceFontOpenUserMemory libs:
+[x]   Normal: OK (allocated 12)
+[x]   Invalid: Failed (00000000, 80460002)
+
+[x] sceFontOpenUserMemory pointers:
+[x]   NULL with no size: Failed (00000000, 80460003)
+[x]   NULL with size: Failed (00000000, 80460003)
+
+[x] sceFontOpenUserMemory sizes:
+[x]   -1: OK (allocated 12)
+[x]   0: Failed (00000000, 80460003)
+[x]   67661: OK (allocated 12)
+[x]   135320: OK (allocated 12)
+
+[x] sceFontOpenUserMemory too many:
+[x]   5th font: 00000000, 80460009
+
+[x] sceFontOpenUserMemory callbacks:
+[x]   With callbacks set: OK (allocated 12)
+
+[x] sceFontOpen reference counting:
+[x] While open: OK (allocated 0)
+[x]   GetCharInfo on open: 00000000
+[x]   GetCharInfo on closed: 00000000

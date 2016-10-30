@@ -1,0 +1,175 @@
+[x] Normal - text v1
+[x]   InitStart: 00000000
+[x]   GetStatus after 1: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 34: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 28: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - text v2
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - text v3
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v1
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v2
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v3
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - text v1 - bad options
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - text v2 - bad options
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   GetStatus after 9: 00000003
+[x]   Result -> 80110501
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - text v3 - bad options
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   GetStatus after 9: 00000003
+[x]   Result -> 80110501
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v1 - bad options
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v2 - bad options
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v3 - bad options
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   GetStatus after 9: 00000003
+[x]   Result -> 80110501
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - errorcode v3 - custom okay
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - text v3 - custom cancel
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   Result -> 00000000
+[r]   Abort: 00000000
+[r]   GetStatus after 27: 00000003
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000
+
+[x] Normal - invalid errorcode
+[x]   InitStart: 00000000
+[x]   GetStatus after 2: 00000001
+[x]   Result -> 00001337
+[r]   GetStatus after 35: 00000002
+[r]   GetStatus after 9: 00000003
+[x]   Result -> 80110502
+[x]   ShutdownStart: 00000000
+[x]   GetStatus after 1: 00000004
+[r]   GetStatus after 1: 00000000

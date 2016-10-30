@@ -1,0 +1,14 @@
+[x] Init
+
+[x] Libraries:
+[x]   Normal: OK Font Style: h=10.125000 (128.000000), v=10.125000 (128.000000), w=0.000000, family=1, style=103 / 0, lang=1, reg=0, country=1, name=FTT-NewRodin Pro DB, file=jpn0.pgf, attr=00000000, exp=0
+[x]   NULL: Failed (80460002)
+[x]   Done: Failed (80460003)
+
+[x] Indexes:
+[x]   -1: Failed (80460003)
+[x]   30: Failed (80460003)
+
+[x] Info:
+[x]   Missing: Failed (80460003)
+[x]   Data size: 00000000 dddddddd dddddddd dddddddd

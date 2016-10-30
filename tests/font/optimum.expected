@@ -1,0 +1,83 @@
+[x] Init
+
+[x] sceFontFindOptimumFont libs:
+[x]   Normal: OK - 0 (allocated 0)
+[x]   Invalid: Error (00000000, 80460002)
+[x]   Done: OK - 0 (allocated 0)
+
+[x] sceFontFindOptimumFont errors:
+[x]   Missing style: Error (00000000, 80460002)
+
+[x] H match:
+[x]   H=-1.000000: OK - 0 (allocated 0)
+[x]   H=0.010000: OK - 9 (allocated 0)
+[x]   H=1.000000: OK - 9 (allocated 0)
+[x]   H=3.000000: OK - 9 (allocated 0)
+[x]   H=5.000000: OK - 9 (allocated 0)
+[x]   H=6.500000: OK - 9 (allocated 0)
+[x]   H=7.000000: OK - 9 (allocated 0)
+[x]   H=8.000000: OK - 9 (allocated 0)
+[x]   H=8.500000: OK - 9 (allocated 0)
+[x]   H=8.562400: OK - 9 (allocated 0)
+[x]   H=8.562500: OK - 0 (allocated 0)
+[x]   H=9.000000: OK - 0 (allocated 0)
+[x]   H=10.000000: OK - 0 (allocated 0)
+[x]   H=10.125000: OK - 0 (allocated 0)
+[x]   H=11.000000: OK - 0 (allocated 0)
+[x]   H=12.000000: OK - 0 (allocated 0)
+[x]   H=13.000000: OK - 0 (allocated 0)
+[x]   H=inf: OK - 0 (allocated 0)
+
+[x] V match:
+[x]   V=-1.000000: OK - 0 (allocated 0)
+[x]   V=0.010000: OK - 9 (allocated 0)
+[x]   V=1.000000: OK - 9 (allocated 0)
+[x]   V=3.000000: OK - 9 (allocated 0)
+[x]   V=5.000000: OK - 9 (allocated 0)
+[x]   V=6.500000: OK - 9 (allocated 0)
+[x]   V=7.000000: OK - 9 (allocated 0)
+[x]   V=8.000000: OK - 9 (allocated 0)
+[x]   V=8.500000: OK - 9 (allocated 0)
+[x]   V=8.562400: OK - 9 (allocated 0)
+[x]   V=8.562500: OK - 9 (allocated 0)
+[x]   V=9.000000: OK - 9 (allocated 0)
+[x]   V=10.000000: OK - 9 (allocated 0)
+[x]   V=10.125000: OK - 9 (allocated 0)
+[x]   V=11.000000: OK - 9 (allocated 0)
+[x]   V=12.000000: OK - 9 (allocated 0)
+[x]   V=13.000000: OK - 9 (allocated 0)
+[x]   V=inf: OK - 9 (allocated 0)
+[x]   H=8.562400 (double res): OK - 0 (allocated 0)
+[x]   H=4.281200 (double res): OK - 9 (allocated 0)
+[x]   H=8.562400 (128.0f res): OK - 9 (allocated 0)
+[x]   V=8.562400 (double Hres): OK - 9 (allocated 0)
+[x]   V=4.281200 (double Hres): OK - 9 (allocated 0)
+[x]   H/V=8.562400 (double Hres): OK - 9 (allocated 0)
+[x]   H/V=4.281200 (double Hres): OK - 9 (allocated 0)
+[x]   V=8.562400 (double Vres): OK - 9 (allocated 0)
+[x]   V=4.281200 (double Vres): OK - 9 (allocated 0)
+[x]   H/V=8.562400 (double Vres): OK - 9 (allocated 0)
+[x]   H/V=4.281200 (double Vres): OK - 9 (allocated 0)
+
+[x] H override of V:
+[x]   H/V=7.000000: OK - 9 (allocated 0)
+[x]   V=7.000000: OK - 9 (allocated 0)
+[x]   H/V=11.000000: OK - 0 (allocated 0)
+[x]   V=11.000000: OK - 9 (allocated 0)
+
+[x] General match:
+[x]   Family = 1: OK - 17 (allocated 0)
+[x]   Family = 2: OK - 16 (allocated 0)
+[x]   Style = 1: OK - 17 (allocated 0)
+[x]   Style = 5: OK - 14 (allocated 0)
+[x]   Style = 6: OK - 16 (allocated 0)
+[x]   Style = 103: OK - 0 (allocated 0)
+[x]   Language = 1: OK - 0 (allocated 0)
+[x]   Country = 1: OK - 16 (allocated 0)
+
+[x] Filename match:
+[x]   Exact: OK - 1 (allocated 0)
+[x]   Partial: OK - 0 (allocated 0)
+
+[x] Common combinations:
+[x]   10.0f with family/style/lang: OK - 6 (allocated 0)

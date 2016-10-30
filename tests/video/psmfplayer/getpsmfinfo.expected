@@ -1,0 +1,13 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: OK (status=2)  len=567567,v=1,a=0,p=0,ver=1
+[x]   Twice: OK (status=2)  len=567567,v=1,a=0,p=0,ver=1
+[x]   Copy: OK (status=2)  len=567567,v=1,a=0,p=0,ver=1
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=4)  len=567567,v=1,a=0,p=0,ver=1
+[r]   Finished: OK (status=200)  len=567567,v=1,a=0,p=0,ver=1
+
+[x] Data:
+[r]   With multiple streams: OK (status=2)  len=567567,v=2,a=2,p=0,ver=1
